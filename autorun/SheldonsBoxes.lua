@@ -48,7 +48,7 @@ local config = {
     hud_x_padding = 0.286,
     hud_y_pos = (reframework:get_commit_count() <= 1695) and 0.084 or 0.132,
     font_base_size = (reframework:get_commit_count() <= 1695) and 99 or 24,
-    font_filename = "frutigerltarabic-57cn.ttf",
+    font_filename = "msyh.ttc",
     outline_thickness = 1.13,
     -- Charge Bars
     show_charge_bars = true,
@@ -1174,9 +1174,9 @@ local function draw_color_picker(label, config_key)
         local cur_fill = config.box_fill_alphas[config_key] or config.fill_alpha or 77
         local cur_thick = config.box_thicknesses[config_key] or 1.0
         
-        local changed1, new_col = imgui.color_edit_argb("Bordure (Color)##cp_" .. config_key, cur_col)
-        local changed2, new_fill = imgui.drag_int("Fond (Alpha)##fa_" .. config_key, cur_fill, 1, 0, 255)
-        local changed3, new_thick = imgui.drag_float("Épaisseur (Outline)##th_" .. config_key, cur_thick, 0.1, 1.0, 20.0, "%.1f")
+        local changed1, new_col = imgui.color_edit_argb("边框 (颜色)##cp_" .. config_key, cur_col)
+        local changed2, new_fill = imgui.drag_int("填充 (透明度)##fa_" .. config_key, cur_fill, 1, 0, 255)
+        local changed3, new_thick = imgui.drag_float("厚度 (描边)##th_" .. config_key, cur_thick, 0.1, 1.0, 20.0, "%.1f")
         
         if changed1 or changed2 or changed3 then
             if changed1 then config.box_colors[config_key] = new_col end
@@ -1211,12 +1211,12 @@ local function save_display_config()
 end
 
 re.on_draw_ui(function()
-    if imgui.tree_node("SHELDON'S BOXES") then
+    if imgui.tree_node("Sheldon's 碰撞框") then
 
         imgui.push_style_color(21, 0xFF005500)
         imgui.push_style_color(22, 0xFF007700)
         imgui.push_style_color(23, 0xFF009900)
-        if imgui.button("SAVE DISPLAY CONFIG") then
+        if imgui.button("保存显示配置") then
             save_display_config()
         end
         imgui.pop_style_color(3)
@@ -1225,35 +1225,35 @@ re.on_draw_ui(function()
         -- ==========================================
         -- 1. GLOBAL : HUD & FONT
         -- ==========================================
-        if styled_header("--- GLOBAL : HUD & FONT ---", UI_THEME.hdr_rules) then
+        if styled_header("--- 全局：HUD & 字体 ---", UI_THEME.hdr_rules) then
             local c = false
-            local cf, nf = imgui.input_text("Font File (.ttf)", config.font_filename); if cf then config.font_filename = nf; c = true end
-            local cs, ns = imgui.drag_int("Font Size", config.font_base_size, 1, 10, 120); if cs then config.font_base_size = ns; c = true end
-            local ct, nt = imgui.drag_float("Outline Thickness", config.outline_thickness, 0.1, 1.0, 10.0, "%.1f"); if ct then config.outline_thickness = nt; c = true end
+            local cf, nf = imgui.input_text("字体文件 (.ttf)", config.font_filename); if cf then config.font_filename = nf; c = true end
+            local cs, ns = imgui.drag_int("字体大小", config.font_base_size, 1, 10, 120); if cs then config.font_base_size = ns; c = true end
+            local ct, nt = imgui.drag_float("描边粗细", config.outline_thickness, 0.1, 1.0, 10.0, "%.1f"); if ct then config.outline_thickness = nt; c = true end
             imgui.separator()
-            local cd, nd = imgui.checkbox("Divide Distance/Pos by 100", config.divide_distance_display); if cd then config.divide_distance_display = nd; c = true end
+            local cd, nd = imgui.checkbox("距离/位置 除以100", config.divide_distance_display); if cd then config.divide_distance_display = nd; c = true end
             imgui.separator()
             if c then save_config() end
 		end
         -- ==========================================
         -- 1b. HUD TEXT POSITION (per HUD type)
         -- ==========================================
-        if styled_header("--- HUD TEXT POSITION ---", UI_THEME.hdr_rules) then
+        if styled_header("--- HUD 文字位置 ---", UI_THEME.hdr_rules) then
             local suffix = hud_suffix()
             local hud_name = HUD_NAMES[suffix] or suffix
-            imgui.text_colored("Active HUD: " .. hud_name .. " [" .. suffix .. "]", 0xFF00FFFF)
+            imgui.text_colored("当前 HUD: " .. hud_name .. " [" .. suffix .. "]", 0xFF00FFFF)
             local lay = get_layout()
             local c = false
-            local cx, nx = imgui.drag_float("Text Padding X (P1)##hud", lay.hud_x_padding, 0.001, 0.0, 0.5, "%.3f"); if cx then lay.hud_x_padding = nx; c = true end
-            local cy, ny = imgui.drag_float("Text Position Y##hud", lay.hud_y_pos, 0.001, 0.0, 1.0, "%.3f"); if cy then lay.hud_y_pos = ny; c = true end
+            local cx, nx = imgui.drag_float("文字水平间距 (P1)##hud", lay.hud_x_padding, 0.001, 0.0, 0.5, "%.3f"); if cx then lay.hud_x_padding = nx; c = true end
+            local cy, ny = imgui.drag_float("文字位置 Y##hud", lay.hud_y_pos, 0.001, 0.0, 1.0, "%.3f"); if cy then lay.hud_y_pos = ny; c = true end
             if c then save_config() end
 		end
-        if styled_header("--- DISTANCE ARROW ---", UI_THEME.hdr_info) then
-            local changed_arrow; changed_arrow, config.show_distance_arrow = imgui.checkbox("Show Distance Arrow", config.show_distance_arrow); if changed_arrow then c = true end
+        if styled_header("--- 距离箭头 ---", UI_THEME.hdr_info) then
+            local changed_arrow; changed_arrow, config.show_distance_arrow = imgui.checkbox("显示距离箭头", config.show_distance_arrow); if changed_arrow then c = true end
             if config.show_distance_arrow then
-                local cay, nay = imgui.drag_float("Arrow Y Offset", config.arrow_y_offset, 1.0, -800.0, 800.0, "%.1f")
+                local cay, nay = imgui.drag_float("箭头 Y 偏移", config.arrow_y_offset, 1.0, -800.0, 800.0, "%.1f")
                 if cay then config.arrow_y_offset = nay; c = true end
-                local cat, nat = imgui.drag_float("Arrow Thickness", config.arrow_thickness, 0.5, 1.0, 200.0, "%.1f")
+                local cat, nat = imgui.drag_float("箭头粗细", config.arrow_thickness, 0.5, 1.0, 200.0, "%.1f")
                 if cat then config.arrow_thickness = nat; c = true end
             end
 			            if c then save_config() end
@@ -1262,47 +1262,47 @@ re.on_draw_ui(function()
         -- ==========================================
         -- 2. CHARGE BARS
         -- ==========================================
-        if styled_header("--- CHARGE BARS ---", UI_THEME.hdr_info) then
+        if styled_header("--- 蓄力条 ---", UI_THEME.hdr_info) then
             local suffix = hud_suffix()
             local hud_name = HUD_NAMES[suffix] or suffix
-            imgui.text_colored("Active HUD: " .. hud_name .. " [" .. suffix .. "]", 0xFF00FFFF)
+            imgui.text_colored("当前 HUD: " .. hud_name .. " [" .. suffix .. "]", 0xFF00FFFF)
             local lay = get_layout()
             local c = false
-            local changed_cb; changed_cb, config.show_charge_bars = imgui.checkbox("Show Charge Bars", config.show_charge_bars); if changed_cb then c = true end
-            local bx, nx = imgui.drag_float("Bars X Pos##cb", lay.charge_x_pos, 0.001, 0.0, 1.0, "%.3f"); if bx then lay.charge_x_pos = nx; c = true end
-            local by, ny = imgui.drag_float("Bars Y Pos##cb", lay.charge_y_pos, 0.001, 0.0, 1.0, "%.3f"); if by then lay.charge_y_pos = ny; c = true end
+            local changed_cb; changed_cb, config.show_charge_bars = imgui.checkbox("显示蓄力条", config.show_charge_bars); if changed_cb then c = true end
+            local bx, nx = imgui.drag_float("横条 X 位置##cb", lay.charge_x_pos, 0.001, 0.0, 1.0, "%.3f"); if bx then lay.charge_x_pos = nx; c = true end
+            local by, ny = imgui.drag_float("横条 Y 位置##cb", lay.charge_y_pos, 0.001, 0.0, 1.0, "%.3f"); if by then lay.charge_y_pos = ny; c = true end
             imgui.separator()
-            local bw, nw = imgui.drag_float("Bars Width##cb", lay.charge_width, 0.001, 0.01, 0.5, "%.3f"); if bw then lay.charge_width = nw; c = true end
-            local bh, nh = imgui.drag_float("Bars Height##cb", lay.charge_height, 0.001, 0.005, 0.2, "%.3f"); if bh then lay.charge_height = nh; c = true end
+            local bw, nw = imgui.drag_float("横条宽度##cb", lay.charge_width, 0.001, 0.01, 0.5, "%.3f"); if bw then lay.charge_width = nw; c = true end
+            local bh, nh = imgui.drag_float("横条高度##cb", lay.charge_height, 0.001, 0.005, 0.2, "%.3f"); if bh then lay.charge_height = nh; c = true end
             if c then save_config() end
         end
 
         -- ==========================================
         -- 3. BOX COLORS
         -- ==========================================
-        if styled_header("--- BOX COLORS ---", UI_THEME.hdr_info) then
-            imgui.text_colored("Expand to configure Border + Background", COL_GREY)
+        if styled_header("--- 碰撞框颜色 ---", UI_THEME.hdr_info) then
+            imgui.text_colored("展开配置边框 + 背景", COL_GREY)
             imgui.separator()
 
-            imgui.text_colored(">> Attack Boxes", COL_YELLOW)
-            draw_color_picker("Hitbox",           "hitbox")
-            draw_color_picker("Throw Box",        "throwbox")
-            draw_color_picker("Projectile Clash", "clash")
-            draw_color_picker("Proximity",        "proximity")
+            imgui.text_colored(">> 攻击框", COL_YELLOW)
+            draw_color_picker("攻击框",           "hitbox")
+            draw_color_picker("投技框",        "throwbox")
+            draw_color_picker("飞行道具相杀", "clash")
+            draw_color_picker("接近框",        "proximity")
 
             imgui.separator()
-            imgui.text_colored(">> Defense Boxes", COL_YELLOW)
-            draw_color_picker("Hurtbox",           "hurtbox")
-            draw_color_picker("Hurtbox (Invuln)",  "hurtbox_invuln")
-            draw_color_picker("Throw Hurtbox",     "throwhurtbox")
+            imgui.text_colored(">> 防御框", COL_YELLOW)
+            draw_color_picker("受击框",           "hurtbox")
+            draw_color_picker("受击框 (无敌)",  "hurtbox_invuln")
+            draw_color_picker("投技受击框",     "throwhurtbox")
 
             imgui.separator()
-            imgui.text_colored(">> Other Boxes", COL_YELLOW)
-            draw_color_picker("Pushbox",           "pushbox")
-            draw_color_picker("Unique Box",        "uniquebox")
+            imgui.text_colored(">> 其他框", COL_YELLOW)
+            draw_color_picker("推挤框",           "pushbox")
+            draw_color_picker("特殊框",        "uniquebox")
 
             imgui.separator()
-            if imgui.button("Reset to Defaults##boxcol") then
+            if imgui.button("重置为默认##boxcol") then
                 config.box_colors = {
                     hitbox = 0xFFC04000, throwbox = 0xFFFF80D0, clash = 0xFFE69138,
                     proximity = 0xFF5B5B5B, pushbox = 0xFFFFFF00, hurtbox = 0xFF00FF00,
@@ -1322,29 +1322,29 @@ re.on_draw_ui(function()
         -- ==========================================
         -- 4. VITAL RULER
         -- ==========================================
-        if styled_header("--- VITAL RULER ---", UI_THEME.hdr_info) then
+        if styled_header("--- 血量标尺 ---", UI_THEME.hdr_info) then
             local suffix = hud_suffix()
             local hud_name = HUD_NAMES[suffix] or suffix
-            imgui.text_colored("Active HUD: " .. hud_name .. " [" .. suffix .. "]", 0xFF00FFFF)
+            imgui.text_colored("当前 HUD: " .. hud_name .. " [" .. suffix .. "]", 0xFF00FFFF)
             local c = false
             local vr = vr_get_active()
             local ch
-            ch, vr.enabled = imgui.checkbox("Enabled##vr", vr.enabled); if ch then c = true end
-            ch, vr.pos_x = imgui.drag_float("X position##vr", vr.pos_x, 0.001, 0.0, 1.0, "%.3f"); if ch then c = true end
-            ch, vr.pos_y = imgui.drag_float("Y position##vr", vr.pos_y, 0.001, 0.0, 1.0, "%.3f"); if ch then c = true end
-            ch, vr.width = imgui.drag_float("Width##vr", vr.width, 0.001, 0.0, 1.0, "%.3f"); if ch then c = true end
-            ch, vr.tick_len = imgui.drag_float("Tick length##vr", vr.tick_len, 0.001, 0.0, 0.2, "%.3f"); if ch then c = true end
-            ch, vr.tick_angle = imgui.drag_float("Tick angle##vr", vr.tick_angle, 0.5, -90.0, 90.0, "%.1f"); if ch then c = true end
-            ch, vr.line_thick = imgui.drag_float("Line thickness##vr", vr.line_thick, 0.5, 1.0, 10.0, "%.1f"); if ch then c = true end
-            ch, vr.tick_thick = imgui.drag_float("Tick thickness##vr", vr.tick_thick, 0.5, 1.0, 10.0, "%.1f"); if ch then c = true end
-            ch, vr.show_half = imgui.checkbox("Show 500 ticks##vr", vr.show_half); if ch then c = true end
-            ch, vr.show_tenth = imgui.checkbox("Show 100 ticks##vr", vr.show_tenth); if ch then c = true end
-            ch, vr.show_labels = imgui.checkbox("Show HP labels##vr", vr.show_labels); if ch then c = true end
-            ch, vr.label_compact = imgui.checkbox("Compact labels (K)##vr", vr.label_compact); if ch then c = true end
-            ch, vr.label_off_x = imgui.drag_float("Label offset X##vr", vr.label_off_x, 0.001, -0.1, 0.1, "%.3f"); if ch then c = true end
-            ch, vr.label_off_y = imgui.drag_float("Label offset Y##vr", vr.label_off_y, 0.001, -0.1, 0.1, "%.3f"); if ch then c = true end
-            ch, vr.font_size = imgui.drag_float("Font size##vr", vr.font_size, 0.001, 0.005, 0.05, "%.3f"); if ch then c = true end
-            local col_ch, new_col = imgui.color_edit_argb("Ruler Color##vr", vr.col_line)
+            ch, vr.enabled = imgui.checkbox("启用##vr", vr.enabled); if ch then c = true end
+            ch, vr.pos_x = imgui.drag_float("X 位置##vr", vr.pos_x, 0.001, 0.0, 1.0, "%.3f"); if ch then c = true end
+            ch, vr.pos_y = imgui.drag_float("Y 位置##vr", vr.pos_y, 0.001, 0.0, 1.0, "%.3f"); if ch then c = true end
+            ch, vr.width = imgui.drag_float("宽度##vr", vr.width, 0.001, 0.0, 1.0, "%.3f"); if ch then c = true end
+            ch, vr.tick_len = imgui.drag_float("刻度长度##vr", vr.tick_len, 0.001, 0.0, 0.2, "%.3f"); if ch then c = true end
+            ch, vr.tick_angle = imgui.drag_float("刻度角度##vr", vr.tick_angle, 0.5, -90.0, 90.0, "%.1f"); if ch then c = true end
+            ch, vr.line_thick = imgui.drag_float("线条粗细##vr", vr.line_thick, 0.5, 1.0, 10.0, "%.1f"); if ch then c = true end
+            ch, vr.tick_thick = imgui.drag_float("刻度粗细##vr", vr.tick_thick, 0.5, 1.0, 10.0, "%.1f"); if ch then c = true end
+            ch, vr.show_half = imgui.checkbox("显示 500 刻度##vr", vr.show_half); if ch then c = true end
+            ch, vr.show_tenth = imgui.checkbox("显示 100 刻度##vr", vr.show_tenth); if ch then c = true end
+            ch, vr.show_labels = imgui.checkbox("显示血量标签##vr", vr.show_labels); if ch then c = true end
+            ch, vr.label_compact = imgui.checkbox("紧凑标签 (K)##vr", vr.label_compact); if ch then c = true end
+            ch, vr.label_off_x = imgui.drag_float("标签偏移 X##vr", vr.label_off_x, 0.001, -0.1, 0.1, "%.3f"); if ch then c = true end
+            ch, vr.label_off_y = imgui.drag_float("标签偏移 Y##vr", vr.label_off_y, 0.001, -0.1, 0.1, "%.3f"); if ch then c = true end
+            ch, vr.font_size = imgui.drag_float("字体大小##vr", vr.font_size, 0.001, 0.005, 0.05, "%.3f"); if ch then c = true end
+            local col_ch, new_col = imgui.color_edit_argb("标尺颜色##vr", vr.col_line)
             if col_ch then
                 vr.col_line = new_col
                 vr.col_tick = new_col
@@ -1352,13 +1352,13 @@ re.on_draw_ui(function()
                 c = true
             end
             imgui.separator()
-            ch, vr.use_segments = imgui.checkbox("3-Segment Mode##vr", vr.use_segments or false); if ch then c = true end
+            ch, vr.use_segments = imgui.checkbox("三段模式##vr", vr.use_segments or false); if ch then c = true end
             if vr.use_segments then
-                ch, vr.seg1_pct = imgui.drag_float("Seg 1 width %##vr", vr.seg1_pct or 0.3, 0.01, 0.0, 1.0, "%.2f"); if ch then c = true end
-                ch, vr.seg2_pct = imgui.drag_float("Seg 2 width %##vr", vr.seg2_pct or 0.4, 0.01, 0.0, 1.0, "%.2f"); if ch then c = true end
+                ch, vr.seg1_pct = imgui.drag_float("段1 宽度 %##vr", vr.seg1_pct or 0.3, 0.01, 0.0, 1.0, "%.2f"); if ch then c = true end
+                ch, vr.seg2_pct = imgui.drag_float("段2 宽度 %##vr", vr.seg2_pct or 0.4, 0.01, 0.0, 1.0, "%.2f"); if ch then c = true end
                 local seg3 = 1.0 - (vr.seg1_pct or 0.3) - (vr.seg2_pct or 0.4)
-                imgui.text(string.format("Seg 3 width: %.0f%%", seg3 * 100))
-                ch, vr.seg2_angle = imgui.drag_float("Seg 2 angle##vr", vr.seg2_angle or 0, 0.5, -45.0, 45.0, "%.1f"); if ch then c = true end
+                imgui.text(string.format("段3 宽度: %.0f%%", seg3 * 100))
+                ch, vr.seg2_angle = imgui.drag_float("段2 角度##vr", vr.seg2_angle or 0, 0.5, -45.0, 45.0, "%.1f"); if ch then c = true end
             end
             if c then save_config() end
         end
@@ -1366,58 +1366,58 @@ re.on_draw_ui(function()
         -- ==========================================
         -- 5. PLAYER 1 DISPLAY
         -- ==========================================
-        if styled_header("[ PLAYER 1 DISPLAY ]", UI_THEME.hdr_session) then
-            imgui.text_colored(">> Collision Boxes", COL_YELLOW)
-            _, display_p1_hitboxes = imgui.checkbox("Hitboxes##P1", display_p1_hitboxes); imgui.same_line()
-            _, display_p1_hurtboxes = imgui.checkbox("Hurtboxes##P1", display_p1_hurtboxes); imgui.same_line()
-            _, display_p1_pushboxes = imgui.checkbox("Pushboxes##P1", display_p1_pushboxes)
-            _, display_p1_throwboxes = imgui.checkbox("Throw Boxes##P1", display_p1_throwboxes); imgui.same_line()
-            _, display_p1_throwhurtboxes = imgui.checkbox("Throw Hurtboxes##P1", display_p1_throwhurtboxes)
-            _, display_p1_proximityboxes = imgui.checkbox("Proximity Boxes##P1", display_p1_proximityboxes); imgui.same_line()
-            _, display_p1_clashbox = imgui.checkbox("Projectile Clash##P1", display_p1_clashbox); imgui.same_line()
-            _, display_p1_uniqueboxes = imgui.checkbox("Unique Boxes##P1", display_p1_uniqueboxes)
-            _, display_p1_charge_bars = imgui.checkbox("Charge Bars##P1", display_p1_charge_bars)
+        if styled_header("[ 玩家 1 显示 ]", UI_THEME.hdr_session) then
+            imgui.text_colored(">> 碰撞框", COL_YELLOW)
+            _, display_p1_hitboxes = imgui.checkbox("攻击框##P1", display_p1_hitboxes); imgui.same_line()
+            _, display_p1_hurtboxes = imgui.checkbox("受击框##P1", display_p1_hurtboxes); imgui.same_line()
+            _, display_p1_pushboxes = imgui.checkbox("推挤框##P1", display_p1_pushboxes)
+            _, display_p1_throwboxes = imgui.checkbox("投技框##P1", display_p1_throwboxes); imgui.same_line()
+            _, display_p1_throwhurtboxes = imgui.checkbox("投技受击框##P1", display_p1_throwhurtboxes)
+            _, display_p1_proximityboxes = imgui.checkbox("接近框##P1", display_p1_proximityboxes); imgui.same_line()
+            _, display_p1_clashbox = imgui.checkbox("飞行道具相杀##P1", display_p1_clashbox); imgui.same_line()
+            _, display_p1_uniqueboxes = imgui.checkbox("特殊框##P1", display_p1_uniqueboxes)
+            _, display_p1_charge_bars = imgui.checkbox("蓄力条##P1", display_p1_charge_bars)
             imgui.separator()
             imgui.separator()
-            imgui.text_colored(">> HUD Top Text", COL_YELLOW)
-            _, display_p1_hud_pos = imgui.checkbox("Position X##P1", display_p1_hud_pos); imgui.same_line()
-            _, display_p1_hud_hp = imgui.checkbox("Health (HP)##P1", display_p1_hud_hp); imgui.same_line()
-            _, display_p1_hud_dr = imgui.checkbox("Drive (DR)##P1", display_p1_hud_dr); imgui.same_line()
-            _, display_p1_hud_sa = imgui.checkbox("Super (SA)##P1", display_p1_hud_sa)
+            imgui.text_colored(">> HUD 顶部文字", COL_YELLOW)
+            _, display_p1_hud_pos = imgui.checkbox("位置 X##P1", display_p1_hud_pos); imgui.same_line()
+            _, display_p1_hud_hp = imgui.checkbox("血量 (HP)##P1", display_p1_hud_hp); imgui.same_line()
+            _, display_p1_hud_dr = imgui.checkbox("驱动 (DR)##P1", display_p1_hud_dr); imgui.same_line()
+            _, display_p1_hud_sa = imgui.checkbox("超必杀 (SA)##P1", display_p1_hud_sa)
             imgui.separator()
-            imgui.text_colored(">> Extras", COL_YELLOW)
-            _, display_p1_properties = imgui.checkbox("Display Box Properties##P1", display_p1_properties); imgui.same_line()
-            _, display_p1_position_dot = imgui.checkbox("Display Position Dot##P1", display_p1_position_dot)
+            imgui.text_colored(">> 其他", COL_YELLOW)
+            _, display_p1_properties = imgui.checkbox("显示框属性##P1", display_p1_properties); imgui.same_line()
+            _, display_p1_position_dot = imgui.checkbox("显示位置点##P1", display_p1_position_dot)
             imgui.separator()
-            _, hide_p1_boxes = imgui.checkbox("Hide All P1 Boxes", hide_p1_boxes)
+            _, hide_p1_boxes = imgui.checkbox("隐藏所有 P1 框", hide_p1_boxes)
         end
 
         -- ==========================================
         -- 6. PLAYER 2 DISPLAY
         -- ==========================================
-        if styled_header("[ PLAYER 2 DISPLAY ]", UI_THEME.hdr_session) then
-            imgui.text_colored(">> Collision Boxes", COL_YELLOW)
-            _, display_p2_hitboxes = imgui.checkbox("Hitboxes##P2", display_p2_hitboxes); imgui.same_line()
-            _, display_p2_hurtboxes = imgui.checkbox("Hurtboxes##P2", display_p2_hurtboxes); imgui.same_line()
-            _, display_p2_pushboxes = imgui.checkbox("Pushboxes##P2", display_p2_pushboxes)
-            _, display_p2_throwboxes = imgui.checkbox("Throw Boxes##P2", display_p2_throwboxes); imgui.same_line()
-            _, display_p2_throwhurtboxes = imgui.checkbox("Throw Hurtboxes##P2", display_p2_throwhurtboxes)
-            _, display_p2_proximityboxes = imgui.checkbox("Proximity Boxes##P2", display_p2_proximityboxes); imgui.same_line()
-            _, display_p2_clashbox = imgui.checkbox("Projectile Clash##P2", display_p2_clashbox); imgui.same_line()
-            _, display_p2_uniqueboxes = imgui.checkbox("Unique Boxes##P2", display_p2_uniqueboxes)
-            _, display_p2_charge_bars = imgui.checkbox("Charge Bars##P2", display_p2_charge_bars)
+        if styled_header("[ 玩家 2 显示 ]", UI_THEME.hdr_session) then
+            imgui.text_colored(">> 碰撞框", COL_YELLOW)
+            _, display_p2_hitboxes = imgui.checkbox("攻击框##P2", display_p2_hitboxes); imgui.same_line()
+            _, display_p2_hurtboxes = imgui.checkbox("受击框##P2", display_p2_hurtboxes); imgui.same_line()
+            _, display_p2_pushboxes = imgui.checkbox("推挤框##P2", display_p2_pushboxes)
+            _, display_p2_throwboxes = imgui.checkbox("投技框##P2", display_p2_throwboxes); imgui.same_line()
+            _, display_p2_throwhurtboxes = imgui.checkbox("投技受击框##P2", display_p2_throwhurtboxes)
+            _, display_p2_proximityboxes = imgui.checkbox("接近框##P2", display_p2_proximityboxes); imgui.same_line()
+            _, display_p2_clashbox = imgui.checkbox("飞行道具相杀##P2", display_p2_clashbox); imgui.same_line()
+            _, display_p2_uniqueboxes = imgui.checkbox("特殊框##P2", display_p2_uniqueboxes)
+            _, display_p2_charge_bars = imgui.checkbox("蓄力条##P2", display_p2_charge_bars)
             imgui.separator()
-            imgui.text_colored(">> HUD Top Text", COL_YELLOW)
-            _, display_p2_hud_pos = imgui.checkbox("Position X##P2", display_p2_hud_pos); imgui.same_line()
-            _, display_p2_hud_hp = imgui.checkbox("Health (HP)##P2", display_p2_hud_hp); imgui.same_line()
-            _, display_p2_hud_dr = imgui.checkbox("Drive (DR)##P2", display_p2_hud_dr); imgui.same_line()
-            _, display_p2_hud_sa = imgui.checkbox("Super (SA)##P2", display_p2_hud_sa)
+            imgui.text_colored(">> HUD 顶部文字", COL_YELLOW)
+            _, display_p2_hud_pos = imgui.checkbox("位置 X##P2", display_p2_hud_pos); imgui.same_line()
+            _, display_p2_hud_hp = imgui.checkbox("血量 (HP)##P2", display_p2_hud_hp); imgui.same_line()
+            _, display_p2_hud_dr = imgui.checkbox("驱动 (DR)##P2", display_p2_hud_dr); imgui.same_line()
+            _, display_p2_hud_sa = imgui.checkbox("超必杀 (SA)##P2", display_p2_hud_sa)
             imgui.separator()
-            imgui.text_colored(">> Extras", COL_YELLOW)
-            _, display_p2_properties = imgui.checkbox("Display Box Properties##P2", display_p2_properties); imgui.same_line()
-            _, display_p2_position_dot = imgui.checkbox("Display Position Dot##P2", display_p2_position_dot)
+            imgui.text_colored(">> 其他", COL_YELLOW)
+            _, display_p2_properties = imgui.checkbox("显示框属性##P2", display_p2_properties); imgui.same_line()
+            _, display_p2_position_dot = imgui.checkbox("显示位置点##P2", display_p2_position_dot)
             imgui.separator()
-            _, hide_p2_boxes = imgui.checkbox("Hide All P2 Boxes", hide_p2_boxes)
+            _, hide_p2_boxes = imgui.checkbox("隐藏所有 P2 框", hide_p2_boxes)
         end
 
         imgui.tree_pop()

@@ -55,7 +55,7 @@ end
 
 -- Move dropdown (native imgui.combo)
 local function colored_move_dropdown(label, selected_idx, moves, width)
-    local move_names = { "None" }
+    local move_names = { "无" }
     for _, mv in ipairs(moves) do
         move_names[#move_names + 1] = input_to_arrows(mv.input)
     end
@@ -610,7 +610,7 @@ local function load_advanced_data()
 
     local count = 0
     for _, _ in pairs(advanced_data) do count = count + 1 end
-    debug_dist_status = string.format("OK (%d custom chars)", count)
+    debug_dist_status = string.format("正常 (%d custom chars)", count)
     debug_dist_color = 0xFF00FF00
 end
 
@@ -666,13 +666,13 @@ end
 
 local function get_guard_type_name(gb)
     if not gb or gb == 0 then return "---" end
-    if gb == 7 then return "Mid" end
-    if gb == 6 then return "Low" end
-    if gb == 5 then return "Overhead" end
-    if gb == 3 then return "Grd.Mid" end
-    if gb == 1 then return "High" end
-    if gb == 2 then return "Crouch" end
-    if gb == 4 then return "Air" end
+    if gb == 7 then return "中段" end
+    if gb == 6 then return "下段" end
+    if gb == 5 then return "中段(站防)" end
+    if gb == 3 then return "防中段" end
+    if gb == 1 then return "上段" end
+    if gb == 2 then return "蹲姿" end
+    if gb == 4 then return "空中" end
     return tostring(gb)
 end
 
@@ -810,9 +810,9 @@ local function get_sorted_thresholds(limits, show_title, show_name, prefix)
         end
 
     local arr = {}
-    if limits.low then arr[#arr+1] = { name = make_name("Red Zone", limits.low_input), dist = limits.low, color = colors.Red, fill = get_dynamic_color(colors.Red) } end
-    if limits.red then arr[#arr+1] = { name = make_name("Orange Zone", limits.red_input), dist = limits.red, color = colors.Orange, fill = get_dynamic_color(colors.Orange) } end
-    if limits.yellow then arr[#arr+1] = { name = make_name("Yellow Zone", nil), dist = limits.yellow, color = colors.Yellow, fill = get_dynamic_color(colors.Yellow) } end
+    if limits.low then arr[#arr+1] = { name = make_name("红色区域", limits.low_input), dist = limits.low, color = colors.Red, fill = get_dynamic_color(colors.Red) } end
+    if limits.red then arr[#arr+1] = { name = make_name("橙色区域", limits.red_input), dist = limits.red, color = colors.Orange, fill = get_dynamic_color(colors.Orange) } end
+    if limits.yellow then arr[#arr+1] = { name = make_name("黄色区域", nil), dist = limits.yellow, color = colors.Yellow, fill = get_dynamic_color(colors.Yellow) } end
     table.sort(arr, function(a, b) return a.dist < b.dist end)
     return arr
 end
@@ -836,13 +836,13 @@ local function get_dynamic_screen_size()
     return w, h
 end
 
-local custom_font = { obj = nil, filename = "SF6_college.ttf", loaded_size = 0, status = "Init..." }
-local custom_font_num = { obj = nil, filename = "SF6_college.ttf", loaded_size = 0, status = "Init..." }
-local ui_font = { obj = nil, filename = "SF6_college.ttf", loaded_size = 0, status = "Init..." }
+local custom_font = { obj = nil, filename = "msyh.ttc", loaded_size = 0, status = "初始化..." }
+local custom_font_num = { obj = nil, filename = "msyh.ttc", loaded_size = 0, status = "初始化..." }
+local ui_font = { obj = nil, filename = "msyh.ttc", loaded_size = 0, status = "初始化..." }
 local res_watcher = { last_w = 0, last_h = 0, cooldown = 0 }
 
 local function try_load_font()
-    if not imgui.load_font then custom_font.status = "API Error"; custom_font_num.status = "API Error"; return end
+    if not imgui.load_font then custom_font.status = "API 错误"; custom_font_num.status = "API 错误"; return end
     local sw, sh = get_dynamic_screen_size()
     local scale_factor = sh / 1080.0
     if scale_factor < 0.1 then scale_factor = 1.0 end
@@ -851,24 +851,24 @@ local function try_load_font()
     if custom_font.obj == nil or custom_font.loaded_size ~= target_size then
         local font = imgui.load_font(custom_font.filename, target_size)
         if font then 
-            custom_font.obj = font; custom_font.loaded_size = target_size; custom_font.status = "OK ("..target_size.."px)"
-        else custom_font.status = "File Not Found" end
+            custom_font.obj = font; custom_font.loaded_size = target_size; custom_font.status = "正常 ("..target_size.."px)"
+        else custom_font.status = "文件未找到" end
     end
 
     local target_size_num = math.floor((config.number_font_size or 60) * scale_factor)
     if custom_font_num.obj == nil or custom_font_num.loaded_size ~= target_size_num then
         local font_num = imgui.load_font(custom_font_num.filename, target_size_num)
         if font_num then 
-            custom_font_num.obj = font_num; custom_font_num.loaded_size = target_size_num; custom_font_num.status = "OK ("..target_size_num.."px)"
-        else custom_font_num.status = "File Not Found" end
+            custom_font_num.obj = font_num; custom_font_num.loaded_size = target_size_num; custom_font_num.status = "正常 ("..target_size_num.."px)"
+        else custom_font_num.status = "文件未找到" end
     end
 
     local target_size_ui = math.floor(18 * (config.ui_scale or 1.25) * scale_factor)
     if ui_font.obj == nil or ui_font.loaded_size ~= target_size_ui then
         local font_ui = imgui.load_font(ui_font.filename, target_size_ui)
         if font_ui then 
-            ui_font.obj = font_ui; ui_font.loaded_size = target_size_ui; ui_font.status = "OK ("..target_size_ui.."px)"
-        else ui_font.status = "File Not Found" end
+            ui_font.obj = font_ui; ui_font.loaded_size = target_size_ui; ui_font.status = "正常 ("..target_size_ui.."px)"
+        else ui_font.status = "文件未找到" end
     end
 
 end
@@ -955,13 +955,13 @@ local function parse_input_string(input_str, facing_right)
     return icons, strength, display_name
 end
 
-local debug_dist_status = "Not Loaded"
-local debug_jump_status = "Not Loaded"
+local debug_dist_status = "未加载"
+local debug_jump_status = "未加载"
 local debug_dist_color = 0xFF0000FF 
 local debug_jump_color = 0xFF0000FF
 
 -- 1. INIT DISTANCES (Strictly via Advanced Data now)
-debug_dist_status = "Waiting for Data..."
+debug_dist_status = "等待数据中..."
 debug_dist_color = 0xFF888888
 
 -- 2. LOAD JUMPS (from unified file, fallback to old file)
@@ -972,16 +972,16 @@ if jump_data then
     jump_data_store = jump_data
     local count = 0
     for k, v in pairs(jump_data_store) do count = count + 1 end
-    debug_jump_status = string.format("OK (%d chars)", count)
+    debug_jump_status = string.format("正常 (%d chars)", count)
     debug_jump_color = 0xFF00FF00
 else
-    debug_jump_status = "ERROR: JSON not found"
+    debug_jump_status = "错误: JSON 未找到"
     jump_data_store = {}
 end
 _uf = nil
 load_advanced_data()
 
-local detected_infos = { [0] = { name = "Waiting...", id = -1 }, [1] = { name = "Waiting...", id = -1 } }
+local detected_infos = { [0] = { name = "等待中...", id = -1 }, [1] = { name = "等待中...", id = -1 } }
 local t_med = sdk.find_type_definition("app.FBattleMediator")
 if t_med then
     local method = t_med:get_method("UpdateGameInfo")
@@ -1365,7 +1365,7 @@ end
 
 local function evaluate_player_zone(pi, cache_data, opponent_data)
     local _, dist_target = get_closest_edge(cache_data.id)
-    if not dist_target then return { name = "Out Range", color = colors.Grey } end
+    if not dist_target then return { name = "超出范围", color = colors.Grey } end
 
     local is_adv = (pi == 0) and config.p1_advanced_mode or config.p2_advanced_mode
     if auto_activate.enabled and auto_activate.move and pi == 1 then is_adv = true end
@@ -1397,8 +1397,8 @@ local function evaluate_player_zone(pi, cache_data, opponent_data)
                     local col = ar_to_color_abgr(mv.ar, ar_min, ar_max, pi)
                     local zone_name = "{" .. mv.input .. "}"
                     local prefix = (pi == 0) and "P1" or "P2"
-                    if prefs.red and prefs.red.input == mv.input then zone_name = prefix .. " Orange Zone\n" .. zone_name
-                    elseif prefs.low and prefs.low.input == mv.input then zone_name = prefix .. " Red Zone\n" .. zone_name end
+                    if prefs.red and prefs.red.input == mv.input then zone_name = prefix .. " 橙色区域\n" .. zone_name
+                    elseif prefs.low and prefs.low.input == mv.input then zone_name = prefix .. " 红色区域\n" .. zone_name end
                     return { name = zone_name, color = col }
                 end
             end
@@ -1415,9 +1415,9 @@ local function evaluate_player_zone(pi, cache_data, opponent_data)
         end
     end
     if auto_activate.enabled and auto_activate.move and pi == 1 then
-        return { name = "Out Of Range", color = AA_COLOR_WHITE }
+        return { name = "超出范围", color = AA_COLOR_WHITE }
     end
-    return { name = ((pi == 0) and "P1" or "P2") .. " Green Zone", color = colors.Green }
+    return { name = ((pi == 0) and "P1" or "P2") .. " 绿色区域", color = colors.Green }
 end
 
 local function draw_text_safe(text, x, y, color, size) 
@@ -1520,12 +1520,12 @@ local function get_crossup_info(cache_data, opponent_data)
     if not cache_data.valid or not opponent_data.valid then return "", colors.Grey end
     local real_distance = math.abs(cache_data.world_x - opponent_data.world_x) * 100
     local frames = jump_data_store[cache_data.real_name]
-    local text_str = "No Data"; local text_col = colors.Grey
+    local text_str = "无数据"; local text_col = colors.Grey
     if frames then
         local st_limit = frames.cross_up_st or 9999.0; local cr_limit = frames.cross_up_cr or 9999.0
-        if real_distance < st_limit then text_str = "CrossUpSt"; text_col = colors.Red
-        elseif real_distance < cr_limit then text_str = "CrossUpCr"; text_col = colors.Yellow
-        else text_str = "No Cross"; text_col = colors.Grey end
+        if real_distance < st_limit then text_str = "逆向站"; text_col = colors.Red
+        elseif real_distance < cr_limit then text_str = "逆向蹲"; text_col = colors.Yellow
+        else text_str = "无逆向"; text_col = colors.Grey end
     end
     return text_str, text_col
 end
@@ -1567,7 +1567,7 @@ local function get_advanced_zone_label(pi, char_name, dist_cc, prefix, show_titl
         end
     end
     
-    if show_title or show_name then return space .. "Out Range", colors.White end
+    if show_title or show_name then return space .. "超出范围", colors.White end
         return "", colors.White
 end
 
@@ -1579,14 +1579,14 @@ local function get_opp_zone_info(cache_data, opponent_data)
         if dist and dist <= get_effective_ar(auto_activate.move, 1) + 0.0000001 then
             return "{" .. auto_activate.move.input .. "}", AA_COLOR_RED
         end
-        return "Out Of Range", colors.White
+        return "超出范围", colors.White
     end
 
     -- MY ZONE LOGIC: Evaluate own position relative to the opponent's zone
     local _, dist_target = get_closest_edge(cache_data.id)
-    if not dist_target then return "No Data", colors.Grey end
+    if not dist_target then return "无数据", colors.Grey end
 
-    local prefix = "My"
+    local prefix = "我方"
     if cache_data.id == 0 then prefix = "P1"
     elseif cache_data.id == 1 then prefix = "P2" end
 
@@ -1609,7 +1609,7 @@ local function get_opp_zone_info(cache_data, opponent_data)
     local text_str = ""
     if show_t or show_n then 
         local space = (prefix and prefix ~= "") and (prefix .. " ") or ""
-        text_str = space .. "Green Zone" 
+        text_str = space .. "绿色区域"
     end
     local text_col = colors.Green
     
@@ -1964,34 +1964,34 @@ local function draw_debug_values(cache, opponent_cache, p_idx)
     local frames = jump_data_store[cache.real_name]
     local lock = lock_states[p_idx]
 
-    imgui.text_colored(string.format("DEBUG %s (ID:%d):", cache.real_name, p_idx), COL_CYAN)
+    imgui.text_colored(string.format("调试 %s (ID:%d):", cache.real_name, p_idx), COL_CYAN)
     
     if lock then
         local status_color = lock.active and COL_GREEN or COL_GREY
-        imgui.text_colored(string.format("Lock Active: %s", tostring(lock.active)), status_color)
-        imgui.text_colored(string.format("Live Abs Range: %.4f", lock.current_reach * 100), COL_CYAN) 
+        imgui.text_colored(string.format("锁定状态: %s", tostring(lock.active)), status_color)
+        imgui.text_colored(string.format("实时绝对范围: %.4f", lock.current_reach * 100), COL_CYAN)
     end
     
     imgui.separator()
-    imgui.text("-- CROSSUP DATA --")
-    imgui.text(string.format("Center Dist: %.4f", current_dist))
+    imgui.text("-- 逆向数据 --")
+    imgui.text(string.format("中心距离: %.4f", current_dist))
     if frames then
         local st = frames.cross_up_st or 0; local cr = frames.cross_up_cr or 0
-        imgui.text(string.format("vs ST: %.4f | vs CR: %.4f", st, cr))
-    else imgui.text("No Jump Data") end
+        imgui.text(string.format("vs 站: %.4f | vs 蹲: %.4f", st, cr))
+    else imgui.text("无跳跃数据") end
 
     imgui.separator()
-    imgui.text("-- ZONE DATA --")
-    imgui.text(string.format("Edge Dist: %.4f", z_dist_val))
+    imgui.text("-- 区域数据 --")
+    imgui.text(string.format("边缘距离: %.4f", z_dist_val))
     local limits = get_player_limits(p_idx, cache)
     if limits then
-        imgui.text(string.format("R:%.1f | O:%.1f | Y:%.1f", limits.low*100, limits.red*100, limits.yellow*100))
-    else imgui.text("Using Fallback Limits") end
+        imgui.text(string.format("红:%.1f | 橙:%.1f | 黄:%.1f", limits.low*100, limits.red*100, limits.yellow*100))
+    else imgui.text("使用备用限制") end
     
     imgui.separator()
 end
 
-local vmode_names = { "Distance Only", "Top Half", "Bottom Half", "Full Screen", "On Head", "On Root", "OFF", "CUSTOM" }
+local vmode_names = { "仅距离", "上半屏", "下半屏", "全屏", "头部", "根部", "关闭", "自定义" }
 
 local p1_transient_timer, p2_transient_timer = 0, 0
 local p1_transient_text, p2_transient_text = "", ""
@@ -2010,8 +2010,8 @@ local function trigger_transient(pi, vmode, adv)
         local num = vmode
         if adv then num = num + 6 end
         
-        local prefix = adv and "ADVANCED " or "NORMAL "
-        local m_name = vmode_names[vmode] and string.upper(vmode_names[vmode]) or "UNKNOWN"
+        local prefix = adv and "高级 " or "普通 "
+        local m_name = vmode_names[vmode] and string.upper(vmode_names[vmode]) or "未知"
         
         text = tostring(num) .. ". " .. prefix .. m_name
     end
@@ -2026,17 +2026,17 @@ end
 local function draw_pos_radios(id_suffix, current_mode)
     local new_mode = current_mode
     local has_changed = false
-    imgui.text("POSITION")
-    local c1, v1 = imgui.checkbox("Head##h" .. id_suffix, current_mode == 1)
+    imgui.text("位置")
+    local c1, v1 = imgui.checkbox("头部##h" .. id_suffix, current_mode == 1)
     if c1 and v1 then new_mode = 1; has_changed = true end
     imgui.same_line()
-    local c2, v2 = imgui.checkbox("Root##r" .. id_suffix, current_mode == 2)
+    local c2, v2 = imgui.checkbox("根部##r" .. id_suffix, current_mode == 2)
     if c2 and v2 then new_mode = 2; has_changed = true end
     imgui.same_line()
-    local c3, v3 = imgui.checkbox("Fixed##f" .. id_suffix, current_mode == 3)
+    local c3, v3 = imgui.checkbox("固定##f" .. id_suffix, current_mode == 3)
     if c3 and v3 then new_mode = 3; has_changed = true end
     imgui.same_line()
-    local c4, v4 = imgui.checkbox("Cursor##c" .. id_suffix, current_mode == 4)
+    local c4, v4 = imgui.checkbox("光标##c" .. id_suffix, current_mode == 4)
     if c4 and v4 then new_mode = 4; has_changed = true end
     return has_changed, new_mode
 end
@@ -2057,7 +2057,7 @@ local function draw_advanced_moves_menu(pi, rname, cdata)
         end
 
         if #all_sets == 0 then
-            imgui.text_colored("(no moves logged)", COL_GREY)
+            imgui.text_colored("（无招式记录）", COL_GREY)
         else
             local prefs = get_char_prefs(pi, rname)
             local ar_min, ar_max = get_ar_range(pi, rname)
@@ -2074,19 +2074,19 @@ local function draw_advanced_moves_menu(pi, rname, cdata)
                 end
             end
 
-            if imgui.button("Show All##"..pi) then
+            if imgui.button("全部显示##"..pi) then
                 for _, s in ipairs(all_sets) do
                     for _, mv in ipairs(s.moves) do set_move_visible(pi, s.name, mv.input, true) end
                 end
             end
             imgui.same_line()
-            if imgui.button("Hide All##"..pi) then
+            if imgui.button("全部隐藏##"..pi) then
                 for _, s in ipairs(all_sets) do
                     for _, mv in ipairs(s.moves) do set_move_visible(pi, s.name, mv.input, false) end
                 end
             end
             imgui.same_line()
-            if imgui.button("Max Only##"..pi) then
+            if imgui.button("仅最大##"..pi) then
                 for si, s in ipairs(all_sets) do
                     local set_max = max_ar_per_gb_per_set[si]
                     for _, mv in ipairs(s.moves) do
@@ -2135,11 +2135,11 @@ local function draw_advanced_moves_menu(pi, rname, cdata)
                     imgui.push_style_color(21, 0xFF994400) -- Button
                     imgui.push_style_color(22, 0xFFBB6600) -- Hovered
                     imgui.push_style_color(23, 0xFFDD8800) -- Active
-                    if imgui.button("Teleport##tp_adv_" .. pi .. "_" .. s.name .. "_" .. mv.input) then apply_teleport_exact(pi, mv.ar, false, mv.input == "THROW") end
+                    if imgui.button("传送##tp_adv_" .. pi .. "_" .. s.name .. "_" .. mv.input) then apply_teleport_exact(pi, mv.ar, false, mv.input == "THROW") end
                     imgui.pop_style_color(3)
                     if is_max_for_gb then
                         imgui.same_line()
-                        imgui.text_colored("MAX " .. gb_name, COL_GOLD)
+                        imgui.text_colored("最大 " .. gb_name, COL_GOLD)
                     end
                 end
             end
@@ -2369,14 +2369,14 @@ local function _dv_draw_live_box_dump()
                     local pb = r.PoseBit or 0
                     local cf = r.CondFlag or 0
                     local gb = r.GuardBit or 0
-                    if tf > 0 then label = "HITBOX"
-                    elseif (tf == 0 and pb > 0) or cf == 0x2C0 then label = "THROWBOX"
-                    elseif gb == 0 then label = "CLASH"
-                    else label = "PROXIMITY" end
-                elseif has_Attr then label = "PUSHBOX"
+                    if tf > 0 then label = "攻击框"
+                    elseif (tf == 0 and pb > 0) or cf == 0x2C0 then label = "投技框"
+                    elseif gb == 0 then label = "相杀框"
+                    else label = "接近框" end
+                elseif has_Attr then label = "受击框"
                 elseif has_HitNo then
                     local tp = r.Type or 0
-                    if tp == 1 or tp == 2 then label = "HURTBOX_INV" else label = "HURTBOX" end
+                    if tp == 1 or tp == 2 then label = "无敌框" else label = "受伤框" end
                 end
                 local ox = r.OffsetX.v / 6553600.0
                 local sx = r.SizeX.v / 6553600.0
@@ -2390,27 +2390,27 @@ local function draw_config_ui()
     -- ==========================================
     -- 0. HELP & INFO
     -- ==========================================
-    if styled_header("--- HELP & INFO ---", UI_THEME.hdr_info) then
-        imgui.text("SHORTCUTS (Keyboard / Gamepad):")
+    if styled_header("--- 帮助 & 信息 ---", UI_THEME.hdr_info) then
+        imgui.text("快捷键（键盘 / 手柄）：")
 
         if not config.expert_mode_enabled then
-            imgui.text("- [5] or (Func) + LB/L1 : Toggle P1 (Normal / OFF)")
-            imgui.text("- [6] or (Func) + RB/R1 : Toggle P2 (Normal / OFF)")
+            imgui.text("- [5] 或 (Func) + LB/L1 : 切换 P1（普通 / 关闭）")
+            imgui.text("- [6] 或 (Func) + RB/R1 : 切换 P2（普通 / 关闭）")
         else
-            imgui.text("- [5] or (Func) + LB/L1 : Toggle P1 (ON / OFF)")
-            imgui.text("- [6] or (Func) + RB/R1 : Toggle P2 (ON / OFF)")
+            imgui.text("- [5] 或 (Func) + LB/L1 : 切换 P1（开启 / 关闭）")
+            imgui.text("- [6] 或 (Func) + RB/R1 : 切换 P2（开启 / 关闭）")
         end
 
-        imgui.text("- [7] or (Func) + Triangle/Y : Toggle UI Window")
+        imgui.text("- [7] 或 (Func) + Triangle/Y : 切换 UI 窗口")
 
         if _G.TrainingFuncButton ~= nil then
-            imgui.text_colored("* (Func) button is defined in Training Script Manager (Default: Select)", COL_GREY)
+            imgui.text_colored("* (Func) 功能键在 Training Script Manager 中定义（默认：Select）", COL_GREY)
         else
             imgui.separator()
             if is_binding_mode then
-                imgui.text_colored("-- PRESS ANY GAMEPAD BUTTON TO BIND FUNC --", 0xFF00FFFF)
+                imgui.text_colored("-- 按下任意手柄按钮绑定 FUNC 键 --", 0xFF00FFFF)
             else
-                local btn_name = "NOT SET"
+                local btn_name = "未设置"
                 if config.func_button then
                     btn_name = "ID: " .. tostring(config.func_button)
                     if config.func_button == 16384 then btn_name = "SELECT / BACK" end
@@ -2418,9 +2418,9 @@ local function draw_config_ui()
                     if config.func_button == 4096 then btn_name = "L3 / LS" end
                 end
 
-                imgui.text("Current Func Button: " .. btn_name)
+                imgui.text("当前 Func 按键: " .. btn_name)
                 imgui.same_line()
-                if imgui.button("CHANGE FUNC BUTTON") then
+                if imgui.button("更改 Func 按键") then
                     is_binding_mode = true
                     last_input_mask = 0
                 end
@@ -2428,13 +2428,13 @@ local function draw_config_ui()
         end
         imgui.spacing()
         imgui.separator()
-        imgui.text_colored("AUTO ACTIVATE", 0xFF00FFFF)
-        imgui.text("  MAIN (M): Sets the trigger move and its range.")
-        imgui.text("  SUB (S): Additional moves picked randomly when firing.")
-        imgui.text("  WEIGHT (W): Selection probability per SUB move (0-10).")
-        imgui.text("  Delay: Frames to wait before firing. Delay Cancel aborts if out of range.")
-        imgui.text("  Footwork: Dummy walks FW/BW between attacks. Random randomizes duration.")
-        imgui.text("  Re-arms automatically after battle reset.")
+        imgui.text_colored("自动激活", 0xFF00FFFF)
+        imgui.text("  主(M): 设置触发招式及其范围。")
+        imgui.text("  副(S): 开火时随机选择的额外招式。")
+        imgui.text("  权重(W): 每个副招式的选择概率（0-10）。")
+        imgui.text("  延迟: 开火前等待的帧数。延迟取消会在超出范围时中止。")
+        imgui.text("  步法: 假人在攻击之间前后移动。随机模式随机化持续时间。")
+        imgui.text("  战斗重置后自动重新装填。")
         imgui.spacing()
     end -- end HELP & INFO
 
@@ -2446,11 +2446,11 @@ local function draw_config_ui()
                 local rname = cache.valid and cache.adv_name or get_real_name(detected_infos[pi] and detected_infos[pi].name or "?")
                 -- Always use base character name for menu (not stance variant)
                 local base_display = cache.valid and (esf_names_map[cache.real_name] or cache.real_name) or get_real_name(detected_infos[pi] and detected_infos[pi].name or "?")
-                local header_label = string.format("--- %s (P%d) OPTIONS ---", base_display, pi + 1)
+                local header_label = string.format("--- %s (P%d) 设置 ---", base_display, pi + 1)
                 if styled_header(header_label, hdr_color) then
                     -- Display toggle
                     local is_on = config[p_prefix .. "_vertical_mode"] ~= 7
-                    local c_disp, v_disp = imgui.checkbox("Display P" .. (pi+1) .. " Distance##disp_" .. p_prefix, is_on)
+                    local c_disp, v_disp = imgui.checkbox("显示 P" .. (pi+1) .. " 距离##disp_" .. p_prefix, is_on)
                     if c_disp then cycle_player_display(p_prefix) end
 
                     -- Build list of move sets: base + variants
@@ -2493,9 +2493,9 @@ local function draw_config_ui()
 
                             -- Red Zone
                             local chg_l, nv_l = colored_move_dropdown("##" .. uid .. "_red", low_idx, cd.moves, 200)
-                            imgui.same_line(); imgui.text_colored("Red Zone" .. suffix, COL_RED)
+                            imgui.same_line(); imgui.text_colored("红色区域" .. suffix, COL_RED)
                             imgui.same_line()
-                            if imgui.button("TELEPORT##tp_red_" .. uid) then
+                            if imgui.button("传送##tp_red_" .. uid) then
                                 if low_idx > 1 then apply_teleport_exact(pi, cd.moves[low_idx-1].ar, false, cd.moves[low_idx-1].input == "THROW") end
                             end
                             if chg_l then
@@ -2505,9 +2505,9 @@ local function draw_config_ui()
 
                             -- Orange Zone
                             local chg_r, nv_r = colored_move_dropdown("##" .. uid .. "_org", red_idx, cd.moves, 200)
-                            imgui.same_line(); imgui.text_colored("Orange Zone" .. suffix, COL_ORANGE)
+                            imgui.same_line(); imgui.text_colored("橙色区域" .. suffix, COL_ORANGE)
                             imgui.same_line()
-                            if imgui.button("TELEPORT##tp_org_" .. uid) then
+                            if imgui.button("传送##tp_org_" .. uid) then
                                 if red_idx > 1 then apply_teleport_exact(pi, cd.moves[red_idx-1].ar, false, cd.moves[red_idx-1].input == "THROW") end
                             end
                             if chg_r then
@@ -2520,9 +2520,9 @@ local function draw_config_ui()
                             imgui.push_item_width(150)
                             local chg_y, nv_y = imgui.drag_int("##" .. uid .. "_yel", y_off, 1, 0, 300)
                             imgui.pop_item_width()
-                            imgui.same_line(); imgui.text_colored("Yellow Offset" .. suffix, COL_YELLOW)
+                            imgui.same_line(); imgui.text_colored("黄色偏移" .. suffix, COL_YELLOW)
                             imgui.same_line()
-                            if imgui.button("TELEPORT##tp_yel_" .. uid) then
+                            if imgui.button("传送##tp_yel_" .. uid) then
                                 local limits = get_player_limits(pi, cache)
                                 if limits and limits.yellow then apply_teleport_exact(pi, limits.yellow * 100.0) end
                             end
@@ -2532,7 +2532,7 @@ local function draw_config_ui()
                             end
                         end
                     else
-                        imgui.text_colored("No attack data for " .. rname, COL_GREY)
+                        imgui.text_colored("无攻击数据: " .. rname, COL_GREY)
                     end
                 end
             end
@@ -2545,26 +2545,26 @@ local function draw_config_ui()
         -- ==========================================
         -- 1. GLOBAL SETTINGS (Font, Thickness, Attack Lock)
         -- ==========================================
-        if styled_header("--- GLOBAL SETTINGS ---", UI_THEME.hdr_rules) then
-        local c_fs, v_fs = safe_input_int("Master Font Quality (Px)", config.stats_font_size)
+        if styled_header("--- 全局设置 ---", UI_THEME.hdr_rules) then
+        local c_fs, v_fs = safe_input_int("主字体大小 (Px)", config.stats_font_size)
         if c_fs then config.stats_font_size = v_fs; save_settings(); try_load_font() end
 
-        local c_fns, v_fns = safe_input_int("Numbers Font Size (Px)", config.number_font_size or 60)
+        local c_fns, v_fns = safe_input_int("数字字体大小 (Px)", config.number_font_size or 60)
         if c_fns then config.number_font_size = v_fns; save_settings(); try_load_font() end
 
-        local c_us, v_us = imgui.drag_float("Floating UI Scale", config.ui_scale or 1.25, 0.05, 0.5, 4.0)
+        local c_us, v_us = imgui.drag_float("浮动 UI 缩放", config.ui_scale or 1.25, 0.05, 0.5, 4.0)
         if c_us then config.ui_scale = v_us; save_settings(); try_load_font() end
 
-        local changed_lock, new_lock = imgui.checkbox("Auto-Lock on Attack (Freeze during active frames)", config.use_attack_lock)
+        local changed_lock, new_lock = imgui.checkbox("攻击时自动锁定（活跃帧期间冻结）", config.use_attack_lock)
         if changed_lock then config.use_attack_lock = new_lock; save_settings() end
 
-        local changed_op, new_op = imgui.drag_int("Zone Opacity (%)", config.zone_opacity, 1, 0, 100)
+        local changed_op, new_op = imgui.drag_int("区域透明度 (%)", config.zone_opacity, 1, 0, 100)
         if changed_op then config.zone_opacity = new_op; save_settings() end
 		
-		local c_is, v_is = imgui.drag_float("Icon Scale", config.icon_scale or 1.0, 0.05, 0.5, 3.0)
+		local c_is, v_is = imgui.drag_float("图标缩放", config.icon_scale or 1.0, 0.05, 0.5, 3.0)
         if c_is then config.icon_scale = v_is; save_settings() end
 
-        local c_ioy, v_ioy = imgui.drag_float("Icon Y Offset", config.icon_offset_y or 0.0, 1.0, -100.0, 100.0)
+        local c_ioy, v_ioy = imgui.drag_float("图标 Y 偏移", config.icon_offset_y or 0.0, 1.0, -100.0, 100.0)
         if c_ioy then config.icon_offset_y = v_ioy; save_settings() end
     end
 
@@ -2574,7 +2574,7 @@ local function draw_config_ui()
     -- ==========================================
     local changed = false; local c = false
     local p1_rname_expert = p1_cache.valid and (esf_names_map[p1_cache.real_name] or p1_cache.real_name) or "P1"
-    if styled_header(string.format("--- %s (P1) OPTIONS ---", p1_rname_expert), UI_THEME.hdr_session_1) then
+    if styled_header(string.format("--- %s (P1) 设置 ---", p1_rname_expert), UI_THEME.hdr_session_1) then
 --        c, config.p1_show_all = imgui.checkbox("SHOW ALL P1 OVERLAYS##p1_master", config.p1_show_all); if c then changed = true end
 --        imgui.separator()
         
@@ -2586,24 +2586,24 @@ local function draw_config_ui()
         end
 
 
-        if styled_tree_node("-- CUSTOMIZE OVERLAY##p1", COL_YELLOW) then
+        if styled_tree_node("-- 自定义覆盖层##p1", COL_YELLOW) then
             local changed_any = false
-            c, config.p1_fill_bg = imgui.checkbox("Zones##p1", config.p1_fill_bg); if c then changed_any = true end; imgui.same_line()
-            c, config.p1_show_markers = imgui.checkbox("Lines##p1", config.p1_show_markers); if c then changed_any = true end; imgui.same_line()
-            c, config.p1_show_vertical_cursor = imgui.checkbox("Cursor##p1", config.p1_show_vertical_cursor); if c then changed_any = true end; imgui.same_line()
-            c, config.p1_show_horizontal_lines = imgui.checkbox("Distance##p1", config.p1_show_horizontal_lines); if c then changed_any = true end; imgui.same_line()
-            local c_num1, v_num1 = imgui.checkbox("Numbers##p1", config.p1_show_numbers); if c_num1 then config.p1_show_numbers = v_num1; changed_any = true end; imgui.same_line()
-            local c_txt1, v_txt1 = imgui.checkbox("Text ##p1", config.p1_opp_zone_show)
+            c, config.p1_fill_bg = imgui.checkbox("区域##p1", config.p1_fill_bg); if c then changed_any = true end; imgui.same_line()
+            c, config.p1_show_markers = imgui.checkbox("标线##p1", config.p1_show_markers); if c then changed_any = true end; imgui.same_line()
+            c, config.p1_show_vertical_cursor = imgui.checkbox("光标##p1", config.p1_show_vertical_cursor); if c then changed_any = true end; imgui.same_line()
+            c, config.p1_show_horizontal_lines = imgui.checkbox("距离##p1", config.p1_show_horizontal_lines); if c then changed_any = true end; imgui.same_line()
+            local c_num1, v_num1 = imgui.checkbox("数值##p1", config.p1_show_numbers); if c_num1 then config.p1_show_numbers = v_num1; changed_any = true end; imgui.same_line()
+            local c_txt1, v_txt1 = imgui.checkbox("文字 ##p1", config.p1_opp_zone_show)
             if c_txt1 then config.p1_opp_zone_show = v_txt1; changed_any = true end
             
             -- Options independent of Custom mode
-            local c_col1, v_col1 = imgui.checkbox("Color Text##p1", config.p1_opp_zone_color_text)
+            local c_col1, v_col1 = imgui.checkbox("色彩文字##p1", config.p1_opp_zone_color_text)
             if c_col1 then config.p1_opp_zone_color_text = v_col1; config.p1_crossup_color_text = v_col1; changed = true end
             imgui.same_line()
-            local c_cu1, v_cu1 = imgui.checkbox("CrossUp Text##p1", config.p1_crossup_show)
+            local c_cu1, v_cu1 = imgui.checkbox("逆向文字##p1", config.p1_crossup_show)
             if c_cu1 then config.p1_crossup_show = v_cu1; changed = true end
             imgui.same_line()
-            local c_arc1, v_arc1 = imgui.checkbox("CrossUp Arch##p1", config.p1_show_jump_arc)
+            local c_arc1, v_arc1 = imgui.checkbox("逆向弧线##p1", config.p1_show_jump_arc)
             if c_arc1 then config.p1_show_jump_arc = v_arc1; changed = true end
 
             if changed_any then changed = true end
@@ -2616,7 +2616,7 @@ local function draw_config_ui()
     -- 4. PLAYER 2 SETTINGS
     -- ==========================================
     local p2_rname_expert = p2_cache.valid and (esf_names_map[p2_cache.real_name] or p2_cache.real_name) or "P2"
-    if styled_header(string.format("--- %s (P2) OPTIONS ---", p2_rname_expert), UI_THEME.hdr_session_2) then
+    if styled_header(string.format("--- %s (P2) 设置 ---", p2_rname_expert), UI_THEME.hdr_session_2) then
         config.p2_advanced_mode = true
         local rname_p2 = p2_rname_expert
         local cdata_p2 = advanced_data[rname_p2]
@@ -2624,24 +2624,24 @@ local function draw_config_ui()
             draw_advanced_moves_menu(1, rname_p2, cdata_p2)
         end
 
-        if styled_tree_node("-- CUSTOMIZE OVERLAY##p2", COL_YELLOW) then
+        if styled_tree_node("-- 自定义覆盖层##p2", COL_YELLOW) then
             local changed_any = false
-            c, config.p2_fill_bg = imgui.checkbox("Zones##p2", config.p2_fill_bg); if c then changed_any = true end; imgui.same_line()
-            c, config.p2_show_markers = imgui.checkbox("Lines##p2", config.p2_show_markers); if c then changed_any = true end; imgui.same_line()
-            c, config.p2_show_vertical_cursor = imgui.checkbox("Cursor##p2", config.p2_show_vertical_cursor); if c then changed_any = true end; imgui.same_line()
-            c, config.p2_show_horizontal_lines = imgui.checkbox("Distance##p2", config.p2_show_horizontal_lines); if c then changed_any = true end; imgui.same_line()
-            local c_num2, v_num2 = imgui.checkbox("Numbers##p2", config.p2_show_numbers); if c_num2 then config.p2_show_numbers = v_num2; changed_any = true end; imgui.same_line()
-            local c_txt2, v_txt2 = imgui.checkbox("Text ##p2", config.p2_opp_zone_show)
+            c, config.p2_fill_bg = imgui.checkbox("区域##p2", config.p2_fill_bg); if c then changed_any = true end; imgui.same_line()
+            c, config.p2_show_markers = imgui.checkbox("标线##p2", config.p2_show_markers); if c then changed_any = true end; imgui.same_line()
+            c, config.p2_show_vertical_cursor = imgui.checkbox("光标##p2", config.p2_show_vertical_cursor); if c then changed_any = true end; imgui.same_line()
+            c, config.p2_show_horizontal_lines = imgui.checkbox("距离##p2", config.p2_show_horizontal_lines); if c then changed_any = true end; imgui.same_line()
+            local c_num2, v_num2 = imgui.checkbox("数值##p2", config.p2_show_numbers); if c_num2 then config.p2_show_numbers = v_num2; changed_any = true end; imgui.same_line()
+            local c_txt2, v_txt2 = imgui.checkbox("文字 ##p2", config.p2_opp_zone_show)
             if c_txt2 then config.p2_opp_zone_show = v_txt2; changed_any = true end
             
             -- Options independent of Custom mode
-            local c_col2, v_col2 = imgui.checkbox("Color Text##p2", config.p2_opp_zone_color_text)
+            local c_col2, v_col2 = imgui.checkbox("色彩文字##p2", config.p2_opp_zone_color_text)
             if c_col2 then config.p2_opp_zone_color_text = v_col2; config.p2_crossup_color_text = v_col2; changed = true end
             imgui.same_line()
-            local c_cu2, v_cu2 = imgui.checkbox("CrossUp Text##p2", config.p2_crossup_show)
+            local c_cu2, v_cu2 = imgui.checkbox("逆向文字##p2", config.p2_crossup_show)
             if c_cu2 then config.p2_crossup_show = v_cu2; changed = true end
             imgui.same_line()
-            local c_arc2, v_arc2 = imgui.checkbox("CrossUp Arch##p2", config.p2_show_jump_arc)
+            local c_arc2, v_arc2 = imgui.checkbox("逆向弧线##p2", config.p2_show_jump_arc)
             if c_arc2 then config.p2_show_jump_arc = v_arc2; changed = true end
 
             local act_v2 = config.p2_vertical_mode
@@ -2662,7 +2662,7 @@ local function draw_config_ui()
     -- ==========================================
     -- 5. DEBUG VALUES (Live)
     -- ==========================================
-    if styled_header("--- DEBUG VALUES (Live) ---", UI_THEME.hdr_debug) then
+    if styled_header("--- 调试数值（实时） ---", UI_THEME.hdr_debug) then
         -- Capture left mouse click (0) and update coordinates
         if imgui.is_mouse_clicked(0) then
             local mouse_pos = imgui.get_mouse()
@@ -2670,35 +2670,35 @@ local function draw_config_ui()
             debug_mouse_y = mouse_pos.y
         end
         
-        imgui.text_colored(string.format("Last Click Pos: X: %.1f | Y: %.1f", debug_mouse_x, debug_mouse_y), COL_CYAN)
+        imgui.text_colored(string.format("最后点击位置: X: %.1f | Y: %.1f", debug_mouse_x, debug_mouse_y), COL_CYAN)
         imgui.separator()
 
-        imgui.text_colored("[LOAD STATUS]", COL_GREY)
-        imgui.text("Dist Config: "); imgui.same_line(); imgui.text_colored(debug_dist_status, debug_dist_color)
-        imgui.text("Jump File: "); imgui.same_line(); imgui.text_colored(debug_jump_status, debug_jump_color)
-        imgui.text("Font Status: " .. custom_font.status)
+        imgui.text_colored("[加载状态]", COL_GREY)
+        imgui.text("距离配置: "); imgui.same_line(); imgui.text_colored(debug_dist_status, debug_dist_color)
+        imgui.text("跳跃文件: "); imgui.same_line(); imgui.text_colored(debug_jump_status, debug_jump_color)
+        imgui.text("字体状态: " .. custom_font.status)
         imgui.separator()
 
         draw_debug_values(p1_cache, p2_cache, 0)
         draw_debug_values(p2_cache, p1_cache, 1)
 
         imgui.separator()
-        imgui.text_colored("[BOX FILTERS — Distance Calculation]", COL_YELLOW)
+        imgui.text_colored("[碰撞框过滤 — 距离计算]", COL_YELLOW)
         local bc = false
-        local c1, v1 = imgui.checkbox("Hurtbox", config.box_use_hurtbox); if c1 then config.box_use_hurtbox = v1; bc = true end
+        local c1, v1 = imgui.checkbox("受伤框", config.box_use_hurtbox); if c1 then config.box_use_hurtbox = v1; bc = true end
         imgui.same_line()
-        local c2, v2 = imgui.checkbox("Hurtbox Invuln", config.box_use_hurtbox_invuln); if c2 then config.box_use_hurtbox_invuln = v2; bc = true end
-        local c3, v3 = imgui.checkbox("Pushbox", config.box_use_pushbox); if c3 then config.box_use_pushbox = v3; bc = true end
+        local c2, v2 = imgui.checkbox("受伤框（无敌）", config.box_use_hurtbox_invuln); if c2 then config.box_use_hurtbox_invuln = v2; bc = true end
+        local c3, v3 = imgui.checkbox("受击框", config.box_use_pushbox); if c3 then config.box_use_pushbox = v3; bc = true end
         imgui.same_line()
-        local c4, v4 = imgui.checkbox("Hitbox", config.box_use_hitbox); if c4 then config.box_use_hitbox = v4; bc = true end
-        local c5, v5 = imgui.checkbox("Throwbox", config.box_use_throwbox); if c5 then config.box_use_throwbox = v5; bc = true end
+        local c4, v4 = imgui.checkbox("攻击框", config.box_use_hitbox); if c4 then config.box_use_hitbox = v4; bc = true end
+        local c5, v5 = imgui.checkbox("投技框", config.box_use_throwbox); if c5 then config.box_use_throwbox = v5; bc = true end
         imgui.same_line()
-        local c6, v6 = imgui.checkbox("Clash", config.box_use_clash); if c6 then config.box_use_clash = v6; bc = true end
-        local c7, v7 = imgui.checkbox("Proximity", config.box_use_proximity); if c7 then config.box_use_proximity = v7; bc = true end
+        local c6, v6 = imgui.checkbox("相杀框", config.box_use_clash); if c6 then config.box_use_clash = v6; bc = true end
+        local c7, v7 = imgui.checkbox("接近框", config.box_use_proximity); if c7 then config.box_use_proximity = v7; bc = true end
         if bc then save_settings() end
 
         imgui.separator()
-        imgui.text_colored("[LIVE BOX DUMP — P1]", COL_CYAN)
+        imgui.text_colored("[实时碰撞框转储 — P1]", COL_CYAN)
         pcall(_dv_draw_live_box_dump)
     end
     
@@ -2708,7 +2708,7 @@ local function draw_config_ui()
     -- AUTO ACTIVATE MOVE (P2 dummy)
     -- ==========================================
     local aa_hdr_style = { base = 0xFF2864DC, hover = 0xFF3C78F0, active = 0xFF1450C8 }
-    if styled_header("--- AUTO ACTIVATE MOVE ---", aa_hdr_style) then
+    if styled_header("--- 自动激活招式 ---", aa_hdr_style) then
         local p2_rname = p2_cache.valid and p2_cache.adv_name or get_real_name(detected_infos[1] and detected_infos[1].name or "?")
         local p2_base = p2_cache.valid and (esf_names_map[p2_cache.real_name] or p2_cache.real_name) or p2_rname
 
@@ -2729,7 +2729,7 @@ local function draw_config_ui()
         end
         _G._dv_aa_moves = all_moves
 
-        local c_en, v_en = imgui.checkbox("Enable##aa", auto_activate.enabled)
+        local c_en, v_en = imgui.checkbox("启用##aa", auto_activate.enabled)
         if c_en then
             auto_activate.enabled = v_en
             if v_en then auto_activate.was_in_range = true
@@ -2737,29 +2737,29 @@ local function draw_config_ui()
         end
 
 
-        imgui.text("REACTION DELAY")
+        imgui.text("反应延迟")
         imgui.same_line()
         imgui.push_item_width(40)
-        local dmc, dmv = imgui.input_text("MIN##aa_delay", tostring(auto_activate.delay_min), 4)
+        local dmc, dmv = imgui.input_text("最小##aa_delay", tostring(auto_activate.delay_min), 4)
         if dmc then local n = tonumber(dmv); if n and n >= -99 and n <= 999 then auto_activate.delay_min = math.floor(n); config.aa_delay_min = auto_activate.delay_min; save_settings() end end
         imgui.pop_item_width()
         imgui.same_line()
         imgui.push_item_width(40)
-        local dxc, dxv = imgui.input_text("MAX##aa_delay", tostring(auto_activate.delay_max), 4)
+        local dxc, dxv = imgui.input_text("最大##aa_delay", tostring(auto_activate.delay_max), 4)
         if dxc then local n = tonumber(dxv); if n and n >= -99 and n <= 999 then auto_activate.delay_max = math.floor(n); config.aa_delay_max = auto_activate.delay_max; save_settings() end end
         imgui.pop_item_width()
 
-        local dc_changed, dc_val = imgui.checkbox("Delay Cancel", config.aa_delay_cancel)
+        local dc_changed, dc_val = imgui.checkbox("延迟取消", config.aa_delay_cancel)
         if dc_changed then config.aa_delay_cancel = dc_val; save_settings() end
 
-        imgui.text("NEUTRAL BUFFER")
+        imgui.text("回中缓冲")
         imgui.same_line()
         imgui.push_item_width(40)
         local nbc, nbv = imgui.input_text("##aa_nbuf", tostring(auto_activate.neutral_buffer), 4)
         if nbc then local n = tonumber(nbv); if n and n >= 0 and n <= 99 then auto_activate.neutral_buffer = math.floor(n); config.aa_neutral_buffer = auto_activate.neutral_buffer; save_settings() end end
         imgui.pop_item_width()
 
-        local log_label = _aa_log.active and "STOP LOG##aalog" or "LOG##aalog"
+        local log_label = _aa_log.active and "停止日志##aalog" or "日志##aalog"
         if imgui.button(log_label) then
             if _aa_log.active then
                 if _aa_log.file then _aa_log.file:close(); _aa_log.file = nil end
@@ -2773,16 +2773,16 @@ local function draw_config_ui()
                 end
             end
         end
-        if _aa_log.active then imgui.same_line(); imgui.text_colored("LOGGING " .. _aa_log.frame .. "f", 0xFF00A5FF) end
+        if _aa_log.active then imgui.same_line(); imgui.text_colored("记录中 " .. _aa_log.frame .. "f", 0xFF00A5FF) end
 
-        local fw_changed, fw_val = imgui.checkbox("Footwork", auto_activate.footwork_enabled)
+        local fw_changed, fw_val = imgui.checkbox("步法", auto_activate.footwork_enabled)
         if fw_changed then
             auto_activate.footwork_enabled = fw_val
             if not fw_val then auto_activate.p2_mask = 0; auto_activate.footwork_counter = 0; auto_activate.footwork_cur_limit = 0 end
         end
         imgui.same_line()
         local fw_modes = {"manual", "random"} -- TODO: add "ai" back
-        local fw_mode_labels = {manual="Manual", random="Random", ai="AI"}
+        local fw_mode_labels = {manual="手动", random="随机", ai="AI"}
         local cur_mode = auto_activate.footwork_mode or "manual"
         if imgui.button(fw_mode_labels[cur_mode] .. "##fwmode") then
             for i, m in ipairs(fw_modes) do
@@ -2796,47 +2796,47 @@ local function draw_config_ui()
         local is_rand = cur_mode == "random"
         if is_rand then
             imgui.push_item_width(40)
-            local fwc, fwv = imgui.input_text("MIN##fw", tostring(auto_activate.footwork_fw), 4)
+            local fwc, fwv = imgui.input_text("最小##fw", tostring(auto_activate.footwork_fw), 4)
             if fwc then local n = tonumber(fwv); if n and n >= 0 and n <= 999 then auto_activate.footwork_fw = math.floor(n) end end
             imgui.pop_item_width()
             imgui.same_line()
             imgui.push_item_width(40)
-            local bwc, bwv = imgui.input_text("MAX##fw_bw", tostring(auto_activate.footwork_bw), 4)
+            local bwc, bwv = imgui.input_text("最大##fw_bw", tostring(auto_activate.footwork_bw), 4)
             if bwc then local n = tonumber(bwv); if n and n >= 0 and n <= 999 then auto_activate.footwork_bw = math.floor(n) end end
             imgui.pop_item_width()
             imgui.same_line()
-            imgui.text("FW/BW")
+            imgui.text("前/后")
             imgui.push_item_width(40)
-            local cmc, cmv = imgui.input_text("MIN##cr", tostring(auto_activate.footwork_cr_min), 4)
+            local cmc, cmv = imgui.input_text("最小##cr", tostring(auto_activate.footwork_cr_min), 4)
             if cmc then local n = tonumber(cmv); if n and n >= 0 and n <= 999 then auto_activate.footwork_cr_min = math.floor(n) end end
             imgui.pop_item_width()
             imgui.same_line()
             imgui.push_item_width(40)
-            local cxc, cxv = imgui.input_text("MAX##cr", tostring(auto_activate.footwork_cr_max), 4)
+            local cxc, cxv = imgui.input_text("最大##cr", tostring(auto_activate.footwork_cr_max), 4)
             if cxc then local n = tonumber(cxv); if n and n >= 0 and n <= 999 then auto_activate.footwork_cr_max = math.floor(n) end end
             imgui.pop_item_width()
             imgui.same_line()
-            imgui.text("Crouch")
+            imgui.text("蹲姿")
         else
             imgui.push_item_width(40)
-            local fwc, fwv = imgui.input_text("FW##fw", tostring(auto_activate.footwork_fw), 4)
+            local fwc, fwv = imgui.input_text("前##fw", tostring(auto_activate.footwork_fw), 4)
             if fwc then local n = tonumber(fwv); if n and n >= 0 and n <= 999 then auto_activate.footwork_fw = math.floor(n) end end
             imgui.pop_item_width()
             imgui.same_line()
             imgui.push_item_width(40)
-            local bwc, bwv = imgui.input_text("BW##fw", tostring(auto_activate.footwork_bw), 4)
+            local bwc, bwv = imgui.input_text("后##fw", tostring(auto_activate.footwork_bw), 4)
             if bwc then local n = tonumber(bwv); if n and n >= 0 and n <= 999 then auto_activate.footwork_bw = math.floor(n) end end
             imgui.pop_item_width()
             imgui.same_line()
             imgui.push_item_width(40)
-            local crc, crv = imgui.input_text("CR##fw", tostring(auto_activate.footwork_cr), 4)
+            local crc, crv = imgui.input_text("蹲##fw", tostring(auto_activate.footwork_cr), 4)
             if crc then local n = tonumber(crv); if n and n >= 0 and n <= 999 then auto_activate.footwork_cr = math.floor(n) end end
             imgui.pop_item_width()
         end
 
         if #all_moves > 0 then
             imgui.spacing()
-            imgui.text_colored("MAIN  SUB  W   MOVE", 0xFF888888)
+            imgui.text_colored("主  副  权重  招式", 0xFF888888)
             imgui.separator()
             imgui.begin_child_window("##aa_list", Vector2f.new(0, 300), false, 0)
             for i, mv in ipairs(all_moves) do
@@ -2847,7 +2847,7 @@ local function draw_config_ui()
                 local weight = is_sub and sub_entry.weight or 0
 
                 if is_main then imgui.push_style_color(21, 0xFF00FFFF) end
-                local mc, _ = imgui.checkbox("M##main_" .. i, is_main)
+                local mc, _ = imgui.checkbox("主##main_" .. i, is_main)
                 if is_main then imgui.pop_style_color(1) end
                 if mc then
                     if not is_main then
@@ -2871,7 +2871,7 @@ local function draw_config_ui()
 
                 imgui.same_line()
                 if is_sub then imgui.push_style_color(21, 0xFF00FF00) end
-                local sc, sv = imgui.checkbox("S##sub_" .. i, is_sub)
+                local sc, sv = imgui.checkbox("副##sub_" .. i, is_sub)
                 if is_sub then imgui.pop_style_color(1) end
                 if sc then
                     if sv then
@@ -2922,7 +2922,7 @@ local function draw_config_ui()
 
             imgui.end_child_window()
         else
-            imgui.text_colored("No attack data for " .. p2_base, COL_GREY)
+            imgui.text_colored("无攻击数据: " .. p2_base, COL_GREY)
         end
 
 
@@ -3715,7 +3715,7 @@ re.on_frame(function()
     
     local win_flags = 1 | 2 | 4 | 8 | 512 | 786432 | 128
 
-    if imgui.begin_window("CrossUpOverlay", true, win_flags) then
+    if imgui.begin_window("逆向覆盖层", true, win_flags) then
 	-- Render vertically stored labels/icons
         if #icons_to_draw > 0 then
             for _, item in ipairs(icons_to_draw) do
@@ -4034,17 +4034,17 @@ re.on_frame(function()
             window_flags = 64
         end
 
-        if imgui.begin_window("SF6 DISTANCE VIEWER", true, window_flags) then
+        if imgui.begin_window("SF6 距离查看器", true, window_flags) then
             -- Save rect for next frame's click detection (on_draw_ui runs after on_frame)
             pcall(_dv_save_window_rect)
             if ui_font.obj then imgui.push_font(ui_font.obj) end
             
             -- Checkbox to hide the floating window from within itself
-            local chg_ov, new_ov = imgui.checkbox("Floating Window", config.show_debug_window)
+            local chg_ov, new_ov = imgui.checkbox("浮动窗口", config.show_debug_window)
             imgui.same_line()
-            if imgui.button("Reload Data") then load_advanced_data() end
+            if imgui.button("重新加载数据") then load_advanced_data() end
             imgui.same_line()
-            local chg_em, new_em = imgui.checkbox("EXPERT MODE ", config.expert_mode_enabled)
+            local chg_em, new_em = imgui.checkbox("专家模式 ", config.expert_mode_enabled)
             if chg_em then
                 config.expert_mode_enabled = new_em
                 for _, p in ipairs({"p1", "p2"}) do
@@ -4107,17 +4107,17 @@ re.on_frame(function()
 end)
 
 local function draw_distance_viewer_menu_ui()
-    if imgui.tree_node("SF6 DISTANCE VIEWER") then
-        local changed_ov, new_ov = imgui.checkbox("FLOATING WINDOW", config.show_debug_window)
+    if imgui.tree_node("SF6 距离查看器") then
+        local changed_ov, new_ov = imgui.checkbox("浮动窗口", config.show_debug_window)
         if changed_ov then
             config.show_debug_window = new_ov
             first_draw = true
             save_settings()
         end
         imgui.same_line()
-        if imgui.button("Reload Data") then load_advanced_data() end
+        if imgui.button("重新加载数据") then load_advanced_data() end
         imgui.same_line()
-        local chg_em, new_em = imgui.checkbox("EXPERT MODE ", config.expert_mode_enabled)
+        local chg_em, new_em = imgui.checkbox("专家模式 ", config.expert_mode_enabled)
         if chg_em then
             config.expert_mode_enabled = new_em
             for _, p in ipairs({"p1", "p2"}) do
@@ -4155,7 +4155,7 @@ local function draw_distance_viewer_menu_ui()
 
         if not config.show_debug_window then
             imgui.separator()
-            imgui.text_colored("REFRAMEWORK MENU MODE (Window Hidden)", COL_CYAN)
+            imgui.text_colored("REFRAMEWORK 菜单模式（窗口已隐藏）", COL_CYAN)
             draw_config_ui()
         end
 

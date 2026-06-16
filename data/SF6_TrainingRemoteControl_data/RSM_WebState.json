@@ -12,17 +12,17 @@
     "selected_file": "",
     "slots": [
         {
-            "active": false,
-            "frames": 241,
+            "active": true,
+            "frames": 222,
             "name": "",
             "valid": true,
             "weight": 1
         },
         {
-            "active": false,
-            "frames": 0,
+            "active": true,
+            "frames": 908,
             "name": "",
-            "valid": false,
+            "valid": true,
             "weight": 1
         },
         {

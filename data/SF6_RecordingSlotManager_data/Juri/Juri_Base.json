@@ -1,72 +1,52 @@
 [
     {
-        "empty": false,
+        "empty": true,
         "id": 1,
-        "timeline": [
-            "205f : 5",
-            "7f : 5 + MK",
-            "14f : 5"
-        ],
+        "name": "Ken_OKI_980_D0_SA0",
+        "timeline": null,
         "weight": 1
     },
     {
-        "empty": false,
+        "empty": true,
         "id": 2,
-        "timeline": [
-            "1f : 4"
-        ],
+        "name": "Ken_OKI_3998_D3_SA0",
+        "timeline": null,
         "weight": 1
     },
     {
-        "empty": false,
+        "empty": true,
         "id": 3,
-        "timeline": [
-            "6f : 2",
-            "3f : 1",
-            "7f : 4",
-            "11f : 5 + LP",
-            "143f : 5"
-        ],
+        "timeline": null,
         "weight": 1
     },
     {
-        "empty": false,
+        "empty": true,
         "id": 4,
-        "timeline": [
-            "6f : 2",
-            "3f : 1",
-            "7f : 4",
-            "11f : 5 + LP",
-            "143f : 5"
-        ],
+        "timeline": null,
         "weight": 1
     },
     {
-        "empty": false,
+        "empty": true,
         "id": 5,
-        "timeline": [
-            "6f : 2",
-            "1f : 1",
-            "6f : 4",
-            "1f : 4 + LP",
-            "10f : 5 + LP",
-            "173f : 5"
-        ],
+        "timeline": null,
         "weight": 1
     },
     {
         "empty": true,
         "id": 6,
+        "timeline": null,
         "weight": 1
     },
     {
         "empty": true,
         "id": 7,
+        "timeline": null,
         "weight": 1
     },
     {
         "empty": true,
         "id": 8,
+        "timeline": null,
         "weight": 1
     }
 ]

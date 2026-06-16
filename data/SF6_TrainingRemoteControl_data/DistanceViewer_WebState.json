@@ -1,6 +1,6 @@
 {
     "aa_bw": 10,
-    "aa_delay_cancel": true,
+    "aa_delay_cancel": false,
     "aa_delay_max": 0,
     "aa_delay_min": 0,
     "aa_enabled": false,
@@ -31,7 +31,7 @@
     "aa_neutral_buffer": 0,
     "aa_subs": null,
     "is_replay": false,
-    "p1_char": "Zangief",
+    "p1_char": "Ingrid",
     "p1_facing_right": true,
     "p1_prefs": {
         "A.K.I.": {
@@ -415,7 +415,6 @@
                 "ar": 244.6949,
                 "input": "5HP (HOLD)"
             },
-            "visibility": null,
             "yellow_offset": 50
         }
     },

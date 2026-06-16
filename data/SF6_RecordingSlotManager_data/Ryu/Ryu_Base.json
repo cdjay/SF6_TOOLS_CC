@@ -2,93 +2,53 @@
     {
         "empty": false,
         "id": 1,
-        "name": "Test 1",
+        "name": "Ken_OKI_980_D0_SA0",
         "timeline": [
-            "3f : 2",
-            "2f : 1",
-            "4f : 4",
-            "6f : 5 + LP",
-            "47f : 5",
-            "8f : 4",
-            "4f : 5",
-            "10f : 6",
-            "2f : 5",
-            "7f : 4",
-            "2f : 5",
-            "9f : 6",
-            "5f : 5",
-            "4f : 2",
-            "3f : 1",
-            "3f : 4",
-            "1f : 4 + LP",
-            "7f : 5 + LP",
-            "65f : 5"
+            "19f : 5"
         ],
         "weight": 1
     },
     {
-        "empty": false,
+        "empty": true,
         "id": 2,
-        "name": "Test 2",
-        "timeline": [
-            "7f : 4",
-            "2f : 5",
-            "6f : 6",
-            "2f : 5",
-            "7f : 4",
-            "5f : 5",
-            "1f : 6",
-            "2f : 3",
-            "3f : 2",
-            "3f : 1",
-            "2f : 4",
-            "4f : 5",
-            "6f : 5 + LP",
-            "36f : 5",
-            "8f : 6",
-            "2f : 5",
-            "11f : 4",
-            "2f : 5",
-            "7f : 6",
-            "2f : 5",
-            "8f : 4",
-            "10f : 5",
-            "5f : 2",
-            "3f : 1",
-            "3f : 4",
-            "15f : 5 + MP + HP",
-            "102f : 5"
-        ],
+        "name": "Ken_OKI_3998_D3_SA0",
+        "timeline": null,
         "weight": 1
     },
     {
         "empty": true,
         "id": 3,
+        "timeline": null,
         "weight": 1
     },
     {
         "empty": true,
         "id": 4,
+        "timeline": null,
         "weight": 1
     },
     {
         "empty": true,
         "id": 5,
+        "timeline": null,
         "weight": 1
     },
     {
         "empty": true,
         "id": 6,
+        "timeline": null,
         "weight": 1
     },
     {
         "empty": true,
         "id": 7,
+        "timeline": null,
         "weight": 1
     },
     {
         "empty": true,
         "id": 8,
+        "timeline": null,
         "weight": 1
     }
 ]
