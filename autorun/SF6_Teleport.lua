@@ -196,7 +196,7 @@ local function draw_teleport_ui(suffix)
     end
     if copied_timer > 0 then
         imgui.same_line()
-        imgui.text_colored("Copied!", 0xFF00FFFF)
+        imgui.text_colored("已复制!", 0xFF00FFFF)
     end
 
     local t_str = tostring(teleport_target_dist)
