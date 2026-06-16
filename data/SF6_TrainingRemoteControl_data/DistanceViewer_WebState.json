@@ -12,26 +12,29 @@
     "aa_fw_mode": "manual",
     "aa_move": "",
     "aa_moves": [
-        "623HK",
         "5HK",
-        "5MK",
+        "6HP",
+        "6MP",
         "2HK",
+        "6MK",
         "5HP",
         "2MK",
         "5LK",
-        "2HP",
+        "5MK",
         "2MP",
+        "4HK",
         "2LK",
         "5LP",
-        "5MP",
         "2LP",
+        "5MP",
+        "2HP",
         "THROW",
         "FORWARD JUMP"
     ],
     "aa_neutral_buffer": 0,
     "aa_subs": null,
-    "is_replay": false,
-    "p1_char": "Ingrid",
+    "is_replay": true,
+    "p1_char": "Zangief",
     "p1_facing_right": true,
     "p1_prefs": {
         "A.K.I.": {
@@ -419,7 +422,7 @@
         }
     },
     "p1_show_all": false,
-    "p2_char": "Ken",
+    "p2_char": "Akuma",
     "p2_facing_right": false,
     "p2_prefs": {
         "A.K.I.": {
