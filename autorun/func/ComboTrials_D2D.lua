@@ -196,9 +196,9 @@ local function parse_motion_to_icons(log_entry, trial_mode, should_flip, reverse
     -- Convert to uppercase IMMEDIATELY so that j. becomes J.
     s = s:upper()
 
-    -- 1. Inline normalization of aerial state (J. -> [AIR], keeps each [AIR] at its position)
-    s = s:gsub("J%.", "[AIR]")
-    s = s:gsub("%[AIR%]%s*", "[AIR] ")
+    -- 1. Inline normalization of aerial state (J. -> [空中], keeps each [空中] at its position)
+    s = s:gsub("J%.", "[空中]")
+    s = s:gsub("%[空中%]%s*", "[空中] ")
 
     -- 2. Command inversion (Visual Only) for P2
     if should_flip then
@@ -379,28 +379,34 @@ local function parse_motion_to_icons(log_entry, trial_mode, should_flip, reverse
         table.insert(hold_tokens, { type = "text", val = "(x" .. log_entry.hold_repeat .. ")", col = 0xFFFFFFFF })
     elseif log_entry.is_holdable then
         local frames = log_entry.hold_frames or 0
-        local status = log_entry.charge_status or "Charging"
+        local status = log_entry.charge_status or "蓄力中"
 
         -- Universal Math Logic: Independent of engine's is_holding flag
         if log_entry.charge_min and log_entry.charge_max then
             if frames <= log_entry.charge_min then
-                status = "Instant"
+                status = "即时"
             elseif frames >= log_entry.charge_max then
-                status = "Maxed"
+                status = "蓄满"
             else
-                status = "Partial"
+                status = "部分"
             end
         elseif log_entry.charge_min then
             if frames <= log_entry.charge_min then
-                status = "Instant"
+                status = "即时"
             else
-                status = "Partial"
+                status = "部分"
             end
         end
 
         -- Preserve specific engine statuses like perfect timing
-        if log_entry.charge_status == "PERFECT!" or log_entry.charge_status == "FAKE" or log_entry.charge_status == "Maxed" or log_entry.charge_status == "LATE" then
-            status = log_entry.charge_status
+        if log_entry.charge_status == "PERFECT!" then
+            status = "完美!"
+        elseif log_entry.charge_status == "FAKE" then
+            status = "伪连"
+        elseif log_entry.charge_status == "LATE" then
+            status = "过晚"
+        elseif log_entry.charge_status == "Maxed" then
+            status = "蓄满"
         end
 
         local col = 0xFFFFFFFF -- White (Instant default)
@@ -449,17 +455,17 @@ local function parse_motion_to_icons(log_entry, trial_mode, should_flip, reverse
                 local col = (actual >= log_entry.expected_combo) and 0xFF00FF00 or 0xFF888888
                 combo_token = {
                     type = "text",
-                    val = string.format("[Combo: %d / %d]", actual, log_entry.expected_combo),
+                    val = string.format("[连段: %d / %d]", actual, log_entry.expected_combo),
                     col = col
                 }
             end
         elseif trial_mode == "recording" or trial_mode == "saved" then
             if log_entry.expected_combo ~= nil and log_entry.expected_combo > 0 then
-                combo_token = { type = "text", val = string.format("[Combo: %d]", log_entry.expected_combo), col = 0xFF00FF00 }
+                combo_token = { type = "text", val = string.format("[连段: %d]", log_entry.expected_combo), col = 0xFF00FF00 }
             end
         elseif trial_mode == "log" then
             if log_entry.combo_count ~= nil and log_entry.combo_count > 0 then
-                combo_token = { type = "text", val = string.format("[Combo: %d]", log_entry.combo_count), col = 0xFF00FF00 }
+                combo_token = { type = "text", val = string.format("[连段: %d]", log_entry.combo_count), col = 0xFF00FF00 }
             end
         end
     end
@@ -492,12 +498,12 @@ local function parse_motion_to_icons(log_entry, trial_mode, should_flip, reverse
         end
     end
 
-    -- Tag (CH) or (PC) per step
+    -- Tag (打康) or (确反康) per step
     local ct = log_entry.counter_type
     if ct == 1 then
-        table.insert(final_tokens, { type = "text", val = " (CH)", col = 0xFFFFFFFF })
+        table.insert(final_tokens, { type = "text", val = " (打康)", col = 0xFFFFFFFF })
     elseif ct == 2 then
-        table.insert(final_tokens, { type = "text", val = " (PC)", col = 0xFFFFFFFF })
+        table.insert(final_tokens, { type = "text", val = " (确反康)", col = 0xFFFFFFFF })
     end
 
     return final_tokens
@@ -588,6 +594,11 @@ local function d2d_init()
     end
     _img_arrow_down = d2d.Image.new("ui_icons/chevron_down_ios.png")
     _img_arrow_up = d2d.Image.new("ui_icons/chevron_up_ios.png")
+    -- Cartouche bar images (with built-in arrow + gradient)
+    assets.imgs["done_bar"] = d2d.Image.new("done-bar.png")
+    assets.imgs["active_bar"] = d2d.Image.new("active-bar.png")
+    assets.imgs["fail_bar"] = d2d.Image.new("fail-bar.png")
+    assets.imgs["success_bar"] = d2d.Image.new("success-bar.png")
 end
 
 local function draw_bar_toggle_arrows()
@@ -833,6 +844,8 @@ local function d2d_draw_inner()
         local active_bg_h = spacing_y * (d2d_cfg.cartouche_height or 1.0)
         local c_off_x = (d2d_cfg.cartouche_offset_x or 0) * sw
         local c_off_y = (d2d_cfg.cartouche_offset_y or 0) * sh
+        local b_off_x = (d2d_cfg.bar_img_offset_x or 0) * sw
+        local b_off_y = (d2d_cfg.bar_img_offset_y or 0) * sh
         local final_rect_x = rect_x + c_off_x
 
         -- Build display lines (follow-up groups)
@@ -880,9 +893,13 @@ local function d2d_draw_inner()
                 local cur_y_pos = trial_y + (dl_idx - start_idx) * spacing_y
                 if is_succ or (dl_idx < visual_dl) then
                     local sy = cur_y_pos - padding_y + c_off_y
-                    d2d.fill_rect(final_rect_x, sy, cartouche_w, active_bg_h, d2d_cfg.colors.bg_success)
-                    d2d.fill_rect(final_rect_x, sy, cartouche_w, 1, d2d_cfg.colors.bg_success_line)
-                    d2d.fill_rect(final_rect_x, sy + active_bg_h - 1, cartouche_w, 1, d2d_cfg.colors.bg_success_line)
+                    if assets.imgs["done_bar"] then
+                        d2d.image(assets.imgs["done_bar"], final_rect_x + b_off_x, sy + b_off_y, cartouche_w, active_bg_h)
+                    else
+                        d2d.fill_rect(final_rect_x, sy, cartouche_w, active_bg_h, d2d_cfg.colors.bg_success)
+                        d2d.fill_rect(final_rect_x, sy, cartouche_w, 1, d2d_cfg.colors.bg_success_line)
+                        d2d.fill_rect(final_rect_x, sy + active_bg_h - 1, cartouche_w, 1, d2d_cfg.colors.bg_success_line)
+                    end
                 end
             end
         end
@@ -901,19 +918,31 @@ local function d2d_draw_inner()
             d2d_anim.active_y = d2d_anim.active_y + (target_anim_y - d2d_anim.active_y) * 0.15
 
             local is_fail_state = (trial_state.fail_timer and trial_state.fail_timer > 0)
-            local bg_c, li_c = d2d_cfg.colors.bg_active, d2d_cfg.colors.bg_active_line
+            local bar_img = nil
             if mode == "recording" then
-                bg_c = 0x90FF0000; li_c = 0xFFFF0000
+                -- no bar image for recording; falls through to fill_rect below
             elseif is_succ then
-                bg_c = 0x80004400; li_c = 0xFF00FF00
+                bar_img = assets.imgs["success_bar"]
             elseif is_fail_state then
-                bg_c = d2d_cfg.colors.bg_fail; li_c = d2d_cfg.colors.bg_fail_line
+                bar_img = assets.imgs["fail_bar"]
+            else
+                bar_img = assets.imgs["active_bar"]
             end
 
             local sy = d2d_anim.active_y - padding_y + c_off_y
-            d2d.fill_rect(final_rect_x, sy, cartouche_w, active_bg_h, bg_c)
-            d2d.fill_rect(final_rect_x, sy, cartouche_w, 3, li_c)
-            d2d.fill_rect(final_rect_x, sy + active_bg_h - 3, cartouche_w, 3, li_c)
+            if bar_img then
+                d2d.image(bar_img, final_rect_x + b_off_x, sy + b_off_y, cartouche_w, active_bg_h)
+            else
+                local bg_c, li_c
+                if mode == "recording" then
+                    bg_c = 0x90FF0000; li_c = 0xFFFF0000
+                else
+                    bg_c = d2d_cfg.colors.bg_active; li_c = d2d_cfg.colors.bg_active_line
+                end
+                d2d.fill_rect(final_rect_x, sy, cartouche_w, active_bg_h, bg_c)
+                d2d.fill_rect(final_rect_x, sy, cartouche_w, 3, li_c)
+                d2d.fill_rect(final_rect_x, sy + active_bg_h - 3, cartouche_w, 3, li_c)
+            end
         else
             d2d_anim.active_y = nil
         end
@@ -941,36 +970,29 @@ local function d2d_draw_inner()
             local tokens = parse_motion_to_icons(log_item, mode, current_should_flip, true)
             draw_parsed_line(tokens, trial_x, y, icon_w, icon_h, spacing_x, final_text_y_offset, is_aligned_right, nil)
 
-            -- Smart overlay (pink for success, dark for fail)
-            if trial_state.is_playing and not is_succ then
-                local is_fail_state = (trial_state.fail_timer and trial_state.fail_timer > 0)
-                local draw_overlay, overlay_col = false, 0
-                if dl_idx < visual_dl then
-                    draw_overlay = true; overlay_col = d2d_cfg.colors.bg_overlay_success or 0x40D050B0
-                elseif dl_idx == visual_dl and is_fail_state then
-                    draw_overlay = true; overlay_col = d2d_cfg.colors.bg_overlay or 0x85000000
-                end
-                if draw_overlay then
-                    d2d.fill_rect(final_rect_x, y - padding_y + c_off_y + 3, cartouche_w, active_bg_h - 6, overlay_col)
-                end
-            end
+            -- Smart overlay removed — bar images (done/fail/success) handle all visual states
         end
 
-        -- Arrow on top
+        -- Arrow on top (only when recording; bar images have arrow built-in)
         if trial_state.is_playing and d2d_anim.active_y then
-            local arrow_tex = "arrow"
-            if trial_state.success_timer > 0 then
-                arrow_tex = "arrow_success"
-            elseif trial_state.fail_timer and trial_state.fail_timer > 0 then
-                arrow_tex = "arrow_fail"
-            end
+            -- Bar images (active/fail/success) all have arrows built-in.
+            -- Only draw standalone arrow when recording or bar images unavailable.
+            if mode == "recording" or (not assets.imgs["active_bar"] and not assets.imgs["fail_bar"] and not assets.imgs["success_bar"]) then
+                local arrow_tex = "arrow"
+                local is_fail_state = (trial_state.fail_timer and trial_state.fail_timer > 0)
+                if trial_state.success_timer > 0 then
+                    arrow_tex = "arrow_success"
+                elseif is_fail_state then
+                    arrow_tex = "arrow_fail"
+                end
 
-            if assets.imgs[arrow_tex] then
-                local arr_w = d2d_cfg.arrow_size * sh
-                local arr_x = is_aligned_right and (trial_x - (d2d_cfg.offset_x_arrow * sw)) or
-                    (trial_x + (d2d_cfg.offset_x_arrow * sw))
-                local arr_y = d2d_anim.active_y + (spacing_y - arr_w) / 2 + (d2d_cfg.offset_y_arrow * sh)
-                d2d.image(assets.imgs[arrow_tex], arr_x, arr_y, arr_w, arr_w)
+                if assets.imgs[arrow_tex] then
+                    local arr_w = d2d_cfg.arrow_size * sh
+                    local arr_x = is_aligned_right and (trial_x - (d2d_cfg.offset_x_arrow * sw)) or
+                        (trial_x + (d2d_cfg.offset_x_arrow * sw))
+                    local arr_y = d2d_anim.active_y + (spacing_y - arr_w) / 2 + (d2d_cfg.offset_y_arrow * sh)
+                    d2d.image(assets.imgs[arrow_tex], arr_x, arr_y, arr_w, arr_w)
+                end
             end
         end
     end

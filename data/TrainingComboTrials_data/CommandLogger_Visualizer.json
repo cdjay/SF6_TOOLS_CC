@@ -1,12 +1,14 @@
 {
-    "arrow_size": 0.08299999684095383,
+    "arrow_size": 0.0729999989271164,
     "auto_launch_idx": 2,
     "auto_load": true,
+    "bar_img_offset_x": -0.02800000086426735,
+    "bar_img_offset_y": -0.017999999225139618,
     "bar_width_pct": 0.8199999928474426,
-    "cartouche_height": 0.9399999976158142,
-    "cartouche_offset_x": -0.009999999776482582,
+    "cartouche_height": 1.6399999856948853,
+    "cartouche_offset_x": -0.024000000208616257,
     "cartouche_offset_y": 0.004999999888241291,
-    "cartouche_width": 0.3149999976158142,
+    "cartouche_width": 0.30000001192092896,
     "colors": {
         "bg_active": 2690650224,
         "bg_active_line": 4291834096,
@@ -46,11 +48,11 @@
         "h": 0.04351851851851852,
         "w": 0.8197916666666667
     },
-    "font_size": 0.017999999225139618,
-    "forced_position_idx": 2,
+    "font_size": 0.02500000037252903,
+    "forced_position_idx": 3,
     "ghost_filter_frames": 4,
-    "hud_font_size": 24.5,
-    "hud_global_y": -0.3409999907016754,
+    "hud_font_size": 21.0,
+    "hud_global_y": -0.33799999952316284,
     "hud_show": true,
     "hud_spacing_y": 0.02800000086426735,
     "icon_size": 0.039000000804662704,
@@ -82,11 +84,11 @@
     "max_history": 15,
     "mirror_p1": false,
     "mirror_p2": false,
-    "offset_x_arrow": -0.0430000014603138,
-    "offset_y_arrow": -0.0020000000949949026,
+    "offset_x_arrow": -0.03999999910593033,
+    "offset_y_arrow": 0.006000000052154064,
     "pos_combo_stats": {
-        "x": 0.5,
-        "y": 0.09000000357627869
+        "x": 0.5550000071525574,
+        "y": 0.17000000178813934
     },
     "pos_live_single_p1": {
         "x": 0.15000000596046448,
@@ -110,14 +112,14 @@
     },
     "pos_trial_header": {
         "x": 0.4950000047683716,
-        "y": 0.0
+        "y": 0.10499999672174454
     },
     "pos_trial_p1": {
-        "x": 0.05000000074505806,
+        "x": 0.07999999821186066,
         "y": 0.16200000047683716
     },
     "pos_trial_p2": {
-        "x": 0.8349999785423279,
+        "x": 0.8299999833106995,
         "y": 0.014999999664723873
     },
     "raw": {
@@ -135,7 +137,7 @@
         "text_y_offset": -0.014499999582767487
     },
     "raw_max_history": 16,
-    "raw_p1": true,
+    "raw_p1": false,
     "raw_p2": false,
     "raw_pos_p1": {
         "x": 0.9700000286102295,
@@ -145,14 +147,14 @@
         "x": 0.85,
         "y": 0.35
     },
-    "show_combo_count": true,
+    "show_combo_count": false,
     "show_live_single_p1": true,
     "show_live_single_p2": true,
     "show_p1": true,
     "show_p2": false,
-    "spacing_x": 0.009999999776482582,
-    "spacing_y": 0.04600000008940697,
+    "spacing_x": 0.0,
+    "spacing_y": 0.04800000041723251,
     "special_icon_scale": 1.5,
-    "text_y_offset": -0.0020000000949949026,
+    "text_y_offset": -0.0010000000474974513,
     "trial_visible_steps": 30
 }

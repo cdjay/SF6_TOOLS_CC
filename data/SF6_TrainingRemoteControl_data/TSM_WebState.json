@@ -17,10 +17,10 @@
         "Zangief_COMBO_3505_D2_SA0.json",
         "Zangief_COMBO_1767_D5_SA0.json"
     ],
-    "trial_playing": true,
-    "trial_position": 2,
+    "trial_playing": false,
+    "trial_position": 3,
     "trial_recording": false,
     "trial_step": 1,
-    "trial_total": 5,
+    "trial_total": 0,
     "trials": 0
 }

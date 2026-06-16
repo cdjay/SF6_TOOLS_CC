@@ -3277,12 +3277,12 @@ local function ct_player_process_actions(p_idx, p_state, actions_to_process)
                             local is_dash = m_str:match("DASH") or m_str:match("66") or m_str:match("44") or is_drive_rush_motion(prev_step.motion)
 
                             if not is_mov and not is_parry and not is_dash and not m_str:match("WHIFF") then
-                                prev_step.motion = prev_step.motion .. " (WHIFF)"
+                                prev_step.motion = prev_step.motion .. " (空挥)"
                                 -- Update the Live Log for real-time display
                                 if p_state.log and #p_state.log > 0 then
                                     local log_to_update = p_state.log[1]
                                     if log_to_update and log_to_update.id == prev_step.id then
-                                        log_to_update.motion = log_to_update.motion .. " (WHIFF)"
+                                        log_to_update.motion = log_to_update.motion .. " (空挥)"
                                     end
                                 end
                             end
@@ -3788,7 +3788,7 @@ function save_trial_sequence()
                     local is_dash = m_str:match("DASH") or m_str:match("66") or m_str:match("44") or is_drive_rush_motion(last_step.motion)
 
                     if not is_mov and not is_parry and not is_dash and not m_str:match("WHIFF") then
-                        last_step.motion = last_step.motion .. " (WHIFF)"
+                        last_step.motion = last_step.motion .. " (空挥)"
                     end
                 end
 

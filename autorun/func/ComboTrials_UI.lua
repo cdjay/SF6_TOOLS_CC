@@ -1141,11 +1141,11 @@ re.on_frame(function()
                 local mode_all_stacked = w_width < (absolute_btn_w * 1.5)
                 local mode_col2_3_inline = not mode_all_inline and not mode_all_stacked
 
-                local header_txt = "COMBO TRIALS：回放与录制设置"
+                local header_txt = "连段训练：回放与录制设置"
                 if mode_all_stacked then
-                    header_txt = "COMBO TRIALS"
+                    header_txt = "连段训练"
                 elseif mode_col2_3_inline then
-                    header_txt = "COMBO TRIALS 设置"
+                    header_txt = "连段训练 设置"
                 end
 
                 local cb_width = 35 * (sh / 1080.0)
@@ -1245,7 +1245,7 @@ local function draw_combo_trials_menu_ui()
                 draw_combo_trials_content(false)
             else
                 imgui.separator()
-                imgui.text_colored("此区域当前已分离为浮动窗口。", COLORS.DarkGrey)
+                imgui.text_colored("当前已被分离为浮动窗口。", COLORS.DarkGrey)
                 imgui.spacing()
             end
             local asd_c, asd_v = imgui.checkbox("允许晕厥连段使用演示", _G._allow_stun_demo or false)
@@ -1368,18 +1368,18 @@ local function draw_combo_trials_menu_ui()
                 imgui.text_colored("--- Raw Input 显示设置 ---", COLORS.Cyan)
                 if not d2d_cfg.raw then d2d_cfg.raw = {} end
                 local rc = d2d_cfg.raw
-                c, v = imgui.drag_float("Raw Icon Size", rc.icon_size or 0.030, 0.001, 0.01, 0.1, "%.3f"); if c then rc.icon_size = v; changed = true end
-                c, v = imgui.drag_float("Raw Font Size", rc.font_size or 0.028, 0.001, 0.01, 0.1, "%.3f"); if c then rc.font_size = v; changed = true end
-                c, v = imgui.drag_float("Raw Row Spacing", rc.spacing_y or 0.040, 0.001, 0.01, 0.1, "%.3f"); if c then rc.spacing_y = v; changed = true end
-                c, v = imgui.drag_float("Raw Text Y Offset", rc.text_y_offset or 0.002, 0.0005, -0.02, 0.02, "%.4f"); if c then rc.text_y_offset = v; changed = true end
-                c, v = imgui.drag_float("Raw Frame Col", rc.col_frame or 0.000, 0.005, -0.2, 0.5, "%.3f"); if c then rc.col_frame = v; changed = true end
-                c, v = imgui.drag_float("Raw Dir Col", rc.col_dir or 0.050, 0.005, -0.2, 0.5, "%.3f"); if c then rc.col_dir = v; changed = true end
-                c, v = imgui.drag_float("Raw Slot 1", rc.slot1 or 0.100, 0.005, 0.0, 0.5, "%.3f"); if c then rc.slot1 = v; changed = true end
-                c, v = imgui.drag_float("Raw Slot 2", rc.slot2 or 0.140, 0.005, 0.0, 0.5, "%.3f"); if c then rc.slot2 = v; changed = true end
-                c, v = imgui.drag_float("Raw Slot 3", rc.slot3 or 0.180, 0.005, 0.0, 0.5, "%.3f"); if c then rc.slot3 = v; changed = true end
-                c, v = imgui.drag_float("Raw Slot 4", rc.slot4 or 0.220, 0.005, 0.0, 0.5, "%.3f"); if c then rc.slot4 = v; changed = true end
-                c, v = imgui.drag_float("Raw Slot 5", rc.slot5 or 0.260, 0.005, 0.0, 0.5, "%.3f"); if c then rc.slot5 = v; changed = true end
-                c, v = imgui.drag_float("Raw Slot 6", rc.slot6 or 0.300, 0.005, 0.0, 0.5, "%.3f"); if c then rc.slot6 = v; changed = true end
+                c, v = imgui.drag_float("Raw 图标大小", rc.icon_size or 0.030, 0.001, 0.01, 0.1, "%.3f"); if c then rc.icon_size = v; changed = true end
+                c, v = imgui.drag_float("Raw 字体大小", rc.font_size or 0.028, 0.001, 0.01, 0.1, "%.3f"); if c then rc.font_size = v; changed = true end
+                c, v = imgui.drag_float("Raw 行间距", rc.spacing_y or 0.040, 0.001, 0.01, 0.1, "%.3f"); if c then rc.spacing_y = v; changed = true end
+                c, v = imgui.drag_float("Raw 文字 Y 偏移", rc.text_y_offset or 0.002, 0.0005, -0.02, 0.02, "%.4f"); if c then rc.text_y_offset = v; changed = true end
+                c, v = imgui.drag_float("Raw 帧数列", rc.col_frame or 0.000, 0.005, -0.2, 0.5, "%.3f"); if c then rc.col_frame = v; changed = true end
+                c, v = imgui.drag_float("Raw 方向列", rc.col_dir or 0.050, 0.005, -0.2, 0.5, "%.3f"); if c then rc.col_dir = v; changed = true end
+                c, v = imgui.drag_float("Raw 槽位 1", rc.slot1 or 0.100, 0.005, 0.0, 0.5, "%.3f"); if c then rc.slot1 = v; changed = true end
+                c, v = imgui.drag_float("Raw 槽位 2", rc.slot2 or 0.140, 0.005, 0.0, 0.5, "%.3f"); if c then rc.slot2 = v; changed = true end
+                c, v = imgui.drag_float("Raw 槽位 3", rc.slot3 or 0.180, 0.005, 0.0, 0.5, "%.3f"); if c then rc.slot3 = v; changed = true end
+                c, v = imgui.drag_float("Raw 槽位 4", rc.slot4 or 0.220, 0.005, 0.0, 0.5, "%.3f"); if c then rc.slot4 = v; changed = true end
+                c, v = imgui.drag_float("Raw 槽位 5", rc.slot5 or 0.260, 0.005, 0.0, 0.5, "%.3f"); if c then rc.slot5 = v; changed = true end
+                c, v = imgui.drag_float("Raw 槽位 6", rc.slot6 or 0.300, 0.005, 0.0, 0.5, "%.3f"); if c then rc.slot6 = v; changed = true end
             end
 
             -- NEW: Trial Box Position & Height
@@ -1404,11 +1404,17 @@ local function draw_combo_trials_menu_ui()
             c, v = imgui.drag_float("Trial 框宽度", d2d_cfg.cartouche_width, 0.005, 0.1, 1.0); if c then
                 d2d_cfg.cartouche_width = v; changed = true
             end
-            c, v = imgui.drag_float("Cartouche Offset X", d2d_cfg.cartouche_offset_x, 0.001, -0.1, 0.1); if c then
+            c, v = imgui.drag_float("框偏移 X", d2d_cfg.cartouche_offset_x, 0.001, -0.1, 0.1); if c then
                 d2d_cfg.cartouche_offset_x = v; changed = true
             end
-            c, v = imgui.drag_float("Cartouche Offset Y", d2d_cfg.cartouche_offset_y, 0.001, -0.1, 0.1); if c then
+            c, v = imgui.drag_float("框偏移 Y", d2d_cfg.cartouche_offset_y, 0.001, -0.1, 0.1); if c then
                 d2d_cfg.cartouche_offset_y = v; changed = true
+            end
+            c, v = imgui.drag_float("Bar图片 X 偏移", d2d_cfg.bar_img_offset_x, 0.001, -0.1, 0.1); if c then
+                d2d_cfg.bar_img_offset_x = v; changed = true
+            end
+            c, v = imgui.drag_float("Bar图片 Y 偏移", d2d_cfg.bar_img_offset_y, 0.001, -0.1, 0.1); if c then
+                d2d_cfg.bar_img_offset_y = v; changed = true
             end
             c, v = imgui.drag_int("可见 Trial 行数", d2d_cfg.trial_visible_steps, 1, 1, 30); if c then
                 d2d_cfg.trial_visible_steps = v; changed = true
@@ -1420,50 +1426,50 @@ local function draw_combo_trials_menu_ui()
             imgui.separator()
 
 
-            c, v = imgui.drag_float("Trial Title Position X", d2d_cfg.pos_trial_header.x, 0.005, 0.0, 1.0); if c then
+            c, v = imgui.drag_float("标题 X 坐标", d2d_cfg.pos_trial_header.x, 0.005, 0.0, 1.0); if c then
                 d2d_cfg.pos_trial_header.x = v; changed = true
             end
-            c, v = imgui.drag_float("Trial Title Position Y", d2d_cfg.pos_trial_header.y, 0.005, 0.0, 1.0); if c then
+            c, v = imgui.drag_float("标题 Y 坐标", d2d_cfg.pos_trial_header.y, 0.005, 0.0, 1.0); if c then
                 d2d_cfg.pos_trial_header.y = v; changed = true
             end
-            c, v = imgui.drag_float("Combo Stats Position X", d2d_cfg.pos_combo_stats.x, 0.005, 0.0, 1.0); if c then
+            c, v = imgui.drag_float("连段统计 X 坐标", d2d_cfg.pos_combo_stats.x, 0.005, 0.0, 1.0); if c then
                 d2d_cfg.pos_combo_stats.x = v; changed = true
             end
-            c, v = imgui.drag_float("Combo Stats Position Y", d2d_cfg.pos_combo_stats.y, 0.005, 0.0, 1.0); if c then
+            c, v = imgui.drag_float("连段统计 Y 坐标", d2d_cfg.pos_combo_stats.y, 0.005, 0.0, 1.0); if c then
                 d2d_cfg.pos_combo_stats.y = v; changed = true
             end
             imgui.separator()
 
-            imgui.text_colored("HUD Overlay（原生行）", 0xFFFFAA00)
-            c, v = imgui.checkbox("显示 HUD Overlay", d2d_cfg.hud_show); if c then
+            imgui.text_colored("HUD 覆盖层（原生行）", 0xFFFFAA00)
+            c, v = imgui.checkbox("显示 HUD 覆盖层", d2d_cfg.hud_show); if c then
                 d2d_cfg.hud_show = v; changed = true
             end
-            c, v = imgui.drag_float("HUD Global Y", d2d_cfg.hud_global_y, 0.001, -0.5, 0.0); if c then
+            c, v = imgui.drag_float("HUD 全局 Y", d2d_cfg.hud_global_y, 0.001, -0.5, 0.0); if c then
                 d2d_cfg.hud_global_y = v; changed = true
             end
-            c, v = imgui.drag_float("HUD Line Spacing Y", d2d_cfg.hud_spacing_y, 0.001, 0.01, 0.1); if c then
+            c, v = imgui.drag_float("HUD 行间距 Y", d2d_cfg.hud_spacing_y, 0.001, 0.01, 0.1); if c then
                 d2d_cfg.hud_spacing_y = v; changed = true
             end
-            c, v = imgui.drag_float("HUD Font Size", d2d_cfg.hud_font_size, 0.5, 10, 60); if c then
+            c, v = imgui.drag_float("HUD 字体大小", d2d_cfg.hud_font_size, 0.5, 10, 60); if c then
                 d2d_cfg.hud_font_size = v; changed = true; font_attempted = false
             end
             imgui.separator()
-            c, v = imgui.drag_float("Icon Size", d2d_cfg.icon_size, 0.001, 0.01, 0.1); if c then
+            c, v = imgui.drag_float("图标大小", d2d_cfg.icon_size, 0.001, 0.01, 0.1); if c then
                 d2d_cfg.icon_size = v; changed = true
             end
-            c, v = imgui.drag_float("Special Icons Scale (DR/DI...)", d2d_cfg.special_icon_scale, 0.01, 1.0, 3.0, "x%.2f"); if c then
+            c, v = imgui.drag_float("Symbol 缩放 (DR/DI...)", d2d_cfg.special_icon_scale, 0.01, 1.0, 3.0, "x%.2f"); if c then
                 d2d_cfg.special_icon_scale = v; changed = true
             end
-            c, v = imgui.drag_float("Font Size", d2d_cfg.font_size, 0.001, 0.01, 0.1); if c then
+            c, v = imgui.drag_float("字体大小", d2d_cfg.font_size, 0.001, 0.01, 0.1); if c then
                 d2d_cfg.font_size = v; changed = true
             end
-            c, v = imgui.drag_float("Spacing X", d2d_cfg.spacing_x, 0.001, 0.01, 0.1); if c then
+            c, v = imgui.drag_float("水平间距", d2d_cfg.spacing_x, 0.001, 0.01, 0.1); if c then
                 d2d_cfg.spacing_x = v; changed = true
             end
-            c, v = imgui.drag_float("Spacing Y", d2d_cfg.spacing_y, 0.001, 0.01, 0.1); if c then
+            c, v = imgui.drag_float("垂直间距", d2d_cfg.spacing_y, 0.001, 0.01, 0.1); if c then
                 d2d_cfg.spacing_y = v; changed = true
             end
-            c, v = imgui.drag_float("Text Y Offset", d2d_cfg.text_y_offset, 0.001, -0.05, 0.05); if c then
+            c, v = imgui.drag_float("文字 Y 偏移", d2d_cfg.text_y_offset, 0.001, -0.05, 0.05); if c then
                 d2d_cfg.text_y_offset = v; changed = true
             end
 
@@ -1527,26 +1533,26 @@ local function draw_combo_trials_menu_ui()
                     imgui.spacing()
 
                     if p_state.profile_name == "Luke" then
-                        imgui.text_colored("Luke Charge Profile (Leave empty for Auto Detect):", COLORS.Green)
+                        imgui.text_colored("Luke 蓄力设置（留空则自动检测）：", COLORS.Green)
 
-                        local changed_min, new_min = imgui.input_text("Instant / Partial Limit (frames)",
+                        local changed_min, new_min = imgui.input_text("Instant / Partial 分界（帧）",
                             p_state.edit_charge_min or "")
                         if changed_min then p_state.edit_charge_min = new_min end
 
-                        local changed_pmin, new_pmin = imgui.input_text("Perfect Start (frames)",
+                        local changed_pmin, new_pmin = imgui.input_text("Perfect 起始（帧）",
                             p_state.edit_perfect_min or "")
                         if changed_pmin then p_state.edit_perfect_min = new_pmin end
 
-                        local changed_pmax, new_pmax = imgui.input_text("Perfect End (frames)",
+                        local changed_pmax, new_pmax = imgui.input_text("Perfect 结束（帧）",
                             p_state.edit_perfect_max or "")
                         if changed_pmax then p_state.edit_perfect_max = new_pmax end
                     elseif p_state.profile_name == "JP" then
-                        imgui.text_colored("JP Mode Active: Exceeding the threshold equals a FAKE.", COLORS.Blue)
-                        local changed_min, new_min = imgui.input_text("Instant / Partial Limit (frames)",
+                        imgui.text_colored("JP 模式：超过阈值即视为 FAKE。", COLORS.Blue)
+                        local changed_min, new_min = imgui.input_text("Instant / Partial 分界（帧）",
                             p_state.edit_charge_min or "")
                         if changed_min then p_state.edit_charge_min = new_min end
 
-                        local changed_max, new_max = imgui.input_text("FAKE Cancel Threshold (frames)",
+                        local changed_max, new_max = imgui.input_text("FAKE 取消阈值（帧）",
                             p_state.edit_charge_max or "")
                         if changed_max then p_state.edit_charge_max = new_max end
                     else
@@ -1621,7 +1627,7 @@ local function draw_combo_trials_menu_ui()
                         local s2 = json.dump_file(get_exc_filename(p_state.profile_name), p_state.exceptions)
 
                         if s1 and s2 then
-                            exc_status = "Common Exception 已保存。"
+                            exc_status = "通用 Exception 已保存。"
                         else
                             exc_status = "严重错误：无法写入文件。"
                         end
@@ -1679,10 +1685,10 @@ local function draw_combo_trials_menu_ui()
             end
 
             -- LIST OF SAVED EXCEPTIONS (ASCENDING SORT)
-            if imgui.tree_node("已启用的 Exceptions (" .. p_state.profile_name .. ")") then
+            if imgui.tree_node("已启用的异常 (" .. p_state.profile_name .. ")") then
                 if exc_status ~= "" then imgui.text_colored(exc_status, COLORS.Yellow) end
 
-                imgui.text_colored("--- SPECIFIC ---", COLORS.Green)
+                imgui.text_colored("--- 角色专用 ---", COLORS.Green)
                 local spec_keys = sort_ids(p_state.exceptions)
 
                 if #spec_keys == 0 then
@@ -1691,12 +1697,12 @@ local function draw_combo_trials_menu_ui()
                     for _, id_str in ipairs(spec_keys) do
                         local exc = p_state.exceptions[id_str]
                         local desc = ""
-                        if exc.ignore then desc = desc .. "[IGNORE] " end
-                        if exc.force then desc = desc .. "[FORCE] " end
+                        if exc.ignore then desc = desc .. "[忽略] " end
+                        if exc.force then desc = desc .. "[强制] " end
                         if exc.is_holdable then
                             if p_state.profile_name == "Luke" then
-                                local min_s = exc.perfect_min and (exc.perfect_min .. "f") or "Auto"
-                                local max_s = exc.perfect_max and (exc.perfect_max .. "f") or "Auto"
+                                local min_s = exc.perfect_min and (exc.perfect_min .. "f") or "自动"
+                                local max_s = exc.perfect_max and (exc.perfect_max .. "f") or "自动"
                                 desc = desc .. "[HOLD(Luke Perfect: " .. min_s .. "-" .. max_s .. ")] "
                             elseif p_state.profile_name == "JP" then
                                 local min_s = exc.charge_min and (exc.charge_min .. "f") or "?"
@@ -1739,13 +1745,13 @@ local function draw_combo_trials_menu_ui()
                             p_state.exceptions[id_str] = nil
                             pcall(function() if fs and fs.create_dir then fs.create_dir("TrainingComboTrials_data/exceptions") end end)
                             json.dump_file(get_exc_filename(p_state.profile_name), p_state.exceptions)
-                            exc_status = "角色专用 Exception 已从磁盘删除。"
+                            exc_status = "角色专用异常已从磁盘删除。"
                         end
                     end
                 end
 
                 imgui.spacing()
-                imgui.text_colored("--- COMMON ---", COLORS.Cyan)
+                imgui.text_colored("--- 通用 ---", COLORS.Cyan)
                 local com_keys = sort_ids(common_exceptions)
 
                 if #com_keys == 0 then
@@ -1754,8 +1760,8 @@ local function draw_combo_trials_menu_ui()
                     for _, id_str in ipairs(com_keys) do
                         local exc = common_exceptions[id_str]
                         local desc = ""
-                        if exc.ignore then desc = desc .. "[IGNORE] " end
-                        if exc.force then desc = desc .. "[FORCE] " end
+                        if exc.ignore then desc = desc .. "[忽略] " end
+                        if exc.force then desc = desc .. "[强制] " end
                         if exc.is_holdable then
                             local min_s = exc.charge_min and (exc.charge_min .. "f") or "?"
                             local max_s = exc.charge_max and (exc.charge_max .. "f") or "?"
@@ -1787,7 +1793,7 @@ local function draw_combo_trials_menu_ui()
                             common_exceptions[id_str] = nil
                             pcall(function() if fs and fs.create_dir then fs.create_dir("TrainingComboTrials_data/exceptions") end end)
                             json.dump_file("TrainingComboTrials_data/exceptions/Common.json", common_exceptions)
-                            exc_status = "Common Exception 已从磁盘删除。"
+                            exc_status = "通用 Exception 已从磁盘删除。"
                         end
                     end
                 end
@@ -1817,11 +1823,11 @@ local function draw_combo_trials_menu_ui()
             imgui.separator()
             imgui.spacing()
 
-            local c_deep, n_deep = imgui.checkbox("启用 Deep Action Scanner（在 JSON Dump 中加入 C# DNA）",
+            local c_deep, n_deep = imgui.checkbox("启用深度动作扫描（在 JSON 导出中包含 C# DNA）",
                 p_state.enable_deep_logging)
             if c_deep then p_state.enable_deep_logging = n_deep end
             if p_state.enable_deep_logging then
-                imgui.text_colored("   /!\\ Deep Scan 会大量分析代码。", COLORS.Blue)
+                imgui.text_colored("   /!\\ 深度扫描会大量分析代码。", COLORS.Blue)
                 imgui.text_colored("       建议仅在研究时开启。", COLORS.Blue)
             end
 
@@ -1853,13 +1859,13 @@ local function draw_combo_trials_menu_ui()
 
                         local combo_str = ""
                         if log.combo_count ~= nil then
-                            combo_str = string.format(" [Combo: %d]", log.combo_count)
+                            combo_str = string.format(" [连段: %d]", log.combo_count)
                         end
 
                         -- Translated keywords: VRAI INPUT -> REAL INPUT, Reel -> Raw
-                        local left_col = string.format("REAL INPUT  | %s (ID: %d)%s%s", log.motion, log.id, charge_str,
+                        local left_col = string.format("真实输入 | %s (ID: %d)%s%s", log.motion, log.id, charge_str,
                             combo_str)
-                        local right_col = string.format("Raw: %s (%s)", log.real_input, log.frame_diff)
+                        local right_col = string.format("原始: %s (%s)", log.real_input, log.frame_diff)
 
                         local line_color = COLORS.White
                         if log.is_holdable then
@@ -1888,10 +1894,10 @@ local function draw_combo_trials_menu_ui()
                         imgui.text_colored("-> " .. right_col, COLORS.Cyan)
                     else
                         if log.is_ignored then
-                            local line = string.format("IGNORED   | %s (ID: %d) %s", log.name, log.id, log.ignore_reason)
+                            local line = string.format("已忽略   | %s (ID: %d) %s", log.name, log.id, log.ignore_reason)
                             imgui.text_colored(line, COLORS.DarkGrey)
                         else
-                            local line = string.format("AUTOMATIC | %s (ID: %d)", log.name, log.id)
+                            local line = string.format("自动     | %s (ID: %d)", log.name, log.id)
                             imgui.text_colored(line, COLORS.DarkGrey)
                         end
                     end
