@@ -882,15 +882,15 @@ re.on_draw_ui(function()
     -- SCRIPT ERRORS PANEL (error registry from SharedHooks)
     local _errs = _G._mod_errors
     if _errs and _errs.count > 0 then
-        imgui.text_colored(string.format("[!] %d script error(s)", _errs.count), 0xFF0000FF)
+        imgui.text_colored(string.format("[!] %d 个脚本错误", _errs.count), 0xFF0000FF)
         imgui.same_line()
-        if imgui.tree_node("details##mod_errors") then
+        if imgui.tree_node("详情##mod_errors") then
             for i = #_errs.list, math.max(1, #_errs.list - 14), -1 do
                 local e = _errs.list[i]
                 imgui.text_colored(string.format("[%.0fs] %s", e.t, e.ctx), 0xFF00A5FF)
                 imgui.text("    " .. e.err)
             end
-            if imgui.button("Clear##mod_errors") then
+            if imgui.button("清除##mod_errors") then
                 _errs.list = {}; _errs.count = 0; _errs.config_failures = {}
             end
             imgui.tree_pop()
@@ -905,7 +905,7 @@ re.on_draw_ui(function()
 
         -- If not in training, show a waiting message and block the UI
         if not is_in_training_mode() then
-            imgui.text_colored("[!] INACTIVE: Waiting for Training Mode...", 0xFF00A5FF)
+            imgui.text_colored("[!] 未激活：等待进入训练模式...", 0xFF00A5FF)
             imgui.tree_pop()
             return
         end
@@ -933,7 +933,7 @@ re.on_draw_ui(function()
         -- ==========================================
         -- SECTION 2: CONTROLLER CONFIG
         -- ==========================================
-        if styled_header("--- CONTROLLER CONFIG ---", UI_THEME.hdr_config) then
+        if styled_header("--- 控制器设置 ---", UI_THEME.hdr_config) then
             if is_binding_mode then
                 imgui.spacing()
                 imgui.push_style_color(5, 0xFF00FFFF)
@@ -941,16 +941,16 @@ re.on_draw_ui(function()
                 imgui.push_style_color(22, 0xFF007777)
                 imgui.push_style_color(23, 0xFF009999)
                 imgui.push_style_color(0, 0xFF00FFFF)
-                imgui.button(">>> PRESS ANY BUTTON ON YOUR CONTROLLER... <<<", Vector2f.new(-1, 40))
+                imgui.button(">>> 请按下手柄任意按键... <<<", Vector2f.new(-1, 40))
                 imgui.pop_style_color(5)
                 imgui.spacing()
             else
-                local btn_name = "NOT SET"
+                local btn_name = "未设置"
                 if config.func_button then
-                    btn_name = "ID: " .. tostring(config.func_button)
-                    if config.func_button == 16384 then btn_name = "SELECT / BACK" end
-                    if config.func_button == 8192 then btn_name = "R3 / RS" end
-                    if config.func_button == 4096 then btn_name = "L3 / LS" end
+                    btn_name = "按键ID: " .. tostring(config.func_button)
+                    if config.func_button == 16384 then btn_name = "SELECT / BACK（选择/返回）" end
+                    if config.func_button == 8192 then btn_name = "R3 / RS（右摇杆按下）" end
+                    if config.func_button == 4096 then btn_name = "L3 / LS（左摇杆按下）" end
                 end
 
                 imgui.spacing()
@@ -963,7 +963,7 @@ re.on_draw_ui(function()
                     -- Two buttons side by side: CHANGE + RESET
                     local avail = imgui.get_window_size().x - 40
                     local reset_w = 80
-                    if imgui.button("CHANGE FUNCTION BUTTON  [" .. btn_name .. "]", Vector2f.new(avail - reset_w - 8, 35)) then
+                    if imgui.button("修改功能按键  [" .. btn_name .. "]", Vector2f.new(avail - reset_w - 8, 35)) then
                         is_binding_mode = true
                         last_input_mask = 0
                     end
@@ -974,13 +974,13 @@ re.on_draw_ui(function()
                     imgui.push_style_color(22, 0xFF0000DD)
                     imgui.push_style_color(23, 0xFF0000FF)
                     imgui.push_style_color(0, 0xFFAAAAFF)
-                    if imgui.button("RESET##func_reset", Vector2f.new(reset_w, 35)) then
+                    if imgui.button("重置##func_reset", Vector2f.new(reset_w, 35)) then
                         config.func_button = nil
                         save_config()
                     end
                     imgui.pop_style_color(5)
                 else
-                    if imgui.button("CHANGE FUNCTION BUTTON  [" .. btn_name .. "]", Vector2f.new(-1, 35)) then
+                    if imgui.button("修改功能按键  [" .. btn_name .. "]", Vector2f.new(-1, 35)) then
                         is_binding_mode = true
                         last_input_mask = 0
                     end
@@ -989,11 +989,11 @@ re.on_draw_ui(function()
                 imgui.spacing()
 
                 if config.func_button then
-                    imgui.text_colored("The FUNCTION button is used for all controller shortcuts.", 0xFF888888)
-                    imgui.text_colored("Inputs are blocked while FUNCTION is held.", 0xFF888888)
+                    imgui.text_colored("功能按键用于所有手柄快捷键操作。", 0xFF888888)
+                    imgui.text_colored("按住功能按键期间会屏蔽其他输入。", 0xFF888888)
                 else
-                    imgui.text_colored("No function button set. Set one to use controller shortcuts.", 0xFFFF8800)
-                    imgui.text_colored("(FUNC + SQUARE = switch mode, FUNC + arrows = adjust timers)", 0xFF888888)
+                    imgui.text_colored("尚未设置功能按键。请设置一个来使用手柄快捷键。", 0xFFFF8800)
+                    imgui.text_colored("（功能键 + 方块 = 切换模式，功能键 + 方向键 = 调整计时）", 0xFF888888)
                 end
 
                 imgui.spacing()
@@ -1007,7 +1007,7 @@ re.on_draw_ui(function()
                     imgui.push_style_color(22, 0xFF007777)
                     imgui.push_style_color(23, 0xFF009999)
                     imgui.push_style_color(0, 0xFF00FFFF)
-                    imgui.button(">>> PRESS ANY KEY... <<<", Vector2f.new(-1, 35))
+                    imgui.button(">>> 请按下任意按键... <<<", Vector2f.new(-1, 35))
                     imgui.pop_style_color(5)
                 else
                     local cur_key = combo_name(config.switch_key or 0x30, config.switch_modifiers)
@@ -1115,16 +1115,16 @@ re.on_draw_ui(function()
 
         imgui.separator()
         if not _G._hc_logging then
-            if imgui.button("START HC LOG") then _G._hc_logging = true; _G._hc_log_lines = {} end
+            if imgui.button("开始 Hit Confirm 日志") then _G._hc_logging = true; _G._hc_log_lines = {} end
         else
-            if imgui.button("STOP & SAVE LOG") then
+            if imgui.button("停止并保存日志") then
                 _G._hc_logging = false
                 if _G._hc_log_lines then
                     local f = io.open("Stats/HitConfirm_Debug.txt", "w")
                     if f then f:write(table.concat(_G._hc_log_lines, "\n")); f:close() end
                 end
             end
-            imgui.same_line(); imgui.text(#(_G._hc_log_lines or {}) .. " lines")
+            imgui.same_line(); imgui.text(#(_G._hc_log_lines or {}) .. " 行")
         end
         imgui.tree_pop()
     end

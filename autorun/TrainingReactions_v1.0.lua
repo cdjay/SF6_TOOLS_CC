@@ -139,32 +139,32 @@ end
 -- GLOBAL VARIABLES
 -- =========================================================
 local TEXTS = {
-    ready           = "READY",
-    waiting         = "WAITING",
-    paused          = "PAUSED",
-    resumed         = "RESUMED",
-    time_up         = "TIME UP!",
-    score_label     = "SCORE: ",
-    total_label     = "TOTAL: ",
-    timer_label     = "TIMER",
-    mode_label      = "REACTION DRILLS",
+    ready           = "准备",
+    waiting         = "等待中",
+    paused          = "已暂停",
+    resumed         = "已继续",
+    time_up         = "时间到！",
+    score_label     = "分数: ",
+    total_label     = "总计: ",
+    timer_label     = "计时器",
+    mode_label      = "反应训练",
     
-    success         = "SUCCESS: INTERRUPT!",
-    fail_block      = "FAIL: BLOCKED",
-    fail_hit        = "FAIL: GOT HIT",
-    fail_whiff      = "FAIL: WHIFF",
-    attack_inc      = "ATTACK...",
+    success         = "成功: 打断！",
+    fail_block      = "失败: 被防御",
+    fail_hit        = "失败: 被击中",
+    fail_whiff      = "失败: 挥空",
+    attack_inc      = "攻击中...",
     
-    mode_infinite   = "MODE: INFINITE",
-    mode_timed      = "MODE: TIMED",
-    started         = "STARTED!",
-    stopped_export  = "STOPPED & EXPORTED",
-    stats_exported  = "STATS EXPORTED",
-    reset_done      = "RESET DONE",
+    mode_infinite   = "模式: 无限",
+    mode_timed      = "模式: 计时",
+    started         = "已开始！",
+    stopped_export  = "已停止并导出",
+    stats_exported  = "数据已导出",
+    reset_done      = "已重置",
     
     reset_prompt    = nil, -- dynamic, use SharedUI.reset_message()
     pause_overlay   = nil, -- dynamic, use SharedUI.pause_message()
-    err_file        = "Err: File Access"
+    err_file        = "错误: 文件访问"
 }
 
 local real_slot_status = {}
@@ -242,7 +242,7 @@ local CHARACTER_NAMES = {
 -- =========================================================
 
 local function get_character_name(id) 
-    if id == nil or id == -1 then return "Waiting..." end
+    if id == nil or id == -1 then return "等待中..." end
     return CHARACTER_NAMES[id] or ("ID_" .. tostring(id)) 
 end
 
@@ -388,7 +388,7 @@ local function export_log_excel()
     local p2n = get_character_name(game_state.p2_id)
     local line = string.format("%s\t%s\t%s\t%s\t%s\t%d\t%d", now, format_duration(duration), mode, p1n, p2n, session.success, session.total)
     file:write(line .. "\n"); file:close()
-    session.export_msg = "Stats Exported!"
+    session.export_msg = "数据已导出"
 end
 
 -- =========================================================
@@ -420,7 +420,7 @@ if sdk_cache.BattleMediator then
                 if new_p1 ~= -1 and new_p2 ~= -1 then
                     if new_p1 ~= game_state.last_valid_p1 or new_p2 ~= game_state.last_valid_p2 then
                         reset_session_stats()
-                        local msg = string.format("VS: %s", get_character_name(new_p2))
+                        local msg = string.format("对手: %s", get_character_name(new_p2))
                         set_feedback(msg, COLORS.Cyan, 3.0)
                         game_state.last_valid_p1 = new_p1; game_state.last_valid_p2 = new_p2
                     end
@@ -569,8 +569,8 @@ local function update_logic()
                 call_tm_method("Stop", 0)
                 call_tm_method("ForceApply")
                 export_log_excel()
-                SessionRecap.show("REACTION DRILLS", LOG_FILENAME, "reactions")
-                set_feedback("TIME UP! & EXPORTED", COLORS.Red, 0)
+                SessionRecap.show("反应训练", LOG_FILENAME, "reactions")
+                set_feedback("时间到！已导出", COLORS.Red, 0)
             end
         elseif user_config.session_mode == 2 then
             if session.total >= user_config.trial_count then
@@ -581,8 +581,8 @@ local function update_logic()
                 call_tm_method("Stop", 0)
                 call_tm_method("ForceApply")
                 export_log_excel()
-                SessionRecap.show("REACTION DRILLS", LOG_FILENAME, "reactions")
-                set_feedback(session.total .. " TRIALS DONE! & EXPORTED", COLORS.Yellow, 0)
+                SessionRecap.show("反应训练", LOG_FILENAME, "reactions")
+                set_feedback(session.total .. " 次完成！已导出", COLORS.Yellow, 0)
             end
         end
     end
@@ -639,7 +639,7 @@ local function update_logic()
         if curr_act_id == 739 and session.last_act_id ~= 739 then
              -- ONLY FAIL IF P2 IS NOT HURT AND NOT BLOCK (Whiff)
              if p2 ~= STATE_HURT and p2 ~= STATE_BLOCK then
-                 set_feedback("FAIL: UNSAFE DR CANCEL", COLORS.Red, 2.0)
+                 set_feedback("失败: DR取消不安全", COLORS.Red, 2.0)
                  session.score = session.score - 1
                  session.total = session.total + 1
                  update_slot_stats(false)
@@ -669,7 +669,7 @@ local function update_logic()
 
         if not session.score_processed then
             if session._p2_was_parried then
-                 set_feedback("SUCCESS: PERFECT PARRY!", COLORS.Green, 2.0)
+                 set_feedback("成功: 完美格挡！", COLORS.Green, 2.0)
                  session.score = session.score + 1
                  session.success = session.success + 1
                  session.total = session.total + 1
@@ -699,7 +699,7 @@ local function update_logic()
                 session.score_processed = true
                 if user_config.auto_reset_delay > 0 then session.auto_reset_timer = user_config.auto_reset_delay end
             elseif p2 == STATE_DI and p1 == STATE_DI then
-                set_feedback("DI COUNTER!", COLORS.Green, 2.0)
+                set_feedback("DI反击！", COLORS.Green, 2.0)
                 session.di_counter_success = true
                 session.score_processed = true 
             end
@@ -710,7 +710,7 @@ local function update_logic()
             if session.track_timer > 2 then
                 if not session.score_processed then
                     if session.di_counter_success then
-                        set_feedback("DI COUNTER!", COLORS.Green, 2.0)
+                        set_feedback("DI反击！", COLORS.Green, 2.0)
                     else
                         set_feedback(TEXTS.fail_whiff, COLORS.Red, 2.0)
                         session.score = session.score - 1
@@ -769,7 +769,7 @@ local function handle_input()
             else
                 user_config.timer_minutes = math.min(60, user_config.timer_minutes + 1)
                 session.time_rem = user_config.timer_minutes * 60
-                set_feedback("TIMER: " .. user_config.timer_minutes .. " MIN", COLORS.White, 1.0)
+                set_feedback("计时: " .. user_config.timer_minutes .. " 分", COLORS.White, 1.0)
             end
             save_conf()
         end
@@ -780,7 +780,7 @@ local function handle_input()
             else
                 user_config.timer_minutes = math.max(1, user_config.timer_minutes - 1)
                 session.time_rem = user_config.timer_minutes * 60
-                set_feedback("TIMER: " .. user_config.timer_minutes .. " MIN", COLORS.White, 1.0)
+                set_feedback("计时: " .. user_config.timer_minutes .. " 分", COLORS.White, 1.0)
             end
             save_conf()
         end
@@ -798,20 +798,20 @@ local function handle_input()
         if pos3_kb or pos4_pad then
             reset_session_stats()
             set_feedback(TEXTS.reset_done, COLORS.White, 1.0)
-            react_ticker("SESSION RESET")
+            react_ticker("训练已重置")
         end
     elseif session.is_running then
         if pos3_kb or pos4_pad then
             set_playback_mode(false)
             reset_session_stats()
-            set_feedback("STOPPED", COLORS.Red, 1.5)
-            react_ticker("SESSION STOPPED")
+            set_feedback("已停止", COLORS.Red, 1.5)
+            react_ticker("训练已停止")
         end
     elseif session.is_time_up then
         if pos3_kb or pos4_pad then
             reset_session_stats()
             set_feedback(TEXTS.reset_done, COLORS.White, 1.0)
-            react_ticker("SESSION RESET")
+            react_ticker("训练已重置")
         end
     end
 
@@ -824,14 +824,14 @@ local function handle_input()
             session.is_paused = false
             set_feedback(TEXTS.started, COLORS.Green, 1.0)
             set_playback_mode(true)
-            react_ticker("SESSION STARTED")
+            react_ticker("训练已开始")
         end
     elseif session.is_running then
         if pos4_kb or pos3_pad then
             session.is_paused = not session.is_paused
             set_feedback(session.is_paused and TEXTS.paused or TEXTS.resumed, COLORS.Yellow, 1.0)
             set_playback_mode(not session.is_paused)
-            react_ticker(session.is_paused and "SESSION PAUSED" or "SESSION RESUMED")
+            react_ticker(session.is_paused and "训练已暂停" or "训练已继续")
         end
     end
 
@@ -907,7 +907,7 @@ local function draw_hud_overlay()
                     has_visible_slots = true
                 end
             end
-            if not has_visible_slots then slots_str = "WAITING FOR ACTIVE SLOTS..." end
+            if not has_visible_slots then slots_str = "等待活动槽位..." end
             local w_sl = imgui.calc_text_size(slots_str).x
             SharedUI.draw_text(slots_str, cx - w_sl/2, cy, SharedUI.COLORS.White)
         end
@@ -921,47 +921,47 @@ local function draw_session_buttons_docked()
     local sl = SharedUI.sc_label
     local SC = SharedUI.SC_COLORS
 
-    local mode_label = user_config.session_mode == 2 and "MODE: TRIALS" or "MODE: TIMER"
+    local mode_label = user_config.session_mode == 2 and "模式: 次数" or "模式: 计时"
     if imgui.button(mode_label .. "##dk_mode_r") then
         user_config.session_mode = user_config.session_mode == 2 and 1 or 2
         user_config.timer_mode_enabled = (user_config.session_mode == 1)
         reset_session_stats(); save_conf()
-        react_ticker(user_config.session_mode == 1 and "TIMER MODE" or "TRIALS MODE")
+        react_ticker(user_config.session_mode == 1 and "计时模式" or "次数模式")
     end
     imgui.same_line()
     if user_config.session_mode == 2 then
-        if SharedUI.sc_button("TRIALS - (" .. sl("D") .. ")##dk_r", SC.c1) then user_config.trial_count = math.max(10, user_config.trial_count - 10); reset_session_stats(); save_conf() end
+        if SharedUI.sc_button("次数 - (" .. sl("D") .. ")##dk_r", SC.c1) then user_config.trial_count = math.max(10, user_config.trial_count - 10); reset_session_stats(); save_conf() end
         imgui.same_line()
-        if SharedUI.sc_button("TRIALS + (" .. sl("U") .. ")##dk_r", SC.c2) then user_config.trial_count = math.min(200, user_config.trial_count + 10); reset_session_stats(); save_conf() end
-        imgui.same_line(); imgui.text(tostring(user_config.trial_count) .. " TRIALS")
+        if SharedUI.sc_button("次数 + (" .. sl("U") .. ")##dk_r", SC.c2) then user_config.trial_count = math.min(200, user_config.trial_count + 10); reset_session_stats(); save_conf() end
+        imgui.same_line(); imgui.text(tostring(user_config.trial_count) .. " 次")
     else
-        if SharedUI.sc_button("TIMER - (" .. sl("D") .. ")##dk_r", SC.c1) then user_config.timer_minutes = math.max(1, user_config.timer_minutes - 1); reset_session_stats(); save_conf() end
+        if SharedUI.sc_button("计时 - (" .. sl("D") .. ")##dk_r", SC.c1) then user_config.timer_minutes = math.max(1, user_config.timer_minutes - 1); reset_session_stats(); save_conf() end
         imgui.same_line()
-        if SharedUI.sc_button("TIMER + (" .. sl("U") .. ")##dk_r", SC.c2) then user_config.timer_minutes = math.min(60, user_config.timer_minutes + 1); reset_session_stats(); save_conf() end
-        imgui.same_line(); imgui.text(tostring(user_config.timer_minutes) .. " min")
+        if SharedUI.sc_button("计时 + (" .. sl("U") .. ")##dk_r", SC.c2) then user_config.timer_minutes = math.min(60, user_config.timer_minutes + 1); reset_session_stats(); save_conf() end
+        imgui.same_line(); imgui.text(tostring(user_config.timer_minutes) .. " 分")
     end
     imgui.same_line(300)
-    if SharedUI.sc_button("RESET (" .. sl("L", "3") .. ")##dk_r", SC.c3) then reset_session_stats(); set_feedback(TEXTS.reset_done, COLORS.White, 1.0); react_ticker("SESSION RESET") end
+    if SharedUI.sc_button("重置 (" .. sl("L", "3") .. ")##dk_r", SC.c3) then reset_session_stats(); set_feedback(TEXTS.reset_done, COLORS.White, 1.0); react_ticker("训练已重置") end
 
     imgui.spacing()
     if not session.is_running then
-        if SharedUI.sc_button("START SESSION (" .. sl("R", "4") .. ")##dk_r", SC.c4) then
+        if SharedUI.sc_button("开始训练 (" .. sl("R", "4") .. ")##dk_r", SC.c4) then
             reset_session_stats()
             if user_config.session_mode ~= 2 then session.time_rem = user_config.timer_minutes * 60 end
             session.is_running = true; session.is_paused = false
             set_feedback(TEXTS.started, COLORS.Green, 1.0)
             set_playback_mode(true)
-            react_ticker("SESSION STARTED")
+            react_ticker("训练已开始")
         end
     else
-        if SharedUI.sc_button("STOP (" .. sl("L", "3") .. ")##dk_r", SC.c3) then
-            set_playback_mode(false); reset_session_stats(); set_feedback("STOPPED", COLORS.Red, 1.0)
-            react_ticker("SESSION STOPPED")
+        if SharedUI.sc_button("停止 (" .. sl("L", "3") .. ")##dk_r", SC.c3) then
+            set_playback_mode(false); reset_session_stats(); set_feedback("已停止", COLORS.Red, 1.0)
+            react_ticker("训练已停止")
         end
         imgui.same_line()
-        if SharedUI.sc_button((session.is_paused and "RESUME" or "PAUSE") .. " (" .. sl("R", "4") .. ")##dk_r", SC.c4) then
+        if SharedUI.sc_button((session.is_paused and "继续" or "暂停") .. " (" .. sl("R", "4") .. ")##dk_r", SC.c4) then
             session.is_paused = not session.is_paused; set_playback_mode(not session.is_paused)
-            react_ticker(session.is_paused and "SESSION PAUSED" or "SESSION RESUMED")
+            react_ticker(session.is_paused and "训练已暂停" or "训练已继续")
         end
     end
 end
@@ -971,11 +971,11 @@ end
 -- =========================================================
 local _rsm_dd_idx = 1
 local _rsm_dd_last_p2 = -1
-local _rsm_dd_display = { "-- Select File --" }
+local _rsm_dd_display = { "-- 选择文件 --" }
 local _rsm_dd_raw = {}
 
 local function draw_session_floating()
-    local visible, sw, sh = SharedUI.begin_floating_window("Reaction Drills##float")
+    local visible, sw, sh = SharedUI.begin_floating_window("反应训练##float")
     if not visible then
         user_config.show_floating = false; save_conf()
         SharedUI.end_floating_window(); return
@@ -989,9 +989,9 @@ local function draw_session_floating()
 
     local slm = SharedUI.sc_label_max
     local all_labels = {
-        "TRIALS - (" .. slm("D") .. ")", "TRIALS + (" .. slm("U") .. ")",
-        "RESET (" .. slm("L") .. ")", "STOP (" .. slm("L") .. ")",
-        "START (" .. slm("R") .. ")", "PAUSE (" .. slm("R") .. ")"
+        "次数 - (" .. slm("D") .. ")", "次数 + (" .. slm("U") .. ")",
+        "重置 (" .. slm("L") .. ")", "停止 (" .. slm("L") .. ")",
+        "开始 (" .. slm("R") .. ")", "暂停 (" .. slm("R") .. ")"
     }
     local max_w = 0
     for _, t in ipairs(all_labels) do local tw = imgui.calc_text_size(t).x; if tw > max_w then max_w = tw end end
@@ -1027,36 +1027,36 @@ local function draw_session_floating()
     end
 
     if user_config.session_mode == 2 then
-        if SharedUI.sf6_button("TRIALS - (" .. sl("D") .. ")##fl_r", SC.c1, actual_w) then user_config.trial_count = math.max(10, user_config.trial_count - 10); reset_session_stats(); save_conf() end
+        if SharedUI.sf6_button("次数 - (" .. sl("D") .. ")##fl_r", SC.c1, actual_w) then user_config.trial_count = math.max(10, user_config.trial_count - 10); reset_session_stats(); save_conf() end
         imgui.same_line(0, sp)
-        if SharedUI.sf6_button("TRIALS + (" .. sl("U") .. ")##fl_r", SC.c2, actual_w) then user_config.trial_count = math.min(200, user_config.trial_count + 10); reset_session_stats(); save_conf() end
+        if SharedUI.sf6_button("次数 + (" .. sl("U") .. ")##fl_r", SC.c2, actual_w) then user_config.trial_count = math.min(200, user_config.trial_count + 10); reset_session_stats(); save_conf() end
     else
-        if SharedUI.sf6_button("TIMER - (" .. sl("D") .. ")##fl_r", SC.c1, actual_w) then user_config.timer_minutes = math.max(1, user_config.timer_minutes - 1); reset_session_stats(); save_conf() end
+        if SharedUI.sf6_button("计时 - (" .. sl("D") .. ")##fl_r", SC.c1, actual_w) then user_config.timer_minutes = math.max(1, user_config.timer_minutes - 1); reset_session_stats(); save_conf() end
         imgui.same_line(0, sp)
-        if SharedUI.sf6_button("TIMER + (" .. sl("U") .. ")##fl_r", SC.c2, actual_w) then user_config.timer_minutes = math.min(60, user_config.timer_minutes + 1); reset_session_stats(); save_conf() end
+        if SharedUI.sf6_button("计时 + (" .. sl("U") .. ")##fl_r", SC.c2, actual_w) then user_config.timer_minutes = math.min(60, user_config.timer_minutes + 1); reset_session_stats(); save_conf() end
     end
     imgui.same_line(0, sp)
     if not session.is_running then
-        if SharedUI.sf6_button("RESET (" .. sl("L", "3") .. ")##fl_r", SC.c3, actual_w) then reset_session_stats(); set_feedback(TEXTS.reset_done, COLORS.White, 1.0); react_ticker("SESSION RESET") end
+        if SharedUI.sf6_button("重置 (" .. sl("L", "3") .. ")##fl_r", SC.c3, actual_w) then reset_session_stats(); set_feedback(TEXTS.reset_done, COLORS.White, 1.0); react_ticker("训练已重置") end
     else
-        if SharedUI.sf6_button("STOP (" .. sl("L", "3") .. ")##fl_r", SC.c3, actual_w) then
-            set_playback_mode(false); reset_session_stats(); set_feedback("STOPPED", COLORS.Red, 1.0)
-            react_ticker("SESSION STOPPED")
+        if SharedUI.sf6_button("停止 (" .. sl("L", "3") .. ")##fl_r", SC.c3, actual_w) then
+            set_playback_mode(false); reset_session_stats(); set_feedback("已停止", COLORS.Red, 1.0)
+            react_ticker("训练已停止")
         end
     end
     imgui.same_line(0, sp)
     if session.is_running then
-        if SharedUI.sf6_button((session.is_paused and "RESUME" or "PAUSE") .. " (" .. sl("R", "4") .. ")##fl_r", SC.c4, actual_w) then
+        if SharedUI.sf6_button((session.is_paused and "继续" or "暂停") .. " (" .. sl("R", "4") .. ")##fl_r", SC.c4, actual_w) then
             session.is_paused = not session.is_paused; set_playback_mode(not session.is_paused)
-            react_ticker(session.is_paused and "SESSION PAUSED" or "SESSION RESUMED")
+            react_ticker(session.is_paused and "训练已暂停" or "训练已继续")
         end
     else
-        if SharedUI.sf6_button("START (" .. sl("R", "4") .. ")##fl_r", SC.c4, actual_w) then
+        if SharedUI.sf6_button("开始 (" .. sl("R", "4") .. ")##fl_r", SC.c4, actual_w) then
             reset_session_stats()
             if user_config.session_mode ~= 2 then session.time_rem = user_config.timer_minutes * 60 end
             session.is_running = true; session.is_paused = false
             set_feedback(TEXTS.started, COLORS.Green, 1.0); set_playback_mode(true)
-            react_ticker("SESSION STARTED")
+            react_ticker("训练已开始")
         end
     end
     imgui.same_line(w_width - cb_size - 10 - pad_x)
@@ -1069,14 +1069,14 @@ re.on_frame(function()
     if _G.CurrentTrainerMode == 1 then
         if _G._tsm_web_cmd then
             local cmd = _G._tsm_web_cmd; _G._tsm_web_cmd = nil
-            if cmd == "start" then reset_session_stats(); session.is_running = true; session.is_paused = false; set_playback_mode(true); set_feedback("HERE WE GO!", COLORS.Green, 1.0); react_ticker("SESSION STARTED") end
-            if cmd == "stop" then set_playback_mode(false); reset_session_stats(); set_feedback("STOPPED", COLORS.Red, 1.0); react_ticker("SESSION STOPPED") end
-            if cmd == "reset" then reset_session_stats(); set_feedback(TEXTS.reset_done, COLORS.White, 1.0); react_ticker("SESSION RESET") end
-            if cmd == "pause" then session.is_paused = not session.is_paused; react_ticker(session.is_paused and "SESSION PAUSED" or "SESSION RESUMED") end
+            if cmd == "start" then reset_session_stats(); session.is_running = true; session.is_paused = false; set_playback_mode(true); set_feedback("训练已开始", COLORS.Green, 1.0); react_ticker("训练已开始") end
+            if cmd == "stop" then set_playback_mode(false); reset_session_stats(); set_feedback("已停止", COLORS.Red, 1.0); react_ticker("训练已停止") end
+            if cmd == "reset" then reset_session_stats(); set_feedback(TEXTS.reset_done, COLORS.White, 1.0); react_ticker("训练已重置") end
+            if cmd == "pause" then session.is_paused = not session.is_paused; react_ticker(session.is_paused and "训练已暂停" or "训练已继续") end
             if cmd == "timer_up" then user_config.timer_minutes = math.min(60, user_config.timer_minutes + 1); reset_session_stats(); save_conf() end
             if cmd == "timer_down" then user_config.timer_minutes = math.max(1, user_config.timer_minutes - 1); reset_session_stats(); save_conf() end
             if cmd == "trials_up" then user_config.trial_count = math.min(200, user_config.trial_count + 10); reset_session_stats(); save_conf() end
-            if cmd == "switch_mode" then user_config.session_mode = user_config.session_mode == 1 and 2 or 1; user_config.timer_mode_enabled = (user_config.session_mode == 1); reset_session_stats(); save_conf(); react_ticker(user_config.session_mode == 1 and "TIMER MODE" or "TRIALS MODE") end
+            if cmd == "switch_mode" then user_config.session_mode = user_config.session_mode == 1 and 2 or 1; user_config.timer_mode_enabled = (user_config.session_mode == 1); reset_session_stats(); save_conf(); react_ticker(user_config.session_mode == 1 and "计时模式" or "次数模式") end
             if cmd == "trials_down" then user_config.trial_count = math.max(10, user_config.trial_count - 10); reset_session_stats(); save_conf() end
         end
         _G.TrainingSession_IsRunning = session.is_running
@@ -1138,91 +1138,91 @@ end)
 re.on_draw_ui(function()
     if _G.CurrentTrainerMode ~= 1 then return end
 
-    if imgui.tree_node("Reaction Trainer Remastered (V6.10 - Recording Fix)") then
+    if imgui.tree_node("反应训练重制版 (V6.10 - 录制修复)") then
 
-        if styled_header("--- SESSION CONFIGURATION ---", UI_THEME.hdr_session) then
-                local c_fl, v_fl = imgui.checkbox("FLOATING WINDOW", user_config.show_floating)
+        if styled_header("--- 训练配置 ---", UI_THEME.hdr_session) then
+                local c_fl, v_fl = imgui.checkbox("浮动窗口", user_config.show_floating)
                 if c_fl then user_config.show_floating = v_fl; save_conf() end
 
                 if user_config.show_floating then
-                    imgui.text_colored("Session controls are in the floating window.", COLORS.DarkGrey)
+                    imgui.text_colored("训练控制在浮动窗口中。", COLORS.DarkGrey)
                 else
                     imgui.separator(); imgui.spacing()
                     draw_session_buttons_docked()
                 end
         end
 
-		if styled_header("--- SLOTS & MATCHUPS ---", UI_THEME.hdr_slots) then
-            imgui.text_colored("INSTANT LOOP ACTIVE", COLORS.Green)
-            imgui.text("Playback restarts immediately after action ends.")
+		if styled_header("--- 槽位 & 对手 ---", UI_THEME.hdr_slots) then
+            imgui.text_colored("即时循环已激活", COLORS.Green)
+            imgui.text("回放结束后立即重新开始。")
             
             -- TOGGLE AUTO / MANUAL
             imgui.separator()
-            local c_auto, v_auto = imgui.checkbox("Auto-Activate All Slots", user_config.playback_mode_auto)
+            local c_auto, v_auto = imgui.checkbox("自动激活全部槽位", user_config.playback_mode_auto)
             if c_auto then user_config.playback_mode_auto = v_auto; save_conf() end
             
             if user_config.playback_mode_auto then
-                imgui.text_colored("Mode: AUTO", COLORS.Cyan)
-                imgui.text("Script forces all filled slots to ACTIVE on start.")
+                imgui.text_colored("模式: 自动", COLORS.Cyan)
+                imgui.text("脚本启动时强制激活所有已填槽位。")
             else
-                imgui.text_colored("Mode: MANUAL", COLORS.Orange)
-                imgui.text("Script ONLY presses Play. You must select slots in-game.")
+                imgui.text_colored("模式: 手动", COLORS.Orange)
+                imgui.text("脚本仅按下 Play，需在游戏内自行选择槽位。")
             end
             
             imgui.separator()
-            local c_st, v_st = imgui.checkbox("Show Slot Percentages on HUD", user_config.show_slot_stats); if c_st then user_config.show_slot_stats = v_st; save_conf() end
+            local c_st, v_st = imgui.checkbox("在HUD上显示槽位百分比", user_config.show_slot_stats); if c_st then user_config.show_slot_stats = v_st; save_conf() end
 
             imgui.separator()
-            imgui.text_colored("AUTO-RESET AFTER RESULT", COLORS.Cyan)
+            imgui.text_colored("结果后自动重置", COLORS.Cyan)
             local delay_str = tostring(user_config.auto_reset_delay)
-            local c_delay, n_delay = imgui.input_text("Delay (seconds, -1 = off)", delay_str)
+            local c_delay, n_delay = imgui.input_text("延迟 (秒, -1 = 关)", delay_str)
             if c_delay then
                 local val = tonumber(n_delay)
                 if val then user_config.auto_reset_delay = val; save_conf() end
             end
             if user_config.auto_reset_delay > 0 then
-                imgui.text_colored("Reset position " .. user_config.auto_reset_delay .. "s after each result", COLORS.Green)
+                imgui.text_colored("每次结果后 " .. user_config.auto_reset_delay .. "秒重置位置", COLORS.Green)
             else
-                imgui.text_colored("Disabled", COLORS.DarkGrey)
+                imgui.text_colored("已禁用", COLORS.DarkGrey)
             end
         end
         
-        if styled_header("--- UI LAYOUT ADJUSTMENTS ---", UI_THEME.hdr_layout) then
+        if styled_header("--- 界面布局调整 ---", UI_THEME.hdr_layout) then
             local chg = false; local v
-			local c_main, v_main = input_int_keyboard("Main Text Size", user_config.hud_base_size)
+			local c_main, v_main = input_int_keyboard("主文本大小", user_config.hud_base_size)
             if c_main then user_config.hud_base_size = v_main; save_conf(); SharedUI.update_fonts(user_config) end
-            local c_time, v_time = input_int_keyboard("Timer Font Size", user_config.timer_font_size)
+            local c_time, v_time = input_int_keyboard("计时器字体大小", user_config.timer_font_size)
             if c_time then user_config.timer_font_size = v_time; save_conf(); SharedUI.update_fonts(user_config) end
             imgui.separator()
-            chg, v = imgui.slider_float("Global Y Pos", user_config.hud_n_global_y, -1.0, 1.0); if chg then user_config.hud_n_global_y = v; save_conf() end
-            chg, v = imgui.slider_float("Line Spacing", user_config.hud_n_spacing_y, 0.0, 0.2); if chg then user_config.hud_n_spacing_y = v; save_conf() end
+            chg, v = imgui.slider_float("全局Y位置", user_config.hud_n_global_y, -1.0, 1.0); if chg then user_config.hud_n_global_y = v; save_conf() end
+            chg, v = imgui.slider_float("行间距", user_config.hud_n_spacing_y, 0.0, 0.2); if chg then user_config.hud_n_spacing_y = v; save_conf() end
             imgui.separator()
-            chg, v = imgui.slider_float("Score Spread", user_config.hud_n_spread_score, 0.0, 0.5); if chg then user_config.hud_n_spread_score = v; save_conf() end
-            chg, v = imgui.slider_float("Score X", user_config.hud_n_offset_score, -0.5, 0.5); if chg then user_config.hud_n_offset_score = v; save_conf() end
-            chg, v = imgui.slider_float("Total X", user_config.hud_n_offset_total, -0.5, 0.5); if chg then user_config.hud_n_offset_total = v; save_conf() end
-            chg, v = imgui.slider_float("Label X", user_config.hud_n_offset_timer, -0.2, 0.2); if chg then user_config.hud_n_offset_timer = v; save_conf() end
-            chg, v = imgui.slider_float("Status Y", user_config.hud_n_offset_status_y, -0.2, 0.2); if chg then user_config.hud_n_offset_status_y = v; save_conf() end
+            chg, v = imgui.slider_float("分数间距", user_config.hud_n_spread_score, 0.0, 0.5); if chg then user_config.hud_n_spread_score = v; save_conf() end
+            chg, v = imgui.slider_float("分数X", user_config.hud_n_offset_score, -0.5, 0.5); if chg then user_config.hud_n_offset_score = v; save_conf() end
+            chg, v = imgui.slider_float("总数X", user_config.hud_n_offset_total, -0.5, 0.5); if chg then user_config.hud_n_offset_total = v; save_conf() end
+            chg, v = imgui.slider_float("标签X", user_config.hud_n_offset_timer, -0.2, 0.2); if chg then user_config.hud_n_offset_timer = v; save_conf() end
+            chg, v = imgui.slider_float("状态Y", user_config.hud_n_offset_status_y, -0.2, 0.2); if chg then user_config.hud_n_offset_status_y = v; save_conf() end
             imgui.separator()
-            chg, v = imgui.slider_float("Timer Y", user_config.timer_hud_y, -1.0, 1.0); if chg then user_config.timer_hud_y = v; save_conf() end
-            chg, v = imgui.slider_float("Timer X", user_config.timer_offset_x, -0.5, 0.5); if chg then user_config.timer_offset_x = v; save_conf() end
+            chg, v = imgui.slider_float("计时器Y", user_config.timer_hud_y, -1.0, 1.0); if chg then user_config.timer_hud_y = v; save_conf() end
+            chg, v = imgui.slider_float("计时器X", user_config.timer_offset_x, -0.5, 0.5); if chg then user_config.timer_offset_x = v; save_conf() end
         end
         
-        if styled_header("--- DEBUG PANEL ---", UI_THEME.hdr_debug) then
-            local cd, vd = imgui.checkbox("Enable Overlay", user_config.show_debug_panel); if cd then user_config.show_debug_panel = vd; save_conf() end
-            imgui.text("P1 State: " .. session.p1_state)
-            imgui.text("P2 State: " .. session.p2_state)
-            imgui.text("Active Slot: " .. game_state.current_slot_index)
-            imgui.text("Last P1 Act: " .. session.last_act_id)
-            imgui.text_colored(string.format("Grace: %d | P1in: %d | CD: %d", _G._aa_dbg_grace or 0, _G._aa_dbg_p1_input or 0, _G._aa_dbg_cooldown or 0), 0xFF00FFFF)
+        if styled_header("--- 调试面板 ---", UI_THEME.hdr_debug) then
+            local cd, vd = imgui.checkbox("启用覆盖层", user_config.show_debug_panel); if cd then user_config.show_debug_panel = vd; save_conf() end
+            imgui.text("P1 状态: " .. session.p1_state)
+            imgui.text("P2 状态: " .. session.p2_state)
+            imgui.text("当前槽位: " .. game_state.current_slot_index)
+            imgui.text("上次P1动作: " .. session.last_act_id)
+            imgui.text_colored(string.format("宽限: %d | P1输入: %d | 冷却: %d", _G._aa_dbg_grace or 0, _G._aa_dbg_p1_input or 0, _G._aa_dbg_cooldown or 0), 0xFF00FFFF)
             local aa_ready = not (_G._aa_dbg_reset or false) and not (_G._aa_dbg_firing or false) and not (_G._aa_dbg_wait_n or false) and (_G._aa_dbg_cooldown or 0) <= 0
-            if aa_ready then imgui.text_colored("DUMMY READY", 0xFF00FF00)
+            if aa_ready then imgui.text_colored("假人已就绪", 0xFF00FF00)
             else
                 local reason = ""
-                if _G._aa_dbg_reset then reason = "GRACE"
-                elseif _G._aa_dbg_firing then reason = "FIRING"
-                elseif _G._aa_dbg_wait_n then reason = "WAIT NEUTRAL"
-                elseif (_G._aa_dbg_cooldown or 0) > 0 then reason = "COOLDOWN" end
-                imgui.text_colored("DUMMY NOT READY: " .. reason, 0xFF0000FF)
+                if _G._aa_dbg_reset then reason = "宽限期"
+                elseif _G._aa_dbg_firing then reason = "触发中"
+                elseif _G._aa_dbg_wait_n then reason = "等待中立"
+                elseif (_G._aa_dbg_cooldown or 0) > 0 then reason = "冷却中" end
+                imgui.text_colored("假人未就绪: " .. reason, 0xFF0000FF)
             end
         end
         
@@ -1230,9 +1230,9 @@ re.on_draw_ui(function()
     end
 
     if user_config.show_debug_panel then
-        imgui.begin_window("Debug Overlay", true, 0)
-        imgui.text("Auto Logic Active")
-        imgui.text("Wait frames: " .. playback_loop.wait_frames)
+        imgui.begin_window("调试覆盖层", true, 0)
+        imgui.text("自动逻辑已激活")
+        imgui.text("等待帧数: " .. playback_loop.wait_frames)
         imgui.end_window()
     end
 end)

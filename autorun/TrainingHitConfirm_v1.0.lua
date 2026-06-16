@@ -428,7 +428,7 @@ end
 local function export_detailed_history()
     local filename = "_FULL_HISTORY_EXPORT.txt"; local f = io.open(filename, "w+")
     if not f then session.export_msg = TEXTS.err_history_file; return end
-    f:write("详细矩阵日志 [" .. os.date("%H:%M:%S") .. "]\n 时钟  | P1_FT | P1_ST | P1_FR | P2_FT | 伤害 | 停顿 | 连击 | 状态\n")
+    f:write("详细矩阵日志 [" .. os.date("%H:%M:%S") .. "]\n 时钟  | P1帧类 | P1状态 | P1帧数 | P2帧类 | 伤害 | 停顿 | 连击 | 状态\n")
     for _, line in ipairs(session.history_list) do
         local r = string.format(" %-6d |  %3s  |  %3s  |  %3s  |  %3s  | %-4s | %-4s | %-4s | ", line.clock, line.p1.ft, line.p1.st, line.p1.fn, line.p2.ft, line.dmg, line.hs, line.cmb)
         local st = ""; if line.status ~= "" then st = "<<< " .. line.status elseif line.tag == "HIT" then st = "<<< 已命中" elseif line.tag == "BLOCK" then st = "<<< 已被防" end
@@ -622,7 +622,7 @@ local function update_detection()
                 -- MONITOR DR CANCEL START (MEDIUM + HEAVY)
                 if _G._hc_logging then
                     if not _G._hc_log_lines then _G._hc_log_lines = {} end
-                    table.insert(_G._hc_log_lines, string.format("[%d] lock=%s mon=%s/%s trig_h=%s trig_b=%s combo=%d hs=%d ft1=%d ft2=%d new_act=%s",
+                    table.insert(_G._hc_log_lines, string.format("[%d] 锁定=%s 监视=%s/%s 触发命中=%s 触发被防=%s 连击=%d 停顿=%d 帧类1=%d 帧类2=%d 新动作=%s",
                         detection.abs_clock or 0, tostring(detection.lockout), tostring(detection.monitor.active), tostring(detection.monitor.type),
                         tostring(trig_hit), tostring(trig_blk), detection.live_combo or 0, detection.live_hs or 0,
                         p1_data.ft, p2_data.ft, tostring(detection.monitor.saw_new_action)))
@@ -723,7 +723,7 @@ local function update_detection()
                             if detection.dr_monitor.timer <= 0 then detection.dr_monitor.active = false end
                         end
                     elseif detection.dr_monitor.type == "EXECUTE" then
-                        table.insert(detection.dr_trace, string.format("f%d p1_ft=%d p2_ft=%d hs=%d combo=%d grace=%d",
+                        table.insert(detection.dr_trace, string.format("帧%d P1帧类=%d P2帧类=%d 停顿=%d 连击=%d 宽限=%d",
                             detection.abs_clock, p1_data.ft, p2_data.ft, detection.live_hs, detection.live_combo, detection.dr_monitor.gap_grace))
                         if detection.dr_monitor.context == "BLOCK" then
                             if detection.dr_monitor.gap_grace > 0 then
@@ -1325,7 +1325,7 @@ re.on_draw_ui(function()
             -- [NEW] Light Button Config Input
             local chgBtn, vBtn = imgui.input_text("轻攻击按键（位掩码）", user_config.str_light_btn_list);
             if chgBtn then user_config.str_light_btn_list = vBtn; refresh_tables(); save_conf() end
-            if imgui.is_item_hovered() then imgui.set_tooltip("16=LP (X/Square), 128=LK (A/Cross)") end
+            if imgui.is_item_hovered() then imgui.set_tooltip("16=LP (X/方块), 128=LK (A/叉)") end
             
             local chg4, v4 = imgui.input_text("被防伤害类型列表", user_config.str_dmg_block_list); if chg4 then user_config.str_dmg_block_list = v4; refresh_tables(); save_conf() end
         end
@@ -1365,7 +1365,7 @@ re.on_draw_ui(function()
                 for _, l in ipairs(detection.dr_trace) do lines[#lines + 1] = l end
                 lines[#lines + 1] = "=== 矩阵快照 ==="
                 for _, line in ipairs(detection.active_lines) do
-                    local r = string.format("[%03d] p1_ft=%s p1_gau=%s p2_ft=%s p2_gau=%s dmg=%s hs=%s", line.idx, tostring(line.p1.frame_type), tostring(line.p1.main_gauge), tostring(line.p2.frame_type), tostring(line.p2.main_gauge), tostring(line.d), tostring(line.h))
+                    local r = string.format("[%03d] %s %s %s %s 伤害=%s 停顿=%s", line.idx, tostring(line.p1.frame_type), tostring(line.p1.main_gauge), tostring(line.p2.frame_type), tostring(line.p2.main_gauge), tostring(line.d), tostring(line.h))
                     if line.res ~= "" then r = r .. " <<< " .. line.res
                     elseif line.is_h then r = r .. " <<< 命中"
                     elseif line.is_b then r = r .. " <<< 被防" end
@@ -1386,7 +1386,7 @@ re.on_draw_ui(function()
             if detection.lockout then imgui.same_line(); imgui.text_colored("[锁定]", COLORS.Red) end
             imgui.separator()
             local h = ""; if user_config.show_index then h = h .. "序号 | " end
-            local cols = {{k="frame_type", l="FT"}, {k="status_type", l="TYP"}, {k="frame_number", l="FRM"}, {k="start_frame", l="STR"}, {k="end_frame", l="END"}, {k="main_gauge", l="GAU"}}
+            local cols = {{k="frame_type", l="帧类"}, {k="status_type", l="类型"}, {k="frame_number", l="帧数"}, {k="start_frame", l="起始"}, {k="end_frame", l="结束"}, {k="main_gauge", l="资源"}}
             for _, c in ipairs(cols) do if user_config.p1[c.k] then h = h .. "P1_"..c.l.." | " end; if user_config.p2[c.k] then h = h .. "P2_"..c.l.." | " end end
             if user_config.show_damage then h = h .. "伤害 | " end; if user_config.show_hitstop then h = h .. "停顿 | " end; if user_config.show_status_label then h = h .. "状态" end
             imgui.text(h); imgui.separator()

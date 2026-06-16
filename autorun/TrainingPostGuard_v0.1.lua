@@ -112,7 +112,7 @@ local session = {
     -- Time Up
     time_up_delay = 0,
     
-    feedback = { text = "READY", timer = 0, color = COLORS.Grey },
+    feedback = { text = "准备", timer = 0, color = COLORS.Grey },
     
     p1_state = 0, p2_state = 0, p1_max_frame = 0, p2_max_frame = 0
 }
@@ -234,7 +234,7 @@ local function reset_session_stats()
     session.throw_in_progress = false
     
     session.real_start_time = os.time()
-    set_feedback("READY", COLORS.White, 0)
+    set_feedback("准备", COLORS.White, 0)
 end
 
 local function reset_round()
@@ -252,7 +252,7 @@ end
 
 local function reset_round_silent()
     reset_round()
-    session.feedback.text = "WAITING..."
+    session.feedback.text = "等待中..."
     session.feedback.color = COLORS.Grey
 end
 
@@ -287,10 +287,10 @@ local function update_logic()
     if session.score_timer > 0 then session.score_timer = session.score_timer - 1; if session.score_timer <= 0 then session.score_col = COLORS.White end end
     
     -- TIME UP LOOP
-    if session.is_time_up then 
+    if session.is_time_up then
         session.time_up_delay = (session.time_up_delay or 0) + dt
-        if session.time_up_delay < 1.5 then 
-             set_feedback("TIME UP! & EXPORTED", COLORS.Red, 0)
+        if session.time_up_delay < 1.5 then
+             set_feedback("时间到！已导出", COLORS.Red, 0)
         else
              set_feedback(SharedUI.reset_message(), COLORS.Yellow, 0)
         end
@@ -307,9 +307,9 @@ local function update_logic()
                 session.is_time_up = true
                 session.time_up_delay = 0
                 export_stats()
-                SessionRecap.show("POST GUARD", LOG_FILENAME, "postguard")
+                SessionRecap.show("版边防守", LOG_FILENAME, "postguard")
             end
-            set_feedback("TIME UP! & EXPORTED", COLORS.Red, 0)
+            set_feedback("时间到！已导出", COLORS.Red, 0)
             return
         end
     else -- trials
@@ -319,16 +319,16 @@ local function update_logic()
                 session.is_time_up = true
                 session.time_up_delay = 0
                 export_stats()
-                SessionRecap.show("POST GUARD", LOG_FILENAME, "postguard")
+                SessionRecap.show("版边防守", LOG_FILENAME, "postguard")
             end
-            set_feedback(session.total .. " TRIALS DONE! & EXPORTED", COLORS.Red, 0)
+            set_feedback(session.total .. " 次完成！已导出", COLORS.Red, 0)
             return
         end
     end
 
     if session.feedback.timer > 0 then
         session.feedback.timer = session.feedback.timer - dt
-        if session.feedback.timer <= 0 then session.feedback.text = "WAITING..."; session.feedback.color = COLORS.Grey end
+        if session.feedback.timer <= 0 then session.feedback.text = "等待中..."; session.feedback.color = COLORS.Grey end
     end
     
     -- =========================================================
@@ -361,7 +361,7 @@ local function update_logic()
             session.throw_in_progress = false
         else
             if not session.p2_throw_tech_detected and session.phase ~= PHASE_RESULT then
-                 evaluate_outcome(true, "SUCCESS: THROW CONNECTED!")
+                 evaluate_outcome(true, "成功: 投技命中!")
             end
             return
         end
@@ -374,7 +374,7 @@ local function update_logic()
     if session.phase == PHASE_WAIT_BLOCK then
         
         if p1_act_st == 37 and p2_act_st == 38 and not session.p2_throw_tech_detected then
-            evaluate_outcome(true, "SUCCESS: THROW (PRE-BLOCK)!")
+            evaluate_outcome(true, "成功: 投技 (防御前)!")
             return
         end
         
@@ -400,7 +400,7 @@ local function update_logic()
             is_perfect_parry = p1_mem.damage_type == 34 and p1_mem.trade_dm_flag
         end
         if is_perfect_parry then
-             evaluate_outcome(true, "SUCCESS: PERFECT PARRY!")
+             evaluate_outcome(true, "成功: 完美精防!")
              return
         end
 		
@@ -408,7 +408,7 @@ local function update_logic()
         -- If P1 is hit (State 9), it's an immediate loss.
         -- Exclude DI case (handled below) to show the correct error message.
         if session.p1_state == STATE_HURT and session.p2_state ~= STATE_DI then 
-            evaluate_outcome(false, "FAIL: GOT HIT")
+            evaluate_outcome(false, "失败: 被击中")
             return 
         end
 
@@ -419,20 +419,20 @@ local function update_logic()
         -- If P2 Parry (39) AND P1 Active (13) -> Fail
         if p2_act_st == 39 and session.p1_state == STATE_ACTIVE then
             if p1_act_st ~= 37 then -- Unless it's a throw
-                evaluate_outcome(false, "FAIL: HIT PARRY!")
+                evaluate_outcome(false, "失败: 击中精防!")
                 return
             end
         end
 
         -- 3. CHECK SUCCESS: THROW PUNISH
         if p1_act_st == 37 and p2_act_st == 38 and not session.p2_throw_tech_detected then
-             evaluate_outcome(true, "SUCCESS: THROW PUNISH!")
+             evaluate_outcome(true, "成功: 投技确反!")
              return
         end
 
         -- 4. CHECK SUCCESS: PUNISH LANDED (HURT)
         if session.p2_state == STATE_HURT then
-             evaluate_outcome(true, "SUCCESS: PUNISH!")
+             evaluate_outcome(true, "成功: 确反!")
              return
         end
 
@@ -441,7 +441,7 @@ local function update_logic()
             -- Only confirm the failure if P2 returned to Neutral (0).
             -- If in Startup (7) or Dash (18) or other, keep waiting.
             if p2_act_st == 0 then
-                evaluate_outcome(false, "FAIL: MISSED PARRY PUNISH")
+                evaluate_outcome(false, "失败: 错失精防确反")
                 return
             end
         end
@@ -449,9 +449,9 @@ local function update_logic()
         -- 6. DI CHECK
         if session.p2_state == STATE_DI then session.p2_has_di = true end
         if session.p2_has_di then
-            if session.p1_state == STATE_DI then evaluate_outcome(true, "SUCCESS: DI COUNTER!"); return
-            elseif session.p1_state == STATE_HURT then evaluate_outcome(false, "FAIL: CRUSHED BY DI"); return
-            elseif session.p2_state == STATE_NEUTRAL then evaluate_outcome(false, "FAIL: MISSED DI COUNTER"); return end
+            if session.p1_state == STATE_DI then evaluate_outcome(true, "成功: DI 反击!"); return
+            elseif session.p1_state == STATE_HURT then evaluate_outcome(false, "失败: 被DI击溃"); return
+            elseif session.p2_state == STATE_NEUTRAL then evaluate_outcome(false, "失败: 错失DI反击"); return end
             return
         end
         
@@ -461,7 +461,7 @@ local function update_logic()
             if p2_mem.pose_st >= 2 then session.p2_was_in_air = true; if p2_mem.suki_flag then session.p2_air_attack_confirmed = true end end
             
             if session.p2_was_in_air and session.p2_state == STATE_NEUTRAL then
-                if session.p2_air_attack_confirmed then evaluate_outcome(false, "FAIL: MISSED ANTI-AIR") else reset_round_silent() end
+                if session.p2_air_attack_confirmed then evaluate_outcome(false, "失败: 错失对空") else reset_round_silent() end
                 return
             end
             
@@ -469,7 +469,7 @@ local function update_logic()
                  session.p2_has_attacked_ground = true
             end
             if session.p2_has_attacked_ground and session.p2_state == STATE_NEUTRAL then
-                 evaluate_outcome(false, "FAIL: MISSED WHIFF PUNISH")
+                 evaluate_outcome(false, "失败: 错失挥空确反")
                  return
             end
         end
@@ -533,8 +533,8 @@ local function handle_input()
     if session.is_time_up then
          if is_action(BTN_LEFT, 0x34) or kb_pressed(0x33) then
             reset_session_stats()
-            set_feedback("RESET DONE", COLORS.White, 1.0)
-            pg_ticker("SESSION RESET")
+            set_feedback("已重置", COLORS.White, 1.0)
+            pg_ticker("训练已重置")
         end
     else
         if not session.is_running then
@@ -544,7 +544,7 @@ local function handle_input()
                     set_feedback(tostring(user_config.trial_count), COLORS.White, 1.0)
                 else
                     user_config.timer_minutes = math.min(60, user_config.timer_minutes + 1)
-                    session.time_rem = user_config.timer_minutes * 60; set_feedback("TIMER: "..user_config.timer_minutes.." MIN", COLORS.White, 1.0)
+                    session.time_rem = user_config.timer_minutes * 60; set_feedback("计时: "..user_config.timer_minutes.." 分", COLORS.White, 1.0)
                 end
                 save_conf()
              end
@@ -554,7 +554,7 @@ local function handle_input()
                     set_feedback(tostring(user_config.trial_count), COLORS.White, 1.0)
                 else
                     user_config.timer_minutes = math.max(1, user_config.timer_minutes - 1)
-                    session.time_rem = user_config.timer_minutes * 60; set_feedback("TIMER: "..user_config.timer_minutes.." MIN", COLORS.White, 1.0)
+                    session.time_rem = user_config.timer_minutes * 60; set_feedback("计时: "..user_config.timer_minutes.." 分", COLORS.White, 1.0)
                 end
                 save_conf()
              end
@@ -568,23 +568,23 @@ local function handle_input()
         -- Position 3 (key 3 / FUNC+LEFT): RESET when idle, STOP when running
         if pos3_kb or pos4_pad then
             if session.is_running then
-                reset_session_stats(); set_feedback("STOPPED", COLORS.Red, 1.5)
-                pg_ticker("SESSION STOPPED")
+                reset_session_stats(); set_feedback("已停止", COLORS.Red, 1.5)
+                pg_ticker("训练已停止")
             else
-                reset_session_stats(); set_feedback("RESET DONE", COLORS.White, 1.0)
-                pg_ticker("SESSION RESET")
+                reset_session_stats(); set_feedback("已重置", COLORS.White, 1.0)
+                pg_ticker("训练已重置")
             end
         end
         -- Position 4 (key 4 / FUNC+RIGHT): START when idle, PAUSE when running
         if not session.is_running then
             if pos4_kb or pos3_pad then
-                reset_session_stats(); session.is_running = true; set_feedback("SESSION STARTED", COLORS.Green, 1.0)
-                pg_ticker("SESSION STARTED")
+                reset_session_stats(); session.is_running = true; set_feedback("训练已开始", COLORS.Green, 1.0)
+                pg_ticker("训练已开始")
             end
         else
             if pos4_kb or pos3_pad then
                 session.is_paused = not session.is_paused
-                pg_ticker(session.is_paused and "SESSION PAUSED" or "SESSION RESUMED")
+                pg_ticker(session.is_paused and "训练已暂停" or "训练已继续")
             end
         end
     end
@@ -642,7 +642,7 @@ end)
 
 local function draw_hud()
     local is_trials = (user_config.session_mode == "trials")
-    SharedUI.draw_standard_hud("HUD_PostGuard", user_config, session, "POST GUARD", not is_trials, function(cx, cy, sw, sh)
+    SharedUI.draw_standard_hud("HUD_PostGuard", user_config, session, "版边防守", not is_trials, function(cx, cy, sw, sh)
         if is_trials then
             local lb_off = SharedUI.get_letterbox_offset()
             local center_y = lb_off + sh / 2
@@ -661,7 +661,7 @@ local function draw_hud()
         local pct = 0
         if session.total > 0 then pct = (session.success_count / session.total) * 100 end
 
-        local pct_txt = string.format("SUCCESS: %.0f%%", pct)
+        local pct_txt = string.format("成功率: %.0f%%", pct)
         local w_p = imgui.calc_text_size(pct_txt).x
         SharedUI.draw_text(pct_txt, cx - (w_p / 2), cy, SharedUI.COLORS.White)
     end)
@@ -683,39 +683,39 @@ end
 local function draw_session_buttons_docked()
     local sl = SharedUI.sc_label
     local SC = SharedUI.SC_COLORS
-    local mode_label = user_config.session_mode == "trials" and "MODE: TRIALS" or "MODE: TIMER"
+    local mode_label = user_config.session_mode == "trials" and "模式: 次数" or "模式: 计时"
     if imgui.button(mode_label .. "##dk_mode_pg") then
         user_config.session_mode = user_config.session_mode == "trials" and "timer" or "trials"
         reset_session_stats(); save_conf()
-        pg_ticker(user_config.session_mode == "timer" and "TIMER MODE" or "TRIALS MODE")
+        pg_ticker(user_config.session_mode == "timer" and "计时模式" or "次数模式")
     end
     imgui.same_line()
     if user_config.session_mode == "trials" then
-        if SharedUI.sc_button("TRIALS - (" .. sl("D") .. ")##dk_pg", SC.c1) then user_config.trial_count = math.max(10, user_config.trial_count - 10); reset_session_stats(); save_conf() end
+        if SharedUI.sc_button("次数 - (" .. sl("D") .. ")##dk_pg", SC.c1) then user_config.trial_count = math.max(10, user_config.trial_count - 10); reset_session_stats(); save_conf() end
         imgui.same_line()
-        if SharedUI.sc_button("TRIALS + (" .. sl("U") .. ")##dk_pg", SC.c2) then user_config.trial_count = math.min(200, user_config.trial_count + 10); reset_session_stats(); save_conf() end
-        imgui.same_line(); imgui.text(tostring(user_config.trial_count) .. " TRIALS")
+        if SharedUI.sc_button("次数 + (" .. sl("U") .. ")##dk_pg", SC.c2) then user_config.trial_count = math.min(200, user_config.trial_count + 10); reset_session_stats(); save_conf() end
+        imgui.same_line(); imgui.text(tostring(user_config.trial_count) .. " 次")
     else
-        if SharedUI.sc_button("TIMER - (" .. sl("D") .. ")##dk_pg", SC.c1) then user_config.timer_minutes = math.max(1, user_config.timer_minutes - 1); reset_session_stats() end
+        if SharedUI.sc_button("计时 - (" .. sl("D") .. ")##dk_pg", SC.c1) then user_config.timer_minutes = math.max(1, user_config.timer_minutes - 1); reset_session_stats() end
         imgui.same_line()
-        if SharedUI.sc_button("TIMER + (" .. sl("U") .. ")##dk_pg", SC.c2) then user_config.timer_minutes = math.min(60, user_config.timer_minutes + 1); reset_session_stats() end
-        imgui.same_line(); imgui.text(tostring(user_config.timer_minutes) .. " MIN")
+        if SharedUI.sc_button("计时 + (" .. sl("U") .. ")##dk_pg", SC.c2) then user_config.timer_minutes = math.min(60, user_config.timer_minutes + 1); reset_session_stats() end
+        imgui.same_line(); imgui.text(tostring(user_config.timer_minutes) .. " 分")
     end
     imgui.same_line(300)
-    if SharedUI.sc_button("RESET (" .. sl("L", "3") .. ")##dk_pg", SC.c3) then reset_session_stats(); pg_ticker("SESSION RESET") end
+    if SharedUI.sc_button("重置 (" .. sl("L", "3") .. ")##dk_pg", SC.c3) then reset_session_stats(); pg_ticker("训练已重置") end
     imgui.spacing()
     if not session.is_running then
-        if SharedUI.sc_button("START SESSION (" .. sl("R", "4") .. ")##dk_pg", SC.c4) then reset_session_stats(); session.is_running = true; set_feedback("HERE WE GO!", COLORS.Green, 1.0); pg_ticker("SESSION STARTED") end
+        if SharedUI.sc_button("开始训练 (" .. sl("R", "4") .. ")##dk_pg", SC.c4) then reset_session_stats(); session.is_running = true; set_feedback("训练已开始", COLORS.Green, 1.0); pg_ticker("训练已开始") end
     else
-        if SharedUI.sc_button("STOP (" .. sl("L", "3") .. ")##dk_pg", SC.c3) then reset_session_stats(); set_feedback("STOPPED", COLORS.Red, 1.0); pg_ticker("SESSION STOPPED") end
+        if SharedUI.sc_button("停止 (" .. sl("L", "3") .. ")##dk_pg", SC.c3) then reset_session_stats(); set_feedback("已停止", COLORS.Red, 1.0); pg_ticker("训练已停止") end
         imgui.same_line()
-        if SharedUI.sc_button((session.is_paused and "RESUME" or "PAUSE") .. " (" .. sl("R", "4") .. ")##dk_pg", SC.c4) then session.is_paused = not session.is_paused; pg_ticker(session.is_paused and "SESSION PAUSED" or "SESSION RESUMED") end
+        if SharedUI.sc_button((session.is_paused and "继续" or "暂停") .. " (" .. sl("R", "4") .. ")##dk_pg", SC.c4) then session.is_paused = not session.is_paused; pg_ticker(session.is_paused and "训练已暂停" or "训练已继续") end
     end
 end
 
 -- SESSION BUTTONS — FLOATING (single-line)
 local function draw_session_floating()
-    local visible, sw, sh = SharedUI.begin_floating_window("Post Guard##float")
+    local visible, sw, sh = SharedUI.begin_floating_window("版边防守##float")
     if not visible then user_config.show_floating = false; save_conf(); SharedUI.end_floating_window(); return end
     local sl = SharedUI.sc_label
     local SC = SharedUI.SC_COLORS
@@ -725,9 +725,9 @@ local function draw_session_floating()
     SharedUI.draw_floating_bg()
     local slm = SharedUI.sc_label_max
     local all_labels = {
-        "TRIALS - (" .. slm("D") .. ")", "TRIALS + (" .. slm("U") .. ")",
-        "RESET (" .. slm("L") .. ")", "STOP (" .. slm("L") .. ")",
-        "START (" .. slm("R") .. ")", "PAUSE (" .. slm("R") .. ")"
+        "次数 - (" .. slm("D") .. ")", "次数 + (" .. slm("U") .. ")",
+        "重置 (" .. slm("L") .. ")", "停止 (" .. slm("L") .. ")",
+        "开始 (" .. slm("R") .. ")", "暂停 (" .. slm("R") .. ")"
     }
     local max_w = 0
     for _, t in ipairs(all_labels) do local tw = imgui.calc_text_size(t).x; if tw > max_w then max_w = tw end end
@@ -736,25 +736,25 @@ local function draw_session_floating()
     local actual_w = math.max(max_w + 20, remaining / 4)
     imgui.set_cursor_pos(Vector2f.new(pad_x, sh * 0.01))
     if user_config.session_mode == "trials" then
-        if SharedUI.sf6_button("TRIALS - (" .. sl("D") .. ")##fl_pg", SC.c1, actual_w) then user_config.trial_count = math.max(10, user_config.trial_count - 10); reset_session_stats(); save_conf() end
+        if SharedUI.sf6_button("次数 - (" .. sl("D") .. ")##fl_pg", SC.c1, actual_w) then user_config.trial_count = math.max(10, user_config.trial_count - 10); reset_session_stats(); save_conf() end
         imgui.same_line(0, sp)
-        if SharedUI.sf6_button("TRIALS + (" .. sl("U") .. ")##fl_pg", SC.c2, actual_w) then user_config.trial_count = math.min(200, user_config.trial_count + 10); reset_session_stats(); save_conf() end
+        if SharedUI.sf6_button("次数 + (" .. sl("U") .. ")##fl_pg", SC.c2, actual_w) then user_config.trial_count = math.min(200, user_config.trial_count + 10); reset_session_stats(); save_conf() end
     else
-        if SharedUI.sf6_button("TIMER - (" .. sl("D") .. ")##fl_pg", SC.c1, actual_w) then user_config.timer_minutes = math.max(1, user_config.timer_minutes - 1); reset_session_stats() end
+        if SharedUI.sf6_button("计时 - (" .. sl("D") .. ")##fl_pg", SC.c1, actual_w) then user_config.timer_minutes = math.max(1, user_config.timer_minutes - 1); reset_session_stats() end
         imgui.same_line(0, sp)
-        if SharedUI.sf6_button("TIMER + (" .. sl("U") .. ")##fl_pg", SC.c2, actual_w) then user_config.timer_minutes = math.min(60, user_config.timer_minutes + 1); reset_session_stats() end
+        if SharedUI.sf6_button("计时 + (" .. sl("U") .. ")##fl_pg", SC.c2, actual_w) then user_config.timer_minutes = math.min(60, user_config.timer_minutes + 1); reset_session_stats() end
     end
     imgui.same_line(0, sp)
     if not session.is_running then
-        if SharedUI.sf6_button("RESET (" .. sl("L", "3") .. ")##fl_pg", SC.c3, actual_w) then reset_session_stats(); pg_ticker("SESSION RESET") end
+        if SharedUI.sf6_button("重置 (" .. sl("L", "3") .. ")##fl_pg", SC.c3, actual_w) then reset_session_stats(); pg_ticker("训练已重置") end
     else
-        if SharedUI.sf6_button("STOP (" .. sl("L", "3") .. ")##fl_pg", SC.c3, actual_w) then reset_session_stats(); set_feedback("STOPPED", COLORS.Red, 1.0); pg_ticker("SESSION STOPPED") end
+        if SharedUI.sf6_button("停止 (" .. sl("L", "3") .. ")##fl_pg", SC.c3, actual_w) then reset_session_stats(); set_feedback("已停止", COLORS.Red, 1.0); pg_ticker("训练已停止") end
     end
     imgui.same_line(0, sp)
     if session.is_running then
-        if SharedUI.sf6_button((session.is_paused and "RESUME" or "PAUSE") .. " (" .. sl("R", "4") .. ")##fl_pg", SC.c4, actual_w) then session.is_paused = not session.is_paused; pg_ticker(session.is_paused and "SESSION PAUSED" or "SESSION RESUMED") end
+        if SharedUI.sf6_button((session.is_paused and "继续" or "暂停") .. " (" .. sl("R", "4") .. ")##fl_pg", SC.c4, actual_w) then session.is_paused = not session.is_paused; pg_ticker(session.is_paused and "训练已暂停" or "训练已继续") end
     else
-        if SharedUI.sf6_button("START (" .. sl("R", "4") .. ")##fl_pg", SC.c4, actual_w) then reset_session_stats(); session.is_running = true; set_feedback("HERE WE GO!", COLORS.Green, 1.0); pg_ticker("SESSION STARTED") end
+        if SharedUI.sf6_button("开始 (" .. sl("R", "4") .. ")##fl_pg", SC.c4, actual_w) then reset_session_stats(); session.is_running = true; set_feedback("训练已开始", COLORS.Green, 1.0); pg_ticker("训练已开始") end
     end
     imgui.same_line(w_width - cb_size - 10 - pad_x)
     local changed, new_val = imgui.checkbox("##close_pg", user_config.show_floating)
@@ -764,44 +764,44 @@ end
 
 re.on_draw_ui(function()
     if DEPENDANT_ON_MANAGER and _G.CurrentTrainerMode ~= MY_TRAINER_ID then return end
-    if imgui.tree_node("Post Guard Training (v1.13 Flicker Fix)") then
-        if styled_header("--- INFO ---", UI_THEME.hdr_info) then imgui.text("Hit the guard to start observation.\nPunish if attack, Wait if nothing.\nCOUNTER DI if you see it!") end
+    if imgui.tree_node("版边防守训练 (v1.13 闪烁修复)") then
+        if styled_header("--- 说明 ---", UI_THEME.hdr_info) then imgui.text("击中防御开始观察。\n攻击则惩罚，无动作则等待。\n看到DI则反DI！") end
 
         imgui.separator()
-        local c_dbg, v_dbg = imgui.checkbox("Show Debug Info", user_config.show_debug)
+        local c_dbg, v_dbg = imgui.checkbox("显示调试信息", user_config.show_debug)
         if c_dbg then user_config.show_debug = v_dbg end
         if user_config.show_debug then
-            imgui.indent(20); imgui.text_colored("--- DEBUG ---", COLORS.Orange)
+            imgui.indent(20); imgui.text_colored("--- 调试 ---", COLORS.Orange)
 
-            imgui.text(string.format("P1 State: %d", session.p1_state))
-            imgui.text(string.format("P2 State: %d", session.p2_state))
+            imgui.text(string.format("P1 状态: %d", session.p1_state))
+            imgui.text(string.format("P2 状态: %d", session.p2_state))
             if session.p2_state == STATE_PARRY then
-                imgui.text_colored("P2 PARRY ACTIF !", COLORS.Orange)
+                imgui.text_colored("P2 精防中!", COLORS.Orange)
             end
 
-            imgui.text("Phase: " .. session.phase .. " | Time: " .. session.timer_action)
-            imgui.text("Score: " .. session.score .. " | Succ: " .. session.success_count)
+            imgui.text("阶段: " .. session.phase .. " | 计时: " .. session.timer_action)
+            imgui.text("得分: " .. session.score .. " | 成功: " .. session.success_count)
             local info = get_p2_extended_info()
-            imgui.text("Pose: " .. tostring(info.pose_st) .. (info.pose_st >= 2 and " (AIR)" or " (GROUND)"))
-            if info.suki_flag then imgui.text_colored("Suki: TRUE", COLORS.Green) else imgui.text_colored("Suki: FALSE", COLORS.Grey) end
-            imgui.text("Was Air: " .. tostring(session.p2_was_in_air)); imgui.text("Air Atk: " .. tostring(session.p2_air_attack_confirmed))
+            imgui.text("姿势: " .. tostring(info.pose_st) .. (info.pose_st >= 2 and " (空中)" or " (地面)"))
+            if info.suki_flag then imgui.text_colored("破绽: 有", COLORS.Green) else imgui.text_colored("破绽: 无", COLORS.Grey) end
+            imgui.text("曾在空中: " .. tostring(session.p2_was_in_air)); imgui.text("空中攻击: " .. tostring(session.p2_air_attack_confirmed))
 local debug_p2_mem = get_p2_extended_info()
 
-            imgui.text("Phase: " .. session.phase)
-            imgui.text("Catch Muteki: " .. tostring(debug_p2_mem.catch_muteki) .. " | Throw Tech No: " .. tostring(debug_p2_mem.throw_tech_no))
+            imgui.text("阶段: " .. session.phase)
+            imgui.text("被抓无敌: " .. tostring(debug_p2_mem.catch_muteki) .. " | 投技拆解号: " .. tostring(debug_p2_mem.throw_tech_no))
             if session.p2_throw_tech_detected then
-                imgui.text_colored("Throw Tech Detected: TRUE (throw ignored)", COLORS.Red)
+                imgui.text_colored("投技拆解检测: 是 (投技已忽略)", COLORS.Red)
             else
-                imgui.text_colored("Throw Tech Detected: FALSE", COLORS.Grey)
+                imgui.text_colored("投技拆解检测: 否", COLORS.Grey)
             end            imgui.unindent(20)
         end
 
-        if styled_header("--- SESSION ---", UI_THEME.hdr_session) then
-            local c_fl, v_fl = imgui.checkbox("FLOATING WINDOW", user_config.show_floating)
+        if styled_header("--- 训练 ---", UI_THEME.hdr_session) then
+            local c_fl, v_fl = imgui.checkbox("浮动窗口", user_config.show_floating)
             if c_fl then user_config.show_floating = v_fl; save_conf() end
 
             if user_config.show_floating then
-                imgui.text_colored("Session controls are in the floating window.", COLORS.DarkGrey)
+                imgui.text_colored("训练控制在浮动窗口中。", COLORS.DarkGrey)
             else
                 imgui.separator(); imgui.spacing()
                 draw_session_buttons_docked()
@@ -815,14 +815,14 @@ re.on_frame(function()
     if _G.CurrentTrainerMode == 3 then
         if _G._tsm_web_cmd then
             local cmd = _G._tsm_web_cmd; _G._tsm_web_cmd = nil
-            if cmd == "start" then reset_session_stats(); session.is_running = true; set_feedback("HERE WE GO!", COLORS.Green, 1.0); pg_ticker("SESSION STARTED") end
-            if cmd == "stop" then reset_session_stats(); set_feedback("STOPPED", COLORS.Red, 1.0); pg_ticker("SESSION STOPPED") end
-            if cmd == "reset" then reset_session_stats(); pg_ticker("SESSION RESET") end
-            if cmd == "pause" then session.is_paused = not session.is_paused; pg_ticker(session.is_paused and "SESSION PAUSED" or "SESSION RESUMED") end
+            if cmd == "start" then reset_session_stats(); session.is_running = true; set_feedback("训练已开始", COLORS.Green, 1.0); pg_ticker("训练已开始") end
+            if cmd == "stop" then reset_session_stats(); set_feedback("已停止", COLORS.Red, 1.0); pg_ticker("训练已停止") end
+            if cmd == "reset" then reset_session_stats(); pg_ticker("训练已重置") end
+            if cmd == "pause" then session.is_paused = not session.is_paused; pg_ticker(session.is_paused and "训练已暂停" or "训练已继续") end
             if cmd == "timer_up" then user_config.timer_minutes = math.min(60, user_config.timer_minutes + 1); reset_session_stats(); save_conf() end
             if cmd == "timer_down" then user_config.timer_minutes = math.max(1, user_config.timer_minutes - 1); reset_session_stats(); save_conf() end
             if cmd == "trials_up" then user_config.trial_count = math.min(200, user_config.trial_count + 10); reset_session_stats(); save_conf() end
-            if cmd == "switch_mode" then user_config.session_mode = user_config.session_mode == "timer" and "trials" or "timer"; reset_session_stats(); save_conf(); pg_ticker(user_config.session_mode == "timer" and "TIMER MODE" or "TRIALS MODE") end
+            if cmd == "switch_mode" then user_config.session_mode = user_config.session_mode == "timer" and "trials" or "timer"; reset_session_stats(); save_conf(); pg_ticker(user_config.session_mode == "timer" and "计时模式" or "次数模式") end
             if cmd == "trials_down" then user_config.trial_count = math.max(10, user_config.trial_count - 10); reset_session_stats(); save_conf() end
         end
         _G.TrainingSession_IsRunning = session.is_running

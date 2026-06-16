@@ -27,14 +27,14 @@ local last_hud_suffix = "Default"
 -- HUD DICTIONARY (Font, Size, Y Pos, X Pos)
 -- ==========================================
 UI.HUD_CONFIG = {
-    ["Default"] = { font = "sf6_college.otf", size = 78, y = -0.45, x = 0.0 },  -- SF6		: OK
-    ["_01"]     = { font = "sf6_college.otf", size = 60, y = -0.42, x = 0.0 },  -- ??? 		:
-    ["_02"]     = { font = "sf6_college.otf", size = 50, y = -0.39, x = 0.0 },  -- SSF2 	: OK
-    ["_03"]     = { font = "sf6_college.otf", size = 45, y = -0.441, x = 0.0 }, -- SFZ3 	: OK
-    ["_04"]     = { font = "sf6_college.otf", size = 55, y = -0.425, x = 0.0 }, -- SF33s 	: OK
-    ["_05"]     = { font = "sf6_college.otf", size = 65, y = -0.445, x = 0.0 }, -- SF4 		: OK
-    ["_06"]     = { font = "sf6_college.otf", size = 65, y = -0.45, x = 0.0 },  -- SF5 		: OK
-    ["_07"]     = { font = "sf6_college.otf", size = 65, y = -0.451, x = 0.0 }  -- SIMSIM	: OK
+    ["Default"] = { font = "msyhbd.ttc", size = 78, y = -0.45, x = 0.0 },  -- SF6		: OK
+    ["_01"]     = { font = "msyhbd.ttc", size = 60, y = -0.42, x = 0.0 },  -- ??? 		:
+    ["_02"]     = { font = "msyhbd.ttc", size = 50, y = -0.39, x = 0.0 },  -- SSF2 	: OK
+    ["_03"]     = { font = "msyhbd.ttc", size = 45, y = -0.441, x = 0.0 }, -- SFZ3 	: OK
+    ["_04"]     = { font = "msyhbd.ttc", size = 55, y = -0.425, x = 0.0 }, -- SF33s 	: OK
+    ["_05"]     = { font = "msyhbd.ttc", size = 65, y = -0.445, x = 0.0 }, -- SF4 		: OK
+    ["_06"]     = { font = "msyhbd.ttc", size = 65, y = -0.45, x = 0.0 },  -- SF5 		: OK
+    ["_07"]     = { font = "msyhbd.ttc", size = 65, y = -0.451, x = 0.0 }  -- SIMSIM	: OK
 }
 
 local function _sui_read_display_xy(result)
