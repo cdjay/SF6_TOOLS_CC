@@ -12,14 +12,14 @@
     "selected_file": "",
     "slots": [
         {
-            "active": true,
+            "active": false,
             "frames": 222,
             "name": "",
             "valid": true,
             "weight": 1
         },
         {
-            "active": true,
+            "active": false,
             "frames": 908,
             "name": "",
             "valid": true,
@@ -68,5 +68,5 @@
             "weight": 1
         }
     ],
-    "status_msg": "Char selected : Ken"
+    "status_msg": "角色已选择 : Ken"
 }
