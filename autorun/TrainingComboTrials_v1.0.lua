@@ -1830,7 +1830,7 @@ local function handle_combo_shortcuts()
         end
         if is_pressed(BTN_RIGHT) or kb_pressed(KB_2) then
             _G.ComboTrials_ReplayCancelPlayer = trial_state.recording_player
-            cancel_recording(); ct_ticker("RECORDING CANCELLED")
+            cancel_recording(); ct_ticker("录制已取消")
         end
 
     elseif trial_state.is_playing then
@@ -2202,7 +2202,7 @@ local function ct_handle_web_commands()
         end
         if cmd == "cancel_record" then
             _G.ComboTrials_ReplayCancelPlayer = trial_state.recording_player or 0
-            cancel_recording(); ct_ticker("RECORDING CANCELLED")
+            cancel_recording(); ct_ticker("录制已取消")
         end
         if cmd == "stop_record" then stop_recording_and_save(); ct_ticker("RECORDING SAVED") end
         if cmd == "reset_trial" then
