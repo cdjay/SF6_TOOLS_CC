@@ -225,7 +225,7 @@ if t_mediator then
                         if refresh_filtered_list then refresh_filtered_list() end
                         if refresh_replay_list then refresh_replay_list() end
                         if refresh_filtered_replay_list then refresh_filtered_replay_list() end
-                        status_msg = "Char selected : " .. (CHARACTER_NAMES[new_id] or ("Unknown("..tostring(new_id)..")"))
+                        status_msg = "角色已选择 : " .. (CHARACTER_NAMES[new_id] or ("Unknown("..tostring(new_id)..")"))
                     end
                 end
             end
@@ -922,7 +922,7 @@ end
 re.on_draw_ui(function()
 
 
-    if imgui.tree_node("RECORDING SLOT MANAGER") then  
+    if imgui.tree_node("录制槽位管理器") then  
         
         local real_name = get_char_name(current_p2_id)
         local is_ready = (current_p2_id ~= -1)
@@ -930,10 +930,10 @@ re.on_draw_ui(function()
         if is_ready then
             local is_dirty = check_is_dirty()
 
-            imgui.text_colored("Character: " .. real_name, 0xFF00FFFF)
+            imgui.text_colored("角色: " .. real_name, 0xFF00FFFF)
 
             -- ================= SOLO OPERATIONS =================
-            if sm_styled_header("--- SOLO OPERATIONS ---", SM_THEME.hdr_solo) then
+            if sm_styled_header("--- 文件操作 ---", SM_THEME.hdr_solo) then
 
                 -- Auto-refresh filter if the character changes
                 if current_p2_id ~= last_filtered_p2_id then
@@ -941,7 +941,7 @@ re.on_draw_ui(function()
                     last_filtered_p2_id = current_p2_id
                 end
 
-                if imgui.button("Refresh") then
+                if imgui.button("刷新") then
                     refresh_file_list()
                     refresh_filtered_list()
                 end
@@ -964,7 +964,7 @@ re.on_draw_ui(function()
 
                 imgui.same_line()
 
-                if imgui.button("IMPORT") then
+                if imgui.button("导入") then
                     if custom_file_input == "" then
                         custom_file_input = get_char_name(current_p2_id) .. ".json"
                     end
@@ -980,7 +980,7 @@ re.on_draw_ui(function()
                     imgui.push_style_color(23, 0xFF0080FF)
                 end
 
-                if imgui.button("EXPORT") then
+                if imgui.button("导出") then
                     if custom_file_input == "" then
                         custom_file_input = get_char_name(current_p2_id) .. ".json"
                     end
@@ -991,26 +991,26 @@ re.on_draw_ui(function()
                 if is_dirty then 
                     imgui.pop_style_color(3)
                     if imgui.is_item_hovered() then
-                        imgui.set_tooltip("Modifications not saved !")
+                        imgui.set_tooltip("有未保存的修改！")
                     end
                 end
 
                 imgui.same_line()
 
-                if imgui.button("SAVE AS") then
+                if imgui.button("另存为") then
                     save_as_input = get_char_name(current_p2_id)
                     save_as_open = true
                     imgui.open_popup("##save_as_popup")
                 end
 
                 if imgui.begin_popup("##save_as_popup") then
-                    imgui.text("Save as:")
+                    imgui.text("另存为:")
                     imgui.push_item_width(250)
                     local sa_changed, sa_val = imgui.input_text("##save_as_field", save_as_input)
                     if sa_changed then save_as_input = sa_val end
                     imgui.pop_item_width()
 
-                    if imgui.button("OK") then
+                    if imgui.button("确认") then
                         custom_file_input = save_as_input
                         if not custom_file_input:match("%.json$") then
                             custom_file_input = custom_file_input .. ".json"
@@ -1021,7 +1021,7 @@ re.on_draw_ui(function()
                         imgui.close_current_popup()
                     end
                     imgui.same_line()
-                    if imgui.button("Cancel") then
+                    if imgui.button("取消") then
                         save_as_open = false
                         imgui.close_current_popup()
                     end
@@ -1032,18 +1032,18 @@ re.on_draw_ui(function()
 
                 -- EXPORT ALL CHARS (with hold confirmation)
                 if not mass_export_confirm then
-                    if imgui.button("EXPORT ALL CHARS") then
+                    if imgui.button("导出所有角色") then
                         mass_export_confirm = true
                         mass_export_hold_start = nil
                     end
                 else
-                    imgui.text_colored("Are you sure? This will overwrite existing files.", 0xFF00FFFF)
+                    imgui.text_colored("确定吗？这将覆盖已有文件。", 0xFF00FFFF)
 
                     -- NO button
                     imgui.push_style_color(21, 0xFF1B1BAA)
                     imgui.push_style_color(22, 0xFF3030CC)
                     imgui.push_style_color(23, 0xFF101080)
-                    if imgui.button("  NO  ") then
+                    if imgui.button("  否  ") then
                         mass_export_confirm = false
                         mass_export_hold_start = nil
                     end
@@ -1055,7 +1055,7 @@ re.on_draw_ui(function()
                     imgui.push_style_color(21, 0xFF1B6E1B)
                     imgui.push_style_color(22, 0xFF2A9E2A)
                     imgui.push_style_color(23, 0xFF104E10)
-                    imgui.button("  YES (hold 1s)  ")
+                    imgui.button("  是 (长按1秒)  ")
                     imgui.pop_style_color(3)
 
                     local is_held = imgui.is_item_active()
@@ -1094,7 +1094,7 @@ re.on_draw_ui(function()
                 imgui.set_next_item_open(true, 1) -- 1 = Condition "Appearing" or force immediate
                 force_open_live_slots = false     -- Reset to false so it doesn't stay forced open
             end
-            if sm_styled_header("--- LIVE SLOTS ---", SM_THEME.hdr_liveSlots) then
+            if sm_styled_header("--- 实时槽位 ---", SM_THEME.hdr_liveSlots) then
             local slots, msg = get_slots_access()
             if slots then
 
@@ -1130,7 +1130,7 @@ re.on_draw_ui(function()
                             imgui.push_style_color(22, 0xFF6666CC)
                             imgui.push_style_color(23, 0xFF333366)
                             
-                            if imgui.button("DEACTIVATE ALL") then
+                            if imgui.button("全部停用") then
                                 for i=0, 7 do
                                     local s = slots:call("get_Item", i)
                                     if s then s:set_field("IsActive", false) end
@@ -1142,7 +1142,7 @@ re.on_draw_ui(function()
                             imgui.push_style_color(22, 0xFF66B576)
                             imgui.push_style_color(23, 0xFF367844)
                             
-                            if imgui.button("ACTIVATE ALL") then
+                            if imgui.button("全部启用") then
                                 for i=0, 7 do
                                     local s = slots:call("get_Item", i)
                                     if s and s:get_field("IsValid") then 
@@ -1153,7 +1153,7 @@ re.on_draw_ui(function()
                             imgui.pop_style_color(3)
                         end
                     else
-                        imgui.text_colored("No valid slots loaded.", 0xFF888888)
+                        imgui.text_colored("没有已加载的有效槽位。", 0xFF888888)
                     end
 
                     imgui.same_line()
@@ -1167,14 +1167,14 @@ re.on_draw_ui(function()
                         imgui.push_style_color(22, 0xFF666666)
                         imgui.push_style_color(23, 0xFF222222)
                     end
-                    if imgui.button(activate_on_load and "ACTIVATE ON LOAD [ON]" or "ACTIVATE ON LOAD [OFF]") then
+                    if imgui.button(activate_on_load and "启动时激活 [开]" or "启动时激活 [关]") then
                         activate_on_load = not activate_on_load
                         save_settings()
                     end
                     imgui.pop_style_color(3)
 
                     imgui.same_line()
-                    if imgui.button("Refresh All") then
+                    if imgui.button("全部刷新") then
                         refresh_replay_list()
                         refresh_filtered_replay_list()
                     end
@@ -1248,7 +1248,7 @@ re.on_draw_ui(function()
                         imgui.pop_item_width()
                         
                         imgui.same_line()
-                        if imgui.button("IMPORT") then
+                        if imgui.button("导入") then
                             local sel_idx = slot_dropdown_indices[i] or 1
                             if sel_idx > 1 and filtered_replay_list[sel_idx - 1] then
                                 local filename = filtered_replay_list[sel_idx - 1]
@@ -1282,17 +1282,17 @@ re.on_draw_ui(function()
 
 
             else
-                imgui.text_colored("Error: "..msg, 0xFF0000FF)
+                imgui.text_colored("错误: "..msg, 0xFF0000FF)
             end
 			end
         else
-            imgui.text("Waiting for battle...")
+            imgui.text("等待进入战斗...")
         end
 
 
 
         -- ================= INPUT SEQUENCER =================
-        if sm_styled_header("--- INPUT SEQUENCER ---", SM_THEME.hdr_sequencer) then
+        if sm_styled_header("--- 输入序列器 ---", SM_THEME.hdr_sequencer) then
             local is_p1 = seq_state.player_id == 0
             local c1, v1 = imgui.checkbox("P1##seq_p", is_p1)
             if c1 then seq_state.player_id = v1 and 0 or 1 end
@@ -1300,7 +1300,7 @@ re.on_draw_ui(function()
             local c2, v2 = imgui.checkbox("P2##seq_p2", not is_p1)
             if c2 then seq_state.player_id = v2 and 1 or 0 end
             imgui.same_line()
-            local cl, vl = imgui.checkbox("Loop##seq_loop", seq_state.loop)
+            local cl, vl = imgui.checkbox("循环##seq_loop", seq_state.loop)
             if cl then seq_state.loop = vl end
 
             imgui.separator()
@@ -1325,7 +1325,7 @@ re.on_draw_ui(function()
                 imgui.pop_item_width()
 
                 imgui.same_line()
-                local cw, nw = imgui.checkbox("W##seq_w_" .. i, line.wait or false)
+                local cw, nw = imgui.checkbox("等##seq_w_" .. i, line.wait or false)
                 if cw then line.wait = nw end
                 imgui.same_line()
                 if imgui.button("X##seq_del_" .. i) then to_delete = i end
@@ -1346,23 +1346,23 @@ re.on_draw_ui(function()
             imgui.separator()
 
             imgui.push_item_width(100)
-            local ca, na = imgui.input_text("Input##seq_new_inp", seq_state.new_input)
+            local ca, na = imgui.input_text("输入##seq_new_inp", seq_state.new_input)
             if ca then seq_state.new_input = na end
             imgui.pop_item_width()
             imgui.same_line()
             imgui.push_item_width(50)
-            local cb, nb = imgui.input_text("Frames##seq_new_fr", seq_state.new_frames)
+            local cb, nb = imgui.input_text("帧数##seq_new_fr", seq_state.new_frames)
             if cb then seq_state.new_frames = nb end
             imgui.pop_item_width()
             imgui.same_line()
-            if imgui.button("ADD##seq_add") then
+            if imgui.button("添加##seq_add") then
                 seq_add_input(seq_state.new_input, seq_state.new_frames)
             end
 
             imgui.separator()
 
             if not seq_state.is_playing then
-                if imgui.button("START##seq_start") then
+                if imgui.button("开始##seq_start") then
                     if #seq_state.lines > 0 then
                         seq_state.is_playing = true
                         seq_state.current_idx = 1
@@ -1372,7 +1372,7 @@ re.on_draw_ui(function()
                     end
                 end
             else
-                if imgui.button("STOP##seq_stop") then
+                if imgui.button("停止##seq_stop") then
                     seq_state.is_playing = false
                     seq_state.current_idx = 0
                     seq_state.frame_counter = 0
@@ -1380,35 +1380,35 @@ re.on_draw_ui(function()
                     seq_state.waiting = false
                 end
                 imgui.same_line()
-                local status = "Step " .. seq_state.current_idx .. "/" .. #seq_state.lines ..
-                    "  Frame " .. seq_state.frame_counter .. "/" ..
+                local status = "步骤 " .. seq_state.current_idx .. "/" .. #seq_state.lines ..
+                    "  帧 " .. seq_state.frame_counter .. "/" ..
                     (seq_state.lines[seq_state.current_idx] and seq_state.lines[seq_state.current_idx].frames or 0) ..
-                    "  Sub " .. seq_state.sub_idx
-                if seq_state.waiting then status = status .. "  [WAITING act_st=" .. (seq_state._dbg_act_st or "?") .. "]" end
+                    "  子步骤 " .. seq_state.sub_idx
+                if seq_state.waiting then status = status .. "  [等待中 act_st=" .. (seq_state._dbg_act_st or "?") .. "]" end
                 imgui.text(status)
             end
         end
 
-        if sm_styled_header("--- HELP ---", SM_THEME.hdr_help) then
-            imgui.text_colored("SOLO OPERATIONS", 0xFF00FFFF)
-            imgui.text("  IMPORT: Load slot data from a per-character JSON file.")
-            imgui.text("  EXPORT: Save current slots to the default character file.")
-            imgui.text("  SAVE AS: Save with a custom filename.")
-            imgui.text("  EXPORT ALL CHARS: Hold 1s to mass-export all characters.")
+        if sm_styled_header("--- 帮助 ---", SM_THEME.hdr_help) then
+            imgui.text_colored("文件操作", 0xFF00FFFF)
+            imgui.text("  导入: 从角色 JSON 文件加载槽位数据。")
+            imgui.text("  导出: 将当前槽位保存到默认角色文件。")
+            imgui.text("  另存为: 使用自定义文件名保存。")
+            imgui.text("  导出所有角色: 长按1秒批量导出全部角色。")
             imgui.spacing()
 
-            imgui.text_colored("LIVE SLOTS", 0xFF00FFFF)
-            imgui.text("  Active: Enable/disable a slot for dummy playback.")
-            imgui.text("  Weight: Higher = picked more often in random playback.")
-            imgui.text("  Import Combo Data: Load a CustomCombo file into a slot.")
+            imgui.text_colored("实时槽位", 0xFF00FFFF)
+            imgui.text("  启用: 开启/关闭槽位供木人播放。")
+            imgui.text("  权重: 数值越高，随机播放时被选中的概率越大。")
+            imgui.text("  导入连段数据: 将 CustomCombo 文件加载到槽位。")
             imgui.spacing()
 
-            imgui.text_colored("INPUT SEQUENCER", 0xFF00FFFF)
-            imgui.text("  Program input sequences line by line (direction + buttons).")
-            imgui.text("  Supported motions: QCF, QCB, HCF, HCB, 360, SRK.")
-            imgui.text("  Frames: How many frames to hold the input.")
-            imgui.text("  W (WAIT): Pause until the current action completes.")
-            imgui.text("  Loop: Repeat the sequence continuously.")
+            imgui.text_colored("输入序列器", 0xFF00FFFF)
+            imgui.text("  逐行动画指令序列（方向 + 按钮）。")
+            imgui.text("  支持指令: QCF, QCB, HCF, HCB, 360, SRK。")
+            imgui.text("  帧数: 按住该输入的帧数。")
+            imgui.text("  等 (WAIT): 暂停直到当前动作完成。")
+            imgui.text("  循环: 连续重复播放序列。")
         end
 
         imgui.separator()
