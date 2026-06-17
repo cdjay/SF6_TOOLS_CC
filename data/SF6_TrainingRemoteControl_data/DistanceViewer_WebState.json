@@ -613,6 +613,7 @@
                 "ar": 192.1329,
                 "input": "5HK"
             },
+            "visibility": null,
             "yellow_offset": 50
         },
         "Kimberly": {
@@ -782,5 +783,5 @@
             "yellow_offset": 50
         }
     },
-    "p2_show_all": true
+    "p2_show_all": false
 }

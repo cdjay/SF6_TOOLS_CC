@@ -1,11 +1,11 @@
 {
     "hide_ui": false,
-    "is_paused": false,
-    "is_running": false,
+    "is_paused": true,
+    "is_running": true,
     "mode": 4,
-    "session_mode": 2,
+    "session_mode": "trials",
     "sf6_running": true,
-    "timer": 0,
+    "timer": 2,
     "training_active": true,
     "trial_demo": false,
     "trial_file": "Ingrid_COMBO_7733_D6_SA3_20260617_051540_timeline1f.json",
@@ -15,10 +15,10 @@
         "Ingrid_COMBO_7733_D6_SA3_20260617_051540.json",
         "Ingrid_COMBO_7733_D6_SA3_20260617_051540_timeline1f.json"
     ],
-    "trial_playing": true,
+    "trial_playing": false,
     "trial_position": 2,
     "trial_recording": false,
     "trial_step": 1,
-    "trial_total": 13,
-    "trials": 0
+    "trial_total": 0,
+    "trials": 20
 }
