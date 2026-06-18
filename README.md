@@ -76,6 +76,10 @@ data/TrainingComboTrials_data/CustomCombos/Ingrid/
 4. 在文件选择中选中对应 Trial
 5. 点击开始或使用对应快捷键加载
 
+## 处理记录
+
+- Akuma `Akuma_COMBO_6814_D6_SA3.json` 和 `Akuma_COMBO_7064_D6_SA3.json`：完整连段演示/复现会卡在最后 `623+LP`，但单独录制 `623+LP -> SA3` 可以通过。原因是完整连段里 `>6+P -> 623+LP -> SA3` 的上一动作 combo count 校验过严，命中/取消采样不稳定时会阻止步骤推进。已将末段 `>6+P` 和 `623+LP` 标记为 `is_projectile_hit: true`，复用现有逻辑跳过上一动作严格连段数校验。
+
 ## 架构说明
 
 项目结构、Trial JSON 读取位置、Schema、HUD 绘制、输入验证和状态机说明见：
