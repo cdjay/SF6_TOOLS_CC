@@ -146,6 +146,39 @@ local trial_state = {
     _demo_backup_slot = nil
 }
 
+local XT_SETTINGS_FILE = "TrainingComboTrials_data/XT_Settings.json"
+local XT_META_REQUEST_FILE = "TrainingComboTrials_data/XT_SaveMetaRequest.json"
+local XT_META_BRIDGE_FILE = "TrainingComboTrials_data/XT_SaveMetaBridge.json"
+local xt_settings = {
+    default_author = "佚名"
+}
+local save_pending_trial_meta
+local cancel_pending_trial_save
+
+local function load_xt_settings()
+    if type(_G.safe_load_json) ~= "function" then return end
+    local ok, loaded = pcall(_G.safe_load_json, XT_SETTINGS_FILE)
+    if not ok then return end
+    if type(loaded) == "table" then
+        if type(loaded.default_author) == "string" and loaded.default_author ~= "" then
+            xt_settings.default_author = loaded.default_author
+        end
+    end
+end
+
+local function save_xt_settings()
+    if fs and fs.create_dir then pcall(fs.create_dir, "TrainingComboTrials_data") end
+    json.dump_file(XT_SETTINGS_FILE, xt_settings)
+end
+
+load_xt_settings()
+
+local function counter_type_from_hit_type(hit_type)
+    if hit_type == "PC" then return 2 end
+    if hit_type == "CH" then return 1 end
+    return 0
+end
+
 -- =========================================================
 -- DEMO ENGINE STATE
 -- =========================================================
@@ -318,6 +351,11 @@ local file_system = {
 }
 local COMBO_LIST_AUTO_REFRESH_FRAMES = 60
 local combo_list_auto_refresh_counter = 0
+local TRIALHUB_SYNC_POLL_FRAMES = 90
+local trialhub_sync_counter = 0
+local trialhub_last_marker = nil
+local XT_META_BRIDGE_POLL_FRAMES = 15
+local xt_meta_bridge_counter = 0
 
 local function clear_pending_position_injection()
     trial_state.exact_inject_r1 = nil
@@ -1239,6 +1277,12 @@ local function restore_dummy_guard_type()
     end
 end
 
+local function apply_trial_training_environment()
+    local first_ct = trial_state.sequence and trial_state.sequence[1] and trial_state.sequence[1].counter_type or 0
+    set_dummy_counter_type(first_ct or 0)
+    set_dummy_guard_type(2)
+end
+
 local function capture_current_positions()
     local p1_pos, p2_pos, p1_raw, p2_raw = nil, nil, nil, nil
     local p1 = GS.p1
@@ -1453,10 +1497,24 @@ local function assign_groups(sequence)
     end
 end
 
-local function load_combo_from_file(path)
+local function normalize_sequence_counter_types(sequence)
+    if type(sequence) ~= "table" or type(sequence[1]) ~= "table" then return end
+    local first = sequence[1]
+    if (first.counter_type == nil or first.counter_type == 0) and type(first.combo_stats) == "table" then
+        local inferred = counter_type_from_hit_type(first.combo_stats.hit_type)
+        if inferred ~= 0 then first.counter_type = inferred end
+    end
+    for _, step in ipairs(sequence) do
+        if step.counter_type == nil then step.counter_type = 0 end
+    end
+end
+
+local function load_combo_from_file(path, force)
+    if trial_state._xt_pending_save and not force then return false end
     if not path then return false end
     local loaded = json.load_file(path)
     if not loaded then return false end
+    normalize_sequence_counter_types(loaded)
     trial_state.sequence = loaded
 	assign_groups(trial_state.sequence) 
     trial_state.current_step = 1
@@ -1493,6 +1551,23 @@ local function start_recording(player_idx)
     trial_state.is_recording = true
     trial_state.recording_player = player_idx
     trial_state.sequence = {}
+    trial_state.current_step = 1
+    trial_state.last_recorded_frame = engine_frame_count
+    trial_state._xt_pending_save = false
+    trial_state._xt_pending_save_player = nil
+    trial_state._xt_pending_save_error = nil
+    trial_state._xt_meta_input_hint_shown = false
+
+    players[player_idx].log = {}
+    players[player_idx].input_history_queue = {}
+    players[player_idx].prev_act_id = -1
+    players[player_idx].prev_act_frame = -1
+    players[player_idx].last_combo_count = 0
+    players[player_idx].last_direct_input = 0
+    if ComboTrials_D2D then
+        pcall(function() ComboTrials_D2D.reset_anim() end)
+        pcall(function() ComboTrials_D2D.reset_raw() end)
+    end
 
     -- LOGGER EXPORT RECORDING INIT
     if player_idx == 0 then
@@ -1543,17 +1618,14 @@ local function start_trial(player_idx)
     save_dummy_counter_type()
     save_dummy_guard_type()
 
-    -- INJECT COUNTER STATE for the first step
-    local first_ct = trial_state.sequence and trial_state.sequence[1] and trial_state.sequence[1].counter_type or 0
-    set_dummy_counter_type(first_ct)
-
-    -- Guard: After 1st Hit (2) at trial start
-    set_dummy_guard_type(2)
+    -- INJECT FIRST-STEP TRAINING ENVIRONMENT
+    apply_trial_training_environment()
     if _G.p2_vital_mode and type(set_vital_recovery) == "function" then
         set_vital_recovery(1, _G.p2_vital_mode)
     end
     update_trial_flip_state()
     apply_forced_position()
+    trial_state._pending_reinject_settings = true
 end
 
 local function cancel_recording()
@@ -1563,6 +1635,21 @@ local function cancel_recording()
     trial_state.current_step = 1
     -- Flush displayed input history
     pcall(function() ComboTrials_D2D.reset_raw() end)
+end
+
+local function open_pending_trial_save(saved_player)
+    trial_state._xt_pending_save = true
+    trial_state._xt_pending_save_player = saved_player
+    trial_state._xt_pending_save_error = nil
+    trial_state._xt_save_dialog_nonce = (trial_state._xt_save_dialog_nonce or 0) + 1
+    trial_state._xt_save_request_id = tostring(os.time()) .. "_" .. tostring(trial_state._xt_save_dialog_nonce)
+    if fs and fs.create_dir then pcall(fs.create_dir, "TrainingComboTrials_data") end
+    pcall(json.dump_file, XT_META_REQUEST_FILE, {
+        request_id = trial_state._xt_save_request_id,
+        default_author = xt_settings.default_author or "佚名",
+        created_at = os.date("%Y-%m-%d %H:%M:%S")
+    })
+    trial_state._xt_meta_input_opened = false
 end
 
 local function stop_recording_and_save()
@@ -1610,12 +1697,18 @@ local function stop_recording_and_save()
     rec.has_started = false
     rec.data = {}
 
-    save_trial_sequence()
+    if #trial_state.sequence == 0 then
+        cancel_recording()
+        return
+    end
+
+    open_pending_trial_save(saved_player)
 end
 
 
 
 local function load_and_start_trial(player_idx)
+    if trial_state._xt_pending_save then return end
     local paths = (player_idx == 0) and file_system.saved_combos_paths_p1 or file_system.saved_combos_paths_p2
     local idx = (player_idx == 0) and (file_system.selected_file_idx_p1 or 1) or (file_system.selected_file_idx_p2 or 1)
     if #paths > 0 then
@@ -1641,6 +1734,35 @@ local function reset_trial_steps()
     -- Reset positions if forced pos / mirror is active
     apply_forced_position()
     trial_state._pending_reinject_settings = true
+end
+
+local function combo_display_name_from_file(filepath)
+    local fallback = filepath:match("([^/\\]+)$") or filepath
+    local ok, sequence = pcall(json.load_file, filepath)
+    if not ok or type(sequence) ~= "table" or type(sequence[1]) ~= "table" then
+        return fallback
+    end
+
+    local function clean_title(value)
+        if type(value) ~= "string" then return nil end
+        local title = value:match("^%s*(.-)%s*$") or ""
+        if title == "" then return nil end
+        return title
+    end
+
+    local xt_meta = sequence[1]._xt_meta
+    local xt_title = type(xt_meta) == "table" and clean_title(xt_meta.title) or nil
+    if xt_title then
+        return xt_title
+    end
+
+    local wtt_meta = sequence[1]._wtt_cn_meta
+    local wtt_title = type(wtt_meta) == "table" and clean_title(wtt_meta.title) or nil
+    if wtt_title then
+        return wtt_title
+    end
+
+    return fallback
 end
 
 local function scan_combo_files(player_idx)
@@ -1702,7 +1824,7 @@ local function scan_combo_files(player_idx)
         for _, filepath in ipairs(files) do
             if not tostring(filepath):find("_FAIL_") then
                 table.insert(path_list, filepath)
-                table.insert(display_list, filepath:match("([^/\\]+)$") or filepath)
+                table.insert(display_list, combo_display_name_from_file(filepath))
             end
         end
     end
@@ -1721,7 +1843,7 @@ local function find_combo_path_index(paths, old_path, old_idx)
 end
 
 local function reload_selected_combo_if_idle()
-    if trial_state.is_playing or trial_state.is_recording or (demo_state and demo_state.is_playing) then return end
+    if trial_state.is_playing or trial_state.is_recording or trial_state._xt_pending_save or (demo_state and demo_state.is_playing) then return end
 
     local player_idx = ui_state.viewed_player or trial_state.playing_player or 0
     local paths = (player_idx == 0) and file_system.saved_combos_paths_p1 or file_system.saved_combos_paths_p2
@@ -1751,6 +1873,11 @@ local function refresh_combo_list_preserve_selection(reload_current_file)
 end
 
 local function refresh_combo_list(recent_saved_player)
+    if trial_state._xt_pending_save then
+        refresh_combo_list_preserve_selection(false)
+        return
+    end
+
     file_system.saved_combos_display_p1, file_system.saved_combos_paths_p1 = scan_combo_files(0)
     file_system.saved_combos_display_p2, file_system.saved_combos_paths_p2 = scan_combo_files(1)
 
@@ -1786,6 +1913,32 @@ local function get_safe_filename_motion(sequence)
 
     if motion == "" then motion = "UNKNOWN" end
     return motion
+end
+
+local function trim_string(value)
+    return (tostring(value or ""):match("^%s*(.-)%s*$") or "")
+end
+
+local function truncate_utf8(value, max_chars)
+    local s = tostring(value or "")
+    if s == "" then return s end
+    local out, count = {}, 0
+    for ch in s:gmatch("[%z\1-\127\194-\244][\128-\191]*") do
+        count = count + 1
+        if count > max_chars then break end
+        out[#out + 1] = ch
+    end
+    if #out == 0 then return s:sub(1, max_chars) end
+    return table.concat(out)
+end
+
+local function sanitize_ascii_filename_part(value, max_chars)
+    local s = trim_string(value)
+    if max_chars then s = truncate_utf8(s, max_chars) end
+    s = s:gsub("[^%w%+%-_%.]", "_")
+    s = s:gsub("_+", "_")
+    s = s:gsub("^_+", ""):gsub("_+$", "")
+    return s
 end
 
 -- =========================================================
@@ -1921,7 +2074,7 @@ local function handle_combo_shortcuts()
         -- ===== RECORDING: 2 buttons (LEFT/1 = save, RIGHT/2 = cancel) =====
         if is_pressed(BTN_LEFT) or kb_pressed(KB_1) then
             _G.ComboTrials_ReplaySavePlayer = trial_state.recording_player
-            stop_recording_and_save(); ct_ticker("RECORDING SAVED")
+            stop_recording_and_save(); ct_ticker("填写保存信息")
         end
         if is_pressed(BTN_RIGHT) or kb_pressed(KB_2) then
             _G.ComboTrials_ReplayCancelPlayer = trial_state.recording_player
@@ -2300,7 +2453,7 @@ local function ct_handle_web_commands()
             _G.ComboTrials_ReplayCancelPlayer = trial_state.recording_player or 0
             cancel_recording(); ct_ticker("录制已取消")
         end
-        if cmd == "stop_record" then stop_recording_and_save(); ct_ticker("RECORDING SAVED") end
+        if cmd == "stop_record" then stop_recording_and_save(); ct_ticker("填写保存信息") end
         if cmd == "reset_trial" then
             local ok, err = pcall(function()
                 if not trial_state.is_playing then return end
@@ -2368,6 +2521,101 @@ local function ct_auto_refresh_combo_list()
     if combo_list_auto_refresh_counter < COMBO_LIST_AUTO_REFRESH_FRAMES then return end
     combo_list_auto_refresh_counter = 0
 
+    if trial_state._xt_pending_save then
+        refresh_combo_list_preserve_selection(false)
+        return
+    end
+
+    refresh_combo_list_preserve_selection(true)
+end
+
+local function read_trialhub_sync_signal()
+    local paths = {
+        "TrainingComboTrials_data/../TrialHub/sync_signal.json",
+        "TrialHub/sync_signal.json"
+    }
+    for _, path in ipairs(paths) do
+        local ok, data = pcall(json.load_file, path)
+        if ok and type(data) == "table" then
+            return data
+        end
+    end
+    return nil
+end
+
+local function launch_xt_meta_input_window()
+    if not trial_state._xt_pending_save then return false end
+    trial_state._xt_pending_save_error = "请先运行 data/TrainingComboTrials_data/XT_MetaInput.bat"
+    return false
+end
+
+local function ct_poll_xt_meta_bridge()
+    if not trial_state._xt_pending_save then
+        xt_meta_bridge_counter = 0
+        return
+    end
+
+    if not trial_state._xt_meta_input_hint_shown then
+        launch_xt_meta_input_window()
+        trial_state._xt_meta_input_hint_shown = true
+    end
+
+    xt_meta_bridge_counter = xt_meta_bridge_counter + 1
+    if xt_meta_bridge_counter < XT_META_BRIDGE_POLL_FRAMES then return end
+    xt_meta_bridge_counter = 0
+
+    local ok, bridge = pcall(json.load_file, XT_META_BRIDGE_FILE)
+    if not ok or type(bridge) ~= "table" then return end
+    if bridge.request_id ~= trial_state._xt_save_request_id then return end
+
+    if bridge.action == "cancel" then
+        cancel_pending_trial_save()
+        return
+    end
+    if bridge.action == "save" and type(save_pending_trial_meta) == "function" then
+        local path, err = save_pending_trial_meta({
+            title = bridge.title,
+            note = bridge.note,
+            author = bridge.author,
+            tags = bridge.tags
+        })
+        if not path and err then
+            trial_state._xt_pending_save_error = err
+        end
+    end
+end
+
+local function ct_poll_trialhub_sync_signal()
+    if _G.CurrentTrainerMode ~= 4 then
+        trialhub_sync_counter = 0
+        return
+    end
+
+    trialhub_sync_counter = trialhub_sync_counter + 1
+    if trialhub_sync_counter < TRIALHUB_SYNC_POLL_FRAMES then return end
+    trialhub_sync_counter = 0
+
+    local signal = read_trialhub_sync_signal()
+    if not signal then return end
+
+    local version = signal.version
+    local time_value = signal.time or signal.updated_at
+    if version == nil and time_value == nil then return end
+
+    local marker = tostring(version or "") .. "|" .. tostring(time_value or "")
+    if not trialhub_last_marker then
+        trialhub_last_marker = marker
+        return
+    end
+    if marker == trialhub_last_marker then return end
+
+    trialhub_last_marker = marker
+    local busy = trial_state.is_recording or trial_state.is_playing or trial_state._xt_pending_save or (demo_state and demo_state.is_playing)
+    if busy then
+        ct_ticker("训练库已更新")
+        return
+    end
+
     refresh_combo_list_preserve_selection(true)
 end
 
@@ -2394,6 +2642,14 @@ end
 
 local function ct_handle_mode_exit()
     if _G.CurrentTrainerMode ~= 4 then
+        _G.ComboTrialsD2DEnabled = false
+        _G.ComboTrials_HideNativeHUD = false
+        _G._ct_bar_geometry = nil
+        _G.TrainingBarsDrawn = false
+        if ComboTrials_D2D then
+            pcall(function() ComboTrials_D2D.reset_anim() end)
+            pcall(function() ComboTrials_D2D.reset_raw() end)
+        end
         -- Clean shutdown if switching scripts during an active Trial/Demo
         if trial_state.is_playing or (demo_state and demo_state.is_playing) then
             trial_state.is_playing = false
@@ -2557,9 +2813,7 @@ local function ct_handle_position_correction(_in_replay)
         local tm_s = sdk.get_managed_singleton("app.training.TrainingManager")
         if tm_s and tm_s:get_field("_IsReqRefresh") == false then
             trial_state._pending_reinject_settings = false
-            local first_ct = trial_state.sequence and trial_state.sequence[1] and trial_state.sequence[1].counter_type or 0
-            set_dummy_counter_type(first_ct)
-            set_dummy_guard_type(2)
+            apply_trial_training_environment()
         end
     end
 end
@@ -2632,20 +2886,22 @@ local function ct_player_init(p_idx, p_state)
 
         -- RESET TRIAL on character change
         -- The trial depends on both characters, reset if either changes
-        if trial_state.is_recording then
-            trial_state.is_recording = false
+        if not trial_state._xt_pending_save then
+            if trial_state.is_recording then
+                trial_state.is_recording = false
+            end
+            if trial_state.is_playing then
+                trial_state.is_playing = false
+            end
+            trial_state.sequence = {}
+            trial_state.current_step = 1
+            trial_state.success_timer = 0
+            trial_state.fail_timer = 0
+            trial_state.fail_reason = nil
         end
-        if trial_state.is_playing then
-            trial_state.is_playing = false
-        end
-        trial_state.sequence = {}
-        trial_state.current_step = 1
-        trial_state.success_timer = 0
-        trial_state.fail_timer = 0
-        trial_state.fail_reason = nil
 
         -- Refresh the list only if it's the character we are currently viewing
-        if p_idx == ui_state.viewed_player then
+        if p_idx == ui_state.viewed_player and not trial_state._xt_pending_save then
             refresh_combo_list()
         end
         if p_state.profile_name ~= "Unknown" then
@@ -3819,6 +4075,8 @@ re.on_frame(function()
     if _G.CurrentTrainerMode ~= 4 then ct_handle_mode_exit(); return end
 
     ct_auto_refresh_combo_list()
+    ct_poll_xt_meta_bridge()
+    ct_poll_trialhub_sync_signal()
     ct_handle_first_frame_init()
     _G.ComboTrials_HideNativeHUD = (trial_state.is_recording or trial_state.is_playing)
     handle_combo_shortcuts()
@@ -3888,7 +4146,7 @@ end)
 
 
 
-function save_trial_sequence()
+function save_trial_sequence(meta)
     if #trial_state.sequence == 0 then return end
     local rec_p = trial_state.recording_player
     local char_name = players[rec_p].profile_name
@@ -3946,12 +4204,21 @@ function save_trial_sequence()
             stats.super_used = math.max(0, init.attacker_super - (init.min_atk_super or init.attacker_super))
         end
         trial_state.sequence[1].combo_stats = stats
+        if (trial_state.sequence[1].counter_type == nil or trial_state.sequence[1].counter_type == 0) and stats.hit_type then
+            local inferred_ct = counter_type_from_hit_type(stats.hit_type)
+            if inferred_ct ~= 0 then trial_state.sequence[1].counter_type = inferred_ct end
+        end
         if logger_state.last_export_name then
             trial_state.sequence[1].raw_input_file = logger_state.last_export_name
         end
         trial_state._rec_gauges = nil
         trial_state._rec_hit_type = nil
     end
+
+    if type(meta) == "table" and type(trial_state.sequence[1]) == "table" then
+        trial_state.sequence[1]._xt_meta = meta
+    end
+    normalize_sequence_counter_types(trial_state.sequence)
 
     if fs.create_dir then
         pcall(fs.create_dir, "TrainingComboTrials_data/CustomCombos"); pcall(fs.create_dir, "TrainingComboTrials_data/CustomCombos/" .. char_name)
@@ -3979,23 +4246,97 @@ function save_trial_sequence()
 
     local type_tag = has_oki and "_OKI" or "_COMBO"
     local starter_motion = get_safe_filename_motion(trial_state.sequence)
-    local fname = char_name .. type_tag .. "_" .. starter_motion .. "_" .. dmg .. "_D" .. drive_bars .. "_SA" .. sa_bars .. ".json"
+    local title_suffix = ""
+    local meta_title = type(meta) == "table" and meta.title or nil
+    if trim_string(meta_title) ~= "" then
+        local safe_title = sanitize_ascii_filename_part(meta_title, 32)
+        if safe_title ~= "" then
+            title_suffix = "_" .. safe_title
+        end
+    end
+    local base_name = char_name .. type_tag .. "_" .. starter_motion .. "_" .. dmg .. "_D" .. drive_bars .. "_SA" .. sa_bars .. title_suffix
+    local fname = base_name .. ".json"
     local path = "TrainingComboTrials_data/CustomCombos/" .. char_name .. "/" .. fname
 
     -- Avoid overwriting: append timestamp if file exists
     local existing = json.load_file(path)
     if existing then
         local ts = os.date("%Y%m%d_%H%M%S")
-        fname = char_name .. type_tag .. "_" .. starter_motion .. "_" .. dmg .. "_D" .. drive_bars .. "_SA" .. sa_bars .. "_" .. ts .. ".json"
+        fname = base_name .. "_" .. ts .. ".json"
         path = "TrainingComboTrials_data/CustomCombos/" .. char_name .. "/" .. fname
     end
 
     assign_groups(trial_state.sequence)
     json.dump_file(path, trial_state.sequence)
-    refresh_combo_list(rec_p) -- Inject the ID of the player who just saved
+    refresh_combo_list_preserve_selection(false)
+    local paths = rec_p == 0 and file_system.saved_combos_paths_p1 or file_system.saved_combos_paths_p2
+    for idx, combo_path in ipairs(paths) do
+        if combo_path == path then
+            if rec_p == 0 then
+                file_system.selected_file_idx_p1 = idx
+            else
+                file_system.selected_file_idx_p2 = idx
+            end
+            break
+        end
+    end
+    load_combo_from_file(path, true)
 
     _G.ComboTrials_LastSavedFilename = fname
+    _G.ComboTrials_LastSavedPlayer = rec_p
     return path
+end
+
+cancel_pending_trial_save = function()
+    local saved_player = trial_state._xt_pending_save_player
+    trial_state._xt_pending_save = false
+    trial_state._xt_pending_save_player = nil
+    trial_state._xt_pending_save_error = nil
+    trial_state.sequence = {}
+    trial_state.current_step = 1
+    _G.ComboTrials_PendingSaveCanceled = saved_player
+end
+
+save_pending_trial_meta = function(meta)
+    if not trial_state._xt_pending_save then
+        return nil, "没有待保存的训练"
+    end
+
+    local title = trim_string(meta and meta.title)
+    if title == "" then
+        trial_state._xt_pending_save_error = "请输入训练名称"
+        return nil, trial_state._xt_pending_save_error
+    end
+
+    local clean_meta = {
+        title = title,
+        note = trim_string(meta and meta.note),
+        author = trim_string(meta and meta.author),
+        tags = {},
+        created_at = os.date("%Y-%m-%d %H:%M:%S"),
+        schema = 1
+    }
+    if clean_meta.author == "" then clean_meta.author = xt_settings.default_author or "佚名" end
+
+    if type(meta) == "table" and type(meta.tags) == "table" then
+        for _, tag in ipairs(meta.tags) do
+            local cleaned = trim_string(tag)
+            if cleaned ~= "" then
+                table.insert(clean_meta.tags, cleaned)
+            end
+        end
+    end
+
+    local saved_player = trial_state._xt_pending_save_player
+    if saved_player ~= nil then
+        trial_state.recording_player = saved_player
+    end
+
+    local path = save_trial_sequence(clean_meta)
+    trial_state._xt_pending_save = false
+    trial_state._xt_pending_save_player = nil
+    trial_state._xt_pending_save_error = nil
+    return path, nil
 end
 
 -- =========================================================
@@ -4014,6 +4355,17 @@ ctx.save_d2d_config = save_d2d_config
 ctx.get_exc_filename = get_exc_filename
 ctx.ui_state = ui_state
 ctx.apply_forced_position = apply_forced_position
+ctx.xt_settings = xt_settings
+ctx.save_xt_settings = function(default_author)
+    local author = trim_string(default_author)
+    if author == "" then author = "佚名" end
+    xt_settings.default_author = author
+    save_xt_settings()
+    return true
+end
+ctx.save_pending_trial_meta = save_pending_trial_meta
+ctx.cancel_pending_trial_save = cancel_pending_trial_save
+ctx.launch_xt_meta_input_window = launch_xt_meta_input_window
 ctx.dump_last_fail = function()
     if not trial_state.last_fail_dump then return nil end
     local char_name = players[trial_state.playing_player].profile_name or "Unknown"

@@ -647,7 +647,7 @@ local function d2d_draw_inner()
     local trial_state = ctx and ctx.trial_state
     local players = ctx and ctx.players
 
-    local should_draw = d2d_cfg and d2d_cfg.enabled
+    local should_draw = d2d_cfg and d2d_cfg.enabled and (_G.ComboTrialsD2DEnabled == true)
 
     local sw, sh = d2d.surface_size()
 
@@ -1033,7 +1033,11 @@ local function d2d_draw_inner()
 
     end -- close "if should_draw and not is_paused and CurrentTrainerMode == 4"
 
-    draw_bar_toggle_arrows()
+    if should_draw then
+        draw_bar_toggle_arrows()
+    else
+        _G._ct_bar_geometry = nil
+    end
 end
 
 -- =========================================================

@@ -20,6 +20,8 @@ local common_exceptions, sf6_menu_state
 local load_and_start_trial, start_recording, stop_recording_and_save, cancel_recording
 local refresh_combo_list, restore_trial_vital, save_d2d_config, get_exc_filename
 local ui_state
+local xt_settings, save_xt_settings, save_pending_trial_meta, cancel_pending_trial_save
+local launch_xt_meta_input_window
 
 
 local dump_status = ""
@@ -33,6 +35,16 @@ local _replay_save_player = nil
 local _replay_saved_fname_p1 = nil
 local _replay_saved_fname_p2 = nil
 local _prev_is_recording = false
+local xt_default_author_input = ""
+local xt_settings_status = ""
+local save_meta_dialog = {
+    nonce = nil,
+    title = "",
+    note = "",
+    author = "",
+    tags = "",
+    error = ""
+}
 
 -- Dynamic shortcuts: gamepad (FUNC+DIR) or keyboard (1/2/3/4)
 -- Left-to-right positions: L=1, U=2, R=3, D=4 (4-btn) | L=1, R=2 (2-btn)
@@ -408,6 +420,13 @@ local function draw_single_line_content()
         if cp == 0 then _replay_status_p1 = "canceled" else _replay_status_p2 = "canceled" end
         _replay_saved_clock = os.clock()
     end
+    if _G.ComboTrials_PendingSaveCanceled ~= nil then
+        local cp = _G.ComboTrials_PendingSaveCanceled
+        _G.ComboTrials_PendingSaveCanceled = nil
+        if cp == 0 then _replay_status_p1 = "canceled"
+        elseif cp == 1 then _replay_status_p2 = "canceled" end
+        _replay_saved_clock = os.clock()
+    end
 
     -- Detect recording stop (transition is_recording true->false), skip if canceled
     if _prev_is_recording and not trial_state.is_recording then
@@ -426,16 +445,15 @@ local function draw_single_line_content()
     for _, pi in ipairs({0, 1}) do
         local st = (pi == 0) and _replay_status_p1 or _replay_status_p2
         if st == "saving" and _replay_save_clock > 0 then
-            local elapsed = now - _replay_save_clock
-            if elapsed >= 1.0 then
+            local fn = _G.ComboTrials_LastSavedFilename
+            local saved_pi = _G.ComboTrials_LastSavedPlayer
+            if fn and (saved_pi == nil or saved_pi == pi) then
                 if pi == 0 then _replay_status_p1 = "saved" else _replay_status_p2 = "saved" end
                 _replay_saved_clock = now
-                local fn = _G.ComboTrials_LastSavedFilename
-                if fn then
-                    fn = fn:gsub("%.json$", "")
-                    if pi == 0 then _replay_saved_fname_p1 = fn else _replay_saved_fname_p2 = fn end
-                    _G.ComboTrials_LastSavedFilename = nil
-                end
+                fn = fn:gsub("%.json$", "")
+                if pi == 0 then _replay_saved_fname_p1 = fn else _replay_saved_fname_p2 = fn end
+                _G.ComboTrials_LastSavedFilename = nil
+                _G.ComboTrials_LastSavedPlayer = nil
             end
         elseif st == "saved" and _replay_saved_clock > 0 then
             if now - _replay_saved_clock >= 3.0 then
@@ -826,6 +844,115 @@ local function get_imgui_screen_size()
     return w, h
 end
 
+local function xt_trim(value)
+    return (tostring(value or ""):match("^%s*(.-)%s*$") or "")
+end
+
+local function parse_tags_input(value)
+    local tags = {}
+    local normalized = tostring(value or ""):gsub("，", ",")
+    for tag in normalized:gmatch("[^,]+") do
+        local cleaned = xt_trim(tag)
+        if cleaned ~= "" then table.insert(tags, cleaned) end
+    end
+    return tags
+end
+
+local function reset_save_meta_dialog()
+    save_meta_dialog.nonce = trial_state and trial_state._xt_save_dialog_nonce or nil
+    save_meta_dialog.title = ""
+    save_meta_dialog.note = ""
+    save_meta_dialog.author = (xt_settings and xt_settings.default_author) or "佚名"
+    save_meta_dialog.tags = ""
+    save_meta_dialog.error = ""
+end
+
+local function draw_save_meta_dialog(sw, sh)
+    if not trial_state or not trial_state._xt_pending_save then return end
+    if save_meta_dialog.nonce ~= trial_state._xt_save_dialog_nonce then
+        reset_save_meta_dialog()
+    end
+
+    imgui.set_next_window_pos(Vector2f.new((sw - 520) * 0.5, (sh - 260) * 0.5), 1)
+    imgui.set_next_window_size(Vector2f.new(520, 0), 1)
+    local opened = imgui.begin_window("保存训练信息", true, 2 | 4 | 32)
+    if opened then
+        imgui.text_colored("保存训练信息", COLORS.Yellow)
+        imgui.separator()
+        imgui.text_colored("中文输入请使用外部工具：", COLORS.Cyan)
+        imgui.text_colored("data/TrainingComboTrials_data/XT_MetaInput.bat", COLORS.Yellow)
+        imgui.text_colored("先运行一次，录制结束后它会自动弹出中文输入窗口。", COLORS.DarkGrey)
+        imgui.spacing()
+
+        local changed
+        changed, save_meta_dialog.title = imgui.input_text("训练名称（必填）", save_meta_dialog.title)
+        changed, save_meta_dialog.note = imgui.input_text("备注", save_meta_dialog.note)
+        changed, save_meta_dialog.author = imgui.input_text("作者", save_meta_dialog.author)
+        changed, save_meta_dialog.tags = imgui.input_text("标签（逗号分隔）", save_meta_dialog.tags)
+
+        local err = save_meta_dialog.error
+        if trial_state._xt_pending_save_error and trial_state._xt_pending_save_error ~= "" then
+            err = trial_state._xt_pending_save_error
+        end
+        if err and err ~= "" then
+            imgui.text_colored(err, COLORS.Red)
+        end
+
+        imgui.spacing()
+        if styled_button("查看启动路径", UI_THEME.btn_neutral) then
+            if launch_xt_meta_input_window then launch_xt_meta_input_window() end
+        end
+        imgui.same_line()
+        if styled_button("粘贴保存", UI_THEME.btn_green) then
+            if xt_trim(save_meta_dialog.title) == "" then
+                save_meta_dialog.error = "请输入训练名称"
+                trial_state._xt_pending_save_error = save_meta_dialog.error
+            elseif save_pending_trial_meta then
+                local path, save_err = save_pending_trial_meta({
+                    title = save_meta_dialog.title,
+                    note = save_meta_dialog.note,
+                    author = save_meta_dialog.author,
+                    tags = parse_tags_input(save_meta_dialog.tags)
+                })
+                if path then
+                    save_meta_dialog.error = ""
+                else
+                    save_meta_dialog.error = save_err or "保存失败"
+                end
+            end
+        end
+        imgui.same_line()
+        if styled_button("取消", UI_THEME.btn_red) then
+            if cancel_pending_trial_save then cancel_pending_trial_save() end
+            reset_save_meta_dialog()
+        end
+        imgui.end_window()
+    end
+end
+
+local function draw_xt_settings_ui()
+    if xt_default_author_input == "" and xt_settings and xt_settings.default_author then
+        xt_default_author_input = xt_settings.default_author
+    end
+
+    if styled_header("--- 小吞设置 ---", UI_THEME.hdr_matrix) then
+        local changed, value = imgui.input_text("默认作者", xt_default_author_input)
+        if changed then xt_default_author_input = value end
+
+        if styled_button("保存小吞设置", UI_THEME.btn_green) then
+            if save_xt_settings then
+                save_xt_settings(xt_default_author_input)
+                xt_default_author_input = (xt_settings and xt_settings.default_author) or xt_default_author_input
+                xt_settings_status = "已保存"
+            end
+        end
+        if xt_settings_status ~= "" then
+            imgui.same_line()
+            imgui.text_colored(xt_settings_status, COLORS.Green)
+        end
+    end
+end
+
 local ui_dirty = false
 local ui_save_timer = 0
 local last_sw, last_sh = 0, 0
@@ -837,10 +964,24 @@ local _was_bars_drawn = true
 local function _ctui_flush_trial_display()
     local ts = ctx and ctx.trial_state
     if ts then
+        if ts._xt_pending_save then return end
         ts.is_playing = false
         ts.sequence = {}
         ts.current_step = 1
     end
+end
+
+local function _ctui_clear_visual_state()
+    sf6_menu_state.active = false
+    _G.ComboTrials_HideNativeHUD = false
+    _G.ComboTrialsD2DEnabled = false
+    _G._ct_bar_geometry = nil
+    _G.TrainingBarsDrawn = false
+    if ctx and ctx.trial_state and not ctx.trial_state._xt_pending_save then
+        ctx.trial_state.is_playing = false
+        ctx.trial_state.is_recording = false
+    end
+    pcall(_ctui_flush_trial_display)
 end
 
 re.on_frame(function()
@@ -852,9 +993,7 @@ re.on_frame(function()
     _was_bars_drawn = bars_now
 
     if _G.FlowMapID ~= 10 and not _G.IsInReplay and _G.CurrentTrainerMode ~= 4 then
-        sf6_menu_state.active = false
-        _G.ComboTrials_HideNativeHUD = false
-        _G.ComboTrialsD2DEnabled = false
+        _ctui_clear_visual_state()
         return
     end
 
@@ -864,7 +1003,14 @@ re.on_frame(function()
         local b = pm:get_field("_CurrentPauseTypeBit")
         if b == 64 or b == 2112 then is_game_active = true end
     end
-    _G.ComboTrialsD2DEnabled = is_game_active
+
+    local in_training_context = (_G.CurrentTrainerMode == 4) and (_G.TrainingModeActive == true)
+    local should_enable_ct_ui = in_training_context and is_game_active
+    _G.ComboTrialsD2DEnabled = should_enable_ct_ui
+    if not should_enable_ct_ui then
+        _ctui_clear_visual_state()
+        return
+    end
 
     -- Use exact ImGui API for window positioning
     local sw, sh = get_imgui_screen_size()
@@ -902,6 +1048,10 @@ re.on_frame(function()
         pcall(function() hud_overlay_font = imgui.load_font("msyhbd.ttc", hud_size) end)
         font_attempted = true
     end
+
+    if custom_ui_font then imgui.push_font(custom_ui_font) end
+    draw_save_meta_dialog(sw, sh)
+    if custom_ui_font then imgui.pop_font() end
 
     -- =========================================================
     -- HUD OVERLAY: Combo Stats on native lines (HitConfirm pattern)
@@ -1232,6 +1382,7 @@ local function draw_combo_trials_menu_ui()
         pushed_font = true
     end
     if imgui.tree_node("连段训练") then
+        local ok, err = pcall(function()
         local p_state = players[ui_state.viewed_player]
         imgui.spacing()
 
@@ -1255,6 +1406,7 @@ local function draw_combo_trials_menu_ui()
             if asd_c then _G._allow_stun_demo = asd_v end
         end
 
+        draw_xt_settings_ui()
 
         -- ==========================================
         -- TAB 2: D2D VISUALIZER
@@ -2003,6 +2155,13 @@ local function draw_combo_trials_menu_ui()
             ]]--
         end
 
+        end)
+        if not ok then
+            imgui.text_colored("连段训练 UI 绘制出错，已保护 ImGui 栈。", COLORS.Red)
+            imgui.text_colored(tostring(err), COLORS.Yellow)
+            print("[ComboTrials_UI] draw error: " .. tostring(err))
+        end
+
         -- IMPORTANT : Closes the tree_node and the if block
         imgui.tree_pop()
     end
@@ -2035,6 +2194,12 @@ function M.init(shared_ctx)
     save_d2d_config = ctx.save_d2d_config
     get_exc_filename = ctx.get_exc_filename
     ui_state = ctx.ui_state
+    xt_settings = ctx.xt_settings
+    save_xt_settings = ctx.save_xt_settings
+    save_pending_trial_meta = ctx.save_pending_trial_meta
+    cancel_pending_trial_save = ctx.cancel_pending_trial_save
+    launch_xt_meta_input_window = ctx.launch_xt_meta_input_window
+    xt_default_author_input = (xt_settings and xt_settings.default_author) or "佚名"
 end
 
 return M
