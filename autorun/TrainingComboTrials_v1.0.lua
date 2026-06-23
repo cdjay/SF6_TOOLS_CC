@@ -147,13 +147,9 @@ local trial_state = {
 }
 
 local XT_SETTINGS_FILE = "TrainingComboTrials_data/XT_Settings.json"
-local XT_META_REQUEST_FILE = "TrainingComboTrials_data/XT_SaveMetaRequest.json"
-local XT_META_BRIDGE_FILE = "TrainingComboTrials_data/XT_SaveMetaBridge.json"
 local xt_settings = {
     default_author = "佚名"
 }
-local save_pending_trial_meta
-local cancel_pending_trial_save
 
 local function load_xt_settings()
     if type(_G.safe_load_json) ~= "function" then return end
@@ -169,6 +165,17 @@ end
 local function save_xt_settings()
     if fs and fs.create_dir then pcall(fs.create_dir, "TrainingComboTrials_data") end
     json.dump_file(XT_SETTINGS_FILE, xt_settings)
+end
+
+local function build_auto_xt_meta()
+    return {
+        title = "",
+        note = "",
+        author = xt_settings.default_author or "佚名",
+        tags = {},
+        created_at = os.date("%Y-%m-%d %H:%M:%S"),
+        schema = 1
+    }
 end
 
 load_xt_settings()
@@ -354,8 +361,6 @@ local combo_list_auto_refresh_counter = 0
 local TRIALHUB_SYNC_POLL_FRAMES = 90
 local trialhub_sync_counter = 0
 local trialhub_last_marker = nil
-local XT_META_BRIDGE_POLL_FRAMES = 15
-local xt_meta_bridge_counter = 0
 
 local function clear_pending_position_injection()
     trial_state.exact_inject_r1 = nil
@@ -1637,21 +1642,6 @@ local function cancel_recording()
     pcall(function() ComboTrials_D2D.reset_raw() end)
 end
 
-local function open_pending_trial_save(saved_player)
-    trial_state._xt_pending_save = true
-    trial_state._xt_pending_save_player = saved_player
-    trial_state._xt_pending_save_error = nil
-    trial_state._xt_save_dialog_nonce = (trial_state._xt_save_dialog_nonce or 0) + 1
-    trial_state._xt_save_request_id = tostring(os.time()) .. "_" .. tostring(trial_state._xt_save_dialog_nonce)
-    if fs and fs.create_dir then pcall(fs.create_dir, "TrainingComboTrials_data") end
-    pcall(json.dump_file, XT_META_REQUEST_FILE, {
-        request_id = trial_state._xt_save_request_id,
-        default_author = xt_settings.default_author or "佚名",
-        created_at = os.date("%Y-%m-%d %H:%M:%S")
-    })
-    trial_state._xt_meta_input_opened = false
-end
-
 local function stop_recording_and_save()
     -- Check if logger has data (for replay/BH mode where sequence stays empty)
     local logger_has_data = false
@@ -1702,7 +1692,8 @@ local function stop_recording_and_save()
         return
     end
 
-    open_pending_trial_save(saved_player)
+    trial_state.recording_player = saved_player
+    save_trial_sequence(build_auto_xt_meta())
 end
 
 
@@ -1753,13 +1744,13 @@ local function combo_display_name_from_file(filepath)
     local xt_meta = sequence[1]._xt_meta
     local xt_title = type(xt_meta) == "table" and clean_title(xt_meta.title) or nil
     if xt_title then
-        return xt_title
+        return fallback .. " " .. xt_title
     end
 
     local wtt_meta = sequence[1]._wtt_cn_meta
     local wtt_title = type(wtt_meta) == "table" and clean_title(wtt_meta.title) or nil
     if wtt_title then
-        return wtt_title
+        return fallback .. " " .. wtt_title
     end
 
     return fallback
@@ -2074,7 +2065,7 @@ local function handle_combo_shortcuts()
         -- ===== RECORDING: 2 buttons (LEFT/1 = save, RIGHT/2 = cancel) =====
         if is_pressed(BTN_LEFT) or kb_pressed(KB_1) then
             _G.ComboTrials_ReplaySavePlayer = trial_state.recording_player
-            stop_recording_and_save(); ct_ticker("填写保存信息")
+            stop_recording_and_save(); ct_ticker("录制已保存")
         end
         if is_pressed(BTN_RIGHT) or kb_pressed(KB_2) then
             _G.ComboTrials_ReplayCancelPlayer = trial_state.recording_player
@@ -2453,7 +2444,7 @@ local function ct_handle_web_commands()
             _G.ComboTrials_ReplayCancelPlayer = trial_state.recording_player or 0
             cancel_recording(); ct_ticker("录制已取消")
         end
-        if cmd == "stop_record" then stop_recording_and_save(); ct_ticker("填写保存信息") end
+        if cmd == "stop_record" then stop_recording_and_save(); ct_ticker("录制已保存") end
         if cmd == "reset_trial" then
             local ok, err = pcall(function()
                 if not trial_state.is_playing then return end
@@ -2541,48 +2532,6 @@ local function read_trialhub_sync_signal()
         end
     end
     return nil
-end
-
-local function launch_xt_meta_input_window()
-    if not trial_state._xt_pending_save then return false end
-    trial_state._xt_pending_save_error = "请先运行 data/TrainingComboTrials_data/XT_MetaInput.bat"
-    return false
-end
-
-local function ct_poll_xt_meta_bridge()
-    if not trial_state._xt_pending_save then
-        xt_meta_bridge_counter = 0
-        return
-    end
-
-    if not trial_state._xt_meta_input_hint_shown then
-        launch_xt_meta_input_window()
-        trial_state._xt_meta_input_hint_shown = true
-    end
-
-    xt_meta_bridge_counter = xt_meta_bridge_counter + 1
-    if xt_meta_bridge_counter < XT_META_BRIDGE_POLL_FRAMES then return end
-    xt_meta_bridge_counter = 0
-
-    local ok, bridge = pcall(json.load_file, XT_META_BRIDGE_FILE)
-    if not ok or type(bridge) ~= "table" then return end
-    if bridge.request_id ~= trial_state._xt_save_request_id then return end
-
-    if bridge.action == "cancel" then
-        cancel_pending_trial_save()
-        return
-    end
-    if bridge.action == "save" and type(save_pending_trial_meta) == "function" then
-        local path, err = save_pending_trial_meta({
-            title = bridge.title,
-            note = bridge.note,
-            author = bridge.author,
-            tags = bridge.tags
-        })
-        if not path and err then
-            trial_state._xt_pending_save_error = err
-        end
-    end
 end
 
 local function ct_poll_trialhub_sync_signal()
@@ -4075,7 +4024,6 @@ re.on_frame(function()
     if _G.CurrentTrainerMode ~= 4 then ct_handle_mode_exit(); return end
 
     ct_auto_refresh_combo_list()
-    ct_poll_xt_meta_bridge()
     ct_poll_trialhub_sync_signal()
     ct_handle_first_frame_init()
     _G.ComboTrials_HideNativeHUD = (trial_state.is_recording or trial_state.is_playing)
@@ -4287,58 +4235,6 @@ function save_trial_sequence(meta)
     return path
 end
 
-cancel_pending_trial_save = function()
-    local saved_player = trial_state._xt_pending_save_player
-    trial_state._xt_pending_save = false
-    trial_state._xt_pending_save_player = nil
-    trial_state._xt_pending_save_error = nil
-    trial_state.sequence = {}
-    trial_state.current_step = 1
-    _G.ComboTrials_PendingSaveCanceled = saved_player
-end
-
-save_pending_trial_meta = function(meta)
-    if not trial_state._xt_pending_save then
-        return nil, "没有待保存的训练"
-    end
-
-    local title = trim_string(meta and meta.title)
-    if title == "" then
-        trial_state._xt_pending_save_error = "请输入训练名称"
-        return nil, trial_state._xt_pending_save_error
-    end
-
-    local clean_meta = {
-        title = title,
-        note = trim_string(meta and meta.note),
-        author = trim_string(meta and meta.author),
-        tags = {},
-        created_at = os.date("%Y-%m-%d %H:%M:%S"),
-        schema = 1
-    }
-    if clean_meta.author == "" then clean_meta.author = xt_settings.default_author or "佚名" end
-
-    if type(meta) == "table" and type(meta.tags) == "table" then
-        for _, tag in ipairs(meta.tags) do
-            local cleaned = trim_string(tag)
-            if cleaned ~= "" then
-                table.insert(clean_meta.tags, cleaned)
-            end
-        end
-    end
-
-    local saved_player = trial_state._xt_pending_save_player
-    if saved_player ~= nil then
-        trial_state.recording_player = saved_player
-    end
-
-    local path = save_trial_sequence(clean_meta)
-    trial_state._xt_pending_save = false
-    trial_state._xt_pending_save_player = nil
-    trial_state._xt_pending_save_error = nil
-    return path, nil
-end
-
 -- =========================================================
 -- MODULE UI (extracted to func/ComboTrials_UI.lua)
 -- =========================================================
@@ -4363,9 +4259,6 @@ ctx.save_xt_settings = function(default_author)
     save_xt_settings()
     return true
 end
-ctx.save_pending_trial_meta = save_pending_trial_meta
-ctx.cancel_pending_trial_save = cancel_pending_trial_save
-ctx.launch_xt_meta_input_window = launch_xt_meta_input_window
 ctx.dump_last_fail = function()
     if not trial_state.last_fail_dump then return nil end
     local char_name = players[trial_state.playing_player].profile_name or "Unknown"

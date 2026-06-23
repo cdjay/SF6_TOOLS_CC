@@ -19,10 +19,10 @@
 
 字段含义：
 
-- `title`：训练名称，保存时必填。
+- `title`：训练名称。游戏内录制时默认为空，建议由网页管理器填写。
 - `note`：备注，可为空。
 - `author`：作者，默认读取 `TrainingComboTrials_data/XT_Settings.json` 的 `default_author`。
-- `tags`：标签数组，保存窗口中用逗号分隔输入。
+- `tags`：标签数组，建议由网页管理器维护。
 - `created_at`：保存时间。
 - `schema`：元数据结构版本，当前为 `1`。
 
@@ -38,11 +38,11 @@
 
 ## 与 `_wtt_cn_meta` 的兼容关系
 
-读取列表显示时按以下优先级取标题：
+读取列表显示时保留完整文件名，并按以下优先级追加标题：
 
 1. `sequence[1]._xt_meta.title`
 2. `sequence[1]._wtt_cn_meta.title`
-3. 文件名
+3. 无标题时只显示文件名
 
 `_wtt_cn_meta` 作为旧中文元数据字段保留兼容。新保存的文件使用 `_xt_meta`。
 
@@ -68,16 +68,25 @@
 <角色>_COMBO_<起手>_<伤害>_D<Drive>_SA<SA>.json
 ```
 
-如果训练名称只包含 ASCII 安全字符，会追加到文件名末尾。中文训练名称不直接写入文件名，避免 REFramework/Lua 路径编码在 Windows 资源管理器中显示乱码。中文名称以 `_xt_meta.title` 为准，游戏内列表和网页管理器应优先读取该字段显示。
+游戏内录制完成后会直接静默保存，不再弹出命名窗口，也不再把标题追加到文件名。中文、日文、英文标题统一写入 `_xt_meta.title`，由网页管理器负责编辑和保存。
 
-## 中文输入方式
+游戏内连段列表显示格式：
 
-REFramework 的 ImGui 输入框通常不接 Windows 输入法组合输入，因此游戏内输入框只作为复制粘贴兜底。需要先运行一次 `TrainingComboTrials_data/XT_MetaInput.bat`，它会在后台常驻并监听保存请求：
+```text
+Ingrid_COMBO_6HP_7913_D6_SA3.json 板边全资源最大伤害
+```
 
-- 输入窗口使用系统输入法，可以直接输入中文。
-- 输入窗口读取 `XT_SaveMetaRequest.json` 获取本次保存请求和默认作者。
-- 点击保存后写入 `XT_SaveMetaBridge.json`，Lua 轮询该文件并执行保存。
-- 点击取消或关闭窗口会通知 Lua 取消本次待保存状态。
+无标题时：
+
+```text
+Ingrid_COMBO_6HP_7913_D6_SA3.json
+```
+
+## 管理方式
+
+REFramework 的 ImGui 输入框对 Windows 输入法支持不稳定，且中文文件名在 Lua/REFramework 路径写入时可能出现编码乱码。因此游戏内只负责录制、保存、加载和训练。
+
+标题、备注、作者、标签、文件重命名等管理操作交给网页管理器完成。网页管理器修改 JSON 后更新 `TrialHub/sync_signal.json`，游戏内列表会自动刷新。
 
 ## 网页管理器读取方式
 
