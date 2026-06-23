@@ -3,18 +3,18 @@
     "is_paused": false,
     "is_running": false,
     "mode": 0,
-    "session_mode": "trials",
+    "session_mode": 2,
     "sf6_running": true,
-    "timer": 2,
+    "timer": 0,
     "training_active": true,
     "trial_demo": false,
     "trial_file": "",
     "trial_file_idx": 1,
     "trial_files": null,
     "trial_playing": false,
-    "trial_position": 3,
+    "trial_position": 2,
     "trial_recording": false,
     "trial_step": 1,
     "trial_total": 0,
-    "trials": 10
+    "trials": 0
 }

@@ -1,0 +1,11 @@
+{
+    "986": {
+        "absorb_ids": "",
+        "force": false,
+        "hold_partial_check": true,
+        "ignore": false,
+        "ignore_prev_frames": 5,
+        "is_holdable": false,
+        "override_name": "214+MP"
+    }
+}

@@ -1,0 +1,702 @@
+-- =========================================================
+-- Training_SessionRecap.lua
+-- D2D overlay: bars (Reactions/PostGuard) or curves (HitConfirm)
+-- =========================================================
+
+local M = {}
+
+-- State
+local _visible = false
+local _sessions = {}
+local _title = ""
+local _mode = ""  -- "reactions", "hitconfirm", "postguard"
+local _font = nil
+local _font_small = nil
+local _font_title = nil
+local _last_font_h = 0
+local _last_font_h_small = 0
+local _last_font_h_title = 0
+
+-- Colors (ABGR : 0xAABBGGRR)
+local COL_BG        = 0xF00D0D12
+local COL_BORDER    = 0xFF3A3A4A
+local COL_HEADER_BG = 0xFF1A1A28
+local COL_HEADER    = 0xFFFFAA44  -- warm orange title
+local COL_TEXT      = 0xFFE0E0E0
+local COL_TEXT_DIM  = 0xFF6A6A7A
+local COL_BAR_BG    = 0xFF1E1E2E
+local COL_BAR_RED   = 0xFF4444FF
+local COL_BAR_ORG   = 0xFF00A5FF
+local COL_BAR_YEL   = 0xFF00FFFF
+local COL_BAR_GRN   = 0xFF00DD00
+local COL_SHADOW    = 0xFF000000
+local COL_CLOSE_BG  = 0x33FFFFFF
+local COL_CLOSE_HOV = 0x664444FF
+local COL_CLOSE_TXT = 0xFFDADADA
+local COL_HIT       = 0xFFF5C832  -- warm gold (hit confirm)
+local COL_BLK       = 0xFFEE6644  -- coral/salmon (block confirm)
+local COL_GRID      = 0xFF1E2233
+local COL_CHART_BG  = 0xFF0A0A14
+local COL_ACCENT    = 0xFF3A3A5A
+
+-- Layout config (all values in % of screen, saved to JSON)
+local LAYOUT_FILE = "SessionRecap_Layout.json"
+local layout = {
+    panel_w  = 0.48,
+    panel_cy = 0.50,
+    header_h = 0.034,
+    chart_h  = 0.30,
+    axis_h   = 0.042,
+    legend_h = 0.022,
+    footer_h = 0.038,
+    pad      = 0.014,
+    margin_l = 0.040,
+    margin_r = 0.012,
+    title_y  = 0.485,
+    btn_inset = 0.010,
+    btn_size = 0.019,
+    title_ox = 0.025, title_oy = 0.0,
+    btn_ox = 0.006, btn_oy = 0.0,
+    ylabels_ox = 0.0, ylabels_oy = 0.0,
+    chart_ox = 0.0, chart_oy = 0.0,
+    xlabels_ox = 0.0, xlabels_oy = 0.0,
+    legend_ox = 0.0, legend_oy = 0.030,
+    legdot_ox = -0.002, legdot_oy = 0.008,
+    closex_ox = 0.0, closex_oy = -0.010,
+    footer_ox = 0.0, footer_oy = -0.009,
+    hitavg_ox = 0.002, hitavg_oy = -0.008,
+    blkavg_ox = 0.005, blkavg_oy = -0.007,
+}
+
+require("func/SharedHooks") -- error registry (_G.safe_load_json)
+do
+    local data = _G.safe_load_json(LAYOUT_FILE)
+    if data then for k, v in pairs(data) do layout[k] = v end end
+end
+
+local _close_btn = { x = 0, y = 0, w = 0, h = 0 }
+
+local function text_len(s)
+    s = tostring(s or "")
+    local n = 0
+    for _ in s:gmatch("[%z\1-\127\194-\244][\128-\191]*") do
+        n = n + 1
+    end
+    return n
+end
+
+local function estimate_text_w(s, fh, factor)
+    return text_len(s) * fh * (factor or 0.62)
+end
+
+local function measure_text(font, s, fallback_h, factor)
+    s = tostring(s or "")
+    if font and font.measure then
+        local ok, w, h = pcall(function() return font:measure(s) end)
+        if ok and w then return w, h or fallback_h end
+    end
+    return estimate_text_w(s, fallback_h or 16, factor), fallback_h or 16
+end
+
+local function bar_color(pct)
+    if pct < 40 then return COL_BAR_RED
+    elseif pct < 60 then return COL_BAR_ORG
+    elseif pct < 75 then return COL_BAR_YEL
+    else return COL_BAR_GRN end
+end
+
+-- =========================================================
+-- D2D LINE DRAWING (pixel stepping)
+-- =========================================================
+local function draw_line(x1, y1, x2, y2, thickness, color)
+    local dx = x2 - x1
+    local dy = y2 - y1
+    local steps = math.max(math.abs(dx), math.abs(dy), 1)
+    local sx = dx / steps
+    local sy = dy / steps
+    local t = thickness or 2
+    for i = 0, math.floor(steps) do
+        d2d.fill_rect(x1 + sx * i, y1 + sy * i, t, t, color)
+    end
+end
+
+-- =========================================================
+-- PARSERS
+-- =========================================================
+
+local function tail_n(results, count)
+    local n = #results
+    local start = math.max(1, n - count + 1)
+    local out = {}
+    for i = start, n do out[#out + 1] = results[i] end
+    return out
+end
+
+local function extract_date(raw)
+    local y, mo, da, hh, mm = raw:match("(%d+)-(%d+)-(%d+)%s+(%d+):(%d+)")
+    if da and hh then
+        return (da or "??") .. "/" .. (mo or "??") .. " " .. hh .. ":" .. mm
+    end
+    local y2, mo2, da2 = raw:match("(%d+)-(%d+)-(%d+)")
+    return (da2 or "??") .. "/" .. (mo2 or "??")
+end
+
+local function extract_short_time(raw)
+    local hh, mm = raw:match("(%d+):(%d+)")
+    return hh and (hh .. ":" .. mm) or "?"
+end
+
+-- Reactions: date\tduration\tmode\tp1\tp2\tscore\ttotal  (no header)
+local function parse_reactions(filepath)
+    local results = {}
+    local f = io.open(filepath, "r")
+    if not f then return results end
+    for line in f:lines() do
+        local parts = {}
+        for p in line:gmatch("[^\t]+") do parts[#parts + 1] = p end
+        if #parts >= 7 then
+            local score = tonumber(parts[6])
+            local total = tonumber(parts[7])
+            if score and total and total > 0 then
+                results[#results + 1] = {
+                    date  = extract_date(parts[1]),
+                    time  = extract_short_time(parts[1]),
+                    mode  = parts[3] or "",
+                    pct   = (score / total) * 100,
+                    score = score,
+                    total = total
+                }
+            end
+        end
+    end
+    f:close()
+    return tail_n(results, 10)
+end
+
+-- HitConfirm: 14 cols with hit_pct and blk_pct separated
+-- date\ttime\tmode\tduration\ttotal\tsuccess\tpct%\tscore\thit_tot\thit_ok\thit_pct%\tblk_tot\tblk_ok\tblk_pct%
+local function parse_hitconfirm(filepath)
+    local results = {}
+    local f = io.open(filepath, "r")
+    if not f then return results end
+    for line in f:lines() do
+        if not line:match("^DATE") then
+            local parts = {}
+            for p in line:gmatch("[^\t]+") do parts[#parts + 1] = p end
+            if #parts >= 14 then
+                local total   = tonumber(parts[5])
+                local hit_pct = tonumber((parts[11]:gsub("%%", "")))
+                local blk_pct = tonumber((parts[14]:gsub("%%", "")))
+                local pct     = tonumber((parts[7]:gsub("%%", "")))
+                if total and total > 0 and hit_pct and blk_pct then
+                    results[#results + 1] = {
+                        date    = extract_date(parts[1]),
+                        time    = extract_short_time(parts[2]),
+                        mode    = parts[3] or "",
+                        pct     = pct or 0,
+                        hit_pct = hit_pct,
+                        blk_pct = blk_pct,
+                        hit_tot = tonumber(parts[9]) or 0,
+                        hit_ok  = tonumber(parts[10]) or 0,
+                        blk_tot = tonumber(parts[12]) or 0,
+                        blk_ok  = tonumber(parts[13]) or 0,
+                        score   = tonumber(parts[6]) or 0,
+                        total   = total
+                    }
+                end
+            end
+        end
+    end
+    f:close()
+    return tail_n(results, 10)
+end
+
+-- PostGuard : date\tduration\tscore\tpct%\ttotal\tdetails
+local function parse_postguard(filepath)
+    local results = {}
+    local f = io.open(filepath, "r")
+    if not f then return results end
+    for line in f:lines() do
+        if not line:match("^DATE") then
+            local parts = {}
+            for p in line:gmatch("[^\t]+") do parts[#parts + 1] = p end
+            if #parts >= 5 then
+                local score = tonumber(parts[3])
+                local pct   = tonumber((parts[4]:gsub("%%", "")))
+                local total = tonumber(parts[5])
+                if pct and total and total > 0 then
+                    local success = math.floor(pct * total / 100 + 0.5)
+                    results[#results + 1] = {
+                        date  = extract_date(parts[1]),
+                        time  = extract_short_time(parts[1]),
+                        mode  = "",
+                        pct   = pct,
+                        score = success,
+                        total = total
+                    }
+                end
+            end
+        end
+    end
+    f:close()
+    return tail_n(results, 10)
+end
+
+local PARSERS = {
+    reactions  = parse_reactions,
+    hitconfirm = parse_hitconfirm,
+    postguard  = parse_postguard
+}
+
+-- =========================================================
+-- PUBLIC API
+-- =========================================================
+
+function M.show(mode_name, stats_file, parser_type)
+    local parser = PARSERS[parser_type]
+    if not parser then return end
+
+    local test_f = io.open(stats_file, "r")
+    if not test_f then return end
+    test_f:close()
+
+    _sessions = parser(stats_file)
+    _mode = parser_type
+    local n = #_sessions
+    if n == 0 then return end
+    _title = mode_name .. " - 最近 " .. n .. " 次训练"
+    _visible = true
+end
+
+function M.hide()
+    _visible = false
+    _sessions = {}
+    _mode = ""
+end
+
+function M.is_visible()
+    return _visible
+end
+
+-- =========================================================
+-- D2D: SHARED HEADER + CLOSE BUTTON
+-- =========================================================
+
+local function _rec_get_mouse_xy()
+    local m = imgui.get_mouse()
+    if m then return m.x, m.y end
+    return nil
+end
+
+local function draw_header(panel_x, panel_y, panel_w, header_h, fh, pad)
+    -- Header background
+    d2d.fill_rect(panel_x, panel_y, panel_w, header_h, COL_HEADER_BG)
+    -- Accent separator at bottom of header
+    d2d.fill_rect(panel_x, panel_y + header_h - 2, panel_w, 2, COL_ACCENT)
+
+    -- Title — centered horizontally, adjustable vertical bias
+    local title_font = _font_title or _font
+    local fh_title = _last_font_h_title or fh
+    local sw_local, sh_local = d2d.surface_size()
+    local title_w, title_h = measure_text(title_font, _title, fh_title, 0.72)
+    local close_reserved = sh_local * (layout.btn_size or 0.016) + sw_local * (layout.btn_inset or 0.010) * 2
+    local title_area_x = panel_x + close_reserved
+    local title_area_w = panel_w - close_reserved * 2
+    local tx = title_area_x + (title_area_w - title_w) * 0.5
+    local ty = panel_y + (header_h - title_h) * 0.5
+    d2d.text(title_font, _title, tx + 1, ty + 1, COL_SHADOW)
+    d2d.text(title_font, _title, tx, ty, COL_HEADER)
+
+    -- Close button
+    local btn_size = sh_local * (layout.btn_size or 0.016)
+    local btn_inset = sw_local * (layout.btn_inset or 0.010)
+    local btn_x = panel_x + panel_w - btn_inset - btn_size + sw_local * (layout.btn_ox or 0)
+    local btn_y = panel_y + (header_h - btn_size) * 0.5
+    _close_btn.x = btn_x
+    _close_btn.y = btn_y
+    _close_btn.w = btn_size
+    _close_btn.h = btn_size
+
+    local is_hovered = false
+    local mok, hmx, hmy = pcall(_rec_get_mouse_xy)
+    if mok and hmx then
+        is_hovered = hmx >= btn_x and hmx <= btn_x + btn_size
+                 and hmy >= btn_y and hmy <= btn_y + btn_size
+    end
+
+    d2d.fill_rect(btn_x, btn_y, btn_size, btn_size, is_hovered and COL_CLOSE_HOV or COL_CLOSE_BG)
+    d2d.outline_rect(btn_x, btn_y, btn_size, btn_size, 1, COL_ACCENT)
+    local close_font = _font_small or _font
+    local close_txt = "x"
+    local x_w, x_h = measure_text(close_font, close_txt, _last_font_h_small or fh, 0.55)
+    local x_tx = btn_x + (btn_size - x_w) * 0.5
+    local x_ty = btn_y + (btn_size - x_h) * 0.5 - btn_size * 0.04
+    d2d.text(close_font, close_txt, x_tx + 1, x_ty + 1, COL_SHADOW)
+    d2d.text(close_font, close_txt, x_tx, x_ty, is_hovered and 0xFFFFFFFF or COL_CLOSE_TXT)
+end
+
+-- =========================================================
+-- =========================================================
+-- D2D: LINE CHART (HitConfirm - hit% & block% curves)
+-- =========================================================
+
+local COL_SINGLE    = 0xFF44DDFF  -- bright cyan for single-curve mode
+
+local function _rec_fill_area_seg(i, c, sx, sy, cy, ch)
+    local v = tonumber(_sessions[i][c.key]) or 0
+    local vp = tonumber(_sessions[i-1][c.key]) or 0
+    local x1, x2 = sx(i-1), sx(i)
+    local y1, y2 = sy(vp), sy(v)
+    local base = cy + ch
+    local steps = math.max(1, math.floor(x2 - x1))
+    for s = 0, steps do
+        local t = s / steps
+        local lx = x1 + (x2 - x1) * t
+        local ly = y1 + (y2 - y1) * t
+        d2d.fill_rect(lx, ly, 1, base - ly, c.fill)
+    end
+end
+
+local function _rec_draw_point(i, c, sx, sy, mx, my, hover_r, dot_r, want_tooltip)
+    local v = tonumber(_sessions[i][c.key]) or 0
+    if i > 1 then
+        local vp = tonumber(_sessions[i-1][c.key]) or 0
+        draw_line(sx(i-1), sy(vp), sx(i), sy(v), 2, c.color)
+    end
+    local px, py = sx(i), sy(v)
+    local is_hov = math.abs(mx - px) < hover_r and math.abs(my - py) < hover_r
+    local size = is_hov and dot_r * 1.8 or dot_r
+    d2d.fill_rect(px - size - 1, py - size - 1, size * 2 + 2, size * 2 + 2, COL_CHART_BG)
+    d2d.fill_rect(px - size, py - size, size * 2, size * 2, c.color)
+    if is_hov and want_tooltip then
+        local s = _sessions[i]
+        return { x = px, y = py, text = string.format("%s: %.1f%%", c.label, v), text2 = string.format("%d / %d", tonumber(s[c.ok_key]) or 0, tonumber(s[c.tot_key]) or 0), color = c.color }
+    end
+    return nil
+end
+
+local function _rec_draw_xlabel(i, sx, cy, ch, pad, xl_ox, xl_oy, cw_char, fh_s)
+    local s = _sessions[i]
+    local date_lbl = s.date or ""
+    local time_lbl = s.time or tostring(i)
+    local base_y = cy + ch + pad * 0.8 + xl_oy
+    local xi = sx(i) + xl_ox
+
+    -- Tick mark
+    d2d.fill_rect(xi, cy + ch, 1, pad * 0.5, COL_ACCENT)
+
+    -- Date
+    d2d.text(_font_small, date_lbl, xi - text_len(date_lbl) * cw_char * 0.5, base_y, COL_TEXT_DIM)
+
+    -- Time
+    d2d.text(_font_small, time_lbl, xi - text_len(time_lbl) * cw_char * 0.5, base_y + fh_s * 1.15, COL_TEXT)
+
+    -- Mode tag
+    local mode_raw = s.mode or ""
+    local mode_tag = ""
+    local t_count = mode_raw:match("TRIALS_(%d+)")
+    local t_min = mode_raw:match("TIMED_(%d+M)")
+    if t_count then mode_tag = t_count .. "次"
+    elseif t_min then mode_tag = t_min:gsub("M", "分") end
+    if mode_tag ~= "" then
+        d2d.text(_font_small, mode_tag, xi - text_len(mode_tag) * cw_char * 0.5, base_y + fh_s * 2.3, COL_TEXT_DIM)
+    end
+end
+
+local function draw_chart(sw, sh, fh, fh_s)
+    local n        = #_sessions
+    local L = layout
+    -- Dual mode (hit+blk) or single mode (pct only)
+    local dual_mode = (_sessions[1].hit_pct ~= nil)
+    local pad      = sh * L.pad
+    local header_h = sh * L.header_h
+    local chart_h  = sh * L.chart_h
+    local axis_h   = sh * L.axis_h
+    local legend_h = sh * L.legend_h
+    local footer_h = sh * L.footer_h
+    local panel_w  = sw * L.panel_w
+    local panel_h  = header_h + pad + chart_h + axis_h + legend_h + footer_h + pad
+    local panel_x  = (sw - panel_w) * 0.5
+    local panel_y  = sh * L.panel_cy - panel_h * 0.5
+
+    -- Panel background with subtle inner shadow
+    d2d.fill_rect(panel_x - 1, panel_y - 1, panel_w + 2, panel_h + 2, COL_SHADOW)
+    d2d.fill_rect(panel_x, panel_y, panel_w, panel_h, COL_BG)
+    d2d.outline_rect(panel_x, panel_y, panel_w, panel_h, 1, COL_BORDER)
+
+    draw_header(panel_x, panel_y, panel_w, header_h, fh, pad)
+
+    -- Chart area with inset look
+    local margin_l = sw * L.margin_l
+    local margin_r = sw * L.margin_r
+    local cx = panel_x + margin_l + sw * (L.chart_ox or 0)
+    local cy = panel_y + header_h + pad * 1.5 + sh * (L.chart_oy or 0)
+    local cw = panel_w - margin_l - margin_r
+    local ch = chart_h
+
+    d2d.fill_rect(cx, cy, cw, ch, COL_CHART_BG)
+    d2d.outline_rect(cx, cy, cw, ch, 1, COL_ACCENT)
+
+    -- Y axis grid + labels (right-aligned to chart left edge)
+    for _, pct in ipairs({0, 25, 50, 75, 100}) do
+        local gy = cy + ch - (ch * pct / 100)
+        if pct > 0 and pct < 100 then
+            for gx = cx, cx + cw - 4, 8 do
+                d2d.fill_rect(gx, gy, 4, 1, COL_GRID)
+            end
+        else
+            d2d.fill_rect(cx, gy, cw, 1, COL_ACCENT)
+        end
+        local label = tostring(pct) .. "%"
+        local lw = #label * fh_s * 0.55
+        local lx = cx - lw - pad * 0.5 + sw * (L.ylabels_ox or 0)
+        d2d.text(_font_small, label, lx, gy - fh_s * 0.45 + sh * (L.ylabels_oy or 0), COL_TEXT_DIM)
+    end
+
+    -- Helpers
+    local function sx(i)
+        if n == 1 then return cx + cw * 0.5 end
+        return cx + pad + (i - 1) * (cw - pad * 2) / (n - 1)
+    end
+    local function sy(pct)
+        return cy + ch - (ch * math.min(math.max(pct, 0), 100) / 100)
+    end
+
+    -- Vertical grid lines per session (subtle)
+    for i = 1, n do
+        local gx = sx(i)
+        for gy = cy + 2, cy + ch - 2, 6 do
+            d2d.fill_rect(gx, gy, 1, 3, 0x18FFFFFF)
+        end
+    end
+
+    -- Curves
+    local dot_r = math.max(3, fh * 0.22)
+    local hover_r = dot_r * 3
+    local tooltip = nil
+
+    local mx, my = 0, 0
+    local mok, gmx, gmy = pcall(_rec_get_mouse_xy)
+    if mok and gmx then mx, my = gmx, gmy end
+
+    -- Define curve data: dual mode (hit+blk) or single mode (pct)
+    local curves = {}
+    if dual_mode then
+        curves[#curves + 1] = { key = "hit_pct", ok_key = "hit_ok", tot_key = "hit_tot", label = "命中确认", color = COL_HIT, fill = 0x0CF5C832 }
+        curves[#curves + 1] = { key = "blk_pct", ok_key = "blk_ok", tot_key = "blk_tot", label = "被防确认", color = COL_BLK, fill = 0x0CEE6644 }
+    else
+        curves[#curves + 1] = { key = "pct", ok_key = "score", tot_key = "total", label = "成功率", color = COL_SINGLE, fill = 0x0C44DDFF }
+    end
+
+    -- Area fill under curves
+    for _, c in ipairs(curves) do
+        for i = 2, n do
+            pcall(_rec_fill_area_seg, i, c, sx, sy, cy, ch)
+        end
+    end
+
+    -- Lines + dots
+    for ci, c in ipairs(curves) do
+        for i = 1, n do
+            local ok, tip = pcall(_rec_draw_point, i, c, sx, sy, mx, my, hover_r, dot_r, not tooltip)
+            if ok and tip then tooltip = tip end
+        end
+    end
+
+    -- Tooltip
+    if tooltip then
+        local tt = tooltip
+        local max_len = math.max(text_len(tt.text), text_len(tt.text2 or ""))
+        local tt_w = max_len * fh_s * 0.62 + pad * 3
+        local tt_h = fh_s * 2.2 + pad * 1.5
+        local tt_x = tt.x - tt_w * 0.5
+        local tt_y = tt.y - tt_h - dot_r * 3
+        -- Clamp inside chart
+        if tt_x < cx then tt_x = cx end
+        if tt_x + tt_w > cx + cw then tt_x = cx + cw - tt_w end
+        if tt_y < cy then tt_y = tt.y + dot_r * 3 end
+        -- Shadow + bg
+        d2d.fill_rect(tt_x + 2, tt_y + 2, tt_w, tt_h, 0x88000000)
+        d2d.fill_rect(tt_x, tt_y, tt_w, tt_h, 0xF0141420)
+        d2d.outline_rect(tt_x, tt_y, tt_w, tt_h, 1, tt.color)
+        -- Accent line on top
+        d2d.fill_rect(tt_x, tt_y, tt_w, 2, tt.color)
+        d2d.text(_font_small, tt.text, tt_x + pad, tt_y + pad * 0.6, tt.color)
+        if tt.text2 then
+            d2d.text(_font_small, tt.text2, tt_x + pad, tt_y + pad * 0.6 + fh_s * 1.1, COL_TEXT)
+        end
+    end
+
+    -- X axis labels (date + time + mode) — centered under each point
+    local cw_char = fh_s * 0.55
+    local xl_ox = sw * (L.xlabels_ox or 0)
+    local xl_oy = sh * (L.xlabels_oy or 0)
+    for i = 1, n do
+        pcall(_rec_draw_xlabel, i, sx, cy, ch, pad, xl_ox, xl_oy, cw_char, fh_s)
+    end
+
+    -- Footer separator is the anchor for legend and averages. Keeping both tied
+    -- to it avoids old layout offsets pushing Chinese text into the axis labels.
+    local fy_sep = panel_y + panel_h - footer_h
+
+    -- Legend — centered above the footer separator
+    local leg_y = fy_sep - fh_s * 1.75
+    local leg_cx = cx + cw * 0.5
+    local dot_sz = fh_s * 0.6
+    local leg_gap = cw * 0.08
+
+    local leg_labels = {}
+    for _, c in ipairs(curves) do
+        leg_labels[#leg_labels + 1] = { text = c.label .. " %", color = c.color }
+    end
+    -- Measure total width
+    local leg_items_w = {}
+    local total_leg = 0
+    for i, ll in ipairs(leg_labels) do
+        local label_w = measure_text(_font_small, ll.text, fh_s, 0.55)
+        local w = dot_sz + fh_s * 0.5 + label_w
+        leg_items_w[i] = w
+        total_leg = total_leg + w
+        if i < #leg_labels then total_leg = total_leg + leg_gap end
+    end
+    local leg_x = leg_cx - total_leg * 0.5
+    for i, ll in ipairs(leg_labels) do
+        local _, label_h = measure_text(_font_small, ll.text, fh_s, 0.55)
+        d2d.fill_rect(leg_x, leg_y + (label_h - dot_sz) * 0.5, dot_sz, dot_sz, ll.color)
+        d2d.text(_font_small, ll.text, leg_x + dot_sz + fh_s * 0.4, leg_y, ll.color)
+        leg_x = leg_x + leg_items_w[i] + leg_gap
+    end
+
+    -- Footer: averages with accent separator
+    d2d.fill_rect(panel_x + pad * 1.5, fy_sep, panel_w - pad * 3, 1, COL_ACCENT)
+
+    if dual_mode then
+        local sum_hit, sum_blk = 0, 0
+        for _, s in ipairs(_sessions) do
+            sum_hit = sum_hit + (tonumber(s.hit_pct) or 0)
+            sum_blk = sum_blk + (tonumber(s.blk_pct) or 0)
+        end
+        local avg_hit = sum_hit / n
+        local avg_blk = sum_blk / n
+
+        local hit_str = string.format("命中平均：%d%%", math.floor(avg_hit))
+        local hit_w, hit_h = measure_text(_font, hit_str, fh, 0.66)
+        local ha_x = panel_x + pad * 1.5
+        local ha_y = fy_sep + (footer_h - hit_h) * 0.5
+        d2d.text(_font, hit_str, ha_x + 1, ha_y + 1, COL_SHADOW)
+        d2d.text(_font, hit_str, ha_x, ha_y, COL_HIT)
+
+        local blk_str = string.format("被防平均：%d%%", math.floor(avg_blk))
+        local blk_w, blk_h = measure_text(_font, blk_str, fh, 0.66)
+        local ba_x = panel_x + panel_w - pad * 1.5 - blk_w
+        if ba_x < ha_x + hit_w + pad then ba_x = ha_x + hit_w + pad end
+        local ba_y = fy_sep + (footer_h - blk_h) * 0.5
+        d2d.text(_font, blk_str, ba_x + 1, ba_y + 1, COL_SHADOW)
+        d2d.text(_font, blk_str, ba_x, ba_y, COL_BLK)
+    else
+        -- Single mode: trend left, avg right
+        local sum_pct = 0
+        for _, s in ipairs(_sessions) do sum_pct = sum_pct + (tonumber(s.pct) or 0) end
+        local avg_pct = sum_pct / n
+
+        if n >= 2 then
+            local trend = (tonumber(_sessions[n].pct) or 0) - (tonumber(_sessions[1].pct) or 0)
+            local trend_str = trend >= 0
+                and string.format("趋势：+%d%%", math.floor(trend))
+                or  string.format("趋势：%d%%", math.floor(trend))
+            local trend_col = trend >= 0 and COL_BAR_GRN or COL_BAR_RED
+            local _, trend_h = measure_text(_font, trend_str, fh, 0.66)
+            local trend_y = fy_sep + (footer_h - trend_h) * 0.5
+            d2d.text(_font, trend_str, panel_x + pad * 1.5 + 1, trend_y + 1, COL_SHADOW)
+            d2d.text(_font, trend_str, panel_x + pad * 1.5, trend_y, trend_col)
+        end
+
+        local avg_str = string.format("平均：%d%%", math.floor(avg_pct))
+        local avg_w, avg_h = measure_text(_font, avg_str, fh, 0.66)
+        local avg_y = fy_sep + (footer_h - avg_h) * 0.5
+        d2d.text(_font, avg_str, panel_x + panel_w - pad * 1.5 - avg_w + 1, avg_y + 1, COL_SHADOW)
+        d2d.text(_font, avg_str, panel_x + panel_w - pad * 1.5 - avg_w, avg_y, COL_SINGLE)
+    end
+end
+
+-- =========================================================
+-- D2D MAIN DRAW
+-- =========================================================
+
+local function _rec_check_pause_hide()
+    local pm = sdk.get_managed_singleton("app.PauseManager")
+    if pm then
+        local pb = pm:get_field("_CurrentPauseTypeBit")
+        if pb and pb ~= 64 and pb ~= 2112 then
+            _G.SessionRecapVisible = false
+        end
+    end
+end
+
+local function d2d_draw()
+    local active = _G._session_recap_queue
+    _G._session_recap_queue = nil
+
+    _G.SessionRecapVisible = active and _visible and #_sessions > 0
+
+    if not active then return end
+
+    -- Hide during pause menus
+    if _visible then
+        pcall(_rec_check_pause_hide)
+    end
+
+    if not _G.SessionRecapVisible then return end
+
+    local sw, sh = d2d.surface_size()
+
+    local fh   = math.floor(sh * 0.015)
+    local fh_s = math.floor(sh * 0.012)
+    local fh_t = math.floor(sh * 0.020)
+    if fh ~= _last_font_h then
+        _font = d2d.Font.new("msyh.ttc", fh)
+        _last_font_h = fh
+    end
+    if fh_s ~= _last_font_h_small then
+        _font_small = d2d.Font.new("msyh.ttc", fh_s)
+        _last_font_h_small = fh_s
+    end
+    if fh_t ~= _last_font_h_title then
+        _font_title = d2d.Font.new("msyhbd.ttc", fh_t)
+        _last_font_h_title = fh_t
+    end
+
+    pcall(draw_chart, sw, sh, fh, fh_s)
+end
+
+-- Expose draw for external overlay (drawn last = on top of everything)
+M.d2d_draw = d2d_draw
+
+-- No d2d.register here — drawing is handled by zzz_SessionRecapOverlay.lua
+-- to ensure it renders on top of all other D2D (including SheldonsBoxes)
+
+-- Click detection
+local function _rec_check_close_click()
+    if imgui.is_mouse_clicked(0) then
+        local m = imgui.get_mouse()
+        if m then
+            local b = _close_btn
+            if b.w > 0 and m.x >= b.x and m.x <= b.x + b.w and m.y >= b.y and m.y <= b.y + b.h then
+                M.hide()
+            end
+        end
+    end
+end
+
+re.on_frame(function()
+    if not _visible then
+        _G._session_recap_queue = nil
+        return
+    end
+    _G._session_recap_queue = true
+    pcall(_rec_check_close_click)
+end)
+
+-- Debug
+
+return M

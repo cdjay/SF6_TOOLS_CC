@@ -876,6 +876,122 @@ local styled_header = UIKit.styled_header
 local tsm_ui_font = nil
 local tsm_ui_font_size = 0
 
+local function _tsm_value_to_text(v)
+    if v == nil then return "nil" end
+    if type(v) == "boolean" then return v and "true" or "false" end
+    return tostring(v)
+end
+
+local function _tsm_guess_control_label(name, value)
+    local n = tostring(name or ""):lower()
+    local num = tonumber(tostring(value))
+
+    if n == "inputtype" or n == "input_type" then
+        if num == 0 then return "经典" end
+        if num == 1 then return "现代" end
+    end
+
+    if n:find("modern") then
+        if value == true or num == 1 then return "现代" end
+        if value == false or num == 0 then return "经典" end
+    end
+
+    if n:find("classic") then
+        if value == true or num == 1 then return "经典" end
+        if value == false or num == 0 then return "现代" end
+    end
+
+    if n:find("control") or n:find("operation") or n:find("style") or n:find("input") then
+        if num == 0 then return "经典" end
+        if num == 1 then return "现代" end
+    end
+
+    return nil
+end
+
+local function _tsm_get_field_value(obj, field_name)
+    if not obj or not field_name then return nil, false end
+    local ok, v = pcall(function()
+        local td = obj:get_type_definition()
+        local f = td and td:get_field(field_name)
+        if not f then return nil end
+        return f:get_data(obj)
+    end)
+    if ok and v ~= nil then return v, true end
+    return nil, false
+end
+
+local function _tsm_collect_control_candidates(player_idx)
+    local out = { label = "未知", source = "", fields = {}, seen = {} }
+    pcall(function()
+        local tm = sdk.get_managed_singleton("app.training.TrainingManager")
+        local tData = tm and tm:get_field("_tData")
+        if not tData then return end
+
+        local containers = {
+            { name = "ParameterSetting", obj = tData:get_field("ParameterSetting") },
+            { name = "SelectMenu", obj = tData:get_field("SelectMenu") },
+        }
+        local candidate_names = {
+            "ControlType", "controlType", "Control_Type",
+            "OperationType", "operationType", "Operation_Type",
+            "InputType", "inputType", "Input_Type",
+            "BattleInputType", "CommandType", "StyleType",
+            "IsModern", "isModern", "IsClassic", "isClassic",
+        }
+
+        for _, c in ipairs(containers) do
+            local pd = c.obj and c.obj.PlayerDatas and c.obj.PlayerDatas[player_idx]
+            if pd then
+                for _, fname in ipairs(candidate_names) do
+                    local v, ok = _tsm_get_field_value(pd, fname)
+                    if ok then
+                        local text = c.name .. "." .. fname .. "=" .. _tsm_value_to_text(v)
+                        if not out.seen[text] then
+                            table.insert(out.fields, text)
+                            out.seen[text] = true
+                        end
+                        local guessed = _tsm_guess_control_label(fname, v)
+                        if guessed and out.label == "未知" then
+                            out.label = guessed
+                            out.source = text
+                        end
+                    end
+                end
+
+                local td = pd:get_type_definition()
+                if td then
+                    for _, f in ipairs(td:get_fields()) do
+                        local fname = f:get_name()
+                        local lower = fname and fname:lower() or ""
+                        local looks_related =
+                            lower:find("control") or lower:find("operation") or
+                            lower:find("input") or lower:find("style") or
+                            lower:find("modern") or lower:find("classic") or
+                            lower:find("assist")
+                        if looks_related then
+                            local ok, v = pcall(function() return f:get_data(pd) end)
+                            if ok and v ~= nil then
+                                local text = c.name .. "." .. fname .. "=" .. _tsm_value_to_text(v)
+                                if not out.seen[text] then
+                                    table.insert(out.fields, text)
+                                    out.seen[text] = true
+                                end
+                                local guessed = _tsm_guess_control_label(fname, v)
+                                if guessed and out.label == "未知" then
+                                    out.label = guessed
+                                    out.source = text
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end)
+    return out
+end
+
 re.on_draw_ui(function()
     local target_font_size = 18
     if not tsm_ui_font or tsm_ui_font_size ~= target_font_size then
@@ -942,6 +1058,35 @@ re.on_draw_ui(function()
 
             local c4, v4 = imgui.checkbox("连段训练", _G.CurrentTrainerMode == 4)
             if c4 and v4 then _G.CurrentTrainerMode = 4 end
+        end
+
+        if styled_header("--- 操作模式诊断 ---", UI_THEME.hdr_config) then
+            local p1_mode = _tsm_collect_control_candidates(0)
+            local p2_mode = _tsm_collect_control_candidates(1)
+            imgui.text("P1 操作模式: " .. p1_mode.label)
+            if p1_mode.source ~= "" then imgui.text_colored("  " .. p1_mode.source, 0xFF888888) end
+            imgui.text("P2 操作模式: " .. p2_mode.label)
+            if p2_mode.source ~= "" then imgui.text_colored("  " .. p2_mode.source, 0xFF888888) end
+
+            if imgui.tree_node("候选字段##tsm_control_mode_fields") then
+                imgui.text_colored("切换经典/现代后，观察下面哪个字段发生变化。", 0xFF00FFFF)
+                imgui.text_colored("如果 P1/P2 仍显示未知，把这里的字段值发给我。", 0xFF888888)
+                imgui.separator()
+                imgui.text_colored("P1", 0xFF00FF00)
+                if #p1_mode.fields == 0 then
+                    imgui.text("  未找到相关字段")
+                else
+                    for _, line in ipairs(p1_mode.fields) do imgui.text("  " .. line) end
+                end
+                imgui.separator()
+                imgui.text_colored("P2", 0xFF00FF00)
+                if #p2_mode.fields == 0 then
+                    imgui.text("  未找到相关字段")
+                else
+                    for _, line in ipairs(p2_mode.fields) do imgui.text("  " .. line) end
+                end
+                imgui.tree_pop()
+            end
         end
 
         -- ==========================================

@@ -1,5 +1,4 @@
 {
-  "version": 1,
-  "action": "training_updated",
-  "time": 1782180288
+  "timestamp": 1782202065,
+  "action": "reload"
 }
