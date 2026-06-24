@@ -2328,6 +2328,7 @@ local function build_fail_dump()
         timestamp = os.date("%Y-%m-%d %H:%M:%S"),
         fail_reason_ui = trial_state.fail_reason,
         failed_at_step = trial_state.current_step,
+        validation_debug = trial_state._validation_debug,
         expected_sequence = {},
         player_recent_inputs = {}
     }
@@ -2881,10 +2882,13 @@ local function ct_player_init(p_idx, p_state)
 
         if trial_state.fail_timer and trial_state.fail_timer > 0 then
             -- CAPTURE: Take a snapshot on the very first frame of the fail state
-            -- if not trial_state._fail_captured then
-            --     trial_state.last_fail_dump = build_fail_dump()
-            --     trial_state._fail_captured = true
-            -- end
+            if not trial_state._fail_captured then
+                trial_state.last_fail_dump = build_fail_dump()
+                trial_state._fail_captured = true
+                pcall(function()
+                    json.dump_file("TrainingComboTrials_data/LastFail.json", trial_state.last_fail_dump)
+                end)
+            end
 
             trial_state.fail_timer = trial_state.fail_timer - 1
             if trial_state.fail_timer <= 0 then
@@ -3776,12 +3780,22 @@ local function ct_player_process_actions(p_idx, p_state, actions_to_process)
                                 end
 
                                 local combo_ok = true
+                                local validation_prev_step = nil
                                 if trial_state.current_step > 1 then
                                     local prev_step = trial_state.sequence[trial_state.current_step - 1]
+                                    validation_prev_step = prev_step
                                     if prev_step and prev_step.expected_combo ~= nil then
                                         local skip_strict_check = (prev_step.is_projectile_hit == true)
                                         if not skip_strict_check and (_pf.current_combo or 0) ~= prev_step.expected_combo then
-                                            if _pf.opponent_knocked_down and (_pf.current_combo or 0) == 0 and prev_step.expected_combo == 0 then
+                                            local combo_now = _pf.current_combo or 0
+                                            local current_hit_already_counted =
+                                                (expected.expected_combo or 0) > prev_step.expected_combo
+                                                and combo_now > prev_step.expected_combo
+                                                and combo_now <= expected.expected_combo
+                                            if current_hit_already_counted then
+                                                -- The current move can update combo_cnt on the same frame as its action.
+                                                combo_ok = true
+                                            elseif _pf.opponent_knocked_down and (_pf.current_combo or 0) == 0 and prev_step.expected_combo == 0 then
                                                 combo_ok = true
                                             elseif prev_step.expected_combo == 0 and (_pf.current_combo or 0) > 0 then
                                                 combo_ok = true
@@ -3812,6 +3826,25 @@ local function ct_player_process_actions(p_idx, p_state, actions_to_process)
                                         end
                                     end
                                 end
+
+                                trial_state._validation_debug = {
+                                    frame = engine_frame_count,
+                                    step = trial_state.current_step,
+                                    act_id = act_id,
+                                    motion = motion_str,
+                                    expected_id = expected.id,
+                                    expected_motion = expected.motion,
+                                    current_combo = _pf.current_combo or 0,
+                                    previous_expected_combo = validation_prev_step
+                                        and validation_prev_step.expected_combo or nil,
+                                    previous_previous_expected_combo = trial_state.current_step > 2
+                                        and trial_state.sequence[trial_state.current_step - 2].expected_combo or nil,
+                                    combo_ok = combo_ok,
+                                    hp_ok = hp_ok,
+                                    current_hp = process_act.current_hp,
+                                    expected_hp = expected.expected_hp,
+                                    frame_diff = frame_diff
+                                }
 
                                 if combo_ok and hp_ok then
                                     trial_step_idx = trial_state.current_step

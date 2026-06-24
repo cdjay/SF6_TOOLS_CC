@@ -195,6 +195,9 @@ local function parse_motion_to_icons(log_entry, trial_mode, should_flip, reverse
 
     -- Convert to uppercase IMMEDIATELY so that j. becomes J.
     s = s:upper()
+    if log_entry.id == 1231 and s:match("SHUN GOKU SATSU") then
+        s = "LP,LP,6,LK,HP (SHUN GOKU SATSU)"
+    end
 
     -- 1. Inline normalization of aerial state (J. -> [空中], keeps each [空中] at its position)
     s = s:gsub("J%.", "[空中]")
@@ -268,6 +271,9 @@ local function parse_motion_to_icons(log_entry, trial_mode, should_flip, reverse
     s = s:gsub("RAW DR", "{dr}")
     s = s:gsub("DRIVE RUSH", "{dr}")
     s = s:gsub("%(DR%)", "{dr}")
+
+    -- Commas separate sequential command inputs without drawing a plus sign.
+    s = s:gsub(",", "{seq}")
 
     -- Break the parenthesis trap for follow-ups
     s = s:gsub("%(>%)", "{followup}")
@@ -349,16 +355,22 @@ local function parse_motion_to_icons(log_entry, trial_mode, should_flip, reverse
     -- NEW: Auto-insert PLUS icon between directions and attack buttons
     local is_btn = { p = true, k = true, lp = true, mp = true, hp = true, lk = true, mk = true, hk = true, throw = true }
     local processed_tokens = {}
+    local suppress_plus = false
     for _, tok in ipairs(motion_tokens) do
-        if #processed_tokens > 0 then
-            local prev = processed_tokens[#processed_tokens]
-            if tok.type == "img" and is_btn[tok.val] then
-                if prev.type == "img" and not is_btn[prev.val] and prev.val ~= "plus" and prev.val ~= "followup" and prev.val ~= "validfollowup" then
-                    table.insert(processed_tokens, { type = "img", val = "plus" })
+        if tok.type == "img" and tok.val == "seq" then
+            suppress_plus = true
+        else
+            if #processed_tokens > 0 then
+                local prev = processed_tokens[#processed_tokens]
+                if not suppress_plus and tok.type == "img" and is_btn[tok.val] then
+                    if prev.type == "img" and not is_btn[prev.val] and prev.val ~= "plus" and prev.val ~= "followup" and prev.val ~= "validfollowup" then
+                        table.insert(processed_tokens, { type = "img", val = "plus" })
+                    end
                 end
             end
+            table.insert(processed_tokens, tok)
+            suppress_plus = false
         end
-        table.insert(processed_tokens, tok)
     end
     motion_tokens = processed_tokens
 
