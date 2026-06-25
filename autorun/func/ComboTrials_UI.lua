@@ -287,7 +287,7 @@ end
 -- =========================================================
 -- SWITCH POS LABEL (shows current state → next state)
 -- =========================================================
-local POS_LABELS = { "自由位", "连段位", "镜像位" }
+local POS_LABELS = { "任意位置", "原始位置", "镜像位置" }
 local function switch_pos_label()
     local cur = d2d_cfg.forced_position_idx or 1
     return POS_LABELS[cur] or "不重置"
@@ -306,7 +306,7 @@ local function draw_single_line_content()
 
     -- Widths excluding P2 buttons
     local rec_btn_w_base = get_max_text_width({ "停止并保存", "取消", "录制 P1", "录制 P2", "重置连段", "自动演示连段" }, true)
-    local play_btn_w_base = get_max_text_width({ "开始训练", "停止训练", "镜像位" }, true)
+    local play_btn_w_base = get_max_text_width({ "开始训练", "返回", "镜像位置" }, true)
 
     local absolute_btn_w = math.max(rec_btn_w_base, play_btn_w_base)
 
@@ -318,9 +318,10 @@ local function draw_single_line_content()
     -- 1. Buttons take their natural text width (all same size, based on longest label)
     local actual_btn_w = absolute_btn_w
 
-    -- 2. Dropdown keeps same size, buttons expand to fill
-    local dd_w = usable_w - (actual_btn_w * 4)
-    local training_btn_w = (usable_w - dd_w) / 3
+    -- 2. Dropdown keeps same size, idle buttons expand to fill the button area
+    local return_gap = math.max(actual_btn_w / 3, sp * 5)
+    local dd_w = usable_w - (actual_btn_w * 4) - return_gap
+    local idle_btn_w = (usable_w - dd_w) / 2
 
     local dynamic_rec_w = actual_btn_w
     local is_demo_active_early = (ctx.demo_state and ctx.demo_state.is_playing)
@@ -526,7 +527,7 @@ local function draw_single_line_content()
             if ctx.stop_demo then ctx.stop_demo() end
         end
     else
-        -- Normal / Playing mode: P1 dropdown + 3 buttons
+        -- Normal / Playing mode: P1 dropdown + idle buttons, or playback controls
         if #file_system.saved_combos_display_p1 == 0 then
             imgui.push_item_width(dd_w)
             local empty_text = (file_system.skipped_combos_p1 or 0) > 0
@@ -542,7 +543,7 @@ local function draw_single_line_content()
             end
         end
         imgui.same_line(0, sp)
-        local btn_w = trial_state.is_playing and actual_btn_w or training_btn_w
+        local btn_w = trial_state.is_playing and actual_btn_w or idle_btn_w
         if trial_state.is_playing then
             if styled_sf6_button("重置连段", false, btn_w, true, false, P1_COLORS) then
                 ctx.reset_trial_steps_and_load(trial_state.playing_player)
@@ -551,12 +552,8 @@ local function draw_single_line_content()
             if styled_sf6_button("录制连段", false, btn_w, true, false, P1_COLORS) then start_recording(0) end
         end
 
-        imgui.same_line(0, sp)
-        if trial_state.is_playing then
-            if styled_sf6_button("停止训练", true, btn_w, true, false, TRIAL_COLORS) then
-                trial_state.is_playing = false
-            end
-        elseif not trial_state.is_recording then
+        if not trial_state.is_playing and not trial_state.is_recording then
+            imgui.same_line(0, sp)
             local is_p1_active = (trial_state.is_playing and trial_state.playing_player == 0)
             if styled_sf6_button(is_p1_active and "停止训练" or "开始训练", is_p1_active, btn_w, true, false, TRIAL_COLORS) then
                 if is_p1_active then trial_state.is_playing = false
@@ -564,8 +561,8 @@ local function draw_single_line_content()
             end
         end
 
-        imgui.same_line(0, sp)
         if trial_state.is_playing then
+            imgui.same_line(0, sp)
             if styled_sf6_button(switch_pos_label(), false, btn_w, true, false, SWITCH_COLORS) then
                 d2d_cfg.forced_position_idx = d2d_cfg.forced_position_idx + 1
                 if d2d_cfg.forced_position_idx > 3 then d2d_cfg.forced_position_idx = 1 end
@@ -587,14 +584,11 @@ local function draw_single_line_content()
                     if ctx.start_demo then ctx.start_demo() end
                 end
             end
-        else
-            if styled_sf6_button(switch_pos_label(), false, btn_w, true, false, SWITCH_COLORS) then
-                d2d_cfg.forced_position_idx = d2d_cfg.forced_position_idx + 1
-                if d2d_cfg.forced_position_idx > 3 then d2d_cfg.forced_position_idx = 1 end
-                ctx.save_d2d_config()
-                if d2d_cfg.forced_position_idx == 1 and ctx.apply_forced_position then
-                    ctx.apply_forced_position()
-                end
+            imgui.same_line(0, sp)
+            local return_pos = imgui.get_cursor_pos()
+            imgui.set_cursor_pos(Vector2f.new(return_pos.x + return_gap, return_pos.y))
+            if styled_sf6_button("返回", true, btn_w, true, false, TRIAL_COLORS) then
+                trial_state.is_playing = false
             end
         end
 
@@ -607,7 +601,7 @@ local function draw_combo_trials_content(is_floating)
     local w_width = (size.x > 50) and size.x or (sw * 0.44)
 
     local rec_btn_w_base = get_max_text_width({ "停止并保存", "取消", "录制 P1", "录制 P2", "重置连段", "自动演示连段" }, is_floating)
-    local play_btn_w_base = get_max_text_width({ "开始训练", "停止训练", "镜像位" }, is_floating)
+    local play_btn_w_base = get_max_text_width({ "开始训练", "返回", "镜像位置" }, is_floating)
 
     local absolute_btn_w = math.max(rec_btn_w_base, play_btn_w_base)
     local spacing_cols = 20 * (sh / 1080.0)
@@ -741,7 +735,7 @@ local function draw_combo_trials_content(is_floating)
     if not is_floating then imgui.text_colored("3. 播放连段", COLORS.White) end
 
     if trial_state.is_playing or is_demo_active then
-        if styled_sf6_button("停止训练", true, play_btn_w, is_floating, false, TRIAL_COLORS) then
+        if styled_sf6_button("返回", true, play_btn_w, is_floating, false, TRIAL_COLORS) then
             trial_state.is_playing = false
             if ctx.stop_demo then ctx.stop_demo() end
         end
@@ -755,8 +749,8 @@ local function draw_combo_trials_content(is_floating)
     
     if mode_all_stacked then imgui.spacing() end
     
-    -- SWITCH POS (Hidden during recording)
-    if not trial_state.is_recording then
+    -- SWITCH POS (Hidden until playback/demo starts)
+    if not trial_state.is_recording and (trial_state.is_playing or is_demo_active) then
         if styled_sf6_button(switch_pos_label(), false, play_btn_w, is_floating, false, SWITCH_COLORS) then
             d2d_cfg.forced_position_idx = d2d_cfg.forced_position_idx + 1
             if d2d_cfg.forced_position_idx > 3 then d2d_cfg.forced_position_idx = 1 end
@@ -1123,7 +1117,7 @@ re.on_frame(function()
 
             -- Calculate single-line threshold
             local rec_btn_w_check = get_max_text_width({ "停止并保存", "取消", "录制 P1", "录制 P2" }, true)
-            local play_btn_w_check = get_max_text_width({ "开始训练", "停止训练" }, true)
+            local play_btn_w_check = get_max_text_width({ "开始训练", "返回" }, true)
             local min_single_line_w = 200 + (rec_btn_w_check + play_btn_w_check) * 2 + 150 * (sh / 1080.0)
 
             if w_width >= min_single_line_w then
@@ -1133,7 +1127,7 @@ re.on_frame(function()
                 -- NORMAL MODE: Header + standard content
                 -- Calculate exact actual width to synchronize header transition with UI layout
                 local rec_btn_w_base = get_max_text_width({ "停止并保存", "取消", "录制 P1", "录制 P2", "重置连段", "自动演示连段" }, true)
-                local play_btn_w_base = get_max_text_width({ "开始训练", "停止训练", "镜像位" }, true)
+                local play_btn_w_base = get_max_text_width({ "开始训练", "返回", "镜像位置" }, true)
                 local absolute_btn_w = math.max(rec_btn_w_base, play_btn_w_base)
                 local spacing_cols = 20 * (sh / 1080.0)
 
