@@ -545,7 +545,9 @@ local function draw_single_line_content()
         -- === DEMO ===
         if #file_system.saved_combos_display_p1 == 0 then
             imgui.push_item_width(dd_w)
-            imgui.combo("##EmptyP1", 1, { "没有 P1 文件" })
+            local empty_text = (file_system.skipped_combos_p1 or 0) > 0
+                and "连段文件无法读取（查看日志）" or "没有 P1 文件"
+            imgui.combo("##EmptyP1", 1, { empty_text })
             imgui.pop_item_width()
         else
             local should_open = (_G.ComboTrials_OpenDropdown == true)
@@ -567,7 +569,9 @@ local function draw_single_line_content()
         -- Normal / Playing mode: P1 dropdown + 3 buttons
         if #file_system.saved_combos_display_p1 == 0 then
             imgui.push_item_width(dd_w)
-            imgui.combo("##EmptyP1", 1, { "没有 P1 文件" })
+            local empty_text = (file_system.skipped_combos_p1 or 0) > 0
+                and "连段文件无法读取（查看日志）" or "没有 P1 文件"
+            imgui.combo("##EmptyP1", 1, { empty_text })
             imgui.pop_item_width()
         else
             local should_open = (_G.ComboTrials_OpenDropdown == true)
@@ -697,7 +701,9 @@ local function draw_combo_trials_content(is_floating)
     -- DROPDOWN COMBO FILES (full width)
     if #file_system.saved_combos_display_p1 == 0 then
         imgui.push_item_width(col1_w)
-        imgui.combo("##EmptyP1", 1, { "没有 P1 文件" })
+        local empty_text = (file_system.skipped_combos_p1 or 0) > 0
+            and "连段文件无法读取（查看日志）" or "没有 P1 文件"
+        imgui.combo("##EmptyP1", 1, { empty_text })
         imgui.pop_item_width()
     else
         local should_open = (_G.ComboTrials_OpenDropdown == true)
