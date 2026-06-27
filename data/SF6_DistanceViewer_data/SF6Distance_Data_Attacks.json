@@ -13407,6 +13407,39 @@
                     "ar": 175.56313,
                     "input": "5HP"
                 },
+                "visibility": {
+                    "2HK": true,
+                    "2HP": true,
+                    "2LK": true,
+                    "2LP": true,
+                    "2MK": true,
+                    "2MP": true,
+                    "3HP": true,
+                    "4HP": true,
+                    "4MP": true,
+                    "5HK": true,
+                    "5HP": true,
+                    "5LK": true,
+                    "5LP": true,
+                    "5MK": true,
+                    "5MP": true,
+                    "6HK": true,
+                    "THROW": true
+                },
+                "yellow_offset": 50
+            },
+            "ChunLi_Serenity": {
+                "low": false,
+                "red": false,
+                "visibility": {
+                    "5HK": true,
+                    "5HP": true,
+                    "5LK": true,
+                    "5LP": true,
+                    "5MK": true,
+                    "5MP": true,
+                    "THROW": true
+                },
                 "yellow_offset": 50
             },
             "Dee Jay": {
@@ -13691,7 +13724,25 @@
                     "ar": 234.8513,
                     "input": "6LK"
                 },
-                "visibility": null,
+                "visibility": {
+                    "2HK": true,
+                    "2HP": true,
+                    "2LK": true,
+                    "2LP": true,
+                    "2MK": true,
+                    "2MP": true,
+                    "4HP": true,
+                    "5HK": true,
+                    "5HP": true,
+                    "5LK": true,
+                    "5LP": true,
+                    "5MK": true,
+                    "5MP": true,
+                    "6HK": true,
+                    "6LK": true,
+                    "6MP": true,
+                    "THROW": true
+                },
                 "yellow_offset": 43
             },
             "Terry": {
@@ -13718,12 +13769,30 @@
             },
             "Zangief": {
                 "low": {
-                    "ar": 218.58701,
-                    "input": "5HP"
+                    "ar": 102,
+                    "input": "THROW"
                 },
-                "red": {
-                    "ar": 244.6949,
-                    "input": "5HP (HOLD)"
+                "red": false,
+                "visibility": {
+                    "2HK": true,
+                    "2HP": true,
+                    "2LK": true,
+                    "2LP": true,
+                    "2MK": true,
+                    "2MP": true,
+                    "3HK": true,
+                    "3MP": true,
+                    "5HK": true,
+                    "5HP": true,
+                    "5HP (HOLD)": true,
+                    "5LK": true,
+                    "5LP": true,
+                    "5MK": true,
+                    "5MP": true,
+                    "6HK": true,
+                    "6HP": true,
+                    "6MK": true,
+                    "THROW": true
                 },
                 "yellow_offset": 50
             }
@@ -13742,13 +13811,10 @@
             },
             "Akuma": {
                 "low": {
-                    "ar": 147.3336,
-                    "input": "2MK"
+                    "ar": 80,
+                    "input": "THROW"
                 },
-                "red": {
-                    "ar": 148.341,
-                    "input": "5HP"
-                },
+                "red": false,
                 "visibility": null,
                 "yellow_offset": 50
             },

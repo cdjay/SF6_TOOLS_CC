@@ -11,14 +11,14 @@
         "c3": 4278190335,
         "c4": 4292608255
     },
-    "distance_viewer_enabled": true,
+    "distance_viewer_enabled": false,
     "hide_btn": {
         "h_pct": 0.075,
         "w_pct": 0.075,
         "x_pct": 0.4625,
         "y_pct": 0.05
     },
-    "sheldons_boxes_enabled": true,
+    "sheldons_boxes_enabled": false,
     "top_alphas": {
         "active": 170,
         "inactive": 120,

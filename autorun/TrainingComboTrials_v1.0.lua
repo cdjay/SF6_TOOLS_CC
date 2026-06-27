@@ -1876,7 +1876,7 @@ local function sanitize_ascii_filename_part(value, max_chars)
     return s
 end
 
-local POS_TICKER_NAMES = { "自由位", "连段位", "镜像位" }
+local POS_TICKER_NAMES = { "任意位置", "原始位置", "镜像位置" }
 local function ct_ticker(msg)
     if _G.show_custom_ticker then _G.show_custom_ticker(msg, 0.3) end
 end

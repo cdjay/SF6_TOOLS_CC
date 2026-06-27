@@ -788,8 +788,6 @@ local UI_THEME = {
 }
 
 local styled_header = UIKit.styled_header
-local tsm_ui_font = nil
-local tsm_ui_font_size = 0
 
 local function _tsm_value_to_text(v)
     if v == nil then return "nil" end
@@ -908,19 +906,6 @@ local function _tsm_collect_control_candidates(player_idx)
 end
 
 re.on_draw_ui(function()
-    local target_font_size = 18
-    if not tsm_ui_font or tsm_ui_font_size ~= target_font_size then
-        pcall(function()
-            tsm_ui_font = imgui.load_font("msyh.ttc", target_font_size)
-            tsm_ui_font_size = target_font_size
-        end)
-    end
-    local pushed_font = false
-    if tsm_ui_font then
-        imgui.push_font(tsm_ui_font)
-        pushed_font = true
-    end
-
     -- Publish REFramework menu window rect for overlap detection
     pcall(function()
         local wpos = imgui.get_window_pos()
@@ -950,7 +935,7 @@ re.on_draw_ui(function()
 
     local _has_errors = _errs and _errs.count > 0
     if _has_errors then imgui.push_style_color(0, 0xFF0000FF) end
-    local _tsm_open = imgui.tree_node("小吞 Street Fighter 6 全能训练MOD包 v0.8b" .. (_has_errors and " [!]" or ""))
+    local _tsm_open = imgui.tree_node("小吞 Street Fighter 6 全能训练MOD包 v0.8e" .. (_has_errors and " [!]" or ""))
     if _has_errors then imgui.pop_style_color(1) end
     if _tsm_open then
 
@@ -1023,7 +1008,7 @@ re.on_draw_ui(function()
             imgui.text_colored("连段训练", 0xFF00FF00)
             imgui.text("  录制并练习自己的连段。")
             imgui.text("  保存连段的伤害、斗气、SA 统计。")
-            imgui.text("  支持连段位、镜像位或自由位回放。")
+            imgui.text("  支持原始位置、镜像位置或任意位置回放。")
         end
 
 
@@ -1042,7 +1027,6 @@ re.on_draw_ui(function()
         end
         imgui.tree_pop()
     end
-    if pushed_font then imgui.pop_font() end
 end)
 
 -- Session Recap D2D overlay (draws on top of everything)

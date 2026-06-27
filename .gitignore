@@ -1,1 +1,23 @@
 /data/Training_ScriptManager_data/TrainingHotkeys_Config.json
+
+# Runtime/local state
+*WebState.json
+*WebBridge.json
+*TrayState.json
+heartbeat.txt
+LastFail.json
+sync_signal.json
+/data/SF6_DistanceViewer_data/SF6DistanceLogger_Config.json
+/data/Training_ScriptManager_data/CharacterFieldProbe.json
+/data/TrainingComboTrials_data/*/SF6_Replay_Data.json
+/data/Stats/
+/data/TrainingComboTrials_data/Backups/
+
+# Debug/dump files
+/exam/DUMPS_AND_RAWMETHODS/
+/exam/DUMPS_AND_RAWMETHODS.zip
+
+# Build/release artifacts
+/release/
+/runtime/
+*.zip

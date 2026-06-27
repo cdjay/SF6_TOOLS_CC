@@ -1,796 +1,838 @@
 {
-  "version": "0.8d",
-  "sourceZip": "XiaoTun_SF6_TrainingMOD_v0.8d_runtime.zip",
+  "version": "0.8e",
+  "sourceZip": "XiaoTun_SF6_TrainingMOD_v0.8e_runtime.zip",
   "files": [
     {
       "path": "dinput8.dll",
-      "version": "0.8d",
+      "version": "0.8e",
       "sha256": "78b81bb7d814ecd4a595e95c759b1c981665cdbf31c474173e80c626189cbf3e",
       "required": true
     },
     {
       "path": "re2_fw_config.txt",
-      "version": "0.8d",
+      "version": "0.8e",
       "sha256": "968c0416a82379eb1759cacf08b0aa637780d8e91b1b0ca2532d6afece7669f0",
       "required": true
     },
     {
       "path": "reframework\\autorun\\func\\ComboTrials_D2D.lua",
-      "version": "0.8d",
-      "sha256": "b8de5af8b5a3d5a0136b8d86597b6991bf3390d5f3ed15a529db07cf681a2afe",
+      "version": "0.8e",
+      "sha256": "54a585e1194353c761221b6fdf98f1aec0ccb45cfc6120887adb82a6d136b598",
+      "required": true
+    },
+    {
+      "path": "reframework\\autorun\\func\\ComboTrials_Files.lua",
+      "version": "0.8e",
+      "sha256": "91582f55a2ed808915affe6a38ad4459c292938020b754b24645ce2d09b68264",
+      "required": true
+    },
+    {
+      "path": "reframework\\autorun\\func\\ComboTrials_Hotkeys.lua",
+      "version": "0.8e",
+      "sha256": "580a495053cc1bd78a09f836871897d7dc4270320e038f9a218ed6c06dcfa0c9",
       "required": true
     },
     {
       "path": "reframework\\autorun\\func\\ComboTrials_UI.lua",
-      "version": "0.8d",
-      "sha256": "4b1ba0f0fcec13aa16beb7d0c400c54d9f032b264555c8abe906ae99c3370741",
+      "version": "0.8e",
+      "sha256": "dcc8d7578c40571dfc07397194a6ab22fa35cd78614e2faa33a479fc008e828c",
+      "required": true
+    },
+    {
+      "path": "reframework\\autorun\\func\\DistanceViewer_Hotkeys.lua",
+      "version": "0.8e",
+      "sha256": "5c10f4c9187b593434b99ffca62bd4dedb553fa59c8fe394c6e8ddb18f888699",
       "required": true
     },
     {
       "path": "reframework\\autorun\\func\\GameState.lua",
-      "version": "0.8d",
+      "version": "0.8e",
       "sha256": "c93dac27c041f91fd8a3d7055621e1ee5586202c05157b318a8c0ff0d89cf32d",
       "required": true
     },
     {
+      "path": "reframework\\autorun\\func\\HitConfirm_Hotkeys.lua",
+      "version": "0.8e",
+      "sha256": "774087b23dfb9d9eb1cafc524c7c2ea87ac205f6175cd997a983201e0aa5958c",
+      "required": true
+    },
+    {
       "path": "reframework\\autorun\\func\\SharedHooks.lua",
-      "version": "0.8d",
+      "version": "0.8e",
       "sha256": "b52aa9438b9cc56f5ae3ac0f0a0436cce736327d2fb9dc2789d40f610f791a20",
       "required": true
     },
     {
+      "path": "reframework\\autorun\\func\\Training_Hotkeys.lua",
+      "version": "0.8e",
+      "sha256": "570982574e78ab95d4d2af81d191a189da934af4c9d1bd1bfd8ec6bcb18bf653",
+      "required": true
+    },
+    {
       "path": "reframework\\autorun\\func\\Training_SessionRecap.lua",
-      "version": "0.8d",
+      "version": "0.8e",
       "sha256": "9fb8841d4accf9ba245f394d5d84e92201c371f641c24524991bad075aa8645c",
       "required": true
     },
     {
       "path": "reframework\\autorun\\func\\Training_SharedUI.lua",
-      "version": "0.8d",
-      "sha256": "4ef646c50a991181ba3514dde31efc55d4d2d15c3f53100614e1fd1594b04834",
+      "version": "0.8e",
+      "sha256": "ad1f6fefb8fd600eb7177cf384392e7d9c438d2a96c6388c5f1e5dcb38e9243e",
       "required": true
     },
     {
       "path": "reframework\\autorun\\func\\UIKit.lua",
-      "version": "0.8d",
+      "version": "0.8e",
       "sha256": "e0aa5634496859a8d4ca84b42cafcbb2def6c656f298dc712cf3b2f5f5e119b4",
       "required": true
     },
     {
       "path": "reframework\\autorun\\SF6_DistanceViewer.lua",
-      "version": "0.8d",
-      "sha256": "e453bbc8645f548e56c884ea1e2b6ab5fdaa349e91aa715f9460d71d39d45c13",
+      "version": "0.8e",
+      "sha256": "7ca063a905acd0c6bdb2e832921004f8e869f1b9aaa3def0555624720e88e120",
       "required": true
     },
     {
       "path": "reframework\\autorun\\SheldonsBoxes.lua",
-      "version": "0.8d",
-      "sha256": "9b16ccbd6e0e591712a0b29310d3aadadfb48947304138d37b56f9fffeaf91d5",
+      "version": "0.8e",
+      "sha256": "4bab2056911b272f8a68f80703bc72f254798a582bb7539528fc844c6a507138",
       "required": true
     },
     {
       "path": "reframework\\autorun\\Training_ScriptManager.lua",
-      "version": "0.8d",
-      "sha256": "32dc50fed62309f40a1fad56f1a741947ab5ed632ceb9733704786fac2e68907",
+      "version": "0.8e",
+      "sha256": "4df60a5381a4a16b9c1de9a97549e9aa2386cb9a7f2db083af743e3698c9e32e",
       "required": true
     },
     {
       "path": "reframework\\autorun\\TrainingComboTrials_v1.0.lua",
-      "version": "0.8d",
-      "sha256": "390d4130616f9a38b469d482bfd4c2f23e7c52ff419bff831924bef2ac07559e",
+      "version": "0.8e",
+      "sha256": "9e26c19fd55b99111d4b9a5af408178af2d3460e930b2a82a95d4fbfcd5532cf",
       "required": true
     },
     {
       "path": "reframework\\autorun\\TrainingHitConfirm_v1.0.lua",
-      "version": "0.8d",
-      "sha256": "c4ea40005234027216f8c24648bca41f3cde0c036930a9e66e9bde096d948e3b",
+      "version": "0.8e",
+      "sha256": "4d512b6a92d83f991d519eb8c77079b2ae5bdfd6c36965a97103546181e944c2",
       "required": true
     },
     {
       "path": "reframework\\data\\reframework-d2d.json",
-      "version": "0.8d",
+      "version": "0.8e",
       "sha256": "37ca77b7cccdf16dd6ed63ace90a5023b1a905eb977c1c0b05010fb6e68b3b45",
       "required": true
     },
     {
       "path": "reframework\\data\\SF6_DistanceViewer_data\\SF6Distance_Data_Attacks.json",
-      "version": "0.8d",
-      "sha256": "9e21a144daf1fecde6f2f7960827c3d91f4dd067ae8a3722bd0d8f83721ad0ae",
+      "version": "0.8e",
+      "sha256": "c0714315ab6597ccc2445a2689090b7facbcfebd195bb27f0dabde63c101c608",
       "required": true
     },
     {
       "path": "reframework\\data\\SF6_DistanceViewer_data\\SF6DistanceLogger_Config.json",
-      "version": "0.8d",
+      "version": "0.8e",
       "sha256": "7e7a9e28994e1ca378e73f66f0b39e21827dd8cfb0852a922810b58c41ef1502",
       "required": true
     },
     {
       "path": "reframework\\data\\SF6_DistanceViewer_data\\SF6DistanceViewer_Config.json",
-      "version": "0.8d",
-      "sha256": "13c018f675219c73934c0cb3d28c00e739cacb0b4349ada00ec2a410d4a53b31",
+      "version": "0.8e",
+      "sha256": "9002532d8375cac2d09c833c4869481db9d5ea75261cb6c664cedab9576f6b82",
       "required": true
     },
     {
       "path": "reframework\\data\\SheldonsBoxes_data\\SheldonsBoxes_Charges.json",
-      "version": "0.8d",
+      "version": "0.8e",
       "sha256": "00528f37635b39407cfe3e7acf197af40c687ab74d863db8404781cac138c26b",
       "required": true
     },
     {
       "path": "reframework\\data\\SheldonsBoxes_data\\SheldonsBoxes_Config.json",
-      "version": "0.8d",
-      "sha256": "b37db83329a25aaaecf21e2071ebc36db9d1e8af66376230464a92a34948d991",
+      "version": "0.8e",
+      "sha256": "71321ec74b3d0c6c4b14ee89c26ece6c88e758bf91fc542079cf6bdf71754e0a",
       "required": true
     },
     {
       "path": "reframework\\data\\Training_ScriptManager_data\\TrainingManager_Config.json",
-      "version": "0.8d",
-      "sha256": "d1f902e82e8c997987f109305d56dcc71266a189c9d337c1e5a1f820a48d76dc",
+      "version": "0.8e",
+      "sha256": "baef1982cab13b2c21da21e04de316e370a83b051991d2606b3ddfa409afe57f",
       "required": true
     },
     {
       "path": "reframework\\data\\TrainingComboTrials_data\\CommandLogger_Visualizer.json",
-      "version": "0.8d",
+      "version": "0.8e",
       "sha256": "7fc71b59b4dcea7fe3ef0cf7712df848094cb1014d1fe4f9608c543ac7d9bd33",
       "required": true
     },
     {
       "path": "reframework\\data\\TrainingComboTrials_data\\CustomCombos\\Ingrid\\Ingrid_COMBO_6HP_7913_D6_SA3.json",
-      "version": "0.8d",
+      "version": "0.8e",
       "sha256": "ccb2b3f3035cec1645f911ff3fc64b5b8b418cd9cddcf3187365dc2b803cfcd5",
       "required": true
     },
     {
       "path": "reframework\\data\\TrainingComboTrials_data\\exceptions\\AKI.json",
-      "version": "0.8d",
+      "version": "0.8e",
       "sha256": "fe9e0f4d813185400e8c7dd6e899223d1136f37ba338a12fc03e7119bb8ce806",
       "required": true
     },
     {
       "path": "reframework\\data\\TrainingComboTrials_data\\exceptions\\Akuma.json",
-      "version": "0.8d",
+      "version": "0.8e",
       "sha256": "054d778fe913e6260639c5be82ae20e0085daae07df210144a2c86f36828ccc9",
       "required": true
     },
     {
       "path": "reframework\\data\\TrainingComboTrials_data\\exceptions\\Alex.json",
-      "version": "0.8d",
+      "version": "0.8e",
       "sha256": "7542a5839ff27a0b18f40b6a1d8ce338243ad0630186a319c03452709c9ace90",
       "required": true
     },
     {
       "path": "reframework\\data\\TrainingComboTrials_data\\exceptions\\Blanka.json",
-      "version": "0.8d",
+      "version": "0.8e",
       "sha256": "7f002a28eebebcbe4bd29ab79a887f9ceffc2deb310ec72dead0e7b80389f05f",
       "required": true
     },
     {
       "path": "reframework\\data\\TrainingComboTrials_data\\exceptions\\Cammy.json",
-      "version": "0.8d",
+      "version": "0.8e",
       "sha256": "88cc0d8aea658d9902875ff4d3151aef3302bf9a37ef8dc1f1a1c61ce80b3c1d",
       "required": true
     },
     {
       "path": "reframework\\data\\TrainingComboTrials_data\\exceptions\\ChunLi.json",
-      "version": "0.8d",
+      "version": "0.8e",
       "sha256": "bb33484c5d488d55c688bf5771f859f28ddbea08d80f0ed081a6e687ce57f221",
       "required": true
     },
     {
       "path": "reframework\\data\\TrainingComboTrials_data\\exceptions\\Common.json",
-      "version": "0.8d",
+      "version": "0.8e",
       "sha256": "c3a15debd5ca33a250ae15ff68b42c166990235cb0b9a35823abce83d0bbc5f0",
       "required": true
     },
     {
       "path": "reframework\\data\\TrainingComboTrials_data\\exceptions\\CViper.json",
-      "version": "0.8d",
+      "version": "0.8e",
       "sha256": "46d8a6d8baf05595585faf7eb3819e373eeef706a05f869b75a409ca04de2ac1",
       "required": true
     },
     {
       "path": "reframework\\data\\TrainingComboTrials_data\\exceptions\\DeeJay.json",
-      "version": "0.8d",
+      "version": "0.8e",
       "sha256": "b3d7b2a3c0d2ad9307bb52264dc72a5a23a5aafe7ecdd5bb6ddd6bbbb4dd6bf6",
       "required": true
     },
     {
       "path": "reframework\\data\\TrainingComboTrials_data\\exceptions\\Dhalsim.json",
-      "version": "0.8d",
+      "version": "0.8e",
       "sha256": "543ffd5fc0aed83e1c40f71a94976159888263e6fa37afa0b6d3fbcf672b3191",
       "required": true
     },
     {
       "path": "reframework\\data\\TrainingComboTrials_data\\exceptions\\Ed.json",
-      "version": "0.8d",
+      "version": "0.8e",
       "sha256": "e613b3ee300a2d5fc5fedc1c5577de0309c75f1b0fc1a9476d30870231ed35f8",
       "required": true
     },
     {
       "path": "reframework\\data\\TrainingComboTrials_data\\exceptions\\EHonda.json",
-      "version": "0.8d",
+      "version": "0.8e",
       "sha256": "91175b653cce51c4f6044f8ca46ec1d2b74d320bae376cb836045d0564298bbf",
       "required": true
     },
     {
       "path": "reframework\\data\\TrainingComboTrials_data\\exceptions\\Elena.json",
-      "version": "0.8d",
+      "version": "0.8e",
       "sha256": "1c8380fd248b14a639f0cc402a91c8f998d26ccf8c8c0a941c7499812d13200b",
       "required": true
     },
     {
       "path": "reframework\\data\\TrainingComboTrials_data\\exceptions\\Guile.json",
-      "version": "0.8d",
+      "version": "0.8e",
       "sha256": "48a5b7b615733c4ca9abf671545acbe080d3c4332346f767cceb05a259909bd2",
       "required": true
     },
     {
       "path": "reframework\\data\\TrainingComboTrials_data\\exceptions\\Ingrid.json",
-      "version": "0.8d",
+      "version": "0.8e",
       "sha256": "036d4b67e97f98022cc47826404648cb453777eab9848f7973c136fd0072e1ac",
       "required": true
     },
     {
       "path": "reframework\\data\\TrainingComboTrials_data\\exceptions\\Jamie.json",
-      "version": "0.8d",
+      "version": "0.8e",
       "sha256": "a23d53a208bd1081abde3c5af1afd04384a38451993afb1f89a549ebf0dbd8c3",
       "required": true
     },
     {
       "path": "reframework\\data\\TrainingComboTrials_data\\exceptions\\JP.json",
-      "version": "0.8d",
+      "version": "0.8e",
       "sha256": "20ee2b941520c57c667f746fd5ae45460a9589dde3be9400ea97dda9bb94f5cb",
       "required": true
     },
     {
       "path": "reframework\\data\\TrainingComboTrials_data\\exceptions\\Juri.json",
-      "version": "0.8d",
+      "version": "0.8e",
       "sha256": "d8d4c5a9ce211ed7bab441f30ec810a48e6a586ca8efe5026eeb465147370c51",
       "required": true
     },
     {
       "path": "reframework\\data\\TrainingComboTrials_data\\exceptions\\Ken.json",
-      "version": "0.8d",
+      "version": "0.8e",
       "sha256": "606cb0f9f8ea9b5b19a86f6b54ac76d0d6f75d462fa3a2d2729f1f968bba1003",
       "required": true
     },
     {
       "path": "reframework\\data\\TrainingComboTrials_data\\exceptions\\Kimberly.json",
-      "version": "0.8d",
+      "version": "0.8e",
       "sha256": "e8309c3729473fed35a3d23a8df00e40cb68df939282c2113ec0586d6749a4b9",
       "required": true
     },
     {
       "path": "reframework\\data\\TrainingComboTrials_data\\exceptions\\Lily.json",
-      "version": "0.8d",
+      "version": "0.8e",
       "sha256": "01f48ffb4c86751e6fcb9bfe41b57696273dad8c580e36f2bdcda21c6c0d2dae",
       "required": true
     },
     {
       "path": "reframework\\data\\TrainingComboTrials_data\\exceptions\\Luke.json",
-      "version": "0.8d",
+      "version": "0.8e",
       "sha256": "2022579897e8a1749b114d064e860c772afb253eaaf5a8bf3fcaaa5371a61888",
       "required": true
     },
     {
       "path": "reframework\\data\\TrainingComboTrials_data\\exceptions\\Mai.json",
-      "version": "0.8d",
+      "version": "0.8e",
       "sha256": "b89336fe1873835bb7f50f07b53208ede3739a6bab6ec8bd8864dfb40fd178f6",
       "required": true
     },
     {
       "path": "reframework\\data\\TrainingComboTrials_data\\exceptions\\Manon.json",
-      "version": "0.8d",
+      "version": "0.8e",
       "sha256": "913726240f3df420ce34d4ad7f614491f8e5438f4e8d636a0d4b70ee0b33b978",
       "required": true
     },
     {
       "path": "reframework\\data\\TrainingComboTrials_data\\exceptions\\Marisa.json",
-      "version": "0.8d",
+      "version": "0.8e",
       "sha256": "09c9e355c0255627c56f5818a5b0b093806aeebed040e285aa67cf79a16264ba",
       "required": true
     },
     {
       "path": "reframework\\data\\TrainingComboTrials_data\\exceptions\\MBison.json",
-      "version": "0.8d",
+      "version": "0.8e",
       "sha256": "4c99bcec923c594a17febc34774da46c1d2e12d17159e7ca123fdda305384807",
       "required": true
     },
     {
       "path": "reframework\\data\\TrainingComboTrials_data\\exceptions\\Rashid.json",
-      "version": "0.8d",
+      "version": "0.8e",
       "sha256": "21e600d3ccd04c66a36e442641826eef9adbeed01337cbf4d4e5fa1afbd04046",
       "required": true
     },
     {
       "path": "reframework\\data\\TrainingComboTrials_data\\exceptions\\Ryu.json",
-      "version": "0.8d",
+      "version": "0.8e",
       "sha256": "7062544596d31de7647d6baf3881aae12d66fc1916edd9ef7ae539437395633f",
       "required": true
     },
     {
       "path": "reframework\\data\\TrainingComboTrials_data\\exceptions\\Sagat.json",
-      "version": "0.8d",
+      "version": "0.8e",
       "sha256": "f5f3b08ea228674871a67ffcc9e12e4262638253711fd0a1ab292655191f9d93",
       "required": true
     },
     {
       "path": "reframework\\data\\TrainingComboTrials_data\\exceptions\\Terry.json",
-      "version": "0.8d",
+      "version": "0.8e",
       "sha256": "a8e0d479a6af85abf9ff5d0ab490a7accf62a172d0905a4a5580bdca67a5a2a9",
       "required": true
     },
     {
       "path": "reframework\\data\\TrainingComboTrials_data\\exceptions\\Unknown.json",
-      "version": "0.8d",
+      "version": "0.8e",
       "sha256": "e78e4e9a80c486a73b45b9afe329b6c9dc454bdbaf9a919e4bd32477b3bab1fe",
       "required": true
     },
     {
       "path": "reframework\\data\\TrainingComboTrials_data\\exceptions\\Zangief.json",
-      "version": "0.8d",
+      "version": "0.8e",
       "sha256": "3eb8f799e55bb1b86432c6658ccefda9307f6e002dcbacc7cf35002661df2306",
       "required": true
     },
     {
       "path": "reframework\\data\\TrainingComboTrials_data\\XT_Settings.json",
-      "version": "0.8d",
+      "version": "0.8e",
       "sha256": "1698125a0060885f3d8c90492e1a906ef7c540c2e9a8d652fade21d26eeac147",
       "required": true
     },
     {
       "path": "reframework\\data\\TrainingHitConfirm_data\\TrainingHitConfirm_Config.json",
-      "version": "0.8d",
+      "version": "0.8e",
       "sha256": "3ff3f98708ee3bc77138adcbd789c8e5019a052bfe133a030d5704f8084f0d7e",
       "required": true
     },
     {
       "path": "reframework\\data\\TrialHub\\sync_signal.json",
-      "version": "0.8d",
-      "sha256": "0033900a47bc4f8f189144f003072547a19c17d7e5620a75268510737e086db7",
+      "version": "0.8e",
+      "sha256": "7513c636ac431d8701cc9dc60f9c8623edce82f1ee185c11ad0590c55705e7fd",
       "required": true
     },
     {
       "path": "reframework\\fonts\\capcom_goji-udkakugoc80pro-db.ttf",
-      "version": "0.8d",
+      "version": "0.8e",
       "sha256": "7ff2a0c3cc28593177307823db0f5172d1b0a58ecb48462893eff4e1147ea65d",
       "required": true
     },
     {
       "path": "reframework\\fonts\\capcom_goji-udkakugoc80pro-r.ttf",
-      "version": "0.8d",
+      "version": "0.8e",
       "sha256": "bb96a21015f0291ec3ec67efc0567045c71571e914c376c43da734a4635736ba",
       "required": true
     },
     {
       "path": "reframework\\fonts\\frutigerltarabic-57cn.ttf",
-      "version": "0.8d",
+      "version": "0.8e",
       "sha256": "7044ab98f5c572000881e8e306b643bc90215fa225c5996aca01737fe9515a4d",
       "required": true
     },
     {
       "path": "reframework\\fonts\\msyh.ttc",
-      "version": "0.8d",
+      "version": "0.8e",
       "sha256": "d79c55e68b1131eea0cc1c47be4f572d964f28c682e143db2ad09c1e4cb07a3f",
       "required": true
     },
     {
       "path": "reframework\\fonts\\msyhbd.ttc",
-      "version": "0.8d",
+      "version": "0.8e",
       "sha256": "4508821b3dffe01f0ef5e5326a3e60df705a44633858811f67b6982dce3f6ee6",
       "required": true
     },
     {
       "path": "reframework\\fonts\\sf6_college.otf",
-      "version": "0.8d",
+      "version": "0.8e",
       "sha256": "b38e1a7fb2bdd376f7eeb1df4f4c86b429160258e566901f7570c1e03eaf49fa",
       "required": true
     },
     {
       "path": "reframework\\fonts\\SF6_college.ttf",
-      "version": "0.8d",
+      "version": "0.8e",
       "sha256": "ca51f7613355eeb9874e2318c59be241ad61c2d4bbadd4ed7d287a5c319c3018",
       "required": true
     },
     {
       "path": "reframework\\images\\active-bar.png",
-      "version": "0.8d",
+      "version": "0.8e",
       "sha256": "bb80b1abc25b1b5263b9c5a0c7e8420ec859fb1f297cbf352e8382dfd6a0dd14",
       "required": true
     },
     {
       "path": "reframework\\images\\buttonsAndArrows\\1.png",
-      "version": "0.8d",
+      "version": "0.8e",
       "sha256": "bc091828164d71ef228e3699d9cfc5c9ad5f00b3fb2f543f6500e8099d4e21df",
       "required": true
     },
     {
       "path": "reframework\\images\\buttonsAndArrows\\2_HOLD.png",
-      "version": "0.8d",
+      "version": "0.8e",
       "sha256": "65feb80adebb7e03b738d2813e2a1849764897fcad04a25d476405526fb1b9b7",
       "required": true
     },
     {
       "path": "reframework\\images\\buttonsAndArrows\\2.png",
-      "version": "0.8d",
+      "version": "0.8e",
       "sha256": "9b8e729d03442da91214f02fe9805971d1659663e985f42d14c9f5bd1d28a473",
       "required": true
     },
     {
       "path": "reframework\\images\\buttonsAndArrows\\3.png",
-      "version": "0.8d",
+      "version": "0.8e",
       "sha256": "32403af08f15b44ef89df270363a99d588730812a1a7fdb7bfa1591ae5cd4d68",
       "required": true
     },
     {
       "path": "reframework\\images\\buttonsAndArrows\\360.png",
-      "version": "0.8d",
+      "version": "0.8e",
       "sha256": "62ef2b360835720a8eab904f7e1d5a9a0008ee345b582a7fad0f2e5d38705348",
       "required": true
     },
     {
       "path": "reframework\\images\\buttonsAndArrows\\4_HOLD.png",
-      "version": "0.8d",
+      "version": "0.8e",
       "sha256": "8e8121754cf6c9acdcab72c0d7f302113ef46b2de7b162f31a4b0c7a23f6a5db",
       "required": true
     },
     {
       "path": "reframework\\images\\buttonsAndArrows\\4.png",
-      "version": "0.8d",
+      "version": "0.8e",
       "sha256": "4d07faa7cd8c3d16d26110ad6b87668c33084bf9ad3b306be30b0abbad89a7e9",
       "required": true
     },
     {
       "path": "reframework\\images\\buttonsAndArrows\\5.png",
-      "version": "0.8d",
+      "version": "0.8e",
       "sha256": "d4625afa79d85d1b89c50e35a291cf80bfd8da29117f1f0a90bf0adaf8bbee70",
       "required": true
     },
     {
       "path": "reframework\\images\\buttonsAndArrows\\6_HOLD.png",
-      "version": "0.8d",
+      "version": "0.8e",
       "sha256": "70f57dda321f4809192fe57925e2e87e97cf1fc28424bc0ac86b92118028f945",
       "required": true
     },
     {
       "path": "reframework\\images\\buttonsAndArrows\\6.png",
-      "version": "0.8d",
+      "version": "0.8e",
       "sha256": "bbb31583261a74091b4ddeb32467bc3abe04f967c7d346adb1854f7c0c88e36f",
       "required": true
     },
     {
       "path": "reframework\\images\\buttonsAndArrows\\7.png",
-      "version": "0.8d",
+      "version": "0.8e",
       "sha256": "64136ffab845044ab810c85ab77054c2c9d3250758703bd62f34c391443afe3f",
       "required": true
     },
     {
       "path": "reframework\\images\\buttonsAndArrows\\8.png",
-      "version": "0.8d",
+      "version": "0.8e",
       "sha256": "d7c65a722982a7b2226c28155b28645777d14001d783b91b34c962dde6ec8133",
       "required": true
     },
     {
       "path": "reframework\\images\\buttonsAndArrows\\9.png",
-      "version": "0.8d",
+      "version": "0.8e",
       "sha256": "2c1fdb2764dfee05f8f00dd6f93b6e20c2714e2748e95814e2ac7998152b0914",
       "required": true
     },
     {
       "path": "reframework\\images\\buttonsAndArrows\\Arrow_Green.png",
-      "version": "0.8d",
+      "version": "0.8e",
       "sha256": "6ad09e4b62b752eec7c54bad5470b1a0dce065b7ff96edf83b8a72c052e430a4",
       "required": true
     },
     {
       "path": "reframework\\images\\buttonsAndArrows\\Arrow_inverted.png",
-      "version": "0.8d",
+      "version": "0.8e",
       "sha256": "d60752a58cac94a548efa6cbda2a2d8037dbb91277fbbf22097b2d8608419e38",
       "required": true
     },
     {
       "path": "reframework\\images\\buttonsAndArrows\\Arrow_Red.png",
-      "version": "0.8d",
+      "version": "0.8e",
       "sha256": "f93cba5aa62535ca49669af6e18cf25ad9a3c2df05fca16186e0a39165ab0c3d",
       "required": true
     },
     {
       "path": "reframework\\images\\buttonsAndArrows\\Arrow.png",
-      "version": "0.8d",
+      "version": "0.8e",
       "sha256": "0c1bbbc426fccbe6b8b80a79cf57dd5d6b8e92756b375bacc746914591fe7c0e",
       "required": true
     },
     {
       "path": "reframework\\images\\buttonsAndArrows\\cursor.png",
-      "version": "0.8d",
+      "version": "0.8e",
       "sha256": "2db8891067c20b4f44c1c2412fcf3228a60c82f9dbb752f9bd30e2cf4cf4180d",
       "required": true
     },
     {
       "path": "reframework\\images\\buttonsAndArrows\\di.png",
-      "version": "0.8d",
+      "version": "0.8e",
       "sha256": "739f4f69e68865f7c052b6d0b38ecf484c70df03ba99f5876e19438f6e1f4ac5",
       "required": true
     },
     {
       "path": "reframework\\images\\buttonsAndArrows\\dr.png",
-      "version": "0.8d",
+      "version": "0.8e",
       "sha256": "300873ca7eeec3beb5f983e4f0a7ab4d690389324356787cb6f0eefba6e2b57b",
       "required": true
     },
     {
       "path": "reframework\\images\\buttonsAndArrows\\drc.png",
-      "version": "0.8d",
+      "version": "0.8e",
       "sha256": "4a6fc071596e052bd6afe48300c7c4280aa8ff9fb3587ea961d420e26ba04fb2",
       "required": true
     },
     {
       "path": "reframework\\images\\buttonsAndArrows\\followup 拷贝.png",
-      "version": "0.8d",
+      "version": "0.8e",
+      "sha256": "fcd44021400d86eec0ff8894b889b777edac415f571dcc705e88f8682d2bda6f",
+      "required": true
+    },
+    {
+      "path": "reframework\\images\\buttonsAndArrows\\followup 鎷疯礉.png",
+      "version": "0.8e",
       "sha256": "fcd44021400d86eec0ff8894b889b777edac415f571dcc705e88f8682d2bda6f",
       "required": true
     },
     {
       "path": "reframework\\images\\buttonsAndArrows\\followup.png",
-      "version": "0.8d",
+      "version": "0.8e",
       "sha256": "6ca62ed219ac31ebf459544bce58adf14dd57ad6a1d1953ef7ff47dbc582472f",
       "required": true
     },
     {
       "path": "reframework\\images\\buttonsAndArrows\\HCB.png",
-      "version": "0.8d",
+      "version": "0.8e",
       "sha256": "c8c713366844a80209fef430b977165f57107e700ec328f1792f2b5b4c38078d",
       "required": true
     },
     {
       "path": "reframework\\images\\buttonsAndArrows\\HCF.png",
-      "version": "0.8d",
+      "version": "0.8e",
       "sha256": "2e9286431e0570ccfee70e5f99c109d5b34cb3b6c8db670731282027d6e7879a",
       "required": true
     },
     {
       "path": "reframework\\images\\buttonsAndArrows\\hk.png",
-      "version": "0.8d",
+      "version": "0.8e",
       "sha256": "07778f09dd487fa9496c0f28a78be8f3391a443e1a772fc1eac374c6f0ad300c",
       "required": true
     },
     {
       "path": "reframework\\images\\buttonsAndArrows\\hold.png",
-      "version": "0.8d",
+      "version": "0.8e",
       "sha256": "24fe561bf68d2071883c74839ed4121ac768da49f0504ecbb0f8ea62d3f52a2b",
       "required": true
     },
     {
       "path": "reframework\\images\\buttonsAndArrows\\hp.png",
-      "version": "0.8d",
+      "version": "0.8e",
       "sha256": "71c9150315ddd310c97ff3e3b09fc8e1193a16def062592a0bb801c42f1f1af6",
       "required": true
     },
     {
       "path": "reframework\\images\\buttonsAndArrows\\K.png",
-      "version": "0.8d",
+      "version": "0.8e",
       "sha256": "6b8eac6ea2abaac99d104315ad8d9075140dcb9ad26fbb9348b81d3793c6b098",
       "required": true
     },
     {
       "path": "reframework\\images\\buttonsAndArrows\\lk.png",
-      "version": "0.8d",
+      "version": "0.8e",
       "sha256": "bb83e70618a218b736c70b34c7e927319d86767a5a7af9c133525e7f74d0e74c",
       "required": true
     },
     {
       "path": "reframework\\images\\buttonsAndArrows\\lp.png",
-      "version": "0.8d",
+      "version": "0.8e",
       "sha256": "65f63b38e1aee85b8c67a3829c7b605401796cf549f7a4cccd36fc1078efb8e4",
       "required": true
     },
     {
       "path": "reframework\\images\\buttonsAndArrows\\mk.png",
-      "version": "0.8d",
+      "version": "0.8e",
       "sha256": "cb0673e1745b6ae1bb21757863f6ccdc1cb7026b63c11af429a5b08638466dc9",
       "required": true
     },
     {
       "path": "reframework\\images\\buttonsAndArrows\\mp.png",
-      "version": "0.8d",
+      "version": "0.8e",
       "sha256": "d143c1ba002fba2663df3c9be44d22a961073da7f14d4ab205926c63c51fec22",
       "required": true
     },
     {
       "path": "reframework\\images\\buttonsAndArrows\\P.png",
-      "version": "0.8d",
+      "version": "0.8e",
       "sha256": "6acd303189f2e4395c15ff1d259a00ed55ad4b9c0e73dc750cc22c11dce3bf95",
       "required": true
     },
     {
       "path": "reframework\\images\\buttonsAndArrows\\parry.png",
-      "version": "0.8d",
+      "version": "0.8e",
       "sha256": "31034b12d7a780b24c5248fa8d84bc00555155d7f79679ac3c2d5113d6e2d557",
       "required": true
     },
     {
       "path": "reframework\\images\\buttonsAndArrows\\PLUS.png",
-      "version": "0.8d",
+      "version": "0.8e",
       "sha256": "322aa4cd0401f52e0df9f61154cc4f7706f1aaf56dbccd0865566b88840f475b",
       "required": true
     },
     {
       "path": "reframework\\images\\buttonsAndArrows\\rev.png",
-      "version": "0.8d",
+      "version": "0.8e",
       "sha256": "d0df8e87cd8ecfe191a7e41d5becbca9356bbbafb716800b1c187488a24c058f",
       "required": true
     },
     {
       "path": "reframework\\images\\buttonsAndArrows\\THROW.png",
-      "version": "0.8d",
+      "version": "0.8e",
       "sha256": "d23b64189d3ba6ad7df1a57f5a0f96c3e25eff8540f9fe26c9f2198d2895c7c6",
       "required": true
     },
     {
       "path": "reframework\\images\\buttonsAndArrows\\validfollowup 拷贝.png",
-      "version": "0.8d",
+      "version": "0.8e",
+      "sha256": "57842256532dced23b78990e3e5d0eac7a5b2d92d8af6ada2143cc617385769d",
+      "required": true
+    },
+    {
+      "path": "reframework\\images\\buttonsAndArrows\\validfollowup 鎷疯礉.png",
+      "version": "0.8e",
       "sha256": "57842256532dced23b78990e3e5d0eac7a5b2d92d8af6ada2143cc617385769d",
       "required": true
     },
     {
       "path": "reframework\\images\\buttonsAndArrows\\validfollowup.png",
-      "version": "0.8d",
+      "version": "0.8e",
       "sha256": "76abbd47c8171d31c224fcac0660e39d09ab003d6730f7546917cf85168ba38f",
       "required": true
     },
     {
       "path": "reframework\\images\\done-bar.png",
-      "version": "0.8d",
+      "version": "0.8e",
       "sha256": "61594b5c0a592c66606f319c2755fdf08e31f96d40e64e9d0c2caf4ae16a3b4f",
       "required": true
     },
     {
       "path": "reframework\\images\\fail-bar.png",
-      "version": "0.8d",
+      "version": "0.8e",
       "sha256": "01b33b5c07add27c2fbdd83048d757d24725293f377d3736f19a27a3d9f1c67d",
       "required": true
     },
     {
       "path": "reframework\\images\\success-bar.png",
-      "version": "0.8d",
+      "version": "0.8e",
       "sha256": "d74367f36a04dcbacd980c61d2fc6ed797d4dee60202476cfaa0e409cc4a0f02",
       "required": true
     },
     {
       "path": "reframework\\images\\ui_icons\\bar_chart_white.png",
-      "version": "0.8d",
+      "version": "0.8e",
       "sha256": "855b458df7e0403726da69146ef309446462cf6e85dbfcf71e9a8db40ee039fc",
       "required": true
     },
     {
       "path": "reframework\\images\\ui_icons\\chevron_down_ios.png",
-      "version": "0.8d",
+      "version": "0.8e",
       "sha256": "715d7ae6541528870dfa579b946c4ef2279f6f77f0dad51d4c8860ec2df4cc30",
       "required": true
     },
     {
       "path": "reframework\\images\\ui_icons\\chevron_left_ios.png",
-      "version": "0.8d",
+      "version": "0.8e",
       "sha256": "9d3e8016133c10c12f29973e58dc5719fade5ce35ed899d49110b8badfaabe89",
       "required": true
     },
     {
       "path": "reframework\\images\\ui_icons\\chevron_left_magenta.png",
-      "version": "0.8d",
+      "version": "0.8e",
       "sha256": "f897f58b305a4564da48f3f06e44b05181d39bedf945635f3f5b292f110c317a",
       "required": true
     },
     {
       "path": "reframework\\images\\ui_icons\\chevron_left_rounded.png",
-      "version": "0.8d",
+      "version": "0.8e",
       "sha256": "bca577cb7cf27ae5da7f6d3a06b31daf8fc5861adfe2103a524a8dc4ebc54969",
       "required": true
     },
     {
       "path": "reframework\\images\\ui_icons\\chevron_right_ios.png",
-      "version": "0.8d",
+      "version": "0.8e",
       "sha256": "cef3d96b6e6a3364855d048f587f40520b0c5e3eacd59a7b5f94c5f4b4a6aa47",
       "required": true
     },
     {
       "path": "reframework\\images\\ui_icons\\chevron_right_magenta.png",
-      "version": "0.8d",
+      "version": "0.8e",
       "sha256": "5c70da0ba1bc75c96ab5c6827d79b1e09b6a884a68ac389558d11221cba9b737",
       "required": true
     },
     {
       "path": "reframework\\images\\ui_icons\\chevron_right_rounded.png",
-      "version": "0.8d",
+      "version": "0.8e",
       "sha256": "64c5c12c0f38a52e88d7fd03b0b5abaa19d39b2dc92a7d42a6c05c83db33baeb",
       "required": true
     },
     {
       "path": "reframework\\images\\ui_icons\\chevron_up_ios.png",
-      "version": "0.8d",
+      "version": "0.8e",
       "sha256": "1bd1bb1f292968f3b9667eeb2be54b8babf99a7772695e592770c8909da6c986",
       "required": true
     },
     {
       "path": "reframework\\images\\ui_icons\\combo_chart_white.png",
-      "version": "0.8d",
+      "version": "0.8e",
       "sha256": "86cc41796a4c98a1d24e99dd0fb82eba7c9a8fb00bacede40c5447269aca26f1",
       "required": true
     },
     {
       "path": "reframework\\images\\ui_icons\\crown_white.png",
-      "version": "0.8d",
+      "version": "0.8e",
       "sha256": "cd8ffd201069ad1e88c952d19a47873d7dee3a82c8ab43758a708b51fa942dd2",
       "required": true
     },
     {
       "path": "reframework\\images\\ui_icons\\diamond_magenta.png",
-      "version": "0.8d",
+      "version": "0.8e",
       "sha256": "656018b44ee9ec5606f407ce3147d0fa64deebe3539af5e2076b3e9c18342d31",
       "required": true
     },
     {
       "path": "reframework\\images\\ui_icons\\gradient_bar_magenta.png",
-      "version": "0.8d",
+      "version": "0.8e",
       "sha256": "0c380da44241de5bde756ab0dedfaade61049813d86bb4d44070dcb513ab1dd8",
       "required": true
     },
     {
       "path": "reframework\\images\\ui_icons\\horizontal_line_magenta.png",
-      "version": "0.8d",
+      "version": "0.8e",
       "sha256": "554aeef6949e211f945b3ac8b67957612932b7617bcb9fc1a688fa69358dbf25",
       "required": true
     },
     {
       "path": "reframework\\images\\ui_icons\\minus_magenta.png",
-      "version": "0.8d",
+      "version": "0.8e",
       "sha256": "ef320e491ee6370ec87d84d869b1b3f6933020a823dcf3adaf02dd8ae8160ff2",
       "required": true
     },
     {
       "path": "reframework\\images\\ui_icons\\refresh_ios.png",
-      "version": "0.8d",
+      "version": "0.8e",
       "sha256": "5b16078eb568713380d8496bd7cc986d8c4707d20eb421c821afc998467fcc16",
       "required": true
     },
     {
       "path": "reframework\\images\\ui_icons\\refresh_rounded.png",
-      "version": "0.8d",
+      "version": "0.8e",
       "sha256": "bebd4e77967d7cb74e6f4658e290c2a70f5f84a948b9dda75bca39202bba5a0a",
       "required": true
     },
     {
       "path": "reframework\\images\\ui_icons\\rhombus_magenta.png",
-      "version": "0.8d",
+      "version": "0.8e",
       "sha256": "7de296d51570aeb4647d9f15dd5a6a1e8b50f0d0dc420d814f5da9e9f916442c",
       "required": true
     },
     {
       "path": "reframework\\images\\ui_icons\\settings_white.png",
-      "version": "0.8d",
+      "version": "0.8e",
       "sha256": "69fa43c5dc7bed25c48b6f2467ae6858d1197e038697f1d93578526041a8a748",
       "required": true
     },
     {
       "path": "reframework\\images\\ui_icons\\star_white.png",
-      "version": "0.8d",
+      "version": "0.8e",
       "sha256": "721a646c102928575b87cd9f39bc43f86eb089e409ea7d2fd8c6d5ab6b8d9421",
       "required": true
     },
     {
       "path": "reframework\\images\\ui_icons\\statistics_white.png",
-      "version": "0.8d",
+      "version": "0.8e",
       "sha256": "d98b1544ad907cd837ba9995cb62b5545a0da7597f3200172b52d28162d03f49",
       "required": true
     },
     {
       "path": "reframework\\plugins\\reframework-d2d.dll",
-      "version": "0.8d",
+      "version": "0.8e",
       "sha256": "0b64586c8e7903eb9cabd4b5c30c0544b528e3898aed9e44cb8f37e14246aa94",
       "required": true
     },
     {
       "path": "reframework\\plugins\\script_whitelist.dll",
-      "version": "0.8d",
+      "version": "0.8e",
       "sha256": "8c0a31a288929fed3b4333d83aac69620e7a9339f22add014aa33469249ebe48",
       "required": true
     }
