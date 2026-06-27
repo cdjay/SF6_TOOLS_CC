@@ -3,9 +3,10 @@
 -- =========================================================
 
 local M = {}
+local RuntimeSafety = require("func/RuntimeSafety")
 
 local function can_use_hit_confirm()
-    return not _G.IsInBattleHub and _G.CurrentTrainerMode == 2
+    return RuntimeSafety.is_training_allowed() and _G.CurrentTrainerMode == 2
 end
 
 function M.init(commands, Hotkeys)

@@ -8,6 +8,7 @@ local sdk = sdk
 local imgui = imgui
 
 local M = {}
+local RuntimeSafety = require("func/RuntimeSafety")
 
 -- Shared context (set by init)
 local ctx -- { d2d_cfg, trial_state, players, sf6_menu_state }
@@ -654,7 +655,7 @@ local function d2d_init()
 end
 
 local function draw_bar_toggle_arrows()
-    if not ((_G.IsInReplay == true) or (_G.FlowMapID == 10) or (_G.IsInBattleHub == true)) then return end
+    if not RuntimeSafety.is_allowed() then return end
     local pm = sdk.get_managed_singleton("app.PauseManager")
     if pm then
         local pb = pm:get_field("_CurrentPauseTypeBit")
@@ -697,7 +698,7 @@ local function d2d_draw_inner()
     local players = ctx and ctx.players
 
     local should_draw = d2d_cfg and d2d_cfg.enabled and (_G.ComboTrialsD2DEnabled == true)
-    local is_replay_context = (_G.FlowMapID == 10) or (_G.IsInReplay == true) or (_G.IsInBattleHub == true)
+    local is_replay_context = RuntimeSafety.is_replay_allowed()
     local has_training_context = is_replay_context or (_G.TrainingScriptManagerActiveThisFrame == true)
 
     local sw, sh = d2d.surface_size()

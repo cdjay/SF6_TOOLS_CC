@@ -7,6 +7,7 @@ local Vector3f = Vector3f
 local Vector2f = Vector2f
 
 require("func/SharedHooks")
+local RuntimeSafety = require("func/RuntimeSafety")
 local GS = require("func/GameState")
 local UIKit = require("func/UIKit")
 
@@ -891,7 +892,7 @@ local function init_d2d_icons()
 end
 
 local function draw_d2d_icons()
-    if _G.SF6_DistanceViewer_Enabled ~= true then
+    if _G.SF6_DistanceViewer_Enabled ~= true or not RuntimeSafety.is_training_allowed() then
         d2d_queue = {}
         return
     end
@@ -2936,6 +2937,20 @@ end
 
 _G._aa_log = { active = false, file = nil, frame = 0 }
 local _aa_log = _G._aa_log
+local _dv_last_window_rect = nil -- saved from on_draw_ui, used next frame
+
+local function _dv_disable_runtime_effects()
+    d2d_queue = {}
+    _dv_last_window_rect = nil
+    _G._dv_aa_p2_mask = 0
+    if auto_activate then
+        auto_activate.p2_mask = 0
+        auto_activate.delay_counter = 0
+        auto_activate.waiting_neutral = false
+        auto_activate.was_in_range = false
+        if auto_activate.is_firing then aa_stop_fire() end
+    end
+end
 
 local function _dv_read_p1_input_new()
     local p1 = GS.p1
@@ -2958,7 +2973,7 @@ local function _dv_read_p1_act_st()
 end
 
 local function aa_tick()
-    if not _G.TrainingModeActive or _G.IsInReplay or _G.FlowMapID == 10 then
+    if not RuntimeSafety.is_training_allowed() then
         auto_activate.p2_mask = 0
         return
     end
@@ -3199,6 +3214,7 @@ end
 -- Register AA input injection with shared pl_input_sub hook (0_SharedHooks.lua)
 local _dv_gBattle_td = sdk.find_type_definition("gBattle")
 local function _dv_apply_p2_input_mask()
+    if not RuntimeSafety.can_inject_input() then return end
     local p2 = _dv_gBattle_td:get_field("Player"):get_data(nil).mcPlayer[1]
     if not p2 then return end
     local final_mask = auto_activate.p2_mask
@@ -3214,7 +3230,7 @@ local function _dv_apply_p2_input_mask()
 end
 if _G._shared_input_post then
     table.insert(_G._shared_input_post, function(p_id, retval)
-        if p_id == 1 and (auto_activate.is_firing or auto_activate.footwork_enabled) and auto_activate.p2_mask > 0 then
+        if RuntimeSafety.can_inject_input() and p_id == 1 and (auto_activate.is_firing or auto_activate.footwork_enabled) and auto_activate.p2_mask > 0 then
             pcall(_dv_apply_p2_input_mask)
         end
     end)
@@ -3237,8 +3253,6 @@ pcall(function()
         end, function(retval) return retval end)
     end
 end)
-
-local _dv_last_window_rect = nil -- saved from on_draw_ui, used next frame
 
 local function _dv_save_window_rect()
     local wpos = imgui.get_window_pos()
@@ -3337,11 +3351,8 @@ end
    
 
 re.on_frame(function()
-    if _G.SF6_DistanceViewer_Enabled ~= true then
-        d2d_queue = {}
-        _dv_last_window_rect = nil
-        _G._dv_aa_p2_mask = 0
-        if auto_activate and auto_activate.is_firing then aa_stop_fire() end
+    if _G.SF6_DistanceViewer_Enabled ~= true or not RuntimeSafety.is_training_allowed() then
+        _dv_disable_runtime_effects()
         return
     end
     if p2_cache and p2_cache.valid and p2_cache.real_name then
@@ -4080,4 +4091,7 @@ local function draw_distance_viewer_menu_ui()
     end
 end
 
-re.on_draw_ui(draw_distance_viewer_menu_ui)
+re.on_draw_ui(function()
+    if not RuntimeSafety.is_training_allowed() then return end
+    draw_distance_viewer_menu_ui()
+end)

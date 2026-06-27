@@ -4,10 +4,11 @@
 -- =========================================================
 
 local M = {}
+local RuntimeSafety = require("func/RuntimeSafety")
 
 local function can_use_combo_trials()
-    if _G.IsInBattleHub then return false end
-    if _G.CurrentTrainerMode ~= 4 and _G.FlowMapID ~= 10 and not _G.IsInReplay then return false end
+    if not RuntimeSafety.is_training_allowed() then return false end
+    if _G.CurrentTrainerMode ~= 4 then return false end
     if _G._ct_bar_collapsed then return false end
     return true
 end

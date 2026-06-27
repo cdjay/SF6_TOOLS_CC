@@ -17,7 +17,7 @@
     {
       "path": "reframework\\autorun\\func\\ComboTrials_D2D.lua",
       "version": "0.8e",
-      "sha256": "54a585e1194353c761221b6fdf98f1aec0ccb45cfc6120887adb82a6d136b598",
+      "sha256": "f69f7e6f390f6432faf7486cbf96e8a1335eec3fff62ff68110de77f1aeb33d6",
       "required": true
     },
     {
@@ -29,19 +29,19 @@
     {
       "path": "reframework\\autorun\\func\\ComboTrials_Hotkeys.lua",
       "version": "0.8e",
-      "sha256": "580a495053cc1bd78a09f836871897d7dc4270320e038f9a218ed6c06dcfa0c9",
+      "sha256": "ab61fe29ab7d586b8e237af394dda2acad1fd3b82d5aa6daf9cacf7c6abafc00",
       "required": true
     },
     {
       "path": "reframework\\autorun\\func\\ComboTrials_UI.lua",
       "version": "0.8e",
-      "sha256": "dcc8d7578c40571dfc07397194a6ab22fa35cd78614e2faa33a479fc008e828c",
+      "sha256": "8cafb2fcd5935ef2da43c88672c9d7be6b8633faafaf3688df841060154baf85",
       "required": true
     },
     {
       "path": "reframework\\autorun\\func\\DistanceViewer_Hotkeys.lua",
       "version": "0.8e",
-      "sha256": "5c10f4c9187b593434b99ffca62bd4dedb553fa59c8fe394c6e8ddb18f888699",
+      "sha256": "8658cf13659335d1594d684481720620602eae70b59e46ff269425eea32dd6d7",
       "required": true
     },
     {
@@ -53,13 +53,19 @@
     {
       "path": "reframework\\autorun\\func\\HitConfirm_Hotkeys.lua",
       "version": "0.8e",
-      "sha256": "774087b23dfb9d9eb1cafc524c7c2ea87ac205f6175cd997a983201e0aa5958c",
+      "sha256": "69f765c0bab705cf62a3ea75cc8b58bb0d2a0e04517eaa5318667c94d8b13bf1",
+      "required": true
+    },
+    {
+      "path": "reframework\\autorun\\func\\RuntimeSafety.lua",
+      "version": "0.8e",
+      "sha256": "e3cb3f6ea7b0300adbbc70b974fa209c5afb04262c8843f87904239b12eded57",
       "required": true
     },
     {
       "path": "reframework\\autorun\\func\\SharedHooks.lua",
       "version": "0.8e",
-      "sha256": "b52aa9438b9cc56f5ae3ac0f0a0436cce736327d2fb9dc2789d40f610f791a20",
+      "sha256": "bbc567c588bda19667f6ecdc00c51094fa65fc3ac3312fff611219935795ddaa",
       "required": true
     },
     {
@@ -89,31 +95,31 @@
     {
       "path": "reframework\\autorun\\SF6_DistanceViewer.lua",
       "version": "0.8e",
-      "sha256": "7ca063a905acd0c6bdb2e832921004f8e869f1b9aaa3def0555624720e88e120",
+      "sha256": "b2204e9bc01dffa19c6bf5854003605b34b7a645c4cf5f3e336b11822c910df9",
       "required": true
     },
     {
       "path": "reframework\\autorun\\SheldonsBoxes.lua",
       "version": "0.8e",
-      "sha256": "4bab2056911b272f8a68f80703bc72f254798a582bb7539528fc844c6a507138",
+      "sha256": "2901ef55c9b98820630f1ee97115372c6c27d1ec61f143db1eba129303a27e96",
       "required": true
     },
     {
       "path": "reframework\\autorun\\Training_ScriptManager.lua",
       "version": "0.8e",
-      "sha256": "4df60a5381a4a16b9c1de9a97549e9aa2386cb9a7f2db083af743e3698c9e32e",
+      "sha256": "98549ad21d9ae984ac3ad85e58283c076f20c6cb6124b7abbf4da678174e31c9",
       "required": true
     },
     {
       "path": "reframework\\autorun\\TrainingComboTrials_v1.0.lua",
       "version": "0.8e",
-      "sha256": "9e26c19fd55b99111d4b9a5af408178af2d3460e930b2a82a95d4fbfcd5532cf",
+      "sha256": "25502358325df6dcc875504ff287114d23962df0c5fc3a4f1e250be9aa361790",
       "required": true
     },
     {
       "path": "reframework\\autorun\\TrainingHitConfirm_v1.0.lua",
       "version": "0.8e",
-      "sha256": "4d512b6a92d83f991d519eb8c77079b2ae5bdfd6c36965a97103546181e944c2",
+      "sha256": "ae3de45be2ad89967385faadcd33cf5fe89f02961a2b93b551241b0e6487f24c",
       "required": true
     },
     {

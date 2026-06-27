@@ -3,6 +3,7 @@ local imgui = imgui
 local re = re
 local json = json
 require("func/SharedHooks")
+local RuntimeSafety = require("func/RuntimeSafety")
 local GS = require("func/GameState")
 
 pcall(function()
@@ -1445,7 +1446,7 @@ end
 
 
 local function apply_forced_position(skip_mirror)
-    if _G.IsInBattleHub or _G.IsInReplay then return end
+    if not RuntimeSafety.is_training_allowed() then return end
 
     -- SYNCHRONIZATION: Always update visual flip state before injecting position
     update_trial_flip_state(skip_mirror)
@@ -1535,12 +1536,12 @@ end
 -- =========================================================
 
 local function reset_positions_to_default()
-    if _G.IsInReplay or _G.FlowMapID == 10 then return end
+    if not RuntimeSafety.is_training_allowed() then return end
     restore_native_position_settings(true)
 end
 
 local function apply_current_position_refresh()
-    if _G.IsInReplay or _G.FlowMapID == 10 then return end
+    if not RuntimeSafety.is_training_allowed() then return end
     restore_native_position_settings(true)
 end
 
@@ -2567,7 +2568,7 @@ end
 local function ct_player_tracking(p_idx, p_state)
     -- LILY STRICT: Track physical button held on controller
     if p_state.profile_name == "Lily" and #p_state.log > 0 and p_state.log[1].trigger_mask then
-        p_state.log[1].is_physically_holding = ((direct_input & p_state.log[1].trigger_mask) ~= 0)
+        p_state.log[1].is_physically_holding = ((_pf.direct_input & p_state.log[1].trigger_mask) ~= 0)
     end
 
     -- ========================================================
@@ -3294,28 +3295,23 @@ local function ct_player_process_actions(p_idx, p_state, actions_to_process)
                             prev_step.expected_combo = _pf.current_combo
                         end
 
-                        -- WHIFF DETECTION: Dynamically tag the previous hit if it didn't connect
-                        -- Also check _pf.current_combo > 0 because during a cancel, the hit can be
-                        -- counted on the same frame as the action change (race condition)
-                        if not prev_step.has_hit and (_pf.current_combo or 0) == 0 then
-                            local p_id = prev_step.id or 0
-                            local is_mov = (p_id == 17 or p_id == 18 or p_id == 36 or p_id == 37 or p_id == 38) or is_drive_rush_id(p_id)
-                            local m_str = prev_step.motion and prev_step.motion:upper() or ""
-                            local is_parry = m_str:match("PARRY")
-                            local is_dash = m_str:match("DASH") or m_str:match("66") or m_str:match("44") or is_drive_rush_motion(prev_step.motion)
-
-                            if not is_mov and not is_parry and not is_dash and not m_str:match("空挥") and not m_str:match("WHIFF") then
-                                prev_step.motion = prev_step.motion .. " (空挥)"
-                                -- Update the Live Log for real-time display
-                                if p_state.log and #p_state.log > 0 then
-                                    local log_to_update = p_state.log[1]
-                                    if log_to_update and log_to_update.id == prev_step.id then
-                                        log_to_update.motion = log_to_update.motion .. " (空挥)"
+                        -- Do not tag whiff here. During recording the combo counter can lag behind
+                        -- the next action by a frame, which made the live list show false "空挥"
+                        -- entries while the saved combo was correct. Final whiff detection still
+                        -- runs once recording stops.
+                        if (_pf.current_combo or 0) > 0 then
+                            prev_step.has_hit = true
+                            if prev_step.motion then
+                                prev_step.motion = prev_step.motion:gsub("%s*%(空挥%)", ""):gsub("%s*%(WHIFF%)", "")
+                            end
+                            if p_state.log then
+                                for _, log_to_update in ipairs(p_state.log) do
+                                    if log_to_update.trial_step_idx == #trial_state.sequence and log_to_update.motion then
+                                        log_to_update.motion = log_to_update.motion:gsub("%s*%(空挥%)", ""):gsub("%s*%(WHIFF%)", "")
+                                        break
                                     end
                                 end
                             end
-                        elseif (_pf.current_combo or 0) > 0 then
-                            prev_step.has_hit = true
                             -- Capture CH/PC at the moment of the hit
                             if trial_state.is_recording and prev_step.counter_type == 0 then
                                 pcall(function()
@@ -3696,6 +3692,14 @@ end
 -- MAIN ON_FRAME — ORCHESTRATOR
 -- =========================================================
 re.on_frame(function()
+    if not RuntimeSafety.is_allowed() then
+        if demo_state then
+            demo_state.is_playing = false
+            demo_state.p1_mask = 0
+        end
+        ct_handle_mode_exit()
+        return
+    end
     pcall(_ct_track_live_combo)
     ct_handle_web_commands()
 
@@ -4278,6 +4282,11 @@ end
 
 local _ss_hooked = false
 re.on_frame(function()
+    if not RuntimeSafety.is_training_allowed() then
+        _save_pending = false
+        _pending_restore = 0
+        return
+    end
     if not _ss_hooked then
         _ss_hooked = true
         local td = sdk.find_type_definition("app.training.TrainingManager")
@@ -4388,6 +4397,7 @@ end
 -- Register with shared pl_input_sub hook (0_SharedHooks.lua)
 if _G._shared_input_pre then
 table.insert(_G._shared_input_pre, function(p_id, args)
+    if not RuntimeSafety.is_training_allowed() then return end
     if not tick_done_this_frame and demo_state.is_playing then
         if not trial_state.is_playing then
             demo_state.is_playing = false
@@ -4457,6 +4467,7 @@ end
 
 if _G._shared_input_post then
 table.insert(_G._shared_input_post, function(p_id, retval)
+    if not RuntimeSafety.is_training_allowed() then return end
     if p_id == 0 and trial_state.is_playing and trial_state.fail_timer and trial_state.fail_timer > 0 then
         pcall(_ct_clear_inputs, trial_state.playing_player)
     end

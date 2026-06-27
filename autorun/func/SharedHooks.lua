@@ -3,6 +3,7 @@
 -- Named with 0_ prefix to load before other scripts
 
 local sdk = sdk
+local RuntimeSafety = require("func/RuntimeSafety")
 
 -- =========================================================
 -- SHARED ERROR REGISTRY: central logging for swallowed errors
@@ -139,14 +140,18 @@ if cplayer_type then
                 elseif hook_addr == _cached_addr[1] then p_id = 1 end
 
                 table.insert(p_id_stack, p_id)
-                for _, cb in ipairs(_G._shared_input_pre) do
-                    pcall(cb, p_id, args)
+                if RuntimeSafety.can_inject_input() then
+                    for _, cb in ipairs(_G._shared_input_pre) do
+                        pcall(cb, p_id, args)
+                    end
                 end
             end,
             function(retval)
                 local p_id = table.remove(p_id_stack) or -1
-                for _, cb in ipairs(_G._shared_input_post) do
-                    pcall(cb, p_id, retval)
+                if RuntimeSafety.can_inject_input() then
+                    for _, cb in ipairs(_G._shared_input_post) do
+                        pcall(cb, p_id, retval)
+                    end
                 end
                 return retval
             end

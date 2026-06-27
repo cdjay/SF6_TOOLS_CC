@@ -3,6 +3,7 @@ local sdk = sdk
 local imgui = imgui
 local json = json
 require("func/SharedHooks") -- error registry (_G.safe_load_json)
+local RuntimeSafety = require("func/RuntimeSafety")
 local GS = require("func/GameState") -- per-frame snapshot (players, act_st, pause)
 local UIKit = require("func/UIKit")
 local SharedUI = require("func/Training_SharedUI")
@@ -1157,6 +1158,7 @@ local function draw_session_floating()
 end
 
 re.on_frame(function()
+    if not RuntimeSafety.is_training_allowed() then return end
     -- Web bridge: export state & handle commands
     if _G.CurrentTrainerMode == 2 then
         if _G._tsm_web_cmd then
@@ -1218,6 +1220,7 @@ re.on_frame(function()
 end)
 
 re.on_draw_ui(function()
+    if not RuntimeSafety.is_training_allowed() then return end
     if DEPENDANT_ON_MANAGER and _G.CurrentTrainerMode ~= 2 then return end
 
     if imgui.tree_node("确认训练设置v0.8e") then

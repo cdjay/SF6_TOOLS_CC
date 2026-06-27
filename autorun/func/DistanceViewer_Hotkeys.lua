@@ -3,9 +3,10 @@
 -- =========================================================
 
 local M = {}
+local RuntimeSafety = require("func/RuntimeSafety")
 
 local function can_use_distance_viewer()
-    return not _G.IsInBattleHub and _G.SF6_DistanceViewer_Enabled == true
+    return RuntimeSafety.is_training_allowed() and _G.SF6_DistanceViewer_Enabled == true
 end
 
 function M.init(commands, Hotkeys)

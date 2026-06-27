@@ -13,6 +13,7 @@ local draw = draw
 local json = json
 
 require("func/SharedHooks")
+local RuntimeSafety = require("func/RuntimeSafety")
 local GS = require("func/GameState")
 local UIKit = require("func/UIKit")
 local Vector3f = Vector3f
@@ -352,6 +353,7 @@ local function draw_text_safe(text, x, y, color, size) for offset = 1, shadow_la
 local detected_infos = { [0] = { name = "Waiting...", id = -1 }, [1] = { name = "Waiting...", id = -1 } }
 -- Player info from shared hook (0_SharedHooks.lua)
 re.on_frame(function()
+    if not RuntimeSafety.is_training_allowed() then return end
     if _G._shared_player_info then
         for i = 0, 1 do
             local info = _G._shared_player_info[i]
@@ -619,7 +621,7 @@ end
 -- [6. MAIN LOOP]
 -- =========================================================
 re.on_frame(function()
-    if _G.SheldonsBoxes_Enabled ~= true then
+    if _G.SheldonsBoxes_Enabled ~= true or not RuntimeSafety.is_training_allowed() then
         _G._vr_queue = nil
         click_flash_frames = 0
         return
@@ -1131,6 +1133,10 @@ if d2d and d2d.register then
             _G._vr_queue = nil
             return
         end
+        if not RuntimeSafety.is_training_allowed() then
+            _G._vr_queue = nil
+            return
+        end
         -- Consume queue (pushed by re.on_frame — stops when script is disabled)
         local vr_data = _G._vr_queue
         _G._vr_queue = nil
@@ -1228,6 +1234,7 @@ local function save_display_config()
 end
 
 re.on_draw_ui(function()
+    if not RuntimeSafety.is_training_allowed() then return end
     if imgui.tree_node("Sheldon's 碰撞框") then
         if _G.SheldonsBoxes_Enabled ~= true then
             imgui.text_colored("当前已由顶部菜单关闭。", COL_GREY)

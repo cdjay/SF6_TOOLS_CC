@@ -6,6 +6,7 @@ local sdk = sdk
 local imgui = imgui
 local json = json
 require("func/SharedHooks") -- error registry (_G.safe_load_json) + shared hooks
+local RuntimeSafety = require("func/RuntimeSafety")
 local GS = require("func/GameState")
 local UIKit = require("func/UIKit")
 local TrainingHotkeys = require("func/Training_Hotkeys")
@@ -314,13 +315,13 @@ TrainingHotkeys.register_scope("script_manager", {
         {
             id = "cycle_mode",
             label = "循环切换训练模式",
-            enabled = function() return not _G.IsInBattleHub and is_in_training_mode() end,
+            enabled = function() return RuntimeSafety.is_training_allowed() end,
             run = cycle_next_mode,
         },
         {
             id = "toggle_ui",
             label = "隐藏 / 显示训练 UI",
-            enabled = function() return not _G.IsInBattleHub end,
+            enabled = function() return RuntimeSafety.is_training_allowed() end,
             run = toggle_global_ui_visibility,
         },
     },
@@ -637,7 +638,8 @@ re.on_frame(function()
     _G.FlowMapID = fid
     _G.IsInBattleHub = (fid == 9)
     local is_replay = (fid == 10) or (_G.IsInReplay == true)
-    pcall(TrainingHotkeys.update)
+    local in_training = is_in_training_mode()
+    RuntimeSafety.begin_frame(fid, in_training, is_replay, _G.IsInBattleHub)
 
     -- HIDE UI BUTTON (works in training + replay)
     if not _G._tsm_hide_flash then _G._tsm_hide_flash = 0 end
@@ -645,7 +647,7 @@ re.on_frame(function()
     pcall(_tsm_update_hide_rect)
     if not _G._tsm_hide_cooldown then _G._tsm_hide_cooldown = 0 end
     if _G._tsm_hide_cooldown > 0 then _G._tsm_hide_cooldown = _G._tsm_hide_cooldown - 1 end
-    if not _G.IsInBattleHub and _G._tsm_hide_cooldown == 0 and imgui.is_mouse_clicked(0) then
+    if RuntimeSafety.is_training_allowed() and _G._tsm_hide_cooldown == 0 and imgui.is_mouse_clicked(0) then
         local m = imgui.get_mouse()
         if m then
             local r = _G._tsm_hide_rect
@@ -658,16 +660,12 @@ re.on_frame(function()
     -- BattleHub: always disabled
     if _G.IsInBattleHub then
         if _G.CurrentTrainerMode ~= 0 then _G.CurrentTrainerMode = 0 end
-        _G.TrainingModeActive = false
-        _G.TrainingGamePaused = true
-        _G.ComboTrialsD2DEnabled = false
-        _G.ComboTrials_HideNativeHUD = false
-        _G._ct_bar_geometry = nil
+        RuntimeSafety.disable("battle_hub")
         pcall(_tsm_dump_webstate_inactive)
         return
     end
 
-    -- Replay: disable once, then timer, then disabled (no top bar)
+    -- Replay: UI-only analysis is allowed; input injection stays disabled.
     if is_replay then
         if _tsm_was_replay == false then
             -- First detection
@@ -688,6 +686,8 @@ re.on_frame(function()
         -- In replay: always return, no top bar, no guard logic
         _G.TrainingFloatingBarTop = nil
         _G.TrainingModeActive = true
+        RuntimeSafety.allow_replay()
+        pcall(TrainingHotkeys.update, true)
         return
     end
 
@@ -696,23 +696,27 @@ re.on_frame(function()
         _tsm_was_replay = false
     end
     -- ABSOLUTE KILLSWITCH: No gamepad reading or logic outside training
-    if not is_in_training_mode() then
+    if not in_training then
         -- AUTO-RESET: Disable all active modes when leaving Training Mode
         if _G.CurrentTrainerMode ~= 0 then
             _G.CurrentTrainerMode = 0
         end
-        _G.TrainingModeActive = false
-        _G.TrainingGamePaused = true
-        _G.TrainingFloatingBar = nil
-        _G.TrainingFloatingBarTop = nil
-        _G.ComboTrialsD2DEnabled = false
-        _G.ComboTrials_HideNativeHUD = false
-        _G._ct_bar_geometry = nil
+        RuntimeSafety.disable("not_training")
+        pcall(_tsm_dump_webstate_inactive)
+        return
+    end
+    RuntimeSafety.allow_training()
+    if not RuntimeSafety.is_training_allowed() then
+        if _G.CurrentTrainerMode ~= 0 then
+            _G.CurrentTrainerMode = 0
+        end
+        RuntimeSafety.disable("unsafe_training_context")
         pcall(_tsm_dump_webstate_inactive)
         return
     end
     _G.TrainingModeActive = true
     _G.TrainingScriptManagerActiveThisFrame = true
+    pcall(TrainingHotkeys.update)
 
     if not is_enabled_trainer_mode(_G.CurrentTrainerMode or 0) then
         _G.CurrentTrainerMode = 0
@@ -940,8 +944,8 @@ re.on_draw_ui(function()
     if _tsm_open then
 
         -- If not in training, show a waiting message and block the UI
-        if not is_in_training_mode() then
-            imgui.text_colored("[!] 未激活：等待进入训练模式...", 0xFF00A5FF)
+        if not RuntimeSafety.is_training_allowed() then
+            imgui.text_colored("[!] 未激活：仅训练模式可用。", 0xFF00A5FF)
             imgui.tree_pop()
             return
         end
@@ -1046,9 +1050,11 @@ end
 
 if d2d and d2d.register then
     d2d.register(function() end, function()
-        if SessionRecap and SessionRecap.d2d_draw then
+        if RuntimeSafety.is_training_allowed() and SessionRecap and SessionRecap.d2d_draw then
             SessionRecap.d2d_draw()
         end
-        pcall(_tsm_draw_hide_flash)
+        if RuntimeSafety.is_training_allowed() then
+            pcall(_tsm_draw_hide_flash)
+        end
     end)
 end

@@ -35,6 +35,7 @@ local _prev_is_recording = false
 
 -- =========================================================
 -- UI THEME AND STYLES (Inspired by Training Hit Confirm)
+local RuntimeSafety = require("func/RuntimeSafety")
 -- =========================================================
 local COLORS = UIKit.COLORS
 
@@ -830,6 +831,10 @@ local function _ctui_clear_visual_state()
 end
 
 re.on_frame(function()
+    if not RuntimeSafety.is_allowed() then
+        _ctui_clear_visual_state()
+        return
+    end
     -- Detect return from ranked: flush combo display
     local bars_now = _G.TrainingBarsDrawn
     if bars_now and not _was_bars_drawn then
@@ -1217,6 +1222,7 @@ local function _ctui_draw_live_positions()
 end
 
 local function draw_combo_trials_menu_ui()
+    if not RuntimeSafety.is_training_allowed() then return end
     if _G.CurrentTrainerMode ~= 4 then return end
     if imgui.tree_node("连段训练设置v0.8e") then
         local ok, err = pcall(function()
