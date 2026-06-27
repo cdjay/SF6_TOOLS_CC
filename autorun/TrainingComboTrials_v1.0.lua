@@ -1015,170 +1015,25 @@ local function snapshot_gauges(attacker_idx)
     return result
 end
 
--- Force exact HP injection on a player
-local function _ct_do_inject_vital(player_idx, hp)
-    local p = (player_idx == 0) and GS.p1 or GS.p2
-    if not p then return end
-    if p.vital_new == hp and p.vital_old == hp and p.heal_new == hp then return end
-    p.vital_new = hp
-    p.vital_old = hp
-    p.heal_new = hp
-end
-local function inject_player_vital(player_idx, hp)
-    pcall(_ct_do_inject_vital, player_idx, hp)
-end
-
-local function hp_to_vital_point(player_idx, hp)
-    local p = (player_idx == 0) and GS.p1 or GS.p2
-    local max_hp = p and p.vital_max or 10000
-    if not max_hp or max_hp <= 0 then max_hp = 10000 end
-    local percent = math.floor((hp * 100.0 / max_hp) + 0.5)
-    if percent < 1 then percent = 1 end
-    if percent > 100 then percent = 100 end
-    return percent
-end
-
-local _tf_parameter_cache = nil
-local function get_tf_parameter_setting()
-    if _tf_parameter_cache then return _tf_parameter_cache end
-    pcall(function()
-        local tm = sdk.get_managed_singleton("app.training.TrainingManager")
-        local funcs = tm and tm:get_field("_tfFuncs")
-        local entries = funcs and funcs:get_field("_entries")
-        local entry = entries and entries:call("get_Item", 6)
-        local val = entry and entry:get_field("value")
-        if val then _tf_parameter_cache = val end
-    end)
-    return _tf_parameter_cache
-end
-
-local function apply_trial_parameter_settings()
-    local tf = get_tf_parameter_setting()
-    if not tf then return end
-    local ok = pcall(function() sdk.call_object_func(tf, "bApply") end)
-    if not ok then pcall(function() tf:call("bApply") end) end
-end
-
--- Apply health (Victim = combo damage, Attacker = HP recorded at step 1)
-local function apply_trial_vital()
-    if not trial_state.sequence[1] then return end
-    
-    local expected_attacker_hp = trial_state.sequence[1].expected_hp
-    if expected_attacker_hp then
-        trial_state._pending_attacker_hp = expected_attacker_hp
-    end
-    
-    local cs = trial_state.sequence[1].combo_stats
-    if cs and cs.damage and cs.damage > 0 then
-        local hp = cs.damage
-        local seq = trial_state.sequence
-        if #seq >= 2 then
-            local last_dmg = seq[#seq].damage_at_step
-            local prev_dmg = seq[#seq - 1].damage_at_step
-            if last_dmg and prev_dmg and last_dmg == prev_dmg and not seq[#seq].has_hit then
-                hp = hp + 1
-            end
-        end
-        trial_state._pending_victim_hp = hp
-    end
-
-    pcall(function()
-        local tm = sdk.get_managed_singleton("app.training.TrainingManager")
-        if not tm then return end
-        local ps = tm:get_field("_tData"):get_field("ParameterSetting")
-        if not ps or not ps.PlayerDatas then return end
-        
-        -- Backup P1 (Index 0 in Training Menu)
-        local p1d = ps.PlayerDatas[0]
-        if not trial_state._saved_vital_p1 then
-            trial_state._saved_vital_p1 = {
-                Vital_Type = p1d.Vital_Type, Is_Vital_Infinity = p1d.Is_Vital_Infinity,
-                Is_Vital_No_Recovery = p1d.Is_Vital_No_Recovery, Is_Vital_Recovery_Timer = p1d.Is_Vital_Recovery_Timer,
-                Is_KO = p1d.Is_KO, Is_Point_Lock = p1d.Is_Point_Lock, Vital_Point = p1d.Vital_Point
-            }
-        end
-
-        -- Backup P2 (Index 1 in Training Menu)
-        local p2d = ps.PlayerDatas[1]
-        if not trial_state._saved_vital_p2 then
-            trial_state._saved_vital_p2 = {
-                Vital_Type = p2d.Vital_Type, Is_Vital_Infinity = p2d.Is_Vital_Infinity,
-                Is_Vital_No_Recovery = p2d.Is_Vital_No_Recovery, Is_Vital_Recovery_Timer = p2d.Is_Vital_Recovery_Timer,
-                Is_KO = p2d.Is_KO, Is_Point_Lock = p2d.Is_Point_Lock, Vital_Point = p2d.Vital_Point
-            }
-        end
-
-        local attacker_idx = trial_state.playing_player
-        local victim_idx = 1 - attacker_idx
-
-        if trial_state._pending_attacker_hp then
-            local ad = ps.PlayerDatas[attacker_idx]
-            ad.Is_Vital_Recovery_Timer = false
-            ad.Is_Vital_Infinity = false
-            ad.Is_Vital_No_Recovery = true
-            ad.Vital_Point = hp_to_vital_point(attacker_idx, trial_state._pending_attacker_hp)
-        end
-
-        if trial_state._pending_victim_hp then
-            local vd = ps.PlayerDatas[victim_idx]
-            vd.Is_Vital_Recovery_Timer = false
-            vd.Is_Vital_Infinity = false
-            vd.Is_Vital_No_Recovery = true
-            vd.Is_KO = true
-            vd.Is_Point_Lock = true
-            vd.Vital_Point = hp_to_vital_point(victim_idx, trial_state._pending_victim_hp)
-        end
-    end)
-    apply_trial_parameter_settings()
-    trial_state._hp_inject_frames = 0
-end
-
--- Re-inject HP (after a fail / reset)
-local function reinject_trial_vital()
-    apply_trial_parameter_settings()
-    trial_state._hp_inject_frames = 0
-end
-
--- Restore vital settings to original values
-local function restore_trial_vital()
+local function clear_trial_vital_state()
     trial_state._pending_victim_hp = nil
     trial_state._pending_attacker_hp = nil
     trial_state._hp_inject_frames = 0
-    local restored = false
-    pcall(function()
-        local tm = sdk.get_managed_singleton("app.training.TrainingManager")
-        if not tm then return end
+    trial_state._saved_vital_p1 = nil
+    trial_state._saved_vital_p2 = nil
+end
 
-        local ps = tm:get_field("_tData"):get_field("ParameterSetting")
-        if not ps or not ps.PlayerDatas then return end
-        
-        if trial_state._saved_vital_p1 then
-            local p1d = ps.PlayerDatas[0]
-            p1d.Vital_Type = trial_state._saved_vital_p1.Vital_Type
-            p1d.Is_Vital_Infinity = trial_state._saved_vital_p1.Is_Vital_Infinity
-            p1d.Is_Vital_No_Recovery = trial_state._saved_vital_p1.Is_Vital_No_Recovery
-            p1d.Is_Vital_Recovery_Timer = trial_state._saved_vital_p1.Is_Vital_Recovery_Timer
-            p1d.Is_KO = trial_state._saved_vital_p1.Is_KO
-            p1d.Is_Point_Lock = trial_state._saved_vital_p1.Is_Point_Lock
-            if trial_state._saved_vital_p1.Vital_Point ~= nil then p1d.Vital_Point = trial_state._saved_vital_p1.Vital_Point end
-            trial_state._saved_vital_p1 = nil
-            restored = true
-        end
+-- Combo playback must use the training room's current health settings.
+local function apply_trial_vital()
+    clear_trial_vital_state()
+end
 
-        if trial_state._saved_vital_p2 then
-            local p2d = ps.PlayerDatas[1]
-            p2d.Vital_Type = trial_state._saved_vital_p2.Vital_Type
-            p2d.Is_Vital_Infinity = trial_state._saved_vital_p2.Is_Vital_Infinity
-            p2d.Is_Vital_No_Recovery = trial_state._saved_vital_p2.Is_Vital_No_Recovery
-            p2d.Is_Vital_Recovery_Timer = trial_state._saved_vital_p2.Is_Vital_Recovery_Timer
-            p2d.Is_KO = trial_state._saved_vital_p2.Is_KO
-            p2d.Is_Point_Lock = trial_state._saved_vital_p2.Is_Point_Lock
-            if trial_state._saved_vital_p2.Vital_Point ~= nil then p2d.Vital_Point = trial_state._saved_vital_p2.Vital_Point end
-            trial_state._saved_vital_p2 = nil
-            restored = true
-        end
-    end)
-    if restored then apply_trial_parameter_settings() end
+local function reinject_trial_vital()
+    clear_trial_vital_state()
+end
+
+local function restore_trial_vital()
+    clear_trial_vital_state()
 end
 
 -- Sets the Dummy Counter state (0=Normal, 1=Counter, 2=Punish Counter)
@@ -1820,7 +1675,7 @@ local function reset_trial_steps()
         item.has_hit = false
         item.last_frame_diff = nil
     end
-    -- Restore P2 health to exact combo damage level for the next attempt
+    -- Keep the training room's health settings for the next attempt
     reinject_trial_vital()
     -- Reset positions if forced pos / mirror is active
     apply_forced_position()
@@ -2400,13 +2255,13 @@ local function ct_handle_pause_positions(is_game_paused, _in_replay)
 end
 
 local function ct_handle_playing_transition()
-    -- Detect is_playing transitions for P2 health
+    -- Detect is_playing transitions for trial environment setup
     local now_playing = trial_state.is_playing
     if now_playing and not trial_state._was_playing then
-        -- Transition OFF -> ON: Apply P2 health = combo damage
+        -- Transition OFF -> ON: clear legacy HP injection state
         apply_trial_vital()
     elseif not now_playing and trial_state._was_playing then
-        -- Transition ON -> OFF: Restore P2 health and reset positions to default
+        -- Transition ON -> OFF: restore trial-only settings and reset positions to default
         restore_trial_vital()
         trial_state._pending_reinject_settings = false
         set_dummy_counter_type(0)
@@ -2462,9 +2317,6 @@ local function ct_handle_position_correction(_in_replay)
 end
 
 local function ct_handle_hp_injection()
-    -- INJECTION HP EXACT VIA PLAYER OBJECT
-    -- Fine tune exact HP for a short window after refresh/reset, then stop.
-    -- After a refresh (forced pos), wait for the refresh to finish first
     if trial_state.is_playing and trial_state.current_step == 1 then
         local tm = sdk.get_managed_singleton("app.training.TrainingManager")
         local is_refreshing = tm and tm:get_field("_IsReqRefresh")
@@ -2475,20 +2327,8 @@ local function ct_handle_hp_injection()
         elseif not trial_state._first_hit_landed and not is_refreshing then
             pcall(_ct_check_first_hit)
         end
-        local attacker_idx = trial_state.playing_player
-        local victim_idx = 1 - attacker_idx
         if trial_state._first_hit_landed then
             trial_state._hp_inject_frames = 0
-        elseif (trial_state._hp_inject_frames or 0) > 0 then
-            if tm and not is_refreshing then
-                if trial_state._pending_victim_hp then
-                    inject_player_vital(victim_idx, trial_state._pending_victim_hp)
-                end
-                if trial_state._pending_attacker_hp then
-                    inject_player_vital(attacker_idx, trial_state._pending_attacker_hp)
-                end
-                trial_state._hp_inject_frames = trial_state._hp_inject_frames - 1
-            end
         end
     end
 
