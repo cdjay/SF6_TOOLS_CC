@@ -1223,7 +1223,7 @@ re.on_draw_ui(function()
     if not RuntimeSafety.is_training_allowed() then return end
     if DEPENDANT_ON_MANAGER and _G.CurrentTrainerMode ~= 2 then return end
 
-    if imgui.tree_node("确认训练设置v0.8e") then
+    if imgui.tree_node("确认训练设置v0.9") then
 
         if styled_header("--- 训练配置 ---", UI_THEME.hdr_session) then
             local c_fl, v_fl = imgui.checkbox("显示浮动控制栏", user_config.show_floating)

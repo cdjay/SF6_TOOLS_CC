@@ -1224,7 +1224,7 @@ end
 local function draw_combo_trials_menu_ui()
     if not RuntimeSafety.is_training_allowed() then return end
     if _G.CurrentTrainerMode ~= 4 then return end
-    if imgui.tree_node("连段训练设置v0.8e") then
+    if imgui.tree_node("连段训练设置v0.9") then
         local ok, err = pcall(function()
         local p_state = players[ui_state.viewed_player]
         imgui.spacing()
@@ -2012,7 +2012,7 @@ end
 
 -- Register in floating window hub + keep standard menu entry
 if _G.FloatingScriptUI then
-_G.FloatingScriptUI.register("连段训练设置v0.8e", draw_combo_trials_menu_ui)
+_G.FloatingScriptUI.register("连段训练设置v0.9", draw_combo_trials_menu_ui)
 end
 re.on_draw_ui(draw_combo_trials_menu_ui)
 

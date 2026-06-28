@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+## 0.9 - 2026-06-28
+
+### Major
+
+- 将训练运行时的帧稳定性作为重点优化目标，降低开启 MOD 后的细微掉帧和体感卡顿。
+- 移除连段训练中每 60 帧全量扫描并解析连段 JSON 的轮询逻辑，避免连段文件数量较多时产生周期性卡顿。
+
+### Changed
+
+- RuntimeSafety 训练上下文检查改为每帧缓存一次，减少多个模块重复扫描 TrainingManager 和原生 UI widget。
+- 训练管理器的 inactive WebState 写入改为状态变化优先、低频刷新，避免非训练状态下每帧同步写文件。
+- 原生训练 UI 可见性扫描改为状态变化或低频刷新，不再每帧遍历并写入 widget 可见性。
+- Distance Viewer 的 AA 招式列表按对手角色和数据版本缓存，不再每帧重建排序。
+- Shared input hook 热路径改为数字栈并避免重复 finalizer 注册。
+
 ## 0.8e - 2026-06-26
 
 ### Fixed

@@ -971,7 +971,7 @@ re.on_draw_ui(function()
 
     local _has_errors = _errs and _errs.count > 0
     if _has_errors then imgui.push_style_color(0, 0xFF0000FF) end
-    local _tsm_open = imgui.tree_node("小吞 Street Fighter 6 全能训练MOD包 v0.8e" .. (_has_errors and " [!]" or ""))
+    local _tsm_open = imgui.tree_node("小吞 Street Fighter 6 全能训练MOD包 v0.9" .. (_has_errors and " [!]" or ""))
     if _has_errors then imgui.pop_style_color(1) end
     if _tsm_open then
 
