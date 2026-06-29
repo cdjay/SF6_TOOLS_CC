@@ -3502,16 +3502,20 @@ re.on_frame(function()
         end
         _G._dv_last_p2_char = p2_name
     end
-    poll_web_bridge()
+    if _G._remote_control_loaded == true then
+        poll_web_bridge()
+    end
     if _G._dv_pending_mode_flags then
         local pmf = _G._dv_pending_mode_flags
         _G._dv_pending_mode_flags = nil
         pcall(apply_mode_flags, pmf.p, pmf.v)
     end
-    _web_state_counter = _web_state_counter + 1
-    if _web_state_counter >= 60 then
-        _web_state_counter = 0
-        pcall(_dv_dump_web_state)
+    if _G._remote_control_loaded == true then
+        _web_state_counter = _web_state_counter + 1
+        if _web_state_counter >= 60 then
+            _web_state_counter = 0
+            pcall(_dv_dump_web_state)
+        end
     end
     -- Build AA moves list for web bridge (always, not just when ImGui header is open)
     if p2_cache and p2_cache.valid then

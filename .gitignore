@@ -1,6 +1,15 @@
 /data/Training_ScriptManager_data/TrainingHotkeys_Config.json
 
 # Runtime/local state
+/data/SF6_TrainingRemoteControl_data/*WebState.json
+/data/SF6_TrainingRemoteControl_data/*WebBridge.json
+/data/SF6_TrainingRemoteControl_data/*TrayState.json
+/data/SF6_TrainingRemoteControl_data/*heartbeat*.txt
+/data/SF6_DistanceViewer_data/*WebState.json
+/data/SF6_DistanceViewer_data/*WebBridge.json
+/data/SheldonsBoxes_data/*WebState.json
+/data/TrainingComboTrials_data/LastFail.json
+/data/TrialHub/sync_signal.json
 *WebState.json
 *WebBridge.json
 *TrayState.json
