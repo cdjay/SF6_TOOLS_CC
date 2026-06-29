@@ -179,13 +179,63 @@ end
 -- ==========================================
 -- 0.5. SCENE DETECTION (ABSOLUTE KILLSWITCH)
 -- ==========================================
-local function is_in_training_mode()
-    local tm = sdk.get_managed_singleton("app.training.TrainingManager")
-    if tm then
-        local tData = tm:get_field("_tData")
-        if tData ~= nil then return true end
+local TRAINING_MODE_CACHE_FRAMES = 60
+local training_mode_cache = {
+    value = false,
+    frame = -TRAINING_MODE_CACHE_FRAMES,
+    flow_id = nil,
+    is_replay = false,
+    is_battle_hub = false,
+}
+
+local function _tsm_frame_id()
+    return (GS and GS.frame) or 0
+end
+
+local function _tsm_set_training_mode_cache(value, frame, flow_id, is_replay, is_battle_hub)
+    training_mode_cache.value = value == true
+    training_mode_cache.frame = frame or _tsm_frame_id()
+    training_mode_cache.flow_id = flow_id
+    training_mode_cache.is_replay = is_replay == true
+    training_mode_cache.is_battle_hub = is_battle_hub == true
+end
+
+local function _tsm_invalidate_training_mode_cache()
+    training_mode_cache.frame = -TRAINING_MODE_CACHE_FRAMES
+end
+
+local function _tsm_query_training_mode()
+    local tm = sdk and sdk.get_managed_singleton and sdk.get_managed_singleton("app.training.TrainingManager")
+    if not tm then return false end
+    local tData = tm:get_field("_tData")
+    return tData ~= nil
+end
+
+local function is_in_training_mode(flow_id, is_replay, is_battle_hub)
+    local frame = _tsm_frame_id()
+    local fid = flow_id
+    if fid == nil then fid = _G.FlowMapID end
+
+    local replay = (is_replay == true) or (_G.IsInReplay == true) or (fid == 10)
+    local battle_hub = (is_battle_hub == true) or (_G.IsInBattleHub == true) or (fid == 9)
+    if replay or battle_hub then
+        _tsm_set_training_mode_cache(false, frame, fid, replay, battle_hub)
+        return false
     end
-    return false
+
+    local context_changed =
+        training_mode_cache.flow_id ~= fid or
+        training_mode_cache.is_replay ~= replay or
+        training_mode_cache.is_battle_hub ~= battle_hub
+
+    if not context_changed and (frame - training_mode_cache.frame) < TRAINING_MODE_CACHE_FRAMES then
+        return training_mode_cache.value
+    end
+
+    local ok, result = pcall(_tsm_query_training_mode)
+    result = ok and result == true
+    _tsm_set_training_mode_cache(result, frame, fid, replay, battle_hub)
+    return result
 end
 
 -- ==========================================
@@ -677,7 +727,7 @@ re.on_frame(function()
     _G.FlowMapID = fid
     _G.IsInBattleHub = (fid == 9)
     local is_replay = (fid == 10) or (_G.IsInReplay == true)
-    local in_training = is_in_training_mode()
+    local in_training = is_in_training_mode(fid, is_replay, _G.IsInBattleHub)
     RuntimeSafety.begin_frame(fid, in_training, is_replay, _G.IsInBattleHub)
 
     -- HIDE UI BUTTON (works in training + replay)
@@ -749,6 +799,7 @@ re.on_frame(function()
         if _G.CurrentTrainerMode ~= 0 then
             _G.CurrentTrainerMode = 0
         end
+        _tsm_invalidate_training_mode_cache()
         RuntimeSafety.disable("unsafe_training_context")
         pcall(_tsm_dump_webstate_inactive, "unsafe_training_context")
         return
