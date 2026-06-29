@@ -296,7 +296,11 @@ local function reload_selected_combo_if_idle()
     local path_to_load = paths and paths[idx]
 
     if path_to_load then
-        M.load_combo_from_file(path_to_load)
+        if not M.load_combo_from_file(path_to_load) then
+            M.clear_combo_state()
+        end
+    else
+        M.clear_combo_state()
     end
 end
 

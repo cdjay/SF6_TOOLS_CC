@@ -363,6 +363,9 @@ local file_system = {
     auto_load = true,
     forced_position_options = { "GAME SETTINGS", "FORCED", "MIRROR" }
 }
+local COMBO_LIST_AUTO_REFRESH_FRAMES = 120
+local combo_list_auto_refresh_counter = 0
+local combo_list_was_active = false
 local combo_list_pending_save_refreshed = false
 local TRIALHUB_SYNC_POLL_FRAMES = 90
 local trialhub_sync_counter = 0
@@ -1747,8 +1750,10 @@ local function load_and_start_trial(player_idx)
     if trial_state._xt_pending_save then return end
     local paths = (player_idx == 0) and file_system.saved_combos_paths_p1 or file_system.saved_combos_paths_p2
     local idx = (player_idx == 0) and (file_system.selected_file_idx_p1 or 1) or (file_system.selected_file_idx_p2 or 1)
-    if #paths > 0 then
-        load_combo_from_file(paths[idx])
+    local path = (#paths > 0) and paths[idx] or nil
+    if not path or not load_combo_from_file(path) then
+        clear_combo_state()
+        return
     end
     start_trial(player_idx)
 end
@@ -1771,6 +1776,14 @@ end
 
 local function refresh_combo_list(recent_saved_player)
     return ComboTrials_Files.refresh_combo_list(recent_saved_player)
+end
+
+local function combo_list_refresh_busy()
+    return trial_state.is_recording
+        or (demo_state and demo_state.is_playing)
+        or (trial_state.pending_exact_pos and trial_state.pending_exact_pos > 0)
+        or trial_state._pending_reinject_settings == true
+        or is_trial_action_grace_active()
 end
 
 local function get_safe_filename_motion(sequence)
@@ -2144,7 +2157,19 @@ end
 local function ct_auto_refresh_combo_list()
     if _G.CurrentTrainerMode ~= 4 then
         combo_list_pending_save_refreshed = false
+        combo_list_auto_refresh_counter = 0
+        combo_list_was_active = false
         return
+    end
+
+    local busy = combo_list_refresh_busy()
+    if not combo_list_was_active then
+        combo_list_was_active = true
+        combo_list_auto_refresh_counter = 0
+        combo_list_pending_save_refreshed = false
+        if not busy and not trial_state._xt_pending_save then
+            refresh_combo_list_preserve_selection(true)
+        end
     end
 
     if trial_state._xt_pending_save then
@@ -2155,6 +2180,16 @@ local function ct_auto_refresh_combo_list()
     end
 
     combo_list_pending_save_refreshed = false
+    if busy then
+        combo_list_auto_refresh_counter = 0
+        return
+    end
+
+    combo_list_auto_refresh_counter = combo_list_auto_refresh_counter + 1
+    if combo_list_auto_refresh_counter >= COMBO_LIST_AUTO_REFRESH_FRAMES then
+        combo_list_auto_refresh_counter = 0
+        refresh_combo_list_preserve_selection(false)
+    end
 end
 
 local function read_trialhub_sync_signal()
@@ -3676,7 +3711,7 @@ re.on_frame(function()
     end
 
 
-    if _G.CurrentTrainerMode ~= 4 then ct_handle_mode_exit(); return end
+    if _G.CurrentTrainerMode ~= 4 then ct_auto_refresh_combo_list(); ct_handle_mode_exit(); return end
 
     ct_auto_refresh_combo_list()
     ct_poll_trialhub_sync_signal()
