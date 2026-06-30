@@ -1263,8 +1263,135 @@ local function restore_dummy_guard_type()
     end
 end
 
+-- DummyStatus.DummyActionType: 0=stand, 1=crouch. Jump variants are controlled by JumpType.
+local DUMMY_ACTION_STAND = 0
+local DUMMY_ACTION_CROUCH = 1
+
+local _tf_dummy_status_cache = nil
+local function get_tf_dummy_status()
+    if _tf_dummy_status_cache then return _tf_dummy_status_cache end
+    pcall(function()
+        local tm = sdk.get_managed_singleton("app.training.TrainingManager")
+        if not tm then return end
+        local dict = tm:get_field("_tfFuncs")
+        if not dict then return end
+        local entries = dict:get_field("_entries")
+        if not entries then return end
+        local count = entries:call("get_Count")
+        for i = 0, count - 1 do
+            local entry = entries:call("get_Item", i)
+            if entry then
+                local val = entry:get_field("value")
+                if val and val:get_type_definition():get_full_name():find("tf_DummyStatus") then
+                    _tf_dummy_status_cache = val
+                    return
+                end
+            end
+        end
+    end)
+    return _tf_dummy_status_cache
+end
+
+local function set_dummy_action_type(action_type, jump_type)
+    pcall(function()
+        local tm = sdk.get_managed_singleton("app.training.TrainingManager")
+        if not tm then return end
+        local tData = tm:get_field("_tData")
+        if not tData then return end
+        local ds = tData:get_field("DummyStatus")
+        if not ds then return end
+        local dd = ds:get_field("DummyData")
+        if not dd then return end
+        dd.DummyActionType = action_type
+        if jump_type ~= nil then
+            dd.JumpType = jump_type
+        elseif action_type ~= DUMMY_ACTION_STAND then
+            dd.JumpType = 0
+        end
+    end)
+
+    local td = get_tf_dummy_status()
+    if td then pcall(function() td:call("bApply") end) end
+end
+
+local function read_dummy_action_state()
+    local action_type = DUMMY_ACTION_STAND
+    local jump_type = 0
+    pcall(function()
+        local tm = sdk.get_managed_singleton("app.training.TrainingManager")
+        if not tm then return end
+        local tData = tm:get_field("_tData")
+        if not tData then return end
+        local ds = tData:get_field("DummyStatus")
+        if not ds then return end
+        local dd = ds:get_field("DummyData")
+        if not dd then return end
+        action_type = dd.DummyActionType or DUMMY_ACTION_STAND
+        jump_type = dd.JumpType or 0
+    end)
+    return action_type, jump_type
+end
+
+local function save_dummy_action_type()
+    if trial_state._saved_dummy_action_type == nil then
+        local action_type, jump_type = read_dummy_action_state()
+        trial_state._saved_dummy_action_type = action_type
+        trial_state._saved_dummy_jump_type = jump_type
+    end
+end
+
+local function restore_dummy_action_type()
+    if trial_state._saved_dummy_action_type ~= nil then
+        set_dummy_action_type(trial_state._saved_dummy_action_type, trial_state._saved_dummy_jump_type)
+        trial_state._saved_dummy_action_type = nil
+        trial_state._saved_dummy_jump_type = nil
+    end
+end
+
+local function value_requests_dummy_crouch(value)
+    if type(value) == "boolean" then return value end
+    if type(value) == "number" then return value == DUMMY_ACTION_CROUCH end
+    if type(value) ~= "string" then return false end
+    local text = value:lower()
+    return text == "crouch" or text == "crouching" or text == "cr" or text == "down" or text == "low"
+        or text:find("crouch", 1, true) ~= nil
+        or text:find("蹲姿", 1, true) ~= nil
+end
+
+local function text_mentions_dummy_crouch(value)
+    if type(value) ~= "string" then return false end
+    local text = value:lower()
+    return text:find("蹲姿", 1, true) ~= nil
+        or text:find("蹲限定", 1, true) ~= nil
+        or text:find("crouch", 1, true) ~= nil
+end
+
+local function trial_requires_dummy_crouch()
+    local first = trial_state.sequence and trial_state.sequence[1]
+    if type(first) ~= "table" then return false end
+
+    if first.requires_dummy_crouch == true then return true end
+    if value_requests_dummy_crouch(first.dummy_stance) then return true end
+    if value_requests_dummy_crouch(first.dummy_posture) then return true end
+    if value_requests_dummy_crouch(first.dummy_action) then return true end
+
+    local meta = type(first._xt_meta) == "table" and first._xt_meta or nil
+    if meta then
+        if meta.requires_dummy_crouch == true then return true end
+        if value_requests_dummy_crouch(meta.dummy_stance) then return true end
+        if value_requests_dummy_crouch(meta.dummy_posture) then return true end
+        if value_requests_dummy_crouch(meta.dummy_action) then return true end
+        if text_mentions_dummy_crouch(meta.title) or text_mentions_dummy_crouch(meta.note) then return true end
+    end
+
+    return false
+end
+
 local function apply_trial_training_environment()
     local first_ct = trial_state.sequence and trial_state.sequence[1] and trial_state.sequence[1].counter_type or 0
+    if trial_requires_dummy_crouch() then
+        set_dummy_action_type(DUMMY_ACTION_CROUCH)
+    end
     set_dummy_counter_type(first_ct or 0)
     set_dummy_guard_type(2)
 end
@@ -1750,6 +1877,9 @@ local function start_trial(player_idx)
 
     save_dummy_counter_type()
     save_dummy_guard_type()
+    if trial_requires_dummy_crouch() then
+        save_dummy_action_type()
+    end
 
     -- INJECT FIRST-STEP TRAINING ENVIRONMENT
     apply_trial_training_environment()
@@ -2623,6 +2753,7 @@ local function ct_handle_mode_exit()
             restore_trial_vital()
             restore_dummy_counter_type()
             restore_dummy_guard_type()
+            restore_dummy_action_type()
             apply_current_position_refresh()
         elseif trial_state.is_recording then
             cancel_recording()
@@ -2715,10 +2846,12 @@ local function ct_handle_playing_transition()
         -- Transition ON -> OFF: restore trial-only settings and reset positions to default
         restore_trial_vital()
         trial_state._pending_reinject_settings = false
+        restore_dummy_action_type()
         set_dummy_counter_type(0)
         set_dummy_guard_type(0)
         trial_state._saved_counter_type = nil
         trial_state._saved_guard_type = nil
+        trial_state._saved_dummy_action_type = nil
         reset_positions_to_default()
     end
     trial_state._was_playing = now_playing
