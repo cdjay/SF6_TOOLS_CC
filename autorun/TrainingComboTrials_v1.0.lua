@@ -2311,6 +2311,51 @@ local function _ct_check_knockdown(victim_obj)
     return (pose_st or 0) == 3
 end
 
+local function is_post_hit_setup_step(step_idx)
+    if not trial_state.sequence or not step_idx or step_idx < 1 then return false end
+    local step = trial_state.sequence[step_idx]
+    if not step or step.expected_combo ~= 0 then return false end
+    if step.has_hit == true then return false end
+    local step_damage = tonumber(step.damage_at_step) or 0
+    local prev = step_idx > 1 and trial_state.sequence[step_idx - 1] or nil
+    local prev_damage = prev and (tonumber(prev.damage_at_step) or 0) or 0
+    if step_damage > prev_damage then return false end
+    for i = 1, step_idx - 1 do
+        local earlier = trial_state.sequence[i]
+        if earlier and (earlier.expected_combo or 0) > 0 then
+            return true
+        end
+    end
+    return false
+end
+
+local function is_optional_parent_for_followup(actual_motion, expected_step)
+    if type(actual_motion) ~= "string" or type(expected_step) ~= "table" then return false end
+    local expected_motion = tostring(expected_step.motion or ""):match("^%s*(.-)%s*$")
+    if expected_motion:sub(1, 1) ~= ">" then return false end
+    local motion = actual_motion:match("^%s*(.-)%s*$")
+    return motion == "214+P"
+end
+
+local function log_trial_failure(source, fields)
+    if not (file_system and file_system.diag_log) then return end
+    fields = fields or {}
+    local expected = trial_state.sequence and trial_state.sequence[trial_state.current_step] or nil
+    file_system.diag_log(string.format(
+        "[Fail] frame=%s trial_type=combo current_step=%s expected_motion=%s player_action_id=%s player_action_name=%s timeline_frame=%s timeline_total_frames=%s wakeup_validator_active=false reversal_validator_active=false fail_reason=%s failure_source=%s playback_state=%s",
+        tostring(engine_frame_count),
+        tostring(trial_state.current_step),
+        tostring(fields.expected_motion or (expected and expected.motion) or ""),
+        tostring(fields.player_action_id or (_pf and _pf.act_id) or ""),
+        tostring(fields.player_action_name or ""),
+        tostring(fields.timeline_frame or ""),
+        tostring(fields.timeline_total_frames or (trial_state.sequence and #trial_state.sequence) or ""),
+        tostring(trial_state.fail_reason or ""),
+        tostring(source or ""),
+        tostring(fields.playback_state or (trial_state.is_playing and "playing" or "idle"))
+    ))
+end
+
 
 -- =========================================================
 -- PER-FRAME PLAYER CONTEXT (reused each player-loop iteration)
@@ -3009,26 +3054,30 @@ local function ct_player_validation(p_idx, p_state)
                 -- 60 frames (~1 sec) tolerance after the ideal timing
                 if frames_since > (delay + 60) then
                     trial_state.fail_timer = d2d_cfg.fail_display_frames or 120
+                    local current_is_setup = is_post_hit_setup_step(trial_state.current_step)
+                    local prev_is_setup = is_post_hit_setup_step(trial_state.current_step - 1)
 
                     if expected.expected_hp ~= nil and _pf.p_char.vital_new ~= expected.expected_hp then
-                        if expected.expected_combo == 0 then
+                        if current_is_setup then
                             trial_state.fail_reason = "SETUP INTERRUPTED (Got hit)"
                         else
-                            local prev_step = trial_state.sequence[trial_state.current_step - 1]
-                            if prev_step and prev_step.expected_combo == 0 then
+                            if prev_is_setup then
                                 trial_state.fail_reason = "MEATY INTERRUPTED (Got hit)"
                             else
                                 trial_state.fail_reason = "INTERRUPTED (Got hit)"
                             end
                         end
                     else
-                        local prev_step = trial_state.sequence[trial_state.current_step - 1]
-                        if prev_step and prev_step.expected_combo == 0 then
+                        if prev_is_setup then
                             trial_state.fail_reason = "MEATY TOO LATE (Missed Input)"
                         else
                             trial_state.fail_reason = "TOO LATE (Missed Input)"
                         end
                     end
+                    log_trial_failure("timeout_validation", {
+                        expected_motion = expected.motion,
+                        playback_state = "playing"
+                    })
                 end
             end
         end
@@ -3629,7 +3678,10 @@ local function ct_player_process_actions(p_idx, p_state, actions_to_process)
                         end
 
                         if allow_input then
-                            if expected and (act_id == expected.id or motion_matches_expected(motion_str, real_input_str, expected)) then
+                            if expected and is_optional_parent_for_followup(motion_str, expected) then
+                                -- Older combo JSON may omit the stance entry before a > follow-up.
+                                -- Do not let the parent action match the follow-up by button input.
+                            elseif expected and (act_id == expected.id or motion_matches_expected(motion_str, real_input_str, expected)) then
                                 trial_state._step1_wrong_pending = false
                                 local actual_delay = 0
                                 local last_played = trial_state.last_played_frame or engine_frame_count
@@ -3653,7 +3705,7 @@ local function ct_player_process_actions(p_idx, p_state, actions_to_process)
                                 end
 
                                 -- If it's a setup with no expected hit, validate the visual step immediately
-                                if expected.expected_combo == 0 then
+                                if is_post_hit_setup_step(trial_state.current_step) then
                                     trial_state.ui_visual_step = trial_state.current_step + 1
                                 end
 
@@ -3695,9 +3747,8 @@ local function ct_player_process_actions(p_idx, p_state, actions_to_process)
 
                                 local hp_ok = true
                                 if expected.expected_hp ~= nil and process_act.current_hp ~= nil then
-                                    -- HP Validation: strict for oki (expected_combo == 0), lenient for combos
-                                    local prev_step = trial_state.current_step > 1 and trial_state.sequence[trial_state.current_step - 1] or nil
-                                    local is_oki = (prev_step and prev_step.expected_combo == 0)
+                                    -- HP Validation is strict only for post-hit setup/oki phases.
+                                    local is_oki = is_post_hit_setup_step(trial_state.current_step - 1)
                                     if is_oki then
                                         if process_act.current_hp ~= expected.expected_hp then
                                             hp_ok = false
@@ -3721,6 +3772,8 @@ local function ct_player_process_actions(p_idx, p_state, actions_to_process)
                                     hp_ok = hp_ok,
                                     current_hp = process_act.current_hp,
                                     expected_hp = expected.expected_hp,
+                                    previous_is_setup = is_post_hit_setup_step(trial_state.current_step - 1),
+                                    current_is_setup = is_post_hit_setup_step(trial_state.current_step),
                                     frame_diff = frame_diff
                                 }
 
@@ -3761,7 +3814,7 @@ local function ct_player_process_actions(p_idx, p_state, actions_to_process)
                                     if not hp_ok then
                                         local custom_reason = "WRONG HP (Setup Dropped)"
                                         local prev_step = trial_state.sequence[trial_state.current_step - 1]
-                                        if prev_step and prev_step.expected_combo == 0 and prev_step.last_frame_diff then
+                                        if is_post_hit_setup_step(trial_state.current_step - 1) and prev_step and prev_step.last_frame_diff then
                                             if prev_step.last_frame_diff > 2 then
                                                 custom_reason = string.format("SETUP TOO LATE (%df)", prev_step.last_frame_diff)
                                             elseif prev_step.last_frame_diff < -2 then
@@ -3779,6 +3832,15 @@ local function ct_player_process_actions(p_idx, p_state, actions_to_process)
                                         trial_state.fail_timer = 0
                                     else
                                         trial_state.fail_reason = "COMBO DROPPED"
+                                    end
+                                    if trial_state.fail_timer and trial_state.fail_timer > 0 then
+                                        log_trial_failure(not hp_ok and "action_hp_setup_validation" or "action_step_validation", {
+                                            expected_motion = expected.motion,
+                                            player_action_id = act_id,
+                                            player_action_name = act_name,
+                                            timeline_frame = trial_state.current_step,
+                                            playback_state = "playing"
+                                        })
                                     end
                                 end
                             else
