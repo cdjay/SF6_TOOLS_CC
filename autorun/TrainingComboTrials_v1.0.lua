@@ -2450,14 +2450,98 @@ local function is_same_action_continuation_step(prev_step, step, combo_count)
     return expected_combo > 0 and expected_combo > prev_combo and (combo_count or 0) >= expected_combo
 end
 
-local function advance_same_action_continuation_steps(combo_count)
-    if not trial_state.sequence or not trial_state.current_step then return false end
+local function build_same_action_auto_advance_debug(prev_step, step, combo_count, call_site)
+    local prev_combo = prev_step and (tonumber(prev_step.expected_combo) or 0) or nil
+    local expected_combo = step and (tonumber(step.expected_combo) or 0) or nil
+    local current_combo = combo_count or 0
+    local same_id = prev_step and step and prev_step.id ~= nil and step.id ~= nil and prev_step.id == step.id
+    local combo_progression = expected_combo ~= nil and prev_combo ~= nil and expected_combo > 0 and expected_combo > prev_combo
+    local block_reason = nil
+
+    if not prev_step or not step then
+        block_reason = "missing_prev_or_step"
+    elseif prev_step.has_hit ~= true then
+        block_reason = "previous_step_not_hit"
+    elseif prev_step.id == nil or step.id == nil then
+        block_reason = "missing_step_id"
+    elseif prev_step.id ~= step.id then
+        block_reason = "different_action_id"
+    elseif expected_combo <= 0 then
+        block_reason = "expected_combo_not_positive"
+    elseif expected_combo <= prev_combo then
+        block_reason = "expected_combo_not_greater_than_prev"
+    elseif current_combo < expected_combo then
+        block_reason = "combo_count_below_expected"
+    else
+        block_reason = "would_advance"
+    end
+
+    return {
+        auto_advance_candidate = same_id and combo_progression or false,
+        auto_advance_triggered = false,
+        auto_advance_prev_step = trial_state.current_step and (trial_state.current_step - 1) or nil,
+        auto_advance_step = trial_state.current_step,
+        auto_advance_prev_id = prev_step and prev_step.id or nil,
+        auto_advance_step_id = step and step.id or nil,
+        auto_advance_prev_combo = prev_combo,
+        auto_advance_expected_combo = expected_combo,
+        auto_advance_current_combo = current_combo,
+        auto_advance_combo_count = current_combo,
+        auto_advance_block_reason = block_reason,
+        auto_advance_call_site = call_site,
+        auto_advance_checked_at_frame = engine_frame_count
+    }
+end
+
+local function advance_same_action_continuation_steps(combo_count, call_site)
+    call_site = call_site or "unknown"
+    if not trial_state.sequence or not trial_state.current_step then
+        DebugTrace.record_auto_advance(trial_state, {
+            auto_advance_candidate = false,
+            auto_advance_triggered = false,
+            auto_advance_current_combo = combo_count or 0,
+            auto_advance_combo_count = combo_count or 0,
+            auto_advance_block_reason = "missing_sequence_or_current_step",
+            auto_advance_call_site = call_site,
+            auto_advance_checked_at_frame = engine_frame_count
+        })
+        return false
+    end
 
     local advanced = false
+    if trial_state.current_step <= 1 then
+        DebugTrace.record_auto_advance(trial_state, {
+            auto_advance_candidate = false,
+            auto_advance_triggered = false,
+            auto_advance_step = trial_state.current_step,
+            auto_advance_current_combo = combo_count or 0,
+            auto_advance_combo_count = combo_count or 0,
+            auto_advance_block_reason = "current_step_not_after_first_step",
+            auto_advance_call_site = call_site,
+            auto_advance_checked_at_frame = engine_frame_count
+        })
+    elseif trial_state.current_step > #trial_state.sequence then
+        DebugTrace.record_auto_advance(trial_state, {
+            auto_advance_candidate = false,
+            auto_advance_triggered = false,
+            auto_advance_step = trial_state.current_step,
+            auto_advance_current_combo = combo_count or 0,
+            auto_advance_combo_count = combo_count or 0,
+            auto_advance_block_reason = "current_step_past_sequence",
+            auto_advance_call_site = call_site,
+            auto_advance_checked_at_frame = engine_frame_count
+        })
+    end
+
     while trial_state.current_step > 1 and trial_state.current_step <= #trial_state.sequence do
         local prev_step = trial_state.sequence[trial_state.current_step - 1]
         local step = trial_state.sequence[trial_state.current_step]
+        local auto_advance_debug = build_same_action_auto_advance_debug(prev_step, step, combo_count, call_site)
+        DebugTrace.record_auto_advance(trial_state, auto_advance_debug)
         if not is_same_action_continuation_step(prev_step, step, combo_count) then break end
+        auto_advance_debug.auto_advance_triggered = true
+        auto_advance_debug.auto_advance_block_reason = "advanced"
+        DebugTrace.record_auto_advance(trial_state, auto_advance_debug)
 
         step.has_hit = true
         step.actual_combo = math.max(tonumber(step.actual_combo) or 0, combo_count or 0)
@@ -3062,7 +3146,7 @@ local function ct_player_tracking(p_idx, p_state)
                 prev_step.actual_combo = _pf.current_combo
                 prev_step.has_hit = true
                 if hit_is_projectile then prev_step.is_projectile_hit = true end
-                advance_same_action_continuation_steps(_pf.current_combo or 0)
+                advance_same_action_continuation_steps(_pf.current_combo or 0, "hit_detection")
 
                 -- Hit confirmed: apply the counter_type of the next step
                 local next_step = trial_state.sequence[trial_state.current_step]

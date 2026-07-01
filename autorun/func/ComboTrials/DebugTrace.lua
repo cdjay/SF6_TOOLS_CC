@@ -11,12 +11,20 @@ function DebugTrace.record_validation_debug(state, data)
     return data
 end
 
+function DebugTrace.record_auto_advance(state, data)
+    if state then
+        state._auto_advance_debug = data
+    end
+    return data
+end
+
 function DebugTrace.build_fail_dump(state, players)
     local dump = {
         timestamp = os.date("%Y-%m-%d %H:%M:%S"),
         fail_reason_ui = state.fail_reason,
         failed_at_step = state.current_step,
         validation_debug = state._validation_debug,
+        auto_advance_debug = state._auto_advance_debug,
         expected_sequence = {},
         player_recent_inputs = {}
     }
