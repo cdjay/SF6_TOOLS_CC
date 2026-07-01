@@ -9,7 +9,8 @@ local ComboTrialsModules = {
     DebugTrace = require("func/ComboTrials/DebugTrace"),
     ActionMatcher = require("func/ComboTrials/ActionMatcher"),
     CharacterRules = require("func/ComboTrials/CharacterRules"),
-    Validator = require("func/ComboTrials/Validator")
+    Validator = require("func/ComboTrials/Validator"),
+    PendingAbsorb = require("func/ComboTrials/PendingAbsorb")
 }
 local DebugTrace = ComboTrialsModules.DebugTrace
 local ActionMatcher = ComboTrialsModules.ActionMatcher
@@ -250,6 +251,7 @@ local trial_state = {
     _rec_pending_snapshot = 0,
     _was_playing = false,   -- Previous state for detecting transitions
     _step1_wrong_pending = false,
+    _pending_current_absorb = nil,
     _demo_backup_slot = nil
 }
 
@@ -2176,6 +2178,8 @@ local function clear_trial_attempt_state(player_idx)
     trial_state._pending_hit_cc = nil
     trial_state._hit_grace = 0
     trial_state._reset_grace = 15
+    trial_state._final_finish_max_observed_combo = nil
+    trial_state._pending_current_absorb = nil
     trial_state.last_played_frame = engine_frame_count
     begin_trial_action_grace()
 
@@ -3424,6 +3428,7 @@ local function ct_player_init(p_idx, p_state)
             trial_state.success_timer = 0
             trial_state.fail_timer = 0
             trial_state.fail_reason = nil
+            trial_state._pending_current_absorb = nil
         end
 
         -- Refresh the list only if it's the character we are currently viewing
@@ -3565,13 +3570,30 @@ local function ct_player_validation(p_idx, p_state)
     -- SUCCESS VERIFICATION + DROP DETECTION (Trial)
     -- ========================================================
     local is_demo_playing = (demo_state and demo_state.is_playing)
+    if trial_state.is_playing and p_idx == trial_state.playing_player and not trial_state.manual_reset_pending then
+        ComboTrialsModules.PendingAbsorb.check({
+            state = trial_state,
+            p_idx = p_idx,
+            p_state = p_state,
+            frame = engine_frame_count,
+            pf = _pf,
+            Validator = Validator,
+            DebugTrace = DebugTrace,
+            is_post_hit_setup_step = is_post_hit_setup_step,
+            set_dummy_counter_type = set_dummy_counter_type,
+            d2d_cfg = d2d_cfg,
+            file_system = file_system,
+            act_id_reverse_enum = act_id_reverse_enum
+        }, "pending_current_absorb_validation")
+    end
     if trial_state.is_playing and p_idx == trial_state.playing_player and not is_demo_playing and not trial_state.manual_reset_pending then
         local is_hold_pending = (trial_state.active_universal_hold ~= nil)
 
         if #trial_state.sequence > 0 and trial_state.current_step > #trial_state.sequence then
             local last_step = trial_state.sequence[#trial_state.sequence]
             local observed_combo = math.max(_pf.current_combo or 0, p_state.last_combo_count or 0, last_step.actual_combo or 0)
-            if trial_state.success_timer == 0 and not is_hold_pending and not (trial_state.fail_timer and trial_state.fail_timer > 0) and (not last_step.expected_combo or last_step.expected_combo == 0 or observed_combo >= last_step.expected_combo) then
+            local should_finish_success = trial_state.success_timer == 0 and not is_hold_pending and not (trial_state.fail_timer and trial_state.fail_timer > 0) and (not last_step.expected_combo or last_step.expected_combo == 0 or observed_combo >= last_step.expected_combo)
+            if should_finish_success then
                 trial_state.success_timer = d2d_cfg.fail_display_frames or 120
             end
         end
@@ -3604,21 +3626,37 @@ local function ct_player_validation(p_idx, p_state)
                             trial_state.active_universal_hold = nil
                         elseif not _pf.opponent_knocked_down and not is_reset_expected
                             and not (last_validated.expected_combo == (trial_state.current_step >= 3 and trial_state.sequence[trial_state.current_step - 2].expected_combo or 0)) then
+                            ComboTrialsModules.PendingAbsorb.clear(trial_state, "combo_dropped")
                             trial_state.fail_timer = d2d_cfg.fail_display_frames or 120
+                            local combo_drop_reason = nil
                             if last_validated.last_frame_diff and last_validated.last_frame_diff < -2 then
                                 trial_state.fail_reason = string.format("TOO EARLY (%df)", math.abs(last_validated.last_frame_diff))
+                                combo_drop_reason = "last_step_too_early"
                             elseif last_validated.last_frame_diff and last_validated.last_frame_diff > 2 then
                                 trial_state.fail_reason = string.format("TOO LATE (%df)", last_validated.last_frame_diff)
+                                combo_drop_reason = "last_step_too_late"
                             else
                                 local expected = trial_state.sequence[trial_state.current_step]
                                 if expected then
                                     local last_played = trial_state.last_played_frame or engine_frame_count
                                     local diff = (engine_frame_count - last_played) - (expected.delay_from_prev or 0)
-                                    if diff > 2 then trial_state.fail_reason = string.format("TOO LATE (%df)", diff)
-                                    else trial_state.fail_reason = "COMBO DROPPED" end
+                                    if diff > 2 then
+                                        trial_state.fail_reason = string.format("TOO LATE (%df)", diff)
+                                        combo_drop_reason = "expected_step_too_late"
+                                    else
+                                        trial_state.fail_reason = "COMBO DROPPED"
+                                        combo_drop_reason = "combo_dropped_before_expected"
+                                    end
                                 else
                                     trial_state.fail_reason = "COMBO DROPPED"
+                                    combo_drop_reason = "combo_dropped_after_final_step"
                                 end
+                            end
+                            if trial_state.current_step > #trial_state.sequence then
+                                DebugTrace.record_match_probe(trial_state, build_final_finish_debug({
+                                    combo_drop_detected = true,
+                                    combo_drop_reason = combo_drop_reason
+                                }))
                             end
                         end
                     end
@@ -3636,6 +3674,8 @@ local function ct_player_validation(p_idx, p_state)
 
                 -- 60 frames (~1 sec) tolerance after the ideal timing
                 if frames_since > (delay + 60) then
+                    local prev_step = trial_state.current_step > 1 and trial_state.sequence[trial_state.current_step - 1] or nil
+                    ComboTrialsModules.PendingAbsorb.clear(trial_state, "timeout")
                     trial_state.fail_timer = d2d_cfg.fail_display_frames or 120
                     local current_is_setup = is_post_hit_setup_step(trial_state.current_step)
                     local prev_is_setup = is_post_hit_setup_step(trial_state.current_step - 1)
@@ -3657,6 +3697,34 @@ local function ct_player_validation(p_idx, p_state)
                             trial_state.fail_reason = "TOO LATE (Missed Input)"
                         end
                     end
+                    DebugTrace.record_match_probe(trial_state, {
+                        phase = "timeout_validation",
+                        frame = engine_frame_count,
+                        trial_file = trial_state.current_file or trial_state.current_file_path,
+                        trial_filename = trial_state.current_file_name,
+                        character = p_state.profile_name,
+                        step = trial_state.current_step,
+                        trial_total = trial_state.sequence and #trial_state.sequence or 0,
+                        expected_id = expected.id,
+                        expected_motion = expected.motion,
+                        expected_combo = expected.expected_combo,
+                        expected_delay = delay,
+                        previous_verified_step = trial_state.current_step - 1,
+                        previous_id = prev_step and prev_step.id or nil,
+                        previous_motion = prev_step and prev_step.motion or nil,
+                        previous_expected_combo = prev_step and prev_step.expected_combo or nil,
+                        previous_has_hit = prev_step and prev_step.has_hit or nil,
+                        previous_last_frame_diff = prev_step and prev_step.last_frame_diff or nil,
+                        current_combo = _pf.current_combo or 0,
+                        combo_count = _pf.current_combo or 0,
+                        actual_hp = _pf.p_char.vital_new,
+                        frames_since_prev_step = frames_since,
+                        frame_diff = frames_since - delay,
+                        hitstop = _pf.hitstop,
+                        blockstop = _pf.blockstop,
+                        opponent_knocked_down = _pf.opponent_knocked_down,
+                        reject_reason = "timeout"
+                    })
                     DebugTrace.log_trial_failure(file_system, trial_state, engine_frame_count, _pf, "timeout_validation", {
                         expected_motion = expected.motion,
                         playback_state = "playing"
@@ -4001,149 +4069,103 @@ local function ct_player_process_actions(p_idx, p_state, actions_to_process)
                 end)
 
                 local function apply_matched_step(matched_expected, matched_act_id, matched_motion, matched_input, matched_frame, matched_combo, matched_hp, match_reason, match_details)
-                    trial_state._step1_wrong_pending = false
-                    local actual_delay = 0
-                    local validation_frame = matched_frame or engine_frame_count
-                    local last_played = trial_state.last_played_frame or validation_frame
-                    if trial_state.current_step > 1 then
-                        actual_delay = validation_frame -
-                            last_played
-                    end
-                    trial_state.last_played_frame = validation_frame
-                    local frame_diff = Validator.calculate_frame_diff(actual_delay, matched_expected.delay_from_prev)
-
-                    -- IMMEDIATE timing display at the input frame
-                    if frame_diff < 0 then
-                        trial_state.floating_info = string.format("%d frames too early", math.abs(frame_diff))
-                        trial_state.floating_color = 0xFF00FFAD -- Green-Yellow (ABGR)
-                    elseif frame_diff > 0 then
-                        trial_state.floating_info = string.format("%d frames too late", frame_diff)
-                        trial_state.floating_color = 0xFF00A5FF -- Light Orange (ABGR)
-                    else
-                        trial_state.floating_info = "Perfect timing"
-                        trial_state.floating_color = 0xFF00FFFF -- Pure Yellow (ABGR)
-                    end
-
-                    -- If it's a setup with no expected hit, validate the visual step immediately
-                    if is_post_hit_setup_step(trial_state.current_step) then
-                        trial_state.ui_visual_step = trial_state.current_step + 1
-                    end
-
-                    local validation_prev_step = nil
-                    if trial_state.current_step > 1 then
-                        local prev_step = trial_state.sequence[trial_state.current_step - 1]
-                        validation_prev_step = prev_step
-                    end
-                    local combo_ok = Validator.check_combo({
+                    local confirmed, matched_step_idx = ComboTrialsModules.PendingAbsorb.apply_matched_step({
+                        state = trial_state,
+                        p_idx = p_idx,
+                        p_state = p_state,
+                        frame = engine_frame_count,
+                        pf = _pf,
+                        Validator = Validator,
+                        DebugTrace = DebugTrace,
+                        is_post_hit_setup_step = is_post_hit_setup_step,
+                        set_dummy_counter_type = set_dummy_counter_type,
+                        d2d_cfg = d2d_cfg,
+                        file_system = file_system,
+                        act_id_reverse_enum = act_id_reverse_enum
+                    }, {
                         expected = matched_expected,
-                        prev_step = validation_prev_step,
-                        current_combo = matched_combo or 0,
-                        opponent_knocked_down = _pf.opponent_knocked_down
-                    })
-
-                    local hp_ok = Validator.check_hp(
-                        matched_expected.expected_hp,
-                        matched_hp,
-                        is_post_hit_setup_step(trial_state.current_step - 1)
-                    )
-
-                    DebugTrace.record_validation_debug(trial_state, {
-                        frame = validation_frame,
-                        step = trial_state.current_step,
-                        act_id = matched_act_id,
                         actual_action_id = matched_act_id,
-                        motion = matched_motion,
-                        real_input = matched_input,
-                        expected_id = matched_expected.id,
-                        expected_motion = matched_expected.motion,
-                        current_combo = matched_combo or 0,
+                        actual_motion = matched_motion,
+                        actual_input = matched_input,
+                        frame = matched_frame,
                         combo_count = matched_combo or 0,
-                        previous_expected_combo = validation_prev_step
-                            and validation_prev_step.expected_combo or nil,
-                        previous_previous_expected_combo = trial_state.current_step > 2
-                            and trial_state.sequence[trial_state.current_step - 2].expected_combo or nil,
-                        combo_ok = combo_ok,
-                        hp_ok = hp_ok,
-                        current_hp = matched_hp,
-                        expected_hp = matched_expected.expected_hp,
-                        previous_is_setup = is_post_hit_setup_step(trial_state.current_step - 1),
-                        current_is_setup = is_post_hit_setup_step(trial_state.current_step),
-                        frame_diff = frame_diff,
+                        actual_hp = matched_hp,
                         match_reason = match_reason,
-                        recent_index = match_details and match_details.recent_index or nil,
-                        absorb_ids = match_details and match_details.absorb_ids or nil,
-                        source = match_details and match_details.source or nil
+                        match_details = match_details,
+                        hold_mask = hold_mask,
+                        direct_input = direct_input,
+                        hold_frames = hold_frames
                     })
-
-                    if combo_ok and hp_ok then
-                        trial_step_idx = trial_state.current_step
-                        trial_state.sequence[trial_step_idx].has_hit = false
-                        trial_state.sequence[trial_step_idx].last_frame_diff = frame_diff
-                        trial_state.current_step = trial_state.current_step + 1
-
-                        -- Apply the counter of the next step to execute
-                        -- Unless the step we just validated still needs to land as CH/PC
-                        local just_validated = trial_state.sequence[trial_state.current_step - 1]
-                        if not just_validated or just_validated.counter_type == 0 then
-                            local next_step = trial_state.sequence[trial_state.current_step]
-                            if next_step and next_step.counter_type then
-                                set_dummy_counter_type(next_step.counter_type)
-                            end
-                        end
-
-                        -- INIT UNIVERSAL HOLD: memorize the expected level
-                        if matched_expected.is_holdable and matched_expected.charge_status then
-                            local safe_mask = hold_mask
-                            if not safe_mask or safe_mask == 0 then safe_mask = direct_input & 0xFFF0 end
-                            trial_state.active_universal_hold = {
-                                expected_status = matched_expected.charge_status,
-                                hold_mask = safe_mask,
-                                frames = hold_frames or 0,
-                                charge_min = matched_expected.charge_min,
-                                charge_max = matched_expected.charge_max,
-                                profile_name = p_state.profile_name,
-                                linked_transition_id = matched_expected.linked_transition_id,
-                                expected_frames = matched_expected.hold_frames,
-                                hold_partial_check = matched_expected.hold_partial_check
-                            }
-                        end
-                        return true
-                    else
-                        trial_state.fail_timer = d2d_cfg.fail_display_frames or 20
-                        if not hp_ok then
-                            local custom_reason = "WRONG HP (Setup Dropped)"
-                            local prev_step = trial_state.sequence[trial_state.current_step - 1]
-                            if is_post_hit_setup_step(trial_state.current_step - 1) and prev_step and prev_step.last_frame_diff then
-                                if prev_step.last_frame_diff > 2 then
-                                    custom_reason = string.format("SETUP TOO LATE (%df)", prev_step.last_frame_diff)
-                                elseif prev_step.last_frame_diff < -2 then
-                                    custom_reason = string.format("SETUP TOO EARLY (%df)", math.abs(prev_step.last_frame_diff))
-                                else
-                                    custom_reason = "MEATY TIMING FAILED"
-                                end
-                            end
-                            trial_state.fail_reason = custom_reason
-                        elseif frame_diff < -2 then
-                            trial_state.fail_reason = string.format("TOO EARLY (%df)", math.abs(frame_diff))
-                        elseif frame_diff > 2 then
-                            trial_state.fail_reason = string.format("TOO LATE (%df)", frame_diff)
-                        elseif trial_state._hit_grace and trial_state._hit_grace > 0 then
-                            trial_state.fail_timer = 0
-                        else
-                            trial_state.fail_reason = "COMBO DROPPED"
-                        end
-                        if trial_state.fail_timer and trial_state.fail_timer > 0 then
-                            DebugTrace.log_trial_failure(file_system, trial_state, engine_frame_count, _pf, not hp_ok and "action_hp_setup_validation" or "action_step_validation", {
-                                expected_motion = matched_expected.motion,
-                                player_action_id = matched_act_id,
-                                player_action_name = act_id_reverse_enum[matched_act_id] or "Unknown",
-                                timeline_frame = trial_state.current_step,
-                                playback_state = "playing"
-                            })
-                        end
-                        return false
+                    if confirmed then
+                        trial_step_idx = matched_step_idx
                     end
+                    return confirmed
                 end
+
+                local function build_match_probe(expected, phase)
+                    local prev_step = nil
+                    if trial_state.current_step and trial_state.current_step > 1 then
+                        prev_step = trial_state.sequence[trial_state.current_step - 1]
+                    end
+                    local last_played = trial_state.last_played_frame or engine_frame_count
+                    local expected_delay = expected and expected.delay_from_prev or nil
+                    local frames_since_prev_step = trial_state.current_step and trial_state.current_step > 1
+                        and (engine_frame_count - last_played) or 0
+
+                    return {
+                        phase = phase,
+                        frame = engine_frame_count,
+                        trial_file = trial_state.current_file or trial_state.current_file_path,
+                        trial_filename = trial_state.current_file_name,
+                        character = p_state.profile_name,
+                        step = trial_state.current_step,
+                        trial_total = trial_state.sequence and #trial_state.sequence or 0,
+                        expected_id = expected and expected.id or nil,
+                        expected_motion = expected and expected.motion or nil,
+                        expected_combo = expected and expected.expected_combo or nil,
+                        expected_delay = expected_delay,
+                        previous_verified_step = trial_state.current_step and trial_state.current_step - 1 or nil,
+                        previous_id = prev_step and prev_step.id or nil,
+                        previous_motion = prev_step and prev_step.motion or nil,
+                        previous_expected_combo = prev_step and prev_step.expected_combo or nil,
+                        previous_has_hit = prev_step and prev_step.has_hit or nil,
+                        previous_last_frame_diff = prev_step and prev_step.last_frame_diff or nil,
+                        actual_action_id = act_id,
+                        actual_action_name = act_name,
+                        actual_motion = motion_str,
+                        actual_input = real_input_str,
+                        current_combo = _pf.current_combo or 0,
+                        combo_count = _pf.current_combo or 0,
+                        actual_hp = process_act.current_hp,
+                        frames_since_prev_step = frames_since_prev_step,
+                        frame_diff = expected_delay and (frames_since_prev_step - expected_delay) or nil,
+                        intentional = is_intentional,
+                        is_ignored = is_ignored,
+                        ignore_reason = ignore_reason,
+                        flags = flags,
+                        action_code = action_code,
+                        branch_type = b_type,
+                        direct_input = direct_input,
+                        hitstop = _pf.hitstop,
+                        blockstop = _pf.blockstop,
+                        opponent_knocked_down = _pf.opponent_knocked_down
+                    }
+                end
+
+                ComboTrialsModules.PendingAbsorb.check({
+                    state = trial_state,
+                    p_idx = p_idx,
+                    p_state = p_state,
+                    frame = engine_frame_count,
+                    pf = _pf,
+                    Validator = Validator,
+                    DebugTrace = DebugTrace,
+                    is_post_hit_setup_step = is_post_hit_setup_step,
+                    set_dummy_counter_type = set_dummy_counter_type,
+                    d2d_cfg = d2d_cfg,
+                    file_system = file_system,
+                    act_id_reverse_enum = act_id_reverse_enum
+                }, "pending_current_absorb_pre_action")
 
                 if is_intentional then
                 -- 1. Calculate charge properties
@@ -4352,6 +4374,13 @@ local function ct_player_process_actions(p_idx, p_state, actions_to_process)
 
                         if allow_input then
                             local action_match = ActionMatcher.match_expected_action(expected, act_id, motion_str, real_input_str)
+                            local match_probe = build_match_probe(expected, "intentional_action")
+                            match_probe.action_match = {
+                                matched = action_match.matched,
+                                match_reason = action_match.match_reason,
+                                expected_id = action_match.expected_id,
+                                actual_action_id = action_match.actual_action_id
+                            }
                             local skip_current_action = false
                             if expected and not action_match.matched then
                                 local recent_absorb = CharacterRules.find_recent_absorb_confirmation(
@@ -4361,6 +4390,7 @@ local function ct_player_process_actions(p_idx, p_state, actions_to_process)
                                     p_state.log,
                                     p_state.profile_name
                                 )
+                                match_probe.recent_absorb = recent_absorb
                                 if recent_absorb.matched then
                                     local confirmed = apply_matched_step(
                                         expected,
@@ -4373,10 +4403,145 @@ local function ct_player_process_actions(p_idx, p_state, actions_to_process)
                                         recent_absorb.match_reason,
                                         recent_absorb
                                     )
+                                    match_probe.branch = "recent_absorb"
+                                    match_probe.recent_absorb_confirmed = confirmed
                                     if confirmed then
+                                        local chain_limit = 3
+                                        local chain_count = 0
+                                        match_probe.recent_absorb_chain_started = true
+                                        match_probe.recent_absorb_chain = {}
+                                        match_probe.chain_limit_reached = false
+
+                                        while chain_count < chain_limit do
+                                            local chain_step = trial_state.current_step
+                                            local chain_expected = trial_state.sequence[chain_step]
+                                            if not chain_expected then break end
+                                            if chain_step <= 1 then
+                                                table.insert(match_probe.recent_absorb_chain, {
+                                                    chain_iteration = chain_count + 1,
+                                                    chain_step = chain_step,
+                                                    chain_result = "rejected",
+                                                    chain_reject_reason = "step_not_after_first"
+                                                })
+                                                break
+                                            end
+
+                                            local chain_absorb = CharacterRules.find_recent_absorb_confirmation(
+                                                p_state.exceptions,
+                                                common_exceptions,
+                                                chain_expected,
+                                                p_state.log,
+                                                p_state.profile_name
+                                            )
+                                            local chain_record = {
+                                                chain_iteration = chain_count + 1,
+                                                chain_step = chain_step,
+                                                chain_expected_id = chain_expected.id,
+                                                chain_expected_motion = chain_expected.motion,
+                                                chain_absorb_candidate = chain_absorb
+                                            }
+                                            table.insert(match_probe.recent_absorb_chain, chain_record)
+
+                                            if not chain_absorb.matched then
+                                                chain_record.chain_result = "rejected"
+                                                chain_record.chain_reject_reason = chain_absorb.block_reason or "no_recent_absorb_match"
+                                                chain_record.chain_post_step = trial_state.current_step
+                                                break
+                                            end
+
+                                            local chain_frame = chain_absorb.start_frame or engine_frame_count
+                                            local chain_last_played = trial_state.last_played_frame or chain_frame
+                                            local chain_actual_delay = chain_step > 1 and (chain_frame - chain_last_played) or 0
+                                            local chain_frame_diff = Validator.calculate_frame_diff(chain_actual_delay, chain_expected.delay_from_prev)
+                                            chain_record.chain_frames_since_prev_step = chain_actual_delay
+                                            chain_record.chain_expected_delay = chain_expected.delay_from_prev
+                                            chain_record.chain_frame_diff = chain_frame_diff
+
+                                            if math.abs(chain_frame_diff) > 2 then
+                                                chain_record.chain_result = "rejected"
+                                                chain_record.chain_reject_reason = "timing_window"
+                                                chain_record.chain_post_step = trial_state.current_step
+                                                break
+                                            end
+
+                                            local chain_prev_step = chain_step > 1 and trial_state.sequence[chain_step - 1] or nil
+                                            local chain_combo = chain_absorb.combo_count or 0
+                                            local chain_combo_ok = Validator.check_combo({
+                                                expected = chain_expected,
+                                                prev_step = chain_prev_step,
+                                                current_combo = chain_combo,
+                                                opponent_knocked_down = _pf.opponent_knocked_down
+                                            })
+                                            local chain_hp_ok = Validator.check_hp(
+                                                chain_expected.expected_hp,
+                                                process_act.current_hp,
+                                                is_post_hit_setup_step(chain_step - 1)
+                                            )
+                                            chain_record.chain_combo_ok = chain_combo_ok
+                                            chain_record.chain_hp_ok = chain_hp_ok
+
+                                            if not chain_combo_ok then
+                                                chain_record.chain_result = "rejected"
+                                                chain_record.chain_reject_reason = "combo_check"
+                                                chain_record.chain_post_step = trial_state.current_step
+                                                break
+                                            end
+                                            if not chain_hp_ok then
+                                                chain_record.chain_result = "rejected"
+                                                chain_record.chain_reject_reason = "hp_check"
+                                                chain_record.chain_post_step = trial_state.current_step
+                                                break
+                                            end
+
+                                            local chain_details = {
+                                                actual_action_id = chain_absorb.actual_action_id,
+                                                match_reason = "ehonda_recent_absorb_chain",
+                                                recent_index = chain_absorb.recent_index,
+                                                combo_count = chain_absorb.combo_count,
+                                                start_frame = chain_absorb.start_frame,
+                                                motion = chain_absorb.motion,
+                                                real_input = chain_absorb.real_input,
+                                                intentional = chain_absorb.intentional,
+                                                expected_id = chain_absorb.expected_id,
+                                                expected_combo = chain_absorb.expected_combo,
+                                                absorb_ids = chain_absorb.absorb_ids,
+                                                source = "recent_absorb_chain"
+                                            }
+                                            local chain_confirmed = apply_matched_step(
+                                                chain_expected,
+                                                chain_absorb.actual_action_id,
+                                                chain_absorb.motion or "Unknown",
+                                                chain_absorb.real_input or "None",
+                                                chain_frame,
+                                                chain_combo,
+                                                process_act.current_hp,
+                                                "ehonda_recent_absorb_chain",
+                                                chain_details
+                                            )
+                                            chain_record.chain_result = chain_confirmed and "confirmed" or "failed"
+                                            chain_record.chain_post_step = trial_state.current_step
+
+                                            if not chain_confirmed then
+                                                break
+                                            end
+                                            chain_count = chain_count + 1
+                                        end
+
+                                        if chain_count >= chain_limit and trial_state.sequence[trial_state.current_step] then
+                                            match_probe.chain_limit_reached = true
+                                        end
+                                        match_probe.final_step_after_chain = trial_state.current_step
+
                                         expected = trial_state.sequence[trial_state.current_step]
                                         if expected then
                                             action_match = ActionMatcher.match_expected_action(expected, act_id, motion_str, real_input_str)
+                                            match_probe.post_absorb_step = trial_state.current_step
+                                            match_probe.post_absorb_action_match = {
+                                                matched = action_match.matched,
+                                                match_reason = action_match.match_reason,
+                                                expected_id = action_match.expected_id,
+                                                actual_action_id = action_match.actual_action_id
+                                            }
                                         else
                                             skip_current_action = true
                                         end
@@ -4388,10 +4553,16 @@ local function ct_player_process_actions(p_idx, p_state, actions_to_process)
 
                             if skip_current_action then
                                 -- EHonda recent absorb already consumed the pending expected step.
+                                match_probe.reject_reason = "skip_after_recent_absorb"
+                                DebugTrace.record_match_probe(trial_state, match_probe)
                             elseif expected and ActionMatcher.is_optional_parent_for_followup(motion_str, expected) then
                                 -- Older combo JSON may omit the stance entry before a > follow-up.
                                 -- Do not let the parent action match the follow-up by button input.
+                                match_probe.reject_reason = "optional_parent_for_followup"
+                                DebugTrace.record_match_probe(trial_state, match_probe)
                             elseif action_match.matched then
+                                match_probe.branch = "direct_match"
+                                DebugTrace.record_match_probe(trial_state, match_probe)
                                 apply_matched_step(
                                     expected,
                                     act_id,
@@ -4410,12 +4581,30 @@ local function ct_player_process_actions(p_idx, p_state, actions_to_process)
                                 local expecting_parry = expected and expected.motion and expected.motion:upper():match("PARRY") ~= nil
                                 local is_first_step_dr = is_drive_rush_id(trial_state.sequence[1].id) or is_drive_rush_motion(trial_state.sequence[1].motion)
                                 local is_first_step_parry = trial_state.sequence[1].motion and trial_state.sequence[1].motion:upper():match("PARRY") ~= nil
+                                local first_step_dr_parry_reset_candidate = (is_first_step_dr and is_parry) or (is_first_step_parry and is_current_dr)
+                                local combo_in_progress = (_pf.current_combo or 0) > 0
+                                local just_confirmed_recent_absorb = match_probe.recent_absorb_confirmed == true
+                                    and (match_probe.post_absorb_step or 0) > (match_probe.step or 0)
+                                match_probe.is_parry = is_parry
+                                match_probe.is_current_dr = is_current_dr
+                                match_probe.expecting_dr = expecting_dr
+                                match_probe.expecting_parry = expecting_parry
+                                match_probe.is_first_step_dr = is_first_step_dr
+                                match_probe.is_first_step_parry = is_first_step_parry
+                                match_probe.first_step_dr_parry_reset_candidate = first_step_dr_parry_reset_candidate
+                                match_probe.combo_in_progress = combo_in_progress
+                                match_probe.just_confirmed_recent_absorb = just_confirmed_recent_absorb
 
                                 if expecting_dr and is_parry then
                                     -- Tolerance: Expecting DR, got Parry → ignore, wait for DR
+                                    match_probe.reject_reason = "expecting_dr_got_parry_wait"
+                                    DebugTrace.record_match_probe(trial_state, match_probe)
                                 elseif expecting_parry and is_current_dr then
                                     -- Tolerance: Expecting Parry, got DR directly → skip Parry step, validate DR on next
+                                    match_probe.branch = "expecting_parry_got_dr_skip"
+                                    DebugTrace.record_match_probe(trial_state, match_probe)
                                     trial_state._step1_wrong_pending = false
+                                    ComboTrialsModules.PendingAbsorb.clear(trial_state, "parry_dr_skip")
                                     trial_state.last_played_frame = engine_frame_count
                                     trial_state.current_step = trial_state.current_step + 1
                                     local next_expected = trial_state.sequence[trial_state.current_step]
@@ -4424,10 +4613,15 @@ local function ct_player_process_actions(p_idx, p_state, actions_to_process)
                                     end
                                 elseif expecting_dr and is_current_dr then
                                     -- Tolerance: DR id mismatch (739 vs 740 vs char-specific) → validate
+                                    match_probe.branch = "drive_rush_id_tolerance"
+                                    DebugTrace.record_match_probe(trial_state, match_probe)
                                     trial_state._step1_wrong_pending = false
+                                    ComboTrialsModules.PendingAbsorb.clear(trial_state, "drive_rush_tolerance")
                                     trial_state.last_played_frame = engine_frame_count
                                     trial_state.current_step = trial_state.current_step + 1
                                 elseif act_id == trial_state.sequence[1].id then
+                                    match_probe.branch = "restart_from_first_step"
+                                    DebugTrace.record_match_probe(trial_state, match_probe)
                                     trial_state.fail_timer = 0
                                     trial_state.fail_reason = nil
                                     reset_trial_steps()
@@ -4435,17 +4629,32 @@ local function ct_player_process_actions(p_idx, p_state, actions_to_process)
                                     trial_state.sequence[1].has_hit = false
                                     trial_state.current_step = 2
                                     trial_state.last_played_frame = engine_frame_count
-                                elseif (is_first_step_dr and is_parry) or (is_first_step_parry and is_current_dr) then
+                                elseif first_step_dr_parry_reset_candidate and not combo_in_progress and not just_confirmed_recent_absorb then
+                                    match_probe.branch = "reset_first_step_dr_parry"
+                                    DebugTrace.record_match_probe(trial_state, match_probe)
                                     trial_state.fail_timer = 0
                                     trial_state.fail_reason = nil
                                     reset_trial_steps()
                                     trial_step_idx = nil
                                 else
+                                    if first_step_dr_parry_reset_candidate then
+                                        match_probe.reset_first_step_dr_parry_blocked = true
+                                        if combo_in_progress then
+                                            match_probe.reset_first_step_dr_parry_block_reason = "combo_in_progress"
+                                        elseif just_confirmed_recent_absorb then
+                                            match_probe.reset_first_step_dr_parry_block_reason = "recent_absorb_advanced_step"
+                                        end
+                                    end
                                     if trial_state.current_step == 1 then
+                                        match_probe.reject_reason = "step1_wrong_pending"
+                                        DebugTrace.record_match_probe(trial_state, match_probe)
                                         trial_state._step1_wrong_pending = true
                                     else
-                                        trial_state.fail_timer = d2d_cfg.fail_display_frames or 120
-                                        trial_state.fail_reason = "WRONG MOVE"
+                                    match_probe.reject_reason = "wrong_move"
+                                    DebugTrace.record_match_probe(trial_state, match_probe)
+                                    ComboTrialsModules.PendingAbsorb.clear(trial_state, "wrong_move")
+                                    trial_state.fail_timer = d2d_cfg.fail_display_frames or 120
+                                    trial_state.fail_reason = "WRONG MOVE"
                                     end
                                 end
                             end
@@ -4470,6 +4679,26 @@ local function ct_player_process_actions(p_idx, p_state, actions_to_process)
                     _pf.current_combo or 0,
                     p_state.profile_name
                 )
+                local match_probe = build_match_probe(expected, "non_intentional_action")
+                match_probe.current_absorb = current_absorb
+                match_probe.reject_reason = current_absorb.matched and nil or current_absorb.block_reason
+                if not current_absorb.matched and current_absorb.block_reason == "combo_not_reached" then
+                    ComboTrialsModules.PendingAbsorb.store({
+                        state = trial_state,
+                        p_idx = p_idx,
+                        p_state = p_state,
+                        frame = engine_frame_count,
+                        pf = _pf,
+                        Validator = Validator,
+                        DebugTrace = DebugTrace,
+                        is_post_hit_setup_step = is_post_hit_setup_step,
+                        set_dummy_counter_type = set_dummy_counter_type,
+                        d2d_cfg = d2d_cfg,
+                        file_system = file_system,
+                        act_id_reverse_enum = act_id_reverse_enum
+                    }, expected, current_absorb, match_probe, process_act.current_hp)
+                end
+                DebugTrace.record_match_probe(trial_state, match_probe)
                 if current_absorb.matched then
                     apply_matched_step(
                         expected,

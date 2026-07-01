@@ -78,6 +78,12 @@ function M.load_combo_from_file(path, force)
     trial_state.sequence = loaded
     trial_state.current_step = 1
     trial_state.is_playing = false
+    trial_state.current_file = path
+    trial_state.current_file_path = path
+    trial_state.current_file_name = tostring(path):match("([^/\\]+)$") or tostring(path)
+    trial_state._match_probe = nil
+    trial_state._match_probe_history = nil
+    trial_state._verify_trace_dump = nil
     if loaded[1] then
         trial_state.start_pos_p1 = loaded[1].start_pos_p1
         trial_state.start_pos_p2 = loaded[1].start_pos_p2
@@ -103,6 +109,12 @@ function M.clear_combo_state()
     trial_state.live_start_pos_p2 = nil
     trial_state.live_start_pos_p1_raw = nil
     trial_state.live_start_pos_p2_raw = nil
+    trial_state.current_file = nil
+    trial_state.current_file_path = nil
+    trial_state.current_file_name = nil
+    trial_state._match_probe = nil
+    trial_state._match_probe_history = nil
+    trial_state._verify_trace_dump = nil
 end
 
 local function sanitize_utf8_display(value)
