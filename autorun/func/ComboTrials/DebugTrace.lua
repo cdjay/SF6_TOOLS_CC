@@ -4,6 +4,14 @@ local DebugTrace = {
     name = "ComboTrials.DebugTrace"
 }
 
+local HONDA_NORMAL_DUMP_PATH = "TrainingComboTrials_data/Debug_HondaNormalDump.json"
+local HONDA_NORMAL_DUMP_MAX_EVENTS = 240
+
+local function honda_normal_dump_enabled()
+    local flag = rawget(_G, "CT_HONDA_NORMAL_DUMP")
+    return flag ~= false
+end
+
 function DebugTrace.record_validation_debug(state, data)
     if state then
         state._validation_debug = data
@@ -79,6 +87,34 @@ end
 
 function DebugTrace.write_json(path, data)
     return json.dump_file(path, data)
+end
+
+function DebugTrace.record_honda_normal_input(state, event)
+    if not honda_normal_dump_enabled() then return nil end
+    if not state or type(event) ~= "table" then return nil end
+
+    if not state._honda_normal_dump then
+        state._honda_normal_dump = {
+            timestamp = os.date("%Y-%m-%d %H:%M:%S"),
+            note = "Temporary EHonda recording-only action dump. Disable with _G.CT_HONDA_NORMAL_DUMP=false.",
+            events = {}
+        }
+    end
+
+    local dump = state._honda_normal_dump
+    dump.updated_at = os.date("%Y-%m-%d %H:%M:%S")
+    dump.enabled = true
+    dump.path = HONDA_NORMAL_DUMP_PATH
+
+    table.insert(dump.events, event)
+    while #dump.events > HONDA_NORMAL_DUMP_MAX_EVENTS do
+        table.remove(dump.events, 1)
+    end
+
+    pcall(function()
+        DebugTrace.write_json(HONDA_NORMAL_DUMP_PATH, dump)
+    end)
+    return event
 end
 
 function DebugTrace.record_last_fail(state, dump, path)

@@ -4450,6 +4450,36 @@ local function ct_player_process_actions(p_idx, p_state, actions_to_process)
                 ignore_reason = ignore_reason
             })
 
+            if trial_state.is_recording and p_idx == trial_state.recording_player
+                and (p_state.profile_name == "EHonda" or p_state.profile_name == "Honda") then
+                local json_step = trial_step_idx and trial_state.sequence[trial_step_idx] or nil
+                DebugTrace.record_honda_normal_input(trial_state, {
+                    frame = engine_frame_count,
+                    character = p_state.profile_name,
+                    trial_file = trial_state.current_file_name or trial_state.current_file or "",
+                    recording = true,
+                    recording_step = #trial_state.sequence,
+                    action_id = act_id,
+                    motion = motion_str,
+                    real_input = real_input_str,
+                    intentional = is_intentional,
+                    trackable = is_trackable,
+                    combo_count = _pf.current_combo or 0,
+                    is_unknown = motion_str == "Unknown" or act_name == "Unknown",
+                    json_step_written = json_step ~= nil,
+                    json_step_motion = json_step and json_step.motion or nil,
+                    json_step_id = json_step and json_step.id or nil,
+                    display_name = act_name,
+                    raw_input = direct_input,
+                    flags = flags,
+                    action_code = action_code,
+                    branch_type = b_type,
+                    input = "",
+                    expected_motion = "",
+                    notes = ""
+                })
+            end
+
             if #p_state.log > 100 then table.remove(p_state.log) end
         end -- END OF "if not is_continuation" block
     end -- END OF for _, process_act
