@@ -5,6 +5,12 @@ local json = json
 require("func/SharedHooks")
 local RuntimeSafety = require("func/RuntimeSafety")
 local GS = require("func/GameState")
+local ComboTrialsModules = {
+    DebugTrace = require("func/ComboTrials/DebugTrace"),
+    ActionMatcher = require("func/ComboTrials/ActionMatcher"),
+    CharacterRules = require("func/ComboTrials/CharacterRules"),
+    Validator = require("func/ComboTrials/Validator")
+}
 
 pcall(function()
     if fs and fs.create_dir then fs.create_dir("TrainingComboTrials_data/exceptions") end
