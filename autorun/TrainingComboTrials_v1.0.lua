@@ -696,6 +696,7 @@ local d2d_cfg = {
     icon_size = 0.035,
     font_size = 0.028,
     trial_title_show = true,
+    show_trial_notes = false,
     trial_title_font_size = 0.030,
     spacing_y = 0.045,
     spacing_x = 0.005,

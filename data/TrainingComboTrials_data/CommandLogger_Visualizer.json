@@ -148,6 +148,7 @@
         "y": 0.35
     },
     "show_combo_count": false,
+    "show_trial_notes": false,
     "show_live_single_p1": true,
     "show_live_single_p2": true,
     "show_p1": false,

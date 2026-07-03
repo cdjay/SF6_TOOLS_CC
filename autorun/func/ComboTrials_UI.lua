@@ -255,6 +255,13 @@ local function draw_top_combo_picker(id, dd_w, sp)
     end
 end
 
+local function publish_top_combo_picker_left(dd_w, sp, local_x)
+    local pos = imgui.get_window_pos()
+    if not pos then return end
+    local filter_w = math.max(76, math.min(110, dd_w * 0.32))
+    _G.ComboTrialsFileListLeft = pos.x + (local_x or 0) + filter_w + sp
+end
+
 local function update_replay_recording_status(is_replay_mode)
     if _G.ComboTrials_ReplayCancelPlayer ~= nil then
         local cp = _G.ComboTrials_ReplayCancelPlayer
@@ -398,6 +405,12 @@ local function P1_COLORS()     return get_sc("c1") end
 local function TRIAL_COLORS()  return get_sc("c2") end
 local function P2_COLORS()     return get_sc("c3") end
 local function SWITCH_COLORS() return get_sc("c4") end
+local function NOTE_ON_COLORS()
+    return { text = 0xFFFFFFFF, base = 0xFFE07000, hover = 0xFFFF9000, active = 0xFFFFA000, border = 0xFFFFC070 }
+end
+local function NOTE_OFF_COLORS()
+    return { text = 0xFFFFFFFF, base = 0xFF4A4A4A, hover = 0xFF606060, active = 0xFF707070, border = 0xFF909090 }
+end
 
 local function styled_sf6_button(label, is_active, width, is_floating, is_disabled, color_override)
     width = width or 0
@@ -523,6 +536,10 @@ local function draw_single_line_content()
     -- 2. Dropdown keeps same size, idle buttons expand to fill the button area
     local return_gap = math.max(actual_btn_w / 3, sp * 5)
     local dd_w = usable_w - (actual_btn_w * 4) - return_gap
+    if trial_state.is_playing then
+        dd_w = dd_w - actual_btn_w - sp
+    end
+    if dd_w < 80 then dd_w = 80 end
     local idle_btn_w = (usable_w - dd_w) / 2
 
     local dynamic_rec_w = actual_btn_w
@@ -590,6 +607,7 @@ local function draw_single_line_content()
         end
     elseif is_demo_active then
         -- === DEMO ===
+        publish_top_combo_picker_left(dd_w, sp, pad_x + arrow_margin)
         draw_top_combo_picker("TopDemo", dd_w, sp)
         imgui.same_line(0, sp)
         if styled_sf6_button("重播演示", false, dynamic_rec_w, true, false, TRIAL_COLORS) then
@@ -601,10 +619,18 @@ local function draw_single_line_content()
         end
     else
         -- Normal / Playing mode: P1 dropdown + idle buttons, or playback controls
+        publish_top_combo_picker_left(dd_w, sp, pad_x + arrow_margin)
         draw_top_combo_picker("TopNormal", dd_w, sp)
         imgui.same_line(0, sp)
         local btn_w = trial_state.is_playing and actual_btn_w or idle_btn_w
         if trial_state.is_playing then
+            local note_label = (d2d_cfg.show_trial_notes == true) and "备注开" or "备注关"
+            local note_colors = (d2d_cfg.show_trial_notes == true) and NOTE_ON_COLORS or NOTE_OFF_COLORS
+            if styled_sf6_button(note_label, d2d_cfg.show_trial_notes == true, btn_w, true, false, note_colors) then
+                d2d_cfg.show_trial_notes = not (d2d_cfg.show_trial_notes == true)
+                ctx.save_d2d_config()
+            end
+            imgui.same_line(0, sp)
             if styled_sf6_button("重置连段", false, btn_w, true, false, P1_COLORS) then
                 ctx.reset_trial_steps_and_load(trial_state.playing_player)
             end
@@ -1548,6 +1574,10 @@ local function draw_combo_trials_menu_ui()
             if d2d_cfg.trial_title_show == nil then d2d_cfg.trial_title_show = true end
             c, v = imgui.checkbox("显示连段中文标题", d2d_cfg.trial_title_show); if c then
                 d2d_cfg.trial_title_show = v; changed = true
+            end
+            if d2d_cfg.show_trial_notes == nil then d2d_cfg.show_trial_notes = false end
+            c, v = imgui.checkbox("显示备注", d2d_cfg.show_trial_notes); if c then
+                d2d_cfg.show_trial_notes = v; changed = true
             end
             c, v = imgui.drag_float("标题字体大小", d2d_cfg.trial_title_font_size or 0.030, 0.001, 0.010, 0.080, "%.3f"); if c then
                 d2d_cfg.trial_title_font_size = v; changed = true
