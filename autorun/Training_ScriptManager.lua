@@ -529,130 +529,6 @@ local MODE_BUTTONS = {
     { id = 4, label = "连段训练" },
 }
 
-local GAME_SPEED_MIN_PERCENT = 50
-local GAME_SPEED_MAX_PERCENT = 100
-local GAME_SPEED_STEP_PERCENT = 10
-local GAME_SPEED_PERCENT_VALUES = { 50, 60, 70, 80, 90, 100 }
-
-local game_speed_percent = 100
-local last_applied_game_speed = nil
-local tf_other_setting_cache = nil
-local game_speed_apply_error = nil
-
-local function clamp_game_speed_percent(value)
-    local v = tonumber(value) or game_speed_percent or GAME_SPEED_MAX_PERCENT
-    v = math.floor((v + 5) / GAME_SPEED_STEP_PERCENT) * GAME_SPEED_STEP_PERCENT
-    if v < GAME_SPEED_MIN_PERCENT then v = GAME_SPEED_MIN_PERCENT end
-    if v > GAME_SPEED_MAX_PERCENT then v = GAME_SPEED_MAX_PERCENT end
-    return v
-end
-
-local function game_speed_percent_to_os_enum(percent)
-    return math.floor(percent / GAME_SPEED_STEP_PERCENT) - 5
-end
-
-local function get_tf_other_setting(tm)
-    if tf_other_setting_cache then return tf_other_setting_cache end
-
-    local fallback = nil
-    pcall(function()
-        local dict = tm and tm:get_field("_tfFuncs")
-        local entries = dict and dict:get_field("_entries")
-        if not entries then return end
-
-        pcall(function()
-            local entry = entries:call("get_Item", 10)
-            fallback = entry and entry:get_field("value") or nil
-        end)
-
-        local count = entries:call("get_Count")
-        for i = 0, count - 1 do
-            local entry = entries:call("get_Item", i)
-            local val = entry and entry:get_field("value") or nil
-            local td = val and val:get_type_definition()
-            local full_name = td and td:get_full_name() or ""
-            if full_name:find("tf_OtherSetting", 1, true) then
-                tf_other_setting_cache = val
-                return
-            end
-        end
-    end)
-
-    tf_other_setting_cache = tf_other_setting_cache or fallback
-    return tf_other_setting_cache
-end
-
-local function apply_game_speed_percent(percent)
-    local safe_percent = clamp_game_speed_percent(percent)
-    local os_speed = game_speed_percent_to_os_enum(safe_percent)
-    if last_applied_game_speed == safe_percent then
-        game_speed_apply_error = nil
-        _G.TrainingGameSpeedApplyError = nil
-        return true
-    end
-
-    local ok, err = pcall(function()
-        local tm = sdk and sdk.get_managed_singleton and sdk.get_managed_singleton("app.training.TrainingManager")
-        if not tm then error("TrainingManager unavailable") end
-        local tData = tm:get_field("_tData")
-        if not tData then error("TrainingData unavailable") end
-        local other_setting = tData:get_field("OtherSetting")
-        if not other_setting then error("OtherSetting unavailable") end
-        local tf_other = get_tf_other_setting(tm)
-        if not tf_other then error("tf_OtherSetting unavailable") end
-
-        other_setting.Is_Speed_Setting = true
-        other_setting.OS_Game_Speed = os_speed
-        if sdk and sdk.call_object_func then
-            sdk.call_object_func(tf_other, "ApplyGameSpeed")
-        else
-            tf_other:call("ApplyGameSpeed")
-        end
-    end)
-
-    if ok then
-        last_applied_game_speed = safe_percent
-        game_speed_apply_error = nil
-        _G.TrainingGameSpeedApplyError = nil
-        return true
-    end
-
-    game_speed_apply_error = tostring(err)
-    _G.TrainingGameSpeedApplyError = game_speed_apply_error
-    return false
-end
-
-local function set_game_speed_percent(percent)
-    local safe_percent = clamp_game_speed_percent(percent)
-    if game_speed_percent ~= safe_percent then
-        game_speed_percent = safe_percent
-        apply_game_speed_percent(game_speed_percent)
-    end
-end
-
-local function draw_game_speed_control(x, y, w, scale, sp)
-    local label_w = math.max(96 * scale, math.min(124 * scale, w * 0.34))
-    local bar_w = w - label_w - sp
-    local seg_gap = math.max(1, 2 * scale)
-    local seg_count = #GAME_SPEED_PERCENT_VALUES
-    local seg_w = (bar_w - seg_gap * (seg_count - 1)) / seg_count
-    if seg_w < 24 * scale then seg_w = 24 * scale end
-
-    imgui.set_cursor_pos(Vector2f.new(x, y))
-    if SharedUI.sf6_button("速度 " .. tostring(game_speed_percent) .. "%##top_game_speed_reset", MODE_INACTIVE, label_w) then
-        set_game_speed_percent(100)
-    end
-
-    imgui.same_line(0, sp)
-    for i, percent in ipairs(GAME_SPEED_PERCENT_VALUES) do
-        if i > 1 then imgui.same_line(0, seg_gap) end
-        local colors = (percent <= game_speed_percent) and MODE_ACTIVE or MODE_INACTIVE
-        if SharedUI.sf6_button(tostring(percent) .. "##top_game_speed_" .. tostring(percent), colors, seg_w) then
-            set_game_speed_percent(percent)
-        end
-    end
-end
-
 local function draw_top_floating_bar()
     local visible, sw, sh = SharedUI.begin_floating_window_top("TrainingModeSwitch##top", top_bar_width, top_bar_height)
     if not visible then
@@ -670,7 +546,7 @@ local function draw_top_floating_bar()
     if btn_w < 145 * scale then btn_w = 145 * scale end
 
     local passive_w = math.max(112 * scale, sw * 0.06)
-    local feature_start_x = sw * 0.705
+    local feature_start_x = sw * 0.665
     local top_y = sh * 0.01
 
     imgui.set_cursor_pos(Vector2f.new(train_x, top_y))
@@ -685,13 +561,6 @@ local function draw_top_floating_bar()
         if SharedUI.sf6_button(btn.label .. "##top_" .. btn.id, colors, btn_w) then
             _G.CurrentTrainerMode = btn.id
         end
-    end
-
-    local train_end_x = train_x + btn_w * train_count + sp * (train_count - 1)
-    local speed_x = train_end_x + 36 * scale
-    local speed_w = feature_start_x - speed_x - 64 * scale
-    if speed_w >= 230 * scale then
-        draw_game_speed_control(speed_x, top_y, speed_w, scale, sp)
     end
 
     imgui.set_cursor_pos(Vector2f.new(feature_start_x, top_y))
