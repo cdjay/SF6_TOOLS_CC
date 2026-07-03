@@ -315,14 +315,61 @@ local function save_xt_settings()
     json.dump_file(XT_SETTINGS_FILE, xt_settings)
 end
 
-local function build_auto_xt_meta()
+local function read_player_input_type(player_idx)
+    local input_type = nil
+    pcall(function()
+        local tm = sdk and sdk.get_managed_singleton and sdk.get_managed_singleton("app.training.TrainingManager")
+        local t_data = tm and tm:get_field("_tData")
+        if not t_data then return end
+
+        local containers = {
+            t_data:get_field("SelectMenu"),
+            t_data:get_field("ParameterSetting"),
+        }
+
+        for _, container in ipairs(containers) do
+            local player_data = container and container.PlayerDatas and container.PlayerDatas[player_idx or 0]
+            if player_data then
+                local ok, value = pcall(function()
+                    local td = player_data:get_type_definition()
+                    local field = td and td:get_field("InputType")
+                    if field then return field:get_data(player_data) end
+                    return nil
+                end)
+                if not ok or value == nil then
+                    ok, value = pcall(function() return player_data.InputType end)
+                end
+                if ok and value ~= nil then
+                    input_type = tonumber(value) or tonumber(tostring(value))
+                    if input_type == nil and sdk and sdk.to_int64 then
+                        pcall(function() input_type = tonumber(sdk.to_int64(value)) end)
+                    end
+                    if input_type ~= nil then return end
+                end
+            end
+        end
+    end)
+    return input_type
+end
+
+local function control_type_from_input_type(input_type)
+    if tonumber(input_type) == 1 then return "modern" end
+    return "classic"
+end
+
+local function build_auto_xt_meta(recording_player)
+    local input_type = read_player_input_type(recording_player or trial_state.recording_player or 0)
+    local control_type = control_type_from_input_type(input_type)
     return {
         title = "",
         note = "",
         author = xt_settings.default_author or "佚名",
         tags = {},
         created_at = os.date("%Y-%m-%d %H:%M:%S"),
-        schema = 1
+        schema = 1,
+        control_type = control_type,
+        timeline_input_profile = control_type,
+        input_type = input_type
     }
 end
 
@@ -3757,7 +3804,7 @@ local function stop_recording_and_save()
     end
 
     trial_state.recording_player = saved_player
-    save_trial_sequence(build_auto_xt_meta())
+    save_trial_sequence(build_auto_xt_meta(saved_player))
 end
 
 
