@@ -3765,9 +3765,10 @@ local function stop_recording_and_save()
 
     -- If nothing was recorded anywhere, act exactly like Cancel
     if #trial_state.sequence == 0 and not logger_has_data then
+        local canceled_player = trial_state.recording_player
         cancel_recording()
 
-        if trial_state.recording_player == 0 then
+        if canceled_player == 0 then
             logger_state.rec_p1.active = false
             logger_state.rec_p1.has_started = false
             logger_state.rec_p1.data = {}
@@ -3777,6 +3778,7 @@ local function stop_recording_and_save()
             logger_state.rec_p2.data = {}
         end
 
+        _G.ComboTrials_PendingSaveCanceled = canceled_player
         return
     end
 
@@ -3801,11 +3803,17 @@ local function stop_recording_and_save()
 
     if #trial_state.sequence == 0 then
         cancel_recording()
+        _G.ComboTrials_PendingSaveCanceled = saved_player
         return
     end
 
     trial_state.recording_player = saved_player
-    save_trial_sequence(build_auto_xt_meta(saved_player))
+    local ok, saved_path = pcall(save_trial_sequence, build_auto_xt_meta(saved_player))
+    if not ok or not saved_path then
+        trial_state._xt_pending_save_error = ok and "save returned no path" or tostring(saved_path)
+        pcall(print, "[ComboTrials.Save] save failed: " .. tostring(trial_state._xt_pending_save_error))
+        _G.ComboTrials_SaveFailedPlayer = saved_player
+    end
 end
 
 

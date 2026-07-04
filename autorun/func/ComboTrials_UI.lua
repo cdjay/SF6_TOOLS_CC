@@ -287,10 +287,17 @@ local function update_replay_recording_status(is_replay_mode)
         elseif cp == 1 then _replay_status_p2 = "canceled" end
         _replay_saved_clock = os.clock()
     end
+    if _G.ComboTrials_SaveFailedPlayer ~= nil then
+        local cp = _G.ComboTrials_SaveFailedPlayer
+        _G.ComboTrials_SaveFailedPlayer = nil
+        if cp == 0 then _replay_status_p1 = "save_failed"
+        elseif cp == 1 then _replay_status_p2 = "save_failed" end
+        _replay_saved_clock = os.clock()
+    end
 
     if _prev_is_recording and not trial_state.is_recording then
         local cur_st = (_replay_save_player == 0) and _replay_status_p1 or _replay_status_p2
-        if cur_st ~= "canceled" then
+        if cur_st ~= "canceled" and cur_st ~= "save_failed" then
             _replay_save_clock = os.clock()
             _replay_saved_clock = 0
             if _replay_save_player == 0 then _replay_status_p1 = "saving"
@@ -319,6 +326,10 @@ local function update_replay_recording_status(is_replay_mode)
             end
         elseif st == "canceled" and _replay_saved_clock > 0 then
             if now - _replay_saved_clock >= 1.0 then
+                if pi == 0 then _replay_status_p1 = "waiting" else _replay_status_p2 = "waiting" end
+            end
+        elseif st == "save_failed" and _replay_saved_clock > 0 then
+            if now - _replay_saved_clock >= 3.0 then
                 if pi == 0 then _replay_status_p1 = "waiting" else _replay_status_p2 = "waiting" end
             end
         end
@@ -352,6 +363,9 @@ local function replay_status_label(player_idx, width, now)
     elseif st == "canceled" then
         label = "录制已取消"
         color = COLORS.Orange
+    elseif st == "save_failed" then
+        label = "保存失败"
+        color = COLORS.Red
     else
         label = "---"
         color = COLORS.DarkGrey
@@ -959,18 +973,23 @@ local function _ctui_flush_trial_display()
     local ts = ctx and ctx.trial_state
     if ts then
         if ts._xt_pending_save then return end
+        if ts.is_recording or ts.is_playing then return end
         ts.is_playing = false
         ts.sequence = {}
         ts.current_step = 1
     end
 end
 
-local function _ctui_clear_visual_state()
+local function _ctui_hide_visual_state()
     sf6_menu_state.active = false
     _G.ComboTrials_HideNativeHUD = false
     _G.ComboTrialsD2DEnabled = false
     _G._ct_bar_geometry = nil
     _G.TrainingBarsDrawn = false
+end
+
+local function _ctui_clear_visual_state()
+    _ctui_hide_visual_state()
     if ctx and ctx.trial_state and not ctx.trial_state._xt_pending_save then
         ctx.trial_state.is_playing = false
         ctx.trial_state.is_recording = false
@@ -991,17 +1010,31 @@ re.on_frame(function()
     end
     _was_bars_drawn = bars_now
 
-    local is_replay_context = (_G.FlowMapID == 10) or (_G.IsInReplay == true) or (_G.IsInBattleHub == true)
-    if not is_replay_context and (_G.CurrentTrainerMode ~= 4 or _G.TrainingScriptManagerActiveThisFrame ~= true) then
-        _ctui_clear_visual_state()
-        return
-    end
-
     local is_game_active = false
+    local is_pause_menu = false
     local pm = sdk.get_managed_singleton("app.PauseManager")
     if pm then
         local b = pm:get_field("_CurrentPauseTypeBit")
-        if b == 64 or b == 2112 then is_game_active = true end
+        if b == 64 or b == 2112 then
+            is_game_active = true
+        elseif b ~= nil then
+            is_pause_menu = true
+        end
+    end
+
+    local is_replay_context = (_G.FlowMapID == 10) or (_G.IsInReplay == true) or (_G.IsInBattleHub == true)
+    if not is_replay_context and _G.CurrentTrainerMode ~= 4 then
+        _ctui_clear_visual_state()
+        return
+    end
+    if not is_replay_context and _G.TrainingScriptManagerActiveThisFrame ~= true then
+        if is_pause_menu then
+            _ctui_flush_d2d_config_for_exit()
+            _ctui_hide_visual_state()
+        else
+            _ctui_clear_visual_state()
+        end
+        return
     end
 
     local in_training_context = (_G.CurrentTrainerMode == 4) and (_G.TrainingModeActive == true) and (is_replay_context or _G.TrainingScriptManagerActiveThisFrame == true)
@@ -1009,7 +1042,11 @@ re.on_frame(function()
     _G.ComboTrialsD2DEnabled = should_enable_ct_ui
     if not should_enable_ct_ui then
         _ctui_flush_d2d_config_for_exit()
-        _ctui_clear_visual_state()
+        if is_pause_menu then
+            _ctui_hide_visual_state()
+        else
+            _ctui_clear_visual_state()
+        end
         return
     end
 
