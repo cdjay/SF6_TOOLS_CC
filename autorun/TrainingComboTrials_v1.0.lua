@@ -4883,17 +4883,20 @@ local function is_same_action_continuation_step(prev_step, step, combo_count, cu
     if prev_step.id == nil or step.id == nil then return false end
     if prev_step.id ~= step.id then return false end
     local timeline_expanded_repeat = step._ct_timeline_expanded == true
-    if prev_step.action_instance and current_action_instance
-        and prev_step.action_instance == current_action_instance
-        and not timeline_expanded_repeat then
-        return false
-    end
 
     local prev_combo = tonumber(prev_step.expected_combo) or 0
     local expected_combo = tonumber(step.expected_combo) or 0
     local current_combo = combo_count or 0
     if expected_combo <= 0 or expected_combo <= prev_combo then return false end
     if current_combo < expected_combo then return false end
+    if prev_step.action_instance and current_action_instance
+        and prev_step.action_instance == current_action_instance
+        and not timeline_expanded_repeat
+        and not (CTTimelineSequenceNormalizer.simple_button_step_key(prev_step)
+            and CTTimelineSequenceNormalizer.simple_button_step_key(prev_step)
+                == CTTimelineSequenceNormalizer.simple_button_step_key(step)) then
+        return false
+    end
     return true
 end
 
