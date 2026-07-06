@@ -50,6 +50,19 @@ local function parse_absorb_ids(exception)
     return ids
 end
 
+function CharacterRules.is_action_required(exception)
+    if type(exception) ~= "table" then return false end
+    return exception.action_required == true
+        or exception.no_combo_auto_advance == true
+        or exception.require_absorb == true
+end
+
+local function absorb_requires_combo(exception)
+    if type(exception) ~= "table" then return true end
+    if exception.absorb_requires_combo == false then return false end
+    return not CharacterRules.is_action_required(exception)
+end
+
 function CharacterRules.find_recent_absorb_confirmation(character_rules, common_rules, expected, recent_inputs, character_name)
     if not expected then return { matched = false, block_reason = "missing_expected" } end
 
@@ -67,7 +80,8 @@ function CharacterRules.find_recent_absorb_confirmation(character_rules, common_
         local recent_id = recent and tonumber(recent.id)
         if recent_id and absorb_ids[recent_id] then
             local combo_count = tonumber(recent.combo_count) or 0
-            if combo_count >= expected_combo then
+            local combo_ok = (not absorb_requires_combo(exception)) or combo_count >= expected_combo
+            if combo_ok then
                 return {
                     matched = true,
                     actual_action_id = recent_id,
@@ -81,7 +95,8 @@ function CharacterRules.find_recent_absorb_confirmation(character_rules, common_
                     intentional = recent.intentional,
                     expected_id = expected.id,
                     expected_combo = expected_combo,
-                    absorb_ids = exception.absorb_ids
+                    absorb_ids = exception.absorb_ids,
+                    ignore_combo_check = not absorb_requires_combo(exception)
                 }
             end
             return {
@@ -117,7 +132,8 @@ function CharacterRules.match_current_absorb_confirmation(character_rules, commo
     if expected_combo == nil then return { matched = false, block_reason = "missing_expected_combo" } end
 
     local current_combo = tonumber(combo_count) or 0
-    if current_combo < expected_combo then
+    local combo_ok = (not absorb_requires_combo(exception)) or current_combo >= expected_combo
+    if not combo_ok then
         return {
             matched = false,
             block_reason = "combo_not_reached",
@@ -138,7 +154,8 @@ function CharacterRules.match_current_absorb_confirmation(character_rules, commo
         absorb_ids = exception.absorb_ids,
         source = "current_non_intentional_absorb",
         motion = "Unknown",
-        real_input = "None"
+        real_input = "None",
+        ignore_combo_check = not absorb_requires_combo(exception)
     }
 end
 

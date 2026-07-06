@@ -4865,8 +4865,21 @@ local function is_post_hit_setup_step(step_idx)
     return false
 end
 
+function ct_step_requires_action(step)
+    if type(step) ~= "table" or step.id == nil then return false end
+    local player_idx = trial_state.playing_player or trial_state.recording_player or 0
+    local p_state = players[player_idx]
+    local exc = CharacterRules.get_exception(
+        p_state and p_state.exceptions or nil,
+        common_exceptions,
+        step.id
+    )
+    return CharacterRules.is_action_required(exc)
+end
+
 local function is_same_action_continuation_step(prev_step, step, combo_count, current_action_instance)
     if not prev_step or not step then return false end
+    if ct_step_requires_action(step) then return false end
     if prev_step.id == nil or step.id == nil then return false end
     if prev_step.id ~= step.id then return false end
     local timeline_expanded_repeat = step._ct_timeline_expanded == true
@@ -4921,6 +4934,7 @@ end
 function ct_try_skip_unreported_same_action_pressure_step(args)
     if type(args) ~= "table" then return nil end
     if not args.expected or args.action_match_matched then return nil end
+    if ct_step_requires_action(args.expected) then return nil end
     if not ct_is_unreported_same_action_pressure_step(args.prev_step, args.expected) then return nil end
 
     local state = args.state
@@ -7399,6 +7413,7 @@ local function ct_player_process_actions(p_idx, p_state, actions_to_process)
                                                 expected_id = chain_absorb.expected_id,
                                                 expected_combo = chain_absorb.expected_combo,
                                                 absorb_ids = chain_absorb.absorb_ids,
+                                                ignore_combo_check = chain_absorb.ignore_combo_check,
                                                 source = "recent_absorb_chain"
                                             }
                                             local chain_confirmed = apply_matched_step(

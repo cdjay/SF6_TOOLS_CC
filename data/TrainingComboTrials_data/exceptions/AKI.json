@@ -56,6 +56,18 @@
         "is_holdable": false,
         "override_name": ">6P"
     },
+    "944": {
+        "action_required": true,
+        "absorb_ids": "945,936,941",
+        "absorb_requires_combo": false,
+        "force": false,
+        "hold_partial_check": true,
+        "ignore": false,
+        "ignore_prev_frames": 5,
+        "is_holdable": false,
+        "move_name": "OD 蛇頭鞭",
+        "override_name": "236+PP"
+    },
     "992": {
         "absorb_ids": "",
         "force": false,
