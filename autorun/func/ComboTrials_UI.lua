@@ -1501,6 +1501,14 @@ local function draw_combo_trials_menu_ui()
             c, v = imgui.checkbox("显示备注", d2d_cfg.show_trial_notes); if c then
                 d2d_cfg.show_trial_notes = v; changed = true
             end
+            if d2d_cfg.auto_next_trial == nil then d2d_cfg.auto_next_trial = true end
+            c, v = imgui.checkbox("成功后自动进入下一个连段", d2d_cfg.auto_next_trial); if c then
+                d2d_cfg.auto_next_trial = v; changed = true
+            end
+            imgui.same_line()
+            if imgui.button("清除完成标记") and ctx.clear_completed_trials then
+                ctx.clear_completed_trials()
+            end
             c, v = imgui.drag_float("标题字体大小", d2d_cfg.trial_title_font_size or 0.030, 0.001, 0.010, 0.080, "%.3f"); if c then
                 d2d_cfg.trial_title_font_size = v; changed = true
             end

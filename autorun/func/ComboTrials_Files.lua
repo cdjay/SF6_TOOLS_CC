@@ -300,12 +300,17 @@ local function combo_info_from_file(filepath, char_name)
         title = title,
         short_key = short_key,
         control_type = control_type,
+        filepath = filepath,
     }, nil, control_type
 end
 
 local function build_combo_display_entry(info)
     if type(info) ~= "table" then return tostring(info or "") end
     local prefix = info.prefix or "[C]"
+    if file_system and file_system.is_trial_completed and info.filepath
+        and file_system.is_trial_completed(info.filepath) then
+        prefix = "【完】" .. prefix
+    end
     local title = tostring(info.title or "")
     local title_text = title ~= "" and ("[" .. title .. "]") or ""
     local left = prefix
