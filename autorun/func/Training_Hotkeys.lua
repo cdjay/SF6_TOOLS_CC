@@ -382,21 +382,39 @@ local function find_conflicts(scope_id, action_id)
     return #hits > 0 and table.concat(hits, ", ") or nil
 end
 
-local function draw_action_row(label, binding_label, draw_controls)
+local function draw_action_row(label, binding_label, draw_controls, force_stacked)
     local cursor = imgui.get_cursor_pos()
     local window_w = imgui.get_window_size().x
     local label_w = imgui.calc_text_size(label).x
     local binding_w = imgui.calc_text_size(binding_label).x
     local controls_w = imgui.calc_text_size("绑定").x + imgui.calc_text_size("清除").x + 44
-    local right_aligned_x = window_w - controls_w - 24
-    local controls_x = math.max(cursor.x + label_w + binding_w + 24, right_aligned_x, 360)
+    local right_aligned_x = window_w - controls_w - 12
+    local controls_x = math.max(cursor.x + label_w + binding_w + 24, right_aligned_x)
     local binding_x = math.max(cursor.x + label_w + 12, controls_x - binding_w - 12)
+    local inline_fits = controls_x + controls_w <= window_w - 12
 
+    if not force_stacked and inline_fits and binding_x >= cursor.x + label_w + 12 then
+        imgui.text(label)
+        imgui.set_cursor_pos(Vector2f.new(binding_x, cursor.y))
+        imgui.text_colored(binding_label, 0xFF00FFFF)
+        imgui.set_cursor_pos(Vector2f.new(controls_x, cursor.y))
+        draw_controls()
+        return
+    end
+
+    -- Narrow REFramework menus cannot fit the label, binding and controls on one line.
+    -- Keep every control in the visible content region by stacking the row instead.
     imgui.text(label)
-    imgui.set_cursor_pos(Vector2f.new(binding_x, cursor.y))
-    imgui.text_colored(binding_label, 0xFF00FFFF)
-    imgui.set_cursor_pos(Vector2f.new(controls_x, cursor.y))
-    draw_controls()
+    local binding_text = "当前绑定: " .. binding_label
+    local compact_w = imgui.calc_text_size(binding_text).x + controls_w + 8
+    if not force_stacked and cursor.x + compact_w <= window_w - 12 then
+        imgui.text_colored(binding_text, 0xFF00FFFF)
+        imgui.same_line(0, 8)
+        draw_controls()
+    else
+        imgui.text_colored(binding_text, 0xFF00FFFF)
+        draw_controls()
+    end
 end
 
 function M.is_input_blocked()
@@ -473,7 +491,7 @@ local function draw_scope(scope)
             local cap = capture and capture.scope_id == scope.id and capture.action_id == action_id
             draw_action_row(action.label or action_id, M.combo_name(scope_cfg.bindings[action_id]), function()
                 if cap then
-                    imgui.text_colored("请按下键盘键或设备按钮；ESC 取消。", 0xFF00A5FF)
+                    imgui.text_colored("请按键或设备按钮；ESC 取消。", 0xFF00A5FF)
                     return
                 end
                 if imgui.button("绑定##hk_bind_" .. scope.id .. "_" .. action_id) then
@@ -489,7 +507,7 @@ local function draw_scope(scope)
                     scope_cfg.bindings[action_id] = nil
                     save_config()
                 end
-            end)
+            end, cap == true)
 
             local conflict = find_conflicts(scope.id, action_id)
             if conflict then
