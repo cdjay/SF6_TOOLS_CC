@@ -97,12 +97,18 @@ local _dropdown_scroll_needed = false
 
 local CONTROL_CLASSIC_COLOR = 0xFFDDA0CC
 local CONTROL_MODERN_COLOR = 0xFF66A0DD
+local COMPLETED_TRIAL_COLOR = 0xFF55DD77
 
 local function combo_control_color(value)
     local mode = tostring(value or ""):lower()
+    if mode:find("^【完】") then return COMPLETED_TRIAL_COLOR end
     if mode == "classic" or mode:find("^%[c%]") then return CONTROL_CLASSIC_COLOR end
     if mode == "modern" or mode:find("^%[m%]") then return CONTROL_MODERN_COLOR end
     return nil
+end
+
+local function is_completed_combo_display(value)
+    return tostring(value or ""):find("^【完】") ~= nil
 end
 
 local function combo_openable(label, current_idx, items, force_open, btn_width)
@@ -147,9 +153,11 @@ local function combo_openable(label, current_idx, items, force_open, btn_width)
 
         for i = 1, #items do
             local is_highlighted = (i == _dropdown_highlight_idx)
-            local row_color = combo_control_color(items[i])
+            local item = items[i]
+            local completed = is_completed_combo_display(item)
+            local row_color = completed and COMPLETED_TRIAL_COLOR or combo_control_color(item)
             if row_color then imgui.push_style_color(0, row_color) end
-            if imgui.menu_item(items[i], "", is_highlighted, true) then
+            if imgui.menu_item(item, completed and "√" or "", is_highlighted, true) then
                 new_idx = i
                 changed = true
             end
@@ -1362,10 +1370,32 @@ local function draw_combo_trials_menu_ui()
                 imgui.text_colored("当前已被分离为浮动窗口。", COLORS.DarkGrey)
                 imgui.spacing()
             end
-            local auto_c, auto_v = imgui.checkbox("自动演示", ctx.demo_state and ctx.demo_state.auto_playlist_enabled == true)
+            local auto_c, auto_v = imgui.checkbox("自动播放全部连段", ctx.demo_state and ctx.demo_state.auto_playlist_enabled == true)
             if auto_c and ctx.demo_state then ctx.demo_state.auto_playlist_enabled = auto_v == true end
             local asd_c, asd_v = imgui.checkbox("允许晕厥连段使用演示", _G._allow_stun_demo or false)
             if asd_c then _G._allow_stun_demo = asd_v end
+            if d2d_cfg.show_trial_notes == nil then d2d_cfg.show_trial_notes = false end
+            local notes_c, notes_v = imgui.checkbox("显示备注", d2d_cfg.show_trial_notes)
+            if notes_c then
+                d2d_cfg.show_trial_notes = notes_v
+                if ctx.save_d2d_config then ctx.save_d2d_config() end
+            end
+            if d2d_cfg.auto_next_trial == nil then d2d_cfg.auto_next_trial = true end
+            local ant_c, ant_v = imgui.checkbox("成功后自动进入下一个连段", d2d_cfg.auto_next_trial)
+            if ant_c then
+                d2d_cfg.auto_next_trial = ant_v
+                if ctx.save_d2d_config then ctx.save_d2d_config() end
+            end
+            imgui.same_line()
+            if imgui.button("清除完成标记") and ctx.clear_completed_trials then
+                ctx.clear_completed_trials()
+            end
+            if d2d_cfg.auto_retry_on_fail == nil then d2d_cfg.auto_retry_on_fail = true end
+            local arf_c, arf_v = imgui.checkbox("失败后自动重试（无需手动重置）", d2d_cfg.auto_retry_on_fail)
+            if arf_c then
+                d2d_cfg.auto_retry_on_fail = arf_v
+                if ctx.save_d2d_config then ctx.save_d2d_config() end
+            end
         end
 
         -- ==========================================
@@ -1391,10 +1421,6 @@ local function draw_combo_trials_menu_ui()
                     "忽略持续少于 X 帧的快速重叠输入。\n可减少 214+PP 前一瞬间被误判为 214+P。\n设为 0 可关闭。推荐：3-4。")
             end
 
-
-            c, v = imgui.checkbox("显示连段计数", d2d_cfg.show_combo_count); if c then
-                d2d_cfg.show_combo_count = v; changed = true
-            end
             imgui.spacing()
 
             imgui.text_colored("--- 实时日志（录制 / 连段中）---", COLORS.Cyan)
@@ -1544,22 +1570,6 @@ local function draw_combo_trials_menu_ui()
             if d2d_cfg.trial_title_show == nil then d2d_cfg.trial_title_show = true end
             c, v = imgui.checkbox("显示连段中文标题", d2d_cfg.trial_title_show); if c then
                 d2d_cfg.trial_title_show = v; changed = true
-            end
-            if d2d_cfg.show_trial_notes == nil then d2d_cfg.show_trial_notes = false end
-            c, v = imgui.checkbox("显示备注", d2d_cfg.show_trial_notes); if c then
-                d2d_cfg.show_trial_notes = v; changed = true
-            end
-            if d2d_cfg.auto_next_trial == nil then d2d_cfg.auto_next_trial = true end
-            c, v = imgui.checkbox("成功后自动进入下一个连段", d2d_cfg.auto_next_trial); if c then
-                d2d_cfg.auto_next_trial = v; changed = true
-            end
-            imgui.same_line()
-            if imgui.button("清除完成标记") and ctx.clear_completed_trials then
-                ctx.clear_completed_trials()
-            end
-            if d2d_cfg.auto_retry_on_fail == nil then d2d_cfg.auto_retry_on_fail = true end
-            c, v = imgui.checkbox("失败后自动重试（无需手动重置）", d2d_cfg.auto_retry_on_fail); if c then
-                d2d_cfg.auto_retry_on_fail = v; changed = true
             end
             c, v = imgui.drag_float("标题字体大小", d2d_cfg.trial_title_font_size or 0.030, 0.001, 0.010, 0.080, "%.3f"); if c then
                 d2d_cfg.trial_title_font_size = v; changed = true

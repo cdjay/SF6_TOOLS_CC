@@ -807,51 +807,45 @@ load_d2d_config()
 
 -- =========================================================
 -- COMPLETED TRIALS TRACKING (runtime file, not committed)
--- Wrapped in do..end and attached to file_system: the main chunk
--- is close to Lua's 200-local limit, so no new top-level locals.
+-- Keep state on file_system to avoid adding main-chunk locals.
 -- =========================================================
-do
-    local COMPLETED_TRIALS_FILE = "TrainingComboTrials_data/CompletedTrials.json"
-    -- normalized combo file path -> true, for every combo the player has
-    -- finished manually at least once (demo playback never counts)
-    local completed_trials = {}
+file_system.completed_trials = file_system.completed_trials or {}
 
-    local function completed_trial_key(path)
-        return (tostring(path or ""):gsub("\\", "/")):lower()
-    end
-
-    local function save_completed_trials()
-        if fs and fs.create_dir then pcall(fs.create_dir, "TrainingComboTrials_data") end
-        json.dump_file(COMPLETED_TRIALS_FILE, completed_trials)
-    end
-
-    file_system.is_trial_completed = function(path)
-        local key = completed_trial_key(path)
-        return key ~= "" and completed_trials[key] == true
-    end
-
-    file_system.mark_trial_completed = function(path)
-        local key = completed_trial_key(path)
-        if key == "" or completed_trials[key] then return false end
-        completed_trials[key] = true
-        save_completed_trials()
-        return true
-    end
-
-    file_system.clear_completed_trials = function()
-        completed_trials = {}
-        save_completed_trials()
-    end
-
-    if type(_G.safe_load_json) == "function" then
-        local ok, loaded = pcall(_G.safe_load_json, COMPLETED_TRIALS_FILE)
-        if ok and type(loaded) == "table" then
-            for key, value in pairs(loaded) do
-                if type(key) == "string" and value then completed_trials[key] = true end
-            end
-        end
-    end
+file_system.completed_trial_key = function(path)
+    return (tostring(path or ""):gsub("\\", "/")):lower()
 end
+
+file_system.save_completed_trials = function()
+    if fs and fs.create_dir then pcall(fs.create_dir, "TrainingComboTrials_data") end
+    json.dump_file("TrainingComboTrials_data/CompletedTrials.json", file_system.completed_trials)
+end
+
+file_system.is_trial_completed = function(path)
+    local key = file_system.completed_trial_key(path)
+    return key ~= "" and file_system.completed_trials[key] == true
+end
+
+file_system.mark_trial_completed = function(path)
+    local key = file_system.completed_trial_key(path)
+    if key == "" or file_system.completed_trials[key] then return false end
+    file_system.completed_trials[key] = true
+    file_system.save_completed_trials()
+    return true
+end
+
+file_system.clear_completed_trials = function()
+    file_system.completed_trials = {}
+    file_system.save_completed_trials()
+end
+
+pcall(function()
+    if type(_G.safe_load_json) ~= "function" then return end
+    local loaded = _G.safe_load_json("TrainingComboTrials_data/CompletedTrials.json")
+    if type(loaded) ~= "table" then return end
+    for key, value in pairs(loaded) do
+        if type(key) == "string" and value then file_system.completed_trials[key] = true end
+    end
+end)
 
 
 -- =========================================================
@@ -8120,86 +8114,83 @@ end
 
 -- =========================================================
 -- TRIAL SUCCESS/FAIL: completion marking, auto-advance, auto-retry
--- Attached to ctx inside do..end: the main chunk is close to
--- Lua's 200-local limit, so no new top-level locals.
+-- Keep helpers on ctx to avoid adding main-chunk locals.
 -- =========================================================
-do
-    local function advance_to_next_trial()
-        if trial_state._xt_pending_save then return false end
-        local p_idx = trial_state.playing_player or 0
-        local paths = (p_idx == 0) and file_system.saved_combos_paths_p1 or file_system.saved_combos_paths_p2
-        local idx = (p_idx == 0) and (file_system.selected_file_idx_p1 or 1) or (file_system.selected_file_idx_p2 or 1)
-        if type(paths) ~= "table" or #paths == 0 then return false end
-        if idx >= #paths then
-            ct_ticker("已完成列表中最后一个连段")
-            return false
-        end
-
-        if p_idx == 0 then
-            file_system.selected_file_idx_p1 = idx + 1
-        else
-            file_system.selected_file_idx_p2 = idx + 1
-        end
-        load_and_start_trial(p_idx)
-        ct_ticker(string.format("已进入下一个连段 (%d/%d)", idx + 1, #paths))
-        return true
+ctx.advance_to_next_trial = function()
+    if trial_state._xt_pending_save then return false end
+    local p_idx = trial_state.playing_player or 0
+    local paths = (p_idx == 0) and file_system.saved_combos_paths_p1 or file_system.saved_combos_paths_p2
+    local idx = (p_idx == 0) and (file_system.selected_file_idx_p1 or 1) or (file_system.selected_file_idx_p2 or 1)
+    if type(paths) ~= "table" or #paths == 0 then return false end
+    if idx >= #paths then
+        ct_ticker("已完成列表中最后一个连段")
+        return false
     end
 
-    ctx.handle_trial_auto_flow = function()
-        if not trial_state.is_playing or (demo_state and demo_state.is_playing) then
-            if demo_state and demo_state.is_playing then
-                -- Demo playback drives the same validation pipeline, and the
-                -- finished steps survive quitting the demo, which can trigger
-                -- a success banner afterwards. Taint the attempt so a
-                -- demo-driven finish never counts as completed; any manual
-                -- reset/restart clears this via clear_trial_attempt_state.
-                trial_state._attempt_had_demo = true
+    if p_idx == 0 then
+        file_system.selected_file_idx_p1 = idx + 1
+    else
+        file_system.selected_file_idx_p2 = idx + 1
+    end
+    load_and_start_trial(p_idx)
+    ct_ticker(string.format("已进入下一个连段 (%d/%d)", idx + 1, #paths))
+    return true
+end
+
+ctx.handle_trial_auto_flow = function()
+    if not trial_state.is_playing or (demo_state and demo_state.is_playing) then
+        if demo_state and demo_state.is_playing then
+            -- Demo playback drives the same validation pipeline, and the
+            -- finished steps survive quitting the demo, which can trigger
+            -- a success banner afterwards. Taint the attempt so a
+            -- demo-driven finish never counts as completed; any manual
+            -- reset/restart clears this via clear_trial_attempt_state.
+            trial_state._attempt_had_demo = true
+        end
+        trial_state._success_latched = false
+        trial_state._auto_next_countdown = nil
+        return
+    end
+
+    -- AUTO-RETRY ON FAIL: when the fail banner finishes, the vanilla
+    -- flow sets manual_reset_pending and waits for a manual reset.
+    -- Perform the same reset automatically (mirrors the reset button:
+    -- reset_trial_steps clears manual_reset_pending, so this fires once).
+    if d2d_cfg.auto_retry_on_fail ~= false
+        and trial_state.manual_reset_pending
+        and #trial_state.sequence > 0
+        and (trial_state.fail_timer or 0) == 0
+        and (trial_state.success_timer or 0) == 0 then
+        reset_trial_steps()
+        ct_ticker("失败，自动重试")
+        return
+    end
+
+    -- Latch the first frame of the success banner: record completion once.
+    -- A demo-tainted attempt gets neither the completion mark nor the
+    -- auto-advance - only manual play counts.
+    if (trial_state.success_timer or 0) > 0 and not trial_state._success_latched then
+        trial_state._success_latched = true
+        if not trial_state._attempt_had_demo then
+            local path = trial_state.current_file_path or trial_state.current_file
+            if file_system.mark_trial_completed(path) then
+                refresh_combo_list_preserve_selection(false)
             end
-            trial_state._success_latched = false
+            if d2d_cfg.auto_next_trial ~= false then
+                trial_state._auto_next_countdown = d2d_cfg.fail_display_frames or 120
+            end
+        end
+    end
+
+    -- The success banner re-arms itself, so advance on our own countdown.
+    -- Keep _success_latched set: if advancing fails (last file in the list),
+    -- the still-armed banner must not restart the countdown. A successful
+    -- advance resets the latch via clear_trial_attempt_state.
+    if trial_state._auto_next_countdown then
+        trial_state._auto_next_countdown = trial_state._auto_next_countdown - 1
+        if trial_state._auto_next_countdown <= 0 then
             trial_state._auto_next_countdown = nil
-            return
-        end
-
-        -- AUTO-RETRY ON FAIL: when the fail banner finishes, the vanilla
-        -- flow sets manual_reset_pending and waits for a manual reset.
-        -- Perform the same reset automatically (mirrors the reset button:
-        -- reset_trial_steps clears manual_reset_pending, so this fires once).
-        if d2d_cfg.auto_retry_on_fail ~= false
-            and trial_state.manual_reset_pending
-            and #trial_state.sequence > 0
-            and (trial_state.fail_timer or 0) == 0
-            and (trial_state.success_timer or 0) == 0 then
-            reset_trial_steps()
-            ct_ticker("失败，自动重试")
-            return
-        end
-
-        -- Latch the first frame of the success banner: record completion once.
-        -- A demo-tainted attempt gets neither the completion mark nor the
-        -- auto-advance — only manual play counts.
-        if (trial_state.success_timer or 0) > 0 and not trial_state._success_latched then
-            trial_state._success_latched = true
-            if not trial_state._attempt_had_demo then
-                local path = trial_state.current_file_path or trial_state.current_file
-                if file_system.mark_trial_completed(path) then
-                    refresh_combo_list_preserve_selection(false)
-                end
-                if d2d_cfg.auto_next_trial ~= false then
-                    trial_state._auto_next_countdown = d2d_cfg.fail_display_frames or 120
-                end
-            end
-        end
-
-        -- The success banner re-arms itself, so advance on our own countdown.
-        -- Keep _success_latched set: if advancing fails (last file in the list),
-        -- the still-armed banner must not restart the countdown. A successful
-        -- advance resets the latch via clear_trial_attempt_state.
-        if trial_state._auto_next_countdown then
-            trial_state._auto_next_countdown = trial_state._auto_next_countdown - 1
-            if trial_state._auto_next_countdown <= 0 then
-                trial_state._auto_next_countdown = nil
-                advance_to_next_trial()
-            end
+            ctx.advance_to_next_trial()
         end
     end
 end
@@ -9005,27 +8996,35 @@ ComboTrials_UI.init(ctx)
 -- ============================================================
 -- SAVE STATE / LOAD STATE: sync with active trial
 -- ============================================================
-local _trial_snapshot    = nil
-local _pending_restore   = 0
-local _save_pending      = false
-local _real_frame        = 0
-local _save_fired_at     = 0
-local _save_step_at_fire = 1
+ctx.save_state = ctx.save_state or {
+    trial_snapshot = nil,
+    pending_restore = 0,
+    save_pending = false,
+    real_frame = 0,
+    save_fired_at = 0,
+    save_step_at_fire = 1,
+    dbg_log = {},
+    save_display = "jamais",
+    save_count = 0,
+    load_display = "jamais",
+    load_count = 0,
+    hooked = false
+}
 
-local function apply_restore()
-    if not _trial_snapshot then return end
+ctx.apply_restore = function()
+    if not ctx.save_state.trial_snapshot then return end
     if not trial_state.is_playing then return end
-    trial_state.current_step      = _trial_snapshot.step or 1
+    trial_state.current_step      = ctx.save_state.trial_snapshot.step or 1
     trial_state.success_timer     = 0
     trial_state.fail_timer        = 0
     trial_state.fail_reason       = nil
-    local frames_since            = _trial_snapshot.frames_since_step or 0
+    local frames_since            = ctx.save_state.trial_snapshot.frames_since_step or 0
     trial_state.last_played_frame = engine_frame_count - frames_since
-    if _trial_snapshot.flip_inputs ~= nil then
-        trial_state.flip_inputs = _trial_snapshot.flip_inputs
+    if ctx.save_state.trial_snapshot.flip_inputs ~= nil then
+        trial_state.flip_inputs = ctx.save_state.trial_snapshot.flip_inputs
     end
-    if _trial_snapshot.sequence then
-        for i, saved in ipairs(_trial_snapshot.sequence) do
+    if ctx.save_state.trial_snapshot.sequence then
+        for i, saved in ipairs(ctx.save_state.trial_snapshot.sequence) do
             if trial_state.sequence[i] then
                 trial_state.sequence[i].has_hit      = saved.has_hit
                 trial_state.sequence[i].actual_combo = saved.actual_combo
@@ -9040,54 +9039,47 @@ local function apply_restore()
     reset_combo_visual_runtime()
 end
 
-local function clear_trial_snapshot()
-    _trial_snapshot  = nil
-    _pending_restore = 0
-    _save_pending    = false
+ctx.clear_trial_snapshot = function()
+    ctx.save_state.trial_snapshot = nil
+    ctx.save_state.pending_restore = 0
+    ctx.save_state.save_pending = false
 end
 
 -- Debug log
-local _dbg_log = {}
-local function dbg(s)
-    table.insert(_dbg_log, 1, string.format("[%d] %s", _real_frame, s))
-    if #_dbg_log > 20 then table.remove(_dbg_log) end
+ctx.save_state_dbg = function(s)
+    table.insert(ctx.save_state.dbg_log, 1, string.format("[%d] %s", ctx.save_state.real_frame, s))
+    if #ctx.save_state.dbg_log > 20 then table.remove(ctx.save_state.dbg_log) end
 end
-
-local _save_display = "jamais"
-local _save_count   = 0
-local _load_display = "jamais"
-local _load_count   = 0
 
 -- re.on_draw_ui(function()
 -- imgui.begin_window("TrialSaveState DEBUG", true, 0)
--- imgui.text_colored("SAVE: " .. _save_count .. "x  " .. _save_display, 0xFF88FF88)
--- imgui.text_colored("LOAD: " .. _load_count .. "x  " .. _load_display, 0xFF8888FF)
+-- imgui.text_colored("SAVE: " .. ctx.save_state.save_count .. "x  " .. ctx.save_state.save_display, 0xFF88FF88)
+-- imgui.text_colored("LOAD: " .. ctx.save_state.load_count .. "x  " .. ctx.save_state.load_display, 0xFF8888FF)
 -- imgui.separator()
--- for _, l in ipairs(_dbg_log) do imgui.text(l) end
+-- for _, l in ipairs(ctx.save_state.dbg_log) do imgui.text(l) end
 -- imgui.end_window()
 -- end)
 
 
 if not _G._allow_stun_demo then _G._allow_stun_demo = false end
 
-local function _ct_get_field(obj, name)
+ctx.ct_get_field = function(obj, name)
     return obj:get_field(name)
 end
 
-local _ss_hooked = false
 re.on_frame(function()
     if rawget(_G, "CT_SAVE_STATE_POC") ~= true then
-        _save_pending = false
-        _pending_restore = 0
+        ctx.save_state.save_pending = false
+        ctx.save_state.pending_restore = 0
         return
     end
     if not is_combo_trials_runtime_allowed() then
-        _save_pending = false
-        _pending_restore = 0
+        ctx.save_state.save_pending = false
+        ctx.save_state.pending_restore = 0
         return
     end
-    if not _ss_hooked then
-        _ss_hooked = true
+    if not ctx.save_state.hooked then
+        ctx.save_state.hooked = true
         local td = sdk.find_type_definition("app.training.TrainingManager")
         if td then
             local save_methods = { "requestSaveState", "SaveKeyData" }
@@ -9098,11 +9090,11 @@ re.on_frame(function()
                 if m then
                     pcall(function()
                         sdk.hook(m, function(args)
-                            if _pending_restore > 0 then return end
-                            _save_pending      = true
-                            _save_fired_at     = _real_frame
-                            _save_step_at_fire = trial_state.current_step
-                            dbg("Save() " .. name .. " step=" .. tostring(trial_state.current_step))
+                            if ctx.save_state.pending_restore > 0 then return end
+                            ctx.save_state.save_pending = true
+                            ctx.save_state.save_fired_at = ctx.save_state.real_frame
+                            ctx.save_state.save_step_at_fire = trial_state.current_step
+                            ctx.save_state_dbg("Save() " .. name .. " step=" .. tostring(trial_state.current_step))
                         end, function(retval) return retval end)
                     end)
                 end
@@ -9113,10 +9105,10 @@ re.on_frame(function()
                 if m then
                     pcall(function()
                         sdk.hook(m, function(args)
-                            _load_count   = _load_count + 1
-                            _save_pending = false
-                            if _trial_snapshot and trial_state.is_playing then
-                                _pending_restore = 8
+                            ctx.save_state.load_count = ctx.save_state.load_count + 1
+                            ctx.save_state.save_pending = false
+                            if ctx.save_state.trial_snapshot and trial_state.is_playing then
+                                ctx.save_state.pending_restore = 8
                             end
                         end, function(retval) return retval end)
                     end)
@@ -9126,40 +9118,40 @@ re.on_frame(function()
     end
 
     -- If Save fired and no Load followed within 5 frames -> real Save
-    if _save_pending and (_real_frame - _save_fired_at) >= 5 then
-        _save_pending = false
+    if ctx.save_state.save_pending and (ctx.save_state.real_frame - ctx.save_state.save_fired_at) >= 5 then
+        ctx.save_state.save_pending = false
         if trial_state.is_playing then
             local snap_sequence = {}
             for i, item in ipairs(trial_state.sequence) do
                 snap_sequence[i] = { has_hit = item.has_hit, actual_combo = item.actual_combo }
             end
-            _trial_snapshot = {
-                step              = _save_step_at_fire,
+            ctx.save_state.trial_snapshot = {
+                step              = ctx.save_state.save_step_at_fire,
                 frames_since_step = engine_frame_count - (trial_state.last_played_frame or engine_frame_count),
                 sequence          = snap_sequence,
                 flip_inputs       = trial_state.flip_inputs,
             }
-            _save_count     = _save_count + 1
-            _save_display   = os.date("%H:%M:%S") .. " [SnapShoted] step=" .. tostring(_save_step_at_fire)
-            dbg("-> snapshot saved step=" ..
-                tostring(_trial_snapshot.step) .. " frames_since=" .. tostring(_trial_snapshot.frames_since_step))
+            ctx.save_state.save_count = ctx.save_state.save_count + 1
+            ctx.save_state.save_display = os.date("%H:%M:%S") .. " [SnapShoted] step=" .. tostring(ctx.save_state.save_step_at_fire)
+            ctx.save_state_dbg("-> snapshot saved step=" ..
+                tostring(ctx.save_state.trial_snapshot.step) .. " frames_since=" .. tostring(ctx.save_state.trial_snapshot.frames_since_step))
         end
     end
 
     -- STOP TRIAL -> clear
-    if not trial_state.is_playing and _trial_snapshot then
-        clear_trial_snapshot()
+    if not trial_state.is_playing and ctx.save_state.trial_snapshot then
+        ctx.clear_trial_snapshot()
     end
 
     -- GUARD: cancel the refresh triggered by save shortcuts when trial is active with forced position.
     -- Do not cancel our own reset/start refresh; pending_exact_pos is set by apply_forced_position().
-    local save_refresh_recent = _save_fired_at > 0 and (_real_frame - _save_fired_at) <= 8
+    local save_refresh_recent = ctx.save_state.save_fired_at > 0 and (ctx.save_state.real_frame - ctx.save_state.save_fired_at) <= 8
     if trial_state.is_playing and save_refresh_recent and d2d_cfg.forced_position_idx ~= 1
         and not (trial_state.pending_exact_pos and trial_state.pending_exact_pos > 0) then
         local tm2 = sdk.get_managed_singleton("app.training.TrainingManager")
         if tm2 then
-            local ok, ts = pcall(_ct_get_field, tm2, "_TrainingState")
-            local ok2, rf = pcall(_ct_get_field, tm2, "_IsReqRefresh")
+            local ok, ts = pcall(ctx.ct_get_field, tm2, "_TrainingState")
+            local ok2, rf = pcall(ctx.ct_get_field, tm2, "_IsReqRefresh")
             if ok and ok2 and ts == 2 and rf == true then
                 pcall(function()
                     tm2:set_field("_IsReqRefresh", false)
@@ -9170,11 +9162,11 @@ re.on_frame(function()
     end
 
    -- Delayed restore
-    if _pending_restore > 0 then
-        _pending_restore = _pending_restore - 1
-        if _pending_restore == 0 then
-            dbg("apply_restore step=" .. tostring(_trial_snapshot and _trial_snapshot.step or "nil"))
-            apply_restore()
+    if ctx.save_state.pending_restore > 0 then
+        ctx.save_state.pending_restore = ctx.save_state.pending_restore - 1
+        if ctx.save_state.pending_restore == 0 then
+            ctx.save_state_dbg("apply_restore step=" .. tostring(ctx.save_state.trial_snapshot and ctx.save_state.trial_snapshot.step or "nil"))
+            ctx.apply_restore()
         end
     end
 end)
