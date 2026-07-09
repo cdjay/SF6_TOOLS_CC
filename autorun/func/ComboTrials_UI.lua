@@ -655,8 +655,12 @@ local function draw_single_line_content()
         if not trial_state.is_playing and not trial_state.is_recording then
             imgui.same_line(0, sp)
             local is_p1_active = (trial_state.is_playing and trial_state.playing_player == 0)
-            if styled_sf6_button(is_p1_active and "停止训练" or "开始训练", is_p1_active, btn_w, true, false, TRIAL_COLORS) then
+            local auto_enabled = ctx.demo_state and ctx.demo_state.auto_playlist_enabled == true
+            local start_label = auto_enabled and "自动演示连段" or "开始训练"
+            local start_btn_w = auto_enabled and math.max(btn_w, actual_btn_w) or btn_w
+            if styled_sf6_button(is_p1_active and "停止训练" or start_label, is_p1_active, start_btn_w, true, false, TRIAL_COLORS) then
                 if is_p1_active then trial_state.is_playing = false
+                elseif auto_enabled and ctx.start_demo then ctx.start_demo({ playlist_start = true })
                 else load_and_start_trial(0) end
             end
         end
@@ -685,7 +689,11 @@ local function draw_single_line_content()
                 imgui.pop_style_color(3)
             else
                 if styled_sf6_button("自动演示连段", false, btn_w, true, false, P2_COLORS) then
-                    if ctx.start_demo then ctx.start_demo() end
+                    if ctx.demo_state and ctx.demo_state.auto_playlist_enabled == true and ctx.start_demo then
+                        ctx.start_demo({ playlist_start = true })
+                    elseif ctx.start_demo then
+                        ctx.start_demo()
+                    end
                 end
             end
             imgui.same_line(0, sp)
@@ -808,7 +816,11 @@ local function draw_combo_trials_content(is_floating)
             if is_demo_active then
                 if ctx.stop_demo then ctx.stop_demo() end
             else
-                if ctx.start_demo then ctx.start_demo() end
+                if ctx.demo_state and ctx.demo_state.auto_playlist_enabled == true and ctx.start_demo then
+                    ctx.start_demo({ playlist_start = true })
+                elseif ctx.start_demo then
+                    ctx.start_demo()
+                end
             end
         end
     elseif trial_state.is_recording then
@@ -853,6 +865,12 @@ local function draw_combo_trials_content(is_floating)
         if styled_sf6_button(is_p1_active and "停止训练" or "开始训练", is_p1_active, play_btn_w, is_floating, false, TRIAL_COLORS) then
             if is_p1_active then trial_state.is_playing = false
             else load_and_start_trial(0) end
+        end
+        if ctx.demo_state and ctx.demo_state.auto_playlist_enabled == true then
+            imgui.spacing()
+            if styled_sf6_button("自动演示连段", false, play_btn_w, is_floating, false, P2_COLORS) then
+                if ctx.start_demo then ctx.start_demo({ playlist_start = true }) end
+            end
         end
     end
     
@@ -981,7 +999,7 @@ local function _ctui_flush_trial_display()
 end
 
 local function _ctui_hide_visual_state()
-    sf6_menu_state.active = false
+    if sf6_menu_state then sf6_menu_state.active = false end
     _G.ComboTrials_HideNativeHUD = false
     _G.ComboTrialsD2DEnabled = false
     _G._ct_bar_geometry = nil
@@ -1013,10 +1031,39 @@ local function _ctui_cancel_recording_for_menu(reason)
     return true
 end
 
+local function _ctui_scene_allowed()
+    if not ctx then return false end
+    if ctx and type(ctx.is_scene_allowed) == "function" then
+        local ok, allowed = pcall(ctx.is_scene_allowed)
+        return ok and allowed == true
+    end
+    return RuntimeSafety.is_training_allowed()
+        and _G.CurrentTrainerMode == 4
+        and _G.TrainingModeActive == true
+        and _G.TrainingScriptManagerActiveThisFrame == true
+        and _G.IsInBattleHub ~= true
+        and _G.IsInReplay ~= true
+        and _G.FlowMapID ~= 9
+        and _G.FlowMapID ~= 10
+end
+
+local function _ctui_runtime_allowed()
+    if not ctx then return false end
+    if ctx and type(ctx.is_runtime_allowed) == "function" then
+        local ok, allowed = pcall(ctx.is_runtime_allowed)
+        return ok and allowed == true
+    end
+    return _ctui_scene_allowed()
+end
+
 re.on_frame(function()
-    if not RuntimeSafety.is_allowed() then
+    if not _ctui_scene_allowed() then
         _ctui_flush_d2d_config_for_exit()
         _ctui_clear_visual_state()
+        return
+    end
+    if not _ctui_runtime_allowed() then
+        _ctui_hide_visual_state()
         return
     end
     -- Detect return from ranked: flush combo display
@@ -1061,7 +1108,7 @@ re.on_frame(function()
         return
     end
 
-    local in_training_context = (_G.CurrentTrainerMode == 4) and (_G.TrainingModeActive == true) and (is_replay_context or _G.TrainingScriptManagerActiveThisFrame == true)
+    local in_training_context = _ctui_runtime_allowed()
     local should_enable_ct_ui = in_training_context and is_game_active
     _G.ComboTrialsD2DEnabled = should_enable_ct_ui
     if not should_enable_ct_ui then
@@ -1293,8 +1340,7 @@ local function _ctui_draw_live_positions()
 end
 
 local function draw_combo_trials_menu_ui()
-    if not RuntimeSafety.is_training_allowed() then return end
-    if _G.CurrentTrainerMode ~= 4 then return end
+    if not _ctui_runtime_allowed() then return end
     if imgui.tree_node("连段训练设置v0.9a") then
         local ok, err = pcall(function()
         local p_state = players[ui_state.viewed_player]
@@ -1316,6 +1362,8 @@ local function draw_combo_trials_menu_ui()
                 imgui.text_colored("当前已被分离为浮动窗口。", COLORS.DarkGrey)
                 imgui.spacing()
             end
+            local auto_c, auto_v = imgui.checkbox("自动演示", ctx.demo_state and ctx.demo_state.auto_playlist_enabled == true)
+            if auto_c and ctx.demo_state then ctx.demo_state.auto_playlist_enabled = auto_v == true end
             local asd_c, asd_v = imgui.checkbox("允许晕厥连段使用演示", _G._allow_stun_demo or false)
             if asd_c then _G._allow_stun_demo = asd_v end
         end

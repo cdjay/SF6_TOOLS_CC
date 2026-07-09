@@ -16,6 +16,22 @@ local ctx -- { d2d_cfg, trial_state, players, sf6_menu_state }
 local assets = { font = nil, last_pixel_size = -1, title_font = nil, last_title_pixel_size = -1, imgs = {} }
 local d2d_anim = { active_y = nil }
 
+local function is_combo_trials_runtime_allowed()
+    if not ctx then return false end
+    if ctx and type(ctx.is_runtime_allowed) == "function" then
+        local ok, allowed = pcall(ctx.is_runtime_allowed)
+        return ok and allowed == true
+    end
+    return RuntimeSafety.is_training_allowed()
+        and _G.CurrentTrainerMode == 4
+        and _G.TrainingModeActive == true
+        and _G.TrainingScriptManagerActiveThisFrame == true
+        and _G.IsInBattleHub ~= true
+        and _G.IsInReplay ~= true
+        and _G.FlowMapID ~= 9
+        and _G.FlowMapID ~= 10
+end
+
 local image_files = {
     ["1"] = "1.png",
     ["2"] = "2.png",
@@ -1012,7 +1028,7 @@ local function d2d_init()
 end
 
 local function draw_bar_toggle_arrows()
-    if not RuntimeSafety.is_allowed() then return end
+    if not is_combo_trials_runtime_allowed() then return end
     local pm = sdk.get_managed_singleton("app.PauseManager")
     if pm then
         local pb = pm:get_field("_CurrentPauseTypeBit")
@@ -1050,13 +1066,17 @@ local function draw_bar_toggle_arrows()
 end
 
 local function d2d_draw_inner()
+    if not is_combo_trials_runtime_allowed() then
+        _G._ct_bar_geometry = nil
+        return
+    end
+
     local d2d_cfg = ctx and ctx.d2d_cfg
     local trial_state = ctx and ctx.trial_state
     local players = ctx and ctx.players
 
     local should_draw = d2d_cfg and d2d_cfg.enabled and (_G.ComboTrialsD2DEnabled == true)
-    local is_replay_context = RuntimeSafety.is_replay_allowed()
-    local has_training_context = is_replay_context or (_G.TrainingScriptManagerActiveThisFrame == true)
+    local has_training_context = _G.TrainingScriptManagerActiveThisFrame == true
 
     local sw, sh = d2d.surface_size()
 

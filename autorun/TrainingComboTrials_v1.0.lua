@@ -399,8 +399,15 @@ local demo_state = {
     current_frame = 0,
     current_step = 1,
     sequence = {},
-    p1_mask = 0
+    p1_mask = 0,
+    auto_playlist_enabled = false,
+    playlist_active = false,
+    playlist_index = 0,
+    playlist_total = 0,
+    playlist_pending_next = false,
+    playlist_loading = false
 }
+
 local p_id_stack = {}
 local tick_done_this_frame = false
 
@@ -812,13 +819,17 @@ local ctx = {
     cached_sh = 1080,
 }
 
-ctx.stop_demo_playback = function(reason, old_file, new_file, stop_trial)
+ctx.stop_demo_playback = function(reason, old_file, new_file, stop_trial, keep_playlist)
     if not demo_state then return end
     local old_sequence_len = (type(demo_state.sequence) == "table") and #demo_state.sequence or 0
     local was_playing = demo_state.is_playing == true
     local old_play_index = demo_state.current_step or 1
     local old_frame = demo_state.current_frame or 0
-    local had_demo_state = was_playing or old_sequence_len > 0 or (demo_state.p1_mask or 0) ~= 0
+    local had_demo_state = was_playing
+        or old_sequence_len > 0
+        or (demo_state.p1_mask or 0) ~= 0
+        or demo_state.playlist_active == true
+        or demo_state.playlist_pending_next == true
     if not had_demo_state then return end
 
     demo_state.is_playing = false
@@ -836,6 +847,13 @@ ctx.stop_demo_playback = function(reason, old_file, new_file, stop_trial)
     demo_state.current_file = nil
     demo_state.current_file_path = nil
     demo_state.current_file_name = nil
+    if keep_playlist ~= true then
+        demo_state.playlist_active = false
+        demo_state.playlist_index = 0
+        demo_state.playlist_total = 0
+        demo_state.playlist_pending_next = false
+        demo_state.playlist_loading = false
+    end
 
     if stop_trial == true then
         trial_state.is_playing = false
@@ -868,6 +886,7 @@ ctx.stop_demo_playback = function(reason, old_file, new_file, stop_trial)
 end
 
 ctx.on_combo_file_change = function(info)
+    if demo_state and demo_state.playlist_loading == true then return end
     info = info or {}
     local old_file = info.old_file or trial_state.current_file_path or trial_state.current_file
     local new_file = info.new_file
@@ -5412,7 +5431,15 @@ local function ct_handle_replay_cleanup(_in_replay)
             trial_state.is_playing = false
             trial_state._was_playing = false
         end
-        if demo_state and demo_state.is_playing then demo_state.is_playing = false end
+        if demo_state then
+            demo_state.is_playing = false
+            demo_state.p1_mask = 0
+            demo_state.playlist_active = false
+            demo_state.playlist_index = 0
+            demo_state.playlist_total = 0
+            demo_state.playlist_pending_next = false
+            demo_state.playlist_loading = false
+        end
         trial_state.flip_inputs = false
         trial_state.floating_info = nil
         trial_state._vital_initialized = false
@@ -5426,6 +5453,121 @@ local function ct_handle_replay_cleanup(_in_replay)
     end
 end
 
+local function is_combo_trials_scene_allowed()
+    return RuntimeSafety.is_training_allowed()
+        and _G.CurrentTrainerMode == 4
+        and _G.TrainingModeActive == true
+        and _G.TrainingScriptManagerActiveThisFrame == true
+        and _G.IsInBattleHub ~= true
+        and _G.IsInReplay ~= true
+        and _G.FlowMapID ~= 9
+        and _G.FlowMapID ~= 10
+end
+
+local function is_combo_trials_runtime_allowed()
+    return is_combo_trials_scene_allowed()
+        and GS
+        and GS.valid == true
+end
+
+ctx.is_scene_allowed = is_combo_trials_scene_allowed
+ctx.is_runtime_allowed = is_combo_trials_runtime_allowed
+
+local function publish_combo_trials_inactive_state()
+    _G.ComboTrialsD2DEnabled = false
+    _G.ComboTrials_HideNativeHUD = false
+    _G._ct_bar_geometry = nil
+    _G.TrainingBarsDrawn = false
+    _G.ComboTrials_IsPlaying = false
+    _G.ComboTrials_IsRecording = false
+    _G.ComboTrials_IsDemo = false
+    _G.ComboTrials_IsAutoDemo = false
+    _G.ComboTrials_AutoDemoIndex = 0
+    _G.ComboTrials_AutoDemoTotal = 0
+end
+
+local function combo_trials_has_runtime_state()
+    return trial_state.is_playing == true
+        or trial_state.is_recording == true
+        or trial_state._xt_pending_save == true
+        or trial_state.pending_exact_pos ~= nil
+        or (type(trial_state.sequence) == "table" and #trial_state.sequence > 0)
+        or (demo_state and (
+            demo_state.is_playing == true
+            or demo_state.playlist_active == true
+            or demo_state.playlist_pending_next == true
+            or (demo_state.p1_mask or 0) ~= 0
+            or (type(demo_state.sequence) == "table" and #demo_state.sequence > 0)
+        ))
+end
+
+local combo_trials_runtime_was_allowed = false
+
+local function cleanup_combo_trials_runtime_on_scene_exit(reason)
+    publish_combo_trials_inactive_state()
+
+    if trial_state.is_recording then
+        cancel_recording()
+    end
+    if ctx.stop_demo_playback then
+        ctx.stop_demo_playback(
+            reason or "scene_exit",
+            demo_state and (demo_state.current_file_path or demo_state.current_file) or trial_state.current_file_path or trial_state.current_file,
+            nil,
+            true,
+            false
+        )
+    end
+
+    trial_state.is_playing = false
+    trial_state.is_recording = false
+    trial_state._was_playing = false
+    trial_state._xt_pending_save = false
+    trial_state._xt_pending_save_player = nil
+    trial_state._xt_pending_save_error = nil
+    trial_state.flip_inputs = false
+    trial_state.floating_info = nil
+    trial_state._vital_initialized = false
+    trial_state._pause_live_r1 = nil
+    trial_state._pause_live_r2 = nil
+    trial_state._unpause_delay = nil
+    trial_state.pending_exact_pos = nil
+    trial_state.pending_exact_timeout = nil
+    trial_state._pending_current_absorb = nil
+    trial_state.pending_auto_check = nil
+
+    clear_pending_position_injection()
+    pcall(clear_combo_state)
+    pcall(reset_combo_visual_runtime)
+    pcall(restore_trial_vital)
+    pcall(function() unique_resources.restore() end)
+    pcall(restore_trial_defense_settings)
+    pcall(restore_dummy_counter_type)
+    pcall(restore_dummy_guard_type)
+    pcall(restore_dummy_action_type)
+end
+
+local function ct_handle_runtime_scene_gate()
+    local allowed = is_combo_trials_runtime_allowed()
+    if allowed then
+        combo_trials_runtime_was_allowed = true
+        return true
+    end
+
+    if is_combo_trials_scene_allowed() then
+        publish_combo_trials_inactive_state()
+        return false
+    end
+
+    if combo_trials_runtime_was_allowed or combo_trials_has_runtime_state() then
+        cleanup_combo_trials_runtime_on_scene_exit("training_scene_exit")
+    else
+        publish_combo_trials_inactive_state()
+    end
+    combo_trials_runtime_was_allowed = false
+    return false
+end
+
 local function ct_handle_mode_exit()
     if _G.CurrentTrainerMode ~= 4 then
         _G.ComboTrialsD2DEnabled = false
@@ -5434,10 +5576,18 @@ local function ct_handle_mode_exit()
         _G.TrainingBarsDrawn = false
         reset_combo_visual_runtime()
         -- Clean shutdown if switching scripts during an active Trial/Demo
-        if trial_state.is_playing or (demo_state and demo_state.is_playing) then
+        if trial_state.is_playing or (demo_state and (demo_state.is_playing or demo_state.playlist_active)) then
             trial_state.is_playing = false
             trial_state._was_playing = false
-            if demo_state then demo_state.is_playing = false end
+            if demo_state then
+                demo_state.is_playing = false
+                demo_state.p1_mask = 0
+                demo_state.playlist_active = false
+                demo_state.playlist_index = 0
+                demo_state.playlist_total = 0
+                demo_state.playlist_pending_next = false
+                demo_state.playlist_loading = false
+            end
 
             restore_trial_vital()
             unique_resources.restore()
@@ -5668,6 +5818,15 @@ local function ct_player_init(p_idx, p_state)
             end
             if trial_state.is_playing then
                 trial_state.is_playing = false
+            end
+            if demo_state then
+                demo_state.is_playing = false
+                demo_state.p1_mask = 0
+                demo_state.playlist_active = false
+                demo_state.playlist_index = 0
+                demo_state.playlist_total = 0
+                demo_state.playlist_pending_next = false
+                demo_state.playlist_loading = false
             end
             trial_state.sequence = {}
             trial_state.current_step = 1
@@ -7904,7 +8063,7 @@ end
 -- =========================================================
 re.on_frame(function()
     file_system.diag_frame = (file_system.diag_frame or 0) + 1
-    file_system.diag_runtime_allowed = RuntimeSafety.is_allowed()
+    file_system.diag_runtime_allowed = is_combo_trials_runtime_allowed()
     if file_system.diag_last_runtime_allowed ~= file_system.diag_runtime_allowed then
         file_system.diag_last_runtime_allowed = file_system.diag_runtime_allowed
         file_system.diag_log("runtime allowed=" .. tostring(file_system.diag_runtime_allowed)
@@ -7913,12 +8072,7 @@ re.on_frame(function()
             .. " flow=" .. tostring(_G.FlowMapID))
     end
 
-    if not file_system.diag_runtime_allowed then
-        if demo_state then
-            demo_state.is_playing = false
-            demo_state.p1_mask = 0
-        end
-        ct_handle_mode_exit()
+    if not ct_handle_runtime_scene_gate() then
         return
     end
     pcall(_ct_track_live_combo)
@@ -7947,6 +8101,9 @@ re.on_frame(function()
     _G.ComboTrials_IsPlaying = trial_state.is_playing or false
     _G.ComboTrials_IsRecording = trial_state.is_recording or false
     _G.ComboTrials_IsDemo = (demo_state and demo_state.is_playing) or false
+    _G.ComboTrials_IsAutoDemo = (demo_state and demo_state.playlist_active) or false
+    _G.ComboTrials_AutoDemoIndex = (demo_state and demo_state.playlist_index) or 0
+    _G.ComboTrials_AutoDemoTotal = (demo_state and demo_state.playlist_total) or 0
     _G.ComboTrials_FileList = _display or {}
     _G.ComboTrials_FileIdx = _fidx
     _G.ComboTrials_PositionIdx = d2d_cfg.forced_position_idx or 1
@@ -8447,14 +8604,68 @@ function CTStunDemoRuntime.catch_up_missed_engine_frames()
     return CTStunDemoRuntime.advance_timeline_frames(missed)
 end
 
-local function start_demo()
-    if not trial_state.sequence or #trial_state.sequence == 0 then return end
+local function start_demo(opts)
+    opts = opts or {}
+    if opts.playlist_start == true then
+        if trial_state.is_recording then return false end
+        if file_system.refresh_combo_list_preserve_selection then
+            file_system.refresh_combo_list_preserve_selection(false)
+        end
+        ctx.stop_demo_playback(
+            "playlist_start",
+            demo_state.current_file_path or trial_state.current_file_path or trial_state.current_file,
+            nil,
+            true,
+            true
+        )
+        demo_state.playlist_active = true
+        demo_state.playlist_index = 0
+        demo_state.playlist_total = #(file_system.saved_combos_paths_p1 or {})
+        demo_state.playlist_pending_next = false
+        return start_demo({ playlist_next = true })
+    elseif opts.playlist_next == true then
+        local paths = file_system.saved_combos_paths_p1 or {}
+        local idx = math.max(1, (demo_state.playlist_index or 0) + 1)
+        local loaded = false
+        while idx <= #paths do
+            demo_state.playlist_loading = true
+            file_system.selected_file_idx_p1 = idx
+            loaded = load_combo_from_file(paths[idx], true)
+            demo_state.playlist_loading = false
+            if loaded then break end
+            idx = idx + 1
+        end
+        if not loaded then
+            ctx.stop_demo_playback(
+                "playlist_complete",
+                demo_state.current_file_path or trial_state.current_file_path or trial_state.current_file,
+                nil,
+                true,
+                false
+            )
+            trial_state.is_playing = false
+            return false
+        end
+        demo_state.playlist_active = true
+        demo_state.playlist_index = idx
+        demo_state.playlist_total = #paths
+        demo_state.playlist_pending_next = false
+        opts.keep_playlist = true
+    end
+    if opts.keep_playlist ~= true then
+        demo_state.playlist_active = false
+        demo_state.playlist_index = 0
+        demo_state.playlist_total = 0
+        demo_state.playlist_pending_next = false
+        demo_state.playlist_loading = false
+    end
+    if not trial_state.sequence or #trial_state.sequence == 0 then return false end
     local first_stun_step = trial_state.sequence[1]
     local first_stun_gauges = type(first_stun_step) == "table" and first_stun_step.snapshot_gauges or nil
     local manual_stun_demo_required = type(first_stun_step) == "table"
         and first_stun_step.has_piyo == true
         and not (type(first_stun_gauges) == "table" and first_stun_gauges.defender_burnout == true)
-    if manual_stun_demo_required and not _G._allow_stun_demo then return end
+    if manual_stun_demo_required and not _G._allow_stun_demo then return false end
     
     -- 1. Check for embedded timeline directly in the file (Merged files)
     local timeline = trial_state.sequence[1].timeline
@@ -8462,10 +8673,10 @@ local function start_demo()
     -- 2. Backward compatibility fallback (Old 2-part files)
     if not timeline then
         local raw_file = trial_state.sequence[1].raw_input_file
-        if not raw_file then print("[ComboTrials] No timeline or raw input file!"); return end
+        if not raw_file then print("[ComboTrials] No timeline or raw input file!"); return false end
         
         local loaded = json.load_file("TrainingComboTrials_data/ReplayRecords/" .. raw_file)
-        if not loaded or not loaded.timeline then print("[ComboTrials] Failed to load ReplayRecord"); return end
+        if not loaded or not loaded.timeline then print("[ComboTrials] Failed to load ReplayRecord"); return false end
         timeline = loaded.timeline
     end
     
@@ -8474,7 +8685,7 @@ local function start_demo()
         local parsed = parse_timeline_line(line)
         if parsed then table.insert(demo_state.sequence, parsed) end
     end
-    if #demo_state.sequence == 0 then return end
+    if #demo_state.sequence == 0 then return false end
 
     -- Force Trial mode to stay active on P1
     trial_state.is_recording = false
@@ -8497,7 +8708,7 @@ local function start_demo()
 
     demo_state.is_playing = true
     trial_state._demo_timing_ui_baseline = true
-    demo_state.countdown = 10
+    demo_state.countdown = tonumber(opts.countdown_frames or 10) or 10
     demo_state.current_frame = 0
     demo_state.current_step = 1
     demo_state.p1_mask = 0
@@ -8511,6 +8722,7 @@ local function start_demo()
     demo_state.current_file_name = trial_state.current_file_name
 
     print("[ComboTrials] DEMO Started for P1")
+    return true
 end
 
 ctx.demo_state = demo_state
@@ -8602,7 +8814,11 @@ ctx.commands = {
     end,
     start_demo = function()
         if trial_state.is_recording then return end
-        start_demo()
+        if demo_state and demo_state.auto_playlist_enabled == true then
+            start_demo({ playlist_start = true })
+        else
+            start_demo()
+        end
     end,
     restart_demo = function()
         if not (demo_state and demo_state.is_playing) then return end
@@ -8714,7 +8930,7 @@ re.on_frame(function()
         _pending_restore = 0
         return
     end
-    if not RuntimeSafety.is_training_allowed() then
+    if not is_combo_trials_runtime_allowed() then
         _save_pending = false
         _pending_restore = 0
         return
@@ -8829,7 +9045,11 @@ end
 -- Register with shared pl_input_sub hook (0_SharedHooks.lua)
 if _G._shared_input_pre then
 table.insert(_G._shared_input_pre, function(p_id, args)
-    if not RuntimeSafety.is_training_allowed() then return end
+    if not is_combo_trials_runtime_allowed() then return end
+    if demo_state.playlist_active == true and demo_state.playlist_pending_next == true then
+        demo_state.playlist_pending_next = false
+        start_demo({ playlist_next = true })
+    end
     if not tick_done_this_frame and demo_state.is_playing then
         if not trial_state.is_playing then
             demo_state.is_playing = false
@@ -8866,13 +9086,24 @@ table.insert(_G._shared_input_pre, function(p_id, args)
                         CTStunDemoRuntime.advance_timeline_frames(1)
                         demo_state._last_tick_frame = engine_frame_count or 0
                     else
-                        demo_state.current_step = 1
-                        demo_state.current_frame = 0
-                        demo_state.countdown = 10
-                        demo_state.p1_mask = 0
-                        demo_state._last_tick_frame = nil
-                        demo_state._state_reinjected = false
-                        reset_trial_steps()
+                        if demo_state.playlist_active == true then
+                            demo_state.is_playing = false
+                            demo_state.current_frame = 0
+                            demo_state.current_step = 1
+                            demo_state.countdown = 0
+                            demo_state.p1_mask = 0
+                            demo_state._last_tick_frame = nil
+                            demo_state._state_reinjected = false
+                            demo_state.playlist_pending_next = true
+                        else
+                            demo_state.current_step = 1
+                            demo_state.current_frame = 0
+                            demo_state.countdown = 10
+                            demo_state.p1_mask = 0
+                            demo_state._last_tick_frame = nil
+                            demo_state._state_reinjected = false
+                            reset_trial_steps()
+                        end
                     end
                 end
             else
@@ -8908,7 +9139,7 @@ end
 
 if _G._shared_input_post then
 table.insert(_G._shared_input_post, function(p_id, retval)
-    if not RuntimeSafety.is_training_allowed() then return end
+    if not is_combo_trials_runtime_allowed() then return end
     if p_id == 0 and demo_state.is_playing and demo_state.p1_mask > 0 then
         pcall(_ct_demo_inject_mask)
     end
