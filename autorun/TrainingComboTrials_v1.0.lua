@@ -698,7 +698,7 @@ local d2d_cfg = {
     raw_p2 = false,
     mirror_p1 = false,
     mirror_p2 = false,
-    show_combo_count = true,
+    show_combo_count = false,
     pos_p1 = { x = 0.050, y = 0.350 },
     pos_p2 = { x = 0.850, y = 0.350 },
     raw_pos_p1 = { x = 0.050, y = 0.350 },
@@ -804,6 +804,7 @@ local function save_d2d_config()
     return json.dump_file(D2D_CONFIG_FILE, d2d_cfg)
 end
 load_d2d_config()
+d2d_cfg.show_combo_count = false
 
 -- =========================================================
 -- COMPLETED TRIALS TRACKING (runtime file, not committed)
