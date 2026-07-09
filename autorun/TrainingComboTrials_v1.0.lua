@@ -714,6 +714,8 @@ local d2d_cfg = {
     font_size = 0.028,
     trial_title_show = true,
     show_trial_notes = false,
+    auto_next_trial = true,    -- after a manual success: auto-load the next combo in the list
+    auto_retry_on_fail = true, -- after the fail banner ends: auto-reset the trial (no manual reset needed)
     trial_title_font_size = 0.030,
     spacing_y = 0.045,
     spacing_x = 0.005,
@@ -802,6 +804,54 @@ local function save_d2d_config()
     return json.dump_file(D2D_CONFIG_FILE, d2d_cfg)
 end
 load_d2d_config()
+
+-- =========================================================
+-- COMPLETED TRIALS TRACKING (runtime file, not committed)
+-- Wrapped in do..end and attached to file_system: the main chunk
+-- is close to Lua's 200-local limit, so no new top-level locals.
+-- =========================================================
+do
+    local COMPLETED_TRIALS_FILE = "TrainingComboTrials_data/CompletedTrials.json"
+    -- normalized combo file path -> true, for every combo the player has
+    -- finished manually at least once (demo playback never counts)
+    local completed_trials = {}
+
+    local function completed_trial_key(path)
+        return (tostring(path or ""):gsub("\\", "/")):lower()
+    end
+
+    local function save_completed_trials()
+        if fs and fs.create_dir then pcall(fs.create_dir, "TrainingComboTrials_data") end
+        json.dump_file(COMPLETED_TRIALS_FILE, completed_trials)
+    end
+
+    file_system.is_trial_completed = function(path)
+        local key = completed_trial_key(path)
+        return key ~= "" and completed_trials[key] == true
+    end
+
+    file_system.mark_trial_completed = function(path)
+        local key = completed_trial_key(path)
+        if key == "" or completed_trials[key] then return false end
+        completed_trials[key] = true
+        save_completed_trials()
+        return true
+    end
+
+    file_system.clear_completed_trials = function()
+        completed_trials = {}
+        save_completed_trials()
+    end
+
+    if type(_G.safe_load_json) == "function" then
+        local ok, loaded = pcall(_G.safe_load_json, COMPLETED_TRIALS_FILE)
+        if ok and type(loaded) == "table" then
+            for key, value in pairs(loaded) do
+                if type(key) == "string" and value then completed_trials[key] = true end
+            end
+        end
+    end
+end
 
 
 -- =========================================================
@@ -3964,6 +4014,16 @@ local function clear_trial_attempt_state(player_idx, phase)
     trial_state.fail_timer = 0
     trial_state.fail_reason = nil
     trial_state.manual_reset_pending = false
+    -- Auto-flow state, owned by ctx.handle_trial_auto_flow:
+    -- _success_latched      = this attempt's success was already processed once
+    --                         (completion mark + auto-advance); survives the
+    --                         self-re-arming success banner
+    -- _auto_next_countdown  = frames left before auto-loading the next combo
+    -- _attempt_had_demo     = demo playback drove (part of) this attempt, so a
+    --                         resulting success must not count as completed
+    trial_state._success_latched = false
+    trial_state._auto_next_countdown = nil
+    trial_state._attempt_had_demo = false
     trial_state._fail_captured = false
     trial_state.active_universal_hold = nil
     trial_state.pending_auto_check = nil
@@ -8059,6 +8119,92 @@ local function ct_player_universal_hold(p_idx, p_state)
 end
 
 -- =========================================================
+-- TRIAL SUCCESS/FAIL: completion marking, auto-advance, auto-retry
+-- Attached to ctx inside do..end: the main chunk is close to
+-- Lua's 200-local limit, so no new top-level locals.
+-- =========================================================
+do
+    local function advance_to_next_trial()
+        if trial_state._xt_pending_save then return false end
+        local p_idx = trial_state.playing_player or 0
+        local paths = (p_idx == 0) and file_system.saved_combos_paths_p1 or file_system.saved_combos_paths_p2
+        local idx = (p_idx == 0) and (file_system.selected_file_idx_p1 or 1) or (file_system.selected_file_idx_p2 or 1)
+        if type(paths) ~= "table" or #paths == 0 then return false end
+        if idx >= #paths then
+            ct_ticker("已完成列表中最后一个连段")
+            return false
+        end
+
+        if p_idx == 0 then
+            file_system.selected_file_idx_p1 = idx + 1
+        else
+            file_system.selected_file_idx_p2 = idx + 1
+        end
+        load_and_start_trial(p_idx)
+        ct_ticker(string.format("已进入下一个连段 (%d/%d)", idx + 1, #paths))
+        return true
+    end
+
+    ctx.handle_trial_auto_flow = function()
+        if not trial_state.is_playing or (demo_state and demo_state.is_playing) then
+            if demo_state and demo_state.is_playing then
+                -- Demo playback drives the same validation pipeline, and the
+                -- finished steps survive quitting the demo, which can trigger
+                -- a success banner afterwards. Taint the attempt so a
+                -- demo-driven finish never counts as completed; any manual
+                -- reset/restart clears this via clear_trial_attempt_state.
+                trial_state._attempt_had_demo = true
+            end
+            trial_state._success_latched = false
+            trial_state._auto_next_countdown = nil
+            return
+        end
+
+        -- AUTO-RETRY ON FAIL: when the fail banner finishes, the vanilla
+        -- flow sets manual_reset_pending and waits for a manual reset.
+        -- Perform the same reset automatically (mirrors the reset button:
+        -- reset_trial_steps clears manual_reset_pending, so this fires once).
+        if d2d_cfg.auto_retry_on_fail ~= false
+            and trial_state.manual_reset_pending
+            and #trial_state.sequence > 0
+            and (trial_state.fail_timer or 0) == 0
+            and (trial_state.success_timer or 0) == 0 then
+            reset_trial_steps()
+            ct_ticker("失败，自动重试")
+            return
+        end
+
+        -- Latch the first frame of the success banner: record completion once.
+        -- A demo-tainted attempt gets neither the completion mark nor the
+        -- auto-advance — only manual play counts.
+        if (trial_state.success_timer or 0) > 0 and not trial_state._success_latched then
+            trial_state._success_latched = true
+            if not trial_state._attempt_had_demo then
+                local path = trial_state.current_file_path or trial_state.current_file
+                if file_system.mark_trial_completed(path) then
+                    refresh_combo_list_preserve_selection(false)
+                end
+                if d2d_cfg.auto_next_trial ~= false then
+                    trial_state._auto_next_countdown = d2d_cfg.fail_display_frames or 120
+                end
+            end
+        end
+
+        -- The success banner re-arms itself, so advance on our own countdown.
+        -- Keep _success_latched set: if advancing fails (last file in the list),
+        -- the still-armed banner must not restart the countdown. A successful
+        -- advance resets the latch via clear_trial_attempt_state.
+        if trial_state._auto_next_countdown then
+            trial_state._auto_next_countdown = trial_state._auto_next_countdown - 1
+            if trial_state._auto_next_countdown <= 0 then
+                trial_state._auto_next_countdown = nil
+                advance_to_next_trial()
+            end
+        end
+    end
+end
+
+-- =========================================================
 -- MAIN ON_FRAME — ORCHESTRATOR
 -- =========================================================
 re.on_frame(function()
@@ -8162,6 +8308,7 @@ re.on_frame(function()
     trial_state._engine_frame_count = engine_frame_count
     trial_state._demo_timing_ui_baseline = (demo_state and demo_state.is_playing == true) or false
     logger_process_game_state()
+    if ctx.handle_trial_auto_flow then ctx.handle_trial_auto_flow() end
 
     if trial_state.is_recording then
         if not trial_state._rec_frame_count then trial_state._rec_frame_count = 0 end
@@ -8421,6 +8568,10 @@ ctx.cancel_recording_due_to_menu = cancel_recording_due_to_menu
 ctx.refresh_combo_list = refresh_combo_list
 ctx.restore_trial_vital = restore_trial_vital
 ctx.save_d2d_config = save_d2d_config
+ctx.clear_completed_trials = function()
+    file_system.clear_completed_trials()
+    refresh_combo_list_preserve_selection(false)
+end
 ctx.get_exc_filename = get_exc_filename
 ctx.ui_state = ui_state
 ctx.apply_forced_position = apply_forced_position
