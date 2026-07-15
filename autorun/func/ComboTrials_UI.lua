@@ -686,8 +686,12 @@ local function draw_single_line_content()
             imgui.same_line(0, sp)
             local first_stun_step = trial_state.sequence and trial_state.sequence[1]
             local first_stun_gauges = type(first_stun_step) == "table" and first_stun_step.snapshot_gauges or nil
+            local has_raw_inputs = type(first_stun_step) == "table"
+                and type(first_stun_step.raw_inputs) == "table"
+                and #first_stun_step.raw_inputs > 0
             local manual_stun_demo_required = type(first_stun_step) == "table"
                 and first_stun_step.has_piyo == true
+                and not has_raw_inputs
                 and not (type(first_stun_gauges) == "table" and first_stun_gauges.defender_burnout == true)
             if manual_stun_demo_required and not _G._allow_stun_demo then
                 imgui.push_style_color(21, 0xFF444444)
@@ -811,8 +815,12 @@ local function draw_combo_trials_content(is_floating)
         if mode_all_stacked then imgui.spacing() end
         local first_stun_step = trial_state.sequence and trial_state.sequence[1]
         local first_stun_gauges = type(first_stun_step) == "table" and first_stun_step.snapshot_gauges or nil
+        local has_raw_inputs = type(first_stun_step) == "table"
+            and type(first_stun_step.raw_inputs) == "table"
+            and #first_stun_step.raw_inputs > 0
         local manual_stun_demo_required = type(first_stun_step) == "table"
             and first_stun_step.has_piyo == true
+            and not has_raw_inputs
             and not (type(first_stun_gauges) == "table" and first_stun_gauges.defender_burnout == true)
         if manual_stun_demo_required and not is_demo_active and not _G._allow_stun_demo then
             imgui.push_style_color(21, 0xFF444444)
