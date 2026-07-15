@@ -94,7 +94,13 @@
     }
 
     function normalizeMotion(raw) {
-        return String(raw || "")
+        let normalized = String(raw || "");
+        // BCM stores repeated taps with the neutral frames between them
+        // (for example 5,2,5,2).  The player-facing notation is 22, 66 or 44.
+        if (/^(?:5?([124689]))(?:5?\1)+$/.test(normalized)) {
+            normalized = normalized.replace(/5/g, "");
+        }
+        return normalized
             .replace(/23626/g, "236236")
             .replace(/21424/g, "214214")
             .replace(/626/g, "623")
@@ -131,7 +137,10 @@
             const chargeFields = fieldsOf(objects.get(inputFields.charge));
             const mask = Number(normalFields.ok_key_flags || 0);
             const direction = DIR_MAP[lowBits(mask, 0xF)] || "5";
-            if (Number(chargeFields.id || 0) > 0) hasCharge = true;
+            // charge.id mirrors the direction on ordinary inputs as well; it
+            // is not sufficient evidence of a charge command.  Real charge
+            // steps are identified by the command bit or charge input type.
+            if (Number(inputFields.type || 0) === 1 || chargeFields.is_release === true) hasCharge = true;
             inputs.push({
                 direction,
                 raw_mask: mask,

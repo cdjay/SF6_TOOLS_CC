@@ -3,6 +3,11 @@
 const assert = require("assert");
 const core = require("./bcm_catalog_core.js");
 
+assert.strictEqual(core.normalizeMotion("5252"), "22");
+assert.strictEqual(core.normalizeMotion("5656"), "66");
+assert.strictEqual(core.normalizeMotion("5454"), "44");
+assert.strictEqual(core.normalizeMotion("626"), "623");
+
 function ref(object_id) { return { kind: "ref", object_id }; }
 function scalar(value) { return { kind: typeof value === "boolean" ? "boolean" : "number", value }; }
 function object(object_id, object_type, fields) {

@@ -69,6 +69,15 @@ local DIR_MAP = {
 }
 local BTN_MASKS = { [16] = "LP", [32] = "MP", [64] = "HP", [128] = "LK", [256] = "MK", [512] = "HK" }
 
+-- A resolved catalog entry means the action was deliberately admitted by the
+-- BCM base table or its curated exception aliases.  Some stance normals use
+-- flags=16/action_code=0 even when the player pressed an attack button, so the
+-- generic intentionality heuristic alone incorrectly discards them.
+local function is_catalog_button_action(catalog, action_id, direct_input)
+    local buttons = (tonumber(direct_input) or 0) & 0xFFF0
+    return buttons ~= 0 and BcmCatalog.get_classic_display(catalog, action_id) ~= nil
+end
+
 local esf_names_map = {
     ["ESF_001"] = "Ryu",
     ["ESF_002"] = "Luke",
@@ -6784,6 +6793,10 @@ local function ct_player_input_buffer(p_state)
                         new_is_intentional = true
                     end
                 end
+                if not new_is_intentional
+                    and is_catalog_button_action(p_state.bcm_catalog, _pf.act_id, _pf.direct_input) then
+                    new_is_intentional = true
+                end
                 if _pf.act_id == 36 or _pf.act_id == 37 or _pf.act_id == 38 then new_is_intentional = true end
 
                 local exc_new = CharacterRules.get_exception(p_state.exceptions, common_exceptions, _pf.act_id)
@@ -6972,6 +6985,7 @@ local function ct_player_process_actions(p_idx, p_state, actions_to_process)
             local deep_data = nil
             local best_match = nil
             local is_facing_left = false
+            local catalog_motion = BcmCatalog.get_classic_display(p_state.bcm_catalog, act_id)
 
             if act_id > 50 or act_id == 17 or act_id == 18 or act_id == 36 or act_id == 37 or act_id == 38 then
                 is_trackable = true
@@ -7099,6 +7113,14 @@ local function ct_player_process_actions(p_idx, p_state, actions_to_process)
                     elseif b_type == 536870932 and (direct_input & 0xFFFF) > 0 then
                         is_intentional = true
                     end
+                end
+
+                -- BCM/exception-backed stance normals are intentional when an
+                -- attack button is physically present, even if the engine marks
+                -- their transition as flags=16 with no action/branch code.
+                if not is_intentional and catalog_motion
+                    and ((tonumber(direct_input) or 0) & 0xFFF0) ~= 0 then
+                    is_intentional = true
                 end
 
                 if ActionMatcher.is_force_enabled(exc) then is_intentional = true end
@@ -7276,8 +7298,7 @@ local function ct_player_process_actions(p_idx, p_state, actions_to_process)
                 -- Versioned offline BCM is the stable base. Live BCM remains the
                 -- fallback for characters without a compiled catalog; behavior
                 -- and display exceptions are still applied last below.
-                motion_str = BcmCatalog.get_classic_display(p_state.bcm_catalog, act_id)
-                    or p_state.bcm_cache[act_id]
+                motion_str = catalog_motion or p_state.bcm_cache[act_id]
                 local required_mask = p_state.trigger_mask_cache[act_id] or 0
                 local best_match = nil
 
