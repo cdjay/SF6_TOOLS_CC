@@ -15,6 +15,20 @@ local ctx -- { d2d_cfg, trial_state, players, sf6_menu_state }
 
 local assets = { font = nil, last_pixel_size = -1, title_font = nil, last_title_pixel_size = -1, imgs = {} }
 local d2d_anim = { active_y = nil }
+local d2d_last_runtime_allowed = nil
+local d2d_last_content_visible = nil
+local d2d_last_error = nil
+
+-- Keep the D2D command list non-empty while the overlay is disabled. Some
+-- reframework-d2d builds retain the previous render target across a D3D12
+-- swap-chain reset when every Lua draw callback returns without submitting a
+-- command. A fully transparent pixel makes the plugin execute its normal
+-- begin/clear/end pass without adding anything visible to the game.
+local function submit_transparent_clear_pulse()
+    if d2d and d2d.fill_rect then
+        d2d.fill_rect(0, 0, 1, 1, 0x00000000)
+    end
+end
 
 local function is_combo_trials_runtime_allowed()
     if not ctx then return false end
@@ -1066,8 +1080,21 @@ local function draw_bar_toggle_arrows()
 end
 
 local function d2d_draw_inner()
-    if not is_combo_trials_runtime_allowed() then
+    local runtime_allowed = is_combo_trials_runtime_allowed()
+    if runtime_allowed ~= d2d_last_runtime_allowed then
+        d2d_last_runtime_allowed = runtime_allowed
+        local rs = _G.SF6CC_RuntimeSafety or {}
+        RuntimeSafety.trace("runtime_allowed=" .. tostring(runtime_allowed)
+            .. " reason=" .. tostring(rs.reason)
+            .. " battle_input=" .. tostring(rs.battle_input_type)
+            .. " online=" .. tostring(rs.in_online_battle)
+            .. " mode=" .. tostring(_G.CurrentTrainerMode)
+            .. " d2d=" .. tostring(_G.ComboTrialsD2DEnabled), "ComboTrialsD2D")
+    end
+
+    if not runtime_allowed then
         _G._ct_bar_geometry = nil
+        submit_transparent_clear_pulse()
         return
     end
 
@@ -1078,11 +1105,32 @@ local function d2d_draw_inner()
     local should_draw = d2d_cfg and d2d_cfg.enabled and (_G.ComboTrialsD2DEnabled == true)
     local has_training_context = _G.TrainingScriptManagerActiveThisFrame == true
 
+    local content_visible = should_draw
+        and has_training_context
+        and _G.TrainingBarsDrawn == true
+        and _G.CurrentTrainerMode == 4
+    if content_visible ~= d2d_last_content_visible then
+        d2d_last_content_visible = content_visible
+        RuntimeSafety.trace("content_visible=" .. tostring(content_visible)
+            .. " enabled=" .. tostring(_G.ComboTrialsD2DEnabled)
+            .. " bars=" .. tostring(_G.TrainingBarsDrawn)
+            .. " manager=" .. tostring(_G.TrainingScriptManagerActiveThisFrame)
+            .. " mode=" .. tostring(_G.CurrentTrainerMode), "ComboTrialsD2D")
+    end
+
+    -- The matchmaking confirmation/pause UI disables ComboTrialsD2DEnabled
+    -- before FlowMap leaves training. Clear at that earlier signal so the
+    -- transparent frame is presented before the imminent swap-chain reset.
+    if not content_visible then
+        _G._ct_bar_geometry = nil
+        submit_transparent_clear_pulse()
+        return
+    end
+
     local sw, sh = d2d.surface_size()
 
-    -- Use TrainingBarsDrawn from SharedUI D2D + mode check
-    -- ALL content gated by this condition — NO early returns
-    if should_draw and has_training_context and _G.TrainingBarsDrawn and _G.CurrentTrainerMode == 4 then
+    -- content_visible is the final gate for every ComboTrials D2D command.
+    if content_visible then
 
     ctx.cached_sw, ctx.cached_sh = sw, sh
 
@@ -1509,7 +1557,13 @@ end
 -- Public API
 -- =========================================================
 local function d2d_draw()
-    pcall(d2d_draw_inner)
+    local ok, err = pcall(d2d_draw_inner)
+    if ok then
+        d2d_last_error = nil
+    elseif tostring(err) ~= d2d_last_error then
+        d2d_last_error = tostring(err)
+        RuntimeSafety.trace("draw_error=" .. d2d_last_error, "ComboTrialsD2D")
+    end
 end
 
 function M.init(shared_ctx)

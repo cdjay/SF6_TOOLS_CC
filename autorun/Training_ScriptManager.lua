@@ -603,20 +603,34 @@ local function get_flowmap_id()
 end
 
 -- ==========================================
--- REPLAY DETECTION HOOKS
+-- BATTLE INPUT TYPE / REPLAY DETECTION HOOKS
 -- ==========================================
 pcall(function()
     local t_emote = sdk.find_type_definition("app.esports.bBattleFighterEmoteFlow")
     if t_emote then
         local m_setup = t_emote:get_method("setup")
         if m_setup then
+            RuntimeSafety.trace("battle_input_hook=registered")
             sdk.hook(m_setup, function(args)
                 local obj = sdk.to_managed_object(args[2])
-                if obj and obj.mInputType == 3 then
-                    _G.IsInReplay = true
+                if obj then
+                    local raw_input_type = obj.mInputType
+                    local input_type = tonumber(tostring(raw_input_type))
+                    RuntimeSafety.trace("battle_setup raw_input_type=" .. tostring(raw_input_type)
+                        .. " normalized=" .. tostring(input_type))
+                    if input_type ~= nil then
+                        RuntimeSafety.set_battle_input_type(input_type)
+                        _G.IsInReplay = input_type == 3
+                    end
+                else
+                    RuntimeSafety.trace("battle_setup object=nil")
                 end
             end, function(r) return r end)
+        else
+            RuntimeSafety.trace("battle_input_hook=missing_setup_method")
         end
+    else
+        RuntimeSafety.trace("battle_input_hook=missing_type")
     end
     local t_flow = sdk.find_type_definition("app.battle.bBattleFlow")
     if t_flow then
