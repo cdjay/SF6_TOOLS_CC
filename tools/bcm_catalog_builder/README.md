@@ -15,6 +15,12 @@
 node tools\bcm_catalog_builder\build_catalog.js <完整BCM.json> <BCM简表.json> [角色规范名]
 ```
 
+把 AC Action 全集、BCM 审查简表和例外表合并成最终运行时表：
+
+```powershell
+node tools\bcm_catalog_builder\build_action_catalog.js <完整AC.json> <BCM审查简表.json> <运行时表.json> [例外表.json]
+```
+
 请把临时输出写到仓库外。只有经过验证、供 MOD 使用的角色简表才应放入 `data/TrainingComboTrials_data/bcm_catalog/` 并纳入版本控制。
 
 ## 输出边界
@@ -26,6 +32,7 @@ node tools\bcm_catalog_builder\build_catalog.js <完整BCM.json> <BCM简表.json
 - 页面使用无损整数预处理；BCM 的 64 位条件 flags 会以十进制字符串保留，避免浏览器把它们四舍五入。
 - 两种输出都会记录原始完整 BCM 文件的 SHA-256，用于确认基础表来源和发现过期转换结果。
 - 证据集把角色写成 `Fab` 时，生成器会用 `fighter_id` 转换成 MOD 使用的规范角色名（例如 20 → `EHonda`）；可选命令行参数仍可显式覆盖。
+- 最终运行时表以 AC 为 Action 全集，以 BCM 填指令入口，并用 exceptions 的直接显示名及 `absorb_ids` 建立 AC-only 派生动作别名。
 
 ## 测试
 

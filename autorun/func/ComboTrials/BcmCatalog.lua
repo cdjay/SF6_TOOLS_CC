@@ -5,7 +5,10 @@ local BcmCatalog = {
 }
 
 local CATALOG_DIR = "TrainingComboTrials_data/bcm_catalog/"
-local EXPECTED_SCHEMA = "sf6cc.bcm-runtime.v1"
+local EXPECTED_SCHEMAS = {
+    ["sf6cc.bcm-runtime.v1"] = true,
+    ["sf6cc.action-runtime.v1"] = true
+}
 local cache = {}
 
 local function safe_character_name(character_name)
@@ -22,7 +25,7 @@ function BcmCatalog.load_for_character(character_name)
     if cache[key] ~= nil then return cache[key] ~= false and cache[key] or nil end
 
     local ok, loaded = pcall(json.load_file, BcmCatalog.get_filename(key))
-    if not ok or type(loaded) ~= "table" or loaded.schema ~= EXPECTED_SCHEMA or type(loaded.actions) ~= "table" then
+    if not ok or type(loaded) ~= "table" or not EXPECTED_SCHEMAS[loaded.schema] or type(loaded.actions) ~= "table" then
         cache[key] = false
         return nil
     end
@@ -36,8 +39,17 @@ end
 
 function BcmCatalog.get_classic_display(catalog, action_id)
     if type(catalog) ~= "table" or type(catalog.actions) ~= "table" then return nil end
-    local display = catalog.actions[tostring(action_id)]
+    local id = tostring(action_id)
+    local display = catalog.actions[id]
     if type(display) == "string" and display ~= "" then return display end
+    local aliases = catalog.aliases
+    local visited = {}
+    while type(aliases) == "table" and aliases[id] ~= nil and not visited[id] do
+        visited[id] = true
+        id = tostring(aliases[id])
+        display = catalog.actions[id]
+        if type(display) == "string" and display ~= "" then return display end
+    end
     return nil
 end
 

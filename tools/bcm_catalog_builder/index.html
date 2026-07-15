@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
-    <title>SF6CC · BCM 简表生成器</title>
+    <title>SF6CC · AC + BCM 简表生成器</title>
     <style>
         :root { color-scheme: dark; --bg:#10051d; --panel:#1d0b31; --panel2:#2a1044; --line:#613080; --hot:#d955ff; --text:#f4ecfa; --muted:#aa99b9; --ok:#68e3bd; --warn:#ffca68; }
         * { box-sizing:border-box; }
@@ -43,15 +43,18 @@
 </head>
 <body>
 <header>
-    <div><h1><span>BCM</span> 简表生成器</h1><div class="subtitle">完整对象图 → 可审查、可版本化、可供 MOD 读取的基础表</div></div>
+    <div><h1><span>AC + BCM</span> 简表生成器</h1><div class="subtitle">AC Action 全集 → BCM 指令 → exceptions 派生别名</div></div>
     <div class="muted">SF6CC Maintainer Tool · 本地离线处理</div>
 </header>
 <main>
     <section id="drop" class="panel drop" tabindex="0">
         <input id="file" type="file" accept="application/json,.json">
+        <input id="acFile" type="file" accept="application/json,.json">
+        <input id="exceptionFile" type="file" accept="application/json,.json">
         <strong>拖入完整 BCM JSON，或点击选择文件</strong>
         <div id="fileName" class="muted">支持 sf6cr.*-bcm-full.v1 对象图；文件不会离开浏览器</div>
-        <div class="actions"><button id="choose">选择 BCM</button><button id="export" disabled>导出审查简表</button><button id="runtime" disabled>导出 MOD 基础表</button><button id="copy" disabled>复制审查简表</button></div>
+        <div id="mergeStatus" class="muted">AC：未加载 · exceptions：未加载</div>
+        <div class="actions"><button id="choose">选择 BCM</button><button id="chooseAc">选择 AC</button><button id="chooseExceptions">选择例外表</button><button id="export" disabled>导出 BCM 审查表</button><button id="runtime" disabled>导出 MOD 简表</button><button id="copy" disabled>复制审查简表</button></div>
     </section>
     <div id="warnings"></div>
     <section id="stats" class="stats" hidden></section>
@@ -71,15 +74,23 @@
 <script>
 (() => {
     const $ = id => document.getElementById(id);
-    let catalog = null;
+    let catalog = null, actionSource = null, actionSourceSha256 = null, exceptionTable = {};
     const drop = $("drop"), input = $("file");
     $("choose").onclick = event => { event.stopPropagation(); input.click(); };
+    $("chooseAc").onclick = event => { event.stopPropagation(); $("acFile").click(); };
+    $("chooseExceptions").onclick = event => { event.stopPropagation(); $("exceptionFile").click(); };
     drop.onclick = event => { if (!event.target.closest("button")) input.click(); };
     drop.onkeydown = event => { if (event.key === "Enter" || event.key === " ") input.click(); };
     for (const name of ["dragenter","dragover"]) drop.addEventListener(name, event => { event.preventDefault(); drop.classList.add("drag"); });
     for (const name of ["dragleave","drop"]) drop.addEventListener(name, event => { event.preventDefault(); drop.classList.remove("drag"); });
     drop.addEventListener("drop", event => load(event.dataTransfer.files[0]));
     input.onchange = () => load(input.files[0]);
+    $("acFile").onchange = () => loadAc($("acFile").files[0]);
+    $("exceptionFile").onchange = async () => {
+        const file = $("exceptionFile").files[0]; if (!file) return;
+        try { exceptionTable = JSON.parse((await file.text()).replace(/^\uFEFF/, "")); updateMergeStatus(); }
+        catch (error) { $("warnings").innerHTML = `<div class="warning">例外表读取失败：${escapeHtml(error.message)}</div>`; }
+    };
 
     async function load(file) {
         if (!file) return;
@@ -98,6 +109,27 @@
             catalog = null; $("warnings").innerHTML = `<div class="warning">转换失败：${escapeHtml(error.message)}</div>`;
             $("fileName").textContent = file.name;
         }
+    }
+
+    async function loadAc(file) {
+        if (!file) return;
+        try {
+            const bytes = await file.arrayBuffer();
+            actionSource = SF6CCBcmCatalog.parseSourceText(new TextDecoder("utf-8").decode(bytes));
+            if (!actionSource.unique_action_ids_by_scope || !Array.isArray(actionSource.unique_action_ids_by_scope.character)) throw new Error("缺少 character Action ID 全集");
+            const digest = await crypto.subtle.digest("SHA-256", bytes);
+            actionSourceSha256 = [...new Uint8Array(digest)].map(value => value.toString(16).padStart(2,"0")).join("");
+            updateMergeStatus();
+        } catch (error) {
+            actionSource = null; actionSourceSha256 = null;
+            $("warnings").innerHTML = `<div class="warning">AC 读取失败：${escapeHtml(error.message)}</div>`;
+        }
+    }
+
+    function updateMergeStatus() {
+        const acText = actionSource ? `${actionSource.unique_action_ids_by_scope.character.length} Action` : "未加载";
+        const exceptionCount = Object.keys(exceptionTable || {}).length;
+        $("mergeStatus").textContent = `AC：${acText} · exceptions：${exceptionCount ? `${exceptionCount} 条` : "未加载"}`;
     }
 
     function renderStats() {
@@ -132,7 +164,12 @@
     $("raw").onclick=()=>show(catalog); $("close").onclick=()=>$("dialog").close();
     function download(value,name){ const blob=new Blob([JSON.stringify(value,null,2)+"\n"],{type:"application/json"}); const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=name; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),0); }
     $("export").onclick=()=>download(catalog,`${catalog.source.character}_BCM_Catalog.json`);
-    $("runtime").onclick=()=>download(SF6CCBcmCatalog.buildRuntimeCatalog(catalog),`${catalog.source.character}.json`);
+    $("runtime").onclick=()=>{
+        const runtime = actionSource
+            ? SF6CCBcmCatalog.buildActionRuntimeCatalog(actionSource, catalog, exceptionTable, { actionSourceSha256 })
+            : SF6CCBcmCatalog.buildRuntimeCatalog(catalog);
+        download(runtime,`${runtime.character}.json`);
+    };
     $("copy").onclick=async()=>{ await navigator.clipboard.writeText(JSON.stringify(catalog,null,2)); $("copy").textContent="已复制"; setTimeout(()=>$("copy").textContent="复制简表",1000); };
     function escapeHtml(value){ return String(value??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
 })();

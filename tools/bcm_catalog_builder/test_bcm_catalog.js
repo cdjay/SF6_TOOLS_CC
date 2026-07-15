@@ -53,4 +53,19 @@ const fabSource = { ...source, character: "Fab", fighter_id: 20 };
 const hondaCatalog = core.buildCatalog(fabSource, { generatedAt: "2026-01-01T00:00:00.000Z" });
 assert.strictEqual(hondaCatalog.source.character, "EHonda");
 assert.strictEqual(hondaCatalog.source.capture_character, "Fab");
+
+const acSource = {
+    schema: "sf6cr.action-catalog-full.v2",
+    character: "Fab",
+    fighter_id: 20,
+    unique_action_ids_by_scope: { character: [605, 606, 652] }
+};
+const actionRuntime = core.buildActionRuntimeCatalog(acSource, hondaCatalog, {
+    "605": { override_name: "HP", absorb_ids: "606" },
+    "652": { override_name: "j.6+HP" }
+}, { actionSourceSha256: "ac-test" });
+assert.strictEqual(actionRuntime.schema, "sf6cc.action-runtime.v1");
+assert.strictEqual(actionRuntime.aliases["606"], "605");
+assert.strictEqual(actionRuntime.actions["652"], "j.6+HP");
+assert.strictEqual(actionRuntime.action_ids.length, 3);
 console.log("BCM catalog tests passed.");

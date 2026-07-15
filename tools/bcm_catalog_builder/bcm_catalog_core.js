@@ -347,6 +347,62 @@
         };
     }
 
+    function buildActionRuntimeCatalog(actionSource, bcmCatalog, exceptionTable, options) {
+        options = options || {};
+        exceptionTable = exceptionTable || {};
+        if (!actionSource || !actionSource.unique_action_ids_by_scope || !Array.isArray(actionSource.unique_action_ids_by_scope.character)) {
+            throw new Error("这不是包含 character Action ID 全集的完整 AC 对象图。");
+        }
+        if (!bcmCatalog || bcmCatalog.schema !== OUTPUT_SCHEMA) throw new Error("需要先生成 sf6cc.bcm-catalog.v1 审查简表。");
+
+        const fighterId = Number(actionSource.fighter_id ?? -1);
+        if (fighterId !== Number(bcmCatalog.source.fighter_id)) throw new Error("AC 与 BCM 的 fighter_id 不一致。");
+        const character = options.characterName || FIGHTER_NAMES[fighterId] || bcmCatalog.source.character || actionSource.character || "Unknown";
+        const actionIds = [...new Set(actionSource.unique_action_ids_by_scope.character.map(Number).filter(Number.isFinite))].sort((a, b) => a - b);
+        const actionSet = new Set(actionIds.map(String));
+        const bcmRuntime = buildRuntimeCatalog(bcmCatalog);
+        const actions = { ...bcmRuntime.actions };
+        const aliases = {};
+
+        for (const [id, rule] of Object.entries(exceptionTable)) {
+            if (!actionSet.has(String(id)) || !rule || typeof rule !== "object") continue;
+            if (!actions[id] && typeof rule.override_name === "string" && rule.override_name !== "") {
+                actions[id] = rule.override_name;
+            }
+        }
+
+        for (const [targetId, rule] of Object.entries(exceptionTable)) {
+            if (!rule || typeof rule.absorb_ids !== "string" || rule.absorb_ids === "") continue;
+            const targetDisplay = (typeof rule.override_name === "string" && rule.override_name !== "")
+                ? rule.override_name : actions[targetId];
+            if (!targetDisplay) continue;
+            for (const token of rule.absorb_ids.split(",")) {
+                const aliasId = String(Number(token.trim()));
+                if (aliasId === "NaN" || !actionSet.has(aliasId) || actions[aliasId]) continue;
+                aliases[aliasId] = String(targetId);
+            }
+        }
+
+        const sortedActions = {}, sortedAliases = {};
+        for (const id of Object.keys(actions).sort((a, b) => Number(a) - Number(b))) sortedActions[id] = actions[id];
+        for (const id of Object.keys(aliases).sort((a, b) => Number(a) - Number(b))) sortedAliases[id] = aliases[id];
+        return {
+            schema: "sf6cc.action-runtime.v1",
+            character,
+            fighter_id: fighterId,
+            policy: "universe:ac; commands:bcm; aliases:exceptions",
+            sources: {
+                ac_schema: actionSource.schema || null,
+                ac_sha256: options.actionSourceSha256 || null,
+                bcm_schema: bcmCatalog.source.schema,
+                bcm_sha256: bcmCatalog.source.sha256
+            },
+            action_ids: actionIds,
+            actions: sortedActions,
+            aliases: sortedAliases
+        };
+    }
+
     return {
         OUTPUT_SCHEMA,
         PROFILE_NAMES,
@@ -354,6 +410,7 @@
         parseSourceText,
         buildCatalog,
         buildRuntimeCatalog,
+        buildActionRuntimeCatalog,
         decodeButtons,
         normalizeMotion
     };

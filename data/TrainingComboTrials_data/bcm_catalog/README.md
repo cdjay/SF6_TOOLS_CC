@@ -1,12 +1,14 @@
 # BCM 运行时基础表
 
-这里存放由 `tools/bcm_catalog_builder/` 从完整 BCM 对象图编译出的精简产品数据。完整研究转储不得放进本目录。
+这里存放由 `tools/bcm_catalog_builder/` 从完整 AC/BCM 对象图编译出的精简产品数据。完整研究转储不得放进本目录。
 
 运行时解析顺序：
 
-1. 角色 BCM 基础表提供稳定的经典模式 Action ID → 指令。
-2. 没有角色基础表或没有对应 Action 时，回退到游戏内实时 BCM。
-3. 角色及 Common exceptions 最后覆盖显示名和匹配行为。
+1. AC 提供完整角色 Action ID 全集。
+2. BCM 为存在指令入口的 Action 提供稳定的经典模式指令。
+3. exceptions 的直接显示名与 `absorb_ids` 为 AC-only 派生动作建立别名。
+4. 没有角色基础表或没有对应 Action 时，回退到游戏内实时 BCM。
+5. 角色及 Common exceptions 最后覆盖显示名和匹配行为。
 
 `sf6cc.bcm-runtime.v1` 字段：
 
