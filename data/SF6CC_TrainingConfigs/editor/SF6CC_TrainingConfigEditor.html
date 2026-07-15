@@ -1,0 +1,995 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>小吞MOD · 训练配置编辑器</title>
+  <style>
+    @font-face {
+      font-family: "SF6CC CN";
+      src: url("../../../fonts/msyh.ttc") format("truetype");
+      font-display: swap;
+    }
+
+    :root {
+      color-scheme: dark;
+      --page: #0c0712;
+      --surface: #171020;
+      --surface-2: #21122f;
+      --panel: #26064a;
+      --panel-deep: #17022f;
+      --row: #37145d;
+      --row-alt: #2c0f50;
+      --row-disabled: #211536;
+      --line: #6d258f;
+      --line-bright: #e369ff;
+      --tab: #321047;
+      --tab-active: #8526a8;
+      --text: #f6effc;
+      --muted: #b8a7c6;
+      --muted-2: #796b87;
+      --gold: #ffd44f;
+      --success: #66dfa9;
+      --danger: #ff7c91;
+      --warning: #ffc665;
+    }
+
+    * { box-sizing: border-box; }
+    html { min-width: 320px; min-height: 100%; }
+    body {
+      min-height: 100vh;
+      margin: 0;
+      background: var(--page);
+      color: var(--text);
+      font-family: "SF6CC CN", "Microsoft YaHei UI", sans-serif;
+    }
+    button, input, textarea { font: inherit; }
+    button { color: inherit; }
+
+    .app {
+      width: min(1520px, calc(100% - 32px));
+      margin: 0 auto;
+      padding: 20px 0 36px;
+    }
+
+    .utility {
+      display: grid;
+      grid-template-columns: minmax(280px, .8fr) minmax(360px, 1.6fr) auto;
+      gap: 14px;
+      align-items: stretch;
+      margin-bottom: 16px;
+      padding: 14px;
+      background: var(--surface);
+      border: 1px solid #392448;
+    }
+    .brand { display: flex; flex-direction: column; justify-content: center; min-width: 0; }
+    .brand-kicker { color: #d96aef; font-size: 12px; letter-spacing: .14em; }
+    h1 { margin: 4px 0 3px; font-size: 21px; font-weight: 700; }
+    .meta { color: var(--muted); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+    .config-fields { display: grid; grid-template-columns: 76px minmax(0, 1fr); gap: 8px 10px; align-items: center; }
+    .config-fields label { color: #dccfe5; font-size: 13px; }
+    #configTitle,
+    #description {
+      width: 100%;
+      padding: 9px 11px;
+      border: 1px solid #4b3459;
+      background: #0f0a14;
+      color: var(--text);
+      outline: none;
+    }
+    #configTitle { min-height: 36px; }
+    #description { min-height: 54px; resize: vertical; }
+    #configTitle:focus,
+    #description:focus { border-color: #bd5bd1; }
+
+    .utility-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; align-content: center; }
+    .button {
+      min-height: 38px;
+      padding: 8px 14px;
+      border: 1px solid #754285;
+      background: #2d1738;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .button:hover { border-color: #d05ae3; background: #3a1a48; }
+    .button.primary { border-color: #e26af4; background: #8526a8; }
+    .button.primary:hover { background: #9a31bf; }
+    .button:disabled { cursor: not-allowed; opacity: .45; }
+    #fileInput { display: none; }
+
+    .statusbar {
+      display: flex;
+      justify-content: space-between;
+      gap: 18px;
+      min-height: 33px;
+      padding: 7px 14px;
+      border: 1px solid #382542;
+      border-bottom: 0;
+      background: #110b17;
+      color: var(--muted);
+      font-size: 12px;
+    }
+    #status.success { color: var(--success); }
+    #status.error { color: var(--danger); }
+    .counters { flex: none; }
+    .counters b { color: #e7bfef; }
+    .counters .warning { color: var(--warning); }
+
+    .game-panel {
+      min-height: 720px;
+      overflow: hidden;
+      border: 2px solid #77329a;
+      background: var(--panel-deep);
+      box-shadow: inset 0 0 0 2px #3d0c61, 0 16px 46px rgba(0, 0, 0, .35);
+    }
+    .game-panel::before {
+      content: "";
+      display: block;
+      height: 5px;
+      background: #ad35d1;
+      border-bottom: 1px solid #f183ff;
+    }
+
+    .main-tabs {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      height: 72px;
+      border-bottom: 3px solid #b432da;
+      background: #210638;
+    }
+    .main-tab {
+      position: relative;
+      border: 0;
+      border-right: 1px solid #5e1b79;
+      background: #25103b;
+      color: #a555b7;
+      font-size: 23px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .main-tab[aria-selected="true"] {
+      background: #521172;
+      color: #fff;
+      text-shadow: 0 0 12px #e66bff;
+    }
+    .main-tab[aria-selected="true"]::after {
+      content: "";
+      position: absolute;
+      left: calc(50% - 18px);
+      bottom: -18px;
+      width: 34px;
+      height: 34px;
+      background: #521172;
+      border-right: 3px solid #b432da;
+      border-bottom: 3px solid #b432da;
+      transform: rotate(45deg);
+      z-index: 2;
+    }
+
+    .view-tools {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+      padding: 24px 28px 10px;
+    }
+    .small-button {
+      padding: 5px 10px;
+      border: 1px solid #653179;
+      background: #2a123b;
+      color: #d7c7df;
+      font-size: 12px;
+      cursor: pointer;
+    }
+    .small-button:hover { border-color: #c756dd; color: #fff; }
+
+    .subtabs {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      width: calc(100% - 220px);
+      margin: 4px auto 34px;
+      border-top: 1px solid #7f239c;
+      border-bottom: 1px solid #a02ec3;
+      background: var(--tab);
+    }
+    .subtab {
+      min-height: 48px;
+      border: 0;
+      border-right: 1px solid #a22bbb;
+      background: var(--tab);
+      color: #ae55be;
+      font-size: 18px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .subtab:last-child { border-right: 0; }
+    .subtab[aria-selected="true"] {
+      background: var(--tab-active);
+      color: #fff;
+      box-shadow: inset 0 0 0 2px #d45de9;
+    }
+
+    .record-heading {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      width: calc(100% - 220px);
+      height: 48px;
+      margin: 4px auto 34px;
+      border-top: 1px solid #7f239c;
+      border-bottom: 1px solid #a02ec3;
+      background: #2c0b42;
+      color: #b250c2;
+      font-size: 18px;
+      font-weight: 700;
+      text-align: center;
+      line-height: 46px;
+    }
+    .record-heading .active { background: #8526a8; color: #fff; box-shadow: inset 0 0 0 2px #d45de9; }
+
+    .table-shell { width: calc(100% - 240px); margin: 0 auto 34px; }
+    .column-head,
+    .slot-row {
+      display: grid;
+      align-items: center;
+      column-gap: 12px;
+    }
+    .record-grid { grid-template-columns: 110px 88px minmax(220px, 1fr) 120px 130px; }
+    .reversal-grid { grid-template-columns: 110px 88px minmax(180px, 1fr) 220px 118px 124px; }
+    .column-head {
+      min-height: 30px;
+      padding: 0 18px;
+      color: #a98fb9;
+      font-size: 12px;
+      text-align: center;
+    }
+    .column-head .left { text-align: left; }
+
+    .slot-row {
+      min-height: 58px;
+      margin-bottom: 6px;
+      padding: 6px 18px;
+      background: var(--row);
+      border-left: 3px solid transparent;
+      border-right: 3px solid transparent;
+    }
+    .slot-row:nth-child(odd) { background: var(--row-alt); }
+    .slot-row:hover:not(.is-disabled) { border-left-color: #cc5be2; border-right-color: #cc5be2; }
+    .slot-row.is-disabled {
+      background: var(--row-disabled);
+      color: var(--muted-2);
+      opacity: .7;
+    }
+    .slot-number { font-size: 18px; white-space: nowrap; }
+    .empty-mark { text-align: center; font-size: 25px; color: #74667f; }
+
+    .toggle {
+      min-width: 88px;
+      min-height: 36px;
+      border: 2px solid #68606e;
+      background: #403949;
+      color: #c5bdca;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .toggle.is-on { border-color: #f074ff; background: #a22ac1; color: #fff; box-shadow: 0 0 10px rgba(235, 95, 255, .42); }
+    .toggle:disabled { cursor: not-allowed; border-color: #48404f; background: #312b36; color: #746d79; }
+
+    .annotation {
+      width: 100%;
+      min-height: 36px;
+      padding: 5px 10px;
+      border: 1px solid #75418a;
+      border-left: 3px solid #bb4ed2;
+      background: #210b35;
+      color: #fff;
+      outline: none;
+    }
+    .annotation::placeholder { color: #907b9d; }
+    .annotation:focus { border-color: #ee7dff; background: #2a0d43; }
+    .annotation.is-stale { border-color: var(--warning); color: var(--warning); }
+    .annotation:disabled { border-color: #4a3b55; background: #251d2d; color: #6f6577; }
+
+    .readout { text-align: center; font-size: 17px; white-space: nowrap; }
+    .action-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: center; font-size: 16px; }
+    .number-wrap { display: flex; align-items: center; justify-content: center; gap: 7px; white-space: nowrap; }
+    .number-input {
+      width: 68px;
+      min-height: 34px;
+      padding: 3px 6px;
+      border: 1px solid #8a4c9e;
+      background: #1a0929;
+      color: #fff;
+      text-align: center;
+      outline: none;
+    }
+    .number-input:focus { border-color: #ef72ff; }
+    .number-input:disabled { border-color: #46384f; background: #251e2b; color: #776e7d; }
+
+    .panel-footer {
+      width: calc(100% - 240px);
+      margin: 24px auto 0;
+      padding: 14px 18px;
+      border-top: 1px solid #67227f;
+      color: #b9a7c6;
+      font-size: 13px;
+      text-align: center;
+    }
+
+    [hidden] { display: none !important; }
+
+    @media (max-width: 1100px) {
+      .app { width: calc(100% - 20px); }
+      .utility { grid-template-columns: 1fr 1.4fr; }
+      .utility-actions { grid-column: 1 / -1; grid-template-columns: repeat(4, 1fr); }
+      .table-shell, .panel-footer { width: calc(100% - 40px); }
+      .subtabs, .record-heading { width: calc(100% - 40px); }
+      .record-grid { grid-template-columns: 92px 72px minmax(180px, 1fr) 92px 116px; }
+      .reversal-grid { grid-template-columns: 92px 72px minmax(160px, 1fr) 180px 100px 108px; }
+    }
+
+    @media (max-width: 780px) {
+      .utility { grid-template-columns: 1fr; }
+      .config-fields { grid-template-columns: 1fr; }
+      .utility-actions { grid-column: auto; grid-template-columns: 1fr 1fr; }
+      .statusbar { flex-direction: column; gap: 4px; }
+      .game-panel { min-height: 620px; overflow-x: auto; }
+      .main-tabs { min-width: 860px; }
+      .view-tools, .record-heading, .subtabs, .table-shell, .panel-footer { min-width: 820px; }
+      .record-grid { grid-template-columns: 92px 72px 300px 92px 116px; }
+      .reversal-grid { grid-template-columns: 92px 72px 240px 180px 100px 108px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <section class="utility" aria-label="配置文件工具">
+      <div class="brand">
+        <span class="brand-kicker">SF6CC TRAINING DATA</span>
+        <h1>小吞MOD · 训练配置编辑器</h1>
+        <div class="meta"><span id="fileName">演示数据</span> · <span id="fighterName">Ryu / P2</span> · <span id="schemaName">sf6cc.training_setup.v2</span></div>
+      </div>
+      <div class="config-fields">
+        <label for="configTitle">配置名称</label>
+        <input id="configTitle" type="text" maxlength="80" placeholder="此名称会显示在 REFramework 配置列表中">
+        <label for="description">配置说明</label>
+        <textarea id="description" maxlength="500" placeholder="填写整套训练配置的用途、应对方式或练习要点"></textarea>
+      </div>
+      <div class="utility-actions">
+        <button id="loadButton" class="button" type="button">载入 JSON</button>
+        <button id="downloadButton" class="button primary" type="button">下载修改版</button>
+        <button id="rebindButton" class="button" type="button">重绑当前页说明</button>
+        <button id="clearButton" class="button" type="button">清空当前页说明</button>
+        <input id="fileInput" type="file" accept="application/json,.json">
+      </div>
+    </section>
+
+    <div class="statusbar">
+      <span id="status">当前为演示数据。载入游戏导出的 JSON 后，所有行会按真实配置刷新。</span>
+      <span class="counters">说明 <b id="annotationCount">0</b> · 失效绑定 <b id="staleCount" class="warning">0</b></span>
+    </div>
+
+    <section id="dropTarget" class="game-panel" aria-label="训练配置编辑区域">
+      <nav class="main-tabs" aria-label="配置类型">
+        <button class="main-tab" type="button" data-main="record" aria-selected="true">动态记录</button>
+        <button class="main-tab" type="button" data-main="reversal" aria-selected="false">反击设置</button>
+      </nav>
+
+      <div class="view-tools">
+        <button id="previousPage" class="small-button" type="button">上一页</button>
+        <button id="nextPage" class="small-button" type="button">下一页</button>
+      </div>
+
+      <div id="recordHeading" class="record-heading" aria-label="动态记录模式">
+        <span>录制</span><span class="active">播放</span>
+      </div>
+
+      <nav id="reversalTabs" class="subtabs" aria-label="反击类型" hidden>
+        <button class="subtab" type="button" data-group="down" aria-selected="true">倒地反击</button>
+        <button class="subtab" type="button" data-group="guard" aria-selected="false">格挡反击</button>
+        <button class="subtab" type="button" data-group="damage" aria-selected="false">受伤恢复后的反击</button>
+      </nav>
+
+      <div class="table-shell">
+        <div id="columnHead" class="column-head record-grid" aria-hidden="true"></div>
+        <div id="slotRows"></div>
+      </div>
+
+      <div id="panelFooter" class="panel-footer">可直接修改启用状态、随机概率和说明；空录像槽保持禁止状态。</div>
+    </section>
+  </main>
+
+  <script>
+    "use strict";
+
+    const GROUPS = ["down", "guard", "damage"];
+    const GROUP_LABELS = {
+      down: "倒地反击",
+      guard: "格挡反击",
+      damage: "受伤恢复后的反击"
+    };
+
+    const sampleFrames = [97, 77, 83, 97, 73, 0, 0, 0];
+    const sample = {
+      schema: "sf6cc.training_setup.v2",
+      title: "Ryu 训练配置",
+      description: "演示：前五个录像槽有内容，后三个槽位为空。",
+      fighter_id: 1,
+      fighter_name: "Ryu",
+      source_player: "P2",
+      slots: Array.from({ length: 8 }, (_, index) => ({
+        slot: index + 1,
+        is_valid: index < 5,
+        is_active: index < 3,
+        frame: sampleFrames[index],
+        weight: index === 0 ? 2 : 1,
+        input_num: sampleFrames[index],
+        input_buff: index < 5 ? [index + 1, 0, 16 + index, 0] : null,
+        fields: {
+          IsValid: index < 5,
+          IsActive: index < 3,
+          Frame: sampleFrames[index],
+          Weight: index === 0 ? 2 : 1
+        }
+      })),
+      reversals: Object.fromEntries(GROUPS.map(group => [group,
+        Array.from({ length: 10 }, (_, index) => {
+          const valid = group === "down" ? index < 2 : index === 0;
+          const type = !valid ? -1 : group === "guard" ? 0 : index === 1 ? 5 : 4;
+          const skill = !valid ? -1 : 0;
+          return {
+            slot: index + 1,
+            active: valid && index === 0,
+            count: group === "guard" && index === 0 ? 6 : 1,
+            delay_frame: group === "guard" && index === 0 ? 2 : 0,
+            type,
+            skill_index: skill,
+            fields: {
+              IsValid: valid,
+              IsActive: valid && index === 0,
+              Count: group === "guard" && index === 0 ? 6 : 1,
+              Delay: group === "guard" && index === 0 ? 2 : 0,
+              Type: type,
+              SkillIndex: skill,
+              Level: 0
+            }
+          };
+        })
+      ]))
+    };
+
+    let config = structuredClone(sample);
+    let activeMain = "record";
+    let activeGroup = "down";
+    let loadedFileName = "演示数据.json";
+
+    const fileInput = document.getElementById("fileInput");
+    const configTitle = document.getElementById("configTitle");
+    const description = document.getElementById("description");
+    const slotRows = document.getElementById("slotRows");
+    const columnHead = document.getElementById("columnHead");
+    const status = document.getElementById("status");
+
+    function asInt(value, fallback = 0) {
+      const number = Number(value);
+      return Number.isFinite(number) ? Math.trunc(number) : fallback;
+    }
+
+    function clampInt(value, minimum, maximum, fallback) {
+      return Math.min(maximum, Math.max(minimum, asInt(value, fallback)));
+    }
+
+    function blankAnnotations() {
+      return {
+        version: 1,
+        record_slots: Array.from({ length: 8 }, (_, index) => ({ slot: index + 1, text: "" })),
+        reversals: Object.fromEntries(GROUPS.map(group => [group,
+          Array.from({ length: 10 }, (_, index) => ({ slot: index + 1, text: "" }))
+        ]))
+      };
+    }
+
+    function normalizeAnnotation(entry, slot) {
+      if (typeof entry === "string") return { slot, text: entry };
+      const normalized = {
+        slot,
+        text: typeof entry?.text === "string" ? entry.text : ""
+      };
+      if (entry?.binding && typeof entry.binding === "object") normalized.binding = { ...entry.binding };
+      return normalized;
+    }
+
+    function ensureShape() {
+      if (!Array.isArray(config.slots)) config.slots = [];
+      if (!config.reversals || typeof config.reversals !== "object") config.reversals = {};
+      GROUPS.forEach(group => {
+        if (!Array.isArray(config.reversals[group])) config.reversals[group] = [];
+      });
+
+      const source = config.annotations && typeof config.annotations === "object" ? config.annotations : {};
+      const annotations = blankAnnotations();
+      annotations.version = Number.isInteger(source.version) ? source.version : 1;
+      (source.record_slots || []).forEach((entry, index) => {
+        const slot = asInt(entry?.slot, index + 1);
+        if (slot >= 1 && slot <= 8) annotations.record_slots[slot - 1] = normalizeAnnotation(entry, slot);
+      });
+      GROUPS.forEach(group => {
+        (source.reversals?.[group] || []).forEach((entry, index) => {
+          const slot = asInt(entry?.slot, index + 1);
+          if (slot >= 1 && slot <= 10) annotations.reversals[group][slot - 1] = normalizeAnnotation(entry, slot);
+        });
+      });
+      config.annotations = annotations;
+    }
+
+    function recordValid(slot) {
+      return Boolean(slot && (slot.is_valid === true || slot.fields?.IsValid === true) && asInt(slot.frame ?? slot.fields?.Frame) > 0);
+    }
+
+    function reversalValid(entry) {
+      if (!entry) return false;
+      return entry.fields?.IsValid === true || asInt(entry.type ?? entry.fields?.Type, -1) >= 0;
+    }
+
+    function recordSignature(slot) {
+      if (!recordValid(slot)) return "record-v1:empty";
+      if (!Array.isArray(slot.input_buff)) return null;
+      let hash = 17;
+      slot.input_buff.forEach((value, index) => {
+        hash = (hash * 131 + asInt(value) + index + 1) % 2147483647;
+      });
+      return `record-v1:${asInt(slot.frame)}:${asInt(slot.input_num)}:${hash}`;
+    }
+
+    function recordBinding(index) {
+      return { signature: recordSignature(config.slots[index]) };
+    }
+
+    function reversalBinding(group, index) {
+      const entry = config.reversals[group]?.[index] || {};
+      const type = asInt(entry.type ?? entry.fields?.Type, -1);
+      const skillIndex = asInt(entry.skill_index ?? entry.fields?.SkillIndex, -1);
+      const level = asInt(entry.fields?.Level, 0);
+      return {
+        type,
+        skill_index: skillIndex,
+        level,
+        signature: `reversal-v1:${type}:${skillIndex}:${level}`
+      };
+    }
+
+    function bindingMatches(binding, current) {
+      if (!binding || typeof binding !== "object" || typeof binding.signature !== "string") return true;
+      return binding.signature === current?.signature;
+    }
+
+    function stale(annotation, binding) {
+      return Boolean(annotation?.text && !bindingMatches(annotation.binding, binding));
+    }
+
+    function validRecordLabel(index) {
+      const annotation = config.annotations.record_slots[index];
+      if (!annotation?.text || stale(annotation, recordBinding(index))) return "";
+      return annotation.text;
+    }
+
+    function derivedReversalLabel(group, index) {
+      const binding = reversalBinding(group, index);
+      if (binding.type !== 4 || binding.skill_index < 0 || binding.skill_index > 7) return "";
+      return validRecordLabel(binding.skill_index);
+    }
+
+    function setStatus(message, type = "") {
+      status.textContent = message;
+      status.className = type;
+    }
+
+    function ensureFields(entry) {
+      if (!entry.fields || typeof entry.fields !== "object") entry.fields = {};
+      return entry.fields;
+    }
+
+    function setRecordActive(slot, active) {
+      slot.is_active = active;
+      ensureFields(slot).IsActive = active;
+    }
+
+    function setRecordWeight(slot, weight) {
+      slot.weight = weight;
+      ensureFields(slot).Weight = weight;
+    }
+
+    function setReversalActive(entry, active) {
+      entry.active = active;
+      ensureFields(entry).IsActive = active;
+    }
+
+    function setReversalCount(entry, count) {
+      entry.count = count;
+      ensureFields(entry).Count = count;
+    }
+
+    function setReversalDelay(entry, delay) {
+      entry.delay_frame = delay;
+      const fields = ensureFields(entry);
+      fields.Delay = delay;
+      if (Object.prototype.hasOwnProperty.call(fields, "DelayFrame")) fields.DelayFrame = delay;
+    }
+
+    function allAnnotations() {
+      return [
+        ...config.annotations.record_slots.map((annotation, index) => ({ annotation, binding: recordBinding(index) })),
+        ...GROUPS.flatMap(group => config.annotations.reversals[group].map((annotation, index) => ({
+          annotation,
+          binding: reversalBinding(group, index)
+        })))
+      ];
+    }
+
+    function updateStats() {
+      const entries = allAnnotations();
+      document.getElementById("annotationCount").textContent = entries.filter(item => item.annotation.text).length;
+      document.getElementById("staleCount").textContent = entries.filter(item => stale(item.annotation, item.binding)).length;
+    }
+
+    function makeToggle(active, valid, label, onChange) {
+      if (!valid) {
+        const empty = document.createElement("span");
+        empty.className = "empty-mark";
+        empty.textContent = "⊘";
+        empty.title = "此槽位没有可用内容";
+        return empty;
+      }
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = `toggle${active ? " is-on" : ""}`;
+      button.textContent = active ? "开启" : "关闭";
+      button.setAttribute("aria-pressed", String(active));
+      button.setAttribute("aria-label", label);
+      button.addEventListener("click", () => onChange(!active));
+      return button;
+    }
+
+    function makeAnnotation(annotation, binding, valid, label, placeholder, onChanged) {
+      const input = document.createElement("input");
+      input.type = "text";
+      input.className = `annotation${stale(annotation, binding) ? " is-stale" : ""}`;
+      input.maxLength = 48;
+      input.value = annotation.text || "";
+      input.placeholder = placeholder;
+      input.disabled = !valid;
+      input.setAttribute("aria-label", label);
+      if (stale(annotation, binding)) input.title = "说明绑定的动作已变化；编辑文字即可重新绑定。";
+      input.addEventListener("input", event => {
+        annotation.text = event.target.value;
+        if (annotation.text) annotation.binding = { ...binding };
+        else delete annotation.binding;
+        event.target.classList.remove("is-stale");
+        updateStats();
+        onChanged();
+      });
+      return input;
+    }
+
+    function makeNumber(value, valid, minimum, maximum, label, onChange) {
+      const input = document.createElement("input");
+      input.type = "number";
+      input.className = "number-input";
+      input.min = String(minimum);
+      input.max = String(maximum);
+      input.step = "1";
+      input.value = String(clampInt(value, minimum, maximum, minimum));
+      input.disabled = !valid;
+      input.setAttribute("aria-label", label);
+      input.addEventListener("change", event => {
+        const next = clampInt(event.target.value, minimum, maximum, minimum);
+        event.target.value = String(next);
+        onChange(next);
+      });
+      return input;
+    }
+
+    function wrapNumber(prefix, input, suffix = "") {
+      const wrap = document.createElement("div");
+      wrap.className = "number-wrap";
+      if (prefix) {
+        const start = document.createElement("span");
+        start.textContent = prefix;
+        wrap.appendChild(start);
+      }
+      wrap.appendChild(input);
+      if (suffix) {
+        const end = document.createElement("span");
+        end.textContent = suffix;
+        wrap.appendChild(end);
+      }
+      return wrap;
+    }
+
+    function recordRow(index) {
+      const slot = config.slots[index] || {};
+      const annotation = config.annotations.record_slots[index];
+      const valid = recordValid(slot);
+      const active = valid && (slot.is_active === true || slot.fields?.IsActive === true);
+      const row = document.createElement("div");
+      row.className = `slot-row record-grid${valid ? "" : " is-disabled"}`;
+      row.dataset.slot = String(index + 1);
+      row.dataset.valid = String(valid);
+      row.dataset.active = String(active);
+
+      row.appendChild(makeToggle(active, valid, `录像栏位 ${index + 1} 启用状态`, next => {
+        setRecordActive(slot, next);
+        renderRows();
+        setStatus(`录像栏位 ${index + 1} 已${next ? "开启" : "关闭"}。`, "success");
+      }));
+
+      const number = document.createElement("span");
+      number.className = "slot-number";
+      number.textContent = `栏位${index + 1}`;
+      row.appendChild(number);
+
+      row.appendChild(makeAnnotation(
+        annotation,
+        recordBinding(index),
+        valid,
+        `录像栏位 ${index + 1} 说明`,
+        valid ? "填写 D2D 显示说明" : "空槽位不可编辑",
+        () => setStatus(`录像栏位 ${index + 1} 的说明已修改。`, "success")
+      ));
+
+      const frame = document.createElement("span");
+      frame.className = "readout";
+      frame.textContent = valid ? `${asInt(slot.frame ?? slot.fields?.Frame)}帧` : "空栏";
+      row.appendChild(frame);
+
+      const weight = makeNumber(slot.weight ?? slot.fields?.Weight ?? 1, valid, 1, 100, `录像栏位 ${index + 1} 随机概率`, next => {
+        setRecordWeight(slot, next);
+        setStatus(`录像栏位 ${index + 1} 的随机概率已改为 ${next}。`, "success");
+      });
+      row.appendChild(wrapNumber(valid ? "概率" : "", weight));
+      return row;
+    }
+
+    function reversalActionName(group, index, entry, valid) {
+      if (!valid) return "空栏";
+      if (typeof entry.action_name === "string" && entry.action_name.trim()) return entry.action_name.trim();
+      const type = asInt(entry.type ?? entry.fields?.Type, -1);
+      const skill = asInt(entry.skill_index ?? entry.fields?.SkillIndex, -1);
+      if (type === 4 && skill >= 0 && skill <= 7) {
+        const note = validRecordLabel(skill);
+        return note ? `动态记录·栏位${skill + 1}（${note}）` : `动态记录·栏位${skill + 1}`;
+      }
+      if (type === 5) return "不反击";
+      if (type === 0) return skill === 0 ? "轻拳" : `普通攻击·索引${skill}`;
+      return `动作类型${type} · 索引${skill}`;
+    }
+
+    function reversalRow(index) {
+      const entry = config.reversals[activeGroup]?.[index] || {};
+      const annotation = config.annotations.reversals[activeGroup][index];
+      const valid = reversalValid(entry);
+      const active = valid && (entry.active === true || entry.fields?.IsActive === true);
+      const binding = reversalBinding(activeGroup, index);
+      const derived = derivedReversalLabel(activeGroup, index);
+      const row = document.createElement("div");
+      row.className = `slot-row reversal-grid${valid ? "" : " is-disabled"}`;
+      row.dataset.slot = String(index + 1);
+      row.dataset.valid = String(valid);
+      row.dataset.active = String(active);
+
+      row.appendChild(makeToggle(active, valid, `${GROUP_LABELS[activeGroup]}栏位 ${index + 1} 启用状态`, next => {
+        setReversalActive(entry, next);
+        renderRows();
+        setStatus(`${GROUP_LABELS[activeGroup]}栏位 ${index + 1} 已${next ? "开启" : "关闭"}。`, "success");
+      }));
+
+      const number = document.createElement("span");
+      number.className = "slot-number";
+      number.textContent = `栏位${index + 1}`;
+      row.appendChild(number);
+
+      row.appendChild(makeAnnotation(
+        annotation,
+        binding,
+        valid,
+        `${GROUP_LABELS[activeGroup]}栏位 ${index + 1} 说明`,
+        !valid ? "空槽位不可编辑" : derived ? `自动继承：${derived}` : "填写 D2D 显示说明",
+        () => setStatus(`${GROUP_LABELS[activeGroup]}栏位 ${index + 1} 的说明已修改。`, "success")
+      ));
+
+      const action = document.createElement("span");
+      action.className = "action-name";
+      action.textContent = reversalActionName(activeGroup, index, entry, valid);
+      action.title = action.textContent;
+      row.appendChild(action);
+
+      const count = makeNumber(entry.count ?? entry.fields?.Count ?? 1, valid, 1, 99, `${GROUP_LABELS[activeGroup]}栏位 ${index + 1} 数量`, next => {
+        setReversalCount(entry, next);
+        setStatus(`${GROUP_LABELS[activeGroup]}栏位 ${index + 1} 的数量已改为 ${next}。`, "success");
+      });
+      row.appendChild(wrapNumber(valid ? "数量" : "", count));
+
+      const delay = makeNumber(entry.delay_frame ?? entry.fields?.Delay ?? 0, valid, 0, 999, `${GROUP_LABELS[activeGroup]}栏位 ${index + 1} 延迟帧`, next => {
+        setReversalDelay(entry, next);
+        setStatus(`${GROUP_LABELS[activeGroup]}栏位 ${index + 1} 的延迟已改为 ${next} 帧。`, "success");
+      });
+      row.appendChild(wrapNumber(valid ? "延迟" : "", delay, valid ? "帧" : ""));
+      return row;
+    }
+
+    function renderColumnHead() {
+      columnHead.className = `column-head ${activeMain === "record" ? "record-grid" : "reversal-grid"}`;
+      const labels = activeMain === "record"
+        ? ["状态", "槽位", "D2D 说明", "记录长度", "随机概率"]
+        : ["状态", "槽位", "D2D 说明", "反击动作", "数量", "延迟"];
+      columnHead.replaceChildren(...labels.map((label, index) => {
+        const span = document.createElement("span");
+        span.textContent = label;
+        if (index === 2) span.className = "left";
+        return span;
+      }));
+    }
+
+    function renderRows() {
+      ensureShape();
+      renderColumnHead();
+      const count = activeMain === "record" ? 8 : 10;
+      slotRows.replaceChildren(...Array.from({ length: count }, (_, index) => activeMain === "record" ? recordRow(index) : reversalRow(index)));
+      document.getElementById("panelFooter").textContent = activeMain === "record"
+        ? "开启/关闭和随机概率会写回录像槽；空录像槽保持禁止状态，记录帧与输入缓冲不会被网页修改。"
+        : `${GROUP_LABELS[activeGroup]}：可修改启用状态、数量、延迟和 D2D 说明；反击动作本身仍在游戏中设置。`;
+      updateStats();
+    }
+
+    function renderNavigation() {
+      document.querySelectorAll(".main-tab").forEach(tab => {
+        tab.setAttribute("aria-selected", String(tab.dataset.main === activeMain));
+      });
+      document.getElementById("recordHeading").hidden = activeMain !== "record";
+      document.getElementById("reversalTabs").hidden = activeMain !== "reversal";
+      document.querySelectorAll(".subtab").forEach(tab => {
+        tab.setAttribute("aria-selected", String(tab.dataset.group === activeGroup));
+      });
+      renderRows();
+    }
+
+    function renderMetadata() {
+      document.getElementById("fileName").textContent = loadedFileName.replace(/\.json$/i, "");
+      document.getElementById("fighterName").textContent = `${config.fighter_name || `ID ${config.fighter_id ?? "?"}`} / ${config.source_player || "P2"}`;
+      document.getElementById("schemaName").textContent = config.schema || "未知格式";
+      configTitle.value = typeof config.title === "string" && config.title.trim()
+        ? config.title
+        : (typeof config.description === "string" && config.description.trim()
+          ? config.description
+          : `${config.fighter_name || "P2"} 训练配置`);
+      description.value = typeof config.description === "string" ? config.description : "";
+    }
+
+    function validateConfig(data) {
+      if (!data || typeof data !== "object" || Array.isArray(data)) throw new Error("JSON 根节点不是对象");
+      if (data.schema !== "sf6cc.training_setup.v2") throw new Error(`暂不支持格式：${data.schema || "未标记"}`);
+      if (!Array.isArray(data.slots) || data.slots.length !== 8) throw new Error("slots 必须包含 8 个录像槽");
+      GROUPS.forEach(group => {
+        if (!Array.isArray(data.reversals?.[group]) || data.reversals[group].length !== 10) {
+          throw new Error(`reversals.${group} 必须包含 10 个反击槽`);
+        }
+      });
+    }
+
+    async function loadFile(file) {
+      try {
+        const data = JSON.parse(await file.text());
+        validateConfig(data);
+        config = data;
+        loadedFileName = file.name;
+        ensureShape();
+        renderMetadata();
+        renderNavigation();
+        setStatus(`已载入 ${file.name}。界面状态来自 JSON，可直接编辑。`, "success");
+      } catch (error) {
+        setStatus(`载入失败：${error.message}`, "error");
+      } finally {
+        fileInput.value = "";
+      }
+    }
+
+    function downloadConfig() {
+      config.title = configTitle.value.trim() || `${config.fighter_name || "P2"} 训练配置`;
+      config.description = description.value;
+      ensureShape();
+      const blob = new Blob([JSON.stringify(config, null, 2)], { type: "application/json;charset=utf-8" });
+      const link = document.createElement("a");
+      const base = loadedFileName.replace(/\.json$/i, "").replace(/_edited$/i, "");
+      const url = URL.createObjectURL(blob);
+      link.href = url;
+      link.download = `${base}_edited.json`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      setStatus(`已生成 ${link.download}。放入 configs 目录后，可在游戏脚本中导入。`, "success");
+    }
+
+    function currentAnnotations() {
+      return activeMain === "record"
+        ? config.annotations.record_slots
+        : config.annotations.reversals[activeGroup];
+    }
+
+    function currentBinding(index) {
+      return activeMain === "record" ? recordBinding(index) : reversalBinding(activeGroup, index);
+    }
+
+    function rebindCurrentPage() {
+      currentAnnotations().forEach((annotation, index) => {
+        if (annotation.text) annotation.binding = { ...currentBinding(index) };
+      });
+      renderRows();
+      setStatus("当前页已有说明已重新绑定到当前动作。", "success");
+    }
+
+    function clearCurrentPage() {
+      currentAnnotations().forEach(annotation => {
+        annotation.text = "";
+        delete annotation.binding;
+      });
+      renderRows();
+      setStatus("当前页说明已清空；录像与反击配置未被清除。", "success");
+    }
+
+    function cyclePage(direction) {
+      if (activeMain === "record") {
+        activeMain = "reversal";
+        activeGroup = direction > 0 ? "down" : "damage";
+      } else {
+        const index = GROUPS.indexOf(activeGroup);
+        const next = index + direction;
+        if (next < 0 || next >= GROUPS.length) {
+          activeMain = "record";
+        } else {
+          activeGroup = GROUPS[next];
+        }
+      }
+      renderNavigation();
+    }
+
+    document.querySelectorAll(".main-tab").forEach(tab => tab.addEventListener("click", () => {
+      activeMain = tab.dataset.main;
+      renderNavigation();
+    }));
+    document.querySelectorAll(".subtab").forEach(tab => tab.addEventListener("click", () => {
+      activeGroup = tab.dataset.group;
+      renderNavigation();
+    }));
+    document.getElementById("previousPage").addEventListener("click", () => cyclePage(-1));
+    document.getElementById("nextPage").addEventListener("click", () => cyclePage(1));
+    document.getElementById("loadButton").addEventListener("click", () => fileInput.click());
+    document.getElementById("downloadButton").addEventListener("click", downloadConfig);
+    document.getElementById("rebindButton").addEventListener("click", rebindCurrentPage);
+    document.getElementById("clearButton").addEventListener("click", clearCurrentPage);
+    fileInput.addEventListener("change", () => fileInput.files?.[0] && loadFile(fileInput.files[0]));
+    description.addEventListener("input", () => {
+      config.description = description.value;
+      setStatus("整体配置说明已修改。", "success");
+    });
+    configTitle.addEventListener("input", () => {
+      config.title = configTitle.value;
+      setStatus("配置名称已修改；下载后会显示在 REFramework 配置列表中。", "success");
+    });
+
+    const dropTarget = document.getElementById("dropTarget");
+    ["dragenter", "dragover"].forEach(name => dropTarget.addEventListener(name, event => {
+      event.preventDefault();
+      dropTarget.style.borderColor = "#f07dff";
+    }));
+    ["dragleave", "drop"].forEach(name => dropTarget.addEventListener(name, event => {
+      event.preventDefault();
+      dropTarget.style.borderColor = "";
+    }));
+    dropTarget.addEventListener("drop", event => event.dataTransfer.files?.[0] && loadFile(event.dataTransfer.files[0]));
+
+    ensureShape();
+    renderMetadata();
+    renderNavigation();
+  </script>
+</body>
+</html>
