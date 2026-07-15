@@ -7,12 +7,14 @@ local RuntimeSafety = require("func/RuntimeSafety")
 local GS = require("func/GameState")
 local ComboTrialsModules = {
     DebugTrace = require("func/ComboTrials/DebugTrace"),
+    BcmCatalog = require("func/ComboTrials/BcmCatalog"),
     ActionMatcher = require("func/ComboTrials/ActionMatcher"),
     CharacterRules = require("func/ComboTrials/CharacterRules"),
     Validator = require("func/ComboTrials/Validator"),
     PendingAbsorb = require("func/ComboTrials/PendingAbsorb")
 }
 local DebugTrace = ComboTrialsModules.DebugTrace
+local BcmCatalog = ComboTrialsModules.BcmCatalog
 local ActionMatcher = ComboTrialsModules.ActionMatcher
 local CharacterRules = ComboTrialsModules.CharacterRules
 local Validator = ComboTrialsModules.Validator
@@ -228,7 +230,7 @@ local players = {
     [0] = {
         log = {}, prev_act_id = -1, prev_act_frame = -1, last_combo_count = 0,
         action_instance_counter = 0, current_action_instance = 0, buffer_action_instance = 0,
-        bcm_cache = {}, trigger_mask_cache = {}, cache_built = false,
+        bcm_cache = {}, bcm_catalog = nil, trigger_mask_cache = {}, cache_built = false,
         last_bcm_ptr = "", last_direct_input = 0, input_history_queue = {},
         profile_name = "Unknown", last_profile_name = "", exceptions = {},
         editing_id = -1, edit_ignore = false, edit_force = false, edit_text = "",
@@ -239,7 +241,7 @@ local players = {
     [1] = {
         log = {}, prev_act_id = -1, prev_act_frame = -1, last_combo_count = 0,
         action_instance_counter = 0, current_action_instance = 0, buffer_action_instance = 0,
-        bcm_cache = {}, trigger_mask_cache = {}, cache_built = false,
+        bcm_cache = {}, bcm_catalog = nil, trigger_mask_cache = {}, cache_built = false,
         last_bcm_ptr = "", last_direct_input = 0, input_history_queue = {},
         profile_name = "Unknown", last_profile_name = "", exceptions = {},
         editing_id = -1, edit_ignore = false, edit_force = false, edit_text = "",
@@ -6017,6 +6019,7 @@ local function ct_player_init(p_idx, p_state)
         p_state.current_action_instance = 0
         p_state.buffer_action_instance = 0
         p_state.bcm_cache = {}
+        p_state.bcm_catalog = nil
         p_state.trigger_mask_cache = {}
         p_state.cache_built = false
         p_state.last_bcm_ptr = ""
@@ -6057,6 +6060,7 @@ local function ct_player_init(p_idx, p_state)
         end
         if p_state.profile_name ~= "Unknown" then
             p_state.exceptions = CharacterRules.load_for_character(p_state.profile_name)
+            p_state.bcm_catalog = BcmCatalog.load_for_character(p_state.profile_name)
         end
     end
 
@@ -7269,7 +7273,11 @@ local function ct_player_process_actions(p_idx, p_state, actions_to_process)
                 end
 
                 -- 2. Final motion_str determination
-                motion_str = p_state.bcm_cache[act_id]
+                -- Versioned offline BCM is the stable base. Live BCM remains the
+                -- fallback for characters without a compiled catalog; behavior
+                -- and display exceptions are still applied last below.
+                motion_str = BcmCatalog.get_classic_display(p_state.bcm_catalog, act_id)
+                    or p_state.bcm_cache[act_id]
                 local required_mask = p_state.trigger_mask_cache[act_id] or 0
                 local best_match = nil
 

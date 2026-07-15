@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>SF6CC · BCM 简表生成器</title>
+    <style>
+        :root { color-scheme: dark; --bg:#10051d; --panel:#1d0b31; --panel2:#2a1044; --line:#613080; --hot:#d955ff; --text:#f4ecfa; --muted:#aa99b9; --ok:#68e3bd; --warn:#ffca68; }
+        * { box-sizing:border-box; }
+        body { margin:0; min-height:100vh; color:var(--text); background:radial-gradient(circle at 70% 0,#3b0d5b 0,transparent 35%),linear-gradient(145deg,#09030f,#170627 65%,#0e0419); font:14px/1.5 Inter,"Microsoft YaHei",sans-serif; }
+        header,main { width:min(1500px,calc(100% - 40px)); margin:auto; }
+        header { padding:30px 0 18px; display:flex; align-items:end; justify-content:space-between; gap:20px; }
+        h1 { margin:0; font-size:28px; letter-spacing:.03em; } h1 span { color:var(--hot); }
+        .subtitle,.muted { color:var(--muted); }
+        .panel { background:linear-gradient(180deg,rgba(42,16,68,.92),rgba(23,8,39,.96)); border:1px solid var(--line); box-shadow:0 15px 45px #0007,inset 0 1px #ffffff12; border-radius:12px; }
+        .drop { padding:24px; border:1px dashed #b54cdb; text-align:center; cursor:pointer; transition:.15s; }
+        .drop.drag { background:#6d208755; border-color:#ff82ff; transform:translateY(-1px); }
+        input[type=file] { display:none; }
+        button,.button { border:1px solid #a642ca; background:#642083; color:white; padding:8px 13px; border-radius:6px; cursor:pointer; font:inherit; }
+        button:hover,.button:hover { background:#8129a8; } button:disabled { opacity:.35; cursor:not-allowed; }
+        .actions { display:flex; flex-wrap:wrap; gap:8px; justify-content:center; margin-top:14px; }
+        .stats { display:grid; grid-template-columns:repeat(5,1fr); gap:10px; margin:14px 0; }
+        .stat { padding:14px 16px; } .stat strong { display:block; font-size:22px; } .stat small { color:var(--muted); }
+        .toolbar { padding:12px; display:grid; grid-template-columns:minmax(180px,1fr) repeat(2,minmax(140px,220px)) auto; gap:8px; margin-bottom:12px; }
+        input,select { width:100%; border:1px solid #59306e; background:#100719; color:var(--text); border-radius:6px; padding:9px 10px; font:inherit; }
+        .table-wrap { overflow:auto; max-height:62vh; }
+        table { width:100%; border-collapse:collapse; min-width:1040px; }
+        th { position:sticky; top:0; z-index:2; background:#2d1047; color:#d9b9e8; text-align:left; font-weight:600; }
+        th,td { padding:10px 12px; border-bottom:1px solid #43245a; vertical-align:top; }
+        tr:hover td { background:#ffffff05; }
+        code { color:#ffd8ff; font:13px/1.4 Consolas,monospace; }
+        .pill { display:inline-block; padding:1px 7px; border-radius:999px; border:1px solid #74418c; color:#cbb6d6; font-size:12px; }
+        .pill.on { color:var(--ok); border-color:#2b8069; } .pill.off { opacity:.55; }
+        .profiles { display:grid; grid-template-columns:repeat(4,minmax(80px,1fr)); gap:5px; }
+        .profile { padding:5px 7px; background:#11071c; border-radius:5px; min-height:48px; }
+        .profile b { display:block; color:#a989b7; font-size:11px; } .profile.off code { opacity:.45; text-decoration:line-through; }
+        .empty { padding:40px;text-align:center;color:var(--muted); }
+        .warning { margin:12px 0; border-left:3px solid var(--warn); background:#8a5a161f; padding:10px 12px; }
+        dialog { width:min(840px,90vw); color:var(--text); background:#160923; border:1px solid var(--line); border-radius:10px; }
+        dialog::backdrop { background:#000a; } pre { max-height:70vh; overflow:auto; white-space:pre-wrap; color:#dbcbe4; }
+        @media(max-width:850px){ header{align-items:start;flex-direction:column}.stats{grid-template-columns:repeat(2,1fr)}.toolbar{grid-template-columns:1fr 1fr}.toolbar input{grid-column:1/-1} }
+    </style>
+</head>
+<body>
+<header>
+    <div><h1><span>BCM</span> 简表生成器</h1><div class="subtitle">完整对象图 → 可审查、可版本化、可供 MOD 读取的基础表</div></div>
+    <div class="muted">SF6CC Maintainer Tool · 本地离线处理</div>
+</header>
+<main>
+    <section id="drop" class="panel drop" tabindex="0">
+        <input id="file" type="file" accept="application/json,.json">
+        <strong>拖入完整 BCM JSON，或点击选择文件</strong>
+        <div id="fileName" class="muted">支持 sf6cr.*-bcm-full.v1 对象图；文件不会离开浏览器</div>
+        <div class="actions"><button id="choose">选择 BCM</button><button id="export" disabled>导出审查简表</button><button id="runtime" disabled>导出 MOD 基础表</button><button id="copy" disabled>复制审查简表</button></div>
+    </section>
+    <div id="warnings"></div>
+    <section id="stats" class="stats" hidden></section>
+    <section id="toolbar" class="panel toolbar" hidden>
+        <input id="search" placeholder="搜索 Action ID 或指令，例如 904 / 236+LP">
+        <select id="profile"><option value="all">全部 profile</option><option>norm</option><option>easy</option><option>sprt</option><option>supr</option></select>
+        <select id="availability"><option value="all">全部状态</option><option value="enabled">仅可用</option><option value="disabled">仅 NG</option></select>
+        <button id="raw">查看简表 JSON</button>
+    </section>
+    <section class="panel table-wrap">
+        <table id="table" hidden><thead><tr><th>Action</th><th>经典基础显示</th><th>Profile</th><th>触发器</th><th>条件摘要</th><th></th></tr></thead><tbody></tbody></table>
+        <div id="empty" class="empty">尚未加载 BCM 文件</div>
+    </section>
+</main>
+<dialog id="dialog"><button id="close" style="float:right">关闭</button><pre id="json"></pre></dialog>
+<script src="bcm_catalog_core.js"></script>
+<script>
+(() => {
+    const $ = id => document.getElementById(id);
+    let catalog = null;
+    const drop = $("drop"), input = $("file");
+    $("choose").onclick = event => { event.stopPropagation(); input.click(); };
+    drop.onclick = event => { if (!event.target.closest("button")) input.click(); };
+    drop.onkeydown = event => { if (event.key === "Enter" || event.key === " ") input.click(); };
+    for (const name of ["dragenter","dragover"]) drop.addEventListener(name, event => { event.preventDefault(); drop.classList.add("drag"); });
+    for (const name of ["dragleave","drop"]) drop.addEventListener(name, event => { event.preventDefault(); drop.classList.remove("drag"); });
+    drop.addEventListener("drop", event => load(event.dataTransfer.files[0]));
+    input.onchange = () => load(input.files[0]);
+
+    async function load(file) {
+        if (!file) return;
+        $("fileName").textContent = `${file.name} · ${(file.size / 1024 / 1024).toFixed(2)} MB · 读取中…`;
+        try {
+            await new Promise(resolve => setTimeout(resolve, 20));
+            const bytes = await file.arrayBuffer();
+            const source = SF6CCBcmCatalog.parseSourceText(new TextDecoder("utf-8").decode(bytes));
+            const digest = await crypto.subtle.digest("SHA-256", bytes);
+            const sourceSha256 = [...new Uint8Array(digest)].map(value => value.toString(16).padStart(2,"0")).join("");
+            catalog = SF6CCBcmCatalog.buildCatalog(source, { sourceSha256 });
+            $("fileName").textContent = `${file.name} · ${(file.size / 1024 / 1024).toFixed(2)} MB · ${catalog.source.character}`;
+            $("export").disabled = $("runtime").disabled = $("copy").disabled = false;
+            renderStats(); renderWarnings(); render();
+        } catch (error) {
+            catalog = null; $("warnings").innerHTML = `<div class="warning">转换失败：${escapeHtml(error.message)}</div>`;
+            $("fileName").textContent = file.name;
+        }
+    }
+
+    function renderStats() {
+        const values = [[catalog.source.character,"角色"],[catalog.source.fighter_id,"Fighter ID"],[catalog.stats.action_count,"Action"],[catalog.stats.decoded_trigger_count,"Trigger"],[catalog.stats.command_variant_count,"指令变体"]];
+        $("stats").innerHTML = values.map(([v,k]) => `<div class="panel stat"><strong>${escapeHtml(v)}</strong><small>${k}</small></div>`).join("");
+        $("stats").hidden = $("toolbar").hidden = false;
+    }
+    function renderWarnings() { $("warnings").innerHTML = catalog.warnings.map(w => `<div class="warning">${escapeHtml(w)}</div>`).join(""); }
+    function matchesProfile(trigger, profile, state) {
+        const names = profile === "all" ? Object.keys(trigger.profiles) : [profile];
+        return names.some(name => state === "all" || (state === "enabled") === trigger.profiles[name].enabled);
+    }
+    function render() {
+        if (!catalog) return;
+        const query = $("search").value.trim().toLowerCase(), profile = $("profile").value, state = $("availability").value;
+        const rows = [];
+        for (const action of Object.values(catalog.actions)) for (const trigger of action.triggers) {
+            const haystack = `${action.action_id} ${action.classic_display || ""} ${Object.values(trigger.profiles).map(x => x.notation).join(" ")}`.toLowerCase();
+            if (query && !haystack.includes(query)) continue;
+            if (!matchesProfile(trigger, profile, state)) continue;
+            const names = profile === "all" ? ["norm","easy","sprt","supr"] : [profile];
+            const profiles = names.map(name => { const p=trigger.profiles[name]; return `<div class="profile ${p.enabled?"":"off"}"><b>${name} · ${p.enabled?"可用":"NG"}</b><code>${escapeHtml(p.notation)}</code></div>`; }).join("");
+            const c = trigger.conditions;
+            rows.push(`<tr><td><strong>${action.action_id}</strong><br><span class="pill">#${trigger.trigger_index}</span></td><td><code>${escapeHtml(trigger.classic_display || "—")}</code><br><span class="pill ${trigger.classic_profile?"on":"off"}">${trigger.classic_profile || "无基础入口"}</span></td><td><div class="profiles">${profiles}</div></td><td><code>group ${c.command_group_id ?? -1}</code><br><span class="muted">air=${c.cond_owner_state_flags===4?"yes":"no"}</span></td><td class="muted">category ${c.category_flags ?? 0}<br>function ${c.function_id ?? 0}<br>style ${c.fightstyle_flags ?? 0}</td><td><button data-action="${action.action_id}" data-trigger="${trigger.trigger_index}">详情</button></td></tr>`);
+        }
+        $("table").hidden = !rows.length; $("empty").hidden = !!rows.length; $("empty").textContent = "没有符合筛选条件的记录";
+        $("table").querySelector("tbody").innerHTML = rows.join("");
+    }
+    for (const id of ["search","profile","availability"]) $(id).addEventListener(id==="search"?"input":"change",render);
+    $("table").onclick = event => { const button=event.target.closest("button[data-action]"); if(!button)return; const action=catalog.actions[button.dataset.action]; const trigger=action.triggers.find(x=>String(x.trigger_index)===button.dataset.trigger); show(trigger); };
+    function show(value){ $("json").textContent=JSON.stringify(value,null,2); $("dialog").showModal(); }
+    $("raw").onclick=()=>show(catalog); $("close").onclick=()=>$("dialog").close();
+    function download(value,name){ const blob=new Blob([JSON.stringify(value,null,2)+"\n"],{type:"application/json"}); const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=name; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),0); }
+    $("export").onclick=()=>download(catalog,`${catalog.source.character}_BCM_Catalog.json`);
+    $("runtime").onclick=()=>download(SF6CCBcmCatalog.buildRuntimeCatalog(catalog),`${catalog.source.character}.json`);
+    $("copy").onclick=async()=>{ await navigator.clipboard.writeText(JSON.stringify(catalog,null,2)); $("copy").textContent="已复制"; setTimeout(()=>$("copy").textContent="复制简表",1000); };
+    function escapeHtml(value){ return String(value??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+})();
+</script>
+</body>
+</html>
