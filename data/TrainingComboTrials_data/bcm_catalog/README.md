@@ -15,4 +15,6 @@
 - `policy`：生成时采用的 profile 和例外表策略。
 - `actions`：字符串 Action ID 到经典指令的映射。
 
+运行时基础表不写生成时间；相同源文件应产生完全相同的 JSON，来源变化由 SHA-256 判断。
+
 现代模式不应直接复用 `control_mode_label` 推断。完整 BCM 的 classic/modern 导出可能相同；在 profile 选择规则验证完成前，现代显示继续使用现有 `modern_display` 产品数据。

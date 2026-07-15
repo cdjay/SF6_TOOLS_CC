@@ -7,6 +7,13 @@
 
     const OUTPUT_SCHEMA = "sf6cc.bcm-catalog.v1";
     const PROFILE_NAMES = ["norm", "easy", "sprt", "supr"];
+    const FIGHTER_NAMES = {
+        1: "Ryu", 2: "Luke", 3: "Kimberly", 4: "ChunLi", 5: "Manon", 6: "Zangief",
+        7: "JP", 8: "Dhalsim", 9: "Cammy", 10: "Ken", 11: "DeeJay", 12: "Lily",
+        13: "AKI", 14: "Rashid", 15: "Blanka", 16: "Juri", 17: "Marisa", 18: "Guile",
+        19: "Ed", 20: "EHonda", 21: "Jamie", 22: "Akuma", 25: "Sagat", 26: "MBison",
+        27: "Terry", 28: "Mai", 29: "Elena", 30: "CViper", 31: "Alex", 32: "Ingrid"
+    };
     const DIR_MAP = {
         0: "5", 1: "8", 2: "2", 4: "4", 5: "7",
         6: "1", 8: "6", 9: "9", 10: "3", 15: "*"
@@ -245,6 +252,11 @@
         if (!Array.isArray(source.triggers)) throw new Error("这不是包含 triggers 的完整 BCM 对象图。");
 
         const warnings = [];
+        const fighterId = Number(source.fighter_id ?? -1);
+        const resolvedCharacter = options.characterName || FIGHTER_NAMES[fighterId] || source.character || "Unknown";
+        if (source.character && resolvedCharacter !== source.character) {
+            warnings.push(`源角色名 ${source.character} 已按 fighter_id=${fighterId} 规范化为 ${resolvedCharacter}。`);
+        }
         if (source.truncated) warnings.push("源文件标记为 truncated，输出不能视为完整基础表。");
         if (source.hard_gate_passed === false) warnings.push("源文件 hard_gate_passed=false。");
         const objects = buildObjectIndex(source);
@@ -288,8 +300,9 @@
             generated_at: options.generatedAt || new Date().toISOString(),
             source: {
                 schema: source.schema || null,
-                character: source.character || "Unknown",
-                fighter_id: Number(source.fighter_id ?? -1),
+                character: resolvedCharacter,
+                capture_character: source.character || null,
+                fighter_id: fighterId,
                 object_count: (source.objects || []).length,
                 trigger_count: (source.triggers || []).length,
                 control_mode_label: source.control_mode_label || null,
@@ -325,7 +338,6 @@
         }
         return {
             schema: "sf6cc.bcm-runtime.v1",
-            generated_at: catalog.generated_at,
             character: catalog.source.character,
             fighter_id: catalog.source.fighter_id,
             source_schema: catalog.source.schema,
@@ -338,6 +350,7 @@
     return {
         OUTPUT_SCHEMA,
         PROFILE_NAMES,
+        FIGHTER_NAMES,
         parseSourceText,
         buildCatalog,
         buildRuntimeCatalog,

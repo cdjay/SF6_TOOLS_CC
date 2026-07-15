@@ -12,7 +12,7 @@
 命令行等价用法：
 
 ```powershell
-node tools\bcm_catalog_builder\build_catalog.js <完整BCM.json> <BCM简表.json>
+node tools\bcm_catalog_builder\build_catalog.js <完整BCM.json> <BCM简表.json> [角色规范名]
 ```
 
 请把临时输出写到仓库外。只有经过验证、供 MOD 使用的角色简表才应放入 `data/TrainingComboTrials_data/bcm_catalog/` 并纳入版本控制。
@@ -25,6 +25,7 @@ node tools\bcm_catalog_builder\build_catalog.js <完整BCM.json> <BCM简表.json
 - BCM 提供基础指令，现有 exceptions 继续负责吸收动作、蓄力窗口、前置动作忽略、强制匹配等行为例外。
 - 页面使用无损整数预处理；BCM 的 64 位条件 flags 会以十进制字符串保留，避免浏览器把它们四舍五入。
 - 两种输出都会记录原始完整 BCM 文件的 SHA-256，用于确认基础表来源和发现过期转换结果。
+- 证据集把角色写成 `Fab` 时，生成器会用 `fighter_id` 转换成 MOD 使用的规范角色名（例如 20 → `EHonda`）；可选命令行参数仍可显式覆盖。
 
 ## 测试
 

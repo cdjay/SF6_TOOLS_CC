@@ -48,4 +48,9 @@ assert.strictEqual(catalog.stats.action_count, 1);
 const runtime = core.buildRuntimeCatalog(catalog);
 assert.strictEqual(runtime.schema, "sf6cc.bcm-runtime.v1");
 assert.strictEqual(runtime.actions["904"], "236+LP");
+
+const fabSource = { ...source, character: "Fab", fighter_id: 20 };
+const hondaCatalog = core.buildCatalog(fabSource, { generatedAt: "2026-01-01T00:00:00.000Z" });
+assert.strictEqual(hondaCatalog.source.character, "EHonda");
+assert.strictEqual(hondaCatalog.source.capture_character, "Fab");
 console.log("BCM catalog tests passed.");

@@ -1,6 +1,5 @@
 {
   "schema": "sf6cc.bcm-runtime.v1",
-  "generated_at": "2026-07-15T00:00:00.000Z",
   "character": "Ingrid",
   "fighter_id": 32,
   "source_schema": "sf6cr.ingrid-bcm-full.v1",
