@@ -301,12 +301,17 @@ local trial_state = {
     _step1_wrong_pending = false,
     _pending_current_absorb = nil,
     _pending_block_outcome = nil,
-    _demo_backup_slot = nil
+    _demo_backup_slot = nil,
+    _raw_rec_active = false,
+    _raw_rec_buffer = {}
 }
 
 local XT_SETTINGS_FILE = "TrainingComboTrials_data/XT_Settings.json"
+CTJsonInterop = CTJsonInterop or {}
+CTJsonInterop.RECORDER_VERSION = "0.97a"
 local xt_settings = {
-    default_author = "佚名"
+    default_author = "佚名",
+    language = "zh-CN"
 }
 
 local function load_xt_settings()
@@ -316,6 +321,9 @@ local function load_xt_settings()
     if type(loaded) == "table" then
         if type(loaded.default_author) == "string" and loaded.default_author ~= "" then
             xt_settings.default_author = loaded.default_author
+        end
+        if type(loaded.language) == "string" and loaded.language ~= "" then
+            xt_settings.language = loaded.language
         end
     end
 end
@@ -367,16 +375,69 @@ local function control_type_from_input_type(input_type)
     return "classic"
 end
 
-local function build_auto_xt_meta(recording_player)
+function CTJsonInterop.iso8601_now()
+    local now = os.time()
+    local timezone = os.date("%z", now) or ""
+    if timezone:match("^[+-]%d%d%d%d$") then
+        timezone = timezone:sub(1, 3) .. ":" .. timezone:sub(4)
+    else
+        local utc = os.date("!*t", now)
+        local local_time = os.date("*t", now)
+        utc.isdst = local_time.isdst
+        local offset = math.floor(os.difftime(os.time(local_time), os.time(utc)))
+        local sign = offset < 0 and "-" or "+"
+        offset = math.abs(offset)
+        timezone = string.format("%s%02d:%02d", sign, math.floor(offset / 3600), math.floor((offset % 3600) / 60))
+    end
+    return os.date("%Y-%m-%dT%H:%M:%S", now) .. timezone
+end
+
+function CTJsonInterop.sequence_control_mode(sequence)
+    local first = type(sequence) == "table" and sequence[1] or nil
+    local meta = type(first) == "table" and first._xt_meta or nil
+    if type(meta) ~= "table" then return "classic" end
+    local mode = tostring(meta.control_mode or meta.control_type or meta.timeline_input_profile or "classic"):lower()
+    return mode == "modern" and "modern" or "classic"
+end
+
+function CTJsonInterop.warn_control_mode_mismatch(sequence, player_idx)
+    local file_mode = CTJsonInterop.sequence_control_mode(sequence)
+    local live_mode = control_type_from_input_type(read_player_input_type(player_idx or 0))
+    if file_mode == live_mode then return false end
+    local message = string.format("控制模式不一致：配置为%s，当前为%s", file_mode, live_mode)
+    if type(_G.show_custom_ticker) == "function" then
+        pcall(_G.show_custom_ticker, message, 0.3)
+    else
+        pcall(print, "[ComboTrials] " .. message)
+    end
+    return true
+end
+
+local function build_auto_xt_meta(recording_player, sequence)
     local input_type = read_player_input_type(recording_player or trial_state.recording_player or 0)
     local control_type = control_type_from_input_type(input_type)
+    local now = CTJsonInterop.iso8601_now()
+    local step_notes = {}
+    for index = 1, (type(sequence) == "table" and #sequence or 0) do
+        step_notes[index] = ""
+    end
     return {
         title = "",
         note = "",
         author = xt_settings.default_author or "佚名",
         tags = {},
-        created_at = os.date("%Y-%m-%d %H:%M:%S"),
-        schema = 1,
+        step_notes = step_notes,
+        language = xt_settings.language or "zh-CN",
+        control_mode = control_type,
+        created_at = now,
+        updated_at = now,
+        versions = {
+            game = { id = "sf6" },
+            recorder = { id = "sf6cc", version = CTJsonInterop.RECORDER_VERSION },
+            json = { id = "xt.combo_trial", version = "2.0.0" }
+        },
+        schema = 2,
+        -- Legacy aliases retained so pre-v2 SF6CC readers keep filtering correctly.
         control_type = control_type,
         timeline_input_profile = control_type,
         input_type = input_type
@@ -400,6 +461,8 @@ local demo_state = {
     current_step = 1,
     sequence = {},
     p1_mask = 0,
+    raw_buffer = nil,
+    play_index = 1,
     auto_playlist_enabled = false,
     playlist_active = false,
     playlist_index = 0,
@@ -867,11 +930,13 @@ local ctx = {
 ctx.stop_demo_playback = function(reason, old_file, new_file, stop_trial, keep_playlist)
     if not demo_state then return end
     local old_sequence_len = (type(demo_state.sequence) == "table") and #demo_state.sequence or 0
+    local old_raw_len = (type(demo_state.raw_buffer) == "table") and #demo_state.raw_buffer or 0
     local was_playing = demo_state.is_playing == true
     local old_play_index = demo_state.current_step or 1
     local old_frame = demo_state.current_frame or 0
     local had_demo_state = was_playing
         or old_sequence_len > 0
+        or old_raw_len > 0
         or (demo_state.p1_mask or 0) ~= 0
         or demo_state.playlist_active == true
         or demo_state.playlist_pending_next == true
@@ -884,6 +949,8 @@ ctx.stop_demo_playback = function(reason, old_file, new_file, stop_trial, keep_p
     demo_state.countdown = 0
     demo_state.sequence = {}
     demo_state.p1_mask = 0
+    demo_state.raw_buffer = nil
+    demo_state.play_index = 1
     demo_state._last_tick_frame = nil
     demo_state._state_reinjected = false
     demo_state._total_frames = 0
@@ -925,7 +992,7 @@ ctx.stop_demo_playback = function(reason, old_file, new_file, stop_trial, keep_p
             tostring(was_playing),
             tostring(old_play_index),
             tostring(old_frame),
-            tostring(old_sequence_len > 0)
+            tostring(old_sequence_len > 0 or old_raw_len > 0)
         ))
     end
 end
@@ -2704,11 +2771,70 @@ function unique_resources.capture_by_side()
 end
 
 function unique_resources.capture_scene_state(recorded_by)
-    local players_state = unique_resources.capture_by_side()
-    if not players_state then return nil end
+    local players_state = unique_resources.capture_by_side() or {}
+
+    for player_idx = 0, 1 do
+        local side_key = player_idx == 0 and "p1" or "p2"
+        local side = players_state[side_key] or {}
+        if side.fighter_id == nil then
+            side.fighter_id = unique_resources.read_training_fighter_id(player_idx)
+        end
+
+        pcall(function()
+            local player = player_idx == 0 and GS.p1 or GS.p2
+            if not player then return end
+
+            local super = 0
+            pcall(function()
+                local battle_team = _td_gBattle:get_field("Team"):get_data(nil)
+                local team = battle_team and battle_team.mcTeam and battle_team.mcTeam[player_idx]
+                super = team and tonumber(team.mSuperGauge) or 0
+            end)
+
+            side.resources = {
+                hp = tonumber(player.vital_new) or 0,
+                drive = tonumber(player.focus_new) or 0,
+                super = super
+            }
+
+            local pose = tonumber(tostring(player:get_field("pose_st"))) or 0
+            local stance = "standing"
+            if pose == 1 then
+                stance = "crouching"
+            elseif pose == 2 then
+                stance = "airborne"
+            end
+
+            local stunned = false
+            pcall(function()
+                local engine = player.mpActParam.ActionPart._Engine
+                local action_id = engine and engine:get_ActionID()
+                stunned = action_id == 293 or action_id == 294
+            end)
+
+            local burnout = false
+            pcall(function()
+                local tm = sdk.get_managed_singleton("app.training.TrainingManager")
+                local training_data = tm and tm:get_field("_tData")
+                local parameter_setting = training_data and training_data:get_field("ParameterSetting")
+                local params = parameter_setting and parameter_setting.PlayerDatas and parameter_setting.PlayerDatas[player_idx]
+                if params then
+                    burnout = params.Is_DG_Break == true or params.Is_DG_Break == 1
+                end
+            end)
+
+            side.status = {
+                burnout = burnout,
+                stunned = stunned,
+                stance = stance
+            }
+        end)
+
+        players_state[side_key] = side
+    end
 
     return {
-        schema = "xt.combo_trial.scene.v1",
+        schema = "xt.combo_trial.scene.v2",
         capture_mode = "portable",
         recorded_by = recorded_by,
         players = players_state
@@ -3104,6 +3230,15 @@ local function trial_requires_dummy_crouch()
     if value_requests_dummy_crouch(first.dummy_posture) then return true end
     if value_requests_dummy_crouch(first.dummy_action) then return true end
 
+    local scene_state = type(first.scene_state) == "table" and first.scene_state or nil
+    if scene_state and type(scene_state.players) == "table" then
+        local recorded_by = tonumber(first.recorded_by or scene_state.recorded_by or 0) or 0
+        local defender_side = recorded_by == 1 and "p1" or "p2"
+        local defender = scene_state.players[defender_side]
+        local status = type(defender) == "table" and defender.status or nil
+        if type(status) == "table" and value_requests_dummy_crouch(status.stance) then return true end
+    end
+
     local meta = type(first._xt_meta) == "table" and first._xt_meta or nil
     if meta then
         if has_recorded_dummy_action_environment(meta.environment) then
@@ -3276,7 +3411,15 @@ local function apply_trial_training_environment(skip_refresh_settings)
     if apply_refresh_settings then unique_resources.apply_recorded() end
     local first_step = trial_state.sequence and trial_state.sequence[1]
     local snapshot_gauges = type(first_step) == "table" and first_step.snapshot_gauges or nil
-    if apply_refresh_settings and type(snapshot_gauges) == "table" and snapshot_gauges.defender_burnout == true then
+    local scene_state = type(first_step) == "table" and first_step.scene_state or nil
+    local recorded_by = type(first_step) == "table" and tonumber(first_step.recorded_by or (scene_state and scene_state.recorded_by) or 0) or 0
+    local defender_side = recorded_by == 1 and "p1" or "p2"
+    local scene_defender = scene_state and scene_state.players and scene_state.players[defender_side] or nil
+    local scene_defender_status = type(scene_defender) == "table" and scene_defender.status or nil
+    local scene_defender_resources = type(scene_defender) == "table" and scene_defender.resources or nil
+    local defender_burnout = (type(snapshot_gauges) == "table" and snapshot_gauges.defender_burnout == true)
+        or (type(scene_defender_status) == "table" and scene_defender_status.burnout == true)
+    if apply_refresh_settings and defender_burnout then
         local attacker_idx = tonumber(trial_state.playing_player or 0) or 0
         local defender_idx = 1 - attacker_idx
         local tm = sdk.get_managed_singleton("app.training.TrainingManager")
@@ -3296,7 +3439,10 @@ local function apply_trial_training_environment(skip_refresh_settings)
                 end
                 if next(saved_drive) ~= nil then trial_state._saved_drive_settings[defender_idx] = saved_drive end
             end
-            local defender_drive = math.max(0, tonumber(snapshot_gauges.defender_drive) or 0)
+            local defender_drive = math.max(0, tonumber(
+                type(snapshot_gauges) == "table" and snapshot_gauges.defender_drive
+                    or (type(scene_defender_resources) == "table" and scene_defender_resources.drive)
+            ) or 0)
             defender_params.DG_Point = defender_drive
             defender_params.DG_Stock = math.floor((defender_drive + 5000) / 10000)
             defender_params.Is_DG_Break = true
@@ -4123,6 +4269,8 @@ local function start_recording(player_idx)
     trial_state._piyo_detected = false
     trial_state._piyo_frame = nil
     trial_state._rec_frame_count = 0
+    trial_state._raw_rec_buffer = {}
+    trial_state._raw_rec_active = true
 end
 
 local function start_trial(player_idx)
@@ -4139,6 +4287,7 @@ local function start_trial(player_idx)
         unique_resources.restore()
     end
     trial_state.is_recording = false
+    trial_state._raw_rec_active = false
     trial_state._rec_gauges = nil
     trial_state._rec_hp_snapshot = nil
     trial_state._rec_hit_type = nil
@@ -4165,6 +4314,7 @@ local function start_trial(player_idx)
     update_trial_flip_state()
     apply_forced_position()
     trial_state._pending_reinject_settings = true
+    CTJsonInterop.warn_control_mode_mismatch(trial_state.sequence, player_idx)
 end
 
 local function clear_recording_logger(player_idx)
@@ -4188,6 +4338,8 @@ local function cancel_recording()
     trial_state._rec_environment = nil
     trial_state._rec_scene_state = nil
     trial_state._rec_hp_snapshot = nil
+    trial_state._raw_rec_active = false
+    trial_state._raw_rec_buffer = {}
     clear_recording_logger(canceled_player)
     -- Flush displayed input history
     reset_combo_visual_runtime()
@@ -4239,6 +4391,7 @@ local function stop_recording_and_save()
 
     local saved_player = trial_state.recording_player
     trial_state.is_recording = false
+    trial_state._raw_rec_active = false
 
     -- MERGE LOGGER TIMELINE IN MEMORY (no intermediate file)
     local rec = saved_player == 0 and logger_state.rec_p1 or logger_state.rec_p2
@@ -4263,7 +4416,7 @@ local function stop_recording_and_save()
     end
 
     trial_state.recording_player = saved_player
-    local ok, saved_path = pcall(save_trial_sequence, build_auto_xt_meta(saved_player))
+    local ok, saved_path = pcall(save_trial_sequence, build_auto_xt_meta(saved_player, trial_state.sequence))
     if not ok or not saved_path then
         trial_state._xt_pending_save_error = ok and "save returned no path" or tostring(saved_path)
         _G.ComboTrials_SaveFailedPlayer = saved_player
@@ -5553,6 +5706,7 @@ local function combo_trials_has_runtime_state()
             or demo_state.playlist_pending_next == true
             or (demo_state.p1_mask or 0) ~= 0
             or (type(demo_state.sequence) == "table" and #demo_state.sequence > 0)
+            or (type(demo_state.raw_buffer) == "table" and #demo_state.raw_buffer > 0)
         ))
 end
 
@@ -5576,6 +5730,8 @@ local function cleanup_combo_trials_runtime_on_scene_exit(reason)
 
     trial_state.is_playing = false
     trial_state.is_recording = false
+    trial_state._raw_rec_active = false
+    trial_state._raw_rec_buffer = {}
     trial_state._was_playing = false
     trial_state._xt_pending_save = false
     trial_state._xt_pending_save_player = nil
@@ -5870,6 +6026,8 @@ local function ct_player_init(p_idx, p_state)
         if not trial_state._xt_pending_save then
             if trial_state.is_recording then
                 trial_state.is_recording = false
+                trial_state._raw_rec_active = false
+                trial_state._raw_rec_buffer = {}
             end
             if trial_state.is_playing then
                 trial_state.is_playing = false
@@ -5877,6 +6035,8 @@ local function ct_player_init(p_idx, p_state)
             if demo_state then
                 demo_state.is_playing = false
                 demo_state.p1_mask = 0
+                demo_state.raw_buffer = nil
+                demo_state.play_index = 1
                 demo_state.playlist_active = false
                 demo_state.playlist_index = 0
                 demo_state.playlist_total = 0
@@ -8204,10 +8364,17 @@ re.on_frame(function()
     file_system.diag_runtime_allowed = is_combo_trials_runtime_allowed()
     if file_system.diag_last_runtime_allowed ~= file_system.diag_runtime_allowed then
         file_system.diag_last_runtime_allowed = file_system.diag_runtime_allowed
-        file_system.diag_log("runtime allowed=" .. tostring(file_system.diag_runtime_allowed)
+        local rs = _G.SF6CC_RuntimeSafety or {}
+        local gate_message = "runtime allowed=" .. tostring(file_system.diag_runtime_allowed)
             .. " mode=" .. tostring(_G.CurrentTrainerMode)
             .. " battlehub=" .. tostring(_G.IsInBattleHub)
-            .. " flow=" .. tostring(_G.FlowMapID))
+            .. " flow=" .. tostring(_G.FlowMapID)
+            .. " reason=" .. tostring(rs.reason)
+            .. " battle_input=" .. tostring(rs.battle_input_type)
+            .. " online=" .. tostring(rs.in_online_battle)
+            .. " d2d=" .. tostring(_G.ComboTrialsD2DEnabled)
+        RuntimeSafety.trace(gate_message, "ComboTrialsGate")
+        file_system.diag_log(gate_message)
     end
 
     if not ct_handle_runtime_scene_gate() then
@@ -8468,7 +8635,15 @@ function save_trial_sequence(meta)
         if type(scene_state) == "table" then
             trial_state.sequence[1].scene_state = scene_state
         end
+        local environment = trial_state._rec_environment
+        if type(environment) == "table" then
+            trial_state.sequence[1].dummy_action_type = environment.dummy_action_type
+            trial_state.sequence[1].dummy_jump_type = environment.dummy_jump_type
+        end
         trial_state.sequence[1]._xt_meta = apply_recording_environment_to_meta(meta)
+        if type(trial_state._raw_rec_buffer) == "table" and #trial_state._raw_rec_buffer > 0 then
+            trial_state.sequence[1].raw_inputs = trial_state._raw_rec_buffer
+        end
     end
     normalize_sequence_counter_types(trial_state.sequence)
 
@@ -8525,6 +8700,7 @@ function save_trial_sequence(meta)
 
     assign_groups(trial_state.sequence)
     json.dump_file(path, trial_state.sequence)
+    trial_state._raw_rec_buffer = {}
     trial_state._rec_environment = nil
     trial_state._rec_scene_state = nil
     refresh_combo_list_preserve_selection(false)
@@ -8628,6 +8804,17 @@ local function parse_timeline_line(line)
     local mask = dir_to_mask[parts[1]] or 0
     for i = 2, #parts do if btn_to_mask[parts[i]] then mask = mask | btn_to_mask[parts[i]] end end
     return { frames = frames, mask = mask }
+end
+
+function CTJsonInterop.normalize_raw_inputs(raw_inputs)
+    if type(raw_inputs) ~= "table" or #raw_inputs == 0 then return nil end
+    local normalized = {}
+    for index = 1, #raw_inputs do
+        local value = tonumber(raw_inputs[index])
+        if value == nil then return nil end
+        normalized[index] = math.floor(value) & 0xFFFF
+    end
+    return normalized
 end
 
 CTStunDemoRuntime = CTStunDemoRuntime or {}
@@ -8805,33 +8992,45 @@ local function start_demo(opts)
     if not trial_state.sequence or #trial_state.sequence == 0 then return false end
     local first_stun_step = trial_state.sequence[1]
     local first_stun_gauges = type(first_stun_step) == "table" and first_stun_step.snapshot_gauges or nil
+    local raw_inputs = CTJsonInterop.normalize_raw_inputs(type(first_stun_step) == "table" and first_stun_step.raw_inputs or nil)
+    local timeline = type(first_stun_step) == "table" and first_stun_step.timeline or nil
+    local raw_mode_mismatch = false
+    if raw_inputs then
+        raw_mode_mismatch = CTJsonInterop.warn_control_mode_mismatch(trial_state.sequence, 0)
+    end
+    local use_raw_inputs = raw_inputs ~= nil and not (raw_mode_mismatch and type(timeline) == "table" and #timeline > 0)
     local manual_stun_demo_required = type(first_stun_step) == "table"
         and first_stun_step.has_piyo == true
+        and not use_raw_inputs
         and not (type(first_stun_gauges) == "table" and first_stun_gauges.defender_burnout == true)
     if manual_stun_demo_required and not _G._allow_stun_demo then return false end
-    
-    -- 1. Check for embedded timeline directly in the file (Merged files)
-    local timeline = trial_state.sequence[1].timeline
-    
-    -- 2. Backward compatibility fallback (Old 2-part files)
-    if not timeline then
-        local raw_file = trial_state.sequence[1].raw_input_file
-        if not raw_file then print("[ComboTrials] No timeline or raw input file!"); return false end
-        
-        local loaded = json.load_file("TrainingComboTrials_data/ReplayRecords/" .. raw_file)
-        if not loaded or not loaded.timeline then print("[ComboTrials] Failed to load ReplayRecord"); return false end
-        timeline = loaded.timeline
+
+    if use_raw_inputs then
+        demo_state.raw_buffer = raw_inputs
+        demo_state.sequence = {}
+    else
+        -- Legacy and cross-control-mode fallback: timeline stays a supported source.
+        if not timeline then
+            local raw_file = trial_state.sequence[1].raw_input_file
+            if not raw_file then print("[ComboTrials] No raw_inputs, timeline or raw_input_file!"); return false end
+
+            local loaded = json.load_file("TrainingComboTrials_data/ReplayRecords/" .. raw_file)
+            if not loaded or not loaded.timeline then print("[ComboTrials] Failed to load ReplayRecord"); return false end
+            timeline = loaded.timeline
+        end
+
+        demo_state.raw_buffer = nil
+        demo_state.sequence = {}
+        for _, line in ipairs(timeline) do
+            local parsed = parse_timeline_line(line)
+            if parsed then table.insert(demo_state.sequence, parsed) end
+        end
+        if #demo_state.sequence == 0 then return false end
     end
-    
-    demo_state.sequence = {}
-    for _, line in ipairs(timeline) do
-        local parsed = parse_timeline_line(line)
-        if parsed then table.insert(demo_state.sequence, parsed) end
-    end
-    if #demo_state.sequence == 0 then return false end
 
     -- Force Trial mode to stay active on P1
     trial_state.is_recording = false
+    trial_state._raw_rec_active = false
     trial_state.is_playing = true
     trial_state.playing_player = 0
     
@@ -8855,6 +9054,7 @@ local function start_demo(opts)
     demo_state.current_frame = 0
     demo_state.current_step = 1
     demo_state.p1_mask = 0
+    demo_state.play_index = 1
     demo_state._last_tick_frame = nil
     demo_state._state_reinjected = false
     demo_state._total_frames = 0
@@ -8864,7 +9064,7 @@ local function start_demo(opts)
     demo_state.current_file_path = trial_state.current_file_path
     demo_state.current_file_name = trial_state.current_file_name
 
-    print("[ComboTrials] DEMO Started for P1")
+    print("[ComboTrials] DEMO Started" .. (use_raw_inputs and " (RAW native)" or " (LEGACY timeline)"))
     return true
 end
 
@@ -9194,7 +9394,7 @@ table.insert(_G._shared_input_pre, function(p_id, args)
         demo_state.playlist_pending_next = false
         start_demo({ playlist_next = true })
     end
-    if not tick_done_this_frame and demo_state.is_playing then
+    if not tick_done_this_frame and demo_state.is_playing and not demo_state.raw_buffer then
         if not trial_state.is_playing then
             demo_state.is_playing = false
             demo_state.p1_mask = 0
@@ -9281,10 +9481,78 @@ local function _ct_demo_inject_mask()
     p1:set_field("pl_sw_new", orig_sw | final_mask)
 end
 
+CTRawInputRuntime = CTRawInputRuntime or {}
+
+function CTRawInputRuntime.capture(p_id)
+    local player = p_id == 0 and GS.p1 or GS.p2
+    if not player then return end
+    local input = player:get_field("pl_input_new")
+    local buffer = trial_state._raw_rec_buffer
+    if type(buffer) ~= "table" then
+        buffer = {}
+        trial_state._raw_rec_buffer = buffer
+    end
+    buffer[#buffer + 1] = ((input and tonumber(tostring(input))) or 0) & 0xFFFF
+end
+
+function CTRawInputRuntime.play()
+    if demo_state.countdown and demo_state.countdown > 0 then
+        demo_state.countdown = demo_state.countdown - 1
+        return
+    end
+
+    local pm = sdk.get_managed_singleton("app.PauseManager")
+    if pm then
+        local pause_bits = pm:get_field("_CurrentPauseTypeBit")
+        if pause_bits ~= 64 and pause_bits ~= 2112 then return end
+    end
+
+    local tm = sdk.get_managed_singleton("app.training.TrainingManager")
+    if tm and tm:get_field("_IsReqRefresh") == true then return end
+    if trial_state.pending_exact_pos and trial_state.pending_exact_pos > 0 then return end
+
+    local buffer = demo_state.raw_buffer
+    if type(buffer) ~= "table" or #buffer == 0 then return end
+    local index = demo_state.play_index or 1
+    if index > #buffer then
+        if demo_state.playlist_active == true then
+            demo_state.is_playing = false
+            demo_state.raw_buffer = nil
+            demo_state.play_index = 1
+            demo_state.countdown = 0
+            demo_state._state_reinjected = false
+            demo_state.playlist_pending_next = true
+        else
+            demo_state.play_index = 1
+            demo_state.countdown = 10
+            demo_state._state_reinjected = false
+            reset_trial_steps()
+        end
+        return
+    end
+
+    if index == 1 and demo_state._state_reinjected ~= true then
+        CTStunDemoRuntime.restore_pre_demo_state()
+        demo_state._state_reinjected = true
+    end
+
+    local p1 = GS.p1
+    if not p1 then return end
+    local mask = buffer[index]
+    p1:set_field("pl_input_new", mask)
+    p1:set_field("pl_sw_new", mask)
+    demo_state.play_index = index + 1
+end
+
 if _G._shared_input_post then
 table.insert(_G._shared_input_post, function(p_id, retval)
     if not is_combo_trials_runtime_allowed() then return end
-    if p_id == 0 and demo_state.is_playing and demo_state.p1_mask > 0 then
+    if p_id == trial_state.recording_player and trial_state._raw_rec_active then
+        pcall(CTRawInputRuntime.capture, p_id)
+    end
+    if p_id == 0 and demo_state.is_playing and demo_state.raw_buffer then
+        pcall(CTRawInputRuntime.play)
+    elseif p_id == 0 and demo_state.is_playing and demo_state.p1_mask > 0 then
         pcall(_ct_demo_inject_mask)
     end
 end)

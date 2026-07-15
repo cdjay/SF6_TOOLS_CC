@@ -14,6 +14,8 @@ local ctx
 local trial_state, players, file_system
 local normalize_sequence_counter_types, assign_groups
 local restore_trial_dummy_action_type
+local XT_SCHEMA_MAX = 2
+local schema_warning_paths = {}
 
 local function warn_combo_file_once(path, reason)
     local warnings = file_system.combo_file_warnings
@@ -50,7 +52,25 @@ local function load_combo_json(path)
     if not ok then return nil, tostring(loaded) end
     local valid, reason = is_valid_combo_sequence(loaded)
     if not valid then return nil, reason end
+    local meta = type(loaded[1]) == "table" and loaded[1]._xt_meta or nil
+    local schema = type(meta) == "table" and tonumber(meta.schema) or nil
+    if schema and schema > XT_SCHEMA_MAX and meta.requires_strict == true then
+        return nil, "requires unsupported strict schema " .. tostring(schema)
+    end
     return loaded
+end
+
+local function warn_newer_schema(path, sequence)
+    local first = type(sequence) == "table" and sequence[1] or nil
+    local meta = type(first) == "table" and first._xt_meta or nil
+    local schema = type(meta) == "table" and tonumber(meta.schema) or nil
+    if not schema or schema <= XT_SCHEMA_MAX then return end
+    local key = tostring(path) .. "|" .. tostring(schema)
+    if schema_warning_paths[key] then return end
+    schema_warning_paths[key] = true
+    local message = string.format("连段 JSON schema %s 高于当前支持的 %s，将按已知字段尝试加载", schema, XT_SCHEMA_MAX)
+    pcall(print, "[ComboTrials] " .. message)
+    if type(_G.show_custom_ticker) == "function" then pcall(_G.show_custom_ticker, message, 0.3) end
 end
 
 local function combo_control_type_from_sequence(sequence)
@@ -58,10 +78,11 @@ local function combo_control_type_from_sequence(sequence)
     local meta = type(first) == "table" and first._xt_meta or nil
     if type(meta) ~= "table" then return "classic" end
 
+    local control_mode = tostring(meta.control_mode or ""):lower()
     local control_type = tostring(meta.control_type or ""):lower()
     local input_profile = tostring(meta.timeline_input_profile or ""):lower()
-    if control_type == "modern" or input_profile == "modern" then return "modern" end
-    if control_type == "classic" then return "classic" end
+    if control_mode == "modern" or control_type == "modern" or input_profile == "modern" then return "modern" end
+    if control_mode == "classic" or control_type == "classic" then return "classic" end
     return "classic"
 end
 
@@ -89,6 +110,7 @@ function M.load_combo_from_file(path, force)
         warn_combo_file_once(path, load_error or "JSON load failed")
         return false
     end
+    warn_newer_schema(path, loaded)
 
     local prepared, prepare_error = pcall(function()
         normalize_sequence_counter_types(loaded)
