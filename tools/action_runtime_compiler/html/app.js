@@ -89,7 +89,8 @@ function renderResults(result) {
     ["AC+BCM 原始归档", result.raw_archive, "acbcm"],
     ["角色简表与报告", result.character_archive, "char"],
     ["v2 运行时（内部）", result.latest, "latest"],
-    ["可同步角色例外表", result.latest_exceptions, "latest_exceptions"]
+    ["可同步角色例外表", result.latest_exceptions, "latest_exceptions"],
+    ["可同步现代显示表", result.latest_modern, "latest_modern"]
   ];
   elements["directory-grid"].replaceChildren();
   for (const [label, directory, kind] of directories) {
@@ -123,8 +124,12 @@ function renderResults(result) {
       metric("别名 +", s.aliases_added), metric("别名 -", s.aliases_removed), metric("别名改", s.aliases_changed),
       metric("TC +", s.target_combos_added), metric("TC -", s.target_combos_removed),
       metric("验证改", s.validation_changed),
+      metric("现代 +", s.modern_displays_added || 0),
+      metric("现代 -", s.modern_displays_removed || 0),
+      metric("现代改", s.modern_displays_changed || 0),
       metric("旧表缺项", entry.compatibility?.missing_action_count || 0),
-      metric("兼容兜底", entry.compatibility?.fallback_entry_count || 0)
+      metric("兼容兜底", entry.compatibility?.fallback_entry_count || 0),
+      metric("现代映射", entry.modern_display_action_count || 0)
     );
     content.append(name, metrics);
     const latest = document.createElement("span");

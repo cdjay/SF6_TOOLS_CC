@@ -20,6 +20,7 @@ tools\action_runtime_compiler\start_html_builder.bat
 - `char\<版本>\`：角色简表、编译报告、逐角色差异及汇总差异；
 - `latest\`：最新 v2 运行时表，保留给编译器内部审查；
 - `latest_exceptions\`：由 AC+BCM 自动生成并通过旧表兼容审计、且状态为 `valid` 的现有角色例外表格式，可全选复制到游戏的 `data\TrainingComboTrials_data\exceptions`；
+- `latest_modern\`：由 AC+BCM 的 `sprt/easy/supr` profile 自动生成、且状态为 `valid` 的现代显示映射，可复制到游戏的 `data\TrainingComboTrials_data\modern_display`；
 - `latest-manifest.json`：记录 latest 中每个角色来自哪个归档版本，放在 latest 外以免同步时混入。
 
 以上归档和生成目录都被工具目录内的 `.gitignore` 排除，不会把大型研究 dump 或本机构建物带入提交。
@@ -67,6 +68,12 @@ AC 或 BCM 若标记为截断、hard gate 失败或角色动作全集为空，�
 - 同 BCM gate 的架势后续段（例如本田 `970 → 972`）；
 - TC 父动作关系；前后动作显示相同时会写入 `optional_parent_ids`，例如英格丽德 `655 → 656`；
 - 可选人工例外覆盖及其验证字段。
+- Modern 的手动简化输入（`sprt`）、SP 输入（`easy`）与 AUTO 辅助输入（`supr`）；AC 派生别名继承现代入口。官网出招表不参与 Action ID 映射。
+- Modern 顺序按键会从 BCM `command.inputs[].raw_mask` 与最终按键解码，例如豪鬼瞬狱杀自动生成 `弱 > 弱 > 中 > 强`，不会把按键槽误显示为中立方向。
+- Modern 普通/OD 必杀按 BCM `focus_consume` 在 `easy` 与 `supr` 中选择；DRC、RAW DR、Drive Parry、DI/Drive Reversal、Throw 与 AC Type 63 后投按语义生成，不显示底层 trigger mask。输出元数据保留仍无 Modern profile 的经典动作 ID 审计清单。
+- 地面普通攻击同时出现 `sprt/supr` 时，以该 Action ID 的直接 Modern `sprt` 为准；只有 `sprt` 不可用且 `supr` 单独有效时才生成 AUTO 路线，避免把另一个动作会赢得的 AUTO 输入错误并入当前动作。
+
+现代显示编译时，现有表中只有标记为 `community_sample` 的实机确认入口可以作为兼容补充；`capcom_official` 条目不会回填，避免官网 Action ID 与游戏 dump 错位。生成入口优先，补充只增加原子入口或显式后续段。
 
 每个版本的 `char` 目录同时保存 `<角色>.exceptions.json`。生成表只写现有运行时真正消费的字段；`force=false`、`ignore=false`、`ignore_prev_frames=5` 等默认值不会重复写入。
 

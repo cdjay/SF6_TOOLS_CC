@@ -12,7 +12,7 @@
       <div>
         <p class="eyebrow">SF6CC · LOCAL BUILD TOOL</p>
         <h1>AC+BCM 角色简表编译器</h1>
-        <p class="lead">从游戏 dump 批量生成角色简表与现有格式例外表，归档每个版本，并把有效例外表汇总到可直接同步的 latest_exceptions 目录。</p>
+        <p class="lead">从游戏 dump 批量生成角色简表、检测例外表与现代模式显示映射，归档每个版本，并汇总到可直接同步的 latest 目录。</p>
       </div>
       <div class="status-pill" id="server-status">本地服务已连接</div>
     </header>
@@ -57,7 +57,7 @@
       <div class="pair-list" id="pair-list"></div>
       <div class="warning-box hidden" id="incomplete-box"></div>
       <div class="build-row">
-        <p>只有状态为 <code>valid</code> 的角色会更新 latest_exceptions；带警告或无效结果仍保存在版本归档中供检查。</p>
+        <p>只有状态为 <code>valid</code> 的角色会更新 latest_exceptions 与 latest_modern；带警告或无效结果仍保存在版本归档中供检查。</p>
         <button class="primary accent" id="build-button">编译并归档</button>
       </div>
     </section>

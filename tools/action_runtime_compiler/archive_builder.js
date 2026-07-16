@@ -5,6 +5,7 @@ const fs = require("fs");
 const path = require("path");
 const bcmCore = require("../bcm_catalog_builder/bcm_catalog_core.js");
 const compiler = require("./compiler_core.js");
+const modernDisplay = require("./modern_display_core.js");
 
 const AC_SUFFIX = "-fab-action-catalog-full-classic.json";
 const BCM_SUFFIX = "-fab-bcm-full-classic.json";
@@ -242,12 +243,15 @@ function findPrevious(outputRoot, character, requestedVersion, currentVersion) {
         const versionRoot = path.join(outputRoot, "char", item.version);
         const runtimeFile = resolveWithin(versionRoot, entry.runtime_file || `${character}.json`);
         const reportFile = resolveWithin(versionRoot, entry.report_file || `${character}.report.json`);
+        const modernDisplayFile = resolveWithin(
+            versionRoot, entry.modern_display_file || `${character}.modern-display.json`);
         const runtime = readJsonIfExists(runtimeFile);
         if (runtime) return {
             version: item.version,
             same_version: item.version === currentVersion,
             runtime,
-            report: readJsonIfExists(reportFile)
+            report: readJsonIfExists(reportFile),
+            modern_display: readJsonIfExists(modernDisplayFile)
         };
     }
     return null;
@@ -255,6 +259,11 @@ function findPrevious(outputRoot, character, requestedVersion, currentVersion) {
 
 function loadExceptions(character) {
     const filename = path.resolve(__dirname, "..", "..", "data", "TrainingComboTrials_data", "exceptions", `${character}.json`);
+    return { filename, value: readJsonIfExists(filename) || {} };
+}
+
+function loadModernDisplaySupplement(character) {
+    const filename = path.resolve(__dirname, "..", "..", "data", "TrainingComboTrials_data", "modern_display", `${character}.json`);
     return { filename, value: readJsonIfExists(filename) || {} };
 }
 
@@ -275,7 +284,7 @@ function validateCharacterFilename(character) {
 }
 
 function ensureStorage(outputRoot) {
-    for (const name of ["acbcm", "char", "latest", "latest_exceptions"]) ensureDirectory(path.join(outputRoot, name));
+    for (const name of ["acbcm", "char", "latest", "latest_exceptions", "latest_modern"]) ensureDirectory(path.join(outputRoot, name));
 }
 
 function mergeEntries(existing, updates, keyOf, compare) {
@@ -346,6 +355,7 @@ function buildArchive(options) {
             const exceptionSource = loadExceptions(resolvedCharacter);
             const type13Compatibility = compiler.propagateType13SiblingCompatibility(
                 ac.value, exceptionSource.value);
+            const modernSupplement = loadModernDisplaySupplement(resolvedCharacter);
             const compileOptions = {
                 actionSourceSha256: ac.sha256,
                 bcmSourceSha256: bcm.sha256,
@@ -354,7 +364,15 @@ function buildArchive(options) {
             // Always compile the v2 runtime from AC+BCM alone. The existing
             // legacy table is then audited and reduced to the smallest
             // compatibility overlay needed to avoid detection regressions.
-            const result = compiler.compile(ac.value, bcm.value, {}, compileOptions);
+            const bcmCatalog = bcmCore.buildCatalog(bcm.value, {
+                characterName: resolvedCharacter,
+                sourceSha256: bcm.sha256,
+                generatedAt: updatedAt
+            });
+            const result = compiler.compileFromCatalog(ac.value, bcmCatalog, {}, compileOptions);
+            const generatedModernDisplay = modernDisplay.buildModernDisplay(
+                ac.value, bcmCatalog, result.runtime, modernSupplement.value,
+                { ...compileOptions, generatedAt: updatedAt });
             const pureGeneratedExceptions = compiler.buildLegacyExceptionTable(result.runtime);
             const compatibilityBefore = compiler.buildLegacyCompatibility(
                 type13Compatibility.table, pureGeneratedExceptions, result.runtime.action_ids);
@@ -405,10 +423,21 @@ function buildArchive(options) {
                         ? "same-version-before-overwrite" : "archived-version",
                     currentVersion: version
                 });
+            const modernBefore = previous && previous.modern_display || {};
+            const modernAfter = generatedModernDisplay;
+            const modernDiff = mapDiff(
+                Object.fromEntries(Object.entries(modernBefore).filter(([key]) => /^\d+$/.test(key))),
+                Object.fromEntries(Object.entries(modernAfter).filter(([key]) => /^\d+$/.test(key))));
+            difference.summary.modern_displays_added = modernDiff.added.length;
+            difference.summary.modern_displays_removed = modernDiff.removed.length;
+            difference.summary.modern_displays_changed = modernDiff.changed.length;
+            difference.details.modern_displays = modernDiff;
+            difference.has_changes = !difference.baseline && Object.values(difference.summary)
+                .some(value => value === true || Number(value) > 0);
 
             pendingWrites.push({
                 pair, acPath, bcmPath, runtime: result.runtime, report: result.report,
-                generatedExceptions, compatibility, difference
+                generatedExceptions, generatedModernDisplay, compatibility, difference
             });
             differences.push(difference);
             rawEntries.push({
@@ -428,6 +457,7 @@ function buildArchive(options) {
                 status: result.report.status,
                 runtime_file: `${result.runtime.character}.json`,
                 generated_exception_file: `${result.runtime.character}.exceptions.json`,
+                modern_display_file: `${result.runtime.character}.modern-display.json`,
                 compatibility_file: `${result.runtime.character}.compatibility.json`,
                 report_file: `${result.runtime.character}.report.json`,
                 diff_file: `${result.runtime.character}.diff.json`,
@@ -438,6 +468,7 @@ function buildArchive(options) {
                 exception_file: exceptionSource.filename,
                 coverage: result.runtime.coverage,
                 compatibility: compatibilityBefore.summary,
+                modern_display_action_count: Object.keys(generatedModernDisplay).filter(key => /^\d+$/.test(key)).length,
                 difference: difference.summary
             });
         }
@@ -488,6 +519,7 @@ function buildArchive(options) {
             const write = mergeExistingVersion ? writeJsonAtomic : writeJson;
             write(path.join(charTarget, `${pending.runtime.character}.json`), pending.runtime);
             write(path.join(charTarget, `${pending.runtime.character}.exceptions.json`), pending.generatedExceptions);
+            write(path.join(charTarget, `${pending.runtime.character}.modern-display.json`), pending.generatedModernDisplay);
             write(path.join(charTarget, `${pending.runtime.character}.compatibility.json`), pending.compatibility);
             write(path.join(charTarget, `${pending.runtime.character}.report.json`), pending.report);
             write(path.join(charTarget, `${pending.runtime.character}.diff.json`), pending.difference);
@@ -512,9 +544,11 @@ function buildArchive(options) {
         }
         const latestRoot = path.join(outputRoot, "latest");
         const latestExceptionsRoot = path.join(outputRoot, "latest_exceptions");
+        const latestModernRoot = path.join(outputRoot, "latest_modern");
         for (const pending of pendingWrites.filter(item => item.report.status === "valid")) {
             writeJsonAtomic(path.join(latestRoot, `${pending.runtime.character}.json`), pending.runtime);
             writeJsonAtomic(path.join(latestExceptionsRoot, `${pending.runtime.character}.json`), pending.generatedExceptions);
+            writeJsonAtomic(path.join(latestModernRoot, `${pending.runtime.character}.json`), pending.generatedModernDisplay);
         }
         const latestManifestPath = path.join(outputRoot, "latest-manifest.json");
         const latestManifest = readJsonIfExists(latestManifestPath) || {
@@ -526,6 +560,7 @@ function buildArchive(options) {
                 version,
                 fighter_id: entry.fighter_id,
                 runtime_file: entry.runtime_file,
+                modern_display_file: entry.modern_display_file,
                 status: entry.status
             };
         }
@@ -540,6 +575,7 @@ function buildArchive(options) {
             character_archive: charFinal,
             latest: latestRoot,
             latest_exceptions: latestExceptionsRoot,
+            latest_modern: latestModernRoot,
             characters: characterEntries,
             differences
         };

@@ -60,7 +60,8 @@ function state() {
             acbcm: path.join(ROOT, "acbcm"),
             char: path.join(ROOT, "char"),
             latest: path.join(ROOT, "latest"),
-            latest_exceptions: path.join(ROOT, "latest_exceptions")
+            latest_exceptions: path.join(ROOT, "latest_exceptions"),
+            latest_modern: path.join(ROOT, "latest_modern")
         },
         versions: archive.listVersionManifests(ROOT).map(item => ({
             version: item.version,
@@ -71,7 +72,7 @@ function state() {
 }
 
 function openFolder(kind) {
-    if (!new Set(["acbcm", "char", "latest", "latest_exceptions"]).has(kind)) throw new Error("不支持的目录类型。");
+    if (!new Set(["acbcm", "char", "latest", "latest_exceptions", "latest_modern"]).has(kind)) throw new Error("不支持的目录类型。");
     const target = path.join(ROOT, kind);
     archive.ensureStorage(ROOT);
     const child = spawn("explorer.exe", [target], { detached: true, stdio: "ignore" });

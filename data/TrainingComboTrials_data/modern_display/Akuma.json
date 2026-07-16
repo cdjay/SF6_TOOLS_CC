@@ -1,764 +1,1535 @@
 {
-  "_meta": {
-    "schema": "xt.modern_display.v1",
-    "character": "Akuma",
-    "updated_at": "2026-07-04",
-    "description": "Modern control display mapping for Akuma, merged with Capcom official frame data candidates."
-  },
   "17": {
-    "classic_display": "5656 + 6",
-    "modern_display": "5656 + 6",
+    "classic_display": "66",
+    "modern_display": "66",
     "control_support": "classic_modern",
-    "source": "capcom_official",
-    "note": "Generated from Capcom official frame data."
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "66",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 0
+      }
+    ]
   },
   "18": {
-    "classic_display": "5454 + 4",
-    "modern_display": "5454 + 4",
+    "classic_display": "44",
+    "modern_display": "44",
     "control_support": "classic_modern",
-    "source": "capcom_official",
-    "note": "Generated from Capcom official frame data."
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "44",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 1
+      }
+    ]
   },
   "480": {
-    "classic_display": "MPMK",
+    "classic_display": "Normal",
     "modern_display": "DP",
     "control_support": "classic_modern",
-    "source": "capcom_official",
-    "note": "Generated from Capcom official frame data."
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "DP",
+        "source": "bcm_system_action"
+      }
+    ]
   },
   "600": {
     "classic_display": "LP",
     "modern_display": "弱",
     "control_support": "classic_modern",
-    "source": "capcom_official",
-    "note": "Generated from Capcom official frame data."
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "弱",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 2
+      }
+    ]
   },
   "601": {
     "classic_display": "LP",
-    "modern_display": null,
-    "control_support": "classic_only",
-    "source": "capcom_official",
-    "note": "No modern command found in official data."
+    "modern_display": "弱",
+    "control_support": "classic_modern",
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "弱",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 36
+      }
+    ]
   },
   "602": {
     "classic_display": "LP",
-    "modern_display": null,
-    "control_support": "classic_only",
-    "source": "capcom_official",
-    "note": "No modern command found in official data."
+    "modern_display": "弱",
+    "control_support": "classic_modern",
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "弱",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 37
+      }
+    ]
   },
   "605": {
     "classic_display": "MP",
     "modern_display": "AUTO + 中",
     "control_support": "classic_modern",
-    "source": "community_sample",
-    "note": "Verified by current Akuma modern control sample."
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "AUTO + 中",
+        "source": "bcm_profile",
+        "profile": "supr",
+        "trigger_index": 4
+      }
+    ]
   },
   "606": {
     "classic_display": ">MP",
     "modern_display": "> 中",
     "control_support": "classic_modern",
-    "source": "community_sample",
-    "note": "Group-aware follow-up display verified by current Akuma modern control sample. Official candidate differs: 中 > 中. Current display kept because it matches verified modern sample/group display. Official candidate differs: 中 > 中. Current display kept because existing mapping may be sample/manual verified."
+    "source": "ac_bcm+community_sample",
+    "routes": [
+      {
+        "display": "> 中",
+        "source": "community_sample",
+        "reason": "Group-aware follow-up display verified by current Akuma modern control sample. Official candidate differs: 中 > 中. Current display kept because it matches verified modern sample/group display. Official candidate differs: 中 > 中. Current display kept because existing mapping may be sample/manual verified.",
+        "note": "Group-aware follow-up display verified by current Akuma modern control sample. Official candidate differs: 中 > 中. Current display kept because it matches verified modern sample/group display. Official candidate differs: 中 > 中. Current display kept because existing mapping may be sample/manual verified."
+      }
+    ]
   },
   "608": {
     "classic_display": "HP",
-    "modern_display": "強",
+    "modern_display": "强",
     "control_support": "classic_modern",
-    "source": "capcom_official",
-    "note": "Generated from Capcom official frame data."
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "强",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 6
+      }
+    ]
   },
   "611": {
     "classic_display": "LK",
     "modern_display": "AUTO + 弱",
     "control_support": "classic_modern",
-    "source": "capcom_official",
-    "note": "Generated from Capcom official frame data."
+    "source": "ac_bcm+community_sample",
+    "routes": [
+      {
+        "display": "AUTO + 弱",
+        "source": "community_sample",
+        "reason": "Generated from Capcom official frame data.",
+        "note": "Generated from Capcom official frame data."
+      }
+    ]
   },
   "614": {
     "classic_display": "MK",
     "modern_display": "中",
     "control_support": "classic_modern",
-    "source": "capcom_official",
-    "note": "Generated from Capcom official frame data."
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "中",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 5
+      }
+    ]
   },
   "615": {
-    "classic_display": "MK > HK",
-    "modern_display": "中 > 強",
+    "classic_display": ">HK",
+    "modern_display": "> 强",
     "control_support": "classic_modern",
-    "source": "capcom_official",
-    "note": "Generated from Capcom official frame data."
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "> 强",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 32
+      }
+    ]
   },
   "617": {
     "classic_display": "HK",
-    "modern_display": "AUTO + 強",
+    "modern_display": "AUTO + 强",
     "control_support": "classic_modern",
-    "source": "community_sample",
-    "note": "Verified by current Akuma modern control sample."
-  },
-  "622": {
-    "classic_display": "2 + LP",
-    "modern_display": "2 + 弱 > 2 + 弱",
-    "control_support": "classic_modern",
-    "source": "capcom_official",
-    "note": "Generated from Capcom official frame data."
+    "source": "ac_bcm+community_sample",
+    "routes": [
+      {
+        "display": "AUTO + 强",
+        "source": "community_sample",
+        "reason": "Verified by current Akuma modern control sample.",
+        "note": "Verified by current Akuma modern control sample."
+      }
+    ]
   },
   "623": {
-    "classic_display": "2 + LP",
-    "modern_display": null,
-    "control_support": "classic_only",
-    "source": "capcom_official",
-    "note": "No modern command found in official data."
-  },
-  "624": {
-    "classic_display": "2 + LP",
-    "modern_display": null,
-    "control_support": "classic_only",
-    "source": "capcom_official",
-    "note": "No modern command found in official data."
-  },
-  "627": {
-    "classic_display": "2 + MP",
-    "modern_display": null,
-    "control_support": "classic_only",
-    "source": "capcom_official",
-    "note": "No modern command found in official data."
-  },
-  "630": {
-    "classic_display": "2 + HP",
-    "modern_display": "2 + 強",
-    "control_support": "classic_modern",
-    "source": "capcom_official",
-    "note": "Generated from Capcom official frame data."
-  },
-  "635": {
-    "classic_display": "2 + LK",
+    "classic_display": "2+LP",
     "modern_display": "2 + 弱",
     "control_support": "classic_modern",
-    "source": "capcom_official",
-    "note": "Generated from Capcom official frame data."
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "2 + 弱",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 38
+      }
+    ]
   },
-  "636": {
-    "classic_display": "2 + LK",
-    "modern_display": null,
-    "control_support": "classic_only",
-    "source": "capcom_official",
-    "note": "No modern command found in official data."
+  "624": {
+    "classic_display": "2+LP",
+    "modern_display": "2 + 弱",
+    "control_support": "classic_modern",
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "2 + 弱",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 39
+      }
+    ]
   },
-  "637": {
-    "classic_display": "2 + LK",
-    "modern_display": null,
-    "control_support": "classic_only",
-    "source": "capcom_official",
-    "note": "No modern command found in official data."
+  "627": {
+    "classic_display": "2+MP",
+    "modern_display": "AUTO + 中",
+    "control_support": "classic_modern",
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "AUTO + 中",
+        "source": "bcm_profile",
+        "profile": "supr",
+        "trigger_index": 17
+      }
+    ]
+  },
+  "630": {
+    "classic_display": "2+HP",
+    "modern_display": "2 + 强",
+    "control_support": "classic_modern",
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "2 + 强",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 19
+      }
+    ]
+  },
+  "635": {
+    "classic_display": "2+LK",
+    "modern_display": "2 + 弱",
+    "control_support": "classic_modern",
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "2 + 弱",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 16
+      }
+    ]
   },
   "640": {
-    "classic_display": "2 + MK",
+    "classic_display": "2+MK",
     "modern_display": "2 + 中",
     "control_support": "classic_modern",
-    "source": "capcom_official",
-    "note": "Generated from Capcom official frame data."
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "2 + 中",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 18
+      }
+    ]
   },
   "643": {
-    "classic_display": null,
-    "modern_display": "3 + 強",
+    "classic_display": "2+HK",
+    "modern_display": "3 + 强",
     "control_support": "classic_modern",
-    "source": "capcom_official",
-    "note": "Generated from Capcom official frame data."
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "3 + 强",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 20
+      }
+    ]
   },
   "650": {
-    "classic_display": "空中 LP",
+    "classic_display": "j.LP",
     "modern_display": "空中 弱",
     "control_support": "classic_modern",
-    "source": "capcom_official",
-    "note": "Generated from Capcom official frame data."
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "空中 弱",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 23
+      }
+    ]
   },
   "651": {
-    "classic_display": "空中 MP",
+    "classic_display": "j.MP",
     "modern_display": "空中 中",
     "control_support": "classic_modern",
-    "source": "capcom_official",
-    "note": "Generated from Capcom official frame data."
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "空中 中",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 25
+      }
+    ]
   },
   "652": {
-    "classic_display": "空中 HP",
-    "modern_display": "空中 AUTO + 強",
+    "classic_display": "j.HP",
+    "modern_display": "空中 AUTO + 强/空中 强",
     "control_support": "classic_modern",
-    "source": "capcom_official",
-    "note": "Generated from Capcom official frame data."
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "空中 AUTO + 强",
+        "source": "bcm_profile",
+        "profile": "supr",
+        "trigger_index": 27
+      },
+      {
+        "display": "空中 强",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 27
+      }
+    ]
   },
   "653": {
-    "classic_display": "空中 LK",
-    "modern_display": "空中 AUTO + 弱",
+    "classic_display": "j.LK",
+    "modern_display": "空中 AUTO + 弱/空中 弱",
     "control_support": "classic_modern",
-    "source": "capcom_official",
-    "note": "Generated from Capcom official frame data."
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "空中 AUTO + 弱",
+        "source": "bcm_profile",
+        "profile": "supr",
+        "trigger_index": 24
+      },
+      {
+        "display": "空中 弱",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 24
+      }
+    ]
   },
   "654": {
-    "classic_display": "空中 MK",
-    "modern_display": "空中 AUTO + 中",
+    "classic_display": "j.MK",
+    "modern_display": "空中 AUTO + 中/空中 中",
     "control_support": "classic_modern",
-    "source": "capcom_official",
-    "note": "Generated from Capcom official frame data."
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "空中 AUTO + 中",
+        "source": "bcm_profile",
+        "profile": "supr",
+        "trigger_index": 26
+      },
+      {
+        "display": "空中 中",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 26
+      }
+    ]
   },
   "655": {
-    "classic_display": "空中 HK",
-    "modern_display": "空中 強",
+    "classic_display": "j.HK",
+    "modern_display": "空中 AUTO + SP/空中 强",
     "control_support": "classic_modern",
-    "source": "capcom_official",
-    "note": "Generated from Capcom official frame data."
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "空中 AUTO + SP",
+        "source": "bcm_profile",
+        "profile": "supr",
+        "trigger_index": 28
+      },
+      {
+        "display": "空中 强",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 28
+      }
+    ]
   },
   "657": {
-    "classic_display": "空中 2 + MK",
-    "modern_display": "空中 2 + 中",
+    "classic_display": "j.2+MK",
+    "modern_display": "空中 2 + AUTO + 中/空中 2 + 中",
     "control_support": "classic_modern",
-    "source": "capcom_official",
-    "note": "Generated from Capcom official frame data."
-  },
-  "661": {
-    "classic_display": "6 + MP",
-    "modern_display": null,
-    "control_support": "classic_only",
-    "source": "capcom_official",
-    "note": "No modern command found in official data."
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "空中 2 + AUTO + 中",
+        "source": "bcm_profile",
+        "profile": "supr",
+        "trigger_index": 29
+      },
+      {
+        "display": "空中 2 + 中",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 29
+      }
+    ]
   },
   "664": {
-    "classic_display": "6 + MK",
+    "classic_display": "6+MK",
     "modern_display": "6 + 中",
     "control_support": "classic_modern",
-    "source": "capcom_official",
-    "note": "Generated from Capcom official frame data."
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "6 + 中",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 9
+      }
+    ]
   },
   "667": {
-    "classic_display": "6 + HP",
-    "modern_display": "6 + 強",
+    "classic_display": "6+HP",
+    "modern_display": "6 + 强",
     "control_support": "classic_modern",
-    "source": "capcom_official",
-    "note": "Generated from Capcom official frame data."
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "6 + 强",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 10
+      }
+    ]
   },
   "668": {
-    "classic_display": "6 + HP > 6 + HP",
-    "modern_display": "6 + 強 > 強",
+    "classic_display": ">6+HP",
+    "modern_display": "> 强",
     "control_support": "classic_modern",
-    "source": "capcom_official",
-    "note": "Generated from Capcom official frame data."
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "> 强",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 33
+      }
+    ]
   },
-  "669": {
-    "classic_display": "6 + HP > 6 + HP > HK",
-    "modern_display": "6 + 強 > 強 > 強",
+  "670": {
+    "classic_display": ">HK",
+    "modern_display": "> 强",
     "control_support": "classic_modern",
-    "source": "capcom_official",
-    "note": "Generated from Capcom official frame data."
-  },
-  "671": {
-    "classic_display": "4 + HK",
-    "modern_display": "4 + 強",
-    "control_support": "classic_modern",
-    "source": "capcom_official",
-    "note": "Generated from Capcom official frame data."
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "> 强",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 34
+      }
+    ]
   },
   "672": {
-    "classic_display": "4HK",
-    "modern_display": "4 + 強",
+    "classic_display": "4+HK",
+    "modern_display": "4 + 强",
     "control_support": "classic_modern",
-    "source": "community_sample",
-    "note": "Verified by current Akuma modern control sample; exact official notation still needs confirmation. Not found in official generated candidate; kept because it is required by verified modern sample."
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "4 + 强",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 11
+      }
+    ]
   },
   "715": {
-    "classic_display": "（近距離で）N or 6 + LPLK",
-    "modern_display": "（近距離で）N or 6 + 弱中",
+    "classic_display": "Throw",
+    "modern_display": "THROW",
     "control_support": "classic_modern",
-    "source": "capcom_official",
-    "note": "Generated from Capcom official frame data. Needs review before using for sample-specific display."
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "THROW",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 106
+      }
+    ]
   },
   "717": {
-    "classic_display": "（近距離で）4 + LPLK",
-    "modern_display": "（近距離で）4 + 弱中",
+    "classic_display": "4+THROW",
+    "modern_display": "4 + THROW",
     "control_support": "classic_modern",
-    "source": "capcom_official",
-    "note": "Generated from Capcom official frame data. Needs review before using for sample-specific display."
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "4 + THROW",
+        "source": "ac_derived",
+        "inherited_from": 715
+      }
+    ]
   },
   "739": {
-    "classic_display": "（必殺技キャンセル可能な攻撃ヒット中に）5656 + 6 or (N or 6) + MPMK",
-    "modern_display": "（必殺技キャンセル可能な攻撃ヒット中に）5656 + 6 or (N or 6) + DP",
+    "classic_display": "DRC",
+    "modern_display": "DRC",
     "control_support": "classic_modern",
-    "source": "capcom_official",
-    "note": "Generated from Capcom official frame data. Needs review before using for sample-specific display."
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "DRC",
+        "source": "bcm_system_action"
+      }
+    ]
   },
   "740": {
-    "classic_display": "（ドライブパリィ中に）5656 + MPMK + 6",
-    "modern_display": "（ドライブパリィ中に）5656 + D",
+    "classic_display": "RAW DR",
+    "modern_display": "RAW DR",
     "control_support": "classic_modern",
-    "source": "capcom_official",
-    "note": "Generated from Capcom official frame data. Needs review before using for sample-specific display."
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "RAW DR",
+        "source": "bcm_system_action"
+      }
+    ]
   },
   "850": {
-    "classic_display": "（ガード中 or ドライブパリィ成立中に）6 + HPHK",
-    "modern_display": "（ガード中 or ドライブパリィ成立中に）6 + DI",
+    "classic_display": "6+DI",
+    "modern_display": "6 + DI",
     "control_support": "classic_modern",
-    "source": "capcom_official",
-    "note": "Generated from Capcom official frame data. Needs review before using for sample-specific display."
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "6 + DI",
+        "source": "bcm_system_action"
+      }
+    ]
   },
-  "854": {
-    "classic_display": "HPHK",
+  "852": {
+    "classic_display": "6",
+    "modern_display": "6",
+    "control_support": "classic_modern",
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "6",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 117
+      }
+    ]
+  },
+  "855": {
+    "classic_display": "DI",
     "modern_display": "DI",
     "control_support": "classic_modern",
-    "source": "capcom_official",
-    "note": "Generated from Capcom official frame data."
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "DI",
+        "source": "bcm_system_action"
+      }
+    ]
   },
   "900": {
-    "classic_display": "236 + LP",
+    "classic_display": "236+LP",
     "modern_display": "236 + 弱",
     "control_support": "classic_modern",
-    "source": "capcom_official",
-    "note": "Generated from Capcom official frame data."
-  },
-  "901": {
-    "classic_display": "236 + MP",
-    "modern_display": "236 + 中",
-    "control_support": "classic_modern",
-    "source": "capcom_official",
-    "note": "Generated from Capcom official frame data."
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "236 + 弱",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 49
+      }
+    ]
   },
   "902": {
-    "classic_display": "236 + HP",
-    "modern_display": "SP/236 + 強",
+    "classic_display": "236+MP",
+    "modern_display": "236 + 中",
     "control_support": "classic_modern",
-    "source": "capcom_official",
-    "note": "Generated from Capcom official frame data."
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "236 + 中",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 50
+      }
+    ]
   },
   "903": {
     "classic_display": "236+HP",
-    "modern_display": "AUTO + SP",
+    "modern_display": "SP/236 + 强",
     "control_support": "classic_modern",
-    "source": "community_sample",
-    "note": "Verified by current Akuma modern control sample. Official candidate differs: AUTO + SP/236 + 攻撃二つ. Current display kept because it matches verified modern sample/group display. Official candidate differs: AUTO + SP/236 + 攻撃二つ. Current display kept because existing mapping may be sample/manual verified."
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "SP",
+        "source": "bcm_profile",
+        "profile": "easy",
+        "trigger_index": 51
+      },
+      {
+        "display": "236 + 强",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 51
+      }
+    ]
+  },
+  "904": {
+    "classic_display": "236+PP",
+    "modern_display": "AUTO + SP/236 + 攻击二つ",
+    "control_support": "classic_modern",
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "AUTO + SP",
+        "source": "bcm_profile",
+        "profile": "supr",
+        "trigger_index": 150
+      },
+      {
+        "display": "236 + 攻击二つ",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 150
+      }
+    ]
   },
   "943": {
-    "classic_display": "空中 236 + LP",
+    "classic_display": "j.236+LP",
     "modern_display": "空中 236 + 弱",
     "control_support": "classic_modern",
-    "source": "capcom_official",
-    "note": "Generated from Capcom official frame data."
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "空中 236 + 弱",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 53
+      }
+    ]
   },
   "944": {
-    "classic_display": "空中 236 + MP",
+    "classic_display": "j.236+MP",
     "modern_display": "空中 SP/空中 236 + 中",
     "control_support": "classic_modern",
-    "source": "capcom_official",
-    "note": "Generated from Capcom official frame data."
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "空中 SP",
+        "source": "bcm_profile",
+        "profile": "easy",
+        "trigger_index": 54
+      },
+      {
+        "display": "空中 236 + 中",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 54
+      }
+    ]
   },
   "945": {
-    "classic_display": "空中 236 + HP",
-    "modern_display": "空中 236 + 強",
+    "classic_display": "j.236+HP",
+    "modern_display": "空中 236 + 强",
     "control_support": "classic_modern",
-    "source": "capcom_official",
-    "note": "Generated from Capcom official frame data."
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "空中 236 + 强",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 55
+      }
+    ]
   },
   "947": {
-    "classic_display": "（垂直or前ジャンプ中に）236 + LPMPHP",
-    "modern_display": "（垂直or前ジャンプ中に）AUTO + SP/（垂直or前ジャンプ中に）236 + 攻撃二つ",
+    "classic_display": "j.236+PP",
+    "modern_display": "空中 AUTO + SP/空中 236 + 攻击二つ",
     "control_support": "classic_modern",
-    "source": "capcom_official",
-    "note": "Generated from Capcom official frame data. Needs review before using for sample-specific display."
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "空中 AUTO + SP",
+        "source": "bcm_profile",
+        "profile": "supr",
+        "trigger_index": 160
+      },
+      {
+        "display": "空中 236 + 攻击二つ",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 160
+      }
+    ]
   },
   "949": {
-    "classic_display": "214 + LPMPHP",
-    "modern_display": null,
-    "control_support": "classic_only",
-    "source": "capcom_official",
-    "note": "No modern command found in official data."
+    "classic_display": "j.214+PP",
+    "modern_display": "空中 22 + 攻击二つ",
+    "control_support": "classic_modern",
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "空中 22 + 攻击二つ",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 56
+      }
+    ]
   },
   "952": {
     "classic_display": "j.236+P",
-    "modern_display": "空中 SP",
+    "modern_display": "空中 SP/空中 236 + 攻击二つ",
     "control_support": "classic_modern",
-    "source": "community_sample",
-    "note": "Verified by current Akuma modern control sample; exact official notation still needs confirmation. Not found in official generated candidate; kept because it is required by verified modern sample."
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "空中 SP",
+        "source": "bcm_profile",
+        "profile": "easy",
+        "trigger_index": 74
+      },
+      {
+        "display": "空中 236 + 攻击二つ",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 74
+      }
+    ]
   },
   "961": {
     "classic_display": "623+LP",
     "modern_display": "623 + 弱",
     "control_support": "classic_modern",
-    "source": "community_sample",
-    "note": "Verified by current Akuma modern control sample."
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "623 + 弱",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 90
+      }
+    ]
   },
   "962": {
-    "classic_display": "623 + MP",
+    "classic_display": "623+MP",
     "modern_display": "623 + 中",
     "control_support": "classic_modern",
-    "source": "capcom_official",
-    "note": "Generated from Capcom official frame data."
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "623 + 中",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 91
+      }
+    ]
   },
   "963": {
-    "classic_display": "623 + HP",
-    "modern_display": "6 + SP/623 + 強",
+    "classic_display": "623+HP",
+    "modern_display": "6 + SP/623 + 强",
     "control_support": "classic_modern",
-    "source": "capcom_official",
-    "note": "Generated from Capcom official frame data."
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "6 + SP",
+        "source": "bcm_profile",
+        "profile": "easy",
+        "trigger_index": 92
+      },
+      {
+        "display": "623 + 强",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 92
+      }
+    ]
   },
   "964": {
-    "classic_display": "623 + LPMPHP",
-    "modern_display": "6 + AUTO + SP/623 + 攻撃二つ",
+    "classic_display": "623+PP",
+    "modern_display": "6 + AUTO + SP/623 + 攻击二つ",
     "control_support": "classic_modern",
-    "source": "capcom_official",
-    "note": "Generated from Capcom official frame data. Needs review before using for sample-specific display."
-  },
-  "973": {
-    "classic_display": "214 + LP",
-    "modern_display": null,
-    "control_support": "classic_only",
-    "source": "capcom_official",
-    "note": "No modern command found in official data."
-  },
-  "974": {
-    "classic_display": "214 + MP",
-    "modern_display": "4 + SP",
-    "control_support": "classic_modern",
-    "source": "capcom_official",
-    "note": "Generated from Capcom official frame data."
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "6 + AUTO + SP",
+        "source": "bcm_profile",
+        "profile": "supr",
+        "trigger_index": 157
+      },
+      {
+        "display": "623 + 攻击二つ",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 157
+      }
+    ]
   },
   "975": {
-    "classic_display": "214 + HP",
-    "modern_display": null,
-    "control_support": "classic_only",
-    "source": "capcom_official",
-    "note": "No modern command found in official data."
+    "classic_display": "214+LP",
+    "modern_display": "AUTO + 中",
+    "control_support": "classic_modern",
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "AUTO + 中",
+        "source": "bcm_profile",
+        "profile": "supr",
+        "trigger_index": 83
+      }
+    ]
   },
   "976": {
-    "classic_display": "214 + LPMPHP",
-    "modern_display": "4 + AUTO + SP",
+    "classic_display": "214+MP",
+    "modern_display": "4 + SP",
     "control_support": "classic_modern",
-    "source": "capcom_official",
-    "note": "Generated from Capcom official frame data."
-  },
-  "977": {
-    "classic_display": "214 + LP > 6 + LP | MP | HP",
-    "modern_display": null,
-    "control_support": "classic_only",
-    "source": "capcom_official",
-    "note": "No modern command found in official data."
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "4 + SP",
+        "source": "bcm_profile",
+        "profile": "easy",
+        "trigger_index": 84
+      }
+    ]
   },
   "978": {
     "classic_display": "214+PP",
-    "modern_display": "4 + SP > 6 + 攻撃",
+    "modern_display": "4 + AUTO + SP",
     "control_support": "classic_modern",
-    "source": "community_sample",
-    "note": "Verified by current Akuma modern control sample; exact official notation still needs confirmation."
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "4 + AUTO + SP",
+        "source": "bcm_profile",
+        "profile": "supr",
+        "trigger_index": 155
+      }
+    ]
   },
   "979": {
-    "classic_display": "214 + HP > 6 + LP | MP | HP",
-    "modern_display": null,
-    "control_support": "classic_only",
-    "source": "capcom_official",
-    "note": "No modern command found in official data."
-  },
-  "980": {
-    "classic_display": "214 + LPMPHP > 6 + LP | MP | HP",
-    "modern_display": "4 + AUTO + SP > 6 + 攻撃",
+    "classic_display": null,
+    "modern_display": "4 + AUTO + SP",
     "control_support": "classic_modern",
-    "source": "capcom_official",
-    "note": "Generated from Capcom official frame data. Needs review before using for sample-specific display."
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "4 + AUTO + SP",
+        "source": "ac_alias",
+        "profile": "supr",
+        "trigger_index": 155,
+        "inherited_from": 978
+      }
+    ]
+  },
+  "982": {
+    "classic_display": "6+P",
+    "modern_display": "AUTO + 中",
+    "control_support": "classic_modern",
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "AUTO + 中",
+        "source": "bcm_profile",
+        "profile": "supr",
+        "trigger_index": 86
+      }
+    ]
+  },
+  "984": {
+    "classic_display": "6+P",
+    "modern_display": "6 + 攻击",
+    "control_support": "classic_modern",
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "6 + 攻击",
+        "source": "bcm_profile",
+        "profile": "easy",
+        "trigger_index": 87
+      }
+    ]
   },
   "986": {
-    "classic_display": ">6+P",
-    "modern_display": "> 6 + 攻撃",
+    "classic_display": "6+P",
+    "modern_display": "> 6 + 攻击",
     "control_support": "classic_modern",
-    "source": "community_sample",
-    "note": "Contextual follow-up display verified by current Akuma modern control sample; exact official notation still needs confirmation. Official candidate differs: null. Current display kept because it matches verified modern sample/group display. Official candidate differs: None. Current display kept because existing mapping may be sample/manual verified."
+    "source": "ac_bcm+community_sample",
+    "routes": [
+      {
+        "display": "> 6 + 攻击",
+        "source": "community_sample",
+        "reason": "Contextual follow-up display verified by current Akuma modern control sample; exact official notation still needs confirmation. Official candidate differs: null. Current display kept because it matches verified modern sample/group display. Official candidate differs: None. Current display kept because existing mapping may be sample/manual verified.",
+        "note": "Contextual follow-up display verified by current Akuma modern control sample; exact official notation still needs confirmation. Official candidate differs: null. Current display kept because it matches verified modern sample/group display. Official candidate differs: None. Current display kept because existing mapping may be sample/manual verified."
+      }
+    ]
   },
-  "987": {
-    "classic_display": "236 + MK",
+  "990": {
+    "classic_display": "236+MK",
     "modern_display": "2 + SP",
     "control_support": "classic_modern",
-    "source": "capcom_official",
-    "note": "Generated from Capcom official frame data."
-  },
-  "988": {
-    "classic_display": "236 + HK",
-    "modern_display": null,
-    "control_support": "classic_only",
-    "source": "capcom_official",
-    "note": "No modern command found in official data."
-  },
-  "989": {
-    "classic_display": "236 + LKMKHK",
-    "modern_display": "2 + AUTO + SP",
-    "control_support": "classic_modern",
-    "source": "capcom_official",
-    "note": "Generated from Capcom official frame data."
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "2 + SP",
+        "source": "bcm_profile",
+        "profile": "easy",
+        "trigger_index": 60
+      }
+    ]
   },
   "992": {
     "classic_display": "236+KK",
-    "modern_display": "2 + SP",
+    "modern_display": "2 + AUTO + SP",
     "control_support": "classic_modern",
-    "source": "community_sample",
-    "note": "Verified by current Akuma modern control sample; exact official notation still needs confirmation. Not found in official generated candidate; kept because it is required by verified modern sample."
-  },
-  "995": {
-    "classic_display": "（百鬼襲中に） LK | MK | HK",
-    "modern_display": "（百鬼襲中に）攻撃",
-    "control_support": "classic_modern",
-    "source": "capcom_official",
-    "note": "Generated from Capcom official frame data. Needs review before using for sample-specific display."
-  },
-  "996": {
-    "classic_display": "（百鬼襲中に）MK",
-    "modern_display": "（百鬼襲中に）中",
-    "control_support": "classic_modern",
-    "source": "capcom_official",
-    "note": "Generated from Capcom official frame data. Needs review before using for sample-specific display."
-  },
-  "997": {
-    "classic_display": "（百鬼襲中に）HK",
-    "modern_display": "（百鬼襲中に）強",
-    "control_support": "classic_modern",
-    "source": "capcom_official",
-    "note": "Generated from Capcom official frame data. Needs review before using for sample-specific display."
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "2 + AUTO + SP",
+        "source": "bcm_profile",
+        "profile": "supr",
+        "trigger_index": 153
+      }
+    ]
   },
   "998": {
-    "classic_display": "（百鬼襲中に）LP | MP | HP",
-    "modern_display": "（百鬼襲中に）SP",
+    "classic_display": "j.LK",
+    "modern_display": "空中 弱",
     "control_support": "classic_modern",
-    "source": "capcom_official",
-    "note": "Generated from Capcom official frame data. Needs review before using for sample-specific display."
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "空中 弱",
+        "source": "bcm_profile",
+        "profile": "easy",
+        "trigger_index": 63
+      }
+    ]
+  },
+  "999": {
+    "classic_display": "j.MK",
+    "modern_display": "空中 中",
+    "control_support": "classic_modern",
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "空中 中",
+        "source": "bcm_profile",
+        "profile": "easy",
+        "trigger_index": 64
+      }
+    ]
+  },
+  "1000": {
+    "classic_display": "j.HK",
+    "modern_display": "空中 强",
+    "control_support": "classic_modern",
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "空中 强",
+        "source": "bcm_profile",
+        "profile": "easy",
+        "trigger_index": 65
+      }
+    ]
   },
   "1001": {
-    "classic_display": "LK",
-    "modern_display": null,
-    "control_support": "classic_only",
-    "source": "capcom_official",
-    "note": "No modern command found in official data."
+    "classic_display": "j.P",
+    "modern_display": "空中 SP",
+    "control_support": "classic_modern",
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "空中 SP",
+        "source": "bcm_profile",
+        "profile": "easy",
+        "trigger_index": 66
+      }
+    ]
   },
-  "1002": {
-    "classic_display": "MK",
-    "modern_display": null,
-    "control_support": "classic_only",
-    "source": "capcom_official",
-    "note": "No modern command found in official data."
+  "1005": {
+    "classic_display": "j.LK",
+    "modern_display": "空中 弱",
+    "control_support": "classic_modern",
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "空中 弱",
+        "source": "bcm_profile",
+        "profile": "easy",
+        "trigger_index": 68
+      }
+    ]
   },
-  "1003": {
-    "classic_display": "HK",
-    "modern_display": null,
-    "control_support": "classic_only",
-    "source": "capcom_official",
-    "note": "No modern command found in official data."
+  "1006": {
+    "classic_display": "j.MK",
+    "modern_display": "空中 中",
+    "control_support": "classic_modern",
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "空中 中",
+        "source": "bcm_profile",
+        "profile": "easy",
+        "trigger_index": 69
+      }
+    ]
   },
-  "1013": {
-    "classic_display": "214 + LK",
+  "1007": {
+    "classic_display": "j.HK",
+    "modern_display": "空中 强",
+    "control_support": "classic_modern",
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "空中 强",
+        "source": "bcm_profile",
+        "profile": "easy",
+        "trigger_index": 70
+      }
+    ]
+  },
+  "1008": {
+    "classic_display": "j.P",
+    "modern_display": "空中 SP",
+    "control_support": "classic_modern",
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "空中 SP",
+        "source": "bcm_profile",
+        "profile": "easy",
+        "trigger_index": 71
+      }
+    ]
+  },
+  "1017": {
+    "classic_display": "214+LK",
     "modern_display": "214 + 弱",
     "control_support": "classic_modern",
-    "source": "capcom_official",
-    "note": "Generated from Capcom official frame data."
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "214 + 弱",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 76
+      }
+    ]
   },
-  "1015": {
-    "classic_display": "214 + MK",
+  "1019": {
+    "classic_display": "214+MK",
     "modern_display": "214 + 中",
     "control_support": "classic_modern",
-    "source": "capcom_official",
-    "note": "Generated from Capcom official frame data."
-  },
-  "1018": {
-    "classic_display": "214 + HK",
-    "modern_display": "214 + 強",
-    "control_support": "classic_modern",
-    "source": "capcom_official",
-    "note": "Generated from Capcom official frame data."
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "214 + 中",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 77
+      }
+    ]
   },
   "1022": {
     "classic_display": "214+HK",
-    "modern_display": "4 + SP",
+    "modern_display": "214 + 强/4 + SP",
     "control_support": "classic_modern",
-    "source": "community_sample",
-    "note": "Verified by current Akuma modern control sample; exact official notation still needs confirmation. Not found in official generated candidate; kept because it is required by verified modern sample."
-  },
-  "1023": {
-    "classic_display": "214 + LKMKHK",
-    "modern_display": "214 + 攻撃二つ",
-    "control_support": "classic_modern",
-    "source": "capcom_official",
-    "note": "Generated from Capcom official frame data. Needs review before using for sample-specific display."
-  },
-  "1026": {
-    "classic_display": "空中 214 + LK | MK | HK",
-    "modern_display": "空中 4 + SP/空中 214 + 攻撃",
-    "control_support": "classic_modern",
-    "source": "capcom_official",
-    "note": "Generated from Capcom official frame data. Needs review before using for sample-specific display."
+    "source": "ac_bcm+community_sample",
+    "routes": [
+      {
+        "display": "214 + 强",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 78
+      },
+      {
+        "display": "4 + SP",
+        "source": "community_sample",
+        "reason": "Verified by current Akuma modern control sample; exact official notation still needs confirmation. Not found in official generated candidate; kept because it is required by verified modern sample.",
+        "note": "Verified by current Akuma modern control sample; exact official notation still needs confirmation. Not found in official generated candidate; kept because it is required by verified modern sample."
+      }
+    ]
   },
   "1027": {
     "classic_display": "214+KK",
-    "modern_display": "空中 4 + AUTO + SP",
+    "modern_display": "214 + 攻击二つ/空中 4 + AUTO + SP",
     "control_support": "classic_modern",
-    "source": "community_sample",
-    "note": "Verified by current Akuma modern control sample. Official candidate differs: 空中 4 + AUTO + SP/空中 214 + 攻撃二つ. Current display kept because it matches verified modern sample/group display. Official candidate differs: 空中 4 + AUTO + SP/空中 214 + 攻撃二つ. Current display kept because existing mapping may be sample/manual verified."
+    "source": "ac_bcm+community_sample",
+    "routes": [
+      {
+        "display": "214 + 攻击二つ",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 152
+      },
+      {
+        "display": "空中 4 + AUTO + SP",
+        "source": "community_sample",
+        "reason": "Verified by current Akuma modern control sample. Official candidate differs: 空中 4 + AUTO + SP/空中 214 + 攻撃二つ. Current display kept because it matches verified modern sample/group display. Official candidate differs: 空中 4 + AUTO + SP/空中 214 + 攻撃二つ. Current display kept because existing mapping may be sample/manual verified.",
+        "note": "Verified by current Akuma modern control sample. Official candidate differs: 空中 4 + AUTO + SP/空中 214 + 攻撃二つ. Current display kept because it matches verified modern sample/group display. Official candidate differs: 空中 4 + AUTO + SP/空中 214 + 攻撃二つ. Current display kept because existing mapping may be sample/manual verified."
+      }
+    ]
   },
-  "1029": {
-    "classic_display": "（OD百鬼襲中に）214 + LK | MK | HK",
-    "modern_display": "（OD百鬼襲中に）AUTO + 攻撃",
+  "1030": {
+    "classic_display": "j.214+K",
+    "modern_display": "空中 4 + SP/空中 214 + 攻击二つ",
     "control_support": "classic_modern",
-    "source": "capcom_official",
-    "note": "Generated from Capcom official frame data. Needs review before using for sample-specific display."
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "空中 4 + SP",
+        "source": "bcm_profile",
+        "profile": "easy",
+        "trigger_index": 80
+      },
+      {
+        "display": "空中 214 + 攻击二つ",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 80
+      }
+    ]
+  },
+  "1031": {
+    "classic_display": "j.214+KK",
+    "modern_display": "空中 4 + AUTO + SP/空中 214 + 攻击二つ",
+    "control_support": "classic_modern",
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "空中 4 + AUTO + SP",
+        "source": "bcm_profile",
+        "profile": "supr",
+        "trigger_index": 161
+      },
+      {
+        "display": "空中 214 + 攻击二つ",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 161
+      }
+    ]
+  },
+  "1033": {
+    "classic_display": "j.214+K",
+    "modern_display": "空中 攻击/空中 214 + 攻击二つ",
+    "control_support": "classic_modern",
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "空中 攻击",
+        "source": "bcm_profile",
+        "profile": "easy",
+        "trigger_index": 73
+      },
+      {
+        "display": "空中 214 + 攻击二つ",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 73
+      }
+    ]
   },
   "1075": {
-    "classic_display": "6 + LKMKHKLK|MK|HK",
-    "modern_display": "6 + 弱中強",
+    "classic_display": "6+KKK",
+    "modern_display": "6 + 弱 + 中 + 强",
     "control_support": "classic_modern",
-    "source": "capcom_official",
-    "note": "Generated from Capcom official frame data."
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "6 + 弱 + 中 + 强",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 166
+      }
+    ]
   },
   "1081": {
-    "classic_display": "4 + LKMKHKLK|MK|HK",
-    "modern_display": "4 + 弱中強",
+    "classic_display": "4+KKK",
+    "modern_display": "4 + 弱 + 中 + 强",
     "control_support": "classic_modern",
-    "source": "capcom_official",
-    "note": "Generated from Capcom official frame data."
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "4 + 弱 + 中 + 强",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 167
+      }
+    ]
   },
   "1087": {
-    "classic_display": "（阿修羅閃空（前方）中に）LPLK",
-    "modern_display": "（阿修羅閃空（前方）中に）弱中",
+    "classic_display": "Throw",
+    "modern_display": "THROW",
     "control_support": "classic_modern",
-    "source": "capcom_official",
-    "note": "Generated from Capcom official frame data. Needs review before using for sample-specific display."
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "THROW",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 168
+      }
+    ]
   },
   "1158": {
     "classic_display": null,
-    "modern_display": null,
-    "control_support": "classic_only",
-    "source": "capcom_official",
-    "note": "No modern command found in official data."
-  },
-  "1159": {
-    "classic_display": null,
-    "modern_display": null,
-    "control_support": "classic_only",
-    "source": "capcom_official",
-    "note": "No modern command found in official data."
-  },
-  "1160": {
-    "classic_display": null,
-    "modern_display": null,
-    "control_support": "classic_only",
-    "source": "capcom_official",
-    "note": "No modern command found in official data."
+    "modern_display": "AUTO + 弱",
+    "control_support": "classic_modern",
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "AUTO + 弱",
+        "source": "bcm_profile",
+        "profile": "supr",
+        "trigger_index": 181
+      }
+    ]
   },
   "1162": {
     "classic_display": null,
-    "modern_display": null,
-    "control_support": "classic_only",
-    "source": "capcom_official",
-    "note": "No modern command found in official data."
-  },
-  "1163": {
-    "classic_display": null,
-    "modern_display": null,
-    "control_support": "classic_only",
-    "source": "capcom_official",
-    "note": "No modern command found in official data."
+    "modern_display": "AUTO + 中",
+    "control_support": "classic_modern",
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "AUTO + 中",
+        "source": "bcm_profile",
+        "profile": "supr",
+        "trigger_index": 185
+      }
+    ]
   },
   "1165": {
     "classic_display": null,
-    "modern_display": null,
-    "control_support": "classic_only",
-    "source": "capcom_official",
-    "note": "No modern command found in official data."
-  },
-  "1166": {
-    "classic_display": null,
-    "modern_display": null,
-    "control_support": "classic_only",
-    "source": "capcom_official",
-    "note": "No modern command found in official data."
+    "modern_display": "AUTO + 强",
+    "control_support": "classic_modern",
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "AUTO + 强",
+        "source": "bcm_profile",
+        "profile": "supr",
+        "trigger_index": 189
+      }
+    ]
   },
   "1200": {
-    "classic_display": "236236 + LP | MP | HP",
-    "modern_display": "5 or 6 + 強SP/236236 + 弱",
+    "classic_display": "236236+P",
+    "modern_display": "SP + 强/236236 + 弱",
     "control_support": "classic_modern",
-    "source": "capcom_official",
-    "note": "Generated from Capcom official frame data."
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "SP + 强",
+        "source": "bcm_profile",
+        "profile": "easy",
+        "trigger_index": 125
+      },
+      {
+        "display": "236236 + 弱",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 125
+      }
+    ]
   },
-  "1208": {
-    "classic_display": "（垂直or前ジャンプ中に）236236 + LK | MK | HK",
-    "modern_display": "（垂直or前ジャンプ中に）強SP/（垂直or前ジャンプ中に）236236 + 弱",
+  "1201": {
+    "classic_display": null,
+    "modern_display": "SP + 强/236236 + 弱",
     "control_support": "classic_modern",
-    "source": "capcom_official",
-    "note": "Generated from Capcom official frame data. Needs review before using for sample-specific display."
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "SP + 强",
+        "source": "ac_alias",
+        "profile": "easy",
+        "trigger_index": 125,
+        "inherited_from": 1200
+      },
+      {
+        "display": "236236 + 弱",
+        "source": "ac_alias",
+        "profile": "sprt",
+        "trigger_index": 125,
+        "inherited_from": 1200
+      }
+    ]
+  },
+  "1207": {
+    "classic_display": "j.236236+K",
+    "modern_display": "空中 SP + 强/空中 236236 + 弱",
+    "control_support": "classic_modern",
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "空中 SP + 强",
+        "source": "bcm_profile",
+        "profile": "easy",
+        "trigger_index": 127
+      },
+      {
+        "display": "空中 236236 + 弱",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 127
+      }
+    ]
   },
   "1213": {
-    "classic_display": "214214 + LP | MP | HP",
-    "modern_display": "4 + 強SP/214214 + 中",
+    "classic_display": "214214+P",
+    "modern_display": "4 + SP + 强/214214 + 中",
     "control_support": "classic_modern",
-    "source": "capcom_official",
-    "note": "Generated from Capcom official frame data."
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "4 + SP + 强",
+        "source": "bcm_profile",
+        "profile": "easy",
+        "trigger_index": 129
+      },
+      {
+        "display": "214214 + 中",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 129
+      }
+    ]
   },
   "1214": {
-    "classic_display": "21424 | 24214 + LP | MP | HP",
-    "modern_display": null,
-    "control_support": "classic_only",
-    "source": "capcom_official",
-    "note": "No modern command found in official data."
+    "classic_display": "214214+P",
+    "modern_display": "4 + SP + 强/214214 + 中",
+    "control_support": "classic_modern",
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "4 + SP + 强",
+        "source": "bcm_profile",
+        "profile": "easy",
+        "trigger_index": 130
+      },
+      {
+        "display": "214214 + 中",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 130
+      }
+    ]
   },
   "1220": {
-    "classic_display": "236236 + LK | MK | HK",
-    "modern_display": "2 + 強SP/236236 + 強",
+    "classic_display": "236236+K",
+    "modern_display": "2 + SP + 强/236236 + 强",
     "control_support": "classic_modern",
-    "source": "capcom_official",
-    "note": "Generated from Capcom official frame data."
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "2 + SP + 强",
+        "source": "bcm_profile",
+        "profile": "easy",
+        "trigger_index": 133
+      },
+      {
+        "display": "236236 + 强",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 133
+      }
+    ]
   },
   "1221": {
-    "classic_display": "23626 | 26236 + LK | MK | HK",
-    "modern_display": null,
-    "control_support": "classic_only",
-    "source": "capcom_official",
-    "note": "No modern command found in official data."
+    "classic_display": "236236+K",
+    "modern_display": "2 + SP + 强/236236 + 强",
+    "control_support": "classic_modern",
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "2 + SP + 强",
+        "source": "bcm_profile",
+        "profile": "easy",
+        "trigger_index": 134
+      },
+      {
+        "display": "236236 + 强",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 134
+      }
+    ]
   },
   "1225": {
-    "classic_display": "（体力25%以下で）236236 + LK | MK | HK",
-    "modern_display": "（体力25%以下で）2 + 強SP/236236 + 強",
+    "classic_display": "236236+K",
+    "modern_display": "2 + SP + 强/236236 + 强",
     "control_support": "classic_modern",
-    "source": "capcom_official",
-    "note": "Generated from Capcom official frame data. Needs review before using for sample-specific display."
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "2 + SP + 强",
+        "source": "bcm_profile",
+        "profile": "easy",
+        "trigger_index": 142
+      },
+      {
+        "display": "236236 + 强",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 142
+      }
+    ]
   },
   "1226": {
     "classic_display": "236236+K",
-    "modern_display": "2 + SP + 強",
+    "modern_display": "2 + SP + 强/236236 + 强",
     "control_support": "classic_modern",
-    "source": "community_sample",
-    "note": "Verified by current Akuma modern control sample; exact official notation still needs confirmation. Official candidate differs: null. Current display kept because it matches verified modern sample/group display. Official candidate differs: None. Current display kept because existing mapping may be sample/manual verified."
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "2 + SP + 强",
+        "source": "bcm_profile",
+        "profile": "easy",
+        "trigger_index": 143
+      },
+      {
+        "display": "236236 + 强",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 143
+      }
+    ]
   },
   "1231": {
-    "classic_display": "LP > LP > 6 > LK > HP",
-    "modern_display": "弱 > 弱 > 中 > 強",
+    "classic_display": "5565+HP",
+    "modern_display": "弱 > 弱 > 中 > 强",
     "control_support": "classic_modern",
-    "source": "capcom_official",
-    "note": "Generated from Capcom official frame data."
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "弱 > 弱 > 中 > 强",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 138
+      }
+    ]
   },
-  "1240": {
-    "classic_display": "5252 + LPMPHP",
-    "modern_display": null,
-    "control_support": "classic_only",
-    "source": "capcom_official",
-    "note": "No modern command found in official data."
+  "1243": {
+    "classic_display": "22+PPP",
+    "modern_display": "22 + THROW",
+    "control_support": "classic_modern",
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "22 + THROW",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 148
+      }
+    ]
   },
-  "1244": {
-    "classic_display": "214214 + LK | MK | HK",
-    "modern_display": null,
-    "control_support": "classic_only",
-    "source": "capcom_official",
-    "note": "No modern command found in official data."
+  "1247": {
+    "classic_display": "214214+K",
+    "modern_display": "22 + 弱 + 中 + 强",
+    "control_support": "classic_modern",
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "22 + 弱 + 中 + 强",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 147
+      }
+    ]
   },
   "1495": {
-    "classic_display": "2 + LPMPHPLKMKHK",
-    "modern_display": null,
-    "control_support": "classic_only",
-    "source": "capcom_official",
-    "note": "No modern command found in official data."
+    "classic_display": "2+LP+MP+HP+LK+MK+HK",
+    "modern_display": "弱 + 中 + 强",
+    "control_support": "classic_modern",
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "弱 + 中 + 强",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 172
+      }
+    ]
   },
   "1497": {
-    "classic_display": "LPMPHPLKMKHK",
-    "modern_display": null,
-    "control_support": "classic_only",
-    "source": "capcom_official",
-    "note": "No modern command found in official data."
+    "classic_display": "LP+MP+HP+LK+MK+HK",
+    "modern_display": "弱 + 中 + 强",
+    "control_support": "classic_modern",
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "弱 + 中 + 强",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 171
+      }
+    ]
+  },
+  "_meta": {
+    "schema": "xt.modern_display.v2",
+    "character": "Akuma",
+    "fighter_id": 22,
+    "generated_from": "ac_bcm",
+    "generated_at": "2026-07-16T21:48:56.933Z",
+    "ac_sha256": "e755915fa803ba8f32d9158b4ee3cc53e9ba6dba006280304be8f6aaa111be9f",
+    "bcm_sha256": "f50d2fd6a26fa898ec432c15541d5a54dfb763ef3f662f4043099df636b8986a",
+    "modern_profile_order": [
+      "easy",
+      "supr",
+      "sprt"
+    ],
+    "supplement_policy": "community_sample_atomic_routes_only",
+    "unmapped_classic_action_count": 8,
+    "unmapped_classic_action_ids": [
+      622,
+      636,
+      637,
+      661,
+      977,
+      985,
+      989,
+      991
+    ],
+    "description": "Akuma modern display mapping generated from game AC+BCM."
   }
 }
