@@ -38,8 +38,8 @@
       </div>
       <div class="actions-row">
         <label class="check-option">
-          <input id="use-exceptions" type="checkbox">
-          <span><strong>启用旧例外表兜底</strong><small>默认关闭；例外只在 AC+BCM 之后应用，并进入差异和诊断报告。</small></span>
+          <input id="use-exceptions" type="checkbox" checked disabled>
+          <span><strong>强制旧表兼容审计</strong><small>逐角色对照现有检测表；未被 AC+BCM 覆盖的规则自动缩减为兜底层，仍有遗漏时禁止更新 latest。</small></span>
         </label>
         <button class="primary" id="scan-button">扫描目录</button>
       </div>

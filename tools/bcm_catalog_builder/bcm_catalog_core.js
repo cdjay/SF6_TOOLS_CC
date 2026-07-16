@@ -437,7 +437,7 @@
             const keys = fields.get("Keys");
             if (keys && keys.kind === "ref") roots.push(keys.object_id);
             const visited = new Set();
-            const targets = new Set();
+            const targets = new Map();
             const visitValue = value => {
                 if (!value || typeof value !== "object") return;
                 if (value.kind === "ref") visitObject(value.object_id);
@@ -450,12 +450,16 @@
                 if (object.object_type === "CharacterAsset.BranchKey") {
                     const branch = fieldsOf(object);
                     // Types 29 and 35 replace an action with a runtime
-                    // variant.  The structural fingerprint check below is
-                    // still required before either branch may inherit a
-                    // command; other branch types are command transitions.
+                    // variant. Type 29 is the game's explicit conditional
+                    // replacement (including resource-level variants), so it
+                    // inherits the source command even when its frame data is
+                    // different. Type 35 remains guarded by the structural
+                    // fingerprint check below.
                     if ((Number(branch.Type) === 29 || Number(branch.Type) === 35)
                         && Number.isFinite(Number(branch.Action))) {
-                        targets.add(String(Number(branch.Action)));
+                        const targetId = String(Number(branch.Action));
+                        if (!targets.has(targetId)) targets.set(targetId, new Set());
+                        targets.get(targetId).add(Number(branch.Type));
                     }
                 }
                 for (const field of object.fields || []) visitValue(field.value);
@@ -469,10 +473,11 @@
         for (const [baseId, baseAction] of actionsById) {
             if (!Object.prototype.hasOwnProperty.call(bcmActions, baseId)) continue;
             const baseSignature = actionSignature(baseAction);
-            for (const derivedId of getDerivedTargets(baseAction)) {
+            for (const [derivedId, branchTypes] of getDerivedTargets(baseAction)) {
                 const derivedAction = actionsById.get(derivedId);
                 if (!derivedAction || !actionSet.has(derivedId) || actions[derivedId] || aliases[derivedId]) continue;
-                if (actionSignature(derivedAction) !== baseSignature) continue;
+                const explicitType29Replacement = branchTypes.has(29);
+                if (!explicitType29Replacement && actionSignature(derivedAction) !== baseSignature) continue;
                 aliases[derivedId] = baseId;
                 derivedAliasCount += 1;
             }

@@ -120,11 +120,16 @@
     "override_name": "Throw"
   },
   "717": {
-    "override_name": "4THROW",
-    "force": true
+    "override_name": "4+THROW",
+    "force": true,
+    "ignore": false,
+    "is_holdable": false
   },
   "719": {
-    "override_name": "2+Throw"
+    "override_name": "2+THROW",
+    "force": false,
+    "ignore": false,
+    "is_holdable": false
   },
   "739": {
     "override_name": "DRC"
@@ -142,13 +147,28 @@
     "override_name": "DI"
   },
   "900": {
-    "override_name": "236+LP"
+    "override_name": "236+LP",
+    "force": false,
+    "ignore": false,
+    "is_holdable": true,
+    "charge_min": 6,
+    "charge_max": 27
   },
   "904": {
-    "override_name": "236+MP"
+    "override_name": "236+MP",
+    "force": false,
+    "ignore": false,
+    "is_holdable": true,
+    "charge_min": 6,
+    "charge_max": 27
   },
   "908": {
-    "override_name": "236+HP"
+    "override_name": "236+HP",
+    "force": false,
+    "ignore": false,
+    "is_holdable": true,
+    "charge_min": 6,
+    "charge_max": 27
   },
   "912": {
     "override_name": "236+LP+MP"
@@ -273,13 +293,37 @@
     "override_name": "236236+HP"
   },
   "1210": {
-    "override_name": "214214+LK"
+    "override_name": "214214+LK",
+    "absorb_ids": "",
+    "force": false,
+    "ignore": false,
+    "is_holdable": true,
+    "hold_partial_check": true,
+    "charge_min": 139,
+    "charge_max": 188,
+    "ignore_prev_frames": 5
   },
   "1232": {
-    "override_name": "214214+MK"
+    "override_name": "214214+MK",
+    "absorb_ids": "",
+    "force": false,
+    "ignore": false,
+    "is_holdable": true,
+    "hold_partial_check": true,
+    "charge_min": 139,
+    "charge_max": 188,
+    "ignore_prev_frames": 5
   },
   "1254": {
-    "override_name": "214214+HK"
+    "override_name": "214214+HK",
+    "absorb_ids": "",
+    "force": false,
+    "ignore": false,
+    "is_holdable": true,
+    "hold_partial_check": true,
+    "charge_min": 139,
+    "charge_max": 188,
+    "ignore_prev_frames": 5
   },
   "1282": {
     "override_name": "236236+K"

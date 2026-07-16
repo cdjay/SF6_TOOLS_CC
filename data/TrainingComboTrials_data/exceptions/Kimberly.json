@@ -6,7 +6,9 @@
     "override_name": "44"
   },
   "480": {
-    "override_name": "Normal"
+    "override_name": "PARRY",
+    "force": false,
+    "ignore": false
   },
   "500": {
     "override_name": "RAW DR"
@@ -93,13 +95,25 @@
     "override_name": "6+HK"
   },
   "634": {
-    "override_name": "j.Normal"
+    "override_name": ">7",
+    "force": false,
+    "ignore": false,
+    "is_holdable": false,
+    "ignore_prev_frames": 5
   },
   "635": {
-    "override_name": "j.8"
+    "override_name": ">8",
+    "force": false,
+    "ignore": false,
+    "is_holdable": false,
+    "ignore_prev_frames": 5
   },
   "636": {
-    "override_name": "j.9"
+    "override_name": ">9",
+    "force": false,
+    "ignore": false,
+    "is_holdable": false,
+    "ignore_prev_frames": 5
   },
   "637": {
     "override_name": "3+MK"
@@ -132,10 +146,12 @@
     ]
   },
   "648": {
-    "override_name": ">2+HP",
-    "optional_parent_ids": [
-      615
-    ]
+    "override_name": ">2HP",
+    "absorb_ids": "",
+    "force": false,
+    "ignore": false,
+    "is_holdable": false,
+    "ignore_prev_frames": 5
   },
   "649": {
     "override_name": ">HK",
@@ -144,10 +160,12 @@
     ]
   },
   "651": {
-    "override_name": ">2+HK",
-    "optional_parent_ids": [
-      620
-    ]
+    "override_name": ">2HK",
+    "absorb_ids": "",
+    "force": false,
+    "ignore": false,
+    "is_holdable": false,
+    "ignore_prev_frames": 5
   },
   "655": {
     "override_name": "8"
@@ -169,46 +187,108 @@
     "override_name": "DI"
   },
   "900": {
-    "override_name": "236+K"
+    "override_name": "236+K",
+    "force": false,
+    "ignore": true,
+    "is_holdable": false,
+    "charge_min": 0,
+    "charge_max": 8
+  },
+  "901": {
+    "override_name": "236+K",
+    "force": true,
+    "ignore": false
   },
   "903": {
-    "override_name": "236+KK"
+    "override_name": "236+KK",
+    "force": true,
+    "ignore": false,
+    "is_holdable": false,
+    "ignore_prev_frames": 5
   },
   "905": {
-    "override_name": "Normal"
+    "override_name": ">P",
+    "force": false,
+    "ignore": false,
+    "is_holdable": false,
+    "ignore_prev_frames": 5
   },
   "906": {
-    "override_name": "Normal"
+    "override_name": ">LP",
+    "force": false,
+    "ignore": false,
+    "is_holdable": false,
+    "ignore_prev_frames": 5
   },
   "907": {
-    "override_name": "6"
+    "override_name": ">LK",
+    "force": false,
+    "ignore": false,
+    "is_holdable": false,
+    "ignore_prev_frames": 5
   },
   "908": {
-    "override_name": "6"
+    "override_name": ">LK",
+    "force": false,
+    "ignore": false,
+    "is_holdable": false,
+    "ignore_prev_frames": 5
   },
   "909": {
-    "override_name": "6"
+    "override_name": ">MK",
+    "force": false,
+    "ignore": false,
+    "is_holdable": false,
+    "ignore_prev_frames": 5
   },
   "910": {
-    "override_name": "6"
+    "override_name": ">MK",
+    "force": false,
+    "ignore": false,
+    "is_holdable": false,
+    "ignore_prev_frames": 5
   },
   "912": {
-    "override_name": "6"
+    "override_name": ">HK",
+    "force": false,
+    "ignore": false,
+    "is_holdable": false,
+    "ignore_prev_frames": 5
   },
   "913": {
-    "override_name": "6"
+    "override_name": ">HK",
+    "force": false,
+    "ignore": false,
+    "is_holdable": false,
+    "ignore_prev_frames": 5
   },
   "920": {
-    "override_name": "j.P"
+    "override_name": ">j.P",
+    "force": false,
+    "ignore": false,
+    "is_holdable": false,
+    "ignore_prev_frames": 5
   },
   "924": {
-    "override_name": "j.P"
+    "override_name": ">j.P",
+    "force": false,
+    "ignore": false,
+    "is_holdable": false,
+    "ignore_prev_frames": 5
   },
   "931": {
-    "override_name": "j.K"
+    "override_name": ">j.K",
+    "force": false,
+    "ignore": false,
+    "is_holdable": false,
+    "ignore_prev_frames": 5
   },
   "934": {
-    "override_name": "j.K"
+    "override_name": ">j.K",
+    "force": false,
+    "ignore": false,
+    "is_holdable": false,
+    "ignore_prev_frames": 5
   },
   "940": {
     "override_name": "214+LK"

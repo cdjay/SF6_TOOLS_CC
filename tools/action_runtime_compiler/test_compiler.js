@@ -17,10 +17,10 @@ function collection(object_id, refs) {
         fields: null, items: refs.map((value, index) => ({ index, value: ref(value) }))
     };
 }
-function action(objectId, actionId, keysId) {
+function action(objectId, actionId, keysId, frame = 10) {
     return object(objectId, "FAB.ACTION", {
         ActionID: scalar(actionId), ActionFrame: scalar(9), Category: scalar(1), Combo: scalar(0),
-        Frame: scalar(10), Projectile: scalar(-1), State: scalar(0), Keys: ref(keysId)
+        Frame: scalar(frame), Projectile: scalar(-1), State: scalar(0), Keys: ref(keysId)
     });
 }
 function bcmAction(actionId, display, conditions, button) {
@@ -43,7 +43,7 @@ const acSource = {
     fighter_id: 20,
     unique_action_ids_by_scope: { character: [500, 501, 606, 661, 904, 905, 999] },
     objects: [
-        action(100, 904, 200), action(101, 905, 202),
+        action(100, 904, 200), action(101, 905, 202, 11),
         collection(200, [201]),
         object(201, "CharacterAsset.BranchKey", { Action: scalar(905), Type: scalar(29) }),
         collection(202, [])
@@ -81,6 +81,22 @@ const legacy = compiler.buildLegacyExceptionTable(base.runtime);
 assert.deepStrictEqual(legacy["500"], { override_name: "DRC" });
 assert.deepStrictEqual(legacy["904"], { override_name: "236+LP", absorb_ids: "905" });
 assert.deepStrictEqual(legacy["905"], { override_name: "236+LP", force: true });
+const compatibility = compiler.buildLegacyCompatibility({
+    "905": { override_name: "236+LP (Level)", force: false, ignore_prev_frames: 5 },
+    "999": { override_name: "MANUAL", force: true },
+    "1000": { override_name: "STALE" }
+}, legacy, base.runtime.action_ids);
+assert.deepStrictEqual(compatibility.missing_action_ids, [999]);
+assert.deepStrictEqual(compatibility.stale_reference_action_ids, [1000]);
+assert.strictEqual(compatibility.summary.fallback_entry_count, 2);
+assert.deepStrictEqual(compatibility.overlay["905"], {
+    override_name: "236+LP (Level)", force: false, ignore_prev_frames: 5
+});
+const compatibleLegacy = compiler.applyLegacyCompatibilityOverlay(legacy, compatibility.overlay);
+const compatibilityAfter = compiler.buildLegacyCompatibility(
+    { "905": { override_name: "236+LP (Level)", force: false, ignore_prev_frames: 5 } },
+    compatibleLegacy, base.runtime.action_ids);
+assert.strictEqual(compatibilityAfter.summary.fallback_entry_count, 0);
 
 const withExceptions = compiler.compileFromCatalog(acSource, bcmCatalog, {
     "999": { override_name: "MANUAL", force: true, absorb_ids: "" },
@@ -95,6 +111,15 @@ assert.strictEqual(withExceptions.runtime.coverage.manual_absorb_alias_count, 0)
 assert.strictEqual(withExceptions.report.status, "valid-with-warnings");
 assert.strictEqual(withExceptions.report.diagnostics[0].code, "STALE_EXCEPTION_ACTION_ID");
 assert.strictEqual(withExceptions.report.diagnostics.some(item => item.code === "STALE_EXCEPTION_ABSORB_ID"), false);
+
+const explicitEmptyAbsorb = compiler.compileFromCatalog(acSource, bcmCatalog, {
+    "904": { override_name: "236+LP", absorb_ids: "" }
+}, { actionSourceSha256: "ac-test" });
+assert.strictEqual(explicitEmptyAbsorb.runtime.aliases["905"], undefined);
+const explicitAbsorb = compiler.compileFromCatalog(acSource, bcmCatalog, {
+    "904": { override_name: "236+LP", absorb_ids: "905" }
+}, { actionSourceSha256: "ac-test" });
+assert.strictEqual(explicitAbsorb.runtime.aliases["905"], "904");
 
 const incomplete = compiler.compileFromCatalog(
     { ...acSource, truncated: true },

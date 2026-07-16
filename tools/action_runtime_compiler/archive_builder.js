@@ -343,13 +343,54 @@ function buildArchive(options) {
                 throw new Error(`多个输入配对解析为同一角色 ${resolvedCharacter}，已停止以避免覆盖。`);
             }
             seenCharacters.add(resolvedCharacter);
-            const exceptionSource = options.useExceptions ? loadExceptions(resolvedCharacter) : { filename: null, value: {} };
-            const result = compiler.compile(ac.value, bcm.value, exceptionSource.value, {
+            const exceptionSource = loadExceptions(resolvedCharacter);
+            const compileOptions = {
                 actionSourceSha256: ac.sha256,
                 bcmSourceSha256: bcm.sha256,
                 characterName: resolvedCharacter
+            };
+            // Always compile the v2 runtime from AC+BCM alone. The existing
+            // legacy table is then audited and reduced to the smallest
+            // compatibility overlay needed to avoid detection regressions.
+            const result = compiler.compile(ac.value, bcm.value, {}, compileOptions);
+            const pureGeneratedExceptions = compiler.buildLegacyExceptionTable(result.runtime);
+            const compatibilityBefore = compiler.buildLegacyCompatibility(
+                exceptionSource.value, pureGeneratedExceptions, result.runtime.action_ids);
+            const generatedExceptions = compiler.applyLegacyCompatibilityOverlay(
+                pureGeneratedExceptions, compatibilityBefore.overlay);
+            const compatibilityAfter = compiler.buildLegacyCompatibility(
+                exceptionSource.value, generatedExceptions, result.runtime.action_ids);
+            const compatibility = {
+                schema: "sf6cc.legacy-exception-compatibility.v1",
+                character: result.runtime.character,
+                reference_file: exceptionSource.filename,
+                pure_ac_bcm: compatibilityBefore,
+                final_output: compatibilityAfter,
+                fallback_overlay: compatibilityBefore.overlay
+            };
+            result.report.compatibility = compatibility;
+            result.runtime.coverage.compatibility_fallback_entry_count =
+                compatibilityBefore.summary.fallback_entry_count;
+            result.report.summary.compatibility_fallback_entry_count =
+                compatibilityBefore.summary.fallback_entry_count;
+            if (compatibilityBefore.summary.fallback_entry_count) result.report.diagnostics.push({
+                severity: "info",
+                code: "LEGACY_COMPATIBILITY_FALLBACK_APPLIED",
+                entry_count: compatibilityBefore.summary.fallback_entry_count
             });
-            const generatedExceptions = compiler.buildLegacyExceptionTable(result.runtime);
+            if (compatibilityBefore.summary.stale_reference_action_count) result.report.diagnostics.push({
+                severity: "info",
+                code: "STALE_LEGACY_REFERENCE_ACTIONS",
+                action_ids: compatibilityBefore.stale_reference_action_ids
+            });
+            if (compatibilityAfter.summary.fallback_entry_count) {
+                result.report.diagnostics.push({
+                    severity: "error",
+                    code: "LEGACY_COMPATIBILITY_REGRESSION",
+                    entry_count: compatibilityAfter.summary.fallback_entry_count
+                });
+                result.report.status = "invalid";
+            }
             const previous = findPrevious(
                 outputRoot, result.runtime.character, options.compareVersion || null, version);
             const difference = diffRuntimes(
@@ -364,7 +405,7 @@ function buildArchive(options) {
 
             pendingWrites.push({
                 pair, acPath, bcmPath, runtime: result.runtime, report: result.report,
-                generatedExceptions, difference
+                generatedExceptions, compatibility, difference
             });
             differences.push(difference);
             rawEntries.push({
@@ -384,6 +425,7 @@ function buildArchive(options) {
                 status: result.report.status,
                 runtime_file: `${result.runtime.character}.json`,
                 generated_exception_file: `${result.runtime.character}.exceptions.json`,
+                compatibility_file: `${result.runtime.character}.compatibility.json`,
                 report_file: `${result.runtime.character}.report.json`,
                 diff_file: `${result.runtime.character}.diff.json`,
                 compare_version: previous && previous.version || null,
@@ -392,6 +434,7 @@ function buildArchive(options) {
                 latest_updated: result.report.status === "valid",
                 exception_file: exceptionSource.filename,
                 coverage: result.runtime.coverage,
+                compatibility: compatibilityBefore.summary,
                 difference: difference.summary
             });
         }
@@ -442,6 +485,7 @@ function buildArchive(options) {
             const write = mergeExistingVersion ? writeJsonAtomic : writeJson;
             write(path.join(charTarget, `${pending.runtime.character}.json`), pending.runtime);
             write(path.join(charTarget, `${pending.runtime.character}.exceptions.json`), pending.generatedExceptions);
+            write(path.join(charTarget, `${pending.runtime.character}.compatibility.json`), pending.compatibility);
             write(path.join(charTarget, `${pending.runtime.character}.report.json`), pending.report);
             write(path.join(charTarget, `${pending.runtime.character}.diff.json`), pending.difference);
         }

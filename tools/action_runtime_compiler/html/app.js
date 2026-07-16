@@ -122,7 +122,9 @@ function renderResults(result) {
       metric("指令 +", s.displays_added), metric("指令 -", s.displays_removed), metric("指令改", s.displays_changed),
       metric("别名 +", s.aliases_added), metric("别名 -", s.aliases_removed), metric("别名改", s.aliases_changed),
       metric("TC +", s.target_combos_added), metric("TC -", s.target_combos_removed),
-      metric("验证改", s.validation_changed)
+      metric("验证改", s.validation_changed),
+      metric("旧表缺项", entry.compatibility?.missing_action_count || 0),
+      metric("兼容兜底", entry.compatibility?.fallback_entry_count || 0)
     );
     content.append(name, metrics);
     const latest = document.createElement("span");

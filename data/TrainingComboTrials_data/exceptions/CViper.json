@@ -11,6 +11,24 @@
   "480": {
     "override_name": "Normal"
   },
+  "485": {
+    "override_name": "parry",
+    "absorb_ids": "",
+    "force": false,
+    "ignore": false,
+    "is_holdable": false,
+    "hold_partial_check": true,
+    "ignore_prev_frames": 5
+  },
+  "488": {
+    "override_name": "PARRY",
+    "absorb_ids": "",
+    "force": false,
+    "ignore": false,
+    "is_holdable": false,
+    "hold_partial_check": true,
+    "ignore_prev_frames": 5
+  },
   "600": {
     "override_name": "LP"
   },
@@ -111,14 +129,25 @@
     "override_name": "Throw"
   },
   "717": {
-    "override_name": "4THROW",
-    "force": true
+    "override_name": "4 (throw)",
+    "force": true,
+    "ignore": false,
+    "is_holdable": false,
+    "ignore_prev_frames": 5
   },
   "760": {
-    "override_name": "RAW DR"
+    "override_name": "drive rush",
+    "force": false,
+    "ignore": false,
+    "is_holdable": false,
+    "ignore_prev_frames": 5
   },
   "761": {
-    "override_name": "DRC"
+    "override_name": "drc",
+    "force": false,
+    "ignore": false,
+    "is_holdable": false,
+    "ignore_prev_frames": 5
   },
   "850": {
     "override_name": "6+DI"
@@ -142,13 +171,25 @@
     "override_name": "214+PP"
   },
   "906": {
-    "override_name": "Normal"
+    "override_name": ">K (FEINT)",
+    "force": false,
+    "ignore": false,
+    "is_holdable": false,
+    "ignore_prev_frames": 5
   },
   "907": {
-    "override_name": "Normal"
+    "override_name": ">K (FEINT)",
+    "force": false,
+    "ignore": false,
+    "is_holdable": false,
+    "ignore_prev_frames": 5
   },
   "912": {
-    "override_name": "6+PP"
+    "override_name": ">6PP",
+    "force": false,
+    "ignore": false,
+    "is_holdable": false,
+    "ignore_prev_frames": 5
   },
   "913": {
     "override_name": "6+PP"
@@ -160,7 +201,11 @@
     "override_name": "6+PP"
   },
   "916": {
-    "override_name": "6+PP"
+    "override_name": ">6PP",
+    "force": true,
+    "ignore": false,
+    "is_holdable": false,
+    "ignore_prev_frames": 5
   },
   "917": {
     "override_name": "6+PP"
@@ -178,13 +223,21 @@
     "override_name": "236+KK"
   },
   "944": {
-    "override_name": "j.PP"
+    "override_name": ">j.PP",
+    "force": false,
+    "ignore": false,
+    "is_holdable": false,
+    "ignore_prev_frames": 5
   },
   "945": {
     "override_name": "j.PP"
   },
   "947": {
-    "override_name": "j.KK"
+    "override_name": ">j.KK",
+    "force": false,
+    "ignore": false,
+    "is_holdable": false,
+    "ignore_prev_frames": 5
   },
   "948": {
     "override_name": "j.KK"
@@ -193,25 +246,41 @@
     "override_name": "j.236+LK"
   },
   "957": {
-    "override_name": "j.236+LK"
+    "override_name": "j.236+LK (INSTANT)",
+    "force": false,
+    "ignore": false,
+    "is_holdable": false,
+    "ignore_prev_frames": 5
   },
   "958": {
     "override_name": "j.236+MK"
   },
   "959": {
-    "override_name": "j.236+MK"
+    "override_name": "j.236+MK (instant)",
+    "force": false,
+    "ignore": false,
+    "is_holdable": false,
+    "ignore_prev_frames": 5
   },
   "960": {
     "override_name": "j.236+HK"
   },
   "961": {
-    "override_name": "j.236+HK"
+    "override_name": "j.236+HK (instant)",
+    "force": false,
+    "ignore": false,
+    "is_holdable": false,
+    "ignore_prev_frames": 5
   },
   "962": {
     "override_name": "j.236+KK"
   },
   "963": {
-    "override_name": "j.236+KK"
+    "override_name": "j.236+KK (INSTANT)",
+    "force": false,
+    "ignore": false,
+    "is_holdable": false,
+    "ignore_prev_frames": 5
   },
   "969": {
     "override_name": "623+LP"
@@ -226,34 +295,70 @@
     "override_name": "623+PP"
   },
   "974": {
-    "override_name": "Normal"
+    "override_name": ">K (FEINT)",
+    "force": false,
+    "ignore": false,
+    "is_holdable": false,
+    "ignore_prev_frames": 5
   },
   "982": {
-    "override_name": "214+K"
+    "override_name": "214+K",
+    "force": false,
+    "ignore": false,
+    "is_holdable": true,
+    "charge_min": 14,
+    "charge_max": 59,
+    "ignore_prev_frames": 5
   },
   "993": {
-    "override_name": "214+KK"
+    "override_name": "214+KK",
+    "force": false,
+    "ignore": false,
+    "is_holdable": true,
+    "charge_min": 10,
+    "charge_max": 57,
+    "ignore_prev_frames": 5
   },
   "1002": {
-    "override_name": "66"
+    "override_name": ">66 (cancel)",
+    "force": false,
+    "ignore": false,
+    "is_holdable": false,
+    "ignore_prev_frames": 5
   },
   "1014": {
-    "override_name": "528"
+    "override_name": "28",
+    "force": false,
+    "ignore": false,
+    "is_holdable": false,
+    "ignore_prev_frames": 5
   },
   "1015": {
     "override_name": "528"
   },
   "1018": {
-    "override_name": "528"
+    "override_name": "29",
+    "force": false,
+    "ignore": false,
+    "is_holdable": false,
+    "ignore_prev_frames": 5
   },
   "1019": {
     "override_name": "528"
   },
   "1036": {
-    "override_name": "528"
+    "override_name": ">28 (CANCEL)",
+    "force": false,
+    "ignore": false,
+    "is_holdable": false,
+    "ignore_prev_frames": 5
   },
   "1037": {
-    "override_name": "528"
+    "override_name": ">29 (cancel)",
+    "force": false,
+    "ignore": false,
+    "is_holdable": false,
+    "ignore_prev_frames": 5
   },
   "1040": {
     "override_name": "528"

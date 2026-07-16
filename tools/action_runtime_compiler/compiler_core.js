@@ -4,7 +4,7 @@ const bcmCore = require("../bcm_catalog_builder/bcm_catalog_core.js");
 
 const RUNTIME_SCHEMA = "sf6cc.action-runtime.v2";
 const REPORT_SCHEMA = "sf6cc.action-runtime-compile-report.v1";
-const RULES_VERSION = "sf6cc-ac-bcm-runtime-rules-v2";
+const RULES_VERSION = "sf6cc-ac-bcm-runtime-rules-v3";
 
 const VALIDATION_FIELDS = [
     "force", "ignore", "is_holdable", "hold_partial_check", "charge_min", "charge_max",
@@ -19,6 +19,118 @@ function sortedObject(input) {
         output[key] = input[key];
     }
     return output;
+}
+
+const LEGACY_DEFAULTS = {
+    absorb_ids: "",
+    force: false,
+    ignore: false,
+    is_holdable: false,
+    ignore_prev_frames: 5
+};
+
+function normalizeLegacyValue(field, value, actionSet) {
+    if (field === "absorb_ids") {
+        const ids = String(value || "").split(",")
+            .map(token => token.trim())
+            .filter(token => /^-?\d+$/.test(token))
+            .map(Number)
+            .filter(id => !actionSet || actionSet.has(String(id)));
+        return [...new Set(ids)].sort((a, b) => a - b).join(",");
+    }
+    if (Array.isArray(value)) return JSON.stringify(value.slice().sort((a, b) => Number(a) - Number(b)));
+    if (value && typeof value === "object") return JSON.stringify(value);
+    return value;
+}
+
+function legacyValue(entry, field, actionSet) {
+    if (entry && Object.prototype.hasOwnProperty.call(entry, field)) {
+        return normalizeLegacyValue(field, entry[field], actionSet);
+    }
+    if (Object.prototype.hasOwnProperty.call(LEGACY_DEFAULTS, field)) return LEGACY_DEFAULTS[field];
+    return undefined;
+}
+
+function buildLegacyCompatibility(referenceTable, generatedTable, actionIds) {
+    const actionSet = new Set((actionIds || []).map(id => String(Number(id))));
+    const overlay = {};
+    const missingActionIds = [];
+    const changedEntries = [];
+    const staleReferenceActionIds = [];
+    const invalidReferenceKeys = [];
+    const fields = ["override_name", "absorb_ids", ...VALIDATION_FIELDS];
+
+    for (const [rawId, referenceEntry] of Object.entries(referenceTable || {})) {
+        if (!/^-?\d+$/.test(rawId) || !referenceEntry || typeof referenceEntry !== "object") {
+            invalidReferenceKeys.push(rawId);
+            continue;
+        }
+        const id = String(Number(rawId));
+        if (!actionSet.has(id)) {
+            staleReferenceActionIds.push(Number(id));
+            continue;
+        }
+        const generatedEntry = generatedTable && generatedTable[id];
+        const delta = {};
+        const changedFields = [];
+        for (const field of fields) {
+            if (!Object.prototype.hasOwnProperty.call(referenceEntry, field)) continue;
+            const expected = legacyValue(referenceEntry, field, actionSet);
+            const actual = legacyValue(generatedEntry, field, actionSet);
+            if (expected === actual) continue;
+            changedFields.push(field);
+            if (field === "absorb_ids") delta[field] = expected;
+            else delta[field] = referenceEntry[field];
+        }
+        if (!generatedEntry) missingActionIds.push(Number(id));
+        if (!changedFields.length) continue;
+        // Compatibility is minimized by entry, not by field. Applying an
+        // override_name can convert a generated alias into a direct rule, so
+        // every explicit legacy field must travel with that entry or defaults
+        // such as force/ignore_prev_frames could silently change.
+        const completeEntry = {};
+        for (const field of fields) {
+            if (!Object.prototype.hasOwnProperty.call(referenceEntry, field)) continue;
+            completeEntry[field] = field === "absorb_ids"
+                ? legacyValue(referenceEntry, field, actionSet)
+                : referenceEntry[field];
+        }
+        overlay[id] = completeEntry;
+        changedEntries.push({ action_id: Number(id), missing_entry: !generatedEntry, fields: changedFields });
+    }
+
+    missingActionIds.sort((a, b) => a - b);
+    staleReferenceActionIds.sort((a, b) => a - b);
+    changedEntries.sort((a, b) => a.action_id - b.action_id);
+    return {
+        overlay: sortedObject(overlay),
+        summary: {
+            reference_entry_count: Object.keys(referenceTable || {}).length,
+            generated_entry_count: Object.keys(generatedTable || {}).length,
+            in_scope_reference_entry_count: Object.keys(referenceTable || {}).length
+                - staleReferenceActionIds.length - invalidReferenceKeys.length,
+            missing_action_count: missingActionIds.length,
+            changed_entry_count: changedEntries.length,
+            fallback_entry_count: Object.keys(overlay).length,
+            stale_reference_action_count: staleReferenceActionIds.length,
+            invalid_reference_key_count: invalidReferenceKeys.length
+        },
+        missing_action_ids: missingActionIds,
+        changed_entries: changedEntries,
+        stale_reference_action_ids: staleReferenceActionIds,
+        invalid_reference_keys: invalidReferenceKeys
+    };
+}
+
+function applyLegacyCompatibilityOverlay(generatedTable, overlay) {
+    const output = {};
+    for (const [id, entry] of Object.entries(generatedTable || {})) output[String(Number(id))] = { ...entry };
+    // Replace the complete legacy entry. Legacy absorb_ids are evaluated per
+    // expected action and may intentionally contain the same alias under more
+    // than one parent, which cannot be represented by the v2 single-target
+    // alias map.
+    for (const [id, entry] of Object.entries(overlay || {})) output[String(Number(id))] = { ...entry };
+    return sortedObject(output);
 }
 
 function triggerSuppliesDisplay(trigger, action) {
@@ -268,6 +380,18 @@ function applyExceptions(actionIds, actions, aliases, rules, exceptionTable, dia
         rules[id] = rule;
 
         if (typeof exception.absorb_ids === "string") {
+            const desiredAliases = new Set(exception.absorb_ids.split(",")
+                .map(token => token.trim())
+                .filter(token => /^-?\d+$/.test(token) && actionSet.has(String(Number(token))))
+                .map(token => String(Number(token))));
+            // An explicit legacy absorb list is authoritative. This includes
+            // the empty string, which means generated aliases targeting this
+            // action must be removed.
+            for (const [existingAliasId, existingTargetId] of Object.entries(aliases)) {
+                if (String(existingTargetId) === id && !desiredAliases.has(String(existingAliasId))) {
+                    delete aliases[existingAliasId];
+                }
+            }
             for (const token of exception.absorb_ids.split(",")) {
                 const trimmed = token.trim();
                 if (trimmed === "") continue;
@@ -287,14 +411,9 @@ function applyExceptions(actionIds, actions, aliases, rules, exceptionTable, dia
                     });
                     continue;
                 }
-                if (actions[aliasId] && aliasId !== String(id)) {
-                    diagnostics.push({
-                        severity: "warning", code: "EXCEPTION_ABSORB_CONFLICTS_WITH_DISPLAY",
-                        action_id: Number(id), absorb_action_id: parsedAliasId,
-                        absorb_display: actions[aliasId]
-                    });
-                    continue;
-                }
+                if (aliasId === id) continue;
+                delete actions[aliasId];
+                delete rules[aliasId];
                 aliases[aliasId] = String(id);
                 stats.absorb_alias_count += 1;
             }
@@ -571,5 +690,7 @@ module.exports = {
     RULES_VERSION,
     compile,
     compileFromCatalog,
-    buildLegacyExceptionTable
+    buildLegacyExceptionTable,
+    buildLegacyCompatibility,
+    applyLegacyCompatibilityOverlay
 };

@@ -79,6 +79,8 @@ try {
     assert.strictEqual(ingrid.validation.rules["1217"].is_holdable, true);
     assert.strictEqual(ingrid.validation.rules["1222"].is_holdable, true);
     assert.strictEqual(ingrid.validation.rules["1227"].is_holdable, true);
+    assert.strictEqual(ingrid.aliases["1075"], "1074");
+    assert.strictEqual(ingrid.aliases["1093"], "1091");
     assert.strictEqual(ingrid.aliases["1219"], "1217");
     assert.strictEqual(ingrid.aliases["1224"], "1222");
     assert.strictEqual(ingrid.aliases["1229"], "1227");

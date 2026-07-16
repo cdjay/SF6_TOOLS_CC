@@ -88,9 +88,12 @@
   },
   "638": {
     "override_name": ">MP",
-    "optional_parent_ids": [
-      637
-    ]
+    "absorb_ids": "",
+    "force": false,
+    "ignore": false,
+    "is_holdable": false,
+    "hold_partial_check": true,
+    "ignore_prev_frames": 5
   },
   "639": {
     "override_name": "6+MK"
@@ -103,21 +106,30 @@
   },
   "642": {
     "override_name": ">HP",
-    "optional_parent_ids": [
-      641
-    ]
+    "absorb_ids": "",
+    "force": false,
+    "ignore": false,
+    "is_holdable": false,
+    "hold_partial_check": true,
+    "ignore_prev_frames": 5
   },
   "643": {
     "override_name": ">HP",
-    "optional_parent_ids": [
-      642
-    ]
+    "absorb_ids": "",
+    "force": false,
+    "ignore": false,
+    "is_holdable": false,
+    "hold_partial_check": true,
+    "ignore_prev_frames": 5
   },
   "644": {
     "override_name": ">HK",
-    "optional_parent_ids": [
-      643
-    ]
+    "absorb_ids": "",
+    "force": false,
+    "ignore": false,
+    "is_holdable": false,
+    "hold_partial_check": true,
+    "ignore_prev_frames": 5
   },
   "715": {
     "override_name": "Throw"
@@ -211,13 +223,58 @@
     ]
   },
   "971": {
-    "override_name": "236+LK"
+    "override_name": "236+LK",
+    "force": false,
+    "ignore": false,
+    "is_holdable": true,
+    "charge_min": 11,
+    "charge_max": 11
   },
   "972": {
-    "override_name": "236+MK"
+    "override_name": "236+MK",
+    "force": false,
+    "ignore": false,
+    "is_holdable": true,
+    "charge_min": 11,
+    "charge_max": 11
   },
   "973": {
-    "override_name": "236+HK"
+    "override_name": "236+HK",
+    "force": false,
+    "ignore": false,
+    "is_holdable": true,
+    "charge_min": 11,
+    "charge_max": 11
+  },
+  "974": {
+    "override_name": "236+LK",
+    "force": true,
+    "ignore": false,
+    "is_holdable": true,
+    "charge_min": 11,
+    "charge_max": 11,
+    "ignore_prev_id": 971,
+    "ignore_prev_frames": 11
+  },
+  "975": {
+    "override_name": "236+MK",
+    "force": true,
+    "ignore": false,
+    "is_holdable": true,
+    "charge_min": 11,
+    "charge_max": 11,
+    "ignore_prev_id": 972,
+    "ignore_prev_frames": 11
+  },
+  "976": {
+    "override_name": "236+HK",
+    "force": true,
+    "ignore": false,
+    "is_holdable": true,
+    "charge_min": 11,
+    "charge_max": 11,
+    "ignore_prev_id": 973,
+    "ignore_prev_frames": 11
   },
   "977": {
     "override_name": "236+KK"
@@ -229,7 +286,10 @@
     "override_name": "22+KK"
   },
   "1010": {
-    "override_name": "214+LK"
+    "override_name": "214+K",
+    "force": false,
+    "ignore": false,
+    "is_holdable": false
   },
   "1016": {
     "override_name": "214+KK"

@@ -74,9 +74,9 @@ const hondaCatalog = core.buildCatalog(fabSource, { generatedAt: "2026-01-01T00:
 assert.strictEqual(hondaCatalog.source.character, "EHonda");
 assert.strictEqual(hondaCatalog.source.capture_character, "Fab");
 
-const derivedAction = (objectId, actionId, keysRef) => object(objectId, "FAB.ACTION", {
+const derivedAction = (objectId, actionId, keysRef, frame = 10) => object(objectId, "FAB.ACTION", {
     ActionID: scalar(actionId), ActionFrame: scalar(9), Category: scalar(1),
-    Combo: scalar(0), Frame: scalar(10), Projectile: scalar(-1), State: scalar(0), Keys: ref(keysRef)
+    Combo: scalar(0), Frame: scalar(frame), Projectile: scalar(-1), State: scalar(0), Keys: ref(keysRef)
 });
 const acSource = {
     schema: "sf6cr.action-catalog-full.v2",
@@ -84,7 +84,7 @@ const acSource = {
     fighter_id: 20,
     unique_action_ids_by_scope: { character: [605, 606, 652, 904, 905, 906] },
     objects: [
-        derivedAction(100, 904, 200), derivedAction(101, 905, 202), derivedAction(102, 906, 204),
+        derivedAction(100, 904, 200), derivedAction(101, 905, 202, 11), derivedAction(102, 906, 204),
         collection(200, "ActionKeyList", [201, 203]),
         object(201, "CharacterAsset.BranchKey", { Action: scalar(905), Type: scalar(29) }),
         collection(202, "ActionKeyList", []),

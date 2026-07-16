@@ -126,10 +126,11 @@
     ]
   },
   "681": {
-    "override_name": ">2+HP",
-    "optional_parent_ids": [
-      626
-    ]
+    "override_name": ">2HP",
+    "force": false,
+    "ignore": false,
+    "is_holdable": false,
+    "ignore_prev_frames": 5
   },
   "715": {
     "override_name": "Throw"
@@ -166,22 +167,61 @@
     "override_name": "236+PP"
   },
   "907": {
-    "override_name": "PP"
+    "override_name": ">PP",
+    "absorb_ids": "",
+    "force": false,
+    "ignore": false,
+    "is_holdable": false,
+    "ignore_prev_frames": 5
   },
   "920": {
-    "override_name": "214+LP"
+    "override_name": "214+LP",
+    "absorb_ids": "",
+    "force": false,
+    "ignore": false,
+    "is_holdable": true,
+    "hold_partial_check": false,
+    "charge_min": 9,
+    "perfect_min": 18,
+    "perfect_max": 20,
+    "ignore_prev_frames": 5
   },
   "924": {
-    "override_name": "214+MP"
+    "override_name": "214+MP",
+    "absorb_ids": "",
+    "force": false,
+    "ignore": false,
+    "is_holdable": true,
+    "hold_partial_check": false,
+    "charge_min": 13,
+    "perfect_min": 18,
+    "perfect_max": 20,
+    "ignore_prev_frames": 5
   },
   "929": {
-    "override_name": "214+HP"
+    "override_name": "214+HP",
+    "absorb_ids": "",
+    "force": false,
+    "ignore": false,
+    "is_holdable": true,
+    "hold_partial_check": false,
+    "charge_min": 13,
+    "perfect_min": 18,
+    "perfect_max": 20,
+    "ignore_prev_frames": 5
   },
   "933": {
     "override_name": "214+PP"
   },
   "935": {
     "override_name": "PP"
+  },
+  "936": {
+    "override_name": ">PP",
+    "force": true,
+    "ignore": false,
+    "is_holdable": false,
+    "ignore_prev_frames": 5
   },
   "946": {
     "override_name": ">j.214+P"
@@ -202,7 +242,12 @@
     "override_name": "623+PP"
   },
   "967": {
-    "override_name": "j.PP"
+    "override_name": ">j.PP",
+    "absorb_ids": "",
+    "force": false,
+    "ignore": false,
+    "is_holdable": false,
+    "ignore_prev_frames": 5
   },
   "972": {
     "override_name": "236+K"

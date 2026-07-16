@@ -19,7 +19,7 @@ tools\action_runtime_compiler\start_html_builder.bat
 - `acbcm\<版本>\`：原始完整 AC+BCM、哈希和归档清单；
 - `char\<版本>\`：角色简表、编译报告、逐角色差异及汇总差异；
 - `latest\`：最新 v2 运行时表，保留给编译器内部审查；
-- `latest_exceptions\`：由 AC+BCM 自动生成、且状态为 `valid` 的现有角色例外表格式，可全选复制到游戏的 `data\TrainingComboTrials_data\exceptions`；
+- `latest_exceptions\`：由 AC+BCM 自动生成并通过旧表兼容审计、且状态为 `valid` 的现有角色例外表格式，可全选复制到游戏的 `data\TrainingComboTrials_data\exceptions`；
 - `latest-manifest.json`：记录 latest 中每个角色来自哪个归档版本，放在 latest 外以免同步时混入。
 
 以上归档和生成目录都被工具目录内的 `.gitignore` 排除，不会把大型研究 dump 或本机构建物带入提交。
@@ -59,13 +59,15 @@ AC 或 BCM 若标记为截断、hard gate 失败或角色动作全集为空，�
 - BCM 经典指令；
 - DRC 与 RAW DR 系统动作；
 - `turn_around=2` 的 TC 后续段；
-- AC `BranchKey Type=29/35` 且结构同构的动作变体；
+- AC `BranchKey Type=29` 的条件/资源等级动作变体，以及结构同构的 Type 35 动作变体；
 - AC Type 20 的空中方向攻击、Type 63 的后投动作；
 - 同 BCM gate 的架势后续段（例如本田 `970 → 972`）；
 - TC 父动作关系；前后动作显示相同时会写入 `optional_parent_ids`，例如英格丽德 `655 → 656`；
 - 可选人工例外覆盖及其验证字段。
 
 每个版本的 `char` 目录同时保存 `<角色>.exceptions.json`。生成表只写现有运行时真正消费的字段；`force=false`、`ignore=false`、`ignore_prev_frames=5` 等默认值不会重复写入。
+
+批量生成时会强制把每个角色与当前 `data/TrainingComboTrials_data/exceptions` 检测表比较，并保存 `<角色>.compatibility.json`。纯 AC+BCM 已覆盖的旧规则不会重复保留；尚未覆盖但 Action ID 仍存在的规则会自动缩减成兼容兜底层。若最终输出仍遗漏旧表语义，该角色标记为 `invalid`，不会更新 `latest_exceptions`。
 
 编译器不会修改用户录制的连段 JSON。
 
