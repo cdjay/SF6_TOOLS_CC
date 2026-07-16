@@ -59,15 +59,18 @@ AC 或 BCM 若标记为截断、hard gate 失败或角色动作全集为空，�
 - BCM 经典指令；
 - DRC 与 RAW DR 系统动作；
 - `turn_around=2` 的 TC 后续段；
-- AC `BranchKey Type=29` 的条件/资源等级动作变体，以及结构同构的 Type 35 动作变体；
-- AC Type 20 的空中方向攻击、Type 63 的后投动作；
+- AC `BranchKey Type=29` 的条件/资源等级动作变体，以及结构同构的 Type 35 动作变体；长按等级图中的 Type 29 目标会物化为独立阶段，不再错误吸收到父动作；
+- AC Type 20 的空中方向攻击、Type 63 `Param02=1` 的八方向空中攻击与方向投；方向 mask 和终端 `force` 由分支图自动解码；
+- 由 Type 29 与 Type 20 至少两个共享等级目标的状态图识别已确认长按动作；精确 `charge_min/max` 没有可靠的角色无关公式时继续留给兼容层，不从 BCM 时间窗猜测；
+- BCM 蓄力释放序列的显示正规化，例如 `6646` 自动显示为 `[4]646`；
+- AC Type 13 的无输入/落地分支关系；同一语义名称的兄弟目标会同步已确认的 `force=true` 检测规则，例如豪鬼普通/OD 百鬼袭的无操作滑步 `996/1004`；
 - 同 BCM gate 的架势后续段（例如本田 `970 → 972`）；
 - TC 父动作关系；前后动作显示相同时会写入 `optional_parent_ids`，例如英格丽德 `655 → 656`；
 - 可选人工例外覆盖及其验证字段。
 
 每个版本的 `char` 目录同时保存 `<角色>.exceptions.json`。生成表只写现有运行时真正消费的字段；`force=false`、`ignore=false`、`ignore_prev_frames=5` 等默认值不会重复写入。
 
-批量生成时会强制把每个角色与当前 `data/TrainingComboTrials_data/exceptions` 检测表比较，并保存 `<角色>.compatibility.json`。纯 AC+BCM 已覆盖的旧规则不会重复保留；尚未覆盖但 Action ID 仍存在的规则会自动缩减成兼容兜底层。若最终输出仍遗漏旧表语义，该角色标记为 `invalid`，不会更新 `latest_exceptions`。
+批量生成时会强制把每个角色与当前 `data/TrainingComboTrials_data/exceptions` 检测表比较，并保存 `<角色>.compatibility.json`。比较会按运行时真实默认值和等价指令写法规格化（例如缺省 `hold_partial_check=true`、`2HP/2+HP`、`drc/DRC`），避免把纯格式差异误算成人工缺口。纯 AC+BCM 已覆盖的旧规则不会重复保留；尚未覆盖但 Action ID 仍存在的规则会自动缩减成兼容兜底层。若最终输出仍遗漏旧表语义，该角色标记为 `invalid`，不会更新 `latest_exceptions`。
 
 编译器不会修改用户录制的连段 JSON。
 
@@ -81,4 +84,4 @@ node tools\action_runtime_compiler\verify_known_samples.js `
   --evidence-dir "D:\CP\SF6CR-evidence\AC+BCM+OFF"
 ```
 
-最后一条命令使用外部研究 dump 回归本田与英格丽德已确认的普通技、派生动作、DRC/RAW DR 和 TC。它只读 dump，不把研究数据或生成物写入仓库。
+最后一条命令使用外部研究 dump 回归本田、迪·杰与英格丽德已确认的普通技、派生动作、DRC/RAW DR 和 TC。它只读 dump，不把研究数据或生成物写入仓库。

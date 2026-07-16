@@ -4,7 +4,7 @@ const bcmCore = require("../bcm_catalog_builder/bcm_catalog_core.js");
 
 const RUNTIME_SCHEMA = "sf6cc.action-runtime.v2";
 const REPORT_SCHEMA = "sf6cc.action-runtime-compile-report.v1";
-const RULES_VERSION = "sf6cc-ac-bcm-runtime-rules-v3";
+const RULES_VERSION = "sf6cc-ac-bcm-runtime-rules-v5";
 
 const VALIDATION_FIELDS = [
     "force", "ignore", "is_holdable", "hold_partial_check", "charge_min", "charge_max",
@@ -26,7 +26,12 @@ const LEGACY_DEFAULTS = {
     force: false,
     ignore: false,
     is_holdable: false,
+    hold_partial_check: true,
     ignore_prev_frames: 5
+};
+
+const BRANCH_DIRECTION = {
+    1: "8", 2: "2", 4: "4", 5: "7", 6: "1", 8: "6", 9: "9", 10: "3"
 };
 
 function normalizeLegacyValue(field, value, actionSet) {
@@ -37,6 +42,15 @@ function normalizeLegacyValue(field, value, actionSet) {
             .map(Number)
             .filter(id => !actionSet || actionSet.has(String(id)));
         return [...new Set(ids)].sort((a, b) => a - b).join(",");
+    }
+    if (field === "override_name" && typeof value === "string") {
+        // Match the runtime motion fallback while retaining semantically
+        // meaningful annotations and the leading TC/follow-up marker.
+        return value.toUpperCase().replace(/\s+/g, "")
+            .replace(/DRIVERUSH/g, "RAWDR")
+            .replace(/LP\+LK/g, "THROW")
+            .replace(/\(THROW\)/g, "THROW")
+            .replace(/\+/g, "");
     }
     if (Array.isArray(value)) return JSON.stringify(value.slice().sort((a, b) => Number(a) - Number(b)));
     if (value && typeof value === "object") return JSON.stringify(value);
@@ -147,6 +161,30 @@ function isAirTrigger(trigger) {
         || (Number(trigger && trigger.conditions && trigger.conditions.category_flags) & 0x40000000) !== 0;
 }
 
+function inferChargeReleaseDisplay(action) {
+    const opposite = { "1": "9", "2": "8", "3": "7", "4": "6", "6": "4", "7": "3", "8": "2", "9": "1" };
+    for (const trigger of selectedTriggers(action)) {
+        const conditions = trigger.conditions || {};
+        // This notation is used by charge-release Super Art commands. Other
+        // internal state transitions can share charge_bit and must stay raw.
+        if (Number(conditions.function_id) !== 3 || Number(conditions.kind_level) !== 1) continue;
+        const profile = trigger.classic_profile && trigger.profiles
+            ? trigger.profiles[trigger.classic_profile] : null;
+        const command = profile && profile.command;
+        const inputs = command && command.inputs;
+        if (!command || Number(command.charge_bit || 0) === 0 || !Array.isArray(inputs) || inputs.length < 2) continue;
+        const first = inputs[0];
+        const holdDirection = first && first.charge_release === true ? opposite[String(first.direction)] : null;
+        if (!holdDirection) continue;
+        const remaining = inputs.slice(1).map(input => String(input && input.direction || ""));
+        if (remaining.some(direction => !/^[1-9]$/.test(direction))) continue;
+        const button = String(profile.button || "");
+        if (!button) continue;
+        return `[${holdDirection}]${remaining.join("")}+${button}`;
+    }
+    return null;
+}
+
 function inferBcmFollowups(bcmCatalog) {
     const result = {};
     const entries = Object.entries(bcmCatalog.actions || {})
@@ -195,6 +233,33 @@ function inferBcmFollowups(bcmCatalog) {
     return result;
 }
 
+function inferAcFollowups(bcmCatalog, relations) {
+    const outgoing = new Map();
+    for (const relation of relations) {
+        if (!outgoing.has(relation.source_id)) outgoing.set(relation.source_id, []);
+        outgoing.get(relation.source_id).push(relation);
+    }
+    const result = {};
+    for (const [id, action] of Object.entries(bcmCatalog.actions || {})) {
+        const branches = outgoing.get(Number(id)) || [];
+        const branchTypes = new Set(branches.map(relation => relation.branch_type));
+        if (!branchTypes.has(16)) continue;
+        const triggers = selectedTriggers(action);
+        const hasCategory37 = triggers.some(trigger => {
+            const flags = Number(trigger.conditions && trigger.conditions.category_flags || 0);
+            return Math.floor(flags / (2 ** 37)) % 2 === 1;
+        });
+        const hasAirState = triggers.some(trigger =>
+            Number(trigger.conditions && trigger.conditions.cond_owner_state_flags) === 4);
+        const hasExtraBranchEvidence = branchTypes.has(29) || branchTypes.has(33) || branchTypes.has(37) || hasAirState;
+        if (hasCategory37 && hasExtraBranchEvidence) {
+            result[id] = { kind: "ac-category37-branch-evidence", parent_ids: [] };
+        }
+    }
+
+    return result;
+}
+
 function acBranchRelations(actionSource) {
     const objects = new Map((actionSource.objects || []).map(object => [object.object_id, object]));
     const roots = new Map();
@@ -220,12 +285,15 @@ function acBranchRelations(actionSource) {
                 const fields = Object.fromEntries((object.fields || []).map(field => [field.name, field.value && field.value.value]));
                 const targetId = Number(fields.Action);
                 const type = Number(fields.Type);
-                const key = `${sourceId}:${targetId}:${type}:${fields.Param01}:${fields.Param02}`;
+                const key = [sourceId, targetId, type, fields.Attr, fields.ActionFrame,
+                    fields.Param00, fields.Param01, fields.Param02, fields.Param03].join(":");
                 if (Number.isFinite(targetId) && !seenRelations.has(key)) {
                     seenRelations.add(key);
                     relations.push({
                         source_id: Number(sourceId), target_id: targetId, branch_type: type,
-                        param01: Number(fields.Param01 || 0), param02: Number(fields.Param02 || 0)
+                        attr: Number(fields.Attr || 0), action_frame: Number(fields.ActionFrame || 0),
+                        param00: Number(fields.Param00 || 0), param01: Number(fields.Param01 || 0),
+                        param02: Number(fields.Param02 || 0), param03: Number(fields.Param03 || 0)
                     });
                 }
             }
@@ -236,10 +304,48 @@ function acBranchRelations(actionSource) {
     return relations;
 }
 
+function normalizeBranchSemanticName(value) {
+    return String(value || "").trim().toUpperCase().replace(/\s+/g, " ");
+}
+
+function propagateType13SiblingCompatibility(actionSource, referenceTable) {
+    const output = {};
+    for (const [id, entry] of Object.entries(referenceTable || {})) {
+        output[String(id)] = entry && typeof entry === "object" ? { ...entry } : entry;
+    }
+    const type13Targets = new Set(acBranchRelations(actionSource)
+        .filter(relation => relation.branch_type === 13)
+        .map(relation => String(relation.target_id)));
+    const groups = new Map();
+    for (const id of type13Targets) {
+        const entry = output[id];
+        const semantic = entry && normalizeBranchSemanticName(entry.override_name);
+        if (!semantic) continue;
+        if (!groups.has(semantic)) groups.set(semantic, []);
+        groups.get(semantic).push(id);
+    }
+
+    const propagated = [];
+    for (const [semantic, ids] of groups) {
+        if (ids.length < 2 || !ids.some(id => output[id] && output[id].force === true)) continue;
+        for (const id of ids) {
+            if (output[id].force === true) continue;
+            output[id] = { ...output[id], force: true };
+            propagated.push({ action_id: Number(id), semantic, field: "force", value: true });
+        }
+    }
+    return {
+        table: sortedObject(output),
+        propagated: propagated.sort((left, right) => left.action_id - right.action_id)
+    };
+}
+
 function inferHoldableSources(relations) {
     const bySource = new Map();
     for (const relation of relations) {
-        if (!bySource.has(relation.source_id)) bySource.set(relation.source_id, { variants: new Set(), inputTransitions: new Set() });
+        if (!bySource.has(relation.source_id)) bySource.set(relation.source_id, {
+            variants: new Set(), inputTransitions: new Set()
+        });
         const group = bySource.get(relation.source_id);
         if (relation.branch_type === 29) group.variants.add(relation.target_id);
         if (relation.branch_type === 20) group.inputTransitions.add(relation.target_id);
@@ -273,6 +379,7 @@ function classifyBcmAction(action, compiledDisplay, followup) {
             ? trigger.profiles[trigger.classic_profile] : null;
         return profile && profile.command && Number(profile.command.charge_bit || 0) !== 0;
     });
+    const displayMotion = inferChargeReleaseDisplay(action);
     return {
         display: compiledDisplay,
         display_source: "bcm",
@@ -285,7 +392,8 @@ function classifyBcmAction(action, compiledDisplay, followup) {
             ? followup.parent_ids : undefined,
         followup_evidence: targetComboFollowup ? followup.kind : undefined,
         physical_button_required: physicalButtonRequired,
-        charge_command: chargeCommand
+        charge_command: chargeCommand,
+        display_motion: displayMotion || undefined
     };
 }
 
@@ -482,7 +590,8 @@ function appendSourceDiagnostics(actionSource, bcmCatalog, diagnostics) {
 
 function compileFromCatalog(actionSource, bcmCatalog, exceptionTable, options) {
     options = options || {};
-    exceptionTable = exceptionTable || {};
+    const type13Compatibility = propagateType13SiblingCompatibility(actionSource, exceptionTable || {});
+    exceptionTable = type13Compatibility.table;
     const base = bcmCore.buildActionRuntimeCatalog(actionSource, bcmCatalog, {}, {
         actionSourceSha256: options.actionSourceSha256,
         characterName: options.characterName
@@ -491,6 +600,11 @@ function compileFromCatalog(actionSource, bcmCatalog, exceptionTable, options) {
     const aliases = { ...base.aliases };
     const rules = {};
     const diagnostics = [];
+    if (type13Compatibility.propagated.length) diagnostics.push({
+        severity: "info",
+        code: "AC_TYPE13_SIBLING_COMPATIBILITY_PROPAGATED",
+        entries: type13Compatibility.propagated
+    });
     appendSourceDiagnostics(actionSource, bcmCatalog, diagnostics);
     const branchRelations = acBranchRelations(actionSource);
     const holdableSources = inferHoldableSources(branchRelations);
@@ -498,42 +612,79 @@ function compileFromCatalog(actionSource, bcmCatalog, exceptionTable, options) {
 
     // Type 35 is an explicit runtime replacement. Unlike Type 29 state
     // variants it may legitimately change frame data, so it does not require
-    // a structural fingerprint before inheriting the command.
+    // a structural fingerprint before inheriting the command. Type 29 targets
+    // inside a hold-level graph are observable stages, not aliases: materialize
+    // them so each stage can carry its own validation window and resource label.
     for (const relation of branchRelations) {
         const source = String(relation.source_id), target = String(relation.target_id);
         const isHoldLevel = relation.branch_type === 29 && holdableSources.has(source);
-        if ((relation.branch_type === 35 || isHoldLevel) && actions[source] && actionSet.has(target)
-            && !actions[target] && !aliases[target]) aliases[target] = source;
-    }
-
-    // Decode AC-only directional jump attacks and back-throw variants that BCM
-    // reaches through an action branch rather than a separate trigger.
-    const acDerivedCommands = [];
-    for (const relation of branchRelations) {
-        const source = String(relation.source_id), target = String(relation.target_id);
-        if (!actions[source] || !actionSet.has(target) || actions[target] || aliases[target]) continue;
-        let display = null;
-        if (relation.branch_type === 20 && /^j\./i.test(actions[source])
-            && (relation.param01 === 4 || relation.param01 === 8)) {
-            const button = actions[source].replace(/^j\./i, "").replace(/^\d\+/, "");
-            display = `j.${relation.param01 === 8 ? 6 : 4}+${button}`;
-        } else if (relation.branch_type === 63 && relation.param02 === 1
-            && /throw/i.test(actions[source]) && relation.param01 === 4) {
-            display = "4THROW";
+        if (isHoldLevel && actions[source] && actionSet.has(target)) {
+            if (aliases[target] === source) delete aliases[target];
+            if (!actions[target]) actions[target] = actions[source];
+            rules[target] = {
+                display: actions[target],
+                display_source: "ac-hold-level-stage",
+                force: true,
+                branch_source_action_id: relation.source_id,
+                branch_type: relation.branch_type
+            };
+        } else if (relation.branch_type === 35 && actions[source] && actionSet.has(target)
+            && !actions[target] && !aliases[target]) {
+            aliases[target] = source;
         }
-        if (!display) continue;
-        actions[target] = display;
-        rules[target] = {
-            display,
-            display_source: "ac-branch-derived-command",
-            force: true,
-            branch_source_action_id: relation.source_id,
-            branch_type: relation.branch_type
-        };
-        acDerivedCommands.push({ action_id: relation.target_id, source_action_id: relation.source_id, display, branch_type: relation.branch_type });
     }
 
-    const followups = inferBcmFollowups(bcmCatalog);
+    // Decode AC-only directional jump attacks and directional throw variants
+    // that BCM reaches through an action branch rather than a separate trigger.
+    // Multiple passes allow a directional throw node to feed another Type 63
+    // direction node without depending on record order in the dump.
+    const acDerivedCommands = [];
+    for (let pass = 0; pass < branchRelations.length; pass += 1) {
+        let progress = false;
+        for (const relation of branchRelations) {
+            const source = String(relation.source_id), target = String(relation.target_id);
+            if (!actions[source] || !actionSet.has(target) || actions[target] || aliases[target]) continue;
+            let display = null;
+            let force = true;
+            if (relation.branch_type === 20 && /^j\./i.test(actions[source])
+                && (relation.param01 === 4 || relation.param01 === 8)) {
+                const button = actions[source].replace(/^j\./i, "").replace(/^\d\+/, "");
+                display = `j.${BRANCH_DIRECTION[relation.param01]}+${button}`;
+            } else if (relation.branch_type === 63 && relation.param02 === 1
+                && BRANCH_DIRECTION[relation.param01]) {
+                const direction = BRANCH_DIRECTION[relation.param01];
+                if (/^j\.P$/i.test(actions[source])) {
+                    display = `>${direction}+P`;
+                    force = false;
+                } else if (/throw/i.test(actions[source])) {
+                    display = `${direction}+THROW`;
+                    force = !branchRelations.some(candidate => candidate.source_id === relation.target_id
+                        && candidate.branch_type === 63 && candidate.param02 === 1
+                        && BRANCH_DIRECTION[candidate.param01]);
+                }
+            }
+            if (!display) continue;
+            actions[target] = display;
+            rules[target] = {
+                display,
+                display_source: "ac-branch-derived-command",
+                force,
+                branch_source_action_id: relation.source_id,
+                branch_type: relation.branch_type
+            };
+            acDerivedCommands.push({
+                action_id: relation.target_id, source_action_id: relation.source_id,
+                display, branch_type: relation.branch_type, force
+            });
+            progress = true;
+        }
+        if (!progress) break;
+    }
+
+    const followups = {
+        ...inferAcFollowups(bcmCatalog, branchRelations),
+        ...inferBcmFollowups(bcmCatalog)
+    };
     for (const [id, followup] of Object.entries(followups)) {
         if (actions[id] && !actions[id].startsWith(">")) actions[id] = `>${actions[id]}`;
         followup.display = actions[id] || null;
@@ -692,5 +843,6 @@ module.exports = {
     compileFromCatalog,
     buildLegacyExceptionTable,
     buildLegacyCompatibility,
-    applyLegacyCompatibilityOverlay
+    applyLegacyCompatibilityOverlay,
+    propagateType13SiblingCompatibility
 };

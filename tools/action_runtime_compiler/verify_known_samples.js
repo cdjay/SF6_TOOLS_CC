@@ -8,7 +8,7 @@ const bcmCore = require("../bcm_catalog_builder/bcm_catalog_core.js");
 const compiler = require("./compiler_core.js");
 
 function usage() {
-    console.error("用法: node verify_known_samples.js --evidence-dir <包含本田与英格丽德完整AC+BCM的目录>");
+    console.error("用法: node verify_known_samples.js --evidence-dir <包含本田、迪·杰与英格丽德完整AC+BCM的目录>");
 }
 
 function parseArgs(argv) {
@@ -56,7 +56,7 @@ try {
         "500": "DRC", "501": "RAW DR", "610": "MK",
         "615": "2+LP", "616": "2+LP", "617": "2+LP",
         "626": "2+LK", "627": "2+LK", "628": "2+LK", "633": "2+MK",
-        "652": "j.6+HP", "653": "j.4+HP", "717": "4THROW", "972": ">2+HK"
+        "652": "j.6+HP", "653": "j.4+HP", "717": "4+THROW", "972": ">2+HK"
     });
     expectAliases(honda, {
         "611": 610, "629": 626, "630": 627, "631": 628, "634": 633, "973": 972
@@ -65,6 +65,16 @@ try {
         "667": ">MP", "670": ">3+HK", "959": ">P", "960": ">P",
         "961": ">2+P", "964": ">P", "966": ">P", "967": ">2+P"
     });
+
+    const deeJay = compilePair(directory, "迪·杰11");
+    expectActions(deeJay, { "1219": "LP", "1230": "LP" });
+    assert.strictEqual(deeJay.validation.rules["1219"].target_combo_followup, false);
+    assert.strictEqual(deeJay.validation.rules["1230"].target_combo_followup, false);
+    assert.strictEqual(deeJay.validation.rules["1219"].followup_evidence, undefined);
+    assert.strictEqual(deeJay.validation.rules["1230"].followup_evidence, undefined);
+    const deeJayPureGenerated = compiler.buildLegacyExceptionTable(deeJay);
+    assert.deepStrictEqual(deeJayPureGenerated["1219"], { override_name: "LP" });
+    assert.deepStrictEqual(deeJayPureGenerated["1230"], { override_name: "LP" });
 
     const ingrid = compilePair(directory, "英格丽德32");
     expectActions(ingrid, {
@@ -81,13 +91,29 @@ try {
     assert.strictEqual(ingrid.validation.rules["1227"].is_holdable, true);
     assert.strictEqual(ingrid.aliases["1075"], "1074");
     assert.strictEqual(ingrid.aliases["1093"], "1091");
-    assert.strictEqual(ingrid.aliases["1219"], "1217");
-    assert.strictEqual(ingrid.aliases["1224"], "1222");
-    assert.strictEqual(ingrid.aliases["1229"], "1227");
+    expectActions(ingrid, {
+        "1219": "214214+MP", "1224": "214214+LP", "1229": "214214+HP"
+    });
+    assert.strictEqual(ingrid.aliases["1219"], undefined);
+    assert.strictEqual(ingrid.aliases["1224"], undefined);
+    assert.strictEqual(ingrid.aliases["1229"], undefined);
+    assert.deepStrictEqual(ingrid.validation.rules["1219"], {
+        display: "214214+MP", display_source: "ac-hold-level-stage", force: true,
+        branch_source_action_id: 1217, branch_type: 29
+    });
+    assert.deepStrictEqual(ingrid.validation.rules["1224"], {
+        display: "214214+LP", display_source: "ac-hold-level-stage", force: true,
+        branch_source_action_id: 1222, branch_type: 29
+    });
+    assert.deepStrictEqual(ingrid.validation.rules["1229"], {
+        display: "214214+HP", display_source: "ac-hold-level-stage", force: true,
+        branch_source_action_id: 1227, branch_type: 29
+    });
 
     console.log(JSON.stringify({
         status: "passed",
         honda: { character: honda.character, coverage: honda.coverage },
+        dee_jay: { character: deeJay.character, coverage: deeJay.coverage },
         ingrid: { character: ingrid.character, coverage: ingrid.coverage }
     }, null, 2));
 } catch (error) {

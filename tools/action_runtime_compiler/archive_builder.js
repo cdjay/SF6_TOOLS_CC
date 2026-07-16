@@ -344,6 +344,8 @@ function buildArchive(options) {
             }
             seenCharacters.add(resolvedCharacter);
             const exceptionSource = loadExceptions(resolvedCharacter);
+            const type13Compatibility = compiler.propagateType13SiblingCompatibility(
+                ac.value, exceptionSource.value);
             const compileOptions = {
                 actionSourceSha256: ac.sha256,
                 bcmSourceSha256: bcm.sha256,
@@ -355,15 +357,16 @@ function buildArchive(options) {
             const result = compiler.compile(ac.value, bcm.value, {}, compileOptions);
             const pureGeneratedExceptions = compiler.buildLegacyExceptionTable(result.runtime);
             const compatibilityBefore = compiler.buildLegacyCompatibility(
-                exceptionSource.value, pureGeneratedExceptions, result.runtime.action_ids);
+                type13Compatibility.table, pureGeneratedExceptions, result.runtime.action_ids);
             const generatedExceptions = compiler.applyLegacyCompatibilityOverlay(
                 pureGeneratedExceptions, compatibilityBefore.overlay);
             const compatibilityAfter = compiler.buildLegacyCompatibility(
-                exceptionSource.value, generatedExceptions, result.runtime.action_ids);
+                type13Compatibility.table, generatedExceptions, result.runtime.action_ids);
             const compatibility = {
                 schema: "sf6cc.legacy-exception-compatibility.v1",
                 character: result.runtime.character,
                 reference_file: exceptionSource.filename,
+                ac_type13_sibling_propagation: type13Compatibility.propagated,
                 pure_ac_bcm: compatibilityBefore,
                 final_output: compatibilityAfter,
                 fallback_overlay: compatibilityBefore.overlay

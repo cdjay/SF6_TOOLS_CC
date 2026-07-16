@@ -41,7 +41,7 @@ const acSource = {
     schema: "sf6cr.action-catalog-full.v2",
     character: "Fab",
     fighter_id: 20,
-    unique_action_ids_by_scope: { character: [500, 501, 606, 661, 904, 905, 999] },
+    unique_action_ids_by_scope: { character: [500, 501, 606, 661, 904, 905, 999, 1200] },
     objects: [
         action(100, 904, 200), action(101, 905, 202, 11),
         collection(200, [201]),
@@ -62,7 +62,29 @@ const bcmCatalog = {
         "501": bcmAction(501, "66", { category_flags: 0x200000, function_id: 13, focus_consume: 5000 }),
         "606": bcmAction(606, "MK", { turn_around: 2 }, "MK"),
         "661": bcmAction(661, "6+MP", { turn_around: 0 }, "MP"),
-        "904": bcmAction(904, "236+LP", {}, "LP")
+        "904": bcmAction(904, "236+LP", {}, "LP"),
+        "1200": {
+            action_id: 1200,
+            classic_display: "6646+HP",
+            triggers: [{
+                trigger_index: 1200,
+                classic_profile: "norm",
+                classic_display: "6646+HP",
+                profiles: { norm: {
+                    button: "HP",
+                    command: {
+                        charge_bit: 256,
+                        inputs: [
+                            { direction: "6", charge_release: true },
+                            { direction: "6", charge_release: false },
+                            { direction: "4", charge_release: false },
+                            { direction: "6", charge_release: false }
+                        ]
+                    }
+                } },
+                conditions: { function_id: 3, kind_level: 1 }
+            }]
+        }
     }
 };
 
@@ -75,12 +97,28 @@ assert.strictEqual(base.runtime.actions["661"], "6+MP");
 assert.strictEqual(base.runtime.aliases["905"], "904");
 assert.strictEqual(base.runtime.validation.rules["606"].target_combo_followup, true);
 assert.strictEqual(base.runtime.validation.rules["661"].target_combo_followup, false);
+assert.strictEqual(base.runtime.validation.rules["1200"].display_motion, "[4]646+HP");
 assert.strictEqual(base.runtime.evidence.alias_relations[0].branch_type, 29);
 assert.deepStrictEqual(base.report.inventory.ac_action_ids_without_command_semantics, [999]);
 const legacy = compiler.buildLegacyExceptionTable(base.runtime);
 assert.deepStrictEqual(legacy["500"], { override_name: "DRC" });
 assert.deepStrictEqual(legacy["904"], { override_name: "236+LP", absorb_ids: "905" });
 assert.deepStrictEqual(legacy["905"], { override_name: "236+LP", force: true });
+assert.deepStrictEqual(legacy["1200"], { override_name: "6646+HP", display_motion: "[4]646+HP" });
+const defaultHoldCompatibility = compiler.buildLegacyCompatibility({
+    "500": { override_name: "DRC", hold_partial_check: true }
+}, legacy, base.runtime.action_ids);
+assert.strictEqual(defaultHoldCompatibility.summary.fallback_entry_count, 0);
+const disabledHoldCompatibility = compiler.buildLegacyCompatibility({
+    "500": { override_name: "DRC", hold_partial_check: false }
+}, legacy, base.runtime.action_ids);
+assert.strictEqual(disabledHoldCompatibility.summary.fallback_entry_count, 1);
+const semanticDisplayCompatibility = compiler.buildLegacyCompatibility({
+    "500": { override_name: "drc" },
+    "501": { override_name: "drive rush" },
+    "661": { override_name: "6MP" }
+}, legacy, base.runtime.action_ids);
+assert.strictEqual(semanticDisplayCompatibility.summary.fallback_entry_count, 0);
 const compatibility = compiler.buildLegacyCompatibility({
     "905": { override_name: "236+LP (Level)", force: false, ignore_prev_frames: 5 },
     "999": { override_name: "MANUAL", force: true },
@@ -97,6 +135,176 @@ const compatibilityAfter = compiler.buildLegacyCompatibility(
     { "905": { override_name: "236+LP (Level)", force: false, ignore_prev_frames: 5 } },
     compatibleLegacy, base.runtime.action_ids);
 assert.strictEqual(compatibilityAfter.summary.fallback_entry_count, 0);
+
+const type13Source = {
+    objects: [
+        action(300, 990, 301), collection(301, [302]),
+        object(302, "CharacterAsset.BranchKey", { Action: scalar(996), Type: scalar(13) }),
+        action(310, 992, 311), collection(311, [312]),
+        object(312, "CharacterAsset.BranchKey", { Action: scalar(1004), Type: scalar(13) })
+    ],
+    records: [
+        { native_action_id: 990, source_scope: "character", action_ref: ref(300) },
+        { native_action_id: 992, source_scope: "character", action_ref: ref(310) }
+    ]
+};
+const type13Compatibility = compiler.propagateType13SiblingCompatibility(type13Source, {
+    "996": { override_name: "SLIDE  (Do Nothing)", force: true },
+    "1004": { override_name: "slide (do nothing)", force: false },
+    "2000": { override_name: "SLIDE (DO NOTHING)", force: false }
+});
+assert.strictEqual(type13Compatibility.table["996"].force, true);
+assert.strictEqual(type13Compatibility.table["1004"].force, true);
+assert.strictEqual(type13Compatibility.table["2000"].force, false);
+assert.deepStrictEqual(type13Compatibility.propagated, [{
+    action_id: 1004, semantic: "SLIDE (DO NOTHING)", field: "force", value: true
+}]);
+
+const holdLevelSource = {
+    schema: "sf6cr.action-catalog-full.v2",
+    character: "Fab",
+    fighter_id: 20,
+    unique_action_ids_by_scope: { character: [1100, 1101, 1102, 1110, 1111, 1112, 1113] },
+    objects: [
+        action(400, 1100, 401),
+        collection(401, [402, 403, 404, 405]),
+        object(402, "CharacterAsset.BranchKey", { Action: scalar(1101), Type: scalar(29) }),
+        object(403, "CharacterAsset.BranchKey", { Action: scalar(1102), Type: scalar(29) }),
+        object(404, "CharacterAsset.BranchKey", { Action: scalar(1101), Type: scalar(20) }),
+        object(405, "CharacterAsset.BranchKey", { Action: scalar(1102), Type: scalar(20) }),
+        action(410, 1110, 411),
+        collection(411, [412, 413, 414]),
+        object(412, "CharacterAsset.BranchKey", { Action: scalar(1111), Type: scalar(20) }),
+        object(413, "CharacterAsset.BranchKey", { Action: scalar(1112), Type: scalar(20) }),
+        object(414, "CharacterAsset.BranchKey", { Action: scalar(1113), Type: scalar(0) })
+    ],
+    records: [
+        { native_action_id: 1100, source_scope: "character", action_ref: ref(400) },
+        { native_action_id: 1110, source_scope: "character", action_ref: ref(410) }
+    ]
+};
+const holdLevelCatalog = {
+    schema: "sf6cc.bcm-catalog.v1",
+    source: { schema: "sf6cr.bcm-full.v1", character: "EHonda", fighter_id: 20, sha256: "bcm-hold" },
+    actions: {
+        "1100": bcmAction(1100, "236+P", {}, "P"),
+        "1110": bcmAction(1110, "214+P", {}, "P")
+    }
+};
+const holdLevelResult = compiler.compileFromCatalog(
+    holdLevelSource, holdLevelCatalog, {}, { actionSourceSha256: "ac-hold" });
+assert.strictEqual(holdLevelResult.runtime.aliases["1101"], undefined);
+assert.strictEqual(holdLevelResult.runtime.aliases["1102"], undefined);
+assert.strictEqual(holdLevelResult.runtime.actions["1101"], "236+P");
+assert.strictEqual(holdLevelResult.runtime.actions["1102"], "236+P");
+assert.strictEqual(holdLevelResult.runtime.validation.rules["1101"].force, true);
+assert.strictEqual(holdLevelResult.runtime.validation.rules["1102"].force, true);
+assert.strictEqual(holdLevelResult.runtime.validation.rules["1110"].is_holdable, undefined);
+
+const directionalSource = {
+    schema: "sf6cr.action-catalog-full.v2",
+    character: "Fab",
+    fighter_id: 20,
+    unique_action_ids_by_scope: { character: [1300, 1301, 1302, 1310, 1311, 1312, 1320, 1321, 1330, 1331] },
+    objects: [
+        action(500, 1300, 501), collection(501, [502, 503]),
+        object(502, "CharacterAsset.BranchKey", {
+            Action: scalar(1301), Type: scalar(63), Param01: scalar(1), Param02: scalar(1)
+        }),
+        object(503, "CharacterAsset.BranchKey", {
+            Action: scalar(1302), Type: scalar(63), Param01: scalar(8), Param02: scalar(0)
+        }),
+        action(510, 1310, 511), collection(511, [512]),
+        object(512, "CharacterAsset.BranchKey", {
+            Action: scalar(1311), Type: scalar(63), Param01: scalar(2), Param02: scalar(1)
+        }),
+        action(520, 1311, 521), collection(521, [522]),
+        object(522, "CharacterAsset.BranchKey", {
+            Action: scalar(1312), Type: scalar(63), Param01: scalar(4), Param02: scalar(1)
+        }),
+        action(530, 1320, 531), collection(531, [532]),
+        object(532, "CharacterAsset.BranchKey", {
+            Action: scalar(1321), Type: scalar(20), Param00: scalar(1),
+            Param01: scalar(2), Param02: scalar(0), Param03: scalar(0)
+        }),
+        action(540, 1330, 541), collection(541, [542]),
+        object(542, "CharacterAsset.BranchKey", {
+            Action: scalar(1331), Type: scalar(63), Param01: scalar(8), Param02: scalar(1)
+        })
+    ],
+    records: [
+        { native_action_id: 1300, source_scope: "character", action_ref: ref(500) },
+        { native_action_id: 1310, source_scope: "character", action_ref: ref(510) },
+        { native_action_id: 1311, source_scope: "character", action_ref: ref(520) },
+        { native_action_id: 1320, source_scope: "character", action_ref: ref(530) },
+        { native_action_id: 1330, source_scope: "character", action_ref: ref(540) }
+    ]
+};
+const directionalCatalog = {
+    schema: "sf6cc.bcm-catalog.v1",
+    source: { schema: "sf6cr.bcm-full.v1", character: "EHonda", fighter_id: 20, sha256: "bcm-direction" },
+    actions: {
+        "1300": bcmAction(1300, "j.P", {}, "P"),
+        "1310": bcmAction(1310, "Throw", {}, "Throw"),
+        "1330": bcmAction(1330, "MP", {}, "MP")
+    }
+};
+const directionalResult = compiler.compileFromCatalog(
+    directionalSource, directionalCatalog, {}, { actionSourceSha256: "ac-direction" });
+assert.strictEqual(directionalResult.runtime.actions["1301"], ">8+P");
+assert.strictEqual(directionalResult.runtime.validation.rules["1301"].force, false);
+assert.strictEqual(directionalResult.runtime.actions["1311"], "2+THROW");
+assert.strictEqual(directionalResult.runtime.validation.rules["1311"].force, false);
+assert.strictEqual(directionalResult.runtime.actions["1312"], "4+THROW");
+assert.strictEqual(directionalResult.runtime.validation.rules["1312"].force, true);
+assert.strictEqual(directionalResult.runtime.actions["1321"], undefined);
+assert.strictEqual(directionalResult.runtime.actions["1302"], undefined);
+assert.strictEqual(directionalResult.runtime.actions["1331"], undefined);
+
+const acFollowupSource = {
+    schema: "sf6cr.action-catalog-full.v2",
+    character: "Fab",
+    fighter_id: 20,
+    unique_action_ids_by_scope: { character: [1500, 1501, 1510, 1511, 1600, 1601, 1602, 1610, 1611] },
+    objects: [
+        action(700, 1500, 701), collection(701, [702, 703]),
+        object(702, "CharacterAsset.BranchKey", { Action: scalar(1600), Type: scalar(16) }),
+        object(703, "CharacterAsset.BranchKey", { Action: scalar(1601), Type: scalar(29) }),
+        action(710, 1501, 711), collection(711, [712]),
+        object(712, "CharacterAsset.BranchKey", { Action: scalar(1602), Type: scalar(16) }),
+        action(720, 1510, 721), collection(721, [722, 723]),
+        object(722, "CharacterAsset.BranchKey", { Action: scalar(1610), Type: scalar(20) }),
+        object(723, "CharacterAsset.BranchKey", { Action: scalar(1611), Type: scalar(29) }),
+        action(730, 1511, 731), collection(731, [732]),
+        object(732, "CharacterAsset.BranchKey", { Action: scalar(1610), Type: scalar(20) })
+    ],
+    records: [
+        { native_action_id: 1500, source_scope: "character", action_ref: ref(700) },
+        { native_action_id: 1501, source_scope: "character", action_ref: ref(710) },
+        { native_action_id: 1510, source_scope: "character", action_ref: ref(720) },
+        { native_action_id: 1511, source_scope: "character", action_ref: ref(730) }
+    ]
+};
+const acFollowupCatalog = {
+    schema: "sf6cc.bcm-catalog.v1",
+    source: { schema: "sf6cr.bcm-full.v1", character: "EHonda", fighter_id: 20, sha256: "bcm-ac-followup" },
+    actions: {
+        "1500": bcmAction(1500, "MP", { category_flags: 2 ** 37 }, "MP"),
+        "1501": bcmAction(1501, "HP", { category_flags: 2 ** 37 }, "HP"),
+        "1510": bcmAction(1510, "6+P", { category_flags: 2 ** 37 }, "P"),
+        "1511": bcmAction(1511, "6+P", { category_flags: 2 ** 37 }, "P")
+    }
+};
+const acFollowupResult = compiler.compileFromCatalog(
+    acFollowupSource, acFollowupCatalog, {}, { actionSourceSha256: "ac-followup" });
+assert.strictEqual(acFollowupResult.runtime.actions["1500"], ">MP");
+assert.strictEqual(acFollowupResult.runtime.actions["1501"], "HP");
+assert.strictEqual(acFollowupResult.runtime.actions["1510"], "6+P");
+assert.strictEqual(acFollowupResult.runtime.actions["1511"], "6+P");
+assert.strictEqual(acFollowupResult.runtime.validation.rules["1500"].followup_evidence,
+    "ac-category37-branch-evidence");
+assert.strictEqual(acFollowupResult.runtime.validation.rules["1510"].target_combo_followup, false);
+assert.strictEqual(acFollowupResult.runtime.validation.rules["1510"].followup_evidence, undefined);
 
 const withExceptions = compiler.compileFromCatalog(acSource, bcmCatalog, {
     "999": { override_name: "MANUAL", force: true, absorb_ids: "" },
