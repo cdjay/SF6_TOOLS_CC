@@ -185,9 +185,10 @@ end
 local function is_modern_sequence(sequence)
     local meta = get_sequence_meta(sequence)
     if not meta then return false end
+    local control_mode = tostring(meta.control_mode or ""):lower()
     local control_type = tostring(meta.control_type or ""):lower()
     local input_profile = tostring(meta.timeline_input_profile or ""):lower()
-    return control_type == "modern" or input_profile == "modern"
+    return control_mode == "modern" or control_type == "modern" or input_profile == "modern"
 end
 
 local function get_sequence_character(sequence)
@@ -263,8 +264,8 @@ end
 
 local function load_modern_display_map(character)
     local key = tostring(character or "")
-    if key:lower() ~= "akuma" then return nil end
-    key = "Akuma"
+    key = key:gsub("[^%w_]", "")
+    if key == "" then return nil end
 
     if modern_display_cache[key] ~= nil then
         return modern_display_cache[key] ~= false and modern_display_cache[key] or nil
@@ -278,7 +279,10 @@ local function load_modern_display_map(character)
         ok, loaded = pcall(json.load_file, path)
     end
 
-    if ok and type(loaded) == "table" then
+    local meta = ok and type(loaded) == "table" and loaded._meta or nil
+    if type(meta) == "table"
+        and tostring(meta.schema or ""):lower() == "xt.modern_display.v2"
+        and tostring(meta.generated_from or ""):lower() == "ac_bcm" then
         modern_display_cache[key] = loaded
         return loaded
     end
@@ -609,7 +613,10 @@ local function parse_motion_to_icons(log_entry, trial_mode, should_flip, reverse
 
     local function replace_modern_text_token(src, token, img)
         local repl = "{" .. img .. "}"
-        local sep = "[%s%+%{%}]"
+        -- A modern display can contain alternate routes separated by / or |.
+        -- Treat those separators as token boundaries so the final button of
+        -- the first route (for example `SP + 强/236236 + 弱`) becomes an icon.
+        local sep = "[%s%+%{%}/|]"
         for _ = 1, 3 do
             local before = src
             src = src:gsub("^" .. token .. "$", repl)
