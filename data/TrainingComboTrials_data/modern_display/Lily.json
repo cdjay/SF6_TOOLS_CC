@@ -1,838 +1,1393 @@
 {
-  "_meta": {
-    "schema": "xt.modern_display.v1",
-    "character": "Lily",
-    "updated_at": "2026-07-04",
-    "description": "Modern control display mapping for Lily"
-  },
   "17": {
-    "classic_display": "5656 + 6",
-    "modern_display": "5656 + 6",
+    "classic_display": "66",
+    "modern_display": "66",
     "control_support": "classic_modern",
-    "source": "capcom_official",
-    "move_name": "前方ステップ",
-    "category": "F_DASH",
-    "official_web_id": "600",
-    "note": "Generated from Capcom official frame data."
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "66",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 0
+      }
+    ]
   },
   "18": {
-    "classic_display": "5454 + 4",
-    "modern_display": "5454 + 4",
+    "classic_display": "44",
+    "modern_display": "44",
     "control_support": "classic_modern",
-    "source": "capcom_official",
-    "move_name": "後方ステップ",
-    "category": "B_DASH",
-    "official_web_id": "601",
-    "note": "Generated from Capcom official frame data."
-  },
-  "34": {
-    "classic_display": "8",
-    "modern_display": null,
-    "control_support": "classic_only",
-    "source": "capcom_official",
-    "move_name": null,
-    "category": "NORMAL",
-    "official_web_id": null,
-    "note": "No modern command found in official data."
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "44",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 1
+      }
+    ]
   },
   "480": {
-    "classic_display": "MPMK",
+    "classic_display": "Normal",
     "modern_display": "DP",
     "control_support": "classic_modern",
-    "source": "capcom_official",
-    "move_name": "ドライブパリィ",
-    "category": "PARRY",
-    "official_web_id": "605",
-    "note": "Generated from Capcom official frame data."
-  },
-  "600": {
-    "classic_display": "LP",
-    "modern_display": "弱 > 弱",
-    "control_support": "classic_modern",
-    "source": "capcom_official",
-    "move_name": "立ち弱P（コンドルビーク）",
-    "category": "NORMAL",
-    "official_web_id": "100",
-    "note": "Generated from Capcom official frame data."
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "DP",
+        "source": "bcm_system_action"
+      }
+    ]
   },
   "601": {
     "classic_display": "LP",
-    "modern_display": null,
-    "control_support": "classic_only",
-    "source": "capcom_official",
-    "move_name": null,
-    "category": "NORMAL",
-    "official_web_id": null,
-    "note": "No modern command found in official data."
+    "modern_display": "弱",
+    "control_support": "classic_modern",
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "弱",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 33
+      }
+    ]
   },
   "602": {
     "classic_display": "LP",
-    "modern_display": null,
-    "control_support": "classic_only",
-    "source": "capcom_official",
-    "move_name": null,
-    "category": "NORMAL",
-    "official_web_id": null,
-    "note": "No modern command found in official data."
+    "modern_display": "弱",
+    "control_support": "classic_modern",
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "弱",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 34
+      }
+    ]
   },
   "604": {
     "classic_display": "MP",
     "modern_display": "中",
     "control_support": "classic_modern",
-    "source": "capcom_official",
-    "move_name": "立ち中P（タタンカホーン）",
-    "category": "NORMAL",
-    "official_web_id": "102",
-    "note": "Generated from Capcom official frame data."
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "中",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 5
+      }
+    ]
   },
   "606": {
     "classic_display": "HP",
-    "modern_display": "強",
+    "modern_display": "强",
     "control_support": "classic_modern",
-    "source": "capcom_official",
-    "move_name": "立ち強P（メキシカンクロスホーン）",
-    "category": "NORMAL",
-    "official_web_id": "104",
-    "note": "Generated from Capcom official frame data."
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "强",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 7
+      }
+    ]
   },
   "608": {
     "classic_display": "LK",
     "modern_display": "弱",
     "control_support": "classic_modern",
-    "source": "capcom_official",
-    "move_name": "立ち弱K（ストマックプレスキック）",
-    "category": "NORMAL",
-    "official_web_id": "101",
-    "note": "Generated from Capcom official frame data."
-  },
-  "609": {
-    "classic_display": "LK",
-    "modern_display": null,
-    "control_support": "classic_only",
-    "source": "capcom_official",
-    "move_name": null,
-    "category": "NORMAL",
-    "official_web_id": null,
-    "note": "No modern command found in official data."
-  },
-  "610": {
-    "classic_display": "LK",
-    "modern_display": null,
-    "control_support": "classic_only",
-    "source": "capcom_official",
-    "move_name": null,
-    "category": "NORMAL",
-    "official_web_id": null,
-    "note": "No modern command found in official data."
-  },
-  "612": {
-    "classic_display": "MK",
-    "modern_display": null,
-    "control_support": "classic_only",
-    "source": "capcom_official",
-    "move_name": "立ち中K（ロンリーキック）",
-    "category": "NORMAL",
-    "official_web_id": "103",
-    "note": "No modern command found in official data."
-  },
-  "614": {
-    "classic_display": "HK",
-    "modern_display": null,
-    "control_support": "classic_only",
-    "source": "capcom_official",
-    "move_name": "立ち強K（ヘビートラースキック）",
-    "category": "NORMAL",
-    "official_web_id": "105",
-    "note": "No modern command found in official data."
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "弱",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 4
+      }
+    ]
   },
   "616": {
-    "classic_display": "2 + LP",
+    "classic_display": "2+LP",
     "modern_display": "2 + 弱",
     "control_support": "classic_modern",
-    "source": "capcom_official",
-    "move_name": "しゃがみ弱P（リリーショット）",
-    "category": "NORMAL",
-    "official_web_id": "106",
-    "note": "Generated from Capcom official frame data."
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "2 + 弱",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 10
+      }
+    ]
   },
   "617": {
-    "classic_display": "2 + LP",
-    "modern_display": null,
-    "control_support": "classic_only",
-    "source": "capcom_official",
-    "move_name": null,
-    "category": "NORMAL",
-    "official_web_id": null,
-    "note": "No modern command found in official data."
+    "classic_display": "2+LP",
+    "modern_display": "2 + 弱",
+    "control_support": "classic_modern",
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "2 + 弱",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 37
+      }
+    ]
   },
   "618": {
-    "classic_display": "2 + LP",
-    "modern_display": null,
-    "control_support": "classic_only",
-    "source": "capcom_official",
-    "move_name": null,
-    "category": "NORMAL",
-    "official_web_id": null,
-    "note": "No modern command found in official data."
+    "classic_display": "2+LP",
+    "modern_display": "2 + 弱",
+    "control_support": "classic_modern",
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "2 + 弱",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 38
+      }
+    ]
   },
   "620": {
-    "classic_display": "2 + MP",
+    "classic_display": "2+MP",
     "modern_display": "2 + 中",
     "control_support": "classic_modern",
-    "source": "capcom_official",
-    "move_name": "しゃがみ中P（ホーリーアース）",
-    "category": "NORMAL",
-    "official_web_id": "108",
-    "note": "Generated from Capcom official frame data."
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "2 + 中",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 12
+      }
+    ]
   },
   "622": {
-    "classic_display": "2 + HP",
-    "modern_display": "2 + 強",
+    "classic_display": "2+HP",
+    "modern_display": "2 + 强",
     "control_support": "classic_modern",
-    "source": "capcom_official",
-    "move_name": "しゃがみ強P（ハンマーアクス）",
-    "category": "NORMAL",
-    "official_web_id": "110",
-    "note": "Generated from Capcom official frame data."
-  },
-  "624": {
-    "classic_display": "2 + LK",
-    "modern_display": "AUTO + 弱",
-    "control_support": "classic_modern",
-    "source": "capcom_official",
-    "move_name": "しゃがみ弱K（ロープレスキック）",
-    "category": "NORMAL",
-    "official_web_id": "107",
-    "note": "Generated from Capcom official frame data."
-  },
-  "625": {
-    "classic_display": "2 + LK",
-    "modern_display": null,
-    "control_support": "classic_only",
-    "source": "capcom_official",
-    "move_name": null,
-    "category": "NORMAL",
-    "official_web_id": null,
-    "note": "No modern command found in official data."
-  },
-  "626": {
-    "classic_display": "2 + LK",
-    "modern_display": null,
-    "control_support": "classic_only",
-    "source": "capcom_official",
-    "move_name": null,
-    "category": "NORMAL",
-    "official_web_id": null,
-    "note": "No modern command found in official data."
-  },
-  "628": {
-    "classic_display": "2 + MK",
-    "modern_display": "AUTO + 中",
-    "control_support": "classic_modern",
-    "source": "capcom_official",
-    "move_name": "しゃがみ中K（ヒールスライドキック）",
-    "category": "NORMAL",
-    "official_web_id": "109",
-    "note": "Generated from Capcom official frame data."
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "2 + 强",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 14
+      }
+    ]
   },
   "630": {
-    "classic_display": null,
-    "modern_display": "3 + 強",
+    "classic_display": "2+HK",
+    "modern_display": "3 + 强",
     "control_support": "classic_modern",
-    "source": "capcom_official",
-    "move_name": "スコールキック",
-    "category": "NORMAL",
-    "official_web_id": "202",
-    "note": "Generated from Capcom official frame data."
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "3 + 强",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 15
+      }
+    ]
   },
   "633": {
-    "classic_display": "空中 LP",
+    "classic_display": "j.LP",
     "modern_display": "空中 弱",
     "control_support": "classic_modern",
-    "source": "capcom_official",
-    "move_name": "ジャンプ弱P（アローシュート）",
-    "category": "AIR",
-    "official_web_id": "112",
-    "note": "Generated from Capcom official frame data."
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "空中 弱",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 17
+      }
+    ]
   },
   "635": {
-    "classic_display": "空中 MP",
+    "classic_display": "j.MP",
     "modern_display": "空中 中",
     "control_support": "classic_modern",
-    "source": "capcom_official",
-    "move_name": "ジャンプ中P（アングリーボウ）",
-    "category": "AIR",
-    "official_web_id": "114",
-    "note": "Generated from Capcom official frame data."
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "空中 中",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 19
+      }
+    ]
   },
   "636": {
-    "classic_display": "空中 MP > MP",
-    "modern_display": "空中 中 > 中",
+    "classic_display": ">j.MP",
+    "modern_display": "> 空中 中",
     "control_support": "classic_modern",
-    "source": "capcom_official",
-    "move_name": "ダブルアロー",
-    "category": "AIR",
-    "official_web_id": "204",
-    "note": "Generated from Capcom official frame data."
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "> 空中 中",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 30
+      }
+    ]
   },
   "638": {
-    "classic_display": "空中 HP",
-    "modern_display": "空中 AUTO + 強",
+    "classic_display": "j.HP",
+    "modern_display": "空中 AUTO + 强/空中 强",
     "control_support": "classic_modern",
-    "source": "capcom_official",
-    "move_name": "ジャンプ強P（アズテックストライク）",
-    "category": "AIR",
-    "official_web_id": "116",
-    "note": "Generated from Capcom official frame data."
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "空中 AUTO + 强",
+        "source": "bcm_profile",
+        "profile": "supr",
+        "trigger_index": 21
+      },
+      {
+        "display": "空中 强",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 21
+      }
+    ]
   },
   "641": {
-    "classic_display": "空中 LK",
-    "modern_display": "空中 AUTO + 弱",
+    "classic_display": "j.LK",
+    "modern_display": "空中 AUTO + 弱/空中 弱",
     "control_support": "classic_modern",
-    "source": "capcom_official",
-    "move_name": "ジャンプ弱K（ビガーニーキック）",
-    "category": "AIR",
-    "official_web_id": "113",
-    "note": "Generated from Capcom official frame data."
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "空中 AUTO + 弱",
+        "source": "bcm_profile",
+        "profile": "supr",
+        "trigger_index": 18
+      },
+      {
+        "display": "空中 弱",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 18
+      }
+    ]
   },
   "643": {
-    "classic_display": "空中 MK",
-    "modern_display": "空中 AUTO + 中",
+    "classic_display": "j.MK",
+    "modern_display": "空中 AUTO + 中/空中 中",
     "control_support": "classic_modern",
-    "source": "capcom_official",
-    "move_name": "ジャンプ中K（デザートトゥーキック）",
-    "category": "AIR",
-    "official_web_id": "115",
-    "note": "Generated from Capcom official frame data."
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "空中 AUTO + 中",
+        "source": "bcm_profile",
+        "profile": "supr",
+        "trigger_index": 20
+      },
+      {
+        "display": "空中 中",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 20
+      }
+    ]
   },
   "645": {
-    "classic_display": "空中 HK",
-    "modern_display": "空中 強",
+    "classic_display": "j.HK",
+    "modern_display": "空中 AUTO + SP/空中 强",
     "control_support": "classic_modern",
-    "source": "capcom_official",
-    "move_name": "ジャンプ強K（アングリードロップキック）",
-    "category": "AIR",
-    "official_web_id": "117",
-    "note": "Generated from Capcom official frame data."
-  },
-  "651": {
-    "classic_display": "2 | 6 | 3 + HP",
-    "modern_display": null,
-    "control_support": "classic_only",
-    "source": "capcom_official",
-    "move_name": "スラストリッジ",
-    "category": "NORMAL",
-    "official_web_id": "200",
-    "note": "No modern command found in official data."
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "空中 AUTO + SP",
+        "source": "bcm_profile",
+        "profile": "supr",
+        "trigger_index": 22
+      },
+      {
+        "display": "空中 强",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 22
+      }
+    ]
   },
   "653": {
-    "classic_display": "6 + HP",
-    "modern_display": "6 + 強",
+    "classic_display": "6+HP",
+    "modern_display": "6 + 强",
     "control_support": "classic_modern",
-    "source": "capcom_official",
-    "move_name": "デザートストーム（1段目）",
-    "category": "NORMAL",
-    "official_web_id": "205",
-    "note": "Generated from Capcom official frame data."
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "6 + 强",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 24
+      }
+    ]
   },
   "654": {
-    "classic_display": "6 + HP > HP",
-    "modern_display": "6 + 強 > 強",
+    "classic_display": ">HP",
+    "modern_display": "> 强",
     "control_support": "classic_modern",
-    "source": "capcom_official",
-    "move_name": "デザートストーム（2段目）",
-    "category": "NORMAL",
-    "official_web_id": "206",
-    "note": "Generated from Capcom official frame data."
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "> 强",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 25
+      }
+    ]
   },
   "655": {
-    "classic_display": "6 + HP > HP > HP",
-    "modern_display": "6 + 強 > 強 > 強",
+    "classic_display": ">HP",
+    "modern_display": "> 强",
     "control_support": "classic_modern",
-    "source": "capcom_official",
-    "move_name": "デザートストーム（3段目）",
-    "category": "NORMAL",
-    "official_web_id": "207",
-    "note": "Generated from Capcom official frame data."
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "> 强",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 26
+      }
+    ]
   },
   "658": {
-    "classic_display": "4 + HP",
-    "modern_display": "4 + 強",
+    "classic_display": "4+HP",
+    "modern_display": "4 + 强",
     "control_support": "classic_modern",
-    "source": "capcom_official",
-    "move_name": "ホーンブレイク",
-    "category": "NORMAL",
-    "official_web_id": "201",
-    "note": "Generated from Capcom official frame data."
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "4 + 强",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 27
+      }
+    ]
   },
   "660": {
-    "classic_display": "空中 2 + HP",
-    "modern_display": "空中 2 + 強",
+    "classic_display": "j.2+HP",
+    "modern_display": "空中 2 + 强",
     "control_support": "classic_modern",
-    "source": "capcom_official",
-    "move_name": "グレートスピン",
-    "category": "AIR",
-    "official_web_id": "203",
-    "note": "Generated from Capcom official frame data."
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "空中 2 + 强",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 31
+      }
+    ]
   },
   "715": {
-    "classic_display": "（近距離で）N or 6 + LPLK",
-    "modern_display": "（近距離で）N or 6 + 弱中",
+    "classic_display": "Throw",
+    "modern_display": "THROW",
     "control_support": "classic_modern",
-    "source": "capcom_official",
-    "move_name": "キャニオンスロー",
-    "category": "NORMAL",
-    "official_web_id": "500",
-    "note": "Generated from Capcom official frame data. Needs review: command contains generalized or contextual notation."
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "THROW",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 100
+      }
+    ]
+  },
+  "717": {
+    "classic_display": "4+THROW",
+    "modern_display": "4 + THROW",
+    "control_support": "classic_modern",
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "4 + THROW",
+        "source": "ac_derived",
+        "inherited_from": 715
+      }
+    ]
   },
   "739": {
-    "classic_display": "（必殺技キャンセル可能な攻撃ヒット中に）5656 + 6 or (N or 6) + MPMK",
-    "modern_display": "（必殺技キャンセル可能な攻撃ヒット中に）5656 + 6 or (N or 6) + DP",
+    "classic_display": "DRC",
+    "modern_display": "DRC",
     "control_support": "classic_modern",
-    "source": "capcom_official",
-    "move_name": "キャンセルドライブラッシュ",
-    "category": "DRIVE_STEP",
-    "official_web_id": "609",
-    "note": "Generated from Capcom official frame data. Needs review: command contains generalized or contextual notation."
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "DRC",
+        "source": "bcm_system_action"
+      }
+    ]
   },
   "740": {
-    "classic_display": "（ドライブパリィ中に）5656 + MPMK + 6",
-    "modern_display": "（ドライブパリィ中に）5656 + DP",
+    "classic_display": "RAW DR",
+    "modern_display": "RAW DR",
     "control_support": "classic_modern",
-    "source": "capcom_official",
-    "move_name": "パリィドライブラッシュ",
-    "category": "DRIVE_STEP",
-    "official_web_id": "608",
-    "note": "Generated from Capcom official frame data. Needs review: command contains generalized or contextual notation."
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "RAW DR",
+        "source": "bcm_system_action"
+      }
+    ]
   },
   "850": {
-    "classic_display": "（ガード中 or ドライブパリィ成立中に）6 + HPHK",
-    "modern_display": "（ガード中 or ドライブパリィ成立中に）6 + DI",
+    "classic_display": "6+DI",
+    "modern_display": "6 + DI",
     "control_support": "classic_modern",
-    "source": "capcom_official",
-    "move_name": "[ガード時]ドライブリバーサル（クロスハンマー）",
-    "category": "SPECIAL",
-    "official_web_id": "603",
-    "note": "Generated from Capcom official frame data. Needs review: command contains generalized or contextual notation."
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "6 + DI",
+        "source": "bcm_system_action"
+      }
+    ]
+  },
+  "852": {
+    "classic_display": "6",
+    "modern_display": "6",
+    "control_support": "classic_modern",
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "6",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 112
+      }
+    ]
   },
   "855": {
-    "classic_display": "HPHK",
+    "classic_display": "DI",
     "modern_display": "DI",
     "control_support": "classic_modern",
-    "source": "capcom_official",
-    "move_name": "ドライブインパクト（アースレイジ）",
-    "category": "SPECIAL",
-    "official_web_id": "602",
-    "note": "Generated from Capcom official frame data."
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "DI",
+        "source": "bcm_system_action"
+      }
+    ]
   },
   "900": {
-    "classic_display": "214 + LP",
-    "modern_display": "214 + 弱",
+    "classic_display": "214+LP",
+    "modern_display": "AUTO + 中/214 + 弱",
     "control_support": "classic_modern",
-    "source": "capcom_official",
-    "move_name": "弱 コンドルウィンド",
-    "category": "SPECIAL",
-    "official_web_id": "300",
-    "note": "Generated from Capcom official frame data."
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "AUTO + 中",
+        "source": "bcm_profile",
+        "profile": "supr",
+        "trigger_index": 50
+      },
+      {
+        "display": "214 + 弱",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 50
+      }
+    ]
   },
   "905": {
-    "classic_display": "214 + MP",
+    "classic_display": "214+MP",
     "modern_display": "4 + SP/214 + 中",
     "control_support": "classic_modern",
-    "source": "capcom_official",
-    "move_name": "中 コンドルウィンド",
-    "category": "SPECIAL",
-    "official_web_id": "301",
-    "note": "Generated from Capcom official frame data."
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "4 + SP",
+        "source": "bcm_profile",
+        "profile": "easy",
+        "trigger_index": 51
+      },
+      {
+        "display": "214 + 中",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 51
+      }
+    ]
   },
   "910": {
-    "classic_display": "214 + HP",
-    "modern_display": "214 + 強",
+    "classic_display": "214+HP",
+    "modern_display": "214 + 强",
     "control_support": "classic_modern",
-    "source": "capcom_official",
-    "move_name": "強 コンドルウィンド",
-    "category": "SPECIAL",
-    "official_web_id": "302",
-    "note": "Generated from Capcom official frame data."
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "214 + 强",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 52
+      }
+    ]
   },
   "915": {
-    "classic_display": "214 + LPMPHP",
-    "modern_display": "4 + AUTO + SP/214 + 攻撃二つ",
+    "classic_display": "214+PP",
+    "modern_display": "4 + AUTO + SP/214 + 攻击二つ",
     "control_support": "classic_modern",
-    "source": "capcom_official",
-    "move_name": "OD コンドルウィンド",
-    "category": "SPECIAL",
-    "official_web_id": "303",
-    "note": "Generated from Capcom official frame data. Needs review: command contains generalized or contextual notation."
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "4 + AUTO + SP",
+        "source": "bcm_profile",
+        "profile": "supr",
+        "trigger_index": 140
+      },
+      {
+        "display": "214 + 攻击二つ",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 140
+      }
+    ]
   },
   "921": {
-    "classic_display": "236 + LK",
-    "modern_display": "236 + 弱",
+    "classic_display": "236+LK",
+    "modern_display": "AUTO + 中/236 + 弱",
     "control_support": "classic_modern",
-    "source": "capcom_official",
-    "move_name": "弱 コンドルスパイア",
-    "category": "SPECIAL",
-    "official_web_id": "304",
-    "note": "Generated from Capcom official frame data."
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "AUTO + 中",
+        "source": "bcm_profile",
+        "profile": "supr",
+        "trigger_index": 54
+      },
+      {
+        "display": "236 + 弱",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 54
+      }
+    ]
   },
   "922": {
-    "classic_display": "236 + MK",
+    "classic_display": "236+MK",
     "modern_display": "2 + SP/236 + 中",
     "control_support": "classic_modern",
-    "source": "capcom_official",
-    "move_name": "中 コンドルスパイア",
-    "category": "SPECIAL",
-    "official_web_id": "305",
-    "note": "Generated from Capcom official frame data."
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "2 + SP",
+        "source": "bcm_profile",
+        "profile": "easy",
+        "trigger_index": 55
+      },
+      {
+        "display": "236 + 中",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 55
+      }
+    ]
   },
   "923": {
-    "classic_display": "236 + HK",
-    "modern_display": "236 + 強",
+    "classic_display": "236+HK",
+    "modern_display": "236 + 强",
     "control_support": "classic_modern",
-    "source": "capcom_official",
-    "move_name": "強 コンドルスパイア",
-    "category": "SPECIAL",
-    "official_web_id": "306",
-    "note": "Generated from Capcom official frame data."
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "236 + 强",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 56
+      }
+    ]
   },
   "924": {
-    "classic_display": "236 + MKHK",
-    "modern_display": "3 + AUTO + SP/236 + 中強",
+    "classic_display": "236+MK+HK",
+    "modern_display": "2 + AUTO + SP/236 + 攻击二つ",
     "control_support": "classic_modern",
-    "source": "capcom_official",
-    "move_name": "OD 強 コンドルスパイア",
-    "category": "SPECIAL",
-    "official_web_id": "308",
-    "note": "Generated from Capcom official frame data."
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "2 + AUTO + SP",
+        "source": "bcm_profile",
+        "profile": "supr",
+        "trigger_index": 143
+      },
+      {
+        "display": "236 + 攻击二つ",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 143
+      }
+    ]
+  },
+  "925": {
+    "classic_display": "236+KK",
+    "modern_display": "2 + AUTO + SP/236 + 攻击二つ",
+    "control_support": "classic_modern",
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "2 + AUTO + SP",
+        "source": "bcm_profile",
+        "profile": "supr",
+        "trigger_index": 142
+      },
+      {
+        "display": "236 + 攻击二つ",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 142
+      }
+    ]
   },
   "927": {
-    "classic_display": "236 + LK",
-    "modern_display": "236 + 弱",
+    "classic_display": "236+LK",
+    "modern_display": "AUTO + 中/236 + 弱",
     "control_support": "classic_modern",
-    "source": "capcom_official",
-    "move_name": "[風纏い]弱 コンドルスパイア",
-    "category": "SPECIAL",
-    "official_web_id": "309",
-    "note": "Generated from Capcom official frame data."
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "AUTO + 中",
+        "source": "bcm_profile",
+        "profile": "supr",
+        "trigger_index": 58
+      },
+      {
+        "display": "236 + 弱",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 58
+      }
+    ]
   },
   "928": {
-    "classic_display": "236 + MK",
+    "classic_display": "236+MK",
     "modern_display": "2 + SP/236 + 中",
     "control_support": "classic_modern",
-    "source": "capcom_official",
-    "move_name": "[風纏い]中 コンドルスパイア",
-    "category": "SPECIAL",
-    "official_web_id": "310",
-    "note": "Generated from Capcom official frame data."
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "2 + SP",
+        "source": "bcm_profile",
+        "profile": "easy",
+        "trigger_index": 59
+      },
+      {
+        "display": "236 + 中",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 59
+      }
+    ]
   },
   "929": {
-    "classic_display": "236 + HK",
-    "modern_display": "236 + 強",
+    "classic_display": "236+HK",
+    "modern_display": "2 + AUTO + SP/236 + 强",
     "control_support": "classic_modern",
-    "source": "capcom_official",
-    "move_name": "[風纏い]強 コンドルスパイア",
-    "category": "SPECIAL",
-    "official_web_id": "311",
-    "note": "Generated from Capcom official frame data."
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "2 + AUTO + SP",
+        "source": "bcm_profile",
+        "profile": "supr",
+        "trigger_index": 60
+      },
+      {
+        "display": "236 + 强",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 60
+      }
+    ]
   },
   "930": {
-    "classic_display": "236 + MKHK",
-    "modern_display": "3 + AUTO + SP/236 + 中強",
+    "classic_display": "236+MK+HK",
+    "modern_display": "2 + AUTO + SP/236 + 攻击二つ",
     "control_support": "classic_modern",
-    "source": "capcom_official",
-    "move_name": "[風纏い]OD 強 コンドルスパイア",
-    "category": "SPECIAL",
-    "official_web_id": "313",
-    "note": "Generated from Capcom official frame data."
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "2 + AUTO + SP",
+        "source": "bcm_profile",
+        "profile": "supr",
+        "trigger_index": 151
+      },
+      {
+        "display": "236 + 攻击二つ",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 151
+      }
+    ]
+  },
+  "931": {
+    "classic_display": "236+KK",
+    "modern_display": "2 + AUTO + SP/236 + 攻击二つ",
+    "control_support": "classic_modern",
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "2 + AUTO + SP",
+        "source": "bcm_profile",
+        "profile": "supr",
+        "trigger_index": 150
+      },
+      {
+        "display": "236 + 攻击二つ",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 150
+      }
+    ]
   },
   "934": {
-    "classic_display": "626 + LP",
+    "classic_display": "623+LP",
     "modern_display": "623 + 弱",
     "control_support": "classic_modern",
-    "source": "capcom_official",
-    "move_name": "弱 トマホークバスター",
-    "category": "SPECIAL",
-    "official_web_id": "314",
-    "note": "Generated from Capcom official frame data."
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "623 + 弱",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 63
+      }
+    ]
   },
   "935": {
-    "classic_display": "626 + MP",
+    "classic_display": "623+MP",
     "modern_display": "6 + SP/623 + 中",
     "control_support": "classic_modern",
-    "source": "capcom_official",
-    "move_name": "中 トマホークバスター",
-    "category": "SPECIAL",
-    "official_web_id": "315",
-    "note": "Generated from Capcom official frame data."
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "6 + SP",
+        "source": "bcm_profile",
+        "profile": "easy",
+        "trigger_index": 64
+      },
+      {
+        "display": "623 + 中",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 64
+      }
+    ]
   },
   "936": {
-    "classic_display": "626 + HP",
-    "modern_display": "623 + 強",
+    "classic_display": "623+HP",
+    "modern_display": "6 + AUTO + SP/623 + 强",
     "control_support": "classic_modern",
-    "source": "capcom_official",
-    "move_name": "強 トマホークバスター",
-    "category": "SPECIAL",
-    "official_web_id": "316",
-    "note": "Generated from Capcom official frame data."
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "6 + AUTO + SP",
+        "source": "bcm_profile",
+        "profile": "supr",
+        "trigger_index": 65
+      },
+      {
+        "display": "623 + 强",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 65
+      }
+    ]
   },
   "937": {
-    "classic_display": "626 + LPMPHP",
-    "modern_display": "6 + AUTO + SP/623 + 攻撃二つ",
+    "classic_display": "623+PP",
+    "modern_display": "6 + AUTO + SP/623 + 攻击二つ",
     "control_support": "classic_modern",
-    "source": "capcom_official",
-    "move_name": "OD トマホークバスター",
-    "category": "SPECIAL",
-    "official_web_id": "317",
-    "note": "Generated from Capcom official frame data. Needs review: command contains generalized or contextual notation."
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "6 + AUTO + SP",
+        "source": "bcm_profile",
+        "profile": "supr",
+        "trigger_index": 145
+      },
+      {
+        "display": "623 + 攻击二つ",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 145
+      }
+    ]
   },
   "939": {
-    "classic_display": "626 + LP",
+    "classic_display": "623+LP",
     "modern_display": "623 + 弱",
     "control_support": "classic_modern",
-    "source": "capcom_official",
-    "move_name": "[風纏い]弱 トマホークバスター",
-    "category": "SPECIAL",
-    "official_web_id": "318",
-    "note": "Generated from Capcom official frame data."
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "623 + 弱",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 67
+      }
+    ]
   },
   "940": {
-    "classic_display": "626 + MP",
+    "classic_display": "623+MP",
     "modern_display": "6 + SP/623 + 中",
     "control_support": "classic_modern",
-    "source": "capcom_official",
-    "move_name": "[風纏い]中 トマホークバスター",
-    "category": "SPECIAL",
-    "official_web_id": "319",
-    "note": "Generated from Capcom official frame data."
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "6 + SP",
+        "source": "bcm_profile",
+        "profile": "easy",
+        "trigger_index": 68
+      },
+      {
+        "display": "623 + 中",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 68
+      }
+    ]
   },
   "941": {
-    "classic_display": "626 + HP",
-    "modern_display": "623 + 強",
+    "classic_display": "623+HP",
+    "modern_display": "6 + AUTO + SP/623 + 强",
     "control_support": "classic_modern",
-    "source": "capcom_official",
-    "move_name": "[風纏い]強 トマホークバスター",
-    "category": "SPECIAL",
-    "official_web_id": "320",
-    "note": "Generated from Capcom official frame data."
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "6 + AUTO + SP",
+        "source": "bcm_profile",
+        "profile": "supr",
+        "trigger_index": 69
+      },
+      {
+        "display": "623 + 强",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 69
+      }
+    ]
   },
   "942": {
-    "classic_display": "626 + LPMPHP",
-    "modern_display": "6 + AUTO + SP/623 + 攻撃二つ",
+    "classic_display": "623+PP",
+    "modern_display": "6 + AUTO + SP/623 + 攻击二つ",
     "control_support": "classic_modern",
-    "source": "capcom_official",
-    "move_name": "[風纏い]OD トマホークバスター",
-    "category": "SPECIAL",
-    "official_web_id": "321",
-    "note": "Generated from Capcom official frame data. Needs review: command contains generalized or contextual notation."
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "6 + AUTO + SP",
+        "source": "bcm_profile",
+        "profile": "supr",
+        "trigger_index": 152
+      },
+      {
+        "display": "623 + 攻击二つ",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 152
+      }
+    ]
   },
   "955": {
-    "classic_display": "（垂直or前ジャンプ中に）LPMPHP",
-    "modern_display": "（垂直or前ジャンプ中に）SP/（垂直or前ジャンプ中に）攻撃二つ",
+    "classic_display": "j.PP",
+    "modern_display": "空中 SP/空中 攻击二つ",
     "control_support": "classic_modern",
-    "source": "capcom_official",
-    "move_name": "コンドルダイブ",
-    "category": "AIR",
-    "official_web_id": "322",
-    "note": "Generated from Capcom official frame data. Needs review: command contains generalized or contextual notation."
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "空中 SP",
+        "source": "bcm_profile",
+        "profile": "easy",
+        "trigger_index": 72
+      },
+      {
+        "display": "空中 攻击二つ",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 72
+      }
+    ]
   },
   "958": {
-    "classic_display": "（垂直or前ジャンプ中に）（ODトマホークバスター中に）LPMPHPLP|MP|HP",
-    "modern_display": "（垂直or前ジャンプ中に）（ODトマホークバスター中に）AUTO + SP/（垂直or前ジャンプ中に）（ODトマホークバスター中に）攻撃三つ",
+    "classic_display": "j.PPP",
+    "modern_display": "空中 AUTO + SP/空中 弱 + 中 + 强",
     "control_support": "classic_modern",
-    "source": "capcom_official",
-    "move_name": "OD コンドルダイブ",
-    "category": "AIR",
-    "official_web_id": "323",
-    "note": "Generated from Capcom official frame data. Needs review: command contains generalized or contextual notation."
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "空中 AUTO + SP",
+        "source": "bcm_profile",
+        "profile": "supr",
+        "trigger_index": 147
+      },
+      {
+        "display": "空中 弱 + 中 + 强",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 147
+      }
+    ]
   },
   "959": {
-    "classic_display": "LPMPHP",
-    "modern_display": null,
-    "control_support": "classic_only",
-    "source": "capcom_official",
-    "move_name": null,
-    "category": "AIR",
-    "official_web_id": null,
-    "note": "No modern command found in official data."
+    "classic_display": "j.PPP",
+    "modern_display": "空中 AUTO + SP/空中 弱 + 中 + 强",
+    "control_support": "classic_modern",
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "空中 AUTO + SP",
+        "source": "bcm_profile",
+        "profile": "supr",
+        "trigger_index": 149
+      },
+      {
+        "display": "空中 弱 + 中 + 强",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 149
+      }
+    ]
   },
   "962": {
-    "classic_display": "（垂直or前ジャンプ中に）LPMPHP",
-    "modern_display": "（垂直or前ジャンプ中に）SP/（垂直or前ジャンプ中に）攻撃二つ",
+    "classic_display": "j.PP",
+    "modern_display": "空中 SP/空中 攻击二つ",
     "control_support": "classic_modern",
-    "source": "capcom_official",
-    "move_name": "[風纏い]コンドルダイブ",
-    "category": "AIR",
-    "official_web_id": "324",
-    "note": "Generated from Capcom official frame data. Needs review: command contains generalized or contextual notation."
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "空中 SP",
+        "source": "bcm_profile",
+        "profile": "easy",
+        "trigger_index": 73
+      },
+      {
+        "display": "空中 攻击二つ",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 73
+      }
+    ]
   },
-  "967": {
-    "classic_display": "（垂直or前ジャンプ中に）（ODトマホークバスター中に）LPMPHPLP|MP|HP",
-    "modern_display": "（垂直or前ジャンプ中に）（ODトマホークバスター中に）AUTO + SP/（垂直or前ジャンプ中に）（ODトマホークバスター中に）攻撃三つ",
+  "963": {
+    "classic_display": "j.PP",
+    "modern_display": "空中 SP/空中 攻击二つ",
     "control_support": "classic_modern",
-    "source": "capcom_official",
-    "move_name": "[風纏い]OD コンドルダイブ",
-    "category": "AIR",
-    "official_web_id": "325",
-    "note": "Generated from Capcom official frame data. Needs review: command contains generalized or contextual notation."
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "空中 SP",
+        "source": "bcm_profile",
+        "profile": "easy",
+        "trigger_index": 74
+      },
+      {
+        "display": "空中 攻击二つ",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 74
+      }
+    ]
   },
-  "969": {
-    "classic_display": "LPMPHP",
-    "modern_display": null,
-    "control_support": "classic_only",
-    "source": "capcom_official",
-    "move_name": null,
-    "category": "AIR",
-    "official_web_id": null,
-    "note": "No modern command found in official data."
-  },
-  "987": {
-    "classic_display": "（近距離で）一回転 + LP",
-    "modern_display": "（近距離で）一回転 + 弱",
+  "972": {
+    "classic_display": "j.PPP",
+    "modern_display": "空中 AUTO + SP/空中 弱 + 中 + 强",
     "control_support": "classic_modern",
-    "source": "capcom_official",
-    "move_name": "弱 メキシカンタイフーン",
-    "category": "SPECIAL",
-    "official_web_id": "326",
-    "note": "Generated from Capcom official frame data. Needs review: command contains generalized or contextual notation."
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "空中 AUTO + SP",
+        "source": "bcm_profile",
+        "profile": "supr",
+        "trigger_index": 155
+      },
+      {
+        "display": "空中 弱 + 中 + 强",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 155
+      }
+    ]
   },
-  "992": {
-    "classic_display": "（近距離で）一回転 + MP",
-    "modern_display": "（近距離で）一回転 + 中",
+  "973": {
+    "classic_display": "j.PPP",
+    "modern_display": "空中 SP/空中 弱 + 中 + 强",
     "control_support": "classic_modern",
-    "source": "capcom_official",
-    "move_name": "中 メキシカンタイフーン",
-    "category": "SPECIAL",
-    "official_web_id": "327",
-    "note": "Generated from Capcom official frame data. Needs review: command contains generalized or contextual notation."
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "空中 SP",
+        "source": "bcm_profile",
+        "profile": "easy",
+        "trigger_index": 156
+      },
+      {
+        "display": "空中 弱 + 中 + 强",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 156
+      }
+    ]
   },
-  "997": {
-    "classic_display": "（近距離で）一回転 + HP",
-    "modern_display": "（近距離で）5 + SP/（近距離で）一回転 + 強",
+  "976": {
+    "classic_display": "j.PPP",
+    "modern_display": "空中 AUTO + SP/空中 弱 + 中 + 强",
     "control_support": "classic_modern",
-    "source": "capcom_official",
-    "move_name": "強 メキシカンタイフーン",
-    "category": "SPECIAL",
-    "official_web_id": "328",
-    "note": "Generated from Capcom official frame data. Needs review: command contains generalized or contextual notation."
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "空中 AUTO + SP",
+        "source": "bcm_profile",
+        "profile": "supr",
+        "trigger_index": 158
+      },
+      {
+        "display": "空中 弱 + 中 + 强",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 158
+      }
+    ]
   },
-  "1002": {
-    "classic_display": "（近距離で）一回転 + LPMPHP",
-    "modern_display": "（近距離で）N + AUTO + SP/（近距離で）一回転 + 攻撃二つ",
+  "995": {
+    "classic_display": "8+LP",
+    "modern_display": "AUTO + SP/8 + 弱",
     "control_support": "classic_modern",
-    "source": "capcom_official",
-    "move_name": "OD メキシカンタイフーン",
-    "category": "SPECIAL",
-    "official_web_id": "329",
-    "note": "Generated from Capcom official frame data. Needs review: command contains generalized or contextual notation."
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "AUTO + SP",
+        "source": "bcm_profile",
+        "profile": "supr",
+        "trigger_index": 84
+      },
+      {
+        "display": "8 + 弱",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 84
+      }
+    ]
+  },
+  "1000": {
+    "classic_display": "8+MP",
+    "modern_display": "8 + 中",
+    "control_support": "classic_modern",
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "8 + 中",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 85
+      }
+    ]
+  },
+  "1005": {
+    "classic_display": "8+HP",
+    "modern_display": "SP/8 + 强",
+    "control_support": "classic_modern",
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "SP",
+        "source": "bcm_profile",
+        "profile": "easy",
+        "trigger_index": 86
+      },
+      {
+        "display": "8 + 强",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 86
+      }
+    ]
+  },
+  "1010": {
+    "classic_display": "8+PP",
+    "modern_display": "AUTO + SP/8 + 攻击二つ",
+    "control_support": "classic_modern",
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "AUTO + SP",
+        "source": "bcm_profile",
+        "profile": "supr",
+        "trigger_index": 165
+      },
+      {
+        "display": "8 + 攻击二つ",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 165
+      }
+    ]
   },
   "1100": {
     "classic_display": null,
-    "modern_display": null,
-    "control_support": "classic_only",
-    "source": "capcom_official",
-    "move_name": null,
-    "category": "NORMAL",
-    "official_web_id": null,
-    "note": "No modern command found in official data."
+    "modern_display": "AUTO + 弱",
+    "control_support": "classic_modern",
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "AUTO + 弱",
+        "source": "bcm_profile",
+        "profile": "supr",
+        "trigger_index": 181
+      }
+    ]
   },
   "1104": {
     "classic_display": null,
-    "modern_display": null,
-    "control_support": "classic_only",
-    "source": "capcom_official",
-    "move_name": null,
-    "category": "NORMAL",
-    "official_web_id": null,
-    "note": "No modern command found in official data."
+    "modern_display": "AUTO + 中",
+    "control_support": "classic_modern",
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "AUTO + 中",
+        "source": "bcm_profile",
+        "profile": "supr",
+        "trigger_index": 185
+      }
+    ]
   },
   "1109": {
     "classic_display": null,
-    "modern_display": null,
-    "control_support": "classic_only",
-    "source": "capcom_official",
-    "move_name": null,
-    "category": "NORMAL",
-    "official_web_id": null,
-    "note": "No modern command found in official data."
+    "modern_display": "AUTO + 强",
+    "control_support": "classic_modern",
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "AUTO + 强",
+        "source": "bcm_profile",
+        "profile": "supr",
+        "trigger_index": 188
+      }
+    ]
   },
   "1200": {
-    "classic_display": "23626 | 26236 + LP | MP | HP",
-    "modern_display": "5 or 6 + 強SP/236236 + 弱",
+    "classic_display": "236236+P",
+    "modern_display": "SP + 强/236236 + 弱",
     "control_support": "classic_modern",
-    "source": "capcom_official",
-    "move_name": "SA1 ブリージングホーク",
-    "category": "SUPER",
-    "official_web_id": "400",
-    "note": "Generated from Capcom official frame data."
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "SP + 强",
+        "source": "bcm_profile",
+        "profile": "easy",
+        "trigger_index": 120
+      },
+      {
+        "display": "236236 + 弱",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 120
+      }
+    ]
   },
   "1206": {
-    "classic_display": "23626 | 26236 + LK | MK | HK",
-    "modern_display": "4 + 強SP/236236 + 中",
+    "classic_display": "236236+K",
+    "modern_display": "4 + SP + 强/236236 + 中",
     "control_support": "classic_modern",
-    "source": "capcom_official",
-    "move_name": "SA2 サンダーバード",
-    "category": "SUPER",
-    "official_web_id": "401",
-    "note": "Generated from Capcom official frame data."
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "4 + SP + 强",
+        "source": "bcm_profile",
+        "profile": "easy",
+        "trigger_index": 123
+      },
+      {
+        "display": "236236 + 中",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 123
+      }
+    ]
   },
   "1207": {
-    "classic_display": "23626 | 26236 + LK | MK | HK",
-    "modern_display": "4 + 強SP/236236 + 中",
+    "classic_display": "236236+K",
+    "modern_display": "4 + SP + 强/236236 + 中",
     "control_support": "classic_modern",
-    "source": "capcom_official",
-    "move_name": "[風纏い]SA2 サンダーバード",
-    "category": "SUPER",
-    "official_web_id": "402",
-    "note": "Generated from Capcom official frame data."
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "4 + SP + 强",
+        "source": "bcm_profile",
+        "profile": "easy",
+        "trigger_index": 124
+      },
+      {
+        "display": "236236 + 中",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 124
+      }
+    ]
   },
   "1209": {
-    "classic_display": "空中 23626 | 26236 + LK | MK | HK",
-    "modern_display": "空中 SP強/空中 236236 + 中",
+    "classic_display": "j.236236+K",
+    "modern_display": "空中 SP + 强/空中 236236 + 中",
     "control_support": "classic_modern",
-    "source": "capcom_official",
-    "move_name": "SA2 スカイサンダーバード",
-    "category": "AIR",
-    "official_web_id": "403",
-    "note": "Generated from Capcom official frame data."
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "空中 SP + 强",
+        "source": "bcm_profile",
+        "profile": "easy",
+        "trigger_index": 126
+      },
+      {
+        "display": "空中 236236 + 中",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 126
+      }
+    ]
   },
   "1210": {
-    "classic_display": "空中 23626 | 26236 + LK | MK | HK",
-    "modern_display": "空中 強SP/空中 236236 + 中",
+    "classic_display": "j.236236+K",
+    "modern_display": "空中 SP + 强/空中 236236 + 中",
     "control_support": "classic_modern",
-    "source": "capcom_official",
-    "move_name": "[風纏い]SA2 スカイサンダーバード",
-    "category": "AIR",
-    "official_web_id": "404",
-    "note": "Generated from Capcom official frame data."
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "空中 SP + 强",
+        "source": "bcm_profile",
+        "profile": "easy",
+        "trigger_index": 128
+      },
+      {
+        "display": "空中 236236 + 中",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 128
+      }
+    ]
+  },
+  "1211": {
+    "classic_display": "j.236236+K",
+    "modern_display": "空中 SP + 强/空中 236236 + 中",
+    "control_support": "classic_modern",
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "空中 SP + 强",
+        "source": "bcm_profile",
+        "profile": "easy",
+        "trigger_index": 127
+      },
+      {
+        "display": "空中 236236 + 中",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 127
+      }
+    ]
+  },
+  "1212": {
+    "classic_display": "j.236236+K",
+    "modern_display": "空中 SP + 强/空中 236236 + 中",
+    "control_support": "classic_modern",
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "空中 SP + 强",
+        "source": "bcm_profile",
+        "profile": "easy",
+        "trigger_index": 129
+      },
+      {
+        "display": "空中 236236 + 中",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 129
+      }
+    ]
   },
   "1216": {
-    "classic_display": "（近距離で）21424 | 24214 + LP | MP | HP",
-    "modern_display": "（近距離で）2 + SP強/（近距離で）214214 + 強",
+    "classic_display": "214214+P",
+    "modern_display": "2 + SP + 强/214214 + 强",
     "control_support": "classic_modern",
-    "source": "capcom_official",
-    "move_name": "SA3 レイジングタイフーン",
-    "category": "SUPER",
-    "official_web_id": "405",
-    "note": "Generated from Capcom official frame data. Needs review: command contains generalized or contextual notation."
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "2 + SP + 强",
+        "source": "bcm_profile",
+        "profile": "easy",
+        "trigger_index": 130
+      },
+      {
+        "display": "214214 + 强",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 130
+      }
+    ]
   },
   "1220": {
-    "classic_display": "（近距離で）（体力25%以下で）21424 | 24214 + LP | MP | HP",
-    "modern_display": "（近距離で）（体力25%以下で）2 + 強SP/（近距離で）（体力25%以下で）214214 + 強",
+    "classic_display": "214214+P",
+    "modern_display": "2 + SP + 强/214214 + 强",
     "control_support": "classic_modern",
-    "source": "capcom_official",
-    "move_name": "CA レイジングタイフーン",
-    "category": "SUPER",
-    "official_web_id": "406",
-    "note": "Generated from Capcom official frame data. Needs review: command contains generalized or contextual notation."
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "2 + SP + 强",
+        "source": "bcm_profile",
+        "profile": "easy",
+        "trigger_index": 131
+      },
+      {
+        "display": "214214 + 强",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 131
+      }
+    ]
   },
   "1495": {
-    "classic_display": "LPMPHPLKMKHK",
-    "modern_display": null,
-    "control_support": "classic_only",
-    "source": "capcom_official",
-    "move_name": null,
-    "category": "SPECIAL",
-    "official_web_id": null,
-    "note": "No modern command found in official data."
+    "classic_display": "LP+MP+HP+LK+MK+HK",
+    "modern_display": "弱 + 中 + 强",
+    "control_support": "classic_modern",
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "弱 + 中 + 强",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 171
+      }
+    ]
+  },
+  "_meta": {
+    "schema": "xt.modern_display.v2",
+    "character": "Lily",
+    "fighter_id": 12,
+    "generated_from": "ac_bcm",
+    "generated_at": "2026-07-17T00:00:00.000Z",
+    "ac_sha256": "f68bf529980a75451605c38186099a8ccf95cd89b42528dae4d71ccfb2fcb8fd",
+    "bcm_sha256": "4f44fd717c81fd8c8a5e0eff2ea0a39666e9581ea41761cc2d59a8de7e3be7ca",
+    "modern_profile_order": [
+      "easy",
+      "supr",
+      "sprt"
+    ],
+    "supplement_policy": "community_sample_atomic_routes_only",
+    "unmapped_classic_action_count": 11,
+    "unmapped_classic_action_ids": [
+      34,
+      600,
+      609,
+      610,
+      612,
+      614,
+      624,
+      625,
+      626,
+      628,
+      651
+    ],
+    "description": "Lily modern display mapping generated from game AC+BCM."
   }
 }

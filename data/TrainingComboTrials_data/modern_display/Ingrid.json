@@ -1,0 +1,1806 @@
+{
+  "17": {
+    "classic_display": "66",
+    "modern_display": "66",
+    "control_support": "classic_modern",
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "66",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 0
+      }
+    ]
+  },
+  "18": {
+    "classic_display": "44",
+    "modern_display": "44",
+    "control_support": "classic_modern",
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "44",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 1
+      }
+    ]
+  },
+  "480": {
+    "classic_display": "Normal",
+    "modern_display": "DP",
+    "control_support": "classic_modern",
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "DP",
+        "source": "bcm_system_action"
+      }
+    ]
+  },
+  "601": {
+    "classic_display": "LP",
+    "modern_display": "弱",
+    "control_support": "classic_modern",
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "弱",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 37
+      }
+    ]
+  },
+  "612": {
+    "classic_display": "LK",
+    "modern_display": "弱",
+    "control_support": "classic_modern",
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "弱",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 3
+      }
+    ]
+  },
+  "615": {
+    "classic_display": "MK",
+    "modern_display": "中",
+    "control_support": "classic_modern",
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "中",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 5
+      }
+    ]
+  },
+  "618": {
+    "classic_display": "HK",
+    "modern_display": "强",
+    "control_support": "classic_modern",
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "强",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 7
+      }
+    ]
+  },
+  "623": {
+    "classic_display": "2+LP",
+    "modern_display": "2 + 弱",
+    "control_support": "classic_modern",
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "2 + 弱",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 38
+      }
+    ]
+  },
+  "624": {
+    "classic_display": "2+LP",
+    "modern_display": "2 + 弱",
+    "control_support": "classic_modern",
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "2 + 弱",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 39
+      }
+    ]
+  },
+  "631": {
+    "classic_display": "2+HP",
+    "modern_display": "2 + 强",
+    "control_support": "classic_modern",
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "2 + 强",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 19
+      }
+    ]
+  },
+  "635": {
+    "classic_display": "2+LK",
+    "modern_display": "2 + 弱",
+    "control_support": "classic_modern",
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "2 + 弱",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 16
+      }
+    ]
+  },
+  "640": {
+    "classic_display": "2+MK",
+    "modern_display": "2 + 中",
+    "control_support": "classic_modern",
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "2 + 中",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 18
+      }
+    ]
+  },
+  "643": {
+    "classic_display": "2+HK",
+    "modern_display": "3 + 强",
+    "control_support": "classic_modern",
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "3 + 强",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 20
+      }
+    ]
+  },
+  "650": {
+    "classic_display": "j.LP",
+    "modern_display": "空中 弱",
+    "control_support": "classic_modern",
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "空中 弱",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 23
+      }
+    ]
+  },
+  "651": {
+    "classic_display": "j.MP",
+    "modern_display": "空中 中",
+    "control_support": "classic_modern",
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "空中 中",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 25
+      }
+    ]
+  },
+  "652": {
+    "classic_display": "j.HP",
+    "modern_display": "空中 AUTO + 强/空中 强",
+    "control_support": "classic_modern",
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "空中 AUTO + 强",
+        "source": "bcm_profile",
+        "profile": "supr",
+        "trigger_index": 27
+      },
+      {
+        "display": "空中 强",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 27
+      }
+    ]
+  },
+  "653": {
+    "classic_display": "j.LK",
+    "modern_display": "空中 AUTO + 弱/空中 弱",
+    "control_support": "classic_modern",
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "空中 AUTO + 弱",
+        "source": "bcm_profile",
+        "profile": "supr",
+        "trigger_index": 24
+      },
+      {
+        "display": "空中 弱",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 24
+      }
+    ]
+  },
+  "654": {
+    "classic_display": "j.MK",
+    "modern_display": "空中 AUTO + 中/空中 中",
+    "control_support": "classic_modern",
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "空中 AUTO + 中",
+        "source": "bcm_profile",
+        "profile": "supr",
+        "trigger_index": 26
+      },
+      {
+        "display": "空中 中",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 26
+      }
+    ]
+  },
+  "655": {
+    "classic_display": "j.HK",
+    "modern_display": "空中 AUTO + SP/空中 强",
+    "control_support": "classic_modern",
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "空中 AUTO + SP",
+        "source": "bcm_profile",
+        "profile": "supr",
+        "trigger_index": 28
+      },
+      {
+        "display": "空中 强",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 28
+      }
+    ]
+  },
+  "656": {
+    "classic_display": ">j.HK",
+    "modern_display": "> 空中 AUTO + SP/> 空中 强",
+    "control_support": "classic_modern",
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "> 空中 AUTO + SP",
+        "source": "bcm_profile",
+        "profile": "supr",
+        "trigger_index": 29
+      },
+      {
+        "display": "> 空中 强",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 29
+      }
+    ]
+  },
+  "661": {
+    "classic_display": "6+MP",
+    "modern_display": "6 + 中",
+    "control_support": "classic_modern",
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "6 + 中",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 9
+      }
+    ]
+  },
+  "663": {
+    "classic_display": "6+HP",
+    "modern_display": "6 + 强",
+    "control_support": "classic_modern",
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "6 + 强",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 12
+      }
+    ]
+  },
+  "670": {
+    "classic_display": "4+MK",
+    "modern_display": "4 + 中",
+    "control_support": "classic_modern",
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "4 + 中",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 10
+      }
+    ]
+  },
+  "671": {
+    "classic_display": ">HP",
+    "modern_display": "> 中",
+    "control_support": "classic_modern",
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "> 中",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 33
+      }
+    ]
+  },
+  "674": {
+    "classic_display": "4+HP",
+    "modern_display": "4 + 强",
+    "control_support": "classic_modern",
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "4 + 强",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 11
+      }
+    ]
+  },
+  "675": {
+    "classic_display": ">HP",
+    "modern_display": "> 强",
+    "control_support": "classic_modern",
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "> 强",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 34
+      }
+    ]
+  },
+  "715": {
+    "classic_display": "Throw",
+    "modern_display": "THROW",
+    "control_support": "classic_modern",
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "THROW",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 106
+      }
+    ]
+  },
+  "717": {
+    "classic_display": "4+THROW",
+    "modern_display": "4 + THROW",
+    "control_support": "classic_modern",
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "4 + THROW",
+        "source": "ac_derived",
+        "inherited_from": 715
+      }
+    ]
+  },
+  "739": {
+    "classic_display": "DRC",
+    "modern_display": "DRC",
+    "control_support": "classic_modern",
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "DRC",
+        "source": "bcm_system_action"
+      }
+    ]
+  },
+  "740": {
+    "classic_display": "RAW DR",
+    "modern_display": "RAW DR",
+    "control_support": "classic_modern",
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "RAW DR",
+        "source": "bcm_system_action"
+      }
+    ]
+  },
+  "850": {
+    "classic_display": "6+DI",
+    "modern_display": "6 + DI",
+    "control_support": "classic_modern",
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "6 + DI",
+        "source": "bcm_system_action"
+      }
+    ]
+  },
+  "852": {
+    "classic_display": "6",
+    "modern_display": "6",
+    "control_support": "classic_modern",
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "6",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 117
+      }
+    ]
+  },
+  "855": {
+    "classic_display": "DI",
+    "modern_display": "DI",
+    "control_support": "classic_modern",
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "DI",
+        "source": "bcm_system_action"
+      }
+    ]
+  },
+  "904": {
+    "classic_display": "236+LP",
+    "modern_display": "SP",
+    "control_support": "classic_modern",
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "SP",
+        "source": "bcm_profile",
+        "profile": "easy",
+        "trigger_index": 55
+      }
+    ]
+  },
+  "906": {
+    "classic_display": "236+HP",
+    "modern_display": "4 + SP",
+    "control_support": "classic_modern",
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "4 + SP",
+        "source": "bcm_profile",
+        "profile": "easy",
+        "trigger_index": 57
+      }
+    ]
+  },
+  "912": {
+    "classic_display": "236+LP+MP",
+    "modern_display": "AUTO + SP",
+    "control_support": "classic_modern",
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "AUTO + SP",
+        "source": "bcm_profile",
+        "profile": "supr",
+        "trigger_index": 153
+      }
+    ]
+  },
+  "914": {
+    "classic_display": "236+MP+HP",
+    "modern_display": "4 + SP",
+    "control_support": "classic_modern",
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "4 + SP",
+        "source": "bcm_profile",
+        "profile": "easy",
+        "trigger_index": 155
+      }
+    ]
+  },
+  "944": {
+    "classic_display": "236+LK",
+    "modern_display": "6 + SP/236 + 弱",
+    "control_support": "classic_modern",
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "6 + SP",
+        "source": "bcm_profile",
+        "profile": "easy",
+        "trigger_index": 70
+      },
+      {
+        "display": "236 + 弱",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 70
+      }
+    ]
+  },
+  "945": {
+    "classic_display": "236+MK",
+    "modern_display": "236 + 中",
+    "control_support": "classic_modern",
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "236 + 中",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 71
+      }
+    ]
+  },
+  "946": {
+    "classic_display": "236+HK",
+    "modern_display": "236 + 强",
+    "control_support": "classic_modern",
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "236 + 强",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 72
+      }
+    ]
+  },
+  "949": {
+    "classic_display": "236+KK",
+    "modern_display": "6 + AUTO + SP/236 + 攻击二つ",
+    "control_support": "classic_modern",
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "6 + AUTO + SP",
+        "source": "bcm_profile",
+        "profile": "supr",
+        "trigger_index": 157
+      },
+      {
+        "display": "236 + 攻击二つ",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 157
+      }
+    ]
+  },
+  "962": {
+    "classic_display": "4+KKK",
+    "modern_display": "4 + 弱 + 中 + 强",
+    "control_support": "classic_modern",
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "4 + 弱 + 中 + 强",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 172
+      }
+    ]
+  },
+  "963": {
+    "classic_display": "6+KKK",
+    "modern_display": "6 + 弱 + 中 + 强",
+    "control_support": "classic_modern",
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "6 + 弱 + 中 + 强",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 171
+      }
+    ]
+  },
+  "964": {
+    "classic_display": "2+KKK",
+    "modern_display": "2 + 弱 + 中 + 强",
+    "control_support": "classic_modern",
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "2 + 弱 + 中 + 强",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 173
+      }
+    ]
+  },
+  "969": {
+    "classic_display": "214+LP",
+    "modern_display": "1 + SP/214 + 弱",
+    "control_support": "classic_modern",
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "1 + SP",
+        "source": "bcm_profile",
+        "profile": "easy",
+        "trigger_index": 83
+      },
+      {
+        "display": "214 + 弱",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 83
+      }
+    ]
+  },
+  "970": {
+    "classic_display": null,
+    "modern_display": "1 + SP/214 + 弱",
+    "control_support": "classic_modern",
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "1 + SP",
+        "source": "ac_alias",
+        "profile": "easy",
+        "trigger_index": 83,
+        "inherited_from": 969
+      },
+      {
+        "display": "214 + 弱",
+        "source": "ac_alias",
+        "profile": "sprt",
+        "trigger_index": 83,
+        "inherited_from": 969
+      }
+    ]
+  },
+  "971": {
+    "classic_display": null,
+    "modern_display": "1 + SP/214 + 弱",
+    "control_support": "classic_modern",
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "1 + SP",
+        "source": "ac_alias",
+        "profile": "easy",
+        "trigger_index": 83,
+        "inherited_from": 969
+      },
+      {
+        "display": "214 + 弱",
+        "source": "ac_alias",
+        "profile": "sprt",
+        "trigger_index": 83,
+        "inherited_from": 969
+      }
+    ]
+  },
+  "972": {
+    "classic_display": null,
+    "modern_display": "1 + SP/214 + 弱",
+    "control_support": "classic_modern",
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "1 + SP",
+        "source": "ac_alias",
+        "profile": "easy",
+        "trigger_index": 83,
+        "inherited_from": 969
+      },
+      {
+        "display": "214 + 弱",
+        "source": "ac_alias",
+        "profile": "sprt",
+        "trigger_index": 83,
+        "inherited_from": 969
+      }
+    ]
+  },
+  "973": {
+    "classic_display": null,
+    "modern_display": "1 + SP/214 + 弱",
+    "control_support": "classic_modern",
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "1 + SP",
+        "source": "ac_alias",
+        "profile": "easy",
+        "trigger_index": 83,
+        "inherited_from": 969
+      },
+      {
+        "display": "214 + 弱",
+        "source": "ac_alias",
+        "profile": "sprt",
+        "trigger_index": 83,
+        "inherited_from": 969
+      }
+    ]
+  },
+  "986": {
+    "classic_display": "214+MP+HP",
+    "modern_display": "2 + SP/214 + 攻击二つ",
+    "control_support": "classic_modern",
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "2 + SP",
+        "source": "bcm_profile",
+        "profile": "easy",
+        "trigger_index": 84
+      },
+      {
+        "display": "214 + 攻击二つ",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 84
+      }
+    ]
+  },
+  "990": {
+    "classic_display": "214+HP",
+    "modern_display": "3 + SP/214 + 强",
+    "control_support": "classic_modern",
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "3 + SP",
+        "source": "bcm_profile",
+        "profile": "easy",
+        "trigger_index": 85
+      },
+      {
+        "display": "214 + 强",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 85
+      }
+    ]
+  },
+  "995": {
+    "classic_display": "214+HP",
+    "modern_display": "3 + SP/214 + 强",
+    "control_support": "classic_modern",
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "3 + SP",
+        "source": "bcm_profile",
+        "profile": "easy",
+        "trigger_index": 86
+      },
+      {
+        "display": "214 + 强",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 86
+      }
+    ]
+  },
+  "1002": {
+    "classic_display": "214+PP",
+    "modern_display": "2 + AUTO + SP/214 + 攻击二つ",
+    "control_support": "classic_modern",
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "2 + AUTO + SP",
+        "source": "bcm_profile",
+        "profile": "supr",
+        "trigger_index": 165
+      },
+      {
+        "display": "214 + 攻击二つ",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 165
+      }
+    ]
+  },
+  "1003": {
+    "classic_display": "214+PP",
+    "modern_display": "2 + AUTO + SP/214 + 攻击二つ",
+    "control_support": "classic_modern",
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "2 + AUTO + SP",
+        "source": "bcm_profile",
+        "profile": "supr",
+        "trigger_index": 166
+      },
+      {
+        "display": "214 + 攻击二つ",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 166
+      }
+    ]
+  },
+  "1004": {
+    "classic_display": "214+PP",
+    "modern_display": "2 + AUTO + SP/214 + 攻击二つ",
+    "control_support": "classic_modern",
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "2 + AUTO + SP",
+        "source": "bcm_profile",
+        "profile": "supr",
+        "trigger_index": 167
+      },
+      {
+        "display": "214 + 攻击二つ",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 167
+      }
+    ]
+  },
+  "1021": {
+    "classic_display": "j.214+LP",
+    "modern_display": "空中 4 + SP/空中 214 + 弱",
+    "control_support": "classic_modern",
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "空中 4 + SP",
+        "source": "bcm_profile",
+        "profile": "easy",
+        "trigger_index": 60
+      },
+      {
+        "display": "空中 214 + 弱",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 60
+      }
+    ]
+  },
+  "1023": {
+    "classic_display": null,
+    "modern_display": "空中 4 + SP/空中 214 + 弱",
+    "control_support": "classic_modern",
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "空中 4 + SP",
+        "source": "ac_alias",
+        "profile": "easy",
+        "trigger_index": 60,
+        "inherited_from": 1021
+      },
+      {
+        "display": "空中 214 + 弱",
+        "source": "ac_alias",
+        "profile": "sprt",
+        "trigger_index": 60,
+        "inherited_from": 1021
+      }
+    ]
+  },
+  "1025": {
+    "classic_display": null,
+    "modern_display": "空中 4 + SP/空中 214 + 弱",
+    "control_support": "classic_modern",
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "空中 4 + SP",
+        "source": "ac_alias",
+        "profile": "easy",
+        "trigger_index": 60,
+        "inherited_from": 1021
+      },
+      {
+        "display": "空中 214 + 弱",
+        "source": "ac_alias",
+        "profile": "sprt",
+        "trigger_index": 60,
+        "inherited_from": 1021
+      }
+    ]
+  },
+  "1027": {
+    "classic_display": null,
+    "modern_display": "空中 4 + SP/空中 214 + 弱",
+    "control_support": "classic_modern",
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "空中 4 + SP",
+        "source": "ac_alias",
+        "profile": "easy",
+        "trigger_index": 60,
+        "inherited_from": 1021
+      },
+      {
+        "display": "空中 214 + 弱",
+        "source": "ac_alias",
+        "profile": "sprt",
+        "trigger_index": 60,
+        "inherited_from": 1021
+      }
+    ]
+  },
+  "1029": {
+    "classic_display": null,
+    "modern_display": "空中 4 + SP/空中 214 + 弱",
+    "control_support": "classic_modern",
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "空中 4 + SP",
+        "source": "ac_alias",
+        "profile": "easy",
+        "trigger_index": 60,
+        "inherited_from": 1021
+      },
+      {
+        "display": "空中 214 + 弱",
+        "source": "ac_alias",
+        "profile": "sprt",
+        "trigger_index": 60,
+        "inherited_from": 1021
+      }
+    ]
+  },
+  "1036": {
+    "classic_display": "j.214+MP+HP",
+    "modern_display": "空中 SP/空中 214 + 攻击二つ",
+    "control_support": "classic_modern",
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "空中 SP",
+        "source": "bcm_profile",
+        "profile": "easy",
+        "trigger_index": 61
+      },
+      {
+        "display": "空中 214 + 攻击二つ",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 61
+      }
+    ]
+  },
+  "1037": {
+    "classic_display": "j.214+HP",
+    "modern_display": "空中 6 + SP/空中 214 + 强",
+    "control_support": "classic_modern",
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "空中 6 + SP",
+        "source": "bcm_profile",
+        "profile": "easy",
+        "trigger_index": 62
+      },
+      {
+        "display": "空中 214 + 强",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 62
+      }
+    ]
+  },
+  "1038": {
+    "classic_display": null,
+    "modern_display": "空中 6 + SP/空中 214 + 强",
+    "control_support": "classic_modern",
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "空中 6 + SP",
+        "source": "ac_alias",
+        "profile": "easy",
+        "trigger_index": 62,
+        "inherited_from": 1037
+      },
+      {
+        "display": "空中 214 + 强",
+        "source": "ac_alias",
+        "profile": "sprt",
+        "trigger_index": 62,
+        "inherited_from": 1037
+      }
+    ]
+  },
+  "1051": {
+    "classic_display": "j.214+PP",
+    "modern_display": "空中 AUTO + SP/空中 214 + 攻击二つ",
+    "control_support": "classic_modern",
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "空中 AUTO + SP",
+        "source": "bcm_profile",
+        "profile": "supr",
+        "trigger_index": 160
+      },
+      {
+        "display": "空中 214 + 攻击二つ",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 160
+      }
+    ]
+  },
+  "1052": {
+    "classic_display": null,
+    "modern_display": "空中 AUTO + SP/空中 214 + 攻击二つ",
+    "control_support": "classic_modern",
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "空中 AUTO + SP",
+        "source": "ac_alias",
+        "profile": "supr",
+        "trigger_index": 160,
+        "inherited_from": 1051
+      },
+      {
+        "display": "空中 214 + 攻击二つ",
+        "source": "ac_alias",
+        "profile": "sprt",
+        "trigger_index": 160,
+        "inherited_from": 1051
+      }
+    ]
+  },
+  "1053": {
+    "classic_display": null,
+    "modern_display": "空中 AUTO + SP/空中 214 + 攻击二つ",
+    "control_support": "classic_modern",
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "空中 AUTO + SP",
+        "source": "ac_alias",
+        "profile": "supr",
+        "trigger_index": 160,
+        "inherited_from": 1051
+      },
+      {
+        "display": "空中 214 + 攻击二つ",
+        "source": "ac_alias",
+        "profile": "sprt",
+        "trigger_index": 160,
+        "inherited_from": 1051
+      }
+    ]
+  },
+  "1071": {
+    "classic_display": "j.214+MP+HP",
+    "modern_display": "空中 SP/空中 214 + 攻击二つ",
+    "control_support": "classic_modern",
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "空中 SP",
+        "source": "bcm_profile",
+        "profile": "easy",
+        "trigger_index": 65
+      },
+      {
+        "display": "空中 214 + 攻击二つ",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 65
+      }
+    ]
+  },
+  "1072": {
+    "classic_display": "j.214+HP",
+    "modern_display": "空中 6 + SP/空中 214 + 强",
+    "control_support": "classic_modern",
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "空中 6 + SP",
+        "source": "bcm_profile",
+        "profile": "easy",
+        "trigger_index": 66
+      },
+      {
+        "display": "空中 214 + 强",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 66
+      }
+    ]
+  },
+  "1073": {
+    "classic_display": null,
+    "modern_display": "空中 6 + SP/空中 214 + 强",
+    "control_support": "classic_modern",
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "空中 6 + SP",
+        "source": "ac_alias",
+        "profile": "easy",
+        "trigger_index": 66,
+        "inherited_from": 1072
+      },
+      {
+        "display": "空中 214 + 强",
+        "source": "ac_alias",
+        "profile": "sprt",
+        "trigger_index": 66,
+        "inherited_from": 1072
+      }
+    ]
+  },
+  "1074": {
+    "classic_display": "j.214+PP",
+    "modern_display": "空中 AUTO + SP/空中 214 + 攻击二つ",
+    "control_support": "classic_modern",
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "空中 AUTO + SP",
+        "source": "bcm_profile",
+        "profile": "supr",
+        "trigger_index": 161
+      },
+      {
+        "display": "空中 214 + 攻击二つ",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 161
+      }
+    ]
+  },
+  "1075": {
+    "classic_display": null,
+    "modern_display": "空中 AUTO + SP/空中 214 + 攻击二つ",
+    "control_support": "classic_modern",
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "空中 AUTO + SP",
+        "source": "ac_alias",
+        "profile": "supr",
+        "trigger_index": 161,
+        "inherited_from": 1074
+      },
+      {
+        "display": "空中 214 + 攻击二つ",
+        "source": "ac_alias",
+        "profile": "sprt",
+        "trigger_index": 161,
+        "inherited_from": 1074
+      }
+    ]
+  },
+  "1076": {
+    "classic_display": null,
+    "modern_display": "空中 AUTO + SP/空中 214 + 攻击二つ",
+    "control_support": "classic_modern",
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "空中 AUTO + SP",
+        "source": "ac_alias",
+        "profile": "supr",
+        "trigger_index": 161,
+        "inherited_from": 1074
+      },
+      {
+        "display": "空中 214 + 攻击二つ",
+        "source": "ac_alias",
+        "profile": "sprt",
+        "trigger_index": 161,
+        "inherited_from": 1074
+      }
+    ]
+  },
+  "1081": {
+    "classic_display": "j.214+LP",
+    "modern_display": "空中 4 + SP/空中 214 + 弱",
+    "control_support": "classic_modern",
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "空中 4 + SP",
+        "source": "bcm_profile",
+        "profile": "easy",
+        "trigger_index": 75
+      },
+      {
+        "display": "空中 214 + 弱",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 75
+      }
+    ]
+  },
+  "1082": {
+    "classic_display": null,
+    "modern_display": "空中 4 + SP/空中 214 + 弱",
+    "control_support": "classic_modern",
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "空中 4 + SP",
+        "source": "ac_alias",
+        "profile": "easy",
+        "trigger_index": 75,
+        "inherited_from": 1081
+      },
+      {
+        "display": "空中 214 + 弱",
+        "source": "ac_alias",
+        "profile": "sprt",
+        "trigger_index": 75,
+        "inherited_from": 1081
+      }
+    ]
+  },
+  "1083": {
+    "classic_display": null,
+    "modern_display": "空中 4 + SP/空中 214 + 弱",
+    "control_support": "classic_modern",
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "空中 4 + SP",
+        "source": "ac_alias",
+        "profile": "easy",
+        "trigger_index": 75,
+        "inherited_from": 1081
+      },
+      {
+        "display": "空中 214 + 弱",
+        "source": "ac_alias",
+        "profile": "sprt",
+        "trigger_index": 75,
+        "inherited_from": 1081
+      }
+    ]
+  },
+  "1084": {
+    "classic_display": null,
+    "modern_display": "空中 4 + SP/空中 214 + 弱",
+    "control_support": "classic_modern",
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "空中 4 + SP",
+        "source": "ac_alias",
+        "profile": "easy",
+        "trigger_index": 75,
+        "inherited_from": 1081
+      },
+      {
+        "display": "空中 214 + 弱",
+        "source": "ac_alias",
+        "profile": "sprt",
+        "trigger_index": 75,
+        "inherited_from": 1081
+      }
+    ]
+  },
+  "1085": {
+    "classic_display": null,
+    "modern_display": "空中 4 + SP/空中 214 + 弱",
+    "control_support": "classic_modern",
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "空中 4 + SP",
+        "source": "ac_alias",
+        "profile": "easy",
+        "trigger_index": 75,
+        "inherited_from": 1081
+      },
+      {
+        "display": "空中 214 + 弱",
+        "source": "ac_alias",
+        "profile": "sprt",
+        "trigger_index": 75,
+        "inherited_from": 1081
+      }
+    ]
+  },
+  "1087": {
+    "classic_display": "j.214+MP+HP",
+    "modern_display": "空中 SP/空中 214 + 攻击二つ",
+    "control_support": "classic_modern",
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "空中 SP",
+        "source": "bcm_profile",
+        "profile": "easy",
+        "trigger_index": 76
+      },
+      {
+        "display": "空中 214 + 攻击二つ",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 76
+      }
+    ]
+  },
+  "1088": {
+    "classic_display": "j.214+HP",
+    "modern_display": "空中 6 + SP/空中 214 + 强",
+    "control_support": "classic_modern",
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "空中 6 + SP",
+        "source": "bcm_profile",
+        "profile": "easy",
+        "trigger_index": 77
+      },
+      {
+        "display": "空中 214 + 强",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 77
+      }
+    ]
+  },
+  "1089": {
+    "classic_display": null,
+    "modern_display": "空中 6 + SP/空中 214 + 强",
+    "control_support": "classic_modern",
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "空中 6 + SP",
+        "source": "ac_alias",
+        "profile": "easy",
+        "trigger_index": 77,
+        "inherited_from": 1088
+      },
+      {
+        "display": "空中 214 + 强",
+        "source": "ac_alias",
+        "profile": "sprt",
+        "trigger_index": 77,
+        "inherited_from": 1088
+      }
+    ]
+  },
+  "1091": {
+    "classic_display": "j.214+PP",
+    "modern_display": "空中 SP/空中 214 + 攻击二つ",
+    "control_support": "classic_modern",
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "空中 SP",
+        "source": "bcm_profile",
+        "profile": "easy",
+        "trigger_index": 78
+      },
+      {
+        "display": "空中 214 + 攻击二つ",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 78
+      }
+    ]
+  },
+  "1092": {
+    "classic_display": null,
+    "modern_display": "空中 SP/空中 214 + 攻击二つ",
+    "control_support": "classic_modern",
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "空中 SP",
+        "source": "ac_alias",
+        "profile": "easy",
+        "trigger_index": 78,
+        "inherited_from": 1091
+      },
+      {
+        "display": "空中 214 + 攻击二つ",
+        "source": "ac_alias",
+        "profile": "sprt",
+        "trigger_index": 78,
+        "inherited_from": 1091
+      }
+    ]
+  },
+  "1093": {
+    "classic_display": null,
+    "modern_display": "空中 SP/空中 214 + 攻击二つ",
+    "control_support": "classic_modern",
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "空中 SP",
+        "source": "ac_alias",
+        "profile": "easy",
+        "trigger_index": 78,
+        "inherited_from": 1091
+      },
+      {
+        "display": "空中 214 + 攻击二つ",
+        "source": "ac_alias",
+        "profile": "sprt",
+        "trigger_index": 78,
+        "inherited_from": 1091
+      }
+    ]
+  },
+  "1101": {
+    "classic_display": "22+K",
+    "modern_display": "4 + AUTO + SP/22 + 攻击二つ",
+    "control_support": "classic_modern",
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "4 + AUTO + SP",
+        "source": "bcm_profile",
+        "profile": "supr",
+        "trigger_index": 49
+      },
+      {
+        "display": "22 + 攻击二つ",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 49
+      }
+    ]
+  },
+  "1102": {
+    "classic_display": "22+KK",
+    "modern_display": "4 + AUTO + SP/22 + 攻击二つ",
+    "control_support": "classic_modern",
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "4 + AUTO + SP",
+        "source": "bcm_profile",
+        "profile": "supr",
+        "trigger_index": 150
+      },
+      {
+        "display": "22 + 攻击二つ",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 150
+      }
+    ]
+  },
+  "1150": {
+    "classic_display": null,
+    "modern_display": "AUTO + 弱",
+    "control_support": "classic_modern",
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "AUTO + 弱",
+        "source": "bcm_profile",
+        "profile": "supr",
+        "trigger_index": 190
+      }
+    ]
+  },
+  "1152": {
+    "classic_display": null,
+    "modern_display": "AUTO + 中",
+    "control_support": "classic_modern",
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "AUTO + 中",
+        "source": "bcm_profile",
+        "profile": "supr",
+        "trigger_index": 192
+      }
+    ]
+  },
+  "1154": {
+    "classic_display": null,
+    "modern_display": "AUTO + 强",
+    "control_support": "classic_modern",
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "AUTO + 强",
+        "source": "bcm_profile",
+        "profile": "supr",
+        "trigger_index": 194
+      }
+    ]
+  },
+  "1200": {
+    "classic_display": "236236+K",
+    "modern_display": "SP + 强/236236 + 弱",
+    "control_support": "classic_modern",
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "SP + 强",
+        "source": "bcm_profile",
+        "profile": "easy",
+        "trigger_index": 123
+      },
+      {
+        "display": "236236 + 弱",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 123
+      }
+    ]
+  },
+  "1217": {
+    "classic_display": "214214+MP",
+    "modern_display": "4 + SP + 强/214214 + 中",
+    "control_support": "classic_modern",
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "4 + SP + 强",
+        "source": "bcm_profile",
+        "profile": "easy",
+        "trigger_index": 129
+      },
+      {
+        "display": "214214 + 中",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 129
+      }
+    ]
+  },
+  "1287": {
+    "classic_display": "236236+P",
+    "modern_display": "2 + SP + 强/236236 + 强",
+    "control_support": "classic_modern",
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "2 + SP + 强",
+        "source": "bcm_profile",
+        "profile": "easy",
+        "trigger_index": 134
+      },
+      {
+        "display": "236236 + 强",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 134
+      }
+    ]
+  },
+  "1296": {
+    "classic_display": "236236+P",
+    "modern_display": "2 + SP + 强/236236 + 强",
+    "control_support": "classic_modern",
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "2 + SP + 强",
+        "source": "bcm_profile",
+        "profile": "easy",
+        "trigger_index": 142
+      },
+      {
+        "display": "236236 + 强",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 142
+      }
+    ]
+  },
+  "1310": {
+    "classic_display": "8+KK",
+    "modern_display": "8 + 攻击二つ",
+    "control_support": "classic_modern",
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "8 + 攻击二つ",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 176
+      }
+    ]
+  },
+  "1314": {
+    "classic_display": "214214+K",
+    "modern_display": "214214 + 弱",
+    "control_support": "classic_modern",
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "214214 + 弱",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 147
+      }
+    ]
+  },
+  "1317": {
+    "classic_display": "22+PPP",
+    "modern_display": "214214 + 强",
+    "control_support": "classic_modern",
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "214214 + 强",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 148
+      }
+    ]
+  },
+  "1465": {
+    "classic_display": "21426+DI",
+    "modern_display": "21426 + DI",
+    "control_support": "classic_modern",
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "21426 + DI",
+        "source": "bcm_system_action"
+      }
+    ]
+  },
+  "1485": {
+    "classic_display": "DI",
+    "modern_display": "DI",
+    "control_support": "classic_modern",
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "DI",
+        "source": "bcm_system_action"
+      }
+    ]
+  },
+  "1486": {
+    "classic_display": "DI",
+    "modern_display": "DI",
+    "control_support": "classic_modern",
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "DI",
+        "source": "bcm_system_action"
+      }
+    ]
+  },
+  "1487": {
+    "classic_display": "Parry",
+    "modern_display": "中",
+    "control_support": "classic_modern",
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "中",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 183
+      }
+    ]
+  },
+  "1488": {
+    "classic_display": "Throw",
+    "modern_display": "弱",
+    "control_support": "classic_modern",
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "弱",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 182
+      }
+    ]
+  },
+  "1492": {
+    "classic_display": "5545+HK",
+    "modern_display": "5545 + 强",
+    "control_support": "classic_modern",
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "5545 + 强",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 180
+      }
+    ]
+  },
+  "1497": {
+    "classic_display": "LP+MP+HP+LK+MK+HK",
+    "modern_display": "弱 + 中 + 强",
+    "control_support": "classic_modern",
+    "source": "ac_bcm",
+    "routes": [
+      {
+        "display": "弱 + 中 + 强",
+        "source": "bcm_profile",
+        "profile": "sprt",
+        "trigger_index": 178
+      }
+    ]
+  },
+  "_meta": {
+    "schema": "xt.modern_display.v2",
+    "character": "Ingrid",
+    "fighter_id": 32,
+    "generated_from": "ac_bcm",
+    "generated_at": "2026-07-17T00:00:00.000Z",
+    "ac_sha256": "d4f1642197db0cc37a0f7c5c956c1aea3ab7f1b73a208c7291c868dbeb326003",
+    "bcm_sha256": "16c8d193cc006d4fe03fa536dd120c794a44be630ba6d834ab72110bdc876331",
+    "modern_profile_order": [
+      "easy",
+      "supr",
+      "sprt"
+    ],
+    "supplement_policy": "community_sample_atomic_routes_only",
+    "unmapped_classic_action_count": 20,
+    "unmapped_classic_action_ids": [
+      600,
+      605,
+      606,
+      609,
+      622,
+      627,
+      636,
+      637,
+      905,
+      913,
+      1201,
+      1202,
+      1218,
+      1219,
+      1222,
+      1223,
+      1224,
+      1227,
+      1228,
+      1229
+    ],
+    "description": "Ingrid modern display mapping generated from game AC+BCM."
+  }
+}
