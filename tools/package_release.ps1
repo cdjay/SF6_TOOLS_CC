@@ -6,7 +6,8 @@ param(
     [switch]$Force,
     [switch]$DryRun,
     [switch]$AllowImmutable,
-    [switch]$UpdateRepoManifest
+    [switch]$UpdateRepoManifest,
+    [switch]$TrainingConfigManagerOnly
 )
 
 $ErrorActionPreference = "Stop"
@@ -210,6 +211,32 @@ function New-ZipFromDirectory {
     Compress-Archive -Path $zipItems -DestinationPath $ZipPath -CompressionLevel Optimal
 }
 
+function Copy-SelectedTrackedReframeworkFiles {
+    param(
+        [Parameter(Mandatory = $true)][string]$SourceRoot,
+        [Parameter(Mandatory = $true)][string]$PackageRoot,
+        [Parameter(Mandatory = $true)][string[]]$RelativePaths
+    )
+
+    foreach ($relativePath in $RelativePaths) {
+        & git -C $SourceRoot ls-files --error-unmatch -- $relativePath | Out-Null
+        if ($LASTEXITCODE -ne 0) {
+            throw "Required component package file is not Git-tracked: $relativePath"
+        }
+
+        $windowsRelativePath = $relativePath -replace '/', '\\'
+        $sourcePath = Join-Path $SourceRoot $windowsRelativePath
+        if (-not (Test-Path -LiteralPath $sourcePath -PathType Leaf)) {
+            throw "Required component package file is missing: $sourcePath"
+        }
+
+        $destinationPath = Join-Path $PackageRoot (Join-Path "reframework" $windowsRelativePath)
+        $destinationDirectory = Split-Path -Parent $destinationPath
+        New-Item -ItemType Directory -Path $destinationDirectory -Force | Out-Null
+        Copy-Item -LiteralPath $sourcePath -Destination $destinationPath -Force
+    }
+}
+
 function Get-ReleaseFileEntry {
     param(
         [Parameter(Mandatory = $true)][System.IO.FileInfo]$File,
@@ -359,8 +386,6 @@ if ($releaseVersion.Equals("0.9a", [System.StringComparison]::OrdinalIgnoreCase)
     }
 }
 
-$gameRootPath = Resolve-ExistingPath -Path $GameRoot -Label "Game root"
-
 if ([string]::IsNullOrWhiteSpace($OutputDir)) {
     $OutputDir = Join-Path $workspacePath "release"
 }
@@ -369,19 +394,28 @@ $baseOutputPath = Resolve-OutputRoot -Path $OutputDir -AllowCreate (-not [bool]$
 $outputPath = Join-Path $baseOutputPath $releaseVersion
 $sourceManifestVersion = Get-SourceManifestVersion -WorkspacePath $workspacePath
 
-$packagePrefix = "XiaoTun_SF6_TrainingMOD_v$releaseVersion"
-$standardPackageName = $packagePrefix
-$runtimePackageName = "${packagePrefix}_runtime"
-$standardZipName = "$standardPackageName.zip"
-$runtimeZipName = "$runtimePackageName.zip"
-$manifestName = "sf6cm_manifest_v$releaseVersion.json"
+if ($TrainingConfigManagerOnly) {
+    $componentPackageName = "XiaoTun_SF6_TrainingConfigManager_v$releaseVersion"
+    $componentZipName = "$componentPackageName.zip"
+    $componentPackagePath = Join-Path $outputPath $componentPackageName
+    $componentZipPath = Join-Path $outputPath $componentZipName
+    $packageFilenames = @($componentZipName)
+}
+else {
+    $packagePrefix = "XiaoTun_SF6_TrainingMOD_v$releaseVersion"
+    $standardPackageName = $packagePrefix
+    $runtimePackageName = "${packagePrefix}_runtime"
+    $standardZipName = "$standardPackageName.zip"
+    $runtimeZipName = "$runtimePackageName.zip"
+    $manifestName = "sf6cm_manifest_v$releaseVersion.json"
 
-$standardPackagePath = Join-Path $outputPath $standardPackageName
-$runtimePackagePath = Join-Path $outputPath $runtimePackageName
-$standardZipPath = Join-Path $outputPath $standardZipName
-$runtimeZipPath = Join-Path $outputPath $runtimeZipName
-$manifestPath = Join-Path $outputPath $manifestName
-$packageFilenames = @($standardZipName, $runtimeZipName, $manifestName)
+    $standardPackagePath = Join-Path $outputPath $standardPackageName
+    $runtimePackagePath = Join-Path $outputPath $runtimePackageName
+    $standardZipPath = Join-Path $outputPath $standardZipName
+    $runtimeZipPath = Join-Path $outputPath $runtimeZipName
+    $manifestPath = Join-Path $outputPath $manifestName
+    $packageFilenames = @($standardZipName, $runtimeZipName, $manifestName)
+}
 $existingArtifacts = @(Get-VersionOutputArtifacts -VersionOutputPath $outputPath)
 $willOverwrite = $existingArtifacts.Count -gt 0
 $plannedBackupPath = if ($willOverwrite -and $Force) {
@@ -418,6 +452,33 @@ if ($DryRun) {
     return
 }
 
+if ($TrainingConfigManagerOnly) {
+    if ($willOverwrite) {
+        $actualBackupPath = Backup-VersionOutput -VersionOutputPath $outputPath -OutputRoot $baseOutputPath -ReleaseVersion $releaseVersion
+        if (-not [string]::IsNullOrWhiteSpace($actualBackupPath)) {
+            Write-Host "Existing version output backed up to: $actualBackupPath"
+        }
+    }
+
+    if (-not (Test-Path -LiteralPath $outputPath)) {
+        New-Item -ItemType Directory -Path $outputPath | Out-Null
+    }
+
+    New-Item -ItemType Directory -Path $componentPackagePath | Out-Null
+    Copy-SelectedTrackedReframeworkFiles -SourceRoot $workspacePath -PackageRoot $componentPackagePath -RelativePaths @(
+        "autorun/SF6CC_DynamicRecords.lua",
+        "autorun/func/DynamicRecords.lua",
+        "data/SF6CC_TrainingConfigs/editor/SF6CC_TrainingConfigEditor.html"
+    )
+    New-ZipFromDirectory -SourceDirectory $componentPackagePath -ZipPath $componentZipPath
+
+    Write-Host "Training configuration manager component packaged successfully."
+    Write-Host "Output directory: $outputPath"
+    Write-Host "Package: $componentZipPath"
+    return
+}
+
+$gameRootPath = Resolve-ExistingPath -Path $GameRoot -Label "Game root"
 $dinputPath = Resolve-ExistingPath -Path (Join-Path $gameRootPath "dinput8.dll") -Label "dinput8.dll"
 $configPath = Resolve-ExistingPath -Path (Join-Path $gameRootPath "re2_fw_config.txt") -Label "re2_fw_config.txt"
 

@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sf6cc.local/schema/action-runtime-compile-report.v1.json",
+  "title": "SF6CC AC+BCM Action Runtime Compile Report v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "compiler_rules_version", "status", "character", "fighter_id", "summary", "inventory", "unresolved", "diagnostics"],
+  "properties": {
+    "schema": {"const": "sf6cc.action-runtime-compile-report.v1"},
+    "compiler_rules_version": {"type": "string"},
+    "status": {"enum": ["valid", "valid-with-warnings", "invalid"]},
+    "character": {"type": "string"},
+    "fighter_id": {"type": "integer"},
+    "summary": {"type": "object"},
+    "inventory": {"type": "object"},
+    "unresolved": {"type": "object"},
+    "diagnostics": {"type": "array"}
+  }
+}

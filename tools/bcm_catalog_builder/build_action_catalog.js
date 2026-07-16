@@ -28,5 +28,6 @@ console.log(JSON.stringify({
     character: runtime.character,
     action_count: runtime.action_ids.length,
     display_count: Object.keys(runtime.actions).length,
-    alias_count: Object.keys(runtime.aliases).length
+    alias_count: Object.keys(runtime.aliases).length,
+    ac_derived_alias_count: runtime.coverage.ac_derived_alias_count
 }, null, 2));

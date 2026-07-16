@@ -54,16 +54,48 @@ const runtime = core.buildRuntimeCatalog(catalog);
 assert.strictEqual(runtime.schema, "sf6cc.bcm-runtime.v1");
 assert.strictEqual(runtime.actions["904"], "236+LP");
 
+const driveRuntime = core.buildRuntimeCatalog({
+    schema: core.OUTPUT_SCHEMA,
+    source: { character: "Fab", fighter_id: 20, schema: "test", sha256: "test" },
+    actions: {
+        "500": { classic_display: "66", triggers: [{ conditions: { category_flags: 0x100000, function_id: 13, focus_consume: 30000 } }] },
+        "501": { classic_display: "66", triggers: [{ conditions: { category_flags: 0x200000, function_id: 13, focus_consume: 5000 } }] },
+        "667": { classic_display: "MP", triggers: [{ classic_display: "MP", conditions: { turn_around: 2 } }] },
+        "661": { classic_display: "6+MP", triggers: [{ classic_display: "6+MP", conditions: { turn_around: 0 } }] }
+    }
+});
+assert.strictEqual(driveRuntime.actions["500"], "DRC");
+assert.strictEqual(driveRuntime.actions["501"], "RAW DR");
+assert.strictEqual(driveRuntime.actions["667"], ">MP");
+assert.strictEqual(driveRuntime.actions["661"], "6+MP");
+
 const fabSource = { ...source, character: "Fab", fighter_id: 20 };
 const hondaCatalog = core.buildCatalog(fabSource, { generatedAt: "2026-01-01T00:00:00.000Z" });
 assert.strictEqual(hondaCatalog.source.character, "EHonda");
 assert.strictEqual(hondaCatalog.source.capture_character, "Fab");
 
+const derivedAction = (objectId, actionId, keysRef) => object(objectId, "FAB.ACTION", {
+    ActionID: scalar(actionId), ActionFrame: scalar(9), Category: scalar(1),
+    Combo: scalar(0), Frame: scalar(10), Projectile: scalar(-1), State: scalar(0), Keys: ref(keysRef)
+});
 const acSource = {
     schema: "sf6cr.action-catalog-full.v2",
     character: "Fab",
     fighter_id: 20,
-    unique_action_ids_by_scope: { character: [605, 606, 652] }
+    unique_action_ids_by_scope: { character: [605, 606, 652, 904, 905, 906] },
+    objects: [
+        derivedAction(100, 904, 200), derivedAction(101, 905, 202), derivedAction(102, 906, 204),
+        collection(200, "ActionKeyList", [201, 203]),
+        object(201, "CharacterAsset.BranchKey", { Action: scalar(905), Type: scalar(29) }),
+        collection(202, "ActionKeyList", []),
+        object(203, "CharacterAsset.BranchKey", { Action: scalar(906), Type: scalar(35) }),
+        collection(204, "ActionKeyList", [])
+    ],
+    records: [
+        { native_action_id: 904, source_scope: "character", action_ref: ref(100) },
+        { native_action_id: 905, source_scope: "character", action_ref: ref(101) },
+        { native_action_id: 906, source_scope: "character", action_ref: ref(102) }
+    ]
 };
 const actionRuntime = core.buildActionRuntimeCatalog(acSource, hondaCatalog, {
     "605": { override_name: "HP", absorb_ids: "606" },
@@ -72,5 +104,9 @@ const actionRuntime = core.buildActionRuntimeCatalog(acSource, hondaCatalog, {
 assert.strictEqual(actionRuntime.schema, "sf6cc.action-runtime.v1");
 assert.strictEqual(actionRuntime.aliases["606"], "605");
 assert.strictEqual(actionRuntime.actions["652"], "j.6+HP");
-assert.strictEqual(actionRuntime.action_ids.length, 3);
+assert.strictEqual(actionRuntime.action_ids.length, 6);
+assert.strictEqual(actionRuntime.aliases["606"], "605");
+assert.strictEqual(actionRuntime.aliases["905"], "904");
+assert.strictEqual(actionRuntime.aliases["906"], "904");
+assert.strictEqual(actionRuntime.coverage.ac_derived_alias_count, 2);
 console.log("BCM catalog tests passed.");

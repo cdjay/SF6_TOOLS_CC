@@ -1,185 +1,291 @@
 {
-    "1003": {
-        "absorb_ids": "",
-        "force": false,
-        "hold_partial_check": true,
-        "ignore": false,
-        "ignore_prev_frames": 5,
-        "is_holdable": false,
-        "override_name": ">214+K"
-    },
-    "500": {
-        "force": false,
-        "ignore": false,
-        "ignore_prev_frames": 5,
-        "is_holdable": false,
-        "override_name": "RAW DR"
-    },
-    "501": {
-        "force": false,
-        "ignore": false,
-        "ignore_prev_frames": 5,
-        "is_holdable": false,
-        "override_name": "DRC"
-    },
-    "670": {
-        "absorb_ids": "",
-        "force": false,
-        "hold_partial_check": true,
-        "ignore": false,
-        "ignore_prev_frames": 5,
-        "is_holdable": false,
-        "override_name": ">MK"
-    },
-    "671": {
-        "absorb_ids": "",
-        "force": false,
-        "hold_partial_check": true,
-        "ignore": false,
-        "ignore_prev_frames": 5,
-        "is_holdable": false,
-        "override_name": ">HK"
-    },
-    "677": {
-        "absorb_ids": "",
-        "force": false,
-        "hold_partial_check": true,
-        "ignore": false,
-        "ignore_prev_frames": 5,
-        "is_holdable": false,
-        "override_name": ">HP"
-    },
-    "681": {
-        "absorb_ids": "",
-        "force": false,
-        "hold_partial_check": true,
-        "ignore": false,
-        "ignore_prev_frames": 5,
-        "is_holdable": false,
-        "override_name": ">LK (RUN STOP)"
-    },
-    "682": {
-        "absorb_ids": "",
-        "force": false,
-        "hold_partial_check": true,
-        "ignore": false,
-        "ignore_prev_frames": 5,
-        "is_holdable": false,
-        "override_name": ">MK"
-    },
-    "683": {
-        "absorb_ids": "",
-        "force": false,
-        "hold_partial_check": true,
-        "ignore": false,
-        "ignore_prev_frames": 5,
-        "is_holdable": false,
-        "override_name": ">HK"
-    },
-    "717": {
-        "force": true,
-        "ignore": false,
-        "ignore_prev_frames": 5,
-        "is_holdable": false,
-        "override_name": "4THROW"
-    },
-    "924": {
-        "absorb_ids": "",
-        "force": false,
-        "hold_partial_check": true,
-        "ignore": false,
-        "ignore_prev_frames": 5,
-        "is_holdable": false,
-        "override_name": ">6LK"
-    },
-    "925": {
-        "absorb_ids": "",
-        "force": false,
-        "hold_partial_check": true,
-        "ignore": false,
-        "ignore_prev_frames": 5,
-        "is_holdable": false,
-        "override_name": ">6MK"
-    },
-    "926": {
-        "absorb_ids": "",
-        "force": false,
-        "hold_partial_check": true,
-        "ignore": false,
-        "ignore_prev_frames": 5,
-        "is_holdable": false,
-        "override_name": ">6HK"
-    },
-    "930": {
-        "absorb_ids": "",
-        "force": false,
-        "hold_partial_check": true,
-        "ignore": false,
-        "ignore_prev_frames": 5,
-        "is_holdable": false,
-        "override_name": ">6LK"
-    },
-    "931": {
-        "absorb_ids": "",
-        "force": false,
-        "hold_partial_check": true,
-        "ignore": false,
-        "ignore_prev_frames": 5,
-        "is_holdable": false,
-        "override_name": ">6MK"
-    },
-    "932": {
-        "absorb_ids": "",
-        "force": false,
-        "hold_partial_check": true,
-        "ignore": false,
-        "ignore_prev_frames": 5,
-        "is_holdable": false,
-        "override_name": ">6HK"
-    },
-    "936": {
-        "absorb_ids": "",
-        "force": false,
-        "hold_partial_check": true,
-        "ignore": false,
-        "ignore_prev_frames": 5,
-        "is_holdable": false,
-        "override_name": ">6K"
-    },
-    "937": {
-        "absorb_ids": "",
-        "force": false,
-        "hold_partial_check": true,
-        "ignore": false,
-        "ignore_prev_frames": 5,
-        "is_holdable": false,
-        "override_name": ">6K"
-    },
-    "938": {
-        "absorb_ids": "",
-        "force": false,
-        "hold_partial_check": true,
-        "ignore": false,
-        "ignore_prev_frames": 5,
-        "is_holdable": false,
-        "override_name": ">6K"
-    },
-    "959": {
-        "absorb_ids": "",
-        "force": false,
-        "hold_partial_check": true,
-        "ignore": false,
-        "ignore_prev_frames": 5,
-        "is_holdable": false,
-        "override_name": ">623+P"
-    },
-    "983": {
-        "absorb_ids": "",
-        "force": false,
-        "hold_partial_check": true,
-        "ignore": false,
-        "ignore_prev_frames": 5,
-        "is_holdable": false,
-        "override_name": ">623+K"
-    }
+  "17": {
+    "override_name": "66"
+  },
+  "18": {
+    "override_name": "44"
+  },
+  "34": {
+    "override_name": "8"
+  },
+  "480": {
+    "override_name": "Normal"
+  },
+  "500": {
+    "override_name": "RAW DR"
+  },
+  "501": {
+    "override_name": "DRC"
+  },
+  "600": {
+    "override_name": "LP"
+  },
+  "601": {
+    "override_name": "LP"
+  },
+  "602": {
+    "override_name": "LP"
+  },
+  "604": {
+    "override_name": "MP"
+  },
+  "606": {
+    "override_name": "HP"
+  },
+  "609": {
+    "override_name": "LK"
+  },
+  "612": {
+    "override_name": "MK"
+  },
+  "615": {
+    "override_name": "HK"
+  },
+  "618": {
+    "override_name": "2+LP"
+  },
+  "619": {
+    "override_name": "2+LP"
+  },
+  "620": {
+    "override_name": "2+LP"
+  },
+  "623": {
+    "override_name": "2+MP"
+  },
+  "626": {
+    "override_name": "2+HP"
+  },
+  "629": {
+    "override_name": "2+LK"
+  },
+  "630": {
+    "override_name": "2+LK"
+  },
+  "631": {
+    "override_name": "2+LK"
+  },
+  "634": {
+    "override_name": "2+MK"
+  },
+  "637": {
+    "override_name": "2+HK"
+  },
+  "650": {
+    "override_name": "j.LP"
+  },
+  "651": {
+    "override_name": "j.MP"
+  },
+  "652": {
+    "override_name": "j.HP"
+  },
+  "653": {
+    "override_name": "j.LK"
+  },
+  "654": {
+    "override_name": "j.MK"
+  },
+  "655": {
+    "override_name": "j.HK"
+  },
+  "656": {
+    "override_name": "j.HK"
+  },
+  "670": {
+    "override_name": ">MK",
+    "optional_parent_ids": [
+      612
+    ]
+  },
+  "671": {
+    "override_name": ">HK",
+    "optional_parent_ids": [
+      670
+    ]
+  },
+  "677": {
+    "override_name": ">HP",
+    "optional_parent_ids": [
+      606
+    ]
+  },
+  "680": {
+    "override_name": "KK"
+  },
+  "681": {
+    "override_name": ">LK",
+    "optional_parent_ids": [
+      680
+    ]
+  },
+  "682": {
+    "override_name": ">MK",
+    "optional_parent_ids": [
+      681
+    ]
+  },
+  "683": {
+    "override_name": ">HK",
+    "optional_parent_ids": [
+      682
+    ]
+  },
+  "715": {
+    "override_name": "Throw"
+  },
+  "717": {
+    "override_name": "4THROW",
+    "force": true
+  },
+  "850": {
+    "override_name": "6+DI"
+  },
+  "852": {
+    "override_name": "6"
+  },
+  "855": {
+    "override_name": "DI"
+  },
+  "900": {
+    "override_name": "236+LP"
+  },
+  "902": {
+    "override_name": "236+MP"
+  },
+  "904": {
+    "override_name": "236+HP"
+  },
+  "906": {
+    "override_name": "236+PP"
+  },
+  "920": {
+    "override_name": "236+LK"
+  },
+  "921": {
+    "override_name": "236+MK"
+  },
+  "922": {
+    "override_name": "236+HK"
+  },
+  "924": {
+    "override_name": ">6+LK"
+  },
+  "925": {
+    "override_name": ">6+MK",
+    "optional_parent_ids": [
+      924
+    ]
+  },
+  "926": {
+    "override_name": ">6+HK",
+    "optional_parent_ids": [
+      925
+    ]
+  },
+  "928": {
+    "override_name": "236+KK"
+  },
+  "930": {
+    "override_name": ">6+LK",
+    "optional_parent_ids": [
+      924
+    ]
+  },
+  "931": {
+    "override_name": ">6+MK",
+    "optional_parent_ids": [
+      930
+    ]
+  },
+  "932": {
+    "override_name": ">6+HK",
+    "optional_parent_ids": [
+      931
+    ]
+  },
+  "936": {
+    "override_name": ">6+K"
+  },
+  "937": {
+    "override_name": ">6+K",
+    "optional_parent_ids": [
+      936
+    ]
+  },
+  "938": {
+    "override_name": ">6+K",
+    "optional_parent_ids": [
+      937
+    ]
+  },
+  "955": {
+    "override_name": "623+LP"
+  },
+  "956": {
+    "override_name": "623+MP"
+  },
+  "957": {
+    "override_name": "623+HP"
+  },
+  "958": {
+    "override_name": "623+PP"
+  },
+  "959": {
+    "override_name": ">623+P",
+    "optional_parent_ids": [
+      958
+    ]
+  },
+  "980": {
+    "override_name": "623+LK"
+  },
+  "981": {
+    "override_name": "623+MK"
+  },
+  "982": {
+    "override_name": "623+HK"
+  },
+  "983": {
+    "override_name": "623+K"
+  },
+  "985": {
+    "override_name": "623+KK"
+  },
+  "1000": {
+    "override_name": "214+LK"
+  },
+  "1001": {
+    "override_name": "214+MK"
+  },
+  "1002": {
+    "override_name": "214+HK"
+  },
+  "1003": {
+    "override_name": "214+K"
+  },
+  "1005": {
+    "override_name": "214+KK"
+  },
+  "1009": {
+    "override_name": ">j.214+K"
+  },
+  "1012": {
+    "override_name": ">j.214+KK"
+  },
+  "1200": {
+    "override_name": "214214+K"
+  },
+  "1210": {
+    "override_name": "236236+K"
+  },
+  "1215": {
+    "override_name": "236236+P"
+  },
+  "1220": {
+    "override_name": "236236+P"
+  },
+  "1497": {
+    "override_name": "LP+MP+HP+LK+MK+HK"
+  }
 }

@@ -7,7 +7,8 @@ local BcmCatalog = {
 local CATALOG_DIR = "TrainingComboTrials_data/bcm_catalog/"
 local EXPECTED_SCHEMAS = {
     ["sf6cc.bcm-runtime.v1"] = true,
-    ["sf6cc.action-runtime.v1"] = true
+    ["sf6cc.action-runtime.v1"] = true,
+    ["sf6cc.action-runtime.v2"] = true
 }
 local cache = {}
 
@@ -51,6 +52,22 @@ function BcmCatalog.get_classic_display(catalog, action_id)
         if type(display) == "string" and display ~= "" then return display end
     end
     return nil
+end
+
+-- Returns true when `actual_action_id` is an AC-derived runtime replacement
+-- for `target_action_id`.  The compiled catalog owns this relationship, so
+-- character exception files do not need to repeat Type-29 branch aliases.
+function BcmCatalog.is_alias_for(catalog, actual_action_id, target_action_id)
+    if type(catalog) ~= "table" or type(catalog.aliases) ~= "table" then return false end
+    local id = tostring(actual_action_id)
+    local target = tostring(target_action_id)
+    local visited = {}
+    while catalog.aliases[id] ~= nil and not visited[id] do
+        visited[id] = true
+        id = tostring(catalog.aliases[id])
+        if id == target then return true end
+    end
+    return false
 end
 
 function BcmCatalog.clear_cache(character_name)

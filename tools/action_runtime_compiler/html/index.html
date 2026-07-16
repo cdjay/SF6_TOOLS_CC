@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SF6CC AC+BCM 编译器</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main class="shell">
+    <header class="hero">
+      <div>
+        <p class="eyebrow">SF6CC · LOCAL BUILD TOOL</p>
+        <h1>AC+BCM 角色简表编译器</h1>
+        <p class="lead">从游戏 dump 批量生成角色简表与现有格式例外表，归档每个版本，并把有效例外表汇总到可直接同步的 latest_exceptions 目录。</p>
+      </div>
+      <div class="status-pill" id="server-status">本地服务已连接</div>
+    </header>
+
+    <section class="panel">
+      <div class="section-title">
+        <div><span class="step">01</span><h2>选择来源与版本</h2></div>
+        <p>版本名不会从 dump 中猜测；同版本会增量追加新角色，并覆盖本次重新选择的角色。</p>
+      </div>
+      <div class="form-grid">
+        <label class="wide">
+          <span>Dump 目录（绝对路径）</span>
+          <input id="dump-directory" type="text" spellcheck="false" placeholder="D:\CP\SF6CR-evidence\AC+BCM+OFF">
+        </label>
+        <label>
+          <span>本次版本</span>
+          <input id="version" type="text" spellcheck="false" placeholder="例如 2026.07.16">
+        </label>
+        <label>
+          <span>对比归档版本</span>
+          <select id="compare-version"><option value="">自动选择最近归档</option></select>
+        </label>
+      </div>
+      <div class="actions-row">
+        <label class="check-option">
+          <input id="use-exceptions" type="checkbox">
+          <span><strong>启用旧例外表兜底</strong><small>默认关闭；例外只在 AC+BCM 之后应用，并进入差异和诊断报告。</small></span>
+        </label>
+        <button class="primary" id="scan-button">扫描目录</button>
+      </div>
+    </section>
+
+    <section class="panel hidden" id="selection-panel">
+      <div class="section-title">
+        <div><span class="step">02</span><h2>确认角色配对</h2></div>
+        <p id="scan-summary"></p>
+      </div>
+      <div class="table-toolbar">
+        <label class="select-all"><input type="checkbox" id="select-all" checked> 全选完整配对</label>
+        <span id="selected-summary"></span>
+      </div>
+      <div class="pair-list" id="pair-list"></div>
+      <div class="warning-box hidden" id="incomplete-box"></div>
+      <div class="build-row">
+        <p>只有状态为 <code>valid</code> 的角色会更新 latest_exceptions；带警告或无效结果仍保存在版本归档中供检查。</p>
+        <button class="primary accent" id="build-button">编译并归档</button>
+      </div>
+    </section>
+
+    <section class="panel hidden" id="result-panel">
+      <div class="section-title">
+        <div><span class="step">03</span><h2>构建结果与版本差异</h2></div>
+        <p id="result-summary"></p>
+      </div>
+      <div class="directory-grid" id="directory-grid"></div>
+      <div class="result-list" id="result-list"></div>
+    </section>
+
+    <section class="panel storage-panel">
+      <div class="section-title compact">
+        <div><span class="step">DIR</span><h2>本地目录</h2></div>
+      </div>
+      <div id="storage-paths" class="storage-paths"></div>
+    </section>
+
+    <div id="activity" class="activity hidden" role="status" aria-live="polite">
+      <span class="spinner"></span><span id="activity-text">处理中…</span>
+    </div>
+  </main>
+  <script src="app.js"></script>
+</body>
+</html>

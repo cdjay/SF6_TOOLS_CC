@@ -2,7 +2,7 @@
   "schema": "sf6cc.action-runtime.v1",
   "character": "EHonda",
   "fighter_id": 20,
-  "policy": "universe:ac; commands:bcm; aliases:exceptions",
+  "policy": "universe:ac; commands:bcm; aliases:exceptions+ac-derived",
   "sources": {
     "ac_schema": "sf6cr.action-catalog-full.v2",
     "ac_sha256": "76822022356f71c908cc65ea4b0e87aa4705c076618f759482cca836e2b80413",
@@ -346,8 +346,8 @@
     "18": "44",
     "34": "8",
     "480": "Normal",
-    "500": "66",
-    "501": "66",
+    "500": "DRC",
+    "501": "RAW DR",
     "600": "LP",
     "603": "MP",
     "605": "HP",
@@ -425,7 +425,15 @@
   },
   "aliases": {
     "606": "605",
+    "611": "610",
     "624": "622",
+    "629": "626",
+    "630": "627",
+    "631": "628",
+    "634": "633",
     "973": "972"
+  },
+  "coverage": {
+    "ac_derived_alias_count": 5
   }
 }

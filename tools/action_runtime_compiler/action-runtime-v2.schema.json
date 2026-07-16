@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sf6cc.local/schema/action-runtime.v2.json",
+  "title": "SF6CC AC+BCM Action Runtime v2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "compiler_rules_version", "character", "fighter_id", "policy", "sources", "action_ids", "actions", "aliases", "validation", "evidence", "coverage"],
+  "properties": {
+    "schema": {"const": "sf6cc.action-runtime.v2"},
+    "compiler_rules_version": {"type": "string"},
+    "character": {"type": "string"},
+    "fighter_id": {"type": "integer"},
+    "policy": {"type": "string"},
+    "sources": {"type": "object"},
+    "action_ids": {"type": "array", "items": {"type": "integer"}, "uniqueItems": true},
+    "actions": {"type": "object", "additionalProperties": {"type": "string"}},
+    "aliases": {"type": "object", "additionalProperties": {"type": "string", "pattern": "^-?[0-9]+$"}},
+    "validation": {
+      "type": "object",
+      "required": ["rules"],
+      "properties": {"rules": {"type": "object"}}
+    },
+    "evidence": {"type": "object"},
+    "coverage": {"type": "object"}
+  }
+}

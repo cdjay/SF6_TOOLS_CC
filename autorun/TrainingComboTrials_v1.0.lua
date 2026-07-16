@@ -6941,6 +6941,7 @@ local function ct_player_process_actions(p_idx, p_state, actions_to_process)
             end
 
             is_continuation = ActionMatcher.matches_absorb_id(parent_exc, act_id)
+                or BcmCatalog.is_alias_for(p_state.bcm_catalog, act_id, parent_id)
         end
 
         -- 2. CLOSING THE PREVIOUS ACTION
@@ -7700,7 +7701,8 @@ local function ct_player_process_actions(p_idx, p_state, actions_to_process)
                                     common_exceptions,
                                     expected,
                                     p_state.log,
-                                    p_state.profile_name
+                                    p_state.profile_name,
+                                    p_state.bcm_catalog
                                 )
                                 match_probe.recent_absorb = recent_absorb
                                 if recent_absorb.matched then
@@ -7743,7 +7745,8 @@ local function ct_player_process_actions(p_idx, p_state, actions_to_process)
                                                 common_exceptions,
                                                 chain_expected,
                                                 p_state.log,
-                                                p_state.profile_name
+                                                p_state.profile_name,
+                                                p_state.bcm_catalog
                                             )
                                             local chain_record = {
                                                 chain_iteration = chain_count + 1,
@@ -8119,7 +8122,8 @@ local function ct_player_process_actions(p_idx, p_state, actions_to_process)
                     expected,
                     act_id,
                     _pf.current_combo or 0,
-                    p_state.profile_name
+                    p_state.profile_name,
+                    p_state.bcm_catalog
                 )
                 local match_probe = build_match_probe(expected, "non_intentional_action")
                 match_probe.current_absorb = current_absorb

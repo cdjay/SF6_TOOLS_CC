@@ -342,7 +342,28 @@
         const actions = {};
         for (const [id, action] of Object.entries(catalog.actions || {})) {
             if (typeof action.classic_display === "string" && action.classic_display !== "") {
-                actions[id] = action.classic_display;
+                // Drive Rush actions have the same physical 66 input as
+                // ordinary movement. BCM exposes their semantic category and
+                // Focus cost, so decode them by evidence instead of hardcoded
+                // action IDs (which are character/build dependent).
+                const triggers = Array.isArray(action.triggers) ? action.triggers : [];
+                const isDrc = triggers.some(trigger =>
+                    Number(trigger.conditions && trigger.conditions.category_flags) === 0x100000
+                    && Number(trigger.conditions && trigger.conditions.function_id) === 13
+                    && Number(trigger.conditions && trigger.conditions.focus_consume) === 30000);
+                const isRawDr = triggers.some(trigger =>
+                    Number(trigger.conditions && trigger.conditions.category_flags) === 0x200000
+                    && Number(trigger.conditions && trigger.conditions.function_id) === 13
+                    && Number(trigger.conditions && trigger.conditions.focus_consume) === 5000);
+                // A trigger supplying a classic command with turn_around=2
+                // is a Target Combo follow-up. Honda and Ingrid dumps both
+                // match this marker, including Ingrid's aerial HK > HK.
+                const isTargetCombo = triggers.some(trigger =>
+                    trigger.classic_display === action.classic_display
+                    && Number(trigger.conditions && trigger.conditions.turn_around) === 2);
+                const display = isTargetCombo && !action.classic_display.startsWith(">")
+                    ? `>${action.classic_display}` : action.classic_display;
+                actions[id] = isDrc ? "DRC" : (isRawDr ? "RAW DR" : display);
             }
         }
         return {
@@ -351,9 +372,112 @@
             fighter_id: catalog.source.fighter_id,
             source_schema: catalog.source.schema,
             source_sha256: catalog.source.sha256,
-            policy: "classic:norm>sprt; behavior:exceptions",
+            policy: "classic:norm>sprt; system:drive-rush-from-bcm; behavior:exceptions",
             actions
         };
+    }
+
+    const AC_DERIVED_SIGNATURE_FIELDS = [
+        "ActionFrame", "Category", "Combo", "Frame", "Projectile", "State"
+    ];
+
+    function stableGraphValue(value, objects, seen) {
+        if (!value || typeof value !== "object") return value;
+        if (value.kind === "ref") {
+            const id = value.object_id;
+            if (seen.has(id)) return ["cycle"];
+            return stableGraphObject(objects.get(id), objects, new Set([...seen, id]));
+        }
+        if (Array.isArray(value)) return value.map(item => stableGraphValue(item, objects, seen));
+        const out = {};
+        for (const key of Object.keys(value).sort()) out[key] = stableGraphValue(value[key], objects, seen);
+        return out;
+    }
+
+    function stableGraphObject(object, objects, seen) {
+        if (!object) return null;
+        const out = { type: object.object_type || "" };
+        if (Array.isArray(object.fields)) {
+            out.fields = object.fields
+                .slice()
+                .sort((left, right) => String(left.name).localeCompare(String(right.name)))
+                .map(field => [field.name, stableGraphValue(field.value, objects, seen)]);
+        }
+        if (Array.isArray(object.items)) {
+            out.items = object.items.map(item => [item.index, stableGraphValue(item.value, objects, seen)]);
+        }
+        return out;
+    }
+
+    function buildAcDerivedAliases(actionSource, actionSet, bcmActions, actions, aliases) {
+        if (!Array.isArray(actionSource.records) || !Array.isArray(actionSource.objects)) return 0;
+
+        const objects = new Map(actionSource.objects.map(object => [object.object_id, object]));
+        const actionsById = new Map();
+        for (const record of actionSource.records) {
+            if (!record || record.source_scope !== "character") continue;
+            const actionId = Number(record.native_action_id);
+            const actionRef = record.action_ref;
+            if (!Number.isFinite(actionId) || !actionRef || actionRef.kind !== "ref") continue;
+            const action = objects.get(actionRef.object_id);
+            if (!action || !Array.isArray(action.fields)) continue;
+            actionsById.set(String(actionId), action);
+        }
+
+        const actionSignature = action => {
+            const fields = new Map(action.fields.map(field => [field.name, field.value]));
+            return JSON.stringify(AC_DERIVED_SIGNATURE_FIELDS.map(name => [
+                name,
+                stableGraphValue(fields.get(name), objects, new Set([action.object_id]))
+            ]));
+        };
+        const getDerivedTargets = action => {
+            const fields = new Map(action.fields.map(field => [field.name, field.value]));
+            const roots = [];
+            const keys = fields.get("Keys");
+            if (keys && keys.kind === "ref") roots.push(keys.object_id);
+            const visited = new Set();
+            const targets = new Set();
+            const visitValue = value => {
+                if (!value || typeof value !== "object") return;
+                if (value.kind === "ref") visitObject(value.object_id);
+            };
+            const visitObject = objectId => {
+                if (visited.has(objectId)) return;
+                visited.add(objectId);
+                const object = objects.get(objectId);
+                if (!object) return;
+                if (object.object_type === "CharacterAsset.BranchKey") {
+                    const branch = fieldsOf(object);
+                    // Types 29 and 35 replace an action with a runtime
+                    // variant.  The structural fingerprint check below is
+                    // still required before either branch may inherit a
+                    // command; other branch types are command transitions.
+                    if ((Number(branch.Type) === 29 || Number(branch.Type) === 35)
+                        && Number.isFinite(Number(branch.Action))) {
+                        targets.add(String(Number(branch.Action)));
+                    }
+                }
+                for (const field of object.fields || []) visitValue(field.value);
+                for (const item of object.items || []) visitValue(item.value);
+            };
+            for (const root of roots) visitObject(root);
+            return targets;
+        };
+
+        let derivedAliasCount = 0;
+        for (const [baseId, baseAction] of actionsById) {
+            if (!Object.prototype.hasOwnProperty.call(bcmActions, baseId)) continue;
+            const baseSignature = actionSignature(baseAction);
+            for (const derivedId of getDerivedTargets(baseAction)) {
+                const derivedAction = actionsById.get(derivedId);
+                if (!derivedAction || !actionSet.has(derivedId) || actions[derivedId] || aliases[derivedId]) continue;
+                if (actionSignature(derivedAction) !== baseSignature) continue;
+                aliases[derivedId] = baseId;
+                derivedAliasCount += 1;
+            }
+        }
+        return derivedAliasCount;
     }
 
     function buildActionRuntimeCatalog(actionSource, bcmCatalog, exceptionTable, options) {
@@ -367,7 +491,8 @@
         const fighterId = Number(actionSource.fighter_id ?? -1);
         if (fighterId !== Number(bcmCatalog.source.fighter_id)) throw new Error("AC 与 BCM 的 fighter_id 不一致。");
         const character = options.characterName || FIGHTER_NAMES[fighterId] || bcmCatalog.source.character || actionSource.character || "Unknown";
-        const actionIds = [...new Set(actionSource.unique_action_ids_by_scope.character.map(Number).filter(Number.isFinite))].sort((a, b) => a - b);
+        const actionIdSet = new Set(actionSource.unique_action_ids_by_scope.character.map(Number).filter(Number.isFinite));
+        const actionIds = [...actionIdSet].sort((a, b) => a - b);
         const actionSet = new Set(actionIds.map(String));
         const bcmRuntime = buildRuntimeCatalog(bcmCatalog);
         const actions = { ...bcmRuntime.actions };
@@ -392,6 +517,10 @@
             }
         }
 
+        // Replacement branches directly name the runtime replacement action.
+        const acDerivedAliasCount = buildAcDerivedAliases(
+            actionSource, actionSet, bcmRuntime.actions, actions, aliases);
+
         const sortedActions = {}, sortedAliases = {};
         for (const id of Object.keys(actions).sort((a, b) => Number(a) - Number(b))) sortedActions[id] = actions[id];
         for (const id of Object.keys(aliases).sort((a, b) => Number(a) - Number(b))) sortedAliases[id] = aliases[id];
@@ -399,7 +528,7 @@
             schema: "sf6cc.action-runtime.v1",
             character,
             fighter_id: fighterId,
-            policy: "universe:ac; commands:bcm; aliases:exceptions",
+            policy: "universe:ac; commands:bcm; aliases:exceptions+ac-derived",
             sources: {
                 ac_schema: actionSource.schema || null,
                 ac_sha256: options.actionSourceSha256 || null,
@@ -408,7 +537,10 @@
             },
             action_ids: actionIds,
             actions: sortedActions,
-            aliases: sortedAliases
+            aliases: sortedAliases,
+            coverage: {
+                ac_derived_alias_count: acDerivedAliasCount
+            }
         };
     }
 
