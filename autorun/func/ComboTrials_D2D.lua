@@ -180,6 +180,7 @@ local COMMUNITY_SEMANTIC_REASON = "verified_community_command_semantics_matched_
 local VERIFIED_ALIAS_REASON = "ac_verified_equivalent_action_variant"
 local TYPE20_DIRECTION_REASON = "ac_type20_verified_directional_air_attack"
 local TYPE20_HOLD_REASON = "ac_type20_verified_hold_continuation"
+local TYPE20_PHASE_REASON = "ac_type20_verified_multi_input_action_phase"
 local TARGET_COMBO_REPEAT_REASON = "bcm_turn_around_target_combo_repeats_parent_button"
 local STRUCTURAL_TWIN_REASON = "ac_bcm_unique_structural_twin_with_internal_use_super_delta"
 local ASSIST_COMBO_REASON = "bcm_assist_combo_recipe_direct_input_sequence"
@@ -403,6 +404,17 @@ local function load_modern_display_map(character)
         and tonumber(meta.type20_hold_route_count) == type20_hold_routes
         and type(meta.type20_hold_relations) == "table"
         and #meta.type20_hold_relations == type20_hold_relations
+    local type20_phase_relations = type(audit) == "table"
+        and tonumber(audit.type20_action_phase_relation_count) or nil
+    local type20_phase_routes = type(audit) == "table"
+        and tonumber(audit.type20_action_phase_route_count) or nil
+    local type20_phase_audit_ok = type20_phase_relations ~= nil and type20_phase_routes ~= nil
+        and type20_phase_relations >= 0 and type20_phase_routes >= type20_phase_relations
+        and type20_phase_relations == math.floor(type20_phase_relations)
+        and type20_phase_routes == math.floor(type20_phase_routes)
+        and tonumber(meta.type20_action_phase_route_count) == type20_phase_routes
+        and type(meta.type20_action_phase_relations) == "table"
+        and #meta.type20_action_phase_relations == type20_phase_relations
     local target_combo_relations = type(audit) == "table"
         and tonumber(audit.target_combo_repeat_relation_count) or nil
     local target_combo_routes = type(audit) == "table"
@@ -503,6 +515,7 @@ local function load_modern_display_map(character)
         and verified_alias_audit_ok
         and type20_audit_ok
         and type20_hold_audit_ok
+        and type20_phase_audit_ok
         and target_combo_audit_ok
         and structural_twin_audit_ok
         and assist_combo_audit_ok
@@ -511,7 +524,7 @@ local function load_modern_display_map(character)
         and hold_transition_audit_ok
     if type(meta) == "table"
         and tostring(meta.schema or ""):lower() == "xt.modern_display.v7"
-        and tostring(meta.strict_policy or ""):lower() == "verified_route_ownership_v6"
+        and tostring(meta.strict_policy or ""):lower() == "verified_route_ownership_v7"
         and (tostring(meta.generated_from or ""):lower() == "ac_bcm"
             or tostring(meta.generated_from or ""):lower() == "ac_bcm+capcom_official_semantics"
             or tostring(meta.generated_from or ""):lower() == "ac_bcm+community_verified_semantics"
@@ -808,6 +821,49 @@ local function get_modern_display_motion(modern_map, step)
             and tonumber(route.ac_param00) == 1 and tonumber(route.ac_param02) == 0
             and tonumber(route.ac_param03) == 1
             and tonumber(route.source_loop_count) == 0 and tonumber(route.target_loop_count) == -1
+        local declared_type20_phase = false
+        local type20_phase_declarations = type(modern_map._meta) == "table"
+            and modern_map._meta.type20_action_phase_relations or nil
+        local phase_signature_ok = false
+        if type(route.ac_phase_signatures) == "table" and #route.ac_phase_signatures == 4 then
+            local signatures = {}
+            for _, signature in ipairs(route.ac_phase_signatures) do
+                if type(signature) == "table" then
+                    signatures[string.format("%s:%s:%s:%s", tostring(signature.param00),
+                        tostring(signature.param01), tostring(signature.param02),
+                        tostring(signature.param03))] = true
+                end
+            end
+            phase_signature_ok = signatures["0:8:0:1"] == true
+                and signatures["0:32:0:2"] == true
+                and signatures["0:8192:0:3"] == true
+                and signatures["1:8192:0:3"] == true
+        end
+        if type(type20_phase_declarations) == "table" and phase_signature_ok then
+            for _, relation in ipairs(type20_phase_declarations) do
+                if type(relation) == "table" and tonumber(relation.source_action_id) == inherited_source
+                    and tonumber(relation.target_action_id) == step_id
+                    and tonumber(relation.branch_type) == 20
+                    and relation.reason == TYPE20_PHASE_REASON
+                    and type(relation.signatures) == "table" and #relation.signatures == 4 then
+                    declared_type20_phase = true
+                    break
+                end
+            end
+        end
+        local type20_phase_ok = source == "ac_type20_action_phase"
+            and entry.ownership == "type20_action_phase" and declared_type20_phase
+            and route.direct_evidence == false and route.inheritance_evidence == true
+            and route.rebind_evidence == false and route.runtime_common_evidence == false
+            and route.official_semantic_evidence == false and route.community_semantic_evidence == false
+            and route.inheritance_reason == TYPE20_PHASE_REASON
+            and tonumber(route.ac_relation_type) == 20 and inherited_source ~= nil
+            and step_id ~= nil and type(ac_path) == "table" and #ac_path >= 2
+            and tonumber(ac_path[#ac_path - 1]) == inherited_source
+            and tonumber(ac_path[#ac_path]) == step_id
+            and tonumber(route.display_action_id) == step_id
+            and route.confidence == "verified_inherited_action_phase"
+            and route_character == map_character and phase_signature_ok
         local declared_target_combo = false
         local target_combo_declarations = type(modern_map._meta) == "table"
             and modern_map._meta.target_combo_repeat_relations or nil
@@ -928,7 +984,8 @@ local function get_modern_display_motion(modern_map, step)
             and tostring(route.display or "") == assist_expected_display
         local display = type(route) == "table" and route.display or nil
         if (direct_ok or inherited_ok or rebind_ok or runtime_common_ok or official_semantic_ok
-                or verified_alias_ok or type20_ok or type20_hold_ok or target_combo_ok or structural_twin_ok
+                or verified_alias_ok or type20_ok or type20_hold_ok or type20_phase_ok
+                or target_combo_ok or structural_twin_ok
                 or assist_combo_ok)
             and type(display) == "string" and display ~= "" and not seen[display] then
             seen[display] = true

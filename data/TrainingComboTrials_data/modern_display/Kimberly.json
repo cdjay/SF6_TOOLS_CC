@@ -2313,6 +2313,81 @@
       }
     ]
   },
+  "901": {
+    "modern_display": "6 + SP",
+    "control_support": "modern",
+    "source": "ac_bcm+capcom_official_semantics",
+    "ownership": "type20_action_phase",
+    "routes": [
+      {
+        "display": "6 + SP",
+        "character": "Kimberly",
+        "owner_action_id": 900,
+        "trigger_index": 80,
+        "profile": "easy",
+        "command_no": -1,
+        "command_index": -1,
+        "raw_direction_inputs": [],
+        "raw_button_mask": 32,
+        "raw_button_condition": 16416,
+        "raw_dc_exc_flags": 8,
+        "raw_ng_key_flags": 2,
+        "visible_direction": "6",
+        "visible_button": "SP",
+        "button_candidates": [],
+        "required_button_count": 1,
+        "source": "ac_type20_action_phase",
+        "ac_relation_type": 20,
+        "ac_path": [
+          900,
+          901
+        ],
+        "inherited_from_action_id": 900,
+        "confidence": "verified_inherited_action_phase",
+        "direct_evidence": false,
+        "inheritance_evidence": true,
+        "inheritance_reason": "ac_type20_verified_multi_input_action_phase",
+        "rebind_evidence": false,
+        "rebind_reason": null,
+        "runtime_common_evidence": false,
+        "runtime_common_reason": null,
+        "official_semantic_evidence": false,
+        "official_semantic_reason": null,
+        "community_semantic_evidence": false,
+        "community_semantic_reason": null,
+        "assist_combo_evidence": false,
+        "assist_combo_reason": null,
+        "display_action_id": 901,
+        "bcm_owner_action_id": 900,
+        "ac_phase_signatures": [
+          {
+            "param00": 0,
+            "param01": 8,
+            "param02": 0,
+            "param03": 1
+          },
+          {
+            "param00": 0,
+            "param01": 32,
+            "param02": 0,
+            "param03": 2
+          },
+          {
+            "param00": 0,
+            "param01": 8192,
+            "param02": 0,
+            "param03": 3
+          },
+          {
+            "param00": 1,
+            "param01": 8192,
+            "param02": 0,
+            "param03": 3
+          }
+        ]
+      }
+    ]
+  },
   "902": {
     "modern_display": "> 强",
     "control_support": "modern",
@@ -2421,6 +2496,81 @@
         "community_semantic_reason": null,
         "assist_combo_evidence": false,
         "assist_combo_reason": null
+      }
+    ]
+  },
+  "904": {
+    "modern_display": "6 + AUTO + SP",
+    "control_support": "modern",
+    "source": "ac_bcm+capcom_official_semantics",
+    "ownership": "type20_action_phase",
+    "routes": [
+      {
+        "display": "6 + AUTO + SP",
+        "character": "Kimberly",
+        "owner_action_id": 903,
+        "trigger_index": 181,
+        "profile": "supr",
+        "command_no": -1,
+        "command_index": -1,
+        "raw_direction_inputs": [],
+        "raw_button_mask": 8192,
+        "raw_button_condition": 16416,
+        "raw_dc_exc_flags": 8,
+        "raw_ng_key_flags": 2,
+        "visible_direction": "6",
+        "visible_button": "AUTO + SP",
+        "button_candidates": [],
+        "required_button_count": 1,
+        "source": "ac_type20_action_phase",
+        "ac_relation_type": 20,
+        "ac_path": [
+          903,
+          904
+        ],
+        "inherited_from_action_id": 903,
+        "confidence": "verified_inherited_action_phase",
+        "direct_evidence": false,
+        "inheritance_evidence": true,
+        "inheritance_reason": "ac_type20_verified_multi_input_action_phase",
+        "rebind_evidence": false,
+        "rebind_reason": null,
+        "runtime_common_evidence": false,
+        "runtime_common_reason": null,
+        "official_semantic_evidence": false,
+        "official_semantic_reason": null,
+        "community_semantic_evidence": false,
+        "community_semantic_reason": null,
+        "assist_combo_evidence": false,
+        "assist_combo_reason": null,
+        "display_action_id": 904,
+        "bcm_owner_action_id": 903,
+        "ac_phase_signatures": [
+          {
+            "param00": 0,
+            "param01": 8,
+            "param02": 0,
+            "param03": 1
+          },
+          {
+            "param00": 0,
+            "param01": 32,
+            "param02": 0,
+            "param03": 2
+          },
+          {
+            "param00": 0,
+            "param01": 8192,
+            "param02": 0,
+            "param03": 3
+          },
+          {
+            "param00": 1,
+            "param01": 8192,
+            "param02": 0,
+            "param03": 3
+          }
+        ]
       }
     ]
   },
@@ -2721,47 +2871,11 @@
     ]
   },
   "909": {
-    "modern_display": "2 + AUTO + SP/2 + 任意键/AUTO + 强",
+    "modern_display": "2 + 任意键/AUTO + 强",
     "control_support": "modern",
     "source": "ac_bcm+capcom_official_semantics",
     "ownership": "direct",
     "routes": [
-      {
-        "display": "2 + AUTO + SP",
-        "character": "Kimberly",
-        "owner_action_id": 909,
-        "trigger_index": 85,
-        "profile": "supr",
-        "command_no": -1,
-        "command_index": -1,
-        "raw_direction_inputs": [],
-        "raw_button_mask": 8192,
-        "raw_button_condition": 16416,
-        "raw_dc_exc_flags": 2,
-        "raw_ng_key_flags": 0,
-        "visible_direction": "2",
-        "visible_button": "AUTO + SP",
-        "button_candidates": [],
-        "required_button_count": 1,
-        "source": "bcm_profile",
-        "ac_relation_type": null,
-        "ac_path": [],
-        "inherited_from_action_id": null,
-        "confidence": "direct_structural",
-        "direct_evidence": true,
-        "inheritance_evidence": false,
-        "inheritance_reason": null,
-        "rebind_evidence": false,
-        "rebind_reason": null,
-        "runtime_common_evidence": false,
-        "runtime_common_reason": null,
-        "official_semantic_evidence": false,
-        "official_semantic_reason": null,
-        "community_semantic_evidence": false,
-        "community_semantic_reason": null,
-        "assist_combo_evidence": false,
-        "assist_combo_reason": null
-      },
       {
         "display": "2 + 任意键",
         "character": "Kimberly",
@@ -2992,6 +3106,102 @@
         "visible_direction": "6",
         "visible_button": "SP",
         "button_candidates": [],
+        "required_button_count": 1,
+        "source": "bcm_profile",
+        "ac_relation_type": null,
+        "ac_path": [],
+        "inherited_from_action_id": null,
+        "confidence": "direct_structural",
+        "direct_evidence": true,
+        "inheritance_evidence": false,
+        "inheritance_reason": null,
+        "rebind_evidence": false,
+        "rebind_reason": null,
+        "runtime_common_evidence": false,
+        "runtime_common_reason": null,
+        "official_semantic_evidence": false,
+        "official_semantic_reason": null,
+        "community_semantic_evidence": false,
+        "community_semantic_reason": null,
+        "assist_combo_evidence": false,
+        "assist_combo_reason": null
+      }
+    ]
+  },
+  "920": {
+    "modern_display": "> 空中 任意键",
+    "control_support": "modern",
+    "source": "ac_bcm+capcom_official_semantics",
+    "ownership": "direct",
+    "routes": [
+      {
+        "display": "> 空中 任意键",
+        "character": "Kimberly",
+        "owner_action_id": 920,
+        "trigger_index": 91,
+        "profile": "easy",
+        "command_no": -1,
+        "command_index": -1,
+        "raw_direction_inputs": [],
+        "raw_button_mask": 432,
+        "raw_button_condition": 16416,
+        "raw_dc_exc_flags": 0,
+        "raw_ng_key_flags": 2,
+        "visible_direction": null,
+        "visible_button": "任意键",
+        "button_candidates": [
+          "弱",
+          "中",
+          "强"
+        ],
+        "required_button_count": 1,
+        "source": "bcm_profile",
+        "ac_relation_type": null,
+        "ac_path": [],
+        "inherited_from_action_id": null,
+        "confidence": "direct_structural",
+        "direct_evidence": true,
+        "inheritance_evidence": false,
+        "inheritance_reason": null,
+        "rebind_evidence": false,
+        "rebind_reason": null,
+        "runtime_common_evidence": false,
+        "runtime_common_reason": null,
+        "official_semantic_evidence": false,
+        "official_semantic_reason": null,
+        "community_semantic_evidence": false,
+        "community_semantic_reason": null,
+        "assist_combo_evidence": false,
+        "assist_combo_reason": null
+      }
+    ]
+  },
+  "924": {
+    "modern_display": "> 空中 任意键",
+    "control_support": "modern",
+    "source": "ac_bcm+capcom_official_semantics",
+    "ownership": "direct",
+    "routes": [
+      {
+        "display": "> 空中 任意键",
+        "character": "Kimberly",
+        "owner_action_id": 924,
+        "trigger_index": 197,
+        "profile": "easy",
+        "command_no": -1,
+        "command_index": -1,
+        "raw_direction_inputs": [],
+        "raw_button_mask": 432,
+        "raw_button_condition": 16416,
+        "raw_dc_exc_flags": 0,
+        "raw_ng_key_flags": 2,
+        "visible_direction": null,
+        "visible_button": "任意键",
+        "button_candidates": [
+          "弱",
+          "中",
+          "强"
+        ],
         "required_button_count": 1,
         "source": "bcm_profile",
         "ac_relation_type": null,
@@ -3822,6 +4032,94 @@
       }
     ]
   },
+  "966": {
+    "modern_display": "2 + SP",
+    "control_support": "modern",
+    "source": "ac_bcm+capcom_official_semantics",
+    "ownership": "direct",
+    "routes": [
+      {
+        "display": "2 + SP",
+        "character": "Kimberly",
+        "owner_action_id": 966,
+        "trigger_index": 97,
+        "profile": "sprt",
+        "command_no": -1,
+        "command_index": -1,
+        "raw_direction_inputs": [],
+        "raw_button_mask": 32,
+        "raw_button_condition": 16416,
+        "raw_dc_exc_flags": 2,
+        "raw_ng_key_flags": 0,
+        "visible_direction": "2",
+        "visible_button": "SP",
+        "button_candidates": [],
+        "required_button_count": 1,
+        "source": "bcm_profile",
+        "ac_relation_type": null,
+        "ac_path": [],
+        "inherited_from_action_id": null,
+        "confidence": "direct_structural",
+        "direct_evidence": true,
+        "inheritance_evidence": false,
+        "inheritance_reason": null,
+        "rebind_evidence": false,
+        "rebind_reason": null,
+        "runtime_common_evidence": false,
+        "runtime_common_reason": null,
+        "official_semantic_evidence": false,
+        "official_semantic_reason": null,
+        "community_semantic_evidence": false,
+        "community_semantic_reason": null,
+        "assist_combo_evidence": false,
+        "assist_combo_reason": null
+      }
+    ]
+  },
+  "970": {
+    "modern_display": "2 + AUTO + SP",
+    "control_support": "modern",
+    "source": "ac_bcm+capcom_official_semantics",
+    "ownership": "direct",
+    "routes": [
+      {
+        "display": "2 + AUTO + SP",
+        "character": "Kimberly",
+        "owner_action_id": 970,
+        "trigger_index": 201,
+        "profile": "sprt",
+        "command_no": -1,
+        "command_index": -1,
+        "raw_direction_inputs": [],
+        "raw_button_mask": 32,
+        "raw_button_condition": 16416,
+        "raw_dc_exc_flags": 514,
+        "raw_ng_key_flags": 0,
+        "visible_direction": "2",
+        "visible_button": "AUTO + SP",
+        "button_candidates": [],
+        "required_button_count": 1,
+        "source": "bcm_profile",
+        "ac_relation_type": null,
+        "ac_path": [],
+        "inherited_from_action_id": null,
+        "confidence": "direct_structural",
+        "direct_evidence": true,
+        "inheritance_evidence": false,
+        "inheritance_reason": null,
+        "rebind_evidence": false,
+        "rebind_reason": null,
+        "runtime_common_evidence": false,
+        "runtime_common_reason": null,
+        "official_semantic_evidence": false,
+        "official_semantic_reason": null,
+        "community_semantic_evidence": false,
+        "community_semantic_reason": null,
+        "assist_combo_evidence": false,
+        "assist_combo_reason": null
+      }
+    ]
+  },
   "973": {
     "modern_display": "22 + 任意键",
     "control_support": "modern",
@@ -3876,47 +4174,11 @@
     ]
   },
   "974": {
-    "modern_display": "2 + AUTO + SP/22 + 任意键 + 任意键",
+    "modern_display": "22 + 任意键 + 任意键",
     "control_support": "modern",
     "source": "ac_bcm+capcom_official_semantics",
     "ownership": "direct",
     "routes": [
-      {
-        "display": "2 + AUTO + SP",
-        "character": "Kimberly",
-        "owner_action_id": 974,
-        "trigger_index": 176,
-        "profile": "supr",
-        "command_no": -1,
-        "command_index": -1,
-        "raw_direction_inputs": [],
-        "raw_button_mask": 8192,
-        "raw_button_condition": 16416,
-        "raw_dc_exc_flags": 2,
-        "raw_ng_key_flags": 0,
-        "visible_direction": "2",
-        "visible_button": "AUTO + SP",
-        "button_candidates": [],
-        "required_button_count": 1,
-        "source": "bcm_profile",
-        "ac_relation_type": null,
-        "ac_path": [],
-        "inherited_from_action_id": null,
-        "confidence": "direct_structural",
-        "direct_evidence": true,
-        "inheritance_evidence": false,
-        "inheritance_reason": null,
-        "rebind_evidence": false,
-        "rebind_reason": null,
-        "runtime_common_evidence": false,
-        "runtime_common_reason": null,
-        "official_semantic_evidence": false,
-        "official_semantic_reason": null,
-        "community_semantic_evidence": false,
-        "community_semantic_reason": null,
-        "assist_combo_evidence": false,
-        "assist_combo_reason": null
-      },
       {
         "display": "22 + 任意键 + 任意键",
         "character": "Kimberly",
@@ -5338,11 +5600,11 @@
   },
   "_meta": {
     "schema": "xt.modern_display.v7",
-    "strict_policy": "verified_route_ownership_v6",
+    "strict_policy": "verified_route_ownership_v7",
     "character": "Kimberly",
     "fighter_id": 3,
     "generated_from": "ac_bcm+capcom_official_semantics",
-    "generated_at": "2026-07-17T21:47:51.237Z",
+    "generated_at": "2026-07-17T22:09:02.066Z",
     "ac_sha256": "26d33a8a7d8c2e032a33e546cde3d699027328539c1c576d44734b78c68a833f",
     "bcm_sha256": "1b727b2dc9dbe294f50865f0d545dd2626b3932d89741f492e77cc3fd0f25732",
     "modern_profile_order": [
@@ -5350,8 +5612,8 @@
       "supr",
       "sprt"
     ],
-    "direct_route_count": 106,
-    "inherited_route_count": 1,
+    "direct_route_count": 108,
+    "inherited_route_count": 3,
     "rebind_route_count": 0,
     "runtime_common_route_count": 6,
     "official_semantic_route_count": 3,
@@ -5365,44 +5627,64 @@
     "hold_transition_type29_alias_suppressions": [],
     "type20_directional_route_count": 0,
     "type20_hold_route_count": 0,
+    "type20_action_phase_route_count": 2,
     "target_combo_repeat_route_count": 0,
     "structural_twin_route_count": 0,
     "assist_combo_route_count": 3,
     "assist_combo_normalized_to_existing_count": 11,
     "paired_sprt_sp_route_count": 0,
     "paired_sprt_sp_relations": [],
-    "shadowed_supr_route_count": 3,
+    "shadowed_supr_route_count": 5,
     "shadowed_supr_routes": [
+      {
+        "action_id": 909,
+        "display": "2 + AUTO + SP",
+        "trigger_index": 85,
+        "reason": "direct_non_supr_route_owns_identical_shortcut",
+        "shadowed_by_action_ids": [
+          970
+        ]
+      },
       {
         "action_id": 973,
         "display": "2 + AUTO + SP",
         "trigger_index": 67,
-        "reason": "drive_cost_owner_owns_identical_family_shortcut",
+        "reason": "direct_non_supr_route_owns_identical_shortcut",
         "shadowed_by_action_ids": [
-          974
+          970
+        ]
+      },
+      {
+        "action_id": 974,
+        "display": "2 + AUTO + SP",
+        "trigger_index": 176,
+        "reason": "direct_non_supr_route_owns_identical_shortcut",
+        "shadowed_by_action_ids": [
+          970
         ]
       },
       {
         "action_id": 975,
         "display": "2 + AUTO + SP",
         "trigger_index": 68,
-        "reason": "drive_cost_owner_owns_identical_family_shortcut",
+        "reason": "direct_non_supr_route_owns_identical_shortcut",
         "shadowed_by_action_ids": [
-          974
+          970
         ]
       },
       {
         "action_id": 978,
         "display": "2 + AUTO + SP",
         "trigger_index": 177,
-        "reason": "drive_cost_owner_owns_identical_family_shortcut",
+        "reason": "direct_non_supr_route_owns_identical_shortcut",
         "shadowed_by_action_ids": [
-          974
+          970
         ]
       }
     ],
     "official_semantic_source_sha256": "f216e470a777a7b3ffac1f675f2cd2d94b0aae9b10b2af103074178eedea0652",
     "ac_relation_route_counts": {
+      "20": 2,
       "63": 1
     },
     "ac_command_entry_rebinds": [],
@@ -5479,6 +5761,72 @@
     "verified_alias_relations": [],
     "type20_directional_relations": [],
     "type20_hold_relations": [],
+    "type20_action_phase_relations": [
+      {
+        "source_action_id": 900,
+        "target_action_id": 901,
+        "signatures": [
+          {
+            "param00": 0,
+            "param01": 8,
+            "param02": 0,
+            "param03": 1
+          },
+          {
+            "param00": 0,
+            "param01": 32,
+            "param02": 0,
+            "param03": 2
+          },
+          {
+            "param00": 0,
+            "param01": 8192,
+            "param02": 0,
+            "param03": 3
+          },
+          {
+            "param00": 1,
+            "param01": 8192,
+            "param02": 0,
+            "param03": 3
+          }
+        ],
+        "branch_type": 20,
+        "reason": "ac_type20_verified_multi_input_action_phase"
+      },
+      {
+        "source_action_id": 903,
+        "target_action_id": 904,
+        "signatures": [
+          {
+            "param00": 0,
+            "param01": 8,
+            "param02": 0,
+            "param03": 1
+          },
+          {
+            "param00": 0,
+            "param01": 32,
+            "param02": 0,
+            "param03": 2
+          },
+          {
+            "param00": 0,
+            "param01": 8192,
+            "param02": 0,
+            "param03": 3
+          },
+          {
+            "param00": 1,
+            "param01": 8192,
+            "param02": 0,
+            "param03": 3
+          }
+        ],
+        "branch_type": 20,
+        "reason": "ac_type20_verified_multi_input_action_phase"
+      }
+    ],
     "target_combo_repeat_relations": [],
     "structural_twin_relations": [],
     "assist_combo_relations": [
@@ -5570,7 +5918,7 @@
         ]
       }
     ],
-    "unresolved_candidate_count": 50,
+    "unresolved_candidate_count": 46,
     "unresolved_candidates": [
       {
         "action_id": 17,
@@ -7052,47 +7400,6 @@
         "character": "Kimberly",
         "owner_action_id": 920,
         "trigger_index": 91,
-        "profile": "easy",
-        "command_no": -1,
-        "command_index": -1,
-        "raw_direction_inputs": [],
-        "raw_button_mask": 432,
-        "raw_button_condition": 16416,
-        "raw_dc_exc_flags": 0,
-        "raw_ng_key_flags": 2,
-        "visible_direction": null,
-        "visible_button": null,
-        "button_candidates": [
-          "弱",
-          "中",
-          "强"
-        ],
-        "required_button_count": 1,
-        "source": "bcm_profile",
-        "ac_relation_type": null,
-        "ac_path": [],
-        "inherited_from_action_id": null,
-        "confidence": "direct_structural",
-        "direct_evidence": true,
-        "inheritance_evidence": false,
-        "inheritance_reason": null,
-        "rebind_evidence": false,
-        "rebind_reason": null,
-        "runtime_common_evidence": false,
-        "runtime_common_reason": null,
-        "official_semantic_evidence": false,
-        "official_semantic_reason": null,
-        "community_semantic_evidence": false,
-        "community_semantic_reason": null,
-        "assist_combo_evidence": false,
-        "assist_combo_reason": null,
-        "reason": "multi_button_candidate_requires_runtime_selection"
-      },
-      {
-        "action_id": 920,
-        "character": "Kimberly",
-        "owner_action_id": 920,
-        "trigger_index": 91,
         "profile": "sprt",
         "command_no": 0,
         "command_index": -1,
@@ -7124,47 +7431,6 @@
         "assist_combo_evidence": false,
         "assist_combo_reason": null,
         "reason": "profile_disabled_or_missing"
-      },
-      {
-        "action_id": 924,
-        "character": "Kimberly",
-        "owner_action_id": 924,
-        "trigger_index": 197,
-        "profile": "easy",
-        "command_no": -1,
-        "command_index": -1,
-        "raw_direction_inputs": [],
-        "raw_button_mask": 432,
-        "raw_button_condition": 16416,
-        "raw_dc_exc_flags": 0,
-        "raw_ng_key_flags": 2,
-        "visible_direction": null,
-        "visible_button": null,
-        "button_candidates": [
-          "弱",
-          "中",
-          "强"
-        ],
-        "required_button_count": 1,
-        "source": "bcm_profile",
-        "ac_relation_type": null,
-        "ac_path": [],
-        "inherited_from_action_id": null,
-        "confidence": "direct_structural",
-        "direct_evidence": true,
-        "inheritance_evidence": false,
-        "inheritance_reason": null,
-        "rebind_evidence": false,
-        "rebind_reason": null,
-        "runtime_common_evidence": false,
-        "runtime_common_reason": null,
-        "official_semantic_evidence": false,
-        "official_semantic_reason": null,
-        "community_semantic_evidence": false,
-        "community_semantic_reason": null,
-        "assist_combo_evidence": false,
-        "assist_combo_reason": null,
-        "reason": "multi_button_candidate_requires_runtime_selection"
       },
       {
         "action_id": 924,
@@ -7280,80 +7546,6 @@
         "assist_combo_evidence": false,
         "assist_combo_reason": null,
         "reason": "profile_disabled_or_missing"
-      },
-      {
-        "action_id": 966,
-        "character": "Kimberly",
-        "owner_action_id": 966,
-        "trigger_index": 97,
-        "profile": "sprt",
-        "command_no": -1,
-        "command_index": -1,
-        "raw_direction_inputs": [],
-        "raw_button_mask": 32,
-        "raw_button_condition": 16416,
-        "raw_dc_exc_flags": 2,
-        "raw_ng_key_flags": 0,
-        "visible_direction": "2",
-        "visible_button": null,
-        "button_candidates": [],
-        "required_button_count": 1,
-        "source": "bcm_profile",
-        "ac_relation_type": null,
-        "ac_path": [],
-        "inherited_from_action_id": null,
-        "confidence": "direct_structural",
-        "direct_evidence": true,
-        "inheritance_evidence": false,
-        "inheritance_reason": null,
-        "rebind_evidence": false,
-        "rebind_reason": null,
-        "runtime_common_evidence": false,
-        "runtime_common_reason": null,
-        "official_semantic_evidence": false,
-        "official_semantic_reason": null,
-        "community_semantic_evidence": false,
-        "community_semantic_reason": null,
-        "assist_combo_evidence": false,
-        "assist_combo_reason": null,
-        "reason": "unsupported_sprt_button_mask"
-      },
-      {
-        "action_id": 970,
-        "character": "Kimberly",
-        "owner_action_id": 970,
-        "trigger_index": 201,
-        "profile": "sprt",
-        "command_no": -1,
-        "command_index": -1,
-        "raw_direction_inputs": [],
-        "raw_button_mask": 32,
-        "raw_button_condition": 16416,
-        "raw_dc_exc_flags": 514,
-        "raw_ng_key_flags": 0,
-        "visible_direction": "2",
-        "visible_button": null,
-        "button_candidates": [],
-        "required_button_count": 1,
-        "source": "bcm_profile",
-        "ac_relation_type": null,
-        "ac_path": [],
-        "inherited_from_action_id": null,
-        "confidence": "direct_structural",
-        "direct_evidence": true,
-        "inheritance_evidence": false,
-        "inheritance_reason": null,
-        "rebind_evidence": false,
-        "rebind_reason": null,
-        "runtime_common_evidence": false,
-        "runtime_common_reason": null,
-        "official_semantic_evidence": false,
-        "official_semantic_reason": null,
-        "community_semantic_evidence": false,
-        "community_semantic_reason": null,
-        "assist_combo_evidence": false,
-        "assist_combo_reason": null,
-        "reason": "unsupported_sprt_button_mask"
       },
       {
         "action_id": 1150,
@@ -7467,7 +7659,7 @@
         "reason": "profile_disabled_or_missing"
       }
     ],
-    "unmapped_action_count": 301,
+    "unmapped_action_count": 295,
     "unmapped_action_ids": [
       1,
       2,
@@ -7670,17 +7862,13 @@
       856,
       857,
       859,
-      901,
-      904,
       915,
       916,
       917,
       918,
-      920,
       921,
       922,
       923,
-      924,
       925,
       926,
       927,
@@ -7697,8 +7885,6 @@
       959,
       961,
       963,
-      966,
-      970,
       981,
       982,
       983,
@@ -7806,6 +7992,8 @@
       "type20_directional_route_count": 0,
       "type20_hold_relation_count": 0,
       "type20_hold_route_count": 0,
+      "type20_action_phase_relation_count": 2,
+      "type20_action_phase_route_count": 2,
       "target_combo_repeat_relation_count": 0,
       "target_combo_repeat_route_count": 0,
       "structural_twin_relation_count": 0,
@@ -7817,7 +8005,7 @@
       "assist_combo_normalized_to_existing_count": 11,
       "paired_sprt_sp_relation_count": 0,
       "paired_sprt_sp_route_count": 0,
-      "shadowed_supr_route_count": 3,
+      "shadowed_supr_route_count": 5,
       "ac_automatic_transition_route_count": 0,
       "replaces_profile_route_count": 0
     },

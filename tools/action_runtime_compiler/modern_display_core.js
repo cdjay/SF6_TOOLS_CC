@@ -1,7 +1,7 @@
 "use strict";
 
 const SCHEMA = "xt.modern_display.v7";
-const STRICT_POLICY = "verified_route_ownership_v6";
+const STRICT_POLICY = "verified_route_ownership_v7";
 const MODERN_PROFILE_ORDER = ["easy", "supr", "sprt"];
 const CLASSIC_TOKEN = /(^|[\s+>/])(?:LP|MP|HP|LK|MK|HK|PPP|KKK|PP|KK|P|K)(?=$|[\s+>/])/i;
 const PROFILE_BUTTONS = new Set([
@@ -16,6 +16,7 @@ const COMMUNITY_SEMANTIC_REASON = "verified_community_command_semantics_matched_
 const VERIFIED_ALIAS_REASON = "ac_verified_equivalent_action_variant";
 const TYPE20_DIRECTION_REASON = "ac_type20_verified_directional_air_attack";
 const TYPE20_HOLD_REASON = "ac_type20_verified_hold_continuation";
+const TYPE20_PHASE_REASON = "ac_type20_verified_multi_input_action_phase";
 const TARGET_COMBO_REPEAT_REASON = "bcm_turn_around_target_combo_repeats_parent_button";
 const STRUCTURAL_TWIN_REASON = "ac_bcm_unique_structural_twin_with_internal_use_super_delta";
 const ASSIST_COMBO_REASON = "bcm_assist_combo_recipe_direct_input_sequence";
@@ -119,6 +120,7 @@ function translateSprt(profile, conditions) {
     if (profile.button === "Throw" || raw === 144) buttons = ["THROW"];
     else if (profile.button === "Parry" || raw === 288) buttons = ["DP"];
     else if (profile.button === "DI" || raw === 576) buttons = ["DI"];
+    else if (raw === 32 && Number(conditions && conditions.function_id) === 2) buttons = ["SP"];
     else if (candidates.length > 1 && candidates.length === count) buttons = candidates;
     else if (candidates.length > count && count === 1) buttons = [ANY_BUTTON];
     else if (candidates.length > count && count === 2) buttons = [ANY_BUTTON, ANY_BUTTON];
@@ -140,7 +142,7 @@ function translateSprt(profile, conditions) {
         : unresolved(direction, candidates, count, "empty_sprt_route");
 }
 
-function translateEasy(profile) {
+function translateEasy(profile, conditions) {
     const { air, parts } = splitNotation(profile);
     const directions = visibleDirections(parts);
     const direction = directions.join("+") || null;
@@ -148,6 +150,14 @@ function translateEasy(profile) {
     const candidates = attackCandidates(profile);
     const count = requiredButtonCount(profile);
     if (candidates.length > 1) {
+        const contextualAnyAttack = raw === 432 && count === 1
+            && Number(profile.ng_key_flags || 0) === 2
+            && Number(conditions && conditions.function_id) === 2
+            && directions.length === 0;
+        if (contextualAnyAttack) {
+            const display = `${air ? "> 空中 " : "> "}${ANY_BUTTON}`;
+            return resolved(display, null, ANY_BUTTON, candidates, count);
+        }
         return unresolved(direction, candidates, count,
             count === 1 ? "multi_button_candidate_requires_runtime_selection"
                 : "unsupported_easy_multi_button_selector");
@@ -193,7 +203,7 @@ function translateSupr(profile, conditions) {
 function translateProfileDetailed(name, profile, conditions) {
     if (!profile || profile.enabled !== true) return unresolved(null, [], null, "profile_disabled_or_missing");
     if (name === "sprt") return translateSprt(profile, conditions);
-    if (name === "easy") return translateEasy(profile);
+    if (name === "easy") return translateEasy(profile, conditions);
     if (name === "supr") return translateSupr(profile, conditions);
     return unresolved(null, [], null, "unsupported_profile");
 }
@@ -367,7 +377,7 @@ function promotePairedSprtSpRoutes(entries, bcmCatalog) {
                         || comparableCondition(targetConditions) !== comparableCondition(conditions)
                         || normCommandKey(targetTrigger) !== commandKey
                         || !easy || easy.enabled !== true || Number(easy.ok_key_flags) !== 32) continue;
-                    const easyDetail = translateEasy(easy);
+                    const easyDetail = translateEasy(easy, trigger.conditions);
                     if (easyDetail.display === suprDetail.display) {
                         candidates.push({ targetId: Number(targetId), targetTrigger, easyDetail });
                     }
@@ -746,6 +756,16 @@ function type20HoldRoute(character, relation, sourceRoute, button) {
     return route;
 }
 
+function type20ActionPhaseRoute(character, relation, sourceRoute) {
+    const sourceId = Number(relation.source_action_id);
+    const targetId = Number(relation.target_action_id);
+    const route = inheritedRouteFromSource(character, sourceRoute, sourceId, targetId,
+        sourceRoute.display, "ac_type20_action_phase", 20,
+        TYPE20_PHASE_REASON, "verified_inherited_action_phase");
+    route.ac_phase_signatures = relation.signatures.map(signature => ({ ...signature }));
+    return route;
+}
+
 function targetComboRepeatRoute(character, targetId, parentId, trigger, profile, parentButton) {
     const detail = resolved(`> ${parentButton}`, null, parentButton, [parentButton], 1);
     const route = {
@@ -1063,6 +1083,63 @@ function strictType20HoldRelations(actionSource, actionSet) {
         }
     }
     return relations.sort((left, right) => left.source_action_id - right.source_action_id
+        || left.target_action_id - right.target_action_id);
+}
+
+function strictType20ActionPhaseRelations(actionSource, actionSet) {
+    const { objects, actions } = characterActionGraph(actionSource, actionSet);
+    const grouped = new Map();
+    for (const [sourceId, root] of actions) {
+        const keys = referencedObject(root, "Keys", objects);
+        const pending = keys ? [keys.object_id] : [];
+        const visited = new Set();
+        while (pending.length) {
+            const objectId = pending.pop();
+            if (visited.has(objectId)) continue;
+            visited.add(objectId);
+            const object = objects.get(objectId);
+            if (!object) continue;
+            if (object.object_type === "CharacterAsset.BranchKey") {
+                const fields = fieldsOf(object);
+                const targetId = numericField(fields, "Action");
+                const relation = {
+                    param00: numericField(fields, "Param00"),
+                    param01: numericField(fields, "Param01"),
+                    param02: numericField(fields, "Param02"),
+                    param03: numericField(fields, "Param03")
+                };
+                if (numericField(fields, "Type") === 20 && targetId !== sourceId && actions.has(targetId)
+                    && numericField(fields, "Attr") === 288
+                    && numericField(fields, "ActionFrame") === 0
+                    && relation.param02 === 0
+                    && numericField(fields, "Param04") === 0
+                    && numericField(fields, "Param05") === 0
+                    && numericField(fields, "TriggerID") === -1) {
+                    const key = `${sourceId}:${targetId}`;
+                    if (!grouped.has(key)) grouped.set(key, { source_action_id: sourceId,
+                        target_action_id: targetId, signatures: [] });
+                    grouped.get(key).signatures.push(relation);
+                }
+            }
+            for (const field of object.fields || []) {
+                if (field.value && field.value.kind === "ref") pending.push(field.value.object_id);
+            }
+            for (const item of object.items || []) {
+                if (item.value && item.value.kind === "ref") pending.push(item.value.object_id);
+            }
+        }
+    }
+    const expected = new Set(["0:8:0:1", "0:32:0:2", "0:8192:0:3", "1:8192:0:3"]);
+    const output = [];
+    for (const relation of grouped.values()) {
+        const signatures = new Set(relation.signatures.map(item =>
+            `${item.param00}:${item.param01}:${item.param02}:${item.param03}`));
+        if (signatures.size !== expected.size || [...expected].some(item => !signatures.has(item))) continue;
+        relation.signatures.sort((left, right) => left.param03 - right.param03
+            || left.param01 - right.param01 || left.param00 - right.param00);
+        output.push({ ...relation, branch_type: 20 });
+    }
+    return output.sort((left, right) => left.source_action_id - right.source_action_id
         || left.target_action_id - right.target_action_id);
 }
 
@@ -1519,6 +1596,20 @@ function assertRoute(route) {
             throw new Error(`Modern Type20 hold route 证据非法: ${route.display}`);
         }
     }
+    if (route.source === "ac_type20_action_phase") {
+        const signatures = Array.isArray(route.ac_phase_signatures) ? route.ac_phase_signatures : [];
+        const actual = new Set(signatures.map(item =>
+            `${item.param00}:${item.param01}:${item.param02}:${item.param03}`));
+        const expected = ["0:8:0:1", "0:32:0:2", "0:8192:0:3", "1:8192:0:3"];
+        if (route.inheritance_evidence !== true || route.inheritance_reason !== TYPE20_PHASE_REASON
+            || route.confidence !== "verified_inherited_action_phase"
+            || Number(route.ac_relation_type) !== 20 || route.ac_path.length < 2
+            || Number(route.ac_path[route.ac_path.length - 1]) !== Number(route.display_action_id)
+            || Number(route.inherited_from_action_id) !== Number(route.ac_path[route.ac_path.length - 2])
+            || actual.size !== expected.length || expected.some(item => !actual.has(item))) {
+            throw new Error(`Modern Type20 action-phase route 证据非法: ${route.display}`);
+        }
+    }
     if (route.source === "bcm_target_combo_repeat") {
         if (route.inheritance_evidence !== true || route.inheritance_reason !== TARGET_COMBO_REPEAT_REASON
             || route.confidence !== "verified_bcm_target_combo_repeat"
@@ -1877,6 +1968,24 @@ function buildModernDisplay(actionSource, bcmCatalog, runtime, supplement, optio
         suppressedAutomaticHoldTransitionCount += 1;
     }
 
+    const type20PhaseCandidates = strictType20ActionPhaseRelations(actionSource, actionSet);
+    const appliedType20PhaseRelations = [];
+    let type20PhaseRouteCount = 0;
+    for (const relation of type20PhaseCandidates) {
+        const sourceId = String(relation.source_action_id);
+        const targetId = String(relation.target_action_id);
+        const sourceEntry = entries[sourceId];
+        if (!sourceEntry || entries[targetId]) continue;
+        const sourceRoutes = sourceEntry.routes.filter(route => route.direct_evidence === true
+            && route.inheritance_evidence === false && Number(route.owner_action_id) === Number(sourceId));
+        if (!sourceRoutes.length || sourceRoutes.length !== sourceEntry.routes.length) continue;
+        const routes = sourceRoutes.map(route => type20ActionPhaseRoute(character, relation, route));
+        for (const route of routes) assertRoute(route);
+        entries[targetId] = { routes, ownership: "type20_action_phase" };
+        appliedType20PhaseRelations.push({ ...relation, reason: TYPE20_PHASE_REASON });
+        type20PhaseRouteCount += routes.length;
+    }
+
     const holdButtonForMask = mask => {
         if (mask === 112 || mask === 896) return ANY_BUTTON;
         if (mask === 16 || mask === 128) return "弱";
@@ -1993,6 +2102,7 @@ function buildModernDisplay(actionSource, bcmCatalog, runtime, supplement, optio
             hold_transition_type29_alias_suppressions: suppressedAutomaticHoldType29Aliases,
             type20_directional_route_count: type20DirectionalRouteCount,
             type20_hold_route_count: type20HoldRouteCount,
+            type20_action_phase_route_count: type20PhaseRouteCount,
             target_combo_repeat_route_count: targetComboRepeatRouteCount,
             structural_twin_route_count: structuralTwinRouteCount,
             assist_combo_route_count: assistComboRouteCount,
@@ -2016,6 +2126,7 @@ function buildModernDisplay(actionSource, bcmCatalog, runtime, supplement, optio
             verified_alias_relations: appliedVerifiedAliases,
             type20_directional_relations: appliedType20Relations,
             type20_hold_relations: appliedType20HoldRelations,
+            type20_action_phase_relations: appliedType20PhaseRelations,
             target_combo_repeat_relations: appliedTargetComboRelations,
             structural_twin_relations: appliedStructuralTwins,
             assist_combo_relations: appliedAssistComboRelations,
@@ -2062,6 +2173,8 @@ function buildModernDisplay(actionSource, bcmCatalog, runtime, supplement, optio
                 type20_directional_route_count: type20DirectionalRouteCount,
                 type20_hold_relation_count: appliedType20HoldRelations.length,
                 type20_hold_route_count: type20HoldRouteCount,
+                type20_action_phase_relation_count: appliedType20PhaseRelations.length,
+                type20_action_phase_route_count: type20PhaseRouteCount,
                 target_combo_repeat_relation_count: appliedTargetComboRelations.length,
                 target_combo_repeat_route_count: targetComboRepeatRouteCount,
                 structural_twin_relation_count: appliedStructuralTwins.length,

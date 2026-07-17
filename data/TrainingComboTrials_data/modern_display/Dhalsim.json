@@ -3156,6 +3156,50 @@
       }
     ]
   },
+  "1037": {
+    "modern_display": "空中 6 + SP",
+    "control_support": "modern",
+    "source": "ac_bcm+capcom_official_semantics",
+    "ownership": "direct",
+    "routes": [
+      {
+        "display": "空中 6 + SP",
+        "character": "Dhalsim",
+        "owner_action_id": 1037,
+        "trigger_index": 220,
+        "profile": "sprt",
+        "command_no": -1,
+        "command_index": -1,
+        "raw_direction_inputs": [],
+        "raw_button_mask": 32,
+        "raw_button_condition": 16416,
+        "raw_dc_exc_flags": 8,
+        "raw_ng_key_flags": 4,
+        "visible_direction": "6",
+        "visible_button": "SP",
+        "button_candidates": [],
+        "required_button_count": 1,
+        "source": "bcm_profile",
+        "ac_relation_type": null,
+        "ac_path": [],
+        "inherited_from_action_id": null,
+        "confidence": "direct_structural",
+        "direct_evidence": true,
+        "inheritance_evidence": false,
+        "inheritance_reason": null,
+        "rebind_evidence": false,
+        "rebind_reason": null,
+        "runtime_common_evidence": false,
+        "runtime_common_reason": null,
+        "official_semantic_evidence": false,
+        "official_semantic_reason": null,
+        "community_semantic_evidence": false,
+        "community_semantic_reason": null,
+        "assist_combo_evidence": false,
+        "assist_combo_reason": null
+      }
+    ]
+  },
   "1038": {
     "modern_display": "空中 4 + SP/空中 4 + 弱 + 中 + 强",
     "control_support": "modern",
@@ -4758,11 +4802,11 @@
   },
   "_meta": {
     "schema": "xt.modern_display.v7",
-    "strict_policy": "verified_route_ownership_v6",
+    "strict_policy": "verified_route_ownership_v7",
     "character": "Dhalsim",
     "fighter_id": 8,
     "generated_from": "ac_bcm+capcom_official_semantics",
-    "generated_at": "2026-07-17T21:47:51.237Z",
+    "generated_at": "2026-07-17T22:09:02.066Z",
     "ac_sha256": "864a97f21e6e08306e9825e08a6e07fc635245a63bb6bd773cbb299054b91f55",
     "bcm_sha256": "968137fe2976f20901afcbc1c7abd4651ff44821d29369c698a13ea3ca872aa3",
     "modern_profile_order": [
@@ -4770,7 +4814,7 @@
       "supr",
       "sprt"
     ],
-    "direct_route_count": 92,
+    "direct_route_count": 93,
     "inherited_route_count": 1,
     "rebind_route_count": 0,
     "runtime_common_route_count": 6,
@@ -4785,6 +4829,7 @@
     "hold_transition_type29_alias_suppressions": [],
     "type20_directional_route_count": 0,
     "type20_hold_route_count": 0,
+    "type20_action_phase_route_count": 0,
     "target_combo_repeat_route_count": 0,
     "structural_twin_route_count": 0,
     "assist_combo_route_count": 3,
@@ -4881,6 +4926,7 @@
     "verified_alias_relations": [],
     "type20_directional_relations": [],
     "type20_hold_relations": [],
+    "type20_action_phase_relations": [],
     "target_combo_repeat_relations": [],
     "structural_twin_relations": [],
     "assist_combo_relations": [
@@ -4987,7 +5033,7 @@
         ]
       }
     ],
-    "unresolved_candidate_count": 41,
+    "unresolved_candidate_count": 40,
     "unresolved_candidates": [
       {
         "action_id": 17,
@@ -6120,43 +6166,6 @@
         "reason": "profile_disabled_or_missing"
       },
       {
-        "action_id": 1037,
-        "character": "Dhalsim",
-        "owner_action_id": 1037,
-        "trigger_index": 220,
-        "profile": "sprt",
-        "command_no": -1,
-        "command_index": -1,
-        "raw_direction_inputs": [],
-        "raw_button_mask": 32,
-        "raw_button_condition": 16416,
-        "raw_dc_exc_flags": 8,
-        "raw_ng_key_flags": 4,
-        "visible_direction": "6",
-        "visible_button": null,
-        "button_candidates": [],
-        "required_button_count": 1,
-        "source": "bcm_profile",
-        "ac_relation_type": null,
-        "ac_path": [],
-        "inherited_from_action_id": null,
-        "confidence": "direct_structural",
-        "direct_evidence": true,
-        "inheritance_evidence": false,
-        "inheritance_reason": null,
-        "rebind_evidence": false,
-        "rebind_reason": null,
-        "runtime_common_evidence": false,
-        "runtime_common_reason": null,
-        "official_semantic_evidence": false,
-        "official_semantic_reason": null,
-        "community_semantic_evidence": false,
-        "community_semantic_reason": null,
-        "assist_combo_evidence": false,
-        "assist_combo_reason": null,
-        "reason": "unsupported_sprt_button_mask"
-      },
-      {
         "action_id": 1039,
         "character": "Dhalsim",
         "owner_action_id": 1039,
@@ -6527,7 +6536,7 @@
         "reason": "profile_disabled_or_missing"
       }
     ],
-    "unmapped_action_count": 380,
+    "unmapped_action_count": 379,
     "unmapped_action_ids": [
       1,
       2,
@@ -6804,7 +6813,6 @@
       1028,
       1029,
       1032,
-      1037,
       1039,
       1040,
       1044,
@@ -6945,6 +6953,8 @@
       "type20_directional_route_count": 0,
       "type20_hold_relation_count": 0,
       "type20_hold_route_count": 0,
+      "type20_action_phase_relation_count": 0,
+      "type20_action_phase_route_count": 0,
       "target_combo_repeat_relation_count": 0,
       "target_combo_repeat_route_count": 0,
       "structural_twin_relation_count": 0,

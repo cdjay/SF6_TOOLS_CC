@@ -6551,11 +6551,11 @@
   },
   "_meta": {
     "schema": "xt.modern_display.v7",
-    "strict_policy": "verified_route_ownership_v6",
+    "strict_policy": "verified_route_ownership_v7",
     "character": "Rashid",
     "fighter_id": 14,
     "generated_from": "ac_bcm+capcom_official_semantics",
-    "generated_at": "2026-07-17T21:47:51.237Z",
+    "generated_at": "2026-07-17T22:09:02.066Z",
     "ac_sha256": "606655cb6d1b7a0249e11a70af349a90fd482ef29fe9d064c7fe3f983b06077b",
     "bcm_sha256": "a708673e8b25f8c4eb02469b5616c09564891efe902b8c829a1e9feba10963e2",
     "modern_profile_order": [
@@ -6578,6 +6578,7 @@
     "hold_transition_type29_alias_suppressions": [],
     "type20_directional_route_count": 0,
     "type20_hold_route_count": 0,
+    "type20_action_phase_route_count": 0,
     "target_combo_repeat_route_count": 0,
     "structural_twin_route_count": 0,
     "assist_combo_route_count": 7,
@@ -6757,6 +6758,7 @@
     ],
     "type20_directional_relations": [],
     "type20_hold_relations": [],
+    "type20_action_phase_relations": [],
     "target_combo_repeat_relations": [],
     "structural_twin_relations": [],
     "assist_combo_relations": [
@@ -8420,6 +8422,8 @@
       "type20_directional_route_count": 0,
       "type20_hold_relation_count": 0,
       "type20_hold_route_count": 0,
+      "type20_action_phase_relation_count": 0,
+      "type20_action_phase_route_count": 0,
       "target_combo_repeat_relation_count": 0,
       "target_combo_repeat_route_count": 0,
       "structural_twin_relation_count": 0,

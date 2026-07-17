@@ -4945,11 +4945,11 @@
   },
   "_meta": {
     "schema": "xt.modern_display.v7",
-    "strict_policy": "verified_route_ownership_v6",
+    "strict_policy": "verified_route_ownership_v7",
     "character": "Ed",
     "fighter_id": 19,
     "generated_from": "ac_bcm+capcom_official_semantics",
-    "generated_at": "2026-07-17T21:47:51.237Z",
+    "generated_at": "2026-07-17T22:09:02.066Z",
     "ac_sha256": "58a85105bd248af258c37435076cc31a5e3cad6c4168902d02e109fa260369b8",
     "bcm_sha256": "0dcd0071c2e771c5b90ef8503a5c45e5c5effed2af4ba9a0b5d20885e9ecc13f",
     "modern_profile_order": [
@@ -4972,6 +4972,7 @@
     "hold_transition_type29_alias_suppressions": [],
     "type20_directional_route_count": 0,
     "type20_hold_route_count": 0,
+    "type20_action_phase_route_count": 0,
     "target_combo_repeat_route_count": 0,
     "structural_twin_route_count": 0,
     "assist_combo_route_count": 3,
@@ -5095,6 +5096,7 @@
     "verified_alias_relations": [],
     "type20_directional_relations": [],
     "type20_hold_relations": [],
+    "type20_action_phase_relations": [],
     "target_combo_repeat_relations": [],
     "structural_twin_relations": [],
     "assist_combo_relations": [
@@ -6995,6 +6997,8 @@
       "type20_directional_route_count": 0,
       "type20_hold_relation_count": 0,
       "type20_hold_route_count": 0,
+      "type20_action_phase_relation_count": 0,
+      "type20_action_phase_route_count": 0,
       "target_combo_repeat_relation_count": 0,
       "target_combo_repeat_route_count": 0,
       "structural_twin_relation_count": 0,

@@ -7400,11 +7400,11 @@
   },
   "_meta": {
     "schema": "xt.modern_display.v7",
-    "strict_policy": "verified_route_ownership_v6",
+    "strict_policy": "verified_route_ownership_v7",
     "character": "Ingrid",
     "fighter_id": 32,
     "generated_from": "ac_bcm+capcom_official_semantics",
-    "generated_at": "2026-07-17T21:47:51.237Z",
+    "generated_at": "2026-07-17T22:09:02.066Z",
     "ac_sha256": "d4f1642197db0cc37a0f7c5c956c1aea3ab7f1b73a208c7291c868dbeb326003",
     "bcm_sha256": "16c8d193cc006d4fe03fa536dd120c794a44be630ba6d834ab72110bdc876331",
     "modern_profile_order": [
@@ -7427,6 +7427,7 @@
     "hold_transition_type29_alias_suppressions": [],
     "type20_directional_route_count": 0,
     "type20_hold_route_count": 4,
+    "type20_action_phase_route_count": 0,
     "target_combo_repeat_route_count": 1,
     "structural_twin_route_count": 0,
     "assist_combo_route_count": 3,
@@ -7732,6 +7733,7 @@
         "reason": "ac_type20_verified_hold_continuation"
       }
     ],
+    "type20_action_phase_relations": [],
     "target_combo_repeat_relations": [
       {
         "parent_action_id": 605,
@@ -9455,6 +9457,8 @@
       "type20_directional_route_count": 0,
       "type20_hold_relation_count": 4,
       "type20_hold_route_count": 4,
+      "type20_action_phase_relation_count": 0,
+      "type20_action_phase_route_count": 0,
       "target_combo_repeat_relation_count": 1,
       "target_combo_repeat_route_count": 1,
       "structural_twin_relation_count": 0,

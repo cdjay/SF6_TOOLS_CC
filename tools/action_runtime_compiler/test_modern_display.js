@@ -681,10 +681,24 @@ const specialCatalog = { source: { character: "OfficialSpecial" }, actions: {
     "2005": { action_id: 2005, triggers: [trigger(2005, profiles(null,
         profile(true, "4+MP", 32, 16416, { dc_exc_flags: 516 }), null,
         profile(true, "63214+KK", 896, 82016, { command_no: 39, command_index: 16 })),
-    { function_id: 2, focus_consume: 20000, turn_around: 1, kind_level: 8 })] }
+    { function_id: 2, focus_consume: 20000, turn_around: 1, kind_level: 8 })] },
+    "2006": { action_id: 2006, triggers: [trigger(2006, profiles(
+        profile(true, "3+MP", 32, 16416, { dc_exc_flags: 2 }), null, null,
+        profile(true, "214+P", 112, 81952)),
+    { function_id: 2 })] },
+    "2007": { action_id: 2007, triggers: [trigger(2007, profiles(
+        profile(true, "3+MP", 32, 16416, { dc_exc_flags: 514 }), null, null,
+        profile(true, "214+PP", 112, 82016)),
+    { function_id: 2, focus_consume: 20000 })] },
+    "2008": { action_id: 2008, triggers: [trigger(2008, profiles(
+        null,
+        profile(true, "j.LP+MP+LK+MK", 432, 16416, { ng_key_flags: 2 }),
+        profile(true, "j.Normal", 8192, 16416, { ng_key_flags: 2 }),
+        profile(true, "j.P", 112, 16416)),
+    { function_id: 2, kind_level: 8 })] }
 } };
 const specialRuntime = { character: "OfficialSpecial", fighter_id: 103,
-    action_ids: [2000, 2001, 2002, 2003, 2004, 2005], aliases: {}, sources: {}, validation: { rules: {} },
+    action_ids: [2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008], aliases: {}, sources: {}, validation: { rules: {} },
     evidence: { ac_derived_commands: [], alias_relations: [] } };
 const specialOutput = modern.buildModernDisplay({}, specialCatalog, specialRuntime, {},
     { generatedAt: "internal-selector" });
@@ -697,6 +711,9 @@ assert.strictEqual(specialOutput["2003"].modern_display, "4 + SP");
 assert.strictEqual(specialOutput["2005"].modern_display, "4 + AUTO + SP");
 assert.strictEqual(specialOutput._meta.audit.paired_sprt_sp_relation_count, 1);
 assert.strictEqual(specialOutput["2004"].modern_display, "22 + 任意键");
+assert.strictEqual(specialOutput["2006"].modern_display, "3 + SP");
+assert.strictEqual(specialOutput["2007"].modern_display, "3 + AUTO + SP");
+assert.strictEqual(specialOutput["2008"].modern_display, "> 空中 任意键");
 assert.strictEqual(specialOutput._meta.shadowed_supr_routes.some(item =>
     item.action_id === 2004 && item.reason === "direct_non_supr_route_owns_identical_shortcut"
     && item.shadowed_by_action_ids[0] === 2001), true);
@@ -742,6 +759,45 @@ assert.strictEqual(holdOutput._meta.audit.type20_hold_relation_count, 1);
 const rejectedHold = modern.buildModernDisplay(makeStrictHoldActionSource(-1, -1),
     holdCatalog, holdRuntime, {}, { generatedAt: "type20-hold-negative" });
 assert.strictEqual(rejectedHold["3001"], undefined);
+
+function makeType20ActionPhaseSource(complete) {
+    let id = 1;
+    const objects = [], records = [];
+    const add = object => { const result = { object_id: id++, ...object }; objects.push(result); return result.object_id; };
+    const targetKeys = add({ object_type: "Test.Keys", items: [] });
+    const targetRoot = add({ object_type: "FAB.ACTION", fields: [{ name: "Keys", value: ref(targetKeys) }] });
+    const signatures = [[0, 8, 1], [0, 32, 2], [0, 8192, 3], [1, 8192, 3]];
+    if (!complete) signatures.pop();
+    const items = signatures.map(([param00, param01, param03], index) => {
+        const branch = add({ object_type: "CharacterAsset.BranchKey", fields: [
+            ["Action", 3101], ["Type", 20], ["Attr", 288], ["ActionFrame", 0],
+            ["Param00", param00], ["Param01", param01], ["Param02", 0], ["Param03", param03],
+            ["Param04", 0], ["Param05", 0], ["TriggerID", -1]
+        ].map(([name, value]) => ({ name, value: scalar(value) })) });
+        return { index, value: ref(branch) };
+    });
+    const sourceKeys = add({ object_type: "Test.Keys", items });
+    const sourceRoot = add({ object_type: "FAB.ACTION", fields: [{ name: "Keys", value: ref(sourceKeys) }] });
+    records.push({ source_scope: "character", native_action_id: 3100, action_ref: ref(sourceRoot) });
+    records.push({ source_scope: "character", native_action_id: 3101, action_ref: ref(targetRoot) });
+    return { objects, records };
+}
+const phaseCatalog = { source: { character: "ActionPhase" }, actions: {
+    "3100": { action_id: 3100, triggers: [trigger(3100, profiles(null,
+        profile(true, "6+MP", 32, 16416), null, null), { function_id: 2 })] }
+} };
+const phaseRuntime = { character: "ActionPhase", fighter_id: 106,
+    action_ids: [3100, 3101], aliases: {}, sources: {}, validation: { rules: {} },
+    evidence: { ac_derived_commands: [], alias_relations: [] } };
+const phaseOutput = modern.buildModernDisplay(makeType20ActionPhaseSource(true), phaseCatalog,
+    phaseRuntime, {}, { generatedAt: "type20-action-phase" });
+assert.strictEqual(phaseOutput["3100"].modern_display, "6 + SP");
+assert.strictEqual(phaseOutput["3101"].modern_display, "6 + SP");
+assert.strictEqual(phaseOutput["3101"].ownership, "type20_action_phase");
+assert.strictEqual(phaseOutput._meta.audit.type20_action_phase_relation_count, 1);
+const rejectedPhase = modern.buildModernDisplay(makeType20ActionPhaseSource(false), phaseCatalog,
+    phaseRuntime, {}, { generatedAt: "type20-action-phase-negative" });
+assert.strictEqual(rejectedPhase["3101"], undefined);
 
 // Only compiler-verified Type29/35 equivalent-action aliases inherit a route.
 const aliasRuntime = clone(runtime);
