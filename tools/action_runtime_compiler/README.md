@@ -69,6 +69,7 @@ AC 或 BCM 若标记为截断、hard gate 失败或角色动作全集为空，�
 - TC 父动作关系；前后动作显示相同时会写入 `optional_parent_ids`，例如英格丽德 `655 → 656`；
 - 可选人工例外覆盖及其验证字段。
 - Modern 的手动简化输入（`sprt`）、SP 输入（`easy`）与 AUTO 辅助输入（`supr`）；AC 派生别名继承现代入口。官网出招表不参与 Action ID 映射。
+- Modern 一键连直接读取 BCM `AssistComboRecipeData.ComboData[,,]` 的固定 3×8×10 配方。每条 `TriggerID` 绑定自己的 Action ID；配方首段显示 `AUTO + 强度`，后续段显示 `> 强度`。辅助路线只追加到原有动作，不通过 AC 家族、别名或相邻 ID 传播，也不会覆盖动作已有的手动/必杀路线。
 - Modern 顺序按键会从 BCM `command.inputs[].raw_mask` 与最终按键解码，例如豪鬼瞬狱杀自动生成 `弱 > 弱 > 中 > 强`，不会把按键槽误显示为中立方向。
 - Modern 普通/OD 必杀按 BCM `focus_consume` 在 `easy` 与 `supr` 中选择；DRC、RAW DR、Drive Parry、DI/Drive Reversal、Throw 与 AC Type 63 后投按语义生成，不显示底层 trigger mask。输出元数据保留仍无 Modern profile 的经典动作 ID 审计清单。
 - 地面普通攻击同时出现 `sprt/supr` 时，以该 Action ID 的直接 Modern `sprt` 为准；只有 `sprt` 不可用且 `supr` 单独有效时才生成 AUTO 路线，避免把另一个动作会赢得的 AUTO 输入错误并入当前动作。

@@ -10,6 +10,8 @@ const modernDisplay = require("./modern_display_core.js");
 const AC_SUFFIX = "-fab-action-catalog-full-classic.json";
 const BCM_SUFFIX = "-fab-bcm-full-classic.json";
 const DEFAULT_OUTPUT_ROOT = path.join(__dirname, "html");
+const OFFICIAL_SEMANTICS_ROOT = path.resolve(__dirname, "../modern_display_builder/out");
+const COMMUNITY_SEMANTICS_ROOT = path.resolve(__dirname, "../modern_display_builder/community");
 
 function ensureDirectory(directory) {
     fs.mkdirSync(directory, { recursive: true });
@@ -26,6 +28,31 @@ function readSource(filename) {
         sha256: sha256(bytes),
         value: bcmCore.parseSourceText(bytes.toString("utf8"))
     };
+}
+
+function loadOfficialSemantics(character) {
+    const filename = path.join(OFFICIAL_SEMANTICS_ROOT, `${character}.official.generated.json`);
+    if (!fs.existsSync(filename)) return { filename: null, sha256: null, value: null };
+    const source = readSource(filename);
+    const meta = source.value && source.value._meta || {};
+    if (meta.schema !== "xt.modern_display.v1" || meta.generated_from !== "capcom_official"
+        || meta.character !== character) {
+        throw new Error(`官网 Modern 语义文件契约不匹配: ${filename}`);
+    }
+    return { filename, sha256: source.sha256, value: source.value };
+}
+
+function loadCommunitySemantics(character) {
+    const filename = path.join(COMMUNITY_SEMANTICS_ROOT, `${character}.verified.json`);
+    if (!fs.existsSync(filename)) return { filename: null, sha256: null, value: null };
+    const source = readSource(filename);
+    const meta = source.value && source.value._meta || {};
+    if (meta.schema !== "xt.modern_display.community.v1"
+        || meta.generated_from !== "verified_runtime_observation"
+        || meta.character !== character) {
+        throw new Error(`Community Modern 语义文件契约不匹配: ${filename}`);
+    }
+    return { filename, sha256: source.sha256, value: source.value };
 }
 
 function writeJson(filename, value) {
@@ -262,11 +289,6 @@ function loadExceptions(character) {
     return { filename, value: readJsonIfExists(filename) || {} };
 }
 
-function loadModernDisplaySupplement(character) {
-    const filename = path.resolve(__dirname, "..", "..", "data", "TrainingComboTrials_data", "modern_display", `${character}.json`);
-    return { filename, value: readJsonIfExists(filename) || {} };
-}
-
 function validateVersion(version) {
     const reserved = /^(con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\.|$)/i;
     if (typeof version !== "string" || version.length > 80
@@ -355,7 +377,6 @@ function buildArchive(options) {
             const exceptionSource = loadExceptions(resolvedCharacter);
             const type13Compatibility = compiler.propagateType13SiblingCompatibility(
                 ac.value, exceptionSource.value);
-            const modernSupplement = loadModernDisplaySupplement(resolvedCharacter);
             const compileOptions = {
                 actionSourceSha256: ac.sha256,
                 bcmSourceSha256: bcm.sha256,
@@ -370,9 +391,15 @@ function buildArchive(options) {
                 generatedAt: updatedAt
             });
             const result = compiler.compileFromCatalog(ac.value, bcmCatalog, {}, compileOptions);
+            const officialSemantics = loadOfficialSemantics(resolvedCharacter);
+            const communitySemantics = loadCommunitySemantics(resolvedCharacter);
             const generatedModernDisplay = modernDisplay.buildModernDisplay(
-                ac.value, bcmCatalog, result.runtime, modernSupplement.value,
-                { ...compileOptions, generatedAt: updatedAt });
+                ac.value, bcmCatalog, result.runtime, {},
+                { ...compileOptions, generatedAt: updatedAt,
+                    officialSemantics: officialSemantics.value,
+                    officialSemanticsSha256: officialSemantics.sha256,
+                    communitySemantics: communitySemantics.value,
+                    communitySemanticsSha256: communitySemantics.sha256 });
             const pureGeneratedExceptions = compiler.buildLegacyExceptionTable(result.runtime);
             const compatibilityBefore = compiler.buildLegacyCompatibility(
                 type13Compatibility.table, pureGeneratedExceptions, result.runtime.action_ids);

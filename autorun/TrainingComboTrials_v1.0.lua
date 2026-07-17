@@ -264,6 +264,12 @@ local players = {
 local trial_state = {
     is_recording = false,
     recording_player = 0,
+    recording_display_context = nil,
+    recording_display_session_id = 0,
+    live_display_contexts = {},
+    live_display_generation = 0,
+    modern_unresolved_audit = nil,
+    modern_unresolved_audit_session = 0,
     is_playing = false,
     playing_player = 0,
     sequence = {},
@@ -382,8 +388,106 @@ local function read_player_input_type(player_idx)
 end
 
 local function control_type_from_input_type(input_type)
-    if tonumber(input_type) == 1 then return "modern" end
-    return "classic"
+    input_type = tonumber(input_type)
+    if input_type == 1 then return "modern" end
+    if input_type == 0 then return "classic" end
+    return "unknown"
+end
+
+local function invalidate_recording_display_context()
+    local context = trial_state.recording_display_context
+    if type(context) == "table" then context.active = false end
+    trial_state.recording_display_context = nil
+end
+
+local live_display_context = {}
+
+function live_display_context.next_generation()
+    trial_state.live_display_generation = (tonumber(trial_state.live_display_generation) or 0) + 1
+    return trial_state.live_display_generation
+end
+
+function live_display_context.invalidate()
+    local contexts = trial_state.live_display_contexts
+    if type(contexts) == "table" then
+        for _, context in pairs(contexts) do
+            if type(context) == "table" then context.active = false end
+        end
+    end
+    trial_state.live_display_contexts = {}
+end
+
+function live_display_context.set(player_idx, character, input_type, control_type)
+    if player_idx ~= 0 and player_idx ~= 1 then return nil end
+    if type(trial_state.live_display_contexts) ~= "table" then
+        trial_state.live_display_contexts = {}
+    end
+    if type(character) ~= "string" or character == "" then character = "Unknown" end
+    control_type = tostring(control_type or control_type_from_input_type(input_type)):lower()
+    if control_type ~= "modern" and control_type ~= "classic" then control_type = "unknown" end
+    local context = {
+        active = true,
+        player_idx = player_idx,
+        character = character,
+        input_type = input_type ~= nil and input_type or "unknown",
+        control_mode = control_type,
+        control_type = control_type,
+        generation = live_display_context.next_generation()
+    }
+    trial_state.live_display_contexts[player_idx] = context
+    return context
+end
+
+function live_display_context.refresh(player_idx)
+    local character = players[player_idx] and players[player_idx].profile_name or "Unknown"
+    local input_type = read_player_input_type(player_idx)
+    return live_display_context.set(player_idx, character, input_type, control_type_from_input_type(input_type))
+end
+
+function live_display_context.refresh_all()
+    live_display_context.refresh(0)
+    live_display_context.refresh(1)
+end
+
+function live_display_context.ensure()
+    local contexts = trial_state.live_display_contexts
+    if type(contexts) ~= "table" or type(contexts[0]) ~= "table" then
+        live_display_context.refresh(0)
+    end
+    contexts = trial_state.live_display_contexts
+    if type(contexts) ~= "table" or type(contexts[1]) ~= "table" then
+        live_display_context.refresh(1)
+    end
+end
+
+function live_display_context.sync_recording()
+    local context = trial_state.recording_display_context
+    if type(context) ~= "table" or context.active ~= true then return nil end
+    return live_display_context.set(
+        context.recording_player,
+        context.character,
+        context.input_type,
+        context.control_mode or context.control_type
+    )
+end
+
+local function begin_recording_display_context(player_idx)
+    invalidate_recording_display_context()
+    trial_state.recording_display_session_id = (tonumber(trial_state.recording_display_session_id) or 0) + 1
+    local input_type = read_player_input_type(player_idx)
+    local control_type = control_type_from_input_type(input_type)
+    local frozen_input_type = input_type ~= nil and input_type or "unknown"
+    local character = players[player_idx] and players[player_idx].profile_name or "Unknown"
+    if type(character) ~= "string" or character == "" then character = "Unknown" end
+    trial_state.recording_display_context = {
+        active = true,
+        recording_player = player_idx,
+        character = character,
+        input_type = frozen_input_type,
+        control_mode = control_type,
+        control_type = control_type,
+        session_id = trial_state.recording_display_session_id
+    }
 end
 
 function CTJsonInterop.iso8601_now()
@@ -425,8 +529,22 @@ function CTJsonInterop.warn_control_mode_mismatch(sequence, player_idx)
 end
 
 local function build_auto_xt_meta(recording_player, sequence)
-    local input_type = read_player_input_type(recording_player or trial_state.recording_player or 0)
-    local control_type = control_type_from_input_type(input_type)
+    local player_idx = recording_player or trial_state.recording_player or 0
+    local recording_context = trial_state.recording_display_context
+    if type(recording_context) ~= "table" or recording_context.active ~= true
+        or recording_context.recording_player ~= player_idx
+        or recording_context.session_id ~= trial_state.recording_display_session_id then
+        recording_context = nil
+    end
+    local input_type = recording_context and recording_context.input_type or nil
+    local control_type = recording_context and (recording_context.control_mode or recording_context.control_type)
+        or "unknown"
+    control_type = tostring(control_type or "unknown"):lower()
+    if control_type ~= "modern" and control_type ~= "classic" then control_type = "unknown" end
+    local character = recording_context and recording_context.character
+    if type(character) ~= "string" or character == "" then
+        character = "Unknown"
+    end
     local now = CTJsonInterop.iso8601_now()
     local step_notes = {}
     for index = 1, (type(sequence) == "table" and #sequence or 0) do
@@ -451,7 +569,8 @@ local function build_auto_xt_meta(recording_player, sequence)
         -- Legacy aliases retained so pre-v2 SF6CC readers keep filtering correctly.
         control_type = control_type,
         timeline_input_profile = control_type,
-        input_type = input_type
+        input_type = input_type,
+        character = character
     }
 end
 
@@ -773,6 +892,7 @@ local d2d_cfg = {
     mirror_p1 = false,
     mirror_p2 = false,
     show_combo_count = false,
+    show_modern_unresolved_ids = false,
     pos_p1 = { x = 0.050, y = 0.350 },
     pos_p2 = { x = 0.850, y = 0.350 },
     raw_pos_p1 = { x = 0.050, y = 0.350 },
@@ -4094,6 +4214,7 @@ local function load_combo_from_file(path, force)
 end
 
 local function clear_combo_state()
+    invalidate_recording_display_context()
     restore_dummy_action_type()
     local ok = ComboTrials_Files.clear_combo_state()
     if type(restore_hp_training_setting_if_needed) == "function" then
@@ -4227,9 +4348,11 @@ end
 
 
 local function start_recording(player_idx)
-    trial_state.is_recording = true
     trial_state.recording_player = player_idx
     trial_state.sequence = {}
+    begin_recording_display_context(player_idx)
+    live_display_context.sync_recording()
+    trial_state.is_recording = true
     trial_state.current_step = 1
     trial_state.last_recorded_frame = engine_frame_count
     trial_state._xt_pending_save = false
@@ -4298,6 +4421,7 @@ local function start_trial(player_idx)
         unique_resources.restore()
     end
     trial_state.is_recording = false
+    invalidate_recording_display_context()
     trial_state._raw_rec_active = false
     trial_state._rec_gauges = nil
     trial_state._rec_hp_snapshot = nil
@@ -4341,6 +4465,7 @@ local function cancel_recording()
     local canceled_player = trial_state.recording_player
     trial_state.is_recording = false
     trial_state.is_playing = false
+    invalidate_recording_display_context()
     trial_state.sequence = {}
     trial_state.current_step = 1
     trial_state._xt_pending_save = false
@@ -4428,6 +4553,7 @@ local function stop_recording_and_save()
 
     trial_state.recording_player = saved_player
     local ok, saved_path = pcall(save_trial_sequence, build_auto_xt_meta(saved_player, trial_state.sequence))
+    invalidate_recording_display_context()
     if not ok or not saved_path then
         trial_state._xt_pending_save_error = ok and "save returned no path" or tostring(saved_path)
         _G.ComboTrials_SaveFailedPlayer = saved_player
@@ -5725,6 +5851,9 @@ local combo_trials_runtime_was_allowed = false
 
 local function cleanup_combo_trials_runtime_on_scene_exit(reason)
     publish_combo_trials_inactive_state()
+    invalidate_recording_display_context()
+    live_display_context.invalidate()
+    ComboTrials_D2D.clear_modern_unresolved_audit()
 
     if trial_state.is_recording then
         cancel_recording()
@@ -5772,6 +5901,9 @@ end
 local function ct_handle_runtime_scene_gate()
     local allowed = is_combo_trials_runtime_allowed()
     if allowed then
+        if not combo_trials_runtime_was_allowed then
+            live_display_context.refresh_all()
+        end
         combo_trials_runtime_was_allowed = true
         return true
     end
@@ -5792,6 +5924,11 @@ end
 
 local function ct_handle_mode_exit()
     if _G.CurrentTrainerMode ~= 4 then
+        invalidate_recording_display_context()
+        live_display_context.invalidate()
+        if trial_state._vital_initialized ~= false then
+            ComboTrials_D2D.clear_modern_unresolved_audit()
+        end
         _G.ComboTrialsD2DEnabled = false
         _G.ComboTrials_HideNativeHUD = false
         _G._ct_bar_geometry = nil
@@ -5828,6 +5965,9 @@ end
 
 local function ct_handle_first_frame_init()
     if not trial_state._vital_initialized then
+        invalidate_recording_display_context()
+        live_display_context.ensure()
+        ComboTrials_D2D.clear_modern_unresolved_audit()
         trial_state._vital_initialized = true
 
         -- Force stop everything lingering from a previous session
@@ -6022,6 +6162,7 @@ local function ct_player_init(p_idx, p_state)
 
     if p_state.profile_name ~= p_state.last_profile_name then
         p_state.last_profile_name = p_state.profile_name
+        live_display_context.refresh(p_idx)
         p_state.log = {}
         p_state.input_history_queue = {}
         p_state.action_instance_counter = 0
@@ -6038,6 +6179,7 @@ local function ct_player_init(p_idx, p_state)
         if not trial_state._xt_pending_save then
             if trial_state.is_recording then
                 trial_state.is_recording = false
+                invalidate_recording_display_context()
                 trial_state._raw_rec_active = false
                 trial_state._raw_rec_buffer = {}
             end
@@ -8969,8 +9111,8 @@ end
 
 local function start_demo(opts)
     opts = opts or {}
+    if opts.playlist_start == true and trial_state.is_recording then return false end
     if opts.playlist_start == true then
-        if trial_state.is_recording then return false end
         if file_system.refresh_combo_list_preserve_selection then
             file_system.refresh_combo_list_preserve_selection(false)
         end
@@ -9062,6 +9204,7 @@ local function start_demo(opts)
     end
 
     -- Force Trial mode to stay active on P1
+    invalidate_recording_display_context()
     trial_state.is_recording = false
     trial_state._raw_rec_active = false
     trial_state.is_playing = true

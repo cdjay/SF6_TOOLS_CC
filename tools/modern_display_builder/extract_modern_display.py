@@ -223,6 +223,9 @@ def normalize_command(value: Any) -> str | None:
         "(垂直ジャンプ中に)": "空中 ",
         "(後ろジャンプ中に)": "空中 ",
         "(ジャンプ中に)": "空中 ",
+        "(During a jump)": "空中 ",
+        "(during a jump)": "空中 ",
+        "(跳跃期间)": "空中 ",
     }
     for src, dst in replacements.items():
         text = text.replace(src, dst)
@@ -232,6 +235,96 @@ def normalize_command(value: Any) -> str | None:
     text = re.sub(r"\s*/\s*", "/", text)
     text = re.sub(r"\s+", " ", text).strip()
     return text
+
+
+def normalize_modern_command(value: Any) -> str | None:
+    text = normalize_command(value)
+    if not text:
+        return None
+    text = re.sub(r"\bL\b", "弱", text)
+    text = re.sub(r"\bM\b", "中", text)
+    text = re.sub(r"\bH\b", "强", text)
+    return normalize_command(text)
+
+
+def split_official_move_cell(value: Any) -> tuple[str | None, str | None]:
+    lines = [line.strip() for line in str(value or "").splitlines() if line.strip()]
+    if len(lines) < 2:
+        return None, None
+    return lines[0], " ".join(lines[1:])
+
+
+def build_candidate_from_official_dump(character: str, source_path: Path, payload: Any) -> dict[str, Any]:
+    """Build semantics from paired official Classic/Modern table captures.
+
+    The captures contain no Action IDs. The compiler later binds each row to
+    the unique current BCM classic-command identity; row numbers are never used
+    as game Action IDs.
+    """
+    if not isinstance(payload, list):
+        raise RuntimeError("Official dump root must be an array of captures.")
+    captures = [item for item in payload if isinstance(item, dict)]
+    language = "en" if any(item.get("language") == "en" for item in captures) else "zh"
+    classic = next((item for item in captures
+                    if item.get("language") == language and item.get("control_type") == "classic"), None)
+    modern = next((item for item in captures
+                   if item.get("language") == language and item.get("control_type") == "modern"), None)
+    if not classic or not modern:
+        raise RuntimeError(f"Official dump does not contain paired {language} Classic/Modern captures.")
+
+    classic_rows: dict[str, dict[str, Any]] = {}
+    for section in classic.get("sections") or []:
+        if not isinstance(section, dict):
+            continue
+        for row in section.get("rows") or []:
+            if not isinstance(row, list) or not row:
+                continue
+            move_name, command = split_official_move_cell(row[0])
+            if move_name and command:
+                classic_rows[move_name] = {"command": normalize_command(command)}
+
+    semantic_rows: list[dict[str, Any]] = []
+    for section_index, section in enumerate(modern.get("sections") or []):
+        if not isinstance(section, dict):
+            continue
+        for row_index, row in enumerate(section.get("rows") or []):
+            if not isinstance(row, list) or not row:
+                continue
+            move_name, modern_command = split_official_move_cell(row[0])
+            pair = classic_rows.get(move_name or "")
+            if not move_name or not modern_command or not pair or not pair.get("command"):
+                continue
+            classic_display = pair["command"]
+            modern_display = normalize_modern_command(modern_command)
+            if not modern_display:
+                continue
+            category = "AIR" if str(classic_display).startswith("空中 ") else "NORMAL"
+            semantic_rows.append({
+                "row_id": f"{language}:{section_index}:{row_index}",
+                "classic_display": classic_display,
+                "modern_display": modern_display,
+                "control_support": "classic_modern",
+                "source": "capcom_official_dump",
+                "move_name": move_name,
+                "category": category,
+                "official_web_id": None,
+                "note": "Generated from paired Capcom official Classic/Modern table captures without Action IDs.",
+            })
+
+    display_name = character_display_name(character)
+    return {
+        "_meta": {
+            "schema": SCHEMA,
+            "character": display_name,
+            "generated_from": "capcom_official",
+            "source_url": str(modern.get("source_url") or ""),
+            "source_chunk": f"local:{source_path}",
+            "source_format": "paired_official_table_dump",
+            "updated_at": _dt.date.today().isoformat(),
+            "description": f"Official {display_name} modern semantics generated from paired Capcom tables.",
+        },
+        "_semantic_rows": semantic_rows,
+    }
 
 
 def command_needs_review(command: str | None) -> bool:
@@ -425,6 +518,18 @@ def write_diff_report(candidate: dict[str, Any], current: dict[str, Any], output
 
 
 def run(args: argparse.Namespace) -> int:
+    if args.official_dump:
+        dump_path = Path(args.official_dump)
+        payload = json.loads(dump_path.read_text(encoding="utf-8"))
+        candidate = build_candidate_from_official_dump(args.character, dump_path, payload)
+        output_path = Path(args.output)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        output_path.write_text(json.dumps(candidate, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        print(f"generated={output_path}")
+        print(f"source_chunk=local:{dump_path}")
+        print(f"semantic_row_count={len(candidate.get('_semantic_rows') or [])}")
+        return 0
+
     source_url = args.url
     html_path = Path(args.html) if args.html else None
     chunk_text, source_chunk = load_source_text(source_url, html_path)
@@ -464,6 +569,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--character", required=True, help="Character display name, e.g. Akuma")
     parser.add_argument("--url", help="Official Capcom frame URL")
     parser.add_argument("--html", help="Local saved HTML page or frame JS chunk")
+    parser.add_argument("--official-dump", help="Local paired official Classic/Modern table dump JSON")
     parser.add_argument("--output", required=True, help="Output candidate JSON path")
     parser.add_argument("--current", help="Current runtime modern_display JSON for diff reporting")
     parser.add_argument("--diff-output", help="Markdown diff report path")

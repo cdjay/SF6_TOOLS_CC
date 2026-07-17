@@ -8,6 +8,79 @@ assert.strictEqual(core.normalizeMotion("5656"), "66");
 assert.strictEqual(core.normalizeMotion("5454"), "44");
 assert.strictEqual(core.normalizeMotion("626"), "623");
 
+// SF6 stores full-circle commands as one release-style 0x40001 input. The
+// low nibble alone is direction 8, but the complete signature means 360.
+const circleObjects = [
+    collection(101, "Dictionary", [null, 102]),
+    collection(102, "BCM.COMMAND[]", [103]),
+    object(103, "BCM.COMMAND", { charge_bit: scalar(0), input_num: scalar(1), inputs: ref(104), max_frame: scalar(21), total_frame: scalar(-1) }),
+    collection(104, "BCM.INPUT[]", [105]),
+    object(105, "BCM.INPUT", { frame_num: scalar(21), type: scalar(2), normal: ref(106), charge: ref(107) }),
+    object(106, "BCM.INPUT.NORMAL", { ok_key_flags: scalar(0x40001) }),
+    object(107, "BCM.INPUT.CHARGE", { id: scalar(1), is_release: scalar(true) }),
+    object(108, "BCM.TRIGGER", {
+        action_id: scalar(940), cond_owner_state_flags: scalar(0), category_flags: scalar(0),
+        norm: ref(109), norm_NG: scalar(false), easy: ref(110), easy_NG: scalar(true),
+        sprt: ref(111), sprt_NG: scalar(true), supr: ref(112), supr_NG: scalar(true),
+        use_sprt: scalar(false), use_super: scalar(false)
+    }),
+    object(109, "BCM.TRIGGER.CMD", { command_no: scalar(16), command_index: scalar(0), command_ptr: ref(102), ok_key_flags: scalar(64), ok_key_cond_flags: scalar(81952), dc_exc_flags: scalar(0), preceding_time: scalar(4) }),
+    object(110, "BCM.TRIGGER.CMD", { command_no: scalar(-1), command_index: scalar(0), ok_key_flags: scalar(0), ok_key_cond_flags: scalar(0) }),
+    object(111, "BCM.TRIGGER.CMD", { command_no: scalar(-1), command_index: scalar(0), ok_key_flags: scalar(0), ok_key_cond_flags: scalar(0) }),
+    object(112, "BCM.TRIGGER.CMD", { command_no: scalar(-1), command_index: scalar(0), ok_key_flags: scalar(0), ok_key_cond_flags: scalar(0) })
+];
+const circleCatalog = core.buildCatalog({
+    schema: "test", character: "Zangief", fighter_id: 6, hard_gate_passed: true,
+    truncated: false, command_root_ref: ref(101), objects: circleObjects,
+    triggers: [{ trigger_index: 0, native_action_id: 940, trigger_ref: ref(108) }]
+}, { generatedAt: "2026-01-01T00:00:00.000Z" });
+assert.strictEqual(circleCatalog.actions["940"].classic_display, "360+HP");
+assert.strictEqual(circleCatalog.actions["940"].triggers[0].profiles.norm.command.inputs[0].direction, "360");
+
+function adjacentCircleDirection(mask, inputType, chargeId, chargeRelease, actionId) {
+    const base = actionId * 10;
+    const adjacentObjects = [
+        collection(base + 1, "Dictionary", [null, base + 2]),
+        collection(base + 2, "BCM.COMMAND[]", [base + 3]),
+        object(base + 3, "BCM.COMMAND", { charge_bit: scalar(0), input_num: scalar(1), inputs: ref(base + 4), max_frame: scalar(21), total_frame: scalar(-1) }),
+        collection(base + 4, "BCM.INPUT[]", [base + 5]),
+        object(base + 5, "BCM.INPUT", { frame_num: scalar(21), type: scalar(inputType), normal: ref(base + 6), charge: ref(base + 7) }),
+        object(base + 6, "BCM.INPUT.NORMAL", { ok_key_flags: scalar(mask) }),
+        object(base + 7, "BCM.INPUT.CHARGE", { id: scalar(chargeId), is_release: scalar(chargeRelease) }),
+        object(base + 8, "BCM.TRIGGER", {
+            action_id: scalar(actionId), cond_owner_state_flags: scalar(0), category_flags: scalar(0),
+            norm: ref(base + 9), norm_NG: scalar(false), easy: ref(base + 10), easy_NG: scalar(true),
+            sprt: ref(base + 11), sprt_NG: scalar(true), supr: ref(base + 12), supr_NG: scalar(true),
+            use_sprt: scalar(false), use_super: scalar(false)
+        }),
+        object(base + 9, "BCM.TRIGGER.CMD", { command_no: scalar(16), command_index: scalar(0), command_ptr: ref(base + 2), ok_key_flags: scalar(64), ok_key_cond_flags: scalar(81952), dc_exc_flags: scalar(0), preceding_time: scalar(4) }),
+        object(base + 10, "BCM.TRIGGER.CMD", { command_no: scalar(-1), command_index: scalar(0), ok_key_flags: scalar(0), ok_key_cond_flags: scalar(0) }),
+        object(base + 11, "BCM.TRIGGER.CMD", { command_no: scalar(-1), command_index: scalar(0), ok_key_flags: scalar(0), ok_key_cond_flags: scalar(0) }),
+        object(base + 12, "BCM.TRIGGER.CMD", { command_no: scalar(-1), command_index: scalar(0), ok_key_flags: scalar(0), ok_key_cond_flags: scalar(0) })
+    ];
+    const adjacent = core.buildCatalog({
+        schema: "test", character: "Zangief", fighter_id: 6, hard_gate_passed: true,
+        truncated: false, command_root_ref: ref(base + 1), objects: adjacentObjects,
+        triggers: [{ trigger_index: 0, native_action_id: actionId, trigger_ref: ref(base + 8) }]
+    }, { generatedAt: "2026-01-01T00:00:00.000Z" });
+    return adjacent.actions[String(actionId)].triggers[0].profiles.norm.command.inputs[0].direction;
+}
+
+// Every component of the 0x40001/type=2/charge=1/release signature is required.
+assert.strictEqual(adjacentCircleDirection(0x40001, 2, 1, false, 941), "8");
+assert.strictEqual(adjacentCircleDirection(0x40001, 2, 2, true, 942), "8");
+assert.strictEqual(adjacentCircleDirection(0x40001, 1, 1, true, 943), "8");
+assert.strictEqual(adjacentCircleDirection(0x40002, 2, 1, true, 944), "2");
+
+// Double full-circle has its own exact 0x70000/type=2/charge=0/release
+// signature. Every component is required; nearby values remain ordinary
+// direction masks instead of being guessed as 720.
+assert.strictEqual(adjacentCircleDirection(0x70000, 2, 0, true, 945), "720");
+assert.strictEqual(adjacentCircleDirection(0x70000, 2, 0, false, 946), "5");
+assert.strictEqual(adjacentCircleDirection(0x70000, 2, 1, true, 947), "5");
+assert.strictEqual(adjacentCircleDirection(0x70000, 1, 0, true, 948), "5");
+assert.strictEqual(adjacentCircleDirection(0x70001, 2, 0, true, 949), "8");
+
 function ref(object_id) { return { kind: "ref", object_id }; }
 function scalar(value) { return { kind: typeof value === "boolean" ? "boolean" : "number", value }; }
 function object(object_id, object_type, fields) {
@@ -53,6 +126,50 @@ assert.strictEqual(catalog.stats.action_count, 1);
 const runtime = core.buildRuntimeCatalog(catalog);
 assert.strictEqual(runtime.schema, "sf6cc.bcm-runtime.v1");
 assert.strictEqual(runtime.actions["904"], "236+LP");
+
+// AssistComboRecipeData is a fixed 3 strength x 8 recipe x 10 step table.
+// TriggerID is the stable owner link: never infer these routes from AC family
+// similarity or from neighbouring Action IDs.
+const assistItems = Array(240).fill(null);
+const assistObjects = [];
+let nextAssistObjectId = 1001;
+for (const index of [0, 1, 80, 81, 160, 161]) {
+    const comboId = nextAssistObjectId++;
+    assistItems[index] = comboId;
+    assistObjects.push(object(comboId, "CharacterAsset.AssistComboRecipeData.ComboData", {
+        TriggerID: scalar(0), IsEndAtNormal: scalar(index % 2 === 1), Delay: scalar(index % 2),
+        NextInputDelay: scalar(2), NextInputLimit: scalar(20), ConditionFlag: scalar(0)
+    }));
+}
+const assistSource = {
+    ...source,
+    objects: [...source.objects,
+        collection(1000, "CharacterAsset.AssistComboRecipeData.ComboData[,,]", assistItems),
+        ...assistObjects]
+};
+const assistCatalog = core.buildCatalog(assistSource,
+    { generatedAt: "2026-01-01T00:00:00.000Z" });
+assert.strictEqual(assistCatalog.stats.assist_combo_recipe_step_count, 6);
+assert.deepStrictEqual(assistCatalog.assist_combo_recipes.map(item => [
+    item.array_index, item.action_id, item.assist_strength, item.recipe_index,
+    item.step_index, item.input_stage
+]), [
+    [0, 904, "弱", 0, 0, "first"],
+    [1, 904, "弱", 0, 1, "repeat"],
+    [80, 904, "强", 0, 0, "first"],
+    [81, 904, "强", 0, 1, "repeat"],
+    [160, 904, "中", 0, 0, "first"],
+    [161, 904, "中", 0, 1, "repeat"]
+]);
+const malformedAssistSource = {
+    ...source,
+    objects: [...source.objects,
+        collection(1100, "CharacterAsset.AssistComboRecipeData.ComboData[,,]", Array(239).fill(null))]
+};
+const malformedAssistCatalog = core.buildCatalog(malformedAssistSource,
+    { generatedAt: "2026-01-01T00:00:00.000Z" });
+assert.deepStrictEqual(malformedAssistCatalog.assist_combo_recipes, []);
+assert(malformedAssistCatalog.warnings.some(message => message.includes("3x8x10")));
 
 const driveRuntime = core.buildRuntimeCatalog({
     schema: core.OUTPUT_SCHEMA,

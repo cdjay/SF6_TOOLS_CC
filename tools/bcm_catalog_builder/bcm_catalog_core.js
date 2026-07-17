@@ -22,6 +22,9 @@
         [16, "LP"], [32, "MP"], [64, "HP"],
         [128, "LK"], [256, "MK"], [512, "HK"]
     ];
+    const ASSIST_COMBO_STRENGTHS = ["弱", "强", "中"];
+    const ASSIST_COMBO_STRENGTH_BLOCK = 80;
+    const ASSIST_COMBO_RECIPE_LENGTH = 10;
 
     function parseSourceText(text) {
         text = String(text || "").replace(/^\uFEFF/, "");
@@ -136,18 +139,32 @@
             const normalFields = fieldsOf(objects.get(inputFields.normal));
             const chargeFields = fieldsOf(objects.get(inputFields.charge));
             const mask = Number(normalFields.ok_key_flags || 0);
-            const direction = DIR_MAP[lowBits(mask, 0xF)] || "5";
+            const inputType = Number(inputFields.type || 0);
+            const chargeId = Number(chargeFields.id || 0);
+            const chargeRelease = chargeFields.is_release === true;
+            // Full-circle commands are stored as one exact 0x40001 release-style
+            // input. Treating its low direction nibble alone as an ordinary 8
+            // turns the 360 motion into a misleading 8.
+            const fullCircle = inputType === 2 && mask === 0x40001
+                && chargeId === 1 && chargeRelease;
+            // Double full-circle commands use a second exact release-style
+            // signature. Its low nibble is neutral, so generic direction
+            // decoding would incorrectly expose N/5 instead of 720.
+            const doubleFullCircle = inputType === 2 && mask === 0x70000
+                && chargeId === 0 && chargeRelease;
+            const direction = doubleFullCircle ? "720"
+                : (fullCircle ? "360" : (DIR_MAP[lowBits(mask, 0xF)] || "5"));
             // charge.id mirrors the direction on ordinary inputs as well; it
             // is not sufficient evidence of a charge command.  Real charge
             // steps are identified by the command bit or charge input type.
-            if (Number(inputFields.type || 0) === 1 || chargeFields.is_release === true) hasCharge = true;
+            if (inputType === 1 || chargeRelease) hasCharge = true;
             inputs.push({
                 direction,
                 raw_mask: mask,
                 frames: Number(inputFields.frame_num || 0),
-                type: Number(inputFields.type || 0),
-                charge_id: Number(chargeFields.id || 0),
-                charge_release: chargeFields.is_release === true
+                type: inputType,
+                charge_id: chargeId,
+                charge_release: chargeRelease
             });
         }
 
@@ -255,6 +272,55 @@
         return result;
     }
 
+    function decodeAssistComboRecipes(source, objects, triggerActionMap, warnings) {
+        const arrays = (source.objects || []).filter(object =>
+            object.object_type === "CharacterAsset.AssistComboRecipeData.ComboData[,,]");
+        if (!arrays.length) return [];
+        if (arrays.length !== 1 || !Array.isArray(arrays[0].items)
+            || arrays[0].items.length !== ASSIST_COMBO_STRENGTHS.length * ASSIST_COMBO_STRENGTH_BLOCK) {
+            warnings.push("AssistComboRecipeData 不是受支持的固定 3x8x10 结构，已跳过辅助连段解码。");
+            return [];
+        }
+        const rows = [];
+        for (const item of arrays[0].items) {
+            const flatIndex = Number(item.index);
+            const combo = objects.get(refId(item.value));
+            if (!combo || !Number.isInteger(flatIndex) || flatIndex < 0
+                || flatIndex >= ASSIST_COMBO_STRENGTHS.length * ASSIST_COMBO_STRENGTH_BLOCK) continue;
+            const fields = fieldsOf(combo);
+            const triggerId = Number(fields.TriggerID);
+            const actionId = triggerActionMap.get(triggerId);
+            if (!Number.isFinite(triggerId) || triggerId < 0 || !Number.isFinite(actionId)) continue;
+            const strengthIndex = Math.floor(flatIndex / ASSIST_COMBO_STRENGTH_BLOCK);
+            if (strengthIndex < 0 || strengthIndex >= ASSIST_COMBO_STRENGTHS.length) continue;
+            const withinStrength = flatIndex % ASSIST_COMBO_STRENGTH_BLOCK;
+            const recipeIndex = Math.floor(withinStrength / ASSIST_COMBO_RECIPE_LENGTH);
+            const stepIndex = withinStrength % ASSIST_COMBO_RECIPE_LENGTH;
+            const wt = objects.get(Number(fields.WTComboData));
+            const wtFields = fieldsOf(wt);
+            rows.push({
+                action_id: actionId,
+                trigger_id: triggerId,
+                array_index: flatIndex,
+                assist_strength: ASSIST_COMBO_STRENGTHS[strengthIndex],
+                strength_index: strengthIndex,
+                recipe_index: recipeIndex,
+                step_index: stepIndex,
+                input_stage: stepIndex === 0 ? "first" : "repeat",
+                is_end_at_normal: fields.IsEndAtNormal === true,
+                delay: Number(fields.Delay || 0),
+                next_input_delay: Number(fields.NextInputDelay ?? -1),
+                next_input_limit: Number(fields.NextInputLimit ?? -1),
+                condition_flag: fields.ConditionFlag == null ? null : fields.ConditionFlag,
+                wt_action_trigger: Number(wtFields.WTFighterActionTrigger || 0),
+                wt_action_strength: Number(wtFields.WTFighterActionStrength || 0),
+                wt_action_is_air: wtFields.WTFighterActionIsAir === true
+            });
+        }
+        rows.sort((left, right) => left.array_index - right.array_index);
+        return rows;
+    }
+
     function buildCatalog(source, options) {
         options = options || {};
         if (!source || !Array.isArray(source.objects)) throw new Error("这不是包含 objects 的完整 BCM 对象图。");
@@ -271,6 +337,7 @@
         const objects = buildObjectIndex(source);
         const commandTable = decodeCommandTable(source, objects, warnings);
         const actions = {};
+        const triggerActionMap = new Map();
         let decodedTriggerCount = 0;
 
         for (const descriptor of source.triggers) {
@@ -282,6 +349,7 @@
             const fields = fieldsOf(trigger);
             const actionId = Number(fields.action_id ?? descriptor.native_action_id);
             if (!Number.isFinite(actionId)) continue;
+            triggerActionMap.set(Number(descriptor.trigger_index), actionId);
             const isAir = Number(fields.cond_owner_state_flags || 0) === 4 ||
                 (lowBits(fields.category_flags, 0x40000000) !== 0);
             const profiles = {};
@@ -304,6 +372,7 @@
         const sortedActions = {};
         for (const key of Object.keys(actions).sort((a, b) => Number(a) - Number(b))) sortedActions[key] = actions[key];
         const commandVariantCount = Object.values(commandTable).reduce((sum, variants) => sum + variants.length, 0);
+        const assistComboRecipes = decodeAssistComboRecipes(source, objects, triggerActionMap, warnings);
         return {
             schema: OUTPUT_SCHEMA,
             generated_at: options.generatedAt || new Date().toISOString(),
@@ -329,10 +398,12 @@
                 decoded_trigger_count: decodedTriggerCount,
                 command_count: Object.keys(commandTable).length,
                 command_variant_count: commandVariantCount,
+                assist_combo_recipe_step_count: assistComboRecipes.length,
                 warning_count: warnings.length
             },
             warnings,
             commands: commandTable,
+            assist_combo_recipes: assistComboRecipes,
             actions: sortedActions
         };
     }

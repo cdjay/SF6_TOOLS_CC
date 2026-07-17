@@ -2110,6 +2110,24 @@ local function draw_combo_trials_menu_ui()
         -- TAB 5: DEBUG & SYSTEM INFO
         -- ==========================================
         if styled_header("--- 调试与系统信息 ---", UI_THEME.hdr_rules) then
+            local show_ids_changed, show_ids = imgui.checkbox(
+                "显示现代未识别 Action ID",
+                d2d_cfg.show_modern_unresolved_ids == true
+            )
+            if show_ids_changed then
+                d2d_cfg.show_modern_unresolved_ids = show_ids
+                if ctx.save_d2d_config then ctx.save_d2d_config() end
+            end
+            local modern_audit = trial_state.modern_unresolved_audit or {}
+            imgui.text(string.format("现代未识别：%d 个 ID / %d 个步骤；当前角色：%s",
+                tonumber(modern_audit.unresolved_id_count) or 0,
+                tonumber(modern_audit.unresolved_step_count) or 0,
+                tostring(modern_audit.current_character or "Unknown")))
+            if styled_button("清空现代未识别统计", UI_THEME.btn_neutral) then
+                if ctx.clear_modern_unresolved_audit then ctx.clear_modern_unresolved_audit() end
+            end
+            imgui.spacing()
+
             imgui.text_colored("检测到的游戏原生分辨率：", 0xFF00FFFF)
             local res_w = ctx.cached_sw or last_sw or 0
             local res_h = ctx.cached_sh or last_sh or 0

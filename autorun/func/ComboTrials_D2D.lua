@@ -65,6 +65,7 @@ local image_files = {
     ["modern_l"] = "modern_l.png",
     ["modern_m"] = "modern_m.png",
     ["modern_h"] = "modern_h.png",
+    ["modern_n"] = "modern_n.png",
     ["modern_sp"] = "modern_sp.png",
     ["modern_auto"] = "modern_auto.png",
     ["p"] = "P.png",
@@ -173,8 +174,29 @@ end
 -- =========================================================
 local MODERN_DISPLAY_DIR = "TrainingComboTrials_data/modern_display/"
 local EXCEPTION_DISPLAY_DIR = "TrainingComboTrials_data/exceptions/"
+local RUNTIME_COMMON_REASON = "sf6_stable_runtime_common_movement_action"
+local OFFICIAL_SEMANTIC_REASON = "capcom_official_command_semantics_matched_to_current_bcm_identity"
+local COMMUNITY_SEMANTIC_REASON = "verified_community_command_semantics_matched_to_current_bcm_identity"
+local VERIFIED_ALIAS_REASON = "ac_verified_equivalent_action_variant"
+local TYPE20_DIRECTION_REASON = "ac_type20_verified_directional_air_attack"
+local TARGET_COMBO_REPEAT_REASON = "bcm_turn_around_target_combo_repeats_parent_button"
+local STRUCTURAL_TWIN_REASON = "ac_bcm_unique_structural_twin_with_internal_use_super_delta"
+local ASSIST_COMBO_REASON = "bcm_assist_combo_recipe_direct_input_sequence"
+local RUNTIME_COMMON_ACTIONS = {
+    [17] = "66",
+    [18] = "44",
+    [36] = "8",
+    [37] = "9",
+    [38] = "7",
+    [489] = "DP"
+}
 local modern_display_cache = {}
 local exception_display_cache = {}
+local modern_display_runtime = {
+    cache_status = {},
+    seen_refs = setmetatable({}, { __mode = "k" }),
+    seen_keys = {}
+}
 
 local function get_sequence_meta(sequence)
     if type(sequence) ~= "table" then return nil end
@@ -265,10 +287,11 @@ end
 local function load_modern_display_map(character)
     local key = tostring(character or "")
     key = key:gsub("[^%w_]", "")
-    if key == "" then return nil end
+    if key == "" or key == "Unknown" then return nil, "invalid_character" end
 
     if modern_display_cache[key] ~= nil then
-        return modern_display_cache[key] ~= false and modern_display_cache[key] or nil
+        return modern_display_cache[key] ~= false and modern_display_cache[key] or nil,
+            modern_display_runtime.cache_status[key]
     end
 
     local path = MODERN_DISPLAY_DIR .. key .. ".json"
@@ -280,25 +303,587 @@ local function load_modern_display_map(character)
     end
 
     local meta = ok and type(loaded) == "table" and loaded._meta or nil
+    local audit = type(meta) == "table" and meta.audit or nil
+    local has_rebind_audit = type(audit) == "table"
+        and (audit.ac_type17_relation_count ~= nil
+            or audit.ac_command_entry_rebind_signature_count ~= nil
+            or audit.ac_command_entry_rebind_relation_count ~= nil
+            or audit.ac_command_entry_rebind_route_count ~= nil)
+    local rebind_audit_ok = not has_rebind_audit
+    if has_rebind_audit then
+        local type17 = tonumber(audit.ac_type17_relation_count)
+        local signatures = tonumber(audit.ac_command_entry_rebind_signature_count)
+        local relations = tonumber(audit.ac_command_entry_rebind_relation_count)
+        local routes = tonumber(audit.ac_command_entry_rebind_route_count)
+        rebind_audit_ok = type17 ~= nil and signatures ~= nil and relations ~= nil and routes ~= nil
+            and type17 >= signatures and signatures >= relations and routes >= relations and relations >= 0
+            and type17 == math.floor(type17) and signatures == math.floor(signatures)
+            and relations == math.floor(relations) and routes == math.floor(routes)
+            and (meta.rebind_route_count == nil or tonumber(meta.rebind_route_count) == routes)
+            and type(meta.ac_command_entry_rebinds) == "table"
+            and #meta.ac_command_entry_rebinds == relations
+    end
+    local has_runtime_common_audit = type(audit) == "table"
+        and (audit.runtime_common_action_count ~= nil or audit.runtime_common_route_count ~= nil)
+    local runtime_common_audit_ok = not has_runtime_common_audit
+    if has_runtime_common_audit then
+        local actions = tonumber(audit.runtime_common_action_count)
+        local routes = tonumber(audit.runtime_common_route_count)
+        runtime_common_audit_ok = actions ~= nil and routes ~= nil and actions >= 0 and routes == actions
+            and actions == math.floor(actions) and routes == math.floor(routes)
+            and tonumber(meta.runtime_common_route_count) == routes
+            and type(meta.runtime_common_actions) == "table"
+            and #meta.runtime_common_actions == actions
+    end
+    local official_routes = type(audit) == "table" and tonumber(audit.official_semantic_route_count) or nil
+    local official_bindings = type(audit) == "table" and tonumber(audit.official_semantic_binding_count) or nil
+    local official_unresolved = type(audit) == "table" and tonumber(audit.official_semantic_unresolved_count) or nil
+    local official_qualified = type(audit) == "table"
+        and tonumber(audit.official_semantic_qualified_direct_route_count) or nil
+    local official_semantic_audit_ok = official_routes ~= nil and official_bindings ~= nil
+        and official_unresolved ~= nil and official_qualified ~= nil
+        and official_routes >= 0 and official_bindings >= 0 and official_qualified >= 0
+        and official_unresolved >= 0 and official_routes == math.floor(official_routes)
+        and official_bindings == math.floor(official_bindings)
+        and official_unresolved == math.floor(official_unresolved)
+        and official_qualified == math.floor(official_qualified)
+        and tonumber(meta.official_semantic_route_count) == official_routes
+        and tonumber(meta.official_semantic_qualified_direct_route_count) == official_qualified
+        and type(meta.official_semantic_bindings) == "table"
+        and #meta.official_semantic_bindings == official_bindings
+        and type(meta.official_semantic_unresolved) == "table"
+        and #meta.official_semantic_unresolved == official_unresolved
+    local community_routes = type(audit) == "table" and tonumber(audit.community_semantic_route_count) or nil
+    local community_bindings = type(audit) == "table" and tonumber(audit.community_semantic_binding_count) or nil
+    local community_unresolved = type(audit) == "table" and tonumber(audit.community_semantic_unresolved_count) or nil
+    local community_qualified = type(audit) == "table"
+        and tonumber(audit.community_semantic_qualified_direct_route_count) or nil
+    local community_semantic_audit_ok = community_routes ~= nil and community_bindings ~= nil
+        and community_unresolved ~= nil and community_qualified ~= nil
+        and community_routes >= 0 and community_bindings >= 0 and community_unresolved >= 0
+        and community_qualified >= 0 and community_routes == math.floor(community_routes)
+        and community_bindings == math.floor(community_bindings)
+        and community_unresolved == math.floor(community_unresolved)
+        and community_qualified == math.floor(community_qualified)
+        and tonumber(meta.community_semantic_route_count) == community_routes
+        and tonumber(meta.community_semantic_qualified_direct_route_count) == community_qualified
+        and type(meta.community_semantic_bindings) == "table"
+        and #meta.community_semantic_bindings == community_bindings
+        and type(meta.community_semantic_unresolved) == "table"
+        and #meta.community_semantic_unresolved == community_unresolved
+    local verified_alias_relations = type(audit) == "table"
+        and tonumber(audit.verified_alias_relation_count) or nil
+    local verified_alias_routes = type(audit) == "table"
+        and tonumber(audit.verified_alias_route_count) or nil
+    local verified_alias_audit_ok = verified_alias_relations ~= nil and verified_alias_routes ~= nil
+        and verified_alias_relations >= 0 and verified_alias_routes >= verified_alias_relations
+        and verified_alias_relations == math.floor(verified_alias_relations)
+        and verified_alias_routes == math.floor(verified_alias_routes)
+        and tonumber(meta.verified_alias_route_count) == verified_alias_routes
+        and type(meta.verified_alias_relations) == "table"
+        and #meta.verified_alias_relations == verified_alias_relations
+    local type20_relations = type(audit) == "table"
+        and tonumber(audit.type20_directional_relation_count) or nil
+    local type20_routes = type(audit) == "table"
+        and tonumber(audit.type20_directional_route_count) or nil
+    local type20_audit_ok = type20_relations ~= nil and type20_routes ~= nil
+        and type20_relations >= 0 and type20_routes >= type20_relations
+        and tonumber(meta.type20_directional_route_count) == type20_routes
+        and type(meta.type20_directional_relations) == "table"
+        and #meta.type20_directional_relations == type20_relations
+    local target_combo_relations = type(audit) == "table"
+        and tonumber(audit.target_combo_repeat_relation_count) or nil
+    local target_combo_routes = type(audit) == "table"
+        and tonumber(audit.target_combo_repeat_route_count) or nil
+    local target_combo_audit_ok = target_combo_relations ~= nil and target_combo_routes ~= nil
+        and target_combo_relations >= 0 and target_combo_routes >= target_combo_relations
+        and tonumber(meta.target_combo_repeat_route_count) == target_combo_routes
+        and type(meta.target_combo_repeat_relations) == "table"
+        and #meta.target_combo_repeat_relations == target_combo_relations
+    local structural_twin_relations = type(audit) == "table"
+        and tonumber(audit.structural_twin_relation_count) or nil
+    local structural_twin_routes = type(audit) == "table"
+        and tonumber(audit.structural_twin_route_count) or nil
+    local structural_twin_audit_ok = structural_twin_relations ~= nil and structural_twin_routes ~= nil
+        and structural_twin_relations >= 0 and structural_twin_routes >= structural_twin_relations
+        and tonumber(meta.structural_twin_route_count) == structural_twin_routes
+        and type(meta.structural_twin_relations) == "table"
+        and #meta.structural_twin_relations == structural_twin_relations
+    local assist_combo_candidates = type(audit) == "table"
+        and tonumber(audit.assist_combo_candidate_count) or nil
+    local assist_combo_relations = type(audit) == "table"
+        and tonumber(audit.assist_combo_relation_count) or nil
+    local assist_combo_routes = type(audit) == "table"
+        and tonumber(audit.assist_combo_route_count) or nil
+    local assist_combo_duplicates = type(audit) == "table"
+        and tonumber(audit.assist_combo_duplicate_display_count) or nil
+    local assist_combo_audit_ok = assist_combo_candidates ~= nil and assist_combo_relations ~= nil
+        and assist_combo_routes ~= nil and assist_combo_duplicates ~= nil
+        and assist_combo_candidates >= 0 and assist_combo_relations >= 0
+        and assist_combo_routes == assist_combo_relations
+        and assist_combo_duplicates >= 0
+        and assist_combo_candidates == assist_combo_relations + assist_combo_duplicates
+        and assist_combo_candidates == math.floor(assist_combo_candidates)
+        and assist_combo_relations == math.floor(assist_combo_relations)
+        and assist_combo_routes == math.floor(assist_combo_routes)
+        and assist_combo_duplicates == math.floor(assist_combo_duplicates)
+        and tonumber(meta.assist_combo_route_count) == assist_combo_routes
+        and type(meta.assist_combo_relations) == "table"
+        and #meta.assist_combo_relations == assist_combo_relations
+    local strict_audit = type(audit) == "table" and audit.strict_route_ownership == true
+        and tonumber(audit.owner_missing_count or -1) == 0
+        and tonumber(audit.no_evidence_count or -1) == 0
+        and tonumber(audit.direct_overridden_count or -1) == 0
+        and tonumber(audit.overlay_entry_count or -1) == 0
+        and tonumber(audit.community_route_count or -1) == 0
+        and tonumber(audit.legacy_supplement_entry_count or -1) == 0
+        and tonumber(audit.classic_fallback_count or -1) == 0
+        and tonumber(audit.classic_token_leak_count or -1) == 0
+        and tonumber(audit.alias_propagation_count or -1) == 0
+        and tonumber(audit.type17_route_count or -1) == 0
+        and tonumber(audit.ac_automatic_transition_route_count or -1) == 0
+        and tonumber(audit.replaces_profile_route_count or -1) == 0
+        and tonumber(audit.non_whitelist_propagation_count or -1) == 0
+        and rebind_audit_ok
+        and runtime_common_audit_ok
+        and official_semantic_audit_ok
+        and community_semantic_audit_ok
+        and verified_alias_audit_ok
+        and type20_audit_ok
+        and target_combo_audit_ok
+        and structural_twin_audit_ok
+        and assist_combo_audit_ok
     if type(meta) == "table"
-        and tostring(meta.schema or ""):lower() == "xt.modern_display.v2"
-        and tostring(meta.generated_from or ""):lower() == "ac_bcm" then
+        and tostring(meta.schema or ""):lower() == "xt.modern_display.v7"
+        and tostring(meta.strict_policy or ""):lower() == "verified_route_ownership_v5"
+        and (tostring(meta.generated_from or ""):lower() == "ac_bcm"
+            or tostring(meta.generated_from or ""):lower() == "ac_bcm+capcom_official_semantics"
+            or tostring(meta.generated_from or ""):lower() == "ac_bcm+community_verified_semantics"
+            or tostring(meta.generated_from or ""):lower() == "ac_bcm+capcom_official_semantics+community_verified_semantics")
+        and tostring(meta.character or "") == key
+        and strict_audit then
         modern_display_cache[key] = loaded
-        return loaded
+        modern_display_runtime.cache_status[key] = "loaded"
+        return loaded, "loaded"
     end
 
     modern_display_cache[key] = false
-    return nil
+    modern_display_runtime.cache_status[key] = ok and "invalid_schema_or_policy" or "map_load_failed"
+    return nil, modern_display_runtime.cache_status[key]
 end
 
 local function get_modern_display_motion(modern_map, step)
-    if type(modern_map) ~= "table" or type(step) ~= "table" then return nil end
+    if type(modern_map) ~= "table" or type(step) ~= "table" then return nil, "map_unavailable" end
+    local step_id = tonumber(step.id)
     local entry = modern_map[tostring(step.id or "")]
-    if type(entry) == "string" and entry ~= "" then return entry end
-    if type(entry) == "table" and type(entry.modern_display) == "string" and entry.modern_display ~= "" then
-        return entry.modern_display
+    if type(entry) ~= "table" or type(entry.routes) ~= "table" then return nil, "action_id_missing" end
+    local displays, seen = {}, {}
+    for _, route in ipairs(entry.routes) do
+        local source = type(route) == "table" and tostring(route.source or "") or ""
+        local route_character = type(route) == "table" and tostring(route.character or "") or ""
+        local map_character = type(modern_map._meta) == "table" and tostring(modern_map._meta.character or "") or ""
+        local direct_ok = (source == "bcm_profile" or source == "bcm_common_semantic")
+            and route.direct_evidence == true and route.inheritance_evidence == false
+            and route.rebind_evidence ~= true and route.rebind_reason == nil
+            and route.runtime_common_evidence ~= true and route.runtime_common_reason == nil
+            and step_id ~= nil and tonumber(route.owner_action_id) == step_id
+            and route.confidence == "direct_structural" and route_character == map_character
+        local ac_path = type(route) == "table" and route.ac_path or nil
+        local inherited_ok = source == "ac_type63_throw"
+            and route.direct_evidence == false and route.inheritance_evidence == true
+            and route.rebind_evidence ~= true and route.rebind_reason == nil
+            and route.runtime_common_evidence ~= true and route.runtime_common_reason == nil
+            and tonumber(route.ac_relation_type) == 63
+            and tonumber(route.owner_action_id) ~= nil
+            and tonumber(route.inherited_from_action_id) ~= nil
+            and step_id ~= nil and type(ac_path) == "table" and #ac_path >= 2
+            and tonumber(ac_path[#ac_path]) == step_id
+            and route.confidence == "verified_inherited" and route_character == map_character
+            and tostring(route.visible_button or ""):upper() == "THROW"
+        local rebind_owner = type(route) == "table" and tonumber(route.bcm_owner_action_id) or nil
+        local declared_rebind = false
+        local declared_rebinds = type(modern_map._meta) == "table"
+            and modern_map._meta.ac_command_entry_rebinds or nil
+        if type(declared_rebinds) == "table" then
+            for _, relation in ipairs(declared_rebinds) do
+                if type(relation) == "table" and tonumber(relation.source_action_id) == rebind_owner
+                    and tonumber(relation.target_action_id) == step_id
+                    and relation.reason == "ac_type17_command_entry_rebind_from_verified_bcm_owner" then
+                    declared_rebind = true
+                    break
+                end
+            end
+        end
+        local rebind_ok = source == "ac_command_entry_rebind"
+            and route.direct_evidence == false and route.inheritance_evidence == false
+            and route.rebind_evidence == true
+            and route.runtime_common_evidence ~= true and route.runtime_common_reason == nil
+            and entry.ownership == "rebind" and declared_rebind
+            and step_id ~= nil and rebind_owner ~= nil and rebind_owner ~= step_id
+            and tonumber(route.owner_action_id) == rebind_owner
+            and tonumber(route.display_action_id) == step_id
+            and tonumber(route.ac_relation_type) == 17
+            and type(ac_path) == "table" and #ac_path == 2
+            and tonumber(ac_path[1]) == rebind_owner and tonumber(ac_path[2]) == step_id
+            and route.inherited_from_action_id == nil
+            and route.confidence == "verified_rebind" and route_character == map_character
+            and route.rebind_reason == "ac_type17_command_entry_rebind_from_verified_bcm_owner"
+            and route.inheritance_reason == nil
+            and tonumber(route.ac_attr) == 0 and tonumber(route.ac_frame) == 0
+            and tonumber(route.ac_param00) == 9 and tonumber(route.ac_param01) == 120
+            and tonumber(route.ac_param02) == 0 and tonumber(route.ac_param03) == 0
+            and tonumber(route.ac_param04) == 0 and tonumber(route.ac_param05) == 0
+            and tonumber(route.ac_trigger_id) == -1
+            and tonumber(route.trigger_index) ~= nil
+            and (route.profile == "easy" or route.profile == "supr" or route.profile == "sprt")
+            and tonumber(route.command_no) ~= nil and tonumber(route.command_index) ~= nil
+            and type(route.raw_direction_inputs) == "table"
+            and tonumber(route.raw_button_mask) ~= nil and tonumber(route.raw_button_condition) ~= nil
+            and tonumber(route.raw_dc_exc_flags) ~= nil
+            and type(route.visible_direction) == "string" and route.visible_direction ~= ""
+            and type(route.visible_button) == "string" and route.visible_button ~= ""
+            and type(route.button_candidates) == "table" and tonumber(route.required_button_count) ~= nil
+        local expected_common = step_id ~= nil and RUNTIME_COMMON_ACTIONS[step_id] or nil
+        local declared_common = false
+        local declared_common_actions = type(modern_map._meta) == "table"
+            and modern_map._meta.runtime_common_actions or nil
+        if expected_common and type(declared_common_actions) == "table" then
+            for _, common in ipairs(declared_common_actions) do
+                if type(common) == "table" and tonumber(common.action_id) == step_id
+                    and tostring(common.display or "") == expected_common
+                    and common.reason == RUNTIME_COMMON_REASON then
+                    declared_common = true
+                    break
+                end
+            end
+        end
+        local runtime_common_ok = source == "runtime_common_action"
+            and route.direct_evidence == false and route.inheritance_evidence == false
+            and route.rebind_evidence == false and route.runtime_common_evidence == true
+            and route.rebind_reason == nil and route.inheritance_reason == nil
+            and route.runtime_common_reason == RUNTIME_COMMON_REASON
+            and entry.ownership == "runtime_common" and declared_common
+            and step_id ~= nil and tonumber(route.owner_action_id) == step_id
+            and tonumber(route.display_action_id) == step_id
+            and route.bcm_owner_action_id == nil
+            and route.ac_relation_type == nil and type(ac_path) == "table" and #ac_path == 0
+            and route.inherited_from_action_id == nil
+            and route.confidence == "verified_runtime_common" and route_character == map_character
+            and route.profile == "runtime_common" and tonumber(route.trigger_index) == -1
+            and tonumber(route.command_no) == -1 and tonumber(route.command_index) == -1
+            and type(route.raw_direction_inputs) == "table" and #route.raw_direction_inputs == 0
+            and tonumber(route.raw_button_mask) == 0 and tonumber(route.raw_button_condition) == 0
+            and tonumber(route.raw_dc_exc_flags) == 0
+            and tostring(route.visible_direction or "") == expected_common
+            and route.visible_button == nil and type(route.button_candidates) == "table"
+            and #route.button_candidates == 0 and tonumber(route.required_button_count) == 0
+        local declared_official = false
+        local declared_official_bindings = type(modern_map._meta) == "table"
+            and modern_map._meta.official_semantic_bindings or nil
+        if type(declared_official_bindings) == "table" then
+            for _, binding in ipairs(declared_official_bindings) do
+                if type(binding) == "table" and tonumber(binding.target_action_id) == step_id
+                    and tostring(binding.display or "") == tostring(route.display or "")
+                    and binding.reason == OFFICIAL_SEMANTIC_REASON then
+                    declared_official = true
+                    break
+                end
+            end
+        end
+        local official_semantic_ok = source == "official_semantic_bcm_rebind"
+            and route.direct_evidence == false and route.inheritance_evidence == false
+            and route.rebind_evidence == false and route.runtime_common_evidence == false
+            and route.official_semantic_evidence == true
+            and route.official_semantic_reason == OFFICIAL_SEMANTIC_REASON
+            and route.rebind_reason == nil and route.inheritance_reason == nil
+            and route.runtime_common_reason == nil
+            and declared_official and step_id ~= nil
+            and tonumber(route.owner_action_id) == step_id
+            and tonumber(route.display_action_id) == step_id
+            and tonumber(route.bcm_owner_action_id) == step_id
+            and route.ac_relation_type == nil and type(ac_path) == "table" and #ac_path == 0
+            and route.inherited_from_action_id == nil
+            and route.confidence == "verified_official_semantic_bcm_identity"
+            and route_character == map_character and route.profile == "norm_identity"
+            and tonumber(route.official_action_id_hint) ~= nil
+            and tonumber(route.official_action_id_distance) ~= nil
+            and tonumber(route.official_action_id_distance) >= 0
+            and (route.official_action_id_hint_kind == "capcom_action_id"
+                or route.official_action_id_hint_kind == "derived_current_bcm_identity")
+            and ((route.official_action_id_hint_kind == "capcom_action_id"
+                    and route.official_semantic_row_id == nil)
+                or (route.official_action_id_hint_kind == "derived_current_bcm_identity"
+                    and type(route.official_semantic_row_id) == "string"
+                    and route.official_semantic_row_id ~= ""))
+            and type(route.official_classic_display) == "string"
+            and type(route.official_modern_display) == "string"
+        local alias_source = type(route) == "table" and tonumber(route.inherited_from_action_id) or nil
+        local alias_type = type(route) == "table" and tonumber(route.ac_relation_type) or nil
+        local declared_alias = false
+        local declared_aliases = type(modern_map._meta) == "table"
+            and modern_map._meta.verified_alias_relations or nil
+        if type(declared_aliases) == "table" then
+            for _, relation in ipairs(declared_aliases) do
+                if type(relation) == "table" and tonumber(relation.source_action_id) == alias_source
+                    and tonumber(relation.target_action_id) == step_id
+                    and tonumber(relation.branch_type) == alias_type
+                    and relation.reason == VERIFIED_ALIAS_REASON then
+                    declared_alias = true
+                    break
+                end
+            end
+        end
+        local verified_alias_ok = source == "ac_verified_alias_variant"
+            and route.direct_evidence == false and route.inheritance_evidence == true
+            and route.rebind_evidence == false and route.runtime_common_evidence == false
+            and route.official_semantic_evidence == false
+            and route.community_semantic_evidence == false
+            and route.rebind_reason == nil and route.runtime_common_reason == nil
+            and route.official_semantic_reason == nil and route.community_semantic_reason == nil
+            and route.inheritance_reason == VERIFIED_ALIAS_REASON
+            and entry.ownership == "verified_alias" and declared_alias
+            and step_id ~= nil and (alias_type == 29 or alias_type == 35)
+            and alias_source ~= nil and tonumber(route.owner_action_id) ~= nil
+            and tonumber(route.display_action_id) == step_id
+            and type(ac_path) == "table" and #ac_path >= 2
+            and tonumber(ac_path[#ac_path - 1]) == alias_source
+            and tonumber(ac_path[#ac_path]) == step_id
+            and route.confidence == "verified_inherited_alias"
+            and route_character == map_character
+        local inherited_source = type(route) == "table" and tonumber(route.inherited_from_action_id) or nil
+        local declared_type20 = false
+        local type20_declarations = type(modern_map._meta) == "table"
+            and modern_map._meta.type20_directional_relations or nil
+        if type(type20_declarations) == "table" then
+            for _, relation in ipairs(type20_declarations) do
+                if type(relation) == "table" and tonumber(relation.source_action_id) == inherited_source
+                    and tonumber(relation.target_action_id) == step_id
+                    and tonumber(relation.branch_type) == 20
+                    and tostring(relation.direction or "") == tostring(route.visible_direction or "")
+                    and tostring(relation.button or "") == tostring(route.visible_button or "")
+                    and relation.reason == TYPE20_DIRECTION_REASON then
+                    declared_type20 = true
+                    break
+                end
+            end
+        end
+        local type20_ok = source == "ac_type20_directional_air_attack"
+            and entry.ownership == "type20_directional" and declared_type20
+            and route.direct_evidence == false and route.inheritance_evidence == true
+            and route.rebind_evidence == false and route.runtime_common_evidence == false
+            and route.official_semantic_evidence == false and route.community_semantic_evidence == false
+            and route.inheritance_reason == TYPE20_DIRECTION_REASON
+            and tonumber(route.ac_relation_type) == 20 and inherited_source ~= nil
+            and step_id ~= nil and type(ac_path) == "table" and #ac_path >= 2
+            and tonumber(ac_path[#ac_path - 1]) == inherited_source
+            and tonumber(ac_path[#ac_path]) == step_id
+            and tonumber(route.display_action_id) == step_id
+            and route.confidence == "verified_inherited_directional_attack"
+            and route_character == map_character
+            and tostring(route.display or "") == "空中 " .. tostring(route.visible_direction)
+                .. " + " .. tostring(route.visible_button)
+        local declared_target_combo = false
+        local target_combo_declarations = type(modern_map._meta) == "table"
+            and modern_map._meta.target_combo_repeat_relations or nil
+        if type(target_combo_declarations) == "table" then
+            for _, relation in ipairs(target_combo_declarations) do
+                if type(relation) == "table" and tonumber(relation.parent_action_id) == inherited_source
+                    and tonumber(relation.target_action_id) == step_id
+                    and tonumber(relation.trigger_index) == tonumber(route.trigger_index)
+                    and tostring(relation.button or "") == tostring(route.visible_button or "")
+                    and relation.evidence == "bcm-turn-around"
+                    and relation.reason == TARGET_COMBO_REPEAT_REASON then
+                    declared_target_combo = true
+                    break
+                end
+            end
+        end
+        local target_combo_ok = source == "bcm_target_combo_repeat"
+            and entry.ownership == "target_combo_repeat" and declared_target_combo
+            and route.direct_evidence == false and route.inheritance_evidence == true
+            and route.rebind_evidence == false and route.runtime_common_evidence == false
+            and route.official_semantic_evidence == false and route.community_semantic_evidence == false
+            and route.inheritance_reason == TARGET_COMBO_REPEAT_REASON
+            and route.ac_relation_type == nil and inherited_source ~= nil
+            and step_id ~= nil and type(ac_path) == "table" and #ac_path == 2
+            and tonumber(ac_path[1]) == inherited_source and tonumber(ac_path[2]) == step_id
+            and tonumber(route.owner_action_id) == step_id
+            and tonumber(route.bcm_owner_action_id) == step_id
+            and tonumber(route.display_action_id) == step_id
+            and route.confidence == "verified_bcm_target_combo_repeat"
+            and route_character == map_character
+            and tostring(route.display or "") == "> " .. tostring(route.visible_button)
+        local declared_structural_twin = false
+        local structural_twin_declarations = type(modern_map._meta) == "table"
+            and modern_map._meta.structural_twin_relations or nil
+        if type(structural_twin_declarations) == "table" then
+            for _, relation in ipairs(structural_twin_declarations) do
+                if type(relation) == "table" and tonumber(relation.source_action_id) == inherited_source
+                    and tonumber(relation.target_action_id) == step_id
+                    and tonumber(relation.source_trigger_index) == tonumber(route.trigger_index)
+                    and relation.ignored_condition_delta == "use_super:true->false"
+                    and relation.reason == STRUCTURAL_TWIN_REASON then
+                    declared_structural_twin = true
+                    break
+                end
+            end
+        end
+        local structural_twin_ok = source == "ac_bcm_structural_twin"
+            and entry.ownership == "structural_twin" and declared_structural_twin
+            and route.direct_evidence == false and route.inheritance_evidence == true
+            and route.rebind_evidence == false and route.runtime_common_evidence == false
+            and route.official_semantic_evidence == false and route.community_semantic_evidence == false
+            and route.inheritance_reason == STRUCTURAL_TWIN_REASON
+            and route.ac_relation_type == nil and inherited_source ~= nil
+            and step_id ~= nil and type(ac_path) == "table" and #ac_path >= 2
+            and tonumber(ac_path[#ac_path - 1]) == inherited_source
+            and tonumber(ac_path[#ac_path]) == step_id
+            and tonumber(route.display_action_id) == step_id
+            and route.confidence == "verified_unique_structural_twin"
+            and route_character == map_character
+        local declared_assist_combo = false
+        local assist_combo_declarations = type(modern_map._meta) == "table"
+            and modern_map._meta.assist_combo_relations or nil
+        if type(assist_combo_declarations) == "table" then
+            for _, relation in ipairs(assist_combo_declarations) do
+                if type(relation) == "table" and tonumber(relation.action_id) == step_id
+                    and tostring(relation.display or "") == tostring(route.display or "")
+                    and tostring(relation.assist_strength or "") == tostring(route.assist_strength or "")
+                    and tostring(relation.input_stage or "") == tostring(route.assist_input_stage or "")
+                    and relation.reason == ASSIST_COMBO_REASON then
+                    declared_assist_combo = true
+                    break
+                end
+            end
+        end
+        local assist_occurrences_ok = type(route.assist_recipe_occurrences) == "table"
+            and #route.assist_recipe_occurrences > 0
+        local assist_trigger_declared = false
+        if assist_occurrences_ok then
+            for _, occurrence in ipairs(route.assist_recipe_occurrences) do
+                if type(occurrence) ~= "table" or tonumber(occurrence.array_index) == nil
+                    or tonumber(occurrence.trigger_id) == nil
+                    or tonumber(occurrence.trigger_id) < 0 then
+                    assist_occurrences_ok = false
+                    break
+                end
+                if tonumber(occurrence.trigger_id) == tonumber(route.trigger_index) then
+                    assist_trigger_declared = true
+                end
+            end
+        end
+        local assist_expected_display = route.assist_input_stage == "first"
+            and ("AUTO + " .. tostring(route.assist_strength or ""))
+            or ("> " .. tostring(route.assist_strength or ""))
+        local assist_combo_ok = source == "bcm_assist_combo_recipe"
+            and declared_assist_combo and assist_occurrences_ok and assist_trigger_declared
+            and route.direct_evidence == true and route.inheritance_evidence == false
+            and route.rebind_evidence == false and route.runtime_common_evidence == false
+            and route.official_semantic_evidence == false and route.community_semantic_evidence == false
+            and route.assist_combo_evidence == true
+            and route.assist_combo_reason == ASSIST_COMBO_REASON
+            and route.inheritance_reason == nil and route.rebind_reason == nil
+            and route.runtime_common_reason == nil and route.official_semantic_reason == nil
+            and route.community_semantic_reason == nil
+            and step_id ~= nil and tonumber(route.owner_action_id) == step_id
+            and tonumber(route.display_action_id) == step_id
+            and tonumber(route.bcm_owner_action_id) == step_id
+            and route.ac_relation_type == nil and type(ac_path) == "table" and #ac_path == 0
+            and route.inherited_from_action_id == nil
+            and route.confidence == "direct_assist_combo_recipe"
+            and route_character == map_character and route.profile == "assist_combo"
+            and tonumber(route.command_no) == -1 and tonumber(route.command_index) == -1
+            and type(route.raw_direction_inputs) == "table" and #route.raw_direction_inputs == 0
+            and tonumber(route.raw_button_mask) == 0 and tonumber(route.raw_button_condition) == 0
+            and tonumber(route.raw_dc_exc_flags) == 0 and tonumber(route.raw_ng_key_flags) == 0
+            and (route.assist_strength == "弱" or route.assist_strength == "中"
+                or route.assist_strength == "强")
+            and (route.assist_input_stage == "first" or route.assist_input_stage == "repeat")
+            and tostring(route.display or "") == assist_expected_display
+        local display = type(route) == "table" and route.display or nil
+        if (direct_ok or inherited_ok or rebind_ok or runtime_common_ok or official_semantic_ok
+                or verified_alias_ok or type20_ok or target_combo_ok or structural_twin_ok
+                or assist_combo_ok)
+            and type(display) == "string" and display ~= "" and not seen[display] then
+            seen[display] = true
+            table.insert(displays, display)
+        end
     end
-    return nil
+    if #displays == 0 then return nil, "route_unverified" end
+    return table.concat(displays, "/"), "strict_route"
+end
+
+local function modern_unresolved_placeholder(step)
+    if ctx and ctx.d2d_cfg and ctx.d2d_cfg.show_modern_unresolved_ids == true then
+        return string.format("[ID %s 未识别]", tostring(step and step.id or "?"))
+    end
+    return "[现代指令未识别]"
+end
+
+local function ensure_modern_unresolved_audit()
+    local state = ctx and ctx.trial_state
+    if type(state) ~= "table" then return nil end
+    if type(state.modern_unresolved_audit) ~= "table" then
+        state.modern_unresolved_audit = {
+            session_id = tonumber(state.modern_unresolved_audit_session) or 0,
+            unresolved_id_count = 0,
+            unresolved_step_count = 0,
+            current_character = "Unknown",
+            entries = {}
+        }
+    end
+    return state.modern_unresolved_audit
+end
+
+local function clear_modern_unresolved_audit()
+    local state = ctx and ctx.trial_state
+    modern_display_runtime.seen_refs = setmetatable({}, { __mode = "k" })
+    modern_display_runtime.seen_keys = {}
+    if type(state) ~= "table" then return end
+    state.modern_unresolved_audit_session = (tonumber(state.modern_unresolved_audit_session) or 0) + 1
+    state.modern_unresolved_audit = {
+        session_id = state.modern_unresolved_audit_session,
+        unresolved_id_count = 0,
+        unresolved_step_count = 0,
+        current_character = "Unknown",
+        entries = {}
+    }
+end
+
+local function audit_modern_unresolved(character, step, context_name, source, source_file, stable_identity)
+    local audit = ensure_modern_unresolved_audit()
+    if not audit then return end
+    if type(step) == "table" then
+        if modern_display_runtime.seen_refs[step] then return end
+        modern_display_runtime.seen_refs[step] = true
+    else
+        local identity = tostring(stable_identity or "")
+        if modern_display_runtime.seen_keys[identity] then return end
+        modern_display_runtime.seen_keys[identity] = true
+    end
+
+    character = type(character) == "string" and character ~= "" and character or "Unknown"
+    local action_id = tonumber(step and step.id)
+    local key = character .. ":" .. tostring(action_id or "Unknown")
+    local entry = audit.entries[key]
+    if not entry then
+        entry = {
+            character = character,
+            action_id = action_id,
+            occurrence_count = 0,
+            first_seen_at = os.time(),
+            context = context_name or "live",
+            control_mode = "modern",
+            source_file = source_file,
+            classic_motion_debug_reference = type(step) == "table" and tostring(step.motion or "") or "",
+            source = source or "unresolved"
+        }
+        audit.entries[key] = entry
+        audit.unresolved_id_count = (audit.unresolved_id_count or 0) + 1
+    end
+    entry.occurrence_count = (entry.occurrence_count or 0) + 1
+    audit.unresolved_step_count = (audit.unresolved_step_count or 0) + 1
+    audit.current_character = character
 end
 
 local function load_exception_display_map(character)
@@ -344,18 +929,88 @@ local function clone_step_for_display(step, motion)
     return copy
 end
 
-local function build_display_lines(sequence)
-    local lines = {}
-    local modern_map = nil
-    local exception_map = load_exception_display_map(get_sequence_character(sequence))
+local function resolve_modern_display_context(sequence)
+    local sequence_character = get_sequence_character(sequence)
     if is_modern_sequence(sequence) then
-        modern_map = load_modern_display_map(get_sequence_character(sequence))
+        local modern_map, status = load_modern_display_map(sequence_character)
+        return true, modern_map, sequence_character or "Unknown", status
     end
 
+    local trial_state = ctx and ctx.trial_state
+    local recording_context = trial_state and trial_state.recording_display_context
+    local control_mode = recording_context and (recording_context.control_mode or recording_context.control_type)
+    if trial_state and trial_state.is_recording == true
+        and type(recording_context) == "table" and recording_context.active == true
+        and sequence == trial_state.sequence
+        and recording_context.recording_player == trial_state.recording_player
+        and recording_context.session_id == trial_state.recording_display_session_id
+        and tostring(control_mode or ""):lower() == "modern" then
+        local character = recording_context.character or "Unknown"
+        local modern_map, status = load_modern_display_map(character)
+        return true, modern_map, character, status
+    end
+    return false, nil, sequence_character or "Unknown", "classic"
+end
+
+local function resolve_live_player_modern_display_context(player_idx)
+    local trial_state = ctx and ctx.trial_state
+    if type(trial_state) ~= "table" then return false, nil, "Unknown", "missing_state" end
+
+    if trial_state.is_recording == true and player_idx == trial_state.recording_player then
+        local recording_context = trial_state.recording_display_context
+        local control_mode = recording_context and (recording_context.control_mode or recording_context.control_type)
+        if type(recording_context) ~= "table" or recording_context.active ~= true
+            or recording_context.recording_player ~= player_idx
+            or recording_context.session_id ~= trial_state.recording_display_session_id then
+            return false, nil, "Unknown", "invalid_recording_context"
+        end
+        if tostring(control_mode or ""):lower() ~= "modern" then return false, nil,
+            recording_context.character or "Unknown", "classic" end
+        local character = recording_context.character or "Unknown"
+        local modern_map, status = load_modern_display_map(character)
+        return true, modern_map, character, status
+    end
+
+    local contexts = trial_state.live_display_contexts
+    local live_context = type(contexts) == "table" and contexts[player_idx] or nil
+    local control_mode = live_context and (live_context.control_mode or live_context.control_type)
+    if type(live_context) ~= "table" or live_context.active ~= true
+        or live_context.player_idx ~= player_idx
+        or type(live_context.generation) ~= "number"
+        or tostring(control_mode or ""):lower() ~= "modern" then
+        return false, nil, live_context and live_context.character or "Unknown", "classic_or_unknown"
+    end
+    local character = live_context.character or "Unknown"
+    local modern_map, status = load_modern_display_map(character)
+    return true, modern_map, character, status
+end
+
+local function build_display_lines(sequence)
+    local lines = {}
+    local sequence_character = get_sequence_character(sequence)
+    local is_modern, modern_map, modern_character, modern_status = resolve_modern_display_context(sequence)
+    -- Classic-only display exceptions must never enter the Modern branch.
+    local exception_map = not is_modern and load_exception_display_map(sequence_character) or nil
+    local state = ctx and ctx.trial_state
+    local audit_context = state and state.is_recording == true and sequence == state.sequence
+        and "recording" or "loaded"
+    local source_file = audit_context == "loaded" and state
+        and (state.current_file_path or state.current_file) or nil
+
     for i, raw_step in ipairs(sequence) do
-        local modern_motion = get_modern_display_motion(modern_map, raw_step)
-        local exception_motion = get_exception_display_motion(exception_map, raw_step)
-        local step = clone_step_for_display(raw_step, modern_motion or exception_motion)
+        local step = raw_step
+        if is_modern then
+            local modern_motion, route_status = get_modern_display_motion(modern_map, raw_step)
+            if not modern_motion then
+                modern_motion = modern_unresolved_placeholder(raw_step)
+                audit_modern_unresolved(modern_character, raw_step, audit_context,
+                    modern_status ~= "loaded" and modern_status or route_status,
+                    source_file, audit_context .. ":" .. tostring(i))
+            end
+            step = clone_step_for_display(raw_step, modern_motion)
+        else
+            step = clone_step_for_display(raw_step, get_exception_display_motion(exception_map, raw_step))
+        end
         local gid = step.group_id or i
         if #lines == 0 or lines[#lines].group_id ~= gid then
             table.insert(lines, { group_id = gid, first = i, last = i, steps = { step } })
@@ -490,6 +1145,20 @@ local function parse_motion_to_icons(log_entry, trial_mode, should_flip, reverse
     s = s:gsub("J%.", "[空中]")
     s = s:gsub("%[空中%]%s*", "[空中] ")
 
+    local text_blocks = {}
+    local text_idx = 0
+
+    -- Protect Modern unresolved placeholders before horizontal direction
+    -- inversion. The temporary marker deliberately contains no digits, so an
+    -- Action ID such as 1021 cannot be mirrored into a different ID.
+    local function protect_unresolved_placeholder(match)
+        text_idx = text_idx + 1
+        text_blocks[text_idx] = match
+        return "##U" .. string.char(64 + text_idx) .. "##"
+    end
+    s = s:gsub("(%[现代指令未识别%])", protect_unresolved_placeholder)
+    s = s:gsub("(%[ID%s+%d+%s+未识别%])", protect_unresolved_placeholder)
+
     -- 2. Command inversion (Visual Only) for P2
     if should_flip then
         -- Protect content inside parentheses (plain text, e.g. "(4 Medals)")
@@ -520,8 +1189,10 @@ local function parse_motion_to_icons(log_entry, trial_mode, should_flip, reverse
         end)
     end
 
-    local text_blocks = {}
-    local text_idx = 0
+    -- Convert the digit-free flip marker to the parser's existing text token.
+    s = s:gsub("##U(.)##", function(marker)
+        return string.format("{txt_%d}", string.byte(marker) - 64)
+    end)
 
     s = s:gsub("%(THROW%)", "{throw}")
     s = s:gsub("THROW", "{throw}")
@@ -530,7 +1201,10 @@ local function parse_motion_to_icons(log_entry, trial_mode, should_flip, reverse
     s = s:gsub("FORWARD DASH", "{6}{6}")
     s = s:gsub("BACK DASH", "{4}{4}")
     s = s:gsub("5252", "{2}{2}")
-    s = s:gsub("720", "{360}{360}")
+    -- Keep 720 away from the later generic 360 replacement. Expanding it
+    -- directly to {360}{360} here would make that pass rewrite the digits
+    -- inside both tokens and produce nested braces instead of icons.
+    s = s:gsub("720", "{double_circle}")
 
     -- Auto-translate to icons (Parry and Drive Rush)
     s = s:gsub("MP%+MK %(PARRY%)", "{parry}") -- Intercept native game text
@@ -540,6 +1214,8 @@ local function parse_motion_to_icons(log_entry, trial_mode, should_flip, reverse
     s = s:gsub("PARRY_HIT_[LMH]", "{parry}")
     s = s:gsub("%(PARRY%)", "{parry}")
     s = s:gsub("PARRY", "{parry}")
+    s = s:gsub("%(DP%)", "{parry}")
+    s = s:gsub("%f[%a]DP%f[%A]", "{parry}")
 
     s = s:gsub("HP%+HK", "{di}") -- Replace raw button combo
     s = s:gsub("DI", "{di}")     -- Replace DI keyword
@@ -584,6 +1260,7 @@ local function parse_motion_to_icons(log_entry, trial_mode, should_flip, reverse
     s = s:gsub("%[2%]", "{2_hold}")
     s = s:gsub("%[6%]", "{6_hold}")
     s = s:gsub("360", "{360}")
+    s = s:gsub("{double_circle}", "{360}{360}")
 
     s = s:gsub("(%b())", function(match)
         text_idx = text_idx + 1
@@ -632,6 +1309,7 @@ local function parse_motion_to_icons(log_entry, trial_mode, should_flip, reverse
     s = replace_modern_text_token(s, "中", "modern_m")
     s = replace_modern_text_token(s, "強", "modern_h")
     s = replace_modern_text_token(s, "强", "modern_h")
+    s = replace_modern_text_token(s, "任意键", "modern_n")
     s = s:gsub("攻撃二つ", "{modern_l}{modern_m}")
     s = s:gsub("攻击二つ", "{modern_l}{modern_m}")
     s = s:gsub("攻撃", "{modern_h}")
@@ -682,7 +1360,8 @@ local function parse_motion_to_icons(log_entry, trial_mode, should_flip, reverse
     -- NEW: Auto-insert PLUS icon between directions and attack buttons
     local is_btn = {
         p = true, k = true, lp = true, mp = true, hp = true, lk = true, mk = true, hk = true, throw = true,
-        modern_l = true, modern_m = true, modern_h = true, modern_sp = true, modern_auto = true,
+        modern_l = true, modern_m = true, modern_h = true, modern_n = true,
+        modern_sp = true, modern_auto = true,
     }
     local processed_tokens = {}
     local suppress_plus = false
@@ -1163,12 +1842,24 @@ local function d2d_draw_inner()
     local base_text_y = (icon_h - (assets.text_h or pixel_font_h)) / 2
     local final_text_y_offset = base_text_y + (d2d_cfg.text_y_offset * sh)
 
-    local function draw_player_icons(p_idx, base_x, base_y, align_right, max_count, reverse_layout)
+    local function draw_player_icons(p_idx, base_x, base_y, align_right, max_count, reverse_layout,
+        is_modern, modern_map, modern_character, modern_status, audit_context)
         local logs_to_draw = get_d2d_logs(players[p_idx].log, max_count)
         for i, log in ipairs(logs_to_draw) do
             local y = base_y + (i - 1) * spacing_y
             local should_flip = log.facing_left or false
-            local tokens = parse_motion_to_icons(log, "log", should_flip, reverse_layout)
+            local display_log = log
+            if is_modern then
+                local modern_motion, route_status = get_modern_display_motion(modern_map, log)
+                if not modern_motion then
+                    modern_motion = modern_unresolved_placeholder(log)
+                    audit_modern_unresolved(modern_character, log, audit_context or "live",
+                        modern_status ~= "loaded" and modern_status or route_status,
+                        nil, (audit_context or "live") .. ":" .. tostring(p_idx) .. ":" .. tostring(i))
+                end
+                display_log = clone_step_for_display(log, modern_motion)
+            end
+            local tokens = parse_motion_to_icons(display_log, "log", should_flip, reverse_layout)
             draw_parsed_line(tokens, base_x, y, icon_w, icon_h, spacing_x, final_text_y_offset, align_right, nil)
         end
     end
@@ -1295,7 +1986,11 @@ local function d2d_draw_inner()
         if live_raw_p1 then
             draw_raw_player(raw_state.history_p1, raw_pos_p1.x * sw, raw_pos_p1.y * sh, raw_flip_p1, live_raw_max)
         else
-            draw_player_icons(0, nr_pos_p1.x * sw, nr_pos_p1.y * sh, nr_align_p1, live_max, in_trial)
+            local is_modern, modern_map, character, status = resolve_live_player_modern_display_context(0)
+            local audit_context = trial_state.is_recording and trial_state.recording_player == 0
+                and "recording" or "live"
+            draw_player_icons(0, nr_pos_p1.x * sw, nr_pos_p1.y * sh, nr_align_p1, live_max, in_trial,
+                is_modern, modern_map, character, status, audit_context)
         end
     end
     -- DRAW P2
@@ -1303,7 +1998,11 @@ local function d2d_draw_inner()
         if live_raw_p2 then
             draw_raw_player(raw_state.history_p2, raw_pos_p2.x * sw, raw_pos_p2.y * sh, raw_flip_p2, live_raw_max)
         else
-            draw_player_icons(1, nr_pos_p2.x * sw, nr_pos_p2.y * sh, nr_align_p2, live_max, true)
+            local is_modern, modern_map, character, status = resolve_live_player_modern_display_context(1)
+            local audit_context = trial_state.is_recording and trial_state.recording_player == 1
+                and "recording" or "live"
+            draw_player_icons(1, nr_pos_p2.x * sw, nr_pos_p2.y * sh, nr_align_p2, live_max, true,
+                is_modern, modern_map, character, status, audit_context)
         end
     end
 
@@ -1575,6 +2274,8 @@ end
 
 function M.init(shared_ctx)
     ctx = shared_ctx
+    clear_modern_unresolved_audit()
+    ctx.clear_modern_unresolved_audit = M.clear_modern_unresolved_audit
     ctx.localize_motion_text = function(motion, action_id)
         if action_id == 1231 and is_shun_goku_satsu_motion(motion) then
             return "LP,LP,6,LK,HP (瞬狱杀)"
@@ -1582,6 +2283,14 @@ function M.init(shared_ctx)
         return localize_motion_text(tostring(motion or ""):upper())
     end
     d2d.register(d2d_init, d2d_draw)
+end
+
+function M.clear_modern_unresolved_audit()
+    clear_modern_unresolved_audit()
+end
+
+function M.get_modern_unresolved_audit()
+    return ensure_modern_unresolved_audit()
 end
 
 function M.reset_anim()

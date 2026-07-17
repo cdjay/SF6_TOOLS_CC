@@ -2,5 +2,6 @@
 /char/
 /latest/
 /latest_exceptions/
+/latest_modern/
 /.staging-*/
 /latest-manifest.json
