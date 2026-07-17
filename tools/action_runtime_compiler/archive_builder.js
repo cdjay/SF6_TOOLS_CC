@@ -60,12 +60,25 @@ function writeJson(filename, value) {
     fs.writeFileSync(filename, `${JSON.stringify(value, null, 2)}\n`, "utf8");
 }
 
+function replaceTemporaryFile(temporary, destination) {
+    try {
+        fs.renameSync(temporary, destination);
+    } catch (error) {
+        // Windows can transiently reject rename-over-existing with EPERM even
+        // though the destination is writable. Preserve same-version overwrite
+        // by falling back to copying the completed temporary file in place.
+        if (!fs.existsSync(destination) || !["EPERM", "EEXIST", "ENOTEMPTY"].includes(error && error.code)) throw error;
+        fs.copyFileSync(temporary, destination);
+        fs.rmSync(temporary, { force: true });
+    }
+}
+
 function writeJsonAtomic(filename, value) {
     ensureDirectory(path.dirname(filename));
     const temporary = `${filename}.${process.pid}.${Date.now()}.tmp`;
     try {
         fs.writeFileSync(temporary, `${JSON.stringify(value, null, 2)}\n`, "utf8");
-        fs.renameSync(temporary, filename);
+        replaceTemporaryFile(temporary, filename);
     } finally {
         if (fs.existsSync(temporary)) fs.rmSync(temporary, { force: true });
     }
@@ -76,7 +89,7 @@ function copyFileAtomic(source, destination) {
     const temporary = `${destination}.${process.pid}.${Date.now()}.tmp`;
     try {
         fs.copyFileSync(source, temporary);
-        fs.renameSync(temporary, destination);
+        replaceTemporaryFile(temporary, destination);
     } finally {
         if (fs.existsSync(temporary)) fs.rmSync(temporary, { force: true });
     }
