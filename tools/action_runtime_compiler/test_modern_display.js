@@ -125,7 +125,7 @@ function actionRoot(actionSource, actionId) {
 const actionIds = [
     17, 18, 36, 37, 38,
     480, 489, 600, 605, 606, 627, 640, 642, 647, 651, 652, 653, 681, 692, 715, 716, 717, 718,
-    739, 740, 850, 855, 903, 904, 917, 918, 923, 924, 956, 957, 975, 979, 1015, 1020,
+    739, 740, 850, 855, 903, 904, 917, 918, 923, 924, 956, 957, 975, 976, 977, 978, 979, 1015, 1020,
     985, 1075, 1076, 1077, 1218, 1231, 1240
 ];
 const runtime = {
@@ -222,6 +222,21 @@ const catalog = { source: { character: "Zangief" }, actions: {
             use_sprt: true, use_super: false })] },
     "975": { action_id: 975, triggers: [trigger(6, profiles(null, null,
         profile(true, "Normal", 2147483648)), { function_id: 2, focus_consume: 0 })] },
+    // The same shortcut is present on a no-cost normal version and its unique
+    // Drive-consuming owner in one command family. Only the OD owner keeps it.
+    "976": { action_id: 976, triggers: [trigger(7, profiles(
+        profile(true, "236+LP", 16, 81952, { command_no: 1, command_index: 0,
+            inputs: [{ raw_mask: 2 }, { raw_mask: 10 }, { raw_mask: 8 }] }), null,
+        profile(true, "Normal", 8192)), { function_id: 2, focus_consume: 0 })] },
+    "977": { action_id: 977, triggers: [trigger(8, profiles(
+        profile(true, "236+LP+LK+MK", 400, 82016, { command_no: 1, command_index: 0,
+            inputs: [{ raw_mask: 2 }, { raw_mask: 10 }, { raw_mask: 8 }] }), null,
+        profile(true, "Normal", 8192)), { function_id: 2, focus_consume: 20000 })] },
+    // An identical official AUTO normal owns the shortcut; this unrelated
+    // special keeps only its manual route.
+    "978": { action_id: 978, triggers: [trigger(9, profiles(
+        profile(true, "236+LP", 16, 81952), null,
+        profile(true, "Normal", 16)), { function_id: 2, focus_consume: 0 })] },
     // Zangief 1015: easy is direct 4+SP; sprt accepts any one valid attack.
     "1015": { action_id: 1015, triggers: [trigger(87, profiles(
         profile(true, "63214+LP+LK+MK", 400, 81952),
@@ -264,7 +279,8 @@ catalog.assist_combo_recipes = [
         strength_index: 2, recipe_index: 1, step_index: 1, input_stage: "repeat" },
     { action_id: 985, trigger_id: 77, array_index: 81, assist_strength: "强",
         strength_index: 1, recipe_index: 0, step_index: 1, input_stage: "repeat" },
-    // Existing manual/special routes remain first; Assist Combo is appended.
+    // Existing manual/special routes normalize the Assist step instead of
+    // exposing it as a third player-visible move-command route.
     { action_id: 903, trigger_id: 4, array_index: 82, assist_strength: "强",
         strength_index: 1, recipe_index: 0, step_index: 2, input_stage: "repeat" }
 ];
@@ -305,7 +321,7 @@ assert.strictEqual(output["739"].modern_display, "DRC");
 assert.strictEqual(output["740"].modern_display, "RAW DR");
 assert.strictEqual(output["850"].modern_display, "DI");
 assert.strictEqual(output["855"].modern_display, "DI");
-assert.strictEqual(output["903"].modern_display, "SP/236 + 强/> 强");
+assert.strictEqual(output["903"].modern_display, "SP/236 + 强");
 assert.strictEqual(output["681"].modern_display, "> 中");
 assert.strictEqual(output["985"].modern_display, "> 强");
 assert.strictEqual(output["681"].ownership, "assist_combo");
@@ -313,7 +329,12 @@ assert.strictEqual(output["681"].routes[0].source, "bcm_assist_combo_recipe");
 assert.strictEqual(output["681"].routes[0].assist_recipe_occurrences.length, 2);
 assert.strictEqual(output["605"].routes.filter(route => route.display === "AUTO + 强").length, 1);
 assert.strictEqual(output["904"].modern_display, "AUTO + SP/236 + 任意键 + 任意键");
-assert.strictEqual(output["975"].modern_display, "AUTO + 中");
+assert.strictEqual(output["975"], undefined);
+assert.strictEqual(output["976"].modern_display, "236 + 弱");
+assert.strictEqual(output["976"].routes.some(route => route.profile === "supr"), false);
+assert.strictEqual(output["977"].modern_display, "AUTO + SP/236 + 任意键 + 任意键");
+assert.strictEqual(output["978"].modern_display, "236 + 弱");
+assert.strictEqual(output["978"].routes.some(route => route.profile === "supr"), false);
 assert.strictEqual(output["1015"], undefined);
 assert.strictEqual(output["1020"], undefined);
 assert.strictEqual(output["918"].modern_display, "4 + SP/63214 + 任意键");
@@ -445,11 +466,19 @@ assert.strictEqual(audit.target_combo_repeat_route_count, 1);
 assert.strictEqual(audit.structural_twin_relation_count, 1);
 assert.strictEqual(audit.structural_twin_route_count, 2);
 assert.strictEqual(audit.assist_combo_candidate_count, 4);
-assert.strictEqual(audit.assist_combo_relation_count, 3);
-assert.strictEqual(audit.assist_combo_route_count, 3);
+assert.strictEqual(audit.assist_combo_relation_count, 2);
+assert.strictEqual(audit.assist_combo_route_count, 2);
 assert.strictEqual(audit.assist_combo_duplicate_display_count, 1);
-assert.strictEqual(output._meta.assist_combo_route_count, 3);
-assert.strictEqual(output._meta.assist_combo_relations.length, 3);
+assert.strictEqual(audit.assist_combo_normalized_to_existing_count, 1);
+assert.strictEqual(audit.shadowed_supr_route_count, 2);
+assert.deepStrictEqual(output._meta.shadowed_supr_routes.map(item =>
+    [item.action_id, item.reason, item.shadowed_by_action_ids]), [
+    [976, "drive_cost_owner_owns_identical_family_shortcut", [977]],
+    [978, "official_semantic_owns_identical_shortcut", [627]]
+]);
+assert.strictEqual(output._meta.assist_combo_route_count, 2);
+assert.strictEqual(output._meta.assist_combo_normalized_to_existing_count, 1);
+assert.strictEqual(output._meta.assist_combo_relations.length, 2);
 assert.deepStrictEqual(output._meta.runtime_common_actions.map(item => [item.action_id, item.display]),
     [[17, "66"], [18, "44"], [36, "8"], [37, "9"], [38, "7"], [489, "DP"]]);
 assert.deepStrictEqual(output._meta.ac_command_entry_rebinds.map(item =>
@@ -623,13 +652,104 @@ assert.strictEqual(autoAirOutput["653"].modern_display, "空中 AUTO + 弱");
 assert.strictEqual(autoAirOutput["650"].routes[0].raw_ng_key_flags, 512);
 assert.strictEqual(autoAirOutput["653"].routes[0].raw_dc_exc_flags, 512);
 
+// The high supr bit is an internal action selector, not AUTO+中. If an easy
+// profile exists it owns the visible shortcut; otherwise only the manual sprt
+// route remains. This rule has no character or Action-ID dependency.
+const specialCatalog = { source: { character: "OfficialSpecial" }, actions: {
+    "2000": { action_id: 2000, triggers: [trigger(2000, profiles(
+        profile(true, "236+LP", 16, 81952), null,
+        profile(true, "Normal", 2147483648), profile(true, "236+LP", 16)),
+    { function_id: 2 })] },
+    "2001": { action_id: 2001, triggers: [trigger(2001, profiles(
+        profile(true, "236+LP+LK+MK", 400, 82016),
+        profile(true, "2+MP", 32, 16416, { dc_exc_flags: 512 }),
+        profile(true, "Normal", 2147483648), profile(true, "236+PP", 112)),
+    { function_id: 2, focus_consume: 20000 })] },
+    "2002": { action_id: 2002, triggers: [trigger(2002, profiles(
+        profile(true, "22+LP+LK+MK", 400, 81952), null,
+        profile(true, "2", 8192), profile(true, "22+P", 112)),
+    { function_id: 2 })] },
+    "2003": { action_id: 2003, triggers: [trigger(2003, profiles(
+        profile(true, "4+MP", 32, 16416, { command_no: -1 }), null,
+        profile(true, "4", 8192), profile(true, "63214+K", 896, 81952,
+            { command_no: 39, command_index: 16 })),
+    { function_id: 2, focus_consume: 0, turn_around: 1, kind_level: 8 })] },
+    "2004": { action_id: 2004, triggers: [trigger(2004, profiles(
+        profile(true, "22+LP+LK+MK", 400, 81952), null,
+        profile(true, "2", 8192), profile(true, "22+P", 112)),
+    { function_id: 2, focus_consume: 0 })] },
+    "2005": { action_id: 2005, triggers: [trigger(2005, profiles(null,
+        profile(true, "4+MP", 32, 16416, { dc_exc_flags: 516 }), null,
+        profile(true, "63214+KK", 896, 82016, { command_no: 39, command_index: 16 })),
+    { function_id: 2, focus_consume: 20000, turn_around: 1, kind_level: 8 })] }
+} };
+const specialRuntime = { character: "OfficialSpecial", fighter_id: 103,
+    action_ids: [2000, 2001, 2002, 2003, 2004, 2005], aliases: {}, sources: {}, validation: { rules: {} },
+    evidence: { ac_derived_commands: [], alias_relations: [] } };
+const specialOutput = modern.buildModernDisplay({}, specialCatalog, specialRuntime, {},
+    { generatedAt: "internal-selector" });
+assert.strictEqual(specialOutput["2000"].modern_display, "236 + 弱");
+assert.strictEqual(specialOutput["2000"].routes.some(route => route.profile === "supr"), false);
+assert.strictEqual(specialOutput["2001"].modern_display,
+    "2 + AUTO + SP/236 + 任意键 + 任意键");
+assert.strictEqual(specialOutput["2002"].modern_display, "22 + 任意键");
+assert.strictEqual(specialOutput["2003"].modern_display, "4 + SP");
+assert.strictEqual(specialOutput["2005"].modern_display, "4 + AUTO + SP");
+assert.strictEqual(specialOutput._meta.audit.paired_sprt_sp_relation_count, 1);
+assert.strictEqual(specialOutput["2004"].modern_display, "22 + 任意键");
+assert.strictEqual(specialOutput._meta.shadowed_supr_routes.some(item =>
+    item.action_id === 2004 && item.reason === "direct_non_supr_route_owns_identical_shortcut"
+    && item.shadowed_by_action_ids[0] === 2001), true);
+
+function makeStrictHoldActionSource(sourceLoop, targetLoop) {
+    let id = 1;
+    const objects = [], records = [];
+    const add = object => { const result = { object_id: id++, ...object }; objects.push(result); return result.object_id; };
+    const targetState = add({ object_type: "CharacterAsset.ActionState",
+        fields: [{ name: "LoopCount", value: scalar(targetLoop) }] });
+    const targetKeys = add({ object_type: "Test.Keys", items: [] });
+    const targetRoot = add({ object_type: "FAB.ACTION", fields: [
+        { name: "State", value: ref(targetState) }, { name: "Keys", value: ref(targetKeys) }
+    ] });
+    const branchId = add({ object_type: "CharacterAsset.BranchKey", fields: [
+        ["Action", 3001], ["Type", 20], ["Param00", 1], ["Param01", 112],
+        ["Param02", 0], ["Param03", 1]
+    ].map(([name, value]) => ({ name, value: scalar(value) })) });
+    const sourceKeys = add({ object_type: "Test.Keys",
+        items: [{ index: 0, value: ref(branchId) }] });
+    const sourceState = add({ object_type: "CharacterAsset.ActionState",
+        fields: [{ name: "LoopCount", value: scalar(sourceLoop) }] });
+    const sourceRoot = add({ object_type: "FAB.ACTION", fields: [
+        { name: "State", value: ref(sourceState) }, { name: "Keys", value: ref(sourceKeys) }
+    ] });
+    records.push({ source_scope: "character", native_action_id: 3000, action_ref: ref(sourceRoot) });
+    records.push({ source_scope: "character", native_action_id: 3001, action_ref: ref(targetRoot) });
+    return { objects, records };
+}
+const holdCatalog = { source: { character: "HoldEvidence" }, actions: {
+    "3000": { action_id: 3000, triggers: [trigger(3000, profiles(
+        profile(true, "22+LP+LK+MK", 400, 81952), null, null,
+        profile(true, "22+P", 112)), { function_id: 2 })] }
+} };
+const holdRuntime = { character: "HoldEvidence", fighter_id: 104,
+    action_ids: [3000, 3001], aliases: {}, sources: {}, validation: { rules: {} },
+    evidence: { ac_derived_commands: [], alias_relations: [] } };
+const holdOutput = modern.buildModernDisplay(makeStrictHoldActionSource(0, -1),
+    holdCatalog, holdRuntime, {}, { generatedAt: "type20-hold" });
+assert.strictEqual(holdOutput["3001"].modern_display, "> 任意键");
+assert.strictEqual(holdOutput["3001"].routes[0].source, "ac_type20_hold_continuation");
+assert.strictEqual(holdOutput._meta.audit.type20_hold_relation_count, 1);
+const rejectedHold = modern.buildModernDisplay(makeStrictHoldActionSource(-1, -1),
+    holdCatalog, holdRuntime, {}, { generatedAt: "type20-hold-negative" });
+assert.strictEqual(rejectedHold["3001"], undefined);
+
 // Only compiler-verified Type29/35 equivalent-action aliases inherit a route.
 const aliasRuntime = clone(runtime);
 aliasRuntime.evidence.alias_relations = [{ alias_action_id: 979, target_action_id: 903,
     relation: "equivalent-action-variant", source: "ac-branch", branch_type: 29 }];
 const aliasOutput = rebuild(actionSource, catalog, aliasRuntime);
 assert.strictEqual(aliasOutput["979"].modern_display, "SP/236 + 强");
-assert.strictEqual(aliasOutput["903"].modern_display, "SP/236 + 强/> 强");
+assert.strictEqual(aliasOutput["903"].modern_display, "SP/236 + 强");
 assert.strictEqual(aliasOutput["979"].ownership, "verified_alias");
 assert.strictEqual(aliasOutput["979"].routes[0].source, "ac_verified_alias_variant");
 assert.strictEqual(aliasOutput["979"].routes[0].inherited_from_action_id, 903);
@@ -637,6 +757,66 @@ assert.strictEqual(aliasOutput._meta.audit.verified_alias_relation_count, 1);
 const rejectedAliasRuntime = clone(aliasRuntime);
 rejectedAliasRuntime.evidence.alias_relations[0].branch_type = 17;
 assert.strictEqual(rebuild(actionSource, catalog, rejectedAliasRuntime)["979"], undefined);
+
+// A Type29 target reached from multiple distinct source actions, including a
+// verified Type20 hold continuation, is an automatic hold/state transition.
+// It cannot inherit an arbitrary command from one of the other source actions.
+function makeAmbiguousType29ActionSource() {
+    let id = 1;
+    const objects = [], records = [];
+    const add = object => { const result = { object_id: id++, ...object }; objects.push(result); return result.object_id; };
+    const targetState = add({ object_type: "CharacterAsset.ActionState",
+        fields: [{ name: "LoopCount", value: scalar(-1) }] });
+    const targetKeys = add({ object_type: "Test.Keys", items: [] });
+    const targetRoot = add({ object_type: "FAB.ACTION", fields: [
+        { name: "Keys", value: ref(targetKeys) }, { name: "State", value: ref(targetState) }
+    ] });
+    for (const sourceId of [4000, 4001]) {
+        const branch = add({ object_type: "CharacterAsset.BranchKey", fields: [
+            ["Action", 4002], ["Type", 29], ["Param00", 0], ["Param01", 0],
+            ["Param02", 0], ["Param03", 3]
+        ].map(([name, value]) => ({ name, value: scalar(value) })) });
+        const items = [{ index: 0, value: ref(branch) }];
+        if (sourceId === 4000) {
+            const holdBranch = add({ object_type: "CharacterAsset.BranchKey", fields: [
+                ["Action", 4001], ["Type", 20], ["Param00", 1], ["Param01", 112],
+                ["Param02", 0], ["Param03", 1]
+            ].map(([name, value]) => ({ name, value: scalar(value) })) });
+            items.push({ index: 1, value: ref(holdBranch) });
+        }
+        const keys = add({ object_type: "Test.Keys", items });
+        const state = add({ object_type: "CharacterAsset.ActionState",
+            fields: [{ name: "LoopCount", value: scalar(sourceId === 4000 ? 0 : -1) }] });
+        const root = add({ object_type: "FAB.ACTION", fields: [
+            { name: "Keys", value: ref(keys) }, { name: "State", value: ref(state) }
+        ] });
+        records.push({ source_scope: "character", native_action_id: sourceId, action_ref: ref(root) });
+    }
+    records.push({ source_scope: "character", native_action_id: 4002, action_ref: ref(targetRoot) });
+    return { objects, records };
+}
+const ambiguousAliasCatalog = { source: { character: "AmbiguousAlias" }, actions: {
+    "4000": { action_id: 4000, triggers: [trigger(4000, profiles(
+        profile(true, "236+HP", 256, 16416), null, null,
+        profile(true, "236+HP", 256)), { function_id: 2 })] }
+} };
+const ambiguousAliasRuntime = { character: "AmbiguousAlias", fighter_id: 105,
+    action_ids: [4000, 4001, 4002], aliases: { "4002": "4000" }, sources: {},
+    validation: { rules: {} }, evidence: { ac_derived_commands: [], alias_relations: [{
+        alias_action_id: 4002, target_action_id: 4000, relation: "equivalent-action-variant",
+        source: "ac-branch", branch_type: 29
+    }] } };
+const ambiguousAliasOutput = modern.buildModernDisplay(makeAmbiguousType29ActionSource(),
+    ambiguousAliasCatalog, ambiguousAliasRuntime, {}, { generatedAt: "ambiguous-type29" });
+assert.strictEqual(ambiguousAliasOutput["4000"].modern_display, "236 + 强");
+assert.strictEqual(ambiguousAliasOutput["4002"].modern_display, null);
+assert.strictEqual(ambiguousAliasOutput["4002"].suppress_display, true);
+assert.strictEqual(ambiguousAliasOutput["4002"].ownership, "automatic_hold_transition");
+assert.deepStrictEqual(ambiguousAliasOutput["4002"].routes, []);
+assert.strictEqual(ambiguousAliasOutput._meta.audit.hold_transition_type29_alias_suppression_count, 1);
+assert.strictEqual(ambiguousAliasOutput._meta.audit.hold_transition_suppressed_action_count, 1);
+assert.deepStrictEqual(ambiguousAliasOutput._meta.hold_transition_type29_alias_suppressions[0]
+    .incoming_source_action_ids, [4000, 4001]);
 
 // The same evidence model works without character or Action-ID hardcoding.
 const offset = 5000;

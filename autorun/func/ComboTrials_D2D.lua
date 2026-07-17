@@ -179,6 +179,7 @@ local OFFICIAL_SEMANTIC_REASON = "capcom_official_command_semantics_matched_to_c
 local COMMUNITY_SEMANTIC_REASON = "verified_community_command_semantics_matched_to_current_bcm_identity"
 local VERIFIED_ALIAS_REASON = "ac_verified_equivalent_action_variant"
 local TYPE20_DIRECTION_REASON = "ac_type20_verified_directional_air_attack"
+local TYPE20_HOLD_REASON = "ac_type20_verified_hold_continuation"
 local TARGET_COMBO_REPEAT_REASON = "bcm_turn_around_target_combo_repeats_parent_button"
 local STRUCTURAL_TWIN_REASON = "ac_bcm_unique_structural_twin_with_internal_use_super_delta"
 local ASSIST_COMBO_REASON = "bcm_assist_combo_recipe_direct_input_sequence"
@@ -391,6 +392,17 @@ local function load_modern_display_map(character)
         and tonumber(meta.type20_directional_route_count) == type20_routes
         and type(meta.type20_directional_relations) == "table"
         and #meta.type20_directional_relations == type20_relations
+    local type20_hold_relations = type(audit) == "table"
+        and tonumber(audit.type20_hold_relation_count) or nil
+    local type20_hold_routes = type(audit) == "table"
+        and tonumber(audit.type20_hold_route_count) or nil
+    local type20_hold_audit_ok = type20_hold_relations ~= nil and type20_hold_routes ~= nil
+        and type20_hold_relations >= 0 and type20_hold_routes == type20_hold_relations
+        and type20_hold_relations == math.floor(type20_hold_relations)
+        and type20_hold_routes == math.floor(type20_hold_routes)
+        and tonumber(meta.type20_hold_route_count) == type20_hold_routes
+        and type(meta.type20_hold_relations) == "table"
+        and #meta.type20_hold_relations == type20_hold_relations
     local target_combo_relations = type(audit) == "table"
         and tonumber(audit.target_combo_repeat_relation_count) or nil
     local target_combo_routes = type(audit) == "table"
@@ -417,19 +429,59 @@ local function load_modern_display_map(character)
         and tonumber(audit.assist_combo_route_count) or nil
     local assist_combo_duplicates = type(audit) == "table"
         and tonumber(audit.assist_combo_duplicate_display_count) or nil
+    local assist_combo_normalized = type(audit) == "table"
+        and tonumber(audit.assist_combo_normalized_to_existing_count) or nil
     local assist_combo_audit_ok = assist_combo_candidates ~= nil and assist_combo_relations ~= nil
         and assist_combo_routes ~= nil and assist_combo_duplicates ~= nil
+        and assist_combo_normalized ~= nil
         and assist_combo_candidates >= 0 and assist_combo_relations >= 0
         and assist_combo_routes == assist_combo_relations
-        and assist_combo_duplicates >= 0
-        and assist_combo_candidates == assist_combo_relations + assist_combo_duplicates
+        and assist_combo_duplicates >= 0 and assist_combo_normalized >= 0
+        and assist_combo_candidates == assist_combo_relations
+            + assist_combo_duplicates + assist_combo_normalized
         and assist_combo_candidates == math.floor(assist_combo_candidates)
         and assist_combo_relations == math.floor(assist_combo_relations)
         and assist_combo_routes == math.floor(assist_combo_routes)
         and assist_combo_duplicates == math.floor(assist_combo_duplicates)
+        and assist_combo_normalized == math.floor(assist_combo_normalized)
         and tonumber(meta.assist_combo_route_count) == assist_combo_routes
+        and tonumber(meta.assist_combo_normalized_to_existing_count) == assist_combo_normalized
         and type(meta.assist_combo_relations) == "table"
         and #meta.assist_combo_relations == assist_combo_relations
+    local paired_sprt_sp_relations = type(audit) == "table"
+        and tonumber(audit.paired_sprt_sp_relation_count) or nil
+    local paired_sprt_sp_routes = type(audit) == "table"
+        and tonumber(audit.paired_sprt_sp_route_count) or nil
+    local paired_sprt_sp_audit_ok = paired_sprt_sp_relations ~= nil
+        and paired_sprt_sp_routes ~= nil
+        and paired_sprt_sp_relations >= 0
+        and paired_sprt_sp_routes == paired_sprt_sp_relations
+        and paired_sprt_sp_relations == math.floor(paired_sprt_sp_relations)
+        and paired_sprt_sp_routes == math.floor(paired_sprt_sp_routes)
+        and tonumber(meta.paired_sprt_sp_route_count) == paired_sprt_sp_routes
+        and type(meta.paired_sprt_sp_relations) == "table"
+        and #meta.paired_sprt_sp_relations == paired_sprt_sp_relations
+    local shadowed_supr_count = type(audit) == "table"
+        and tonumber(audit.shadowed_supr_route_count) or nil
+    local shadowed_supr_audit_ok = shadowed_supr_count ~= nil
+        and shadowed_supr_count >= 0
+        and shadowed_supr_count == math.floor(shadowed_supr_count)
+        and tonumber(meta.shadowed_supr_route_count) == shadowed_supr_count
+        and type(meta.shadowed_supr_routes) == "table"
+        and #meta.shadowed_supr_routes == shadowed_supr_count
+    local hold_transition_aliases = type(audit) == "table"
+        and tonumber(audit.hold_transition_type29_alias_suppression_count) or nil
+    local hold_transition_actions = type(audit) == "table"
+        and tonumber(audit.hold_transition_suppressed_action_count) or nil
+    local hold_transition_audit_ok = hold_transition_aliases ~= nil
+        and hold_transition_actions ~= nil and hold_transition_aliases >= 0
+        and hold_transition_actions >= 0 and hold_transition_actions <= hold_transition_aliases
+        and hold_transition_aliases == math.floor(hold_transition_aliases)
+        and hold_transition_actions == math.floor(hold_transition_actions)
+        and tonumber(meta.hold_transition_type29_alias_suppression_count) == hold_transition_aliases
+        and tonumber(meta.hold_transition_suppressed_action_count) == hold_transition_actions
+        and type(meta.hold_transition_type29_alias_suppressions) == "table"
+        and #meta.hold_transition_type29_alias_suppressions == hold_transition_aliases
     local strict_audit = type(audit) == "table" and audit.strict_route_ownership == true
         and tonumber(audit.owner_missing_count or -1) == 0
         and tonumber(audit.no_evidence_count or -1) == 0
@@ -450,12 +502,16 @@ local function load_modern_display_map(character)
         and community_semantic_audit_ok
         and verified_alias_audit_ok
         and type20_audit_ok
+        and type20_hold_audit_ok
         and target_combo_audit_ok
         and structural_twin_audit_ok
         and assist_combo_audit_ok
+        and paired_sprt_sp_audit_ok
+        and shadowed_supr_audit_ok
+        and hold_transition_audit_ok
     if type(meta) == "table"
         and tostring(meta.schema or ""):lower() == "xt.modern_display.v7"
-        and tostring(meta.strict_policy or ""):lower() == "verified_route_ownership_v5"
+        and tostring(meta.strict_policy or ""):lower() == "verified_route_ownership_v6"
         and (tostring(meta.generated_from or ""):lower() == "ac_bcm"
             or tostring(meta.generated_from or ""):lower() == "ac_bcm+capcom_official_semantics"
             or tostring(meta.generated_from or ""):lower() == "ac_bcm+community_verified_semantics"
@@ -477,6 +533,38 @@ local function get_modern_display_motion(modern_map, step)
     local step_id = tonumber(step.id)
     local entry = modern_map[tostring(step.id or "")]
     if type(entry) ~= "table" or type(entry.routes) ~= "table" then return nil, "action_id_missing" end
+    if entry.suppress_display == true then
+        local evidence = entry.transition_evidence
+        local declared = false
+        local declarations = type(modern_map._meta) == "table"
+            and modern_map._meta.hold_transition_type29_alias_suppressions or nil
+        if type(evidence) == "table" and type(declarations) == "table"
+            and entry.ownership == "automatic_hold_transition" and #entry.routes == 0
+            and step_id ~= nil and tonumber(evidence.target_action_id) == step_id
+            and tonumber(evidence.selected_source_action_id) ~= nil
+            and type(evidence.incoming_source_action_ids) == "table"
+            and #evidence.incoming_source_action_ids > 1
+            and evidence.reason == "type29_target_is_reached_from_verified_hold_continuation" then
+            for _, relation in ipairs(declarations) do
+                if type(relation) == "table" and tonumber(relation.target_action_id) == step_id
+                    and tonumber(relation.selected_source_action_id) == tonumber(evidence.selected_source_action_id)
+                    and relation.reason == evidence.reason
+                    and type(relation.incoming_source_action_ids) == "table"
+                    and #relation.incoming_source_action_ids == #evidence.incoming_source_action_ids then
+                    local same_sources = true
+                    for index, source_id in ipairs(evidence.incoming_source_action_ids) do
+                        if tonumber(relation.incoming_source_action_ids[index]) ~= tonumber(source_id) then
+                            same_sources = false
+                            break
+                        end
+                    end
+                    if same_sources then declared = true; break end
+                end
+            end
+        end
+        if declared then return nil, "suppress_transition" end
+        return nil, "invalid_suppress_transition"
+    end
     local displays, seen = {}, {}
     for _, route in ipairs(entry.routes) do
         local source = type(route) == "table" and tostring(route.source or "") or ""
@@ -682,6 +770,44 @@ local function get_modern_display_motion(modern_map, step)
             and route_character == map_character
             and tostring(route.display or "") == "空中 " .. tostring(route.visible_direction)
                 .. " + " .. tostring(route.visible_button)
+        local declared_type20_hold = false
+        local type20_hold_declarations = type(modern_map._meta) == "table"
+            and modern_map._meta.type20_hold_relations or nil
+        if type(type20_hold_declarations) == "table" then
+            for _, relation in ipairs(type20_hold_declarations) do
+                if type(relation) == "table" and tonumber(relation.source_action_id) == inherited_source
+                    and tonumber(relation.target_action_id) == step_id
+                    and tonumber(relation.branch_type) == 20
+                    and tonumber(relation.param00) == 1 and tonumber(relation.param02) == 0
+                    and tonumber(relation.param03) == 1
+                    and tonumber(relation.source_loop_count) == 0
+                    and tonumber(relation.target_loop_count) == -1
+                    and tostring(relation.button or "") == tostring(route.visible_button or "")
+                    and relation.reason == TYPE20_HOLD_REASON then
+                    declared_type20_hold = true
+                    break
+                end
+            end
+        end
+        local type20_hold_ok = source == "ac_type20_hold_continuation"
+            and entry.ownership == "type20_hold_continuation" and declared_type20_hold
+            and route.direct_evidence == false and route.inheritance_evidence == true
+            and route.rebind_evidence == false and route.runtime_common_evidence == false
+            and route.official_semantic_evidence == false and route.community_semantic_evidence == false
+            and route.inheritance_reason == TYPE20_HOLD_REASON
+            and tonumber(route.ac_relation_type) == 20 and inherited_source ~= nil
+            and step_id ~= nil and type(ac_path) == "table" and #ac_path >= 2
+            and tonumber(ac_path[#ac_path - 1]) == inherited_source
+            and tonumber(ac_path[#ac_path]) == step_id
+            and tonumber(route.display_action_id) == step_id
+            and tonumber(route.owner_action_id) ~= nil
+            and tonumber(route.bcm_owner_action_id) == tonumber(route.owner_action_id)
+            and route.confidence == "verified_inherited_hold_continuation"
+            and route_character == map_character
+            and tostring(route.display or "") == "> " .. tostring(route.visible_button)
+            and tonumber(route.ac_param00) == 1 and tonumber(route.ac_param02) == 0
+            and tonumber(route.ac_param03) == 1
+            and tonumber(route.source_loop_count) == 0 and tonumber(route.target_loop_count) == -1
         local declared_target_combo = false
         local target_combo_declarations = type(modern_map._meta) == "table"
             and modern_map._meta.target_combo_repeat_relations or nil
@@ -802,7 +928,7 @@ local function get_modern_display_motion(modern_map, step)
             and tostring(route.display or "") == assist_expected_display
         local display = type(route) == "table" and route.display or nil
         if (direct_ok or inherited_ok or rebind_ok or runtime_common_ok or official_semantic_ok
-                or verified_alias_ok or type20_ok or target_combo_ok or structural_twin_ok
+                or verified_alias_ok or type20_ok or type20_hold_ok or target_combo_ok or structural_twin_ok
                 or assist_combo_ok)
             and type(display) == "string" and display ~= "" and not seen[display] then
             seen[display] = true
@@ -999,9 +1125,12 @@ local function build_display_lines(sequence)
 
     for i, raw_step in ipairs(sequence) do
         local step = raw_step
+        local include_step = true
         if is_modern then
             local modern_motion, route_status = get_modern_display_motion(modern_map, raw_step)
-            if not modern_motion then
+            if route_status == "suppress_transition" then
+                include_step = false
+            elseif not modern_motion then
                 modern_motion = modern_unresolved_placeholder(raw_step)
                 audit_modern_unresolved(modern_character, raw_step, audit_context,
                     modern_status ~= "loaded" and modern_status or route_status,
@@ -1011,12 +1140,14 @@ local function build_display_lines(sequence)
         else
             step = clone_step_for_display(raw_step, get_exception_display_motion(exception_map, raw_step))
         end
-        local gid = step.group_id or i
-        if #lines == 0 or lines[#lines].group_id ~= gid then
-            table.insert(lines, { group_id = gid, first = i, last = i, steps = { step } })
-        else
-            lines[#lines].last = i
-            table.insert(lines[#lines].steps, step)
+        if include_step then
+            local gid = step.group_id or i
+            if #lines == 0 or lines[#lines].group_id ~= gid then
+                table.insert(lines, { group_id = gid, first = i, last = i, steps = { step } })
+            else
+                lines[#lines].last = i
+                table.insert(lines[#lines].steps, step)
+            end
         end
     end
     return lines
@@ -1845,22 +1976,29 @@ local function d2d_draw_inner()
     local function draw_player_icons(p_idx, base_x, base_y, align_right, max_count, reverse_layout,
         is_modern, modern_map, modern_character, modern_status, audit_context)
         local logs_to_draw = get_d2d_logs(players[p_idx].log, max_count)
+        local draw_row = 0
         for i, log in ipairs(logs_to_draw) do
-            local y = base_y + (i - 1) * spacing_y
             local should_flip = log.facing_left or false
             local display_log = log
+            local suppress_log = false
             if is_modern then
                 local modern_motion, route_status = get_modern_display_motion(modern_map, log)
-                if not modern_motion then
+                if route_status == "suppress_transition" then
+                    suppress_log = true
+                elseif not modern_motion then
                     modern_motion = modern_unresolved_placeholder(log)
                     audit_modern_unresolved(modern_character, log, audit_context or "live",
                         modern_status ~= "loaded" and modern_status or route_status,
                         nil, (audit_context or "live") .. ":" .. tostring(p_idx) .. ":" .. tostring(i))
                 end
-                display_log = clone_step_for_display(log, modern_motion)
+                if not suppress_log then display_log = clone_step_for_display(log, modern_motion) end
             end
-            local tokens = parse_motion_to_icons(display_log, "log", should_flip, reverse_layout)
-            draw_parsed_line(tokens, base_x, y, icon_w, icon_h, spacing_x, final_text_y_offset, align_right, nil)
+            if not suppress_log then
+                local y = base_y + draw_row * spacing_y
+                draw_row = draw_row + 1
+                local tokens = parse_motion_to_icons(display_log, "log", should_flip, reverse_layout)
+                draw_parsed_line(tokens, base_x, y, icon_w, icon_h, spacing_x, final_text_y_offset, align_right, nil)
+            end
         end
     end
 

@@ -1,7 +1,7 @@
 "use strict";
 
 const SCHEMA = "xt.modern_display.v7";
-const STRICT_POLICY = "verified_route_ownership_v5";
+const STRICT_POLICY = "verified_route_ownership_v6";
 const MODERN_PROFILE_ORDER = ["easy", "supr", "sprt"];
 const CLASSIC_TOKEN = /(^|[\s+>/])(?:LP|MP|HP|LK|MK|HK|PPP|KKK|PP|KK|P|K)(?=$|[\s+>/])/i;
 const PROFILE_BUTTONS = new Set([
@@ -15,6 +15,7 @@ const OFFICIAL_SEMANTIC_REASON = "capcom_official_command_semantics_matched_to_c
 const COMMUNITY_SEMANTIC_REASON = "verified_community_command_semantics_matched_to_current_bcm_identity";
 const VERIFIED_ALIAS_REASON = "ac_verified_equivalent_action_variant";
 const TYPE20_DIRECTION_REASON = "ac_type20_verified_directional_air_attack";
+const TYPE20_HOLD_REASON = "ac_type20_verified_hold_continuation";
 const TARGET_COMBO_REPEAT_REASON = "bcm_turn_around_target_combo_repeats_parent_button";
 const STRUCTURAL_TWIN_REASON = "ac_bcm_unique_structural_twin_with_internal_use_super_delta";
 const ASSIST_COMBO_REASON = "bcm_assist_combo_recipe_direct_input_sequence";
@@ -100,7 +101,7 @@ function unresolved(direction, candidates, count, reason) {
     };
 }
 
-function translateSprt(profile) {
+function translateSprt(profile, conditions) {
     const { air, parts } = splitNotation(profile);
     const directions = visibleDirections(parts);
     const direction = directions.join("+") || null;
@@ -159,6 +160,9 @@ function translateEasy(profile) {
     else if (raw === 256) buttons = ["强"];
     if (!buttons) return unresolved(direction, candidates, count,
         "unsupported_easy_selector_mask");
+    const requiresAuto = (Number(profile.dc_exc_flags || 0) & 0x200) !== 0
+        && (Number(profile.ng_key_flags || 0) & 0x200) === 0;
+    if (requiresAuto) buttons = ["AUTO", ...buttons];
     return resolved(joinRoute(air, directions, buttons), direction, buttons.join(" + "),
         candidates, count);
 }
@@ -171,9 +175,12 @@ function translateSupr(profile, conditions) {
     const directions = visibleDirections(parts);
     const direction = directions.join("+") || null;
     const raw = Number(profile && profile.ok_key_flags || 0);
+    if (raw === 2147483648) {
+        return unresolved(direction, [], requiredButtonCount(profile),
+            "supr_internal_action_selector_not_player_input");
+    }
     const buttons = ["AUTO"];
-    if (raw === 2147483648) buttons.push("中");
-    else if (raw === 8192 || raw === 32) buttons.push("SP");
+    if (raw === 8192 || raw === 32) buttons.push("SP");
     else if (raw === 16) buttons.push("弱");
     else if (raw === 128) buttons.push("中");
     else if (raw === 256 || raw === 512) buttons.push("强");
@@ -185,7 +192,7 @@ function translateSupr(profile, conditions) {
 
 function translateProfileDetailed(name, profile, conditions) {
     if (!profile || profile.enabled !== true) return unresolved(null, [], null, "profile_disabled_or_missing");
-    if (name === "sprt") return translateSprt(profile);
+    if (name === "sprt") return translateSprt(profile, conditions);
     if (name === "easy") return translateEasy(profile);
     if (name === "supr") return translateSupr(profile, conditions);
     return unresolved(null, [], null, "unsupported_profile");
@@ -204,6 +211,9 @@ function selectedProfiles(conditions, profiles) {
     if (functionId === 2) {
         const easyEnabled = profiles && profiles.easy && profiles.easy.enabled === true;
         const suprEnabled = profiles && profiles.supr && profiles.supr.enabled === true;
+        const suprIsInternalSelector = suprEnabled
+            && Number(profiles.supr.ok_key_flags || 0) === 2147483648;
+        if (suprIsInternalSelector) return easyEnabled ? ["easy", "sprt"] : ["sprt"];
         if (easyEnabled && suprEnabled) {
             return Number(conditions && conditions.focus_consume || 0) >= 20000
                 ? ["supr", "sprt"] : ["easy", "sprt"];
@@ -294,6 +304,168 @@ function pushRoute(routes, seen, display, provenance) {
     if (seen.has(key)) return;
     seen.add(key);
     routes.push(route);
+}
+
+function routeTriggerConditions(route, bcmCatalog) {
+    const action = bcmCatalog.actions && bcmCatalog.actions[String(route.owner_action_id)];
+    const trigger = action && (action.triggers || []).find(item =>
+        Number(item.trigger_index) === Number(route.trigger_index));
+    return trigger && trigger.conditions || {};
+}
+
+function sprtCommandKeys(entry) {
+    return new Set((entry && entry.routes || []).filter(route =>
+        route.source === "bcm_profile" && route.profile === "sprt"
+        && Number(route.command_no) >= 0 && Number(route.command_index) >= 0)
+        .map(route => `${Number(route.command_no)}:${Number(route.command_index)}`));
+}
+
+function setsIntersect(left, right) {
+    for (const value of left) if (right.has(value)) return true;
+    return false;
+}
+
+function promotePairedSprtSpRoutes(entries, bcmCatalog) {
+    const relations = [];
+    const actions = Object.entries(bcmCatalog.actions || {});
+    const comparableCondition = conditions => JSON.stringify([
+        Number(conditions && conditions.kind_level || 0),
+        Number(conditions && conditions.kind_sub || 0),
+        Number(conditions && conditions.turn_around || 0),
+        Number(conditions && conditions.action_status_sub || 0),
+        Number(conditions && conditions.cond_owner_state_flags || 0)
+    ]);
+    const normCommandKey = trigger => {
+        const profile = trigger && trigger.profiles && trigger.profiles.norm;
+        const commandNo = Number(profile && profile.command_no);
+        const commandIndex = Number(profile && profile.command_index);
+        return commandNo >= 0 && commandIndex >= 0 ? `${commandNo}:${commandIndex}` : null;
+    };
+    for (const [sourceId, action] of actions) {
+        const entry = entries[sourceId];
+        if (!entry) continue;
+        for (const trigger of action.triggers || []) {
+            const conditions = trigger.conditions || {};
+            const sprt = trigger.profiles && trigger.profiles.sprt;
+            const supr = trigger.profiles && trigger.profiles.supr;
+            if (Number(conditions.function_id) !== 2 || Number(conditions.focus_consume || 0) >= 20000
+                || !sprt || sprt.enabled !== true || Number(sprt.ok_key_flags) !== 32
+                || Number(sprt.command_no) !== -1 || !supr || supr.enabled !== true
+                || Number(supr.ok_key_flags) !== 8192) continue;
+            const suprDetail = translateSupr(supr, conditions);
+            if (!suprDetail.display) continue;
+            const commandKey = normCommandKey(trigger);
+            if (!commandKey) continue;
+            const candidates = [];
+            for (const [targetId, targetAction] of actions) {
+                if (targetId === sourceId || !entries[targetId]) continue;
+                for (const targetTrigger of targetAction.triggers || []) {
+                    const targetConditions = targetTrigger.conditions || {};
+                    const easy = targetTrigger.profiles && targetTrigger.profiles.easy;
+                    if (Number(targetConditions.function_id) !== 2
+                        || Number(targetConditions.focus_consume || 0) < 20000
+                        || comparableCondition(targetConditions) !== comparableCondition(conditions)
+                        || normCommandKey(targetTrigger) !== commandKey
+                        || !easy || easy.enabled !== true || Number(easy.ok_key_flags) !== 32) continue;
+                    const easyDetail = translateEasy(easy);
+                    if (easyDetail.display === suprDetail.display) {
+                        candidates.push({ targetId: Number(targetId), targetTrigger, easyDetail });
+                    }
+                }
+            }
+            const targetIds = [...new Set(candidates.map(item => item.targetId))];
+            if (targetIds.length !== 1) continue;
+            const { air, parts } = splitNotation(sprt);
+            const directions = visibleDirections(parts);
+            const direction = directions.join("+") || null;
+            const detail = resolved(joinRoute(air, directions, ["SP"]), direction, "SP", [], 1);
+            if (!detail.display) continue;
+            const route = { display: normalizeDisplay(detail.display),
+                ...routeProvenance("", sourceId, trigger, "sprt", sprt, detail, "bcm_profile") };
+            route.character = entry.routes[0] && entry.routes[0].character || "Unknown";
+            if (!entry.routes.some(existing => existing.display === route.display
+                && existing.trigger_index === route.trigger_index && existing.profile === "sprt")) {
+                assertRoute(route);
+                entry.routes.push(route);
+            }
+            relations.push({ source_action_id: Number(sourceId), target_action_id: targetIds[0],
+                trigger_index: Number(trigger.trigger_index), command_key: commandKey,
+                display: route.display, shadowed_supr_display: suprDetail.display,
+                reason: "paired_normal_od_command_owner_proves_sprt_sp" });
+        }
+    }
+    return relations.sort((left, right) => left.source_action_id - right.source_action_id);
+}
+
+function suppressShadowedSuprRoutes(entries, bcmCatalog) {
+    const suprRoutes = [];
+    const directNonSuprRoutes = [];
+    const officialByDisplay = new Map();
+    for (const [id, entry] of Object.entries(entries)) {
+        for (const route of entry.routes || []) {
+            if (route.source === "bcm_profile" && route.profile === "supr"
+                && route.direct_evidence === true) {
+                suprRoutes.push({ id, entry, route });
+            }
+            if (route.source === "bcm_profile" && route.profile !== "supr"
+                && route.direct_evidence === true) {
+                directNonSuprRoutes.push({ id, entry, route });
+            }
+            if (route.official_semantic_evidence === true) {
+                if (!officialByDisplay.has(route.display)) officialByDisplay.set(route.display, []);
+                officialByDisplay.get(route.display).push({ id, route });
+            }
+        }
+    }
+
+    const suppressed = [];
+    for (const candidate of suprRoutes) {
+        // Never erase an Action's sole route. This pass only removes a
+        // demonstrably shadowed shortcut while preserving its manual route.
+        if (candidate.entry.routes.length < 2) continue;
+        let reason = null, winners = [];
+
+        const candidateConditions = routeTriggerConditions(candidate.route, bcmCatalog);
+        const directOwners = directNonSuprRoutes.filter(item => item.id !== candidate.id
+            && item.route.display === candidate.route.display);
+        const directOwnerIds = [...new Set(directOwners.map(item => Number(item.id)))];
+        if (!reason && directOwnerIds.length === 1) {
+            reason = "direct_non_supr_route_owns_identical_shortcut";
+            winners = directOwnerIds;
+        }
+
+        const officialOwners = (officialByDisplay.get(candidate.route.display) || [])
+            .filter(item => item.id !== candidate.id);
+        if (!reason && officialOwners.length === 1) {
+            reason = "official_semantic_owns_identical_shortcut";
+            winners = officialOwners.map(item => Number(item.id));
+        } else if (!reason) {
+            const candidateCost = Number(candidateConditions.focus_consume || 0);
+            const candidateCommands = sprtCommandKeys(candidate.entry);
+            if (candidateCost < 20000 && candidateCommands.size) {
+                const odOwners = suprRoutes.filter(peer => peer.id !== candidate.id
+                    && peer.route.display === candidate.route.display
+                    && Number(routeTriggerConditions(peer.route, bcmCatalog).focus_consume || 0) >= 20000
+                    && setsIntersect(candidateCommands, sprtCommandKeys(peer.entry)));
+                if (odOwners.length === 1) {
+                    reason = "drive_cost_owner_owns_identical_family_shortcut";
+                    winners = odOwners.map(item => Number(item.id));
+                }
+            }
+        }
+        if (!reason) continue;
+        candidate.entry.routes = candidate.entry.routes.filter(route => route !== candidate.route);
+        suppressed.push({
+            action_id: Number(candidate.id),
+            display: candidate.route.display,
+            trigger_index: Number(candidate.route.trigger_index),
+            reason,
+            shadowed_by_action_ids: winners
+        });
+    }
+    suppressed.sort((left, right) => left.action_id - right.action_id
+        || left.display.localeCompare(right.display));
+    return suppressed;
 }
 
 function commonSemantic(trigger, rule) {
@@ -432,7 +604,10 @@ function officialSemanticRoute(character, targetId, trigger, profile, semantic, 
     const route = {
         ...routeProvenance(character, targetId, trigger, "norm_identity", profile,
             resolved(semantic.display, semantic.air ? "空中" : null,
-                semantic.visible_button, [semantic.button], 1), "official_semantic_bcm_rebind"),
+                semantic.visible_button,
+                semantic.button_candidates || (semantic.button ? [semantic.button] : []),
+                Number.isFinite(semantic.required_button_count)
+                    ? semantic.required_button_count : 1), "official_semantic_bcm_rebind"),
         display: semantic.display,
         display_action_id: Number(targetId),
         bcm_owner_action_id: Number(targetId),
@@ -549,6 +724,25 @@ function type20DirectionalRoute(character, relation, sourceRoute, direction, but
     route.visible_button = button;
     route.button_candidates = [button];
     route.required_button_count = 1;
+    return route;
+}
+
+function type20HoldRoute(character, relation, sourceRoute, button) {
+    const sourceId = Number(relation.source_action_id);
+    const targetId = Number(relation.target_action_id);
+    const route = inheritedRouteFromSource(character, sourceRoute, sourceId, targetId,
+        `> ${button}`, "ac_type20_hold_continuation", 20,
+        TYPE20_HOLD_REASON, "verified_inherited_hold_continuation");
+    route.visible_direction = null;
+    route.visible_button = button;
+    route.button_candidates = [button];
+    route.required_button_count = 1;
+    route.ac_param00 = relation.param00;
+    route.ac_param01 = relation.param01;
+    route.ac_param02 = relation.param02;
+    route.ac_param03 = relation.param03;
+    route.source_loop_count = relation.source_loop_count;
+    route.target_loop_count = relation.target_loop_count;
     return route;
 }
 
@@ -813,6 +1007,100 @@ function characterActionGraph(actionSource, actionSet) {
         }
     }
     return { objects, actions };
+}
+
+function referencedObject(root, fieldName, objects) {
+    const field = root && (root.fields || []).find(item => item.name === fieldName);
+    return field && field.value && field.value.kind === "ref"
+        ? objects.get(field.value.object_id) : null;
+}
+
+function actionLoopCount(root, objects) {
+    return numericField(fieldsOf(referencedObject(root, "State", objects)), "LoopCount");
+}
+
+function strictType20HoldRelations(actionSource, actionSet) {
+    const { objects, actions } = characterActionGraph(actionSource, actionSet);
+    const relations = [], seen = new Set();
+    const allowedMasks = new Set([16, 32, 64, 112, 128, 256, 512, 896]);
+    for (const [sourceId, root] of actions) {
+        if (actionLoopCount(root, objects) !== 0) continue;
+        const keys = referencedObject(root, "Keys", objects);
+        const pending = keys ? [keys.object_id] : [];
+        const visited = new Set();
+        while (pending.length) {
+            const objectId = pending.pop();
+            if (visited.has(objectId)) continue;
+            visited.add(objectId);
+            const object = objects.get(objectId);
+            if (!object) continue;
+            if (object.object_type === "CharacterAsset.BranchKey") {
+                const fields = fieldsOf(object);
+                const targetId = numericField(fields, "Action");
+                const branchType = numericField(fields, "Type");
+                const param00 = numericField(fields, "Param00");
+                const param01 = numericField(fields, "Param01");
+                const param02 = numericField(fields, "Param02");
+                const param03 = numericField(fields, "Param03");
+                const target = actions.get(targetId);
+                const key = `${sourceId}:${targetId}`;
+                if (branchType === 20 && targetId !== sourceId && target
+                    && param00 === 1 && allowedMasks.has(param01)
+                    && param02 === 0 && param03 === 1
+                    && actionLoopCount(target, objects) === -1 && !seen.has(key)) {
+                    seen.add(key);
+                    relations.push({ source_action_id: sourceId, target_action_id: targetId,
+                        branch_type: 20, param00, param01, param02, param03,
+                        source_loop_count: 0, target_loop_count: -1 });
+                }
+            }
+            for (const field of object.fields || []) {
+                if (field.value && field.value.kind === "ref") pending.push(field.value.object_id);
+            }
+            for (const item of object.items || []) {
+                if (item.value && item.value.kind === "ref") pending.push(item.value.object_id);
+            }
+        }
+    }
+    return relations.sort((left, right) => left.source_action_id - right.source_action_id
+        || left.target_action_id - right.target_action_id);
+}
+
+function automaticHoldTransitionType29Targets(actionSource, actionSet) {
+    const { objects, actions } = characterActionGraph(actionSource, actionSet);
+    const holdTargets = new Set(strictType20HoldRelations(actionSource, actionSet)
+        .map(relation => Number(relation.target_action_id)));
+    const incoming = new Map();
+    for (const [sourceId, root] of actions) {
+        const keys = referencedObject(root, "Keys", objects);
+        const pending = keys ? [keys.object_id] : [];
+        const visited = new Set();
+        while (pending.length) {
+            const objectId = pending.pop();
+            if (visited.has(objectId)) continue;
+            visited.add(objectId);
+            const object = objects.get(objectId);
+            if (!object) continue;
+            if (object.object_type === "CharacterAsset.BranchKey") {
+                const fields = fieldsOf(object);
+                const targetId = numericField(fields, "Action");
+                if (numericField(fields, "Type") === 29 && targetId !== sourceId
+                    && actions.has(targetId)) {
+                    if (!incoming.has(targetId)) incoming.set(targetId, new Set());
+                    incoming.get(targetId).add(sourceId);
+                }
+            }
+            for (const field of object.fields || []) {
+                if (field.value && field.value.kind === "ref") pending.push(field.value.object_id);
+            }
+            for (const item of object.items || []) {
+                if (item.value && item.value.kind === "ref") pending.push(item.value.object_id);
+            }
+        }
+    }
+    return new Map([...incoming].filter(([, sources]) => sources.size > 1
+            && [...sources].some(sourceId => holdTargets.has(sourceId)))
+        .map(([targetId, sources]) => [targetId, [...sources].sort((left, right) => left - right)]));
 }
 
 function stablePlainValue(value) {
@@ -1219,6 +1507,18 @@ function assertRoute(route) {
             throw new Error(`Modern Type20 directional route 证据非法: ${route.display}`);
         }
     }
+    if (route.source === "ac_type20_hold_continuation") {
+        if (route.inheritance_evidence !== true || route.inheritance_reason !== TYPE20_HOLD_REASON
+            || route.confidence !== "verified_inherited_hold_continuation"
+            || Number(route.ac_relation_type) !== 20 || route.ac_path.length < 2
+            || Number(route.ac_path[route.ac_path.length - 1]) !== Number(route.display_action_id)
+            || Number(route.inherited_from_action_id) !== Number(route.ac_path[route.ac_path.length - 2])
+            || route.ac_param00 !== 1 || route.ac_param02 !== 0 || route.ac_param03 !== 1
+            || route.source_loop_count !== 0 || route.target_loop_count !== -1
+            || !/^> (弱|中|强|任意键)$/.test(route.display)) {
+            throw new Error(`Modern Type20 hold route 证据非法: ${route.display}`);
+        }
+    }
     if (route.source === "bcm_target_combo_repeat") {
         if (route.inheritance_evidence !== true || route.inheritance_reason !== TARGET_COMBO_REPEAT_REASON
             || route.confidence !== "verified_bcm_target_combo_repeat"
@@ -1379,6 +1679,14 @@ function buildModernDisplay(actionSource, bcmCatalog, runtime, supplement, optio
         }
     }
 
+    const pairedSprtSpRelations = promotePairedSprtSpRoutes(entries, bcmCatalog);
+
+    // supr can be a player shortcut or an internal command selector. Resolve
+    // only conflicts with a unique stronger owner: an exact official normal,
+    // or the unique Drive-consuming owner in the same manual command family.
+    // State/resource variants without such evidence intentionally remain.
+    const shadowedSuprRoutes = suppressShadowedSuprRoutes(entries, bcmCatalog);
+
     const type63Relations = (runtime.evidence && runtime.evidence.ac_derived_commands || [])
         .filter(relation => Number(relation.branch_type) === 63)
         .sort((left, right) => Number(left.action_id) - Number(right.action_id));
@@ -1514,9 +1822,22 @@ function buildModernDisplay(actionSource, bcmCatalog, runtime, supplement, optio
         rebindRouteCount += routes.length;
     }
 
+    const automaticHoldType29 = automaticHoldTransitionType29Targets(actionSource, actionSet);
+    const suppressedAutomaticHoldType29Aliases = [];
     const verifiedAliasRelations = (runtime.evidence && runtime.evidence.alias_relations || [])
         .filter(relation => relation && relation.relation === "equivalent-action-variant"
             && relation.source === "ac-branch" && [29, 35].includes(Number(relation.branch_type)))
+        .filter(relation => {
+            const targetId = Number(relation.alias_action_id);
+            if (Number(relation.branch_type) !== 29 || !automaticHoldType29.has(targetId)) return true;
+            suppressedAutomaticHoldType29Aliases.push({
+                target_action_id: targetId,
+                selected_source_action_id: Number(relation.target_action_id),
+                incoming_source_action_ids: automaticHoldType29.get(targetId),
+                reason: "type29_target_is_reached_from_verified_hold_continuation"
+            });
+            return false;
+        })
         .sort((left, right) => Number(left.alias_action_id) - Number(right.alias_action_id));
     const appliedVerifiedAliases = [];
     let verifiedAliasRouteCount = 0;
@@ -1543,21 +1864,67 @@ function buildModernDisplay(actionSource, bcmCatalog, runtime, supplement, optio
         if (!progress) break;
     }
 
+    let suppressedAutomaticHoldTransitionCount = 0;
+    for (const evidence of suppressedAutomaticHoldType29Aliases) {
+        const targetId = String(Number(evidence.target_action_id));
+        if (!actionSet.has(targetId) || entries[targetId]) continue;
+        entries[targetId] = {
+            routes: [],
+            ownership: "automatic_hold_transition",
+            suppress_display: true,
+            transition_evidence: { ...evidence }
+        };
+        suppressedAutomaticHoldTransitionCount += 1;
+    }
+
+    const holdButtonForMask = mask => {
+        if (mask === 112 || mask === 896) return ANY_BUTTON;
+        if (mask === 16 || mask === 128) return "弱";
+        if (mask === 32 || mask === 256) return "中";
+        if (mask === 64 || mask === 512) return "强";
+        return null;
+    };
+    const strictHoldCandidates = strictType20HoldRelations(actionSource, actionSet);
+    const appliedType20HoldRelations = [];
+    let type20HoldRouteCount = 0;
+    for (const relation of strictHoldCandidates) {
+        const sourceId = String(relation.source_action_id);
+        const targetId = String(relation.target_action_id);
+        const sourceEntry = entries[sourceId];
+        const button = holdButtonForMask(relation.param01);
+        if (!sourceEntry || entries[targetId] || !button) continue;
+        const sourceRoute = sourceEntry.routes.find(route => route.direct_evidence === true)
+            || sourceEntry.routes.find(route => route.official_semantic_evidence === true)
+            || sourceEntry.routes.find(route => route.inheritance_evidence === true);
+        if (!sourceRoute) continue;
+        const route = type20HoldRoute(character, relation, sourceRoute, button);
+        assertRoute(route);
+        entries[targetId] = { routes: [route], ownership: "type20_hold_continuation" };
+        appliedType20HoldRelations.push({ ...relation, button, reason: TYPE20_HOLD_REASON });
+        type20HoldRouteCount += 1;
+    }
+
     // Assist Combo recipes are direct BCM ownership evidence. Each 10-step
     // recipe belongs to one fixed strength block: the first step is entered
-    // with AUTO + strength, every later step repeats that strength. Apply this
-    // after every other verified mechanism so it can only append (or dedupe)
-    // and can never suppress an existing manual/special route.
+    // with AUTO + strength, every later step repeats that strength. They are
+    // only a fallback for an otherwise unmapped Action. If BCM/AC/official
+    // evidence already provides an Action entry, the Assist step reaches that
+    // same Action but is not an additional move-command route for the UI.
     const assistComboCandidates = assistComboRelations(bcmCatalog, actionSet);
     const appliedAssistComboRelations = [];
     let assistComboDuplicateDisplayCount = 0;
+    let assistComboNormalizedToExistingCount = 0;
     for (const relation of assistComboCandidates) {
         const id = String(relation.action_id);
-        if (!entries[id]) entries[id] = { routes: [], ownership: "assist_combo" };
-        if (entries[id].routes.some(route => normalizeDisplay(route.display) === relation.display)) {
-            assistComboDuplicateDisplayCount += 1;
+        if (entries[id]) {
+            if (entries[id].routes.some(route => normalizeDisplay(route.display) === relation.display)) {
+                assistComboDuplicateDisplayCount += 1;
+            } else {
+                assistComboNormalizedToExistingCount += 1;
+            }
             continue;
         }
+        entries[id] = { routes: [], ownership: "assist_combo" };
         const route = assistComboRoute(character, relation);
         assertRoute(route);
         entries[id].routes.push(route);
@@ -1621,10 +1988,19 @@ function buildModernDisplay(actionSource, bcmCatalog, runtime, supplement, optio
             community_semantic_qualified_direct_route_count: communityQualifiedDirectRouteCount,
             community_semantic_source_sha256: options.communitySemanticsSha256 || null,
             verified_alias_route_count: verifiedAliasRouteCount,
+            hold_transition_type29_alias_suppression_count: suppressedAutomaticHoldType29Aliases.length,
+            hold_transition_suppressed_action_count: suppressedAutomaticHoldTransitionCount,
+            hold_transition_type29_alias_suppressions: suppressedAutomaticHoldType29Aliases,
             type20_directional_route_count: type20DirectionalRouteCount,
+            type20_hold_route_count: type20HoldRouteCount,
             target_combo_repeat_route_count: targetComboRepeatRouteCount,
             structural_twin_route_count: structuralTwinRouteCount,
             assist_combo_route_count: assistComboRouteCount,
+            assist_combo_normalized_to_existing_count: assistComboNormalizedToExistingCount,
+            paired_sprt_sp_route_count: pairedSprtSpRelations.length,
+            paired_sprt_sp_relations: pairedSprtSpRelations,
+            shadowed_supr_route_count: shadowedSuprRoutes.length,
+            shadowed_supr_routes: shadowedSuprRoutes,
             official_semantic_source_sha256: options.officialSemanticsSha256 || null,
             ac_relation_route_counts: relationCounts,
             ac_command_entry_rebinds: plannedRebinds.map(plan => ({
@@ -1639,6 +2015,7 @@ function buildModernDisplay(actionSource, bcmCatalog, runtime, supplement, optio
             community_semantic_unresolved: communityResult.unresolved,
             verified_alias_relations: appliedVerifiedAliases,
             type20_directional_relations: appliedType20Relations,
+            type20_hold_relations: appliedType20HoldRelations,
             target_combo_repeat_relations: appliedTargetComboRelations,
             structural_twin_relations: appliedStructuralTwins,
             assist_combo_relations: appliedAssistComboRelations,
@@ -1679,8 +2056,12 @@ function buildModernDisplay(actionSource, bcmCatalog, runtime, supplement, optio
                 community_semantic_unresolved_count: communityResult.unresolved.length,
                 verified_alias_relation_count: appliedVerifiedAliases.length,
                 verified_alias_route_count: verifiedAliasRouteCount,
+                hold_transition_type29_alias_suppression_count: suppressedAutomaticHoldType29Aliases.length,
+                hold_transition_suppressed_action_count: suppressedAutomaticHoldTransitionCount,
                 type20_directional_relation_count: appliedType20Relations.length,
                 type20_directional_route_count: type20DirectionalRouteCount,
+                type20_hold_relation_count: appliedType20HoldRelations.length,
+                type20_hold_route_count: type20HoldRouteCount,
                 target_combo_repeat_relation_count: appliedTargetComboRelations.length,
                 target_combo_repeat_route_count: targetComboRepeatRouteCount,
                 structural_twin_relation_count: appliedStructuralTwins.length,
@@ -1689,6 +2070,10 @@ function buildModernDisplay(actionSource, bcmCatalog, runtime, supplement, optio
                 assist_combo_relation_count: appliedAssistComboRelations.length,
                 assist_combo_route_count: assistComboRouteCount,
                 assist_combo_duplicate_display_count: assistComboDuplicateDisplayCount,
+                assist_combo_normalized_to_existing_count: assistComboNormalizedToExistingCount,
+                paired_sprt_sp_relation_count: pairedSprtSpRelations.length,
+                paired_sprt_sp_route_count: pairedSprtSpRelations.length,
+                shadowed_supr_route_count: shadowedSuprRoutes.length,
                 ac_automatic_transition_route_count: 0,
                 replaces_profile_route_count: 0
             },
@@ -1697,6 +2082,18 @@ function buildModernDisplay(actionSource, bcmCatalog, runtime, supplement, optio
     };
 
     for (const id of Object.keys(entries).sort((left, right) => Number(left) - Number(right))) {
+        if (entries[id].suppress_display === true) {
+            output[id] = {
+                modern_display: null,
+                control_support: "modern",
+                source: generatedFrom,
+                ownership: entries[id].ownership,
+                suppress_display: true,
+                transition_evidence: entries[id].transition_evidence,
+                routes: []
+            };
+            continue;
+        }
         const routes = entries[id].routes;
         const displays = [...new Set(routes.map(route => route.display))];
         output[id] = {
