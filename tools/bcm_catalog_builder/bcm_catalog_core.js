@@ -112,8 +112,19 @@
             .replace(/4136/g, "41236");
     }
 
-    function formatChargeMotion(notation) {
+    function formatChargeMotion(notation, inputs) {
         const opposite = { 6: "4", 8: "2", 4: "6", 2: "8", 9: "1", 3: "7" };
+        const first = Array.isArray(inputs) && inputs[0];
+        if (first && Number(first.type) === 1 && first.charge_release === true
+            && Array.isArray(inputs) && inputs.length >= 2) {
+            const releaseDirection = String(first.direction || "");
+            const nextDirection = String(inputs[1] && inputs[1].direction || "");
+            // The first release record can include a permissive diagonal
+            // state. The following direction is the actual release direction
+            // and therefore defines the canonical held opposite.
+            const hold = opposite[nextDirection] || opposite[releaseDirection];
+            if (hold) return `[${hold}]${inputs.slice(1).map(input => input.direction).join("")}`;
+        }
         if (notation.length === 2 && opposite[notation[1]]) return `[${opposite[notation[1]]}]${notation[1]}`;
         return notation;
     }
@@ -169,7 +180,7 @@
         }
 
         let motion = normalizeMotion(inputs.map(input => input.direction).join(""));
-        if (hasCharge) motion = formatChargeMotion(motion);
+        if (hasCharge) motion = formatChargeMotion(motion, inputs);
         return {
             command_no: commandNo,
             variant_index: variantIndex,

@@ -81,6 +81,64 @@ assert.strictEqual(adjacentCircleDirection(0x70000, 2, 1, true, 947), "5");
 assert.strictEqual(adjacentCircleDirection(0x70000, 1, 0, true, 948), "5");
 assert.strictEqual(adjacentCircleDirection(0x70001, 2, 0, true, 949), "8");
 
+function decodedChargeNotation(directionMasks, actionId) {
+    const base = actionId * 20;
+    const inputIds = directionMasks.map((_, index) => base + 10 + index * 3);
+    const commandItems = [];
+    for (let index = 0; index < directionMasks.length; index += 1) {
+        const inputId = inputIds[index];
+        commandItems.push(
+            object(inputId, "BCM.INPUT", {
+                frame_num: scalar(12), type: scalar(index === 0 ? 1 : 0),
+                normal: ref(inputId + 1), charge: ref(inputId + 2)
+            }),
+            object(inputId + 1, "BCM.INPUT.NORMAL", {
+                ok_key_flags: scalar(directionMasks[index])
+            }),
+            object(inputId + 2, "BCM.INPUT.CHARGE", {
+                id: scalar(directionMasks[index]), is_release: scalar(index === 0)
+            })
+        );
+    }
+    const objects = [
+        collection(base + 1, "Dictionary", [null, base + 2]),
+        collection(base + 2, "BCM.COMMAND[]", [base + 3]),
+        object(base + 3, "BCM.COMMAND", {
+            charge_bit: scalar(0x100), input_num: scalar(directionMasks.length),
+            inputs: ref(base + 4), max_frame: scalar(40), total_frame: scalar(-1)
+        }),
+        collection(base + 4, "BCM.INPUT[]", inputIds),
+        ...commandItems,
+        object(base + 5, "BCM.TRIGGER", {
+            action_id: scalar(actionId), cond_owner_state_flags: scalar(0), category_flags: scalar(0),
+            norm: ref(base + 6), norm_NG: scalar(false), easy: ref(base + 7), easy_NG: scalar(true),
+            sprt: ref(base + 8), sprt_NG: scalar(true), supr: ref(base + 9), supr_NG: scalar(true),
+            use_sprt: scalar(false), use_super: scalar(true)
+        }),
+        object(base + 6, "BCM.TRIGGER.CMD", {
+            command_no: scalar(1), command_index: scalar(0), command_ptr: ref(base + 2),
+            ok_key_flags: scalar(16), ok_key_cond_flags: scalar(81952), dc_exc_flags: scalar(0),
+            preceding_time: scalar(4)
+        }),
+        object(base + 7, "BCM.TRIGGER.CMD", { command_no: scalar(-1), command_index: scalar(0), ok_key_flags: scalar(0), ok_key_cond_flags: scalar(0) }),
+        object(base + 8, "BCM.TRIGGER.CMD", { command_no: scalar(-1), command_index: scalar(0), ok_key_flags: scalar(0), ok_key_cond_flags: scalar(0) }),
+        object(base + 9, "BCM.TRIGGER.CMD", { command_no: scalar(-1), command_index: scalar(0), ok_key_flags: scalar(0), ok_key_cond_flags: scalar(0) })
+    ];
+    const result = core.buildCatalog({
+        schema: "test", character: "Guile", fighter_id: 18, hard_gate_passed: true,
+        truncated: false, command_root_ref: ref(base + 1), objects,
+        triggers: [{ trigger_index: 0, native_action_id: actionId, trigger_ref: ref(base + 5) }]
+    }, { generatedAt: "2026-01-01T00:00:00.000Z" });
+    return result.actions[String(actionId)].triggers[0].profiles.norm.command.notation;
+}
+
+// The release direction is also the first visible direction of longer charge
+// motions.  Only that first step is replaced by its held opposite.
+assert.strictEqual(decodedChargeNotation([8, 8, 4, 8], 950), "[4]646");
+assert.strictEqual(decodedChargeNotation([8, 8], 951), "[4]6");
+assert.strictEqual(decodedChargeNotation([1, 1], 952), "[2]8");
+assert.strictEqual(decodedChargeNotation([9, 8, 4, 8], 953), "[4]646");
+
 function ref(object_id) { return { kind: "ref", object_id }; }
 function scalar(value) { return { kind: typeof value === "boolean" ? "boolean" : "number", value }; }
 function object(object_id, object_type, fields) {

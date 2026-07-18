@@ -15,7 +15,13 @@ function profile(enabled, notation, flags, condition, extra) {
         command_no: extra.command_no == null ? -1 : extra.command_no,
         command_index: extra.command_index == null ? -1 : extra.command_index,
         button: extra.button || "",
-        command: extra.inputs ? { inputs: extra.inputs } : null
+        command: extra.inputs ? {
+            command_no: extra.command_no == null ? -1 : extra.command_no,
+            variant_index: 0,
+            notation: extra.command_notation || String(notation || "").replace(/\+.*$/, ""),
+            charge_bit: extra.charge_bit || 0,
+            inputs: extra.inputs
+        } : null
     };
 }
 
@@ -108,6 +114,26 @@ function makeActionSource() {
     ]);
     addAction(956, 90, []);
     addAction(957, 90, []);
+    // Identical full AC structures are used only when the BCM selector is
+    // byte-for-byte equivalent and exactly one peer owns real charge evidence.
+    addAction(1303, 42, []);
+    addAction(1304, 42, []);
+    addAction(1500, 30, [
+        { action: 1501, type: 20, p00: 1, p01: 8 },
+        { action: 1502, type: 20, p00: 1, p01: 4 },
+        { action: 1503, type: 1 }
+    ]);
+    addAction(1501, 30, [{ action: 1504, type: 20, p00: 0, p01: 8 }]);
+    addAction(1502, 30, []);
+    addAction(1503, 30, []);
+    addAction(1504, 30, []);
+    addAction(1510, 30, [
+        { action: 1513, type: 20, p00: 1, p01: 2 },
+        { action: 1511, type: 13 }
+    ]);
+    addAction(1511, 30, [{ action: 1512, type: 5, attr: 288, p00: 1 }]);
+    addAction(1512, 30, []);
+    addAction(1513, 30, []);
     return { records, objects };
 }
 
@@ -126,7 +152,8 @@ const actionIds = [
     17, 18, 36, 37, 38,
     480, 489, 600, 605, 606, 627, 640, 642, 647, 651, 652, 653, 681, 692, 715, 716, 717, 718,
     739, 740, 850, 855, 903, 904, 917, 918, 923, 924, 956, 957, 975, 976, 977, 978, 979, 1015, 1020,
-    985, 1075, 1076, 1077, 1218, 1231, 1240
+    985, 1075, 1076, 1077, 1218, 1231, 1240, 1300, 1301, 1302, 1303, 1304,
+    1400, 1401, 1500, 1501, 1502, 1503, 1504, 1510, 1511, 1512, 1513
 ];
 const runtime = {
     character: "Zangief",
@@ -145,6 +172,7 @@ const runtime = {
             physical_button_required: true },
         "739": { system_action: "drc" },
         "740": { system_action: "raw_dr" }
+        , "1401": { display: "Normal", physical_button_required: false }
     } },
     evidence: { ac_derived_commands: [
         { action_id: 716, source_action_id: 715, display: "2+THROW", branch_type: 63 },
@@ -265,7 +293,84 @@ const catalog = { source: { character: "Zangief" }, actions: {
             { direction: "5", raw_mask: 128 }]
     })), { function_id: 3 })] },
     "1240": { action_id: 1240, triggers: [trigger(1240, profiles(
-        profile(true, "6646+HP", 256), profile(true, "*+HP", 288)), { function_id: 3 })] }
+        profile(true, "[4]646+HP", 256, 81952, { command_no: 50, command_index: 11,
+            command_notation: "[4]646", charge_bit: 256,
+            inputs: [{ direction: "6", raw_mask: 65544, type: 1, charge_release: true },
+                { direction: "6", raw_mask: 8 }, { direction: "4", raw_mask: 4 },
+                { direction: "6", raw_mask: 8 }] }),
+        profile(true, "*+Parry", 288, 82016, { command_no: 59, command_index: 16,
+            command_notation: "*", charge_bit: 32768,
+            inputs: [{ direction: "*", raw_mask: 15, type: 1, charge_release: false }] }),
+        profile(true, "2+HK", 512, 16416)), { function_id: 3 })] },
+    // A real charge trigger owns the Modern held shortcut. The uncharged
+    // 46 compatibility trigger must not become a second player-visible route.
+    "1300": { action_id: 1300, triggers: [
+        trigger(200, profiles(
+            profile(true, "[4]6+LK", 128, 81952, { command_no: 33, command_index: 11,
+                command_notation: "[4]6", charge_bit: 1,
+                inputs: [{ direction: "5", raw_mask: 65536, type: 1, charge_release: true },
+                    { direction: "6", raw_mask: 8, type: 0, charge_release: false }] }),
+            profile(true, "7+MP", 32, 16416, { command_no: 51, command_index: 14,
+                command_notation: "7", charge_bit: 32, ng_key_flags: 2,
+                inputs: [{ direction: "7", raw_mask: 5, type: 1, charge_release: false }] }),
+            profile(true, "4", 8192, 16416, { dc_exc_flags: 4, ng_key_flags: 2 })),
+            { function_id: 2, focus_consume: 0, kind_level: 2, category_flags: 1234 }),
+        trigger(201, profiles(
+            profile(true, "46+LK", 128, 81952, { command_no: 11, command_index: 5,
+                command_notation: "46", charge_bit: 0,
+                inputs: [{ direction: "4", raw_mask: 4, type: 0, charge_release: false },
+                    { direction: "6", raw_mask: 8, type: 0, charge_release: false }] }),
+            profile(true, "4+MP", 32, 16416, { dc_exc_flags: 4, ng_key_flags: 2 }),
+            profile(true, "4", 8192, 16416, { dc_exc_flags: 4, ng_key_flags: 2 })),
+            { function_id: 2, focus_consume: 0, kind_level: 2, category_flags: 1234 })
+    ] },
+    "1301": { action_id: 1301, triggers: [trigger(202, profiles(
+        profile(true, "[4]6+LP+LK+MK", 400, 82016, { command_no: 33, command_index: 11,
+            command_notation: "[4]6", charge_bit: 1,
+            inputs: [{ direction: "5", raw_mask: 65536, type: 1, charge_release: true },
+                { direction: "6", raw_mask: 8, type: 0, charge_release: false }] }),
+        profile(true, "7+MP", 32, 16416, { command_no: 51, command_index: 14,
+            command_notation: "7", charge_bit: 32, dc_exc_flags: 512, ng_key_flags: 2,
+            inputs: [{ direction: "7", raw_mask: 5, type: 1, charge_release: false }] }),
+        profile(true, "4", 8192, 16416, { dc_exc_flags: 4 })),
+        { function_id: 2, focus_consume: 20000, kind_level: 2, category_flags: 1234 })] },
+    "1302": { action_id: 1302, triggers: [trigger(203, profiles(
+        profile(false, "Normal", 0),
+        profile(true, "5+Parry", 288, 82016, { command_no: 58, command_index: 15,
+            command_notation: "5", charge_bit: 16384,
+            inputs: [{ direction: "5", raw_mask: 14, type: 1, charge_release: false }] }),
+        profile(true, "HK", 512, 16416),
+        profile(true, "[4]646+LP+MP", 48, 81952, { command_no: 50, command_index: 11,
+            command_notation: "[4]646", charge_bit: 256,
+            inputs: [{ direction: "6", raw_mask: 65544, type: 1, charge_release: true },
+                { direction: "6", raw_mask: 8 }, { direction: "4", raw_mask: 4 },
+                { direction: "6", raw_mask: 8 }] })), { function_id: 3 })] },
+    "1303": { action_id: 1303, triggers: [trigger(204, profiles(
+        profile(false, "Normal", 0),
+        profile(true, "5+MP", 32, 16416, { command_no: 52, command_index: 13,
+            command_notation: "5", charge_bit: 4096, dc_exc_flags: 4, ng_key_flags: 2,
+            inputs: [{ direction: "5", raw_mask: 12, type: 1, charge_id: 12,
+                charge_release: false }] })), { function_id: 2, kind_level: 1 })] },
+    "1304": { action_id: 1304, triggers: [trigger(205, profiles(
+        profile(true, "[4]6+LP", 16, 81952, { command_no: 32, command_index: 4,
+            command_notation: "[4]6", charge_bit: 1,
+            inputs: [{ direction: "5", raw_mask: 65536, type: 1, charge_release: true },
+                { direction: "6", raw_mask: 8, type: 0, charge_release: false }] }),
+        profile(true, "5+MP", 32, 16416, { command_no: 52, command_index: 13,
+            command_notation: "5", charge_bit: 4096, dc_exc_flags: 4, ng_key_flags: 2,
+            inputs: [{ direction: "5", raw_mask: 12, type: 1, charge_id: 12,
+                charge_release: false }] })), { function_id: 2, kind_level: 1 })] }
+    , "1400": { action_id: 1400, triggers: [
+        trigger(300, profiles(profile(true, "KKK", 400, 16544), null, null,
+            profile(true, "KKK", 896)), { function_id: 1 }),
+        trigger(301, profiles(profile(true, "KK", 384, 16480), null, null,
+            profile(true, "KK", 384)), { function_id: 1 })
+    ] }
+    , "1401": { action_id: 1401, triggers: [
+        trigger(302, profiles(profile(true, "Normal", 0, 0), profile(true, "Normal", 0, 0),
+            profile(true, "Normal", 0, 0), profile(true, "Normal", 0, 0)),
+        { function_id: 2 })
+    ] }
 } };
 
 catalog.assist_combo_recipes = [
@@ -292,13 +397,28 @@ const officialSemantics = {
         official_web_id: "110", move_name: "crouching light kick" },
     "642": { classic_display: "空中 HP", modern_display: "空中 AUTO + 強", category: "AIR",
         official_web_id: "120", move_name: "jumping heavy punch" }
+    , "1400": { classic_display: "LKMKHK", modern_display: "中強", category: "NORMAL",
+        official_web_id: "300", move_name: "exact official multi-button" }
 };
 const output = modern.buildModernDisplay(actionSource, catalog, runtime, {}, {
     generatedAt: "test", officialSemantics, officialSemanticsSha256: "official"
 });
-assert.strictEqual(output._meta.schema, "xt.modern_display.v7");
+assert.strictEqual(output._meta.schema, "xt.modern_display.v9");
 assert.strictEqual(output._meta.strict_policy, modern.STRICT_POLICY);
 assert.strictEqual(output._meta.generated_from, "ac_bcm+capcom_official_semantics");
+assert.strictEqual(output["1400"].modern_display, "中 + 强");
+assert.strictEqual(output._meta.official_direct_route_restriction_count, 1);
+assert.deepStrictEqual(output._meta.official_direct_route_restrictions[0].suppressed_routes
+    .map(item => item.display), ["弱 + 中 + 强"]);
+assert.strictEqual(output["1401"].suppress_display, true);
+assert.strictEqual(output["1401"].transition_evidence.kind, "bcm_zero_input_transition");
+assert.strictEqual(output["1501"].modern_display, "6");
+assert.strictEqual(output["1502"].modern_display, "4");
+assert.strictEqual(output["1503"].modern_display, "N");
+assert.strictEqual(output["1504"].suppress_display, true);
+assert.strictEqual(output["1504"].transition_evidence.kind, "ac_state_direction_release");
+assert.strictEqual(output["1511"].modern_display, "N");
+assert.strictEqual(output["1511"].routes[0].source, "ac_type13_neutral_continuation");
 assert.strictEqual(output["600"].modern_display, "弱");
 assert.strictEqual(output["605"].modern_display, "AUTO + 强");
 assert.strictEqual(output["606"].modern_display, "> 强");
@@ -346,7 +466,20 @@ assert.strictEqual(output["1076"].routes[0].required_button_count, 2);
 assert.strictEqual(output["1077"], undefined);
 assert.strictEqual(output["1218"].modern_display, "2 + SP + 强/720 + 强");
 assert.strictEqual(output["1231"].modern_display, "弱 > 弱 > 中 > 强");
-assert.strictEqual(output["1240"].modern_display, "SP + 强/6646 + 强");
+assert.strictEqual(output["1240"].modern_display, "[2] + SP + 强/[4]646 + 强");
+assert.strictEqual(output["1302"].modern_display, "[4] + SP + 强");
+assert.strictEqual(output["1303"].modern_display, "[4] + SP");
+assert.strictEqual(output["1300"].modern_display, "[4] + SP/[4]6 + 中");
+assert.strictEqual(output["1301"].modern_display,
+    "[4] + AUTO + SP/[4]6 + 任意键 + 任意键");
+assert.strictEqual(output["1300"].routes.some(route => route.display === "46 + 中"), false);
+const chargeRoute = output["1300"].routes.find(route => route.display === "[4] + SP");
+assert(chargeRoute);
+assert.strictEqual(chargeRoute.charge_context_evidence, true);
+assert.strictEqual(chargeRoute.charge_context_direction, "4");
+assert.strictEqual(chargeRoute.charge_context_profile, "sprt");
+assert.strictEqual(chargeRoute.charge_context_reason,
+    "bcm_charge_profile_context_proves_modern_held_shortcut");
 
 // Only the command-entry targets are rebound. Their internal Type17 stage
 // edges must not be mistaken for another propagation hop.
@@ -461,6 +594,30 @@ assert.strictEqual(audit.runtime_common_route_count, 6);
 assert.strictEqual(output._meta.runtime_common_route_count, 6);
 assert.strictEqual(audit.type20_directional_relation_count, 2);
 assert.strictEqual(audit.type20_directional_route_count, 2);
+assert.strictEqual(audit.charge_context_route_count, 6);
+assert.strictEqual(audit.super_shortcut_direction_route_count, 1);
+assert.strictEqual(audit.ac_charge_context_relation_count, 1);
+assert.strictEqual(audit.charge_compatibility_trigger_suppression_count, 1);
+assert.strictEqual(output._meta.charge_context_route_count, 6);
+assert.strictEqual(output._meta.super_shortcut_direction_route_count, 1);
+assert.deepStrictEqual(output._meta.ac_charge_context_relations.map(item => [
+    item.source_action_id, item.target_action_id, item.profile, item.direction, item.reason
+]), [[1304, 1303, "easy", "4",
+    "ac_full_structure_peer_and_bcm_selector_prove_charge_context"]]);
+assert.deepStrictEqual(output._meta.charge_compatibility_trigger_suppressions, [{
+    action_id: 1300,
+    suppressed_trigger_index: 201,
+    retained_trigger_indices: [200],
+    profile: "sprt",
+    plain_command_no: 11,
+    plain_command_index: 5,
+    plain_notation: "46",
+    charge_command_nos: [33],
+    charge_command_indices: [11],
+    charge_notations: ["[4]6"],
+    button_mask: 128,
+    reason: "bcm_true_charge_trigger_suppresses_uncharged_compatibility_trigger"
+}]);
 assert.strictEqual(audit.target_combo_repeat_relation_count, 1);
 assert.strictEqual(audit.target_combo_repeat_route_count, 1);
 assert.strictEqual(audit.structural_twin_relation_count, 1);

@@ -6921,8 +6921,15 @@ local function ct_player_input_buffer(p_state)
 
             -- Bypass ghost filtering for Alex's action 976
             local is_alex_exempt = (p_state.profile_name == "Alex" and p_state.buffer_act_id == 976)
+            -- A buffered action with both a physical attack input and a BCM
+            -- command owner is a real player command. State/resource branches
+            -- can replace it within the ghost window (for example, a status-
+            -- dependent follow-up); the later action must not erase the command.
+            local buffered_is_catalog_command = is_catalog_button_action(
+                p_state.bcm_catalog, p_state.buffer_act_id, p_state.buffer_direct_input)
 
-            if duration > 0 and duration < ghost_wait and p_state.buffer_act_id > 50 and not is_alex_exempt then
+            if duration > 0 and duration < ghost_wait and p_state.buffer_act_id > 50
+                and not is_alex_exempt and not buffered_is_catalog_command then
                 -- EXACT EVALUATION OF THE NEW ACTION
                 -- We must know if the game triggered it automatically or if the player pressed a button
                 local new_is_intentional = false

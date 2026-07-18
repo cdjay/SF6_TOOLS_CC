@@ -181,6 +181,16 @@ local VERIFIED_ALIAS_REASON = "ac_verified_equivalent_action_variant"
 local TYPE20_DIRECTION_REASON = "ac_type20_verified_directional_air_attack"
 local TYPE20_HOLD_REASON = "ac_type20_verified_hold_continuation"
 local TYPE20_PHASE_REASON = "ac_type20_verified_multi_input_action_phase"
+local CHARGE_CONTEXT_REASON = "bcm_charge_profile_context_proves_modern_held_shortcut"
+local AC_CHARGE_CONTEXT_REASON = "ac_full_structure_peer_and_bcm_selector_prove_charge_context"
+local SUPER_SHORTCUT_DIRECTION_REASON = "bcm_super_supr_direction_qualifies_easy_shortcut"
+local CHARGE_COMPATIBILITY_REASON = "bcm_true_charge_trigger_suppresses_uncharged_compatibility_trigger"
+local OFFICIAL_DIRECT_ROUTE_REASON = "capcom_official_exact_action_and_classic_identity_select_unique_direct_route"
+local AC_STATE_DIRECTION_REASON = "ac_type20_multi_direction_state_choice"
+local AC_STATE_NEUTRAL_REASON = "ac_type1_neutral_branch_beside_multi_direction_state_choices"
+local AC_TYPE13_NEUTRAL_REASON = "ac_type13_zero_input_terminal_continuation_with_directional_sibling"
+local AC_STATE_RELEASE_REASON = "ac_type20_release_transition_from_verified_direction_state"
+local BCM_ZERO_INPUT_TRANSITION_REASON = "bcm_function2_normal_has_no_player_visible_input"
 local TARGET_COMBO_REPEAT_REASON = "bcm_turn_around_target_combo_repeats_parent_button"
 local STRUCTURAL_TWIN_REASON = "ac_bcm_unique_structural_twin_with_internal_use_super_delta"
 local ASSIST_COMBO_REASON = "bcm_assist_combo_recipe_direct_input_sequence"
@@ -494,6 +504,104 @@ local function load_modern_display_map(character)
         and tonumber(meta.hold_transition_suppressed_action_count) == hold_transition_actions
         and type(meta.hold_transition_type29_alias_suppressions) == "table"
         and #meta.hold_transition_type29_alias_suppressions == hold_transition_aliases
+    local charge_context_routes = type(audit) == "table"
+        and tonumber(audit.charge_context_route_count) or nil
+    local super_shortcut_routes = type(audit) == "table"
+        and tonumber(audit.super_shortcut_direction_route_count) or nil
+    local ac_charge_relations = type(audit) == "table"
+        and tonumber(audit.ac_charge_context_relation_count) or nil
+    local charge_suppressions = type(audit) == "table"
+        and tonumber(audit.charge_compatibility_trigger_suppression_count) or nil
+    local charge_context_audit_ok = charge_context_routes ~= nil
+        and super_shortcut_routes ~= nil and ac_charge_relations ~= nil
+        and charge_suppressions ~= nil
+        and charge_context_routes >= 0 and super_shortcut_routes >= 0
+        and ac_charge_relations >= 0 and charge_suppressions >= 0
+        and charge_context_routes == math.floor(charge_context_routes)
+        and super_shortcut_routes == math.floor(super_shortcut_routes)
+        and ac_charge_relations == math.floor(ac_charge_relations)
+        and charge_suppressions == math.floor(charge_suppressions)
+        and tonumber(meta.charge_context_route_count) == charge_context_routes
+        and tonumber(meta.super_shortcut_direction_route_count) == super_shortcut_routes
+        and tonumber(meta.ac_charge_context_relation_count) == ac_charge_relations
+        and type(meta.ac_charge_context_relations) == "table"
+        and #meta.ac_charge_context_relations == ac_charge_relations
+        and tonumber(meta.charge_compatibility_trigger_suppression_count) == charge_suppressions
+        and type(meta.charge_compatibility_trigger_suppressions) == "table"
+        and #meta.charge_compatibility_trigger_suppressions == charge_suppressions
+    if charge_context_audit_ok then
+        for _, relation in ipairs(meta.charge_compatibility_trigger_suppressions) do
+            if type(relation) ~= "table" or tonumber(relation.action_id) == nil
+                or tonumber(relation.suppressed_trigger_index) == nil
+                or type(relation.retained_trigger_indices) ~= "table"
+                or #relation.retained_trigger_indices == 0
+                or relation.profile ~= "sprt"
+                or relation.reason ~= CHARGE_COMPATIBILITY_REASON then
+                charge_context_audit_ok = false
+                break
+            end
+        end
+    end
+    if charge_context_audit_ok then
+        for _, relation in ipairs(meta.ac_charge_context_relations) do
+            if type(relation) ~= "table" or tonumber(relation.source_action_id) == nil
+                or tonumber(relation.target_action_id) == nil
+                or tonumber(relation.source_action_id) == tonumber(relation.target_action_id)
+                or tonumber(relation.target_trigger_index) == nil
+                or type(relation.source_trigger_indices) ~= "table"
+                or #relation.source_trigger_indices == 0
+                or (relation.profile ~= "easy" and relation.profile ~= "supr")
+                or type(relation.direction) ~= "string"
+                or relation.direction:match("^[1246789]$") == nil
+                or (relation.source_charge_profile ~= "sprt"
+                    and relation.source_charge_profile ~= "norm")
+                or relation.reason ~= AC_CHARGE_CONTEXT_REASON then
+                charge_context_audit_ok = false
+                break
+            end
+        end
+    end
+    local official_direct_restrictions = type(audit) == "table"
+        and tonumber(audit.official_direct_route_restriction_count) or nil
+    local state_direction_relations = type(audit) == "table"
+        and tonumber(audit.ac_state_direction_relation_count) or nil
+    local state_direction_routes = type(audit) == "table"
+        and tonumber(audit.ac_state_direction_route_count) or nil
+    local state_neutral_relations = type(audit) == "table"
+        and tonumber(audit.ac_state_neutral_relation_count) or nil
+    local state_neutral_routes = type(audit) == "table"
+        and tonumber(audit.ac_state_neutral_route_count) or nil
+    local type13_neutral_relations = type(audit) == "table"
+        and tonumber(audit.ac_type13_neutral_relation_count) or nil
+    local type13_neutral_routes = type(audit) == "table"
+        and tonumber(audit.ac_type13_neutral_route_count) or nil
+    local internal_suppressions = type(audit) == "table"
+        and tonumber(audit.internal_transition_suppression_count) or nil
+    local state_choice_audit_ok = official_direct_restrictions ~= nil
+        and state_direction_relations ~= nil and state_direction_routes ~= nil
+        and state_neutral_relations ~= nil and state_neutral_routes ~= nil
+        and type13_neutral_relations ~= nil and type13_neutral_routes ~= nil
+        and internal_suppressions ~= nil
+        and official_direct_restrictions >= 0
+        and state_direction_relations >= 0 and state_direction_routes == state_direction_relations
+        and state_neutral_relations >= 0 and state_neutral_routes == state_neutral_relations
+        and type13_neutral_relations >= 0 and type13_neutral_routes == type13_neutral_relations
+        and internal_suppressions >= 0
+        and tonumber(meta.official_direct_route_restriction_count) == official_direct_restrictions
+        and type(meta.official_direct_route_restrictions) == "table"
+        and #meta.official_direct_route_restrictions == official_direct_restrictions
+        and tonumber(meta.ac_state_direction_route_count) == state_direction_routes
+        and type(meta.ac_state_direction_relations) == "table"
+        and #meta.ac_state_direction_relations == state_direction_relations
+        and tonumber(meta.ac_state_neutral_route_count) == state_neutral_routes
+        and type(meta.ac_state_neutral_relations) == "table"
+        and #meta.ac_state_neutral_relations == state_neutral_relations
+        and tonumber(meta.ac_type13_neutral_route_count) == type13_neutral_routes
+        and type(meta.ac_type13_neutral_relations) == "table"
+        and #meta.ac_type13_neutral_relations == type13_neutral_relations
+        and tonumber(meta.internal_transition_suppression_count) == internal_suppressions
+        and type(meta.suppressed_internal_transitions) == "table"
+        and #meta.suppressed_internal_transitions == internal_suppressions
     local strict_audit = type(audit) == "table" and audit.strict_route_ownership == true
         and tonumber(audit.owner_missing_count or -1) == 0
         and tonumber(audit.no_evidence_count or -1) == 0
@@ -522,9 +630,11 @@ local function load_modern_display_map(character)
         and paired_sprt_sp_audit_ok
         and shadowed_supr_audit_ok
         and hold_transition_audit_ok
+        and charge_context_audit_ok
+        and state_choice_audit_ok
     if type(meta) == "table"
-        and tostring(meta.schema or ""):lower() == "xt.modern_display.v7"
-        and tostring(meta.strict_policy or ""):lower() == "verified_route_ownership_v7"
+        and tostring(meta.schema or ""):lower() == "xt.modern_display.v9"
+        and tostring(meta.strict_policy or ""):lower() == "verified_route_ownership_v9"
         and (tostring(meta.generated_from or ""):lower() == "ac_bcm"
             or tostring(meta.generated_from or ""):lower() == "ac_bcm+capcom_official_semantics"
             or tostring(meta.generated_from or ""):lower() == "ac_bcm+community_verified_semantics"
@@ -549,6 +659,33 @@ local function get_modern_display_motion(modern_map, step)
     if entry.suppress_display == true then
         local evidence = entry.transition_evidence
         local declared = false
+        local internal_declarations = type(modern_map._meta) == "table"
+            and modern_map._meta.suppressed_internal_transitions or nil
+        if type(evidence) == "table" and type(internal_declarations) == "table"
+            and entry.ownership == "internal_state_transition" and #entry.routes == 0
+            and step_id ~= nil and tonumber(evidence.target_action_id) == step_id then
+            for _, relation in ipairs(internal_declarations) do
+                local same = type(relation) == "table"
+                    and tostring(relation.kind or "") == tostring(evidence.kind or "")
+                    and tonumber(relation.target_action_id) == step_id
+                    and tostring(relation.reason or "") == tostring(evidence.reason or "")
+                if same and evidence.kind == "ac_state_direction_release" then
+                    same = tonumber(relation.branch_type) == 20
+                        and tonumber(relation.param00) == 0
+                        and tonumber(relation.direction_mask) == tonumber(evidence.direction_mask)
+                        and relation.reason == AC_STATE_RELEASE_REASON
+                elseif same and evidence.kind == "bcm_zero_input_transition" then
+                    same = tonumber(relation.function_id) == 2
+                        and type(relation.trigger_indices) == "table"
+                        and #relation.trigger_indices > 0
+                        and relation.reason == BCM_ZERO_INPUT_TRANSITION_REASON
+                else
+                    same = false
+                end
+                if same then declared = true; break end
+            end
+        end
+        if declared then return nil, "suppress_transition" end
         local declarations = type(modern_map._meta) == "table"
             and modern_map._meta.hold_transition_type29_alias_suppressions or nil
         if type(evidence) == "table" and type(declarations) == "table"
@@ -583,6 +720,56 @@ local function get_modern_display_motion(modern_map, step)
         local source = type(route) == "table" and tostring(route.source or "") or ""
         local route_character = type(route) == "table" and tostring(route.character or "") or ""
         local map_character = type(modern_map._meta) == "table" and tostring(modern_map._meta.character or "") or ""
+        local charge_direction = type(route) == "table"
+            and tostring(route.charge_context_direction or "") or ""
+        local charge_manual_direction = type(route) == "table"
+            and tostring(route.charge_context_manual_direction or "") or ""
+        local charge_relation = type(route) == "table"
+            and tostring(route.charge_context_relation or "") or ""
+        local charge_source_action = type(route) == "table"
+            and tonumber(route.charge_context_source_action_id) or nil
+        local charge_owner_action = type(route) == "table"
+            and tonumber(route.owner_action_id) or nil
+        local charge_source_triggers = type(route) == "table"
+            and route.charge_context_source_trigger_indices or nil
+        local charge_reason_ok = type(route) == "table" and (
+            charge_relation == "same_trigger_bcm"
+                and charge_source_action == charge_owner_action
+                and route.charge_context_reason == CHARGE_CONTEXT_REASON
+            or charge_relation == "ac_full_structure_peer"
+                and charge_source_action ~= nil
+                and charge_source_action ~= charge_owner_action
+                and route.charge_context_reason == AC_CHARGE_CONTEXT_REASON)
+        local charge_context_ok = type(route) == "table"
+            and (route.charge_context_evidence ~= true
+                or ((route.charge_context_profile == "sprt"
+                    or route.charge_context_profile == "norm")
+                    and charge_direction:match("^[1246789]$") ~= nil
+                    and charge_manual_direction:match("^[1246789]$") ~= nil
+                    and (route.charge_context_direction_profile == "sprt"
+                        or route.charge_context_direction_profile == "norm"
+                        or route.charge_context_direction_profile == "supr")
+                    and tonumber(route.charge_context_command_no) ~= nil
+                    and tonumber(route.charge_context_command_no) >= 0
+                    and tonumber(route.charge_context_command_index) ~= nil
+                    and tonumber(route.charge_context_command_index) >= 0
+                    and type(route.charge_context_notation) == "string"
+                    and route.charge_context_notation:find(
+                        "[" .. charge_manual_direction .. "]", 1, true) ~= nil
+                    and type(charge_source_triggers) == "table"
+                    and #charge_source_triggers > 0
+                    and charge_reason_ok
+                    and type(route.display) == "string"
+                    and route.display:find("[" .. charge_direction .. "]", 1, true) ~= nil))
+        local super_shortcut_direction = type(route) == "table"
+            and tostring(route.super_shortcut_direction or "") or ""
+        local super_shortcut_ok = type(route) == "table"
+            and (route.super_shortcut_direction_evidence ~= true
+                or (route.super_shortcut_direction_profile == "supr"
+                    and super_shortcut_direction:match("^[1246789]$") ~= nil
+                    and type(route.super_shortcut_direction_notation) == "string"
+                    and route.super_shortcut_direction_reason
+                        == SUPER_SHORTCUT_DIRECTION_REASON))
         local direct_ok = (source == "bcm_profile" or source == "bcm_common_semantic")
             and route.direct_evidence == true and route.inheritance_evidence == false
             and route.rebind_evidence ~= true and route.rebind_reason == nil
@@ -864,6 +1051,72 @@ local function get_modern_display_motion(modern_map, step)
             and tonumber(route.display_action_id) == step_id
             and route.confidence == "verified_inherited_action_phase"
             and route_character == map_character and phase_signature_ok
+        local state_relation_list = nil
+        local state_reason = nil
+        local state_confidence = nil
+        local state_ownership = nil
+        local state_expected_type = nil
+        if source == "ac_type20_state_direction" then
+            state_relation_list = type(modern_map._meta) == "table"
+                and modern_map._meta.ac_state_direction_relations or nil
+            state_reason = AC_STATE_DIRECTION_REASON
+            state_confidence = "verified_ac_state_direction"
+            state_ownership = "ac_state_direction"
+            state_expected_type = 20
+        elseif source == "ac_type1_state_neutral" then
+            state_relation_list = type(modern_map._meta) == "table"
+                and modern_map._meta.ac_state_neutral_relations or nil
+            state_reason = AC_STATE_NEUTRAL_REASON
+            state_confidence = "verified_ac_state_neutral"
+            state_ownership = "ac_state_neutral"
+            state_expected_type = 1
+        elseif source == "ac_type13_neutral_continuation" then
+            state_relation_list = type(modern_map._meta) == "table"
+                and modern_map._meta.ac_type13_neutral_relations or nil
+            state_reason = AC_TYPE13_NEUTRAL_REASON
+            state_confidence = "verified_ac_type13_neutral"
+            state_ownership = "ac_type13_neutral"
+            state_expected_type = 13
+        end
+        local declared_state_choice = false
+        if type(state_relation_list) == "table" then
+            for _, relation in ipairs(state_relation_list) do
+                if type(relation) == "table" and tonumber(relation.target_action_id) == step_id
+                    and tonumber(relation.branch_type) == state_expected_type
+                    and relation.reason == state_reason
+                    and type(relation.source_action_ids) == "table"
+                    and #relation.source_action_ids > 0 then
+                    for _, source_id in ipairs(relation.source_action_ids) do
+                        if tonumber(source_id) == inherited_source then
+                            declared_state_choice = true
+                            break
+                        end
+                    end
+                end
+                if declared_state_choice then break end
+            end
+        end
+        local state_choice_ok = state_relation_list ~= nil and declared_state_choice
+            and entry.ownership == state_ownership
+            and route.direct_evidence == false and route.inheritance_evidence == true
+            and route.rebind_evidence == false and route.runtime_common_evidence == false
+            and route.official_semantic_evidence == false and route.community_semantic_evidence == false
+            and route.inheritance_reason == state_reason
+            and tonumber(route.ac_relation_type) == state_expected_type
+            and inherited_source ~= nil and step_id ~= nil
+            and type(ac_path) == "table" and #ac_path == 2
+            and tonumber(ac_path[1]) == inherited_source and tonumber(ac_path[2]) == step_id
+            and tonumber(route.display_action_id) == step_id
+            and route.bcm_owner_action_id == nil
+            and route.confidence == state_confidence and route_character == map_character
+            and type(route.state_choice_source_action_ids) == "table"
+            and #route.state_choice_source_action_ids > 0
+            and ((source == "ac_type20_state_direction"
+                    and tostring(route.display or ""):match("^[2468]$") ~= nil
+                    and tonumber(route.state_choice_direction_mask) ~= nil)
+                or ((source == "ac_type1_state_neutral"
+                        or source == "ac_type13_neutral_continuation")
+                    and route.display == "N"))
         local declared_target_combo = false
         local target_combo_declarations = type(modern_map._meta) == "table"
             and modern_map._meta.target_combo_repeat_relations or nil
@@ -983,8 +1236,10 @@ local function get_modern_display_motion(modern_map, step)
             and (route.assist_input_stage == "first" or route.assist_input_stage == "repeat")
             and tostring(route.display or "") == assist_expected_display
         local display = type(route) == "table" and route.display or nil
-        if (direct_ok or inherited_ok or rebind_ok or runtime_common_ok or official_semantic_ok
+        if charge_context_ok and super_shortcut_ok
+            and (direct_ok or inherited_ok or rebind_ok or runtime_common_ok or official_semantic_ok
                 or verified_alias_ok or type20_ok or type20_hold_ok or type20_phase_ok
+                or state_choice_ok
                 or target_combo_ok or structural_twin_ok
                 or assist_combo_ok)
             and type(display) == "string" and display ~= "" and not seen[display] then

@@ -1,7 +1,7 @@
 "use strict";
 
-const SCHEMA = "xt.modern_display.v7";
-const STRICT_POLICY = "verified_route_ownership_v7";
+const SCHEMA = "xt.modern_display.v9";
+const STRICT_POLICY = "verified_route_ownership_v9";
 const MODERN_PROFILE_ORDER = ["easy", "supr", "sprt"];
 const CLASSIC_TOKEN = /(^|[\s+>/])(?:LP|MP|HP|LK|MK|HK|PPP|KKK|PP|KK|P|K)(?=$|[\s+>/])/i;
 const PROFILE_BUTTONS = new Set([
@@ -17,6 +17,16 @@ const VERIFIED_ALIAS_REASON = "ac_verified_equivalent_action_variant";
 const TYPE20_DIRECTION_REASON = "ac_type20_verified_directional_air_attack";
 const TYPE20_HOLD_REASON = "ac_type20_verified_hold_continuation";
 const TYPE20_PHASE_REASON = "ac_type20_verified_multi_input_action_phase";
+const CHARGE_CONTEXT_REASON = "bcm_charge_profile_context_proves_modern_held_shortcut";
+const AC_CHARGE_CONTEXT_REASON = "ac_full_structure_peer_and_bcm_selector_prove_charge_context";
+const SUPER_SHORTCUT_DIRECTION_REASON = "bcm_super_supr_direction_qualifies_easy_shortcut";
+const CHARGE_COMPATIBILITY_REASON = "bcm_true_charge_trigger_suppresses_uncharged_compatibility_trigger";
+const OFFICIAL_DIRECT_ROUTE_REASON = "capcom_official_exact_action_and_classic_identity_select_unique_direct_route";
+const AC_STATE_DIRECTION_REASON = "ac_type20_multi_direction_state_choice";
+const AC_STATE_NEUTRAL_REASON = "ac_type1_neutral_branch_beside_multi_direction_state_choices";
+const AC_TYPE13_NEUTRAL_REASON = "ac_type13_zero_input_terminal_continuation_with_directional_sibling";
+const AC_STATE_RELEASE_REASON = "ac_type20_release_transition_from_verified_direction_state";
+const BCM_ZERO_INPUT_TRANSITION_REASON = "bcm_function2_normal_has_no_player_visible_input";
 const TARGET_COMBO_REPEAT_REASON = "bcm_turn_around_target_combo_repeats_parent_button";
 const STRUCTURAL_TWIN_REASON = "ac_bcm_unique_structural_twin_with_internal_use_super_delta";
 const ASSIST_COMBO_REASON = "bcm_assist_combo_recipe_direct_input_sequence";
@@ -52,6 +62,99 @@ function joinRoute(air, directions, buttons) {
     const parts = [...directions, ...buttons];
     if (!parts.length) return null;
     return `${air ? "空中 " : ""}${parts.join(" + ")}`;
+}
+
+function chargeContextFromProfiles(profiles) {
+    for (const profileName of ["sprt", "norm"]) {
+        const profile = profiles && profiles[profileName];
+        const command = profile && profile.command;
+        const match = profile && String(profile.notation || "").match(/^(j\.)?\[([1246789])\]/);
+        const inputs = command && command.inputs;
+        if (!profile || profile.enabled !== true || !command || Number(command.charge_bit || 0) === 0
+            || !match || !Array.isArray(inputs)
+            || !inputs.some(input => Number(input && input.type) === 1
+                || input && input.charge_release === true)) continue;
+        return {
+            air: Boolean(match[1]),
+            direction: match[2],
+            profile: profileName,
+            command_no: Number(profile.command_no),
+            command_index: Number(profile.command_index),
+            notation: String(profile.notation),
+            source_action_id: null,
+            source_trigger_indices: [],
+            relation: "same_trigger_bcm",
+            reason: CHARGE_CONTEXT_REASON
+        };
+    }
+    return null;
+}
+
+function isChargeStateSelector(profile) {
+    const command = profile && profile.command;
+    const inputs = command && command.inputs;
+    return Number(command && command.charge_bit || 0) !== 0
+        && Array.isArray(inputs) && inputs.length === 1
+        && Number(inputs[0] && inputs[0].type) === 1
+        && inputs[0].charge_release !== true;
+}
+
+function superShortcutDirection(profiles, conditions) {
+    if (Number(conditions && conditions.function_id) !== 3) return null;
+    const supr = profiles && profiles.supr;
+    if (!supr || supr.enabled !== true) return null;
+    const { air, parts } = splitNotation(supr);
+    const directions = visibleDirections(parts);
+    return directions.length === 1 ? { air, direction: directions[0], profile: "supr",
+        notation: String(supr.notation || ""), reason: SUPER_SHORTCUT_DIRECTION_REASON } : null;
+}
+
+function applySuperShortcutDirection(name, profiles, conditions, detail) {
+    const context = name === "easy" ? superShortcutDirection(profiles, conditions) : null;
+    if (!context || !detail || !detail.display || !detail.visible_button) return detail;
+    const buttons = String(detail.visible_button).split(/\s+\+\s+/).filter(Boolean);
+    if (!buttons.length) return detail;
+    return { ...detail,
+        display: joinRoute(context.air, [context.direction], buttons),
+        visible_direction: context.direction,
+        super_shortcut_direction_evidence: true,
+        super_shortcut_direction_profile: context.profile,
+        super_shortcut_direction: context.direction,
+        super_shortcut_direction_notation: context.notation,
+        super_shortcut_direction_reason: context.reason
+    };
+}
+
+function applyChargeShortcutContext(name, profile, profiles, detail, inheritedContext) {
+    const context = chargeContextFromProfiles(profiles) || inheritedContext;
+    if (!context || !detail || !detail.display || !detail.visible_button
+        || (name !== "easy" && name !== "supr")) return detail;
+    const { air, parts } = splitNotation(profile);
+    const directions = visibleDirections(parts);
+    const selector = name === "easy" && isChargeStateSelector(profile);
+    const selectedDirection = detail.super_shortcut_direction || context.direction;
+    const heldDirection = !profile.command && directions.length === 1
+        && (directions[0] === context.direction || directions[0] === selectedDirection);
+    if (!selector && !heldDirection) return detail;
+    const buttons = String(detail.visible_button).split(/\s+\+\s+/).filter(Boolean);
+    if (!buttons.length) return detail;
+    return {
+        ...detail,
+        display: joinRoute(air || context.air, [`[${selectedDirection}]`], buttons),
+        visible_direction: `[${selectedDirection}]`,
+        charge_context_evidence: true,
+        charge_context_profile: context.profile,
+        charge_context_direction: selectedDirection,
+        charge_context_manual_direction: context.direction,
+        charge_context_direction_profile: detail.super_shortcut_direction_profile || context.profile,
+        charge_context_command_no: context.command_no,
+        charge_context_command_index: context.command_index,
+        charge_context_notation: context.notation,
+        charge_context_source_action_id: context.source_action_id,
+        charge_context_source_trigger_indices: context.source_trigger_indices,
+        charge_context_relation: context.relation,
+        charge_context_reason: context.reason
+    };
 }
 
 function attackCandidates(profile) {
@@ -200,16 +303,19 @@ function translateSupr(profile, conditions) {
         attackCandidates(profile), requiredButtonCount(profile));
 }
 
-function translateProfileDetailed(name, profile, conditions) {
+function translateProfileDetailed(name, profile, conditions, profiles, inheritedChargeContext) {
     if (!profile || profile.enabled !== true) return unresolved(null, [], null, "profile_disabled_or_missing");
-    if (name === "sprt") return translateSprt(profile, conditions);
-    if (name === "easy") return translateEasy(profile, conditions);
-    if (name === "supr") return translateSupr(profile, conditions);
-    return unresolved(null, [], null, "unsupported_profile");
+    let detail;
+    if (name === "sprt") detail = translateSprt(profile, conditions);
+    else if (name === "easy") detail = translateEasy(profile, conditions);
+    else if (name === "supr") detail = translateSupr(profile, conditions);
+    else detail = unresolved(null, [], null, "unsupported_profile");
+    detail = applySuperShortcutDirection(name, profiles, conditions, detail);
+    return applyChargeShortcutContext(name, profile, profiles, detail, inheritedChargeContext);
 }
 
-function translateProfile(name, profile, conditions) {
-    return translateProfileDetailed(name, profile, conditions).display;
+function translateProfile(name, profile, conditions, profiles) {
+    return translateProfileDetailed(name, profile, conditions, profiles).display;
 }
 
 function selectedProfiles(conditions, profiles) {
@@ -234,6 +340,75 @@ function selectedProfiles(conditions, profiles) {
     }
     if (functionId === 3) return ["easy", "sprt"];
     return ["supr", "sprt"];
+}
+
+function chargeCompatibilityConditionKey(conditions) {
+    return JSON.stringify([
+        Number(conditions && conditions.function_id || 0),
+        Number(conditions && conditions.focus_consume || 0),
+        Number(conditions && conditions.kind_level || 0),
+        Number(conditions && conditions.kind_sub || 0),
+        Number(conditions && conditions.category_flags || 0),
+        Number(conditions && conditions.action_status_sub || 0),
+        Number(conditions && conditions.turn_around || 0)
+    ]);
+}
+
+function chargeCommandIsReal(profile) {
+    const command = profile && profile.command;
+    const inputs = command && command.inputs;
+    return profile && profile.enabled === true && command
+        && Number(command.charge_bit || 0) !== 0 && Array.isArray(inputs)
+        && inputs.some(input => Number(input && input.type) === 1
+            || input && input.charge_release === true)
+        && /^j?\.?\[[1246789]\]/.test(String(profile.notation || ""));
+}
+
+function chargeCommandIsPlainCompatibility(profile) {
+    const command = profile && profile.command;
+    const inputs = command && command.inputs;
+    return profile && profile.enabled === true && command
+        && Number(command.charge_bit || 0) === 0 && Array.isArray(inputs)
+        && !inputs.some(input => Number(input && input.type) === 1
+            || input && input.charge_release === true);
+}
+
+function chargeCompatibilitySuppressions(action) {
+    const triggers = action && action.triggers || [];
+    const suppressions = [];
+    for (const trigger of triggers) {
+        const plain = trigger.profiles && trigger.profiles.sprt;
+        if (!chargeCommandIsPlainCompatibility(plain)) continue;
+        const plainNotation = String(plain.command.notation || "");
+        const retained = triggers.filter(candidate => {
+            const charge = candidate.profiles && candidate.profiles.sprt;
+            return chargeCommandIsReal(charge)
+                && Number(charge.ok_key_flags) === Number(plain.ok_key_flags)
+                && String(charge.command.notation || "").replace(/[\[\]]/g, "") === plainNotation
+                && chargeCompatibilityConditionKey(candidate.conditions)
+                    === chargeCompatibilityConditionKey(trigger.conditions);
+        });
+        if (!retained.length) continue;
+        suppressions.push({
+            suppressed_trigger_index: Number(trigger.trigger_index),
+            retained_trigger_indices: retained.map(item => Number(item.trigger_index))
+                .sort((left, right) => left - right),
+            profile: "sprt",
+            plain_command_no: Number(plain.command_no),
+            plain_command_index: Number(plain.command_index),
+            plain_notation: plainNotation,
+            charge_command_nos: [...new Set(retained.map(item =>
+                Number(item.profiles.sprt.command_no)))].sort((left, right) => left - right),
+            charge_command_indices: [...new Set(retained.map(item =>
+                Number(item.profiles.sprt.command_index)))].sort((left, right) => left - right),
+            charge_notations: [...new Set(retained.map(item =>
+                String(item.profiles.sprt.command.notation)))].sort(),
+            button_mask: Number(plain.ok_key_flags),
+            reason: CHARGE_COMPATIBILITY_REASON
+        });
+    }
+    return suppressions.sort((left, right) =>
+        left.suppressed_trigger_index - right.suppressed_trigger_index);
 }
 
 function normalizeDisplay(display) {
@@ -297,7 +472,29 @@ function routeProvenance(character, ownerActionId, trigger, profileName, profile
         community_semantic_evidence: false,
         community_semantic_reason: null,
         assist_combo_evidence: false,
-        assist_combo_reason: null
+        assist_combo_reason: null,
+        charge_context_evidence: detail.charge_context_evidence === true,
+        charge_context_profile: scalar(detail.charge_context_profile),
+        charge_context_direction: scalar(detail.charge_context_direction),
+        charge_context_manual_direction: scalar(detail.charge_context_manual_direction),
+        charge_context_direction_profile: scalar(detail.charge_context_direction_profile),
+        charge_context_command_no: scalar(detail.charge_context_command_no),
+        charge_context_command_index: scalar(detail.charge_context_command_index),
+        charge_context_notation: scalar(detail.charge_context_notation),
+        charge_context_source_action_id: detail.charge_context_evidence === true
+            ? Number(detail.charge_context_source_action_id == null
+                ? ownerActionId : detail.charge_context_source_action_id) : null,
+        charge_context_source_trigger_indices: detail.charge_context_evidence === true
+            ? ((detail.charge_context_source_trigger_indices || []).length
+                ? detail.charge_context_source_trigger_indices.map(Number)
+                : [Number(trigger.trigger_index)]) : [],
+        charge_context_relation: scalar(detail.charge_context_relation),
+        charge_context_reason: scalar(detail.charge_context_reason),
+        super_shortcut_direction_evidence: detail.super_shortcut_direction_evidence === true,
+        super_shortcut_direction_profile: scalar(detail.super_shortcut_direction_profile),
+        super_shortcut_direction: scalar(detail.super_shortcut_direction),
+        super_shortcut_direction_notation: scalar(detail.super_shortcut_direction_notation),
+        super_shortcut_direction_reason: scalar(detail.super_shortcut_direction_reason)
     };
 }
 
@@ -582,10 +779,100 @@ function runtimeCommonRoute(character, actionId, display) {
     return route;
 }
 
+function acStateChoiceRoute(character, relation, display, source, reason, confidence) {
+    const sourceId = Number(relation.source_action_id);
+    const targetId = Number(relation.target_action_id);
+    const route = {
+        ...routeProvenance(character, sourceId, { trigger_index: -1 }, "ac_state_choice", null,
+            resolved(display, display === "N" ? null : display, null, [], 0), source),
+        display,
+        display_action_id: targetId,
+        bcm_owner_action_id: null,
+        ac_relation_type: Number(relation.branch_type),
+        ac_path: [sourceId, targetId],
+        inherited_from_action_id: sourceId,
+        confidence,
+        direct_evidence: false,
+        inheritance_evidence: true,
+        inheritance_reason: reason,
+        state_choice_source_action_ids: [...relation.source_action_ids],
+        state_choice_direction_mask: relation.direction_mask == null
+            ? null : Number(relation.direction_mask),
+        state_choice_exit_action_id: relation.exit_action_id == null
+            ? null : Number(relation.exit_action_id)
+    };
+    route.trigger_index = -1;
+    route.command_no = -1;
+    route.command_index = -1;
+    route.raw_button_mask = 0;
+    route.raw_button_condition = 0;
+    route.raw_dc_exc_flags = 0;
+    route.raw_ng_key_flags = 0;
+    return route;
+}
+
 function normalizeClassicIdentity(value) {
     let text = String(value || "").replace(/強/g, "强").trim();
     text = text.replace(/^空中\s*/, "j.").replace(/\s+/g, "");
     return text;
+}
+
+function canonicalClassicIdentity(value) {
+    return normalizeClassicIdentity(value)
+        .replace(/PPP$/i, "LPMPHP")
+        .replace(/KKK$/i, "LKMKHK");
+}
+
+function exactOfficialButtonDisplay(entry) {
+    if (!entry || !["NORMAL", "AIR"].includes(String(entry.category || ""))) return null;
+    const compact = String(entry.modern_display || "").replace(/強/g, "强")
+        .replace(/[\s+]/g, "");
+    if (!/^[弱中强]{1,3}$/.test(compact)) return null;
+    const buttons = [...compact];
+    if (new Set(buttons).size !== buttons.length) return null;
+    return buttons.join(" + ");
+}
+
+function restrictDirectRoutesByExactOfficialSemantics(entries, officialSemantics, bcmCatalog) {
+    const applied = [];
+    for (const [idText, official] of Object.entries(officialSemantics || {})) {
+        if (!/^\d+$/.test(idText)) continue;
+        const id = Number(idText), entry = entries[idText];
+        const action = bcmCatalog.actions && bcmCatalog.actions[idText];
+        const expectedDisplay = exactOfficialButtonDisplay(official);
+        if (!entry || !action || !expectedDisplay) continue;
+        const officialClassic = canonicalClassicIdentity(official.classic_display);
+        const identityTriggers = (action.triggers || []).filter(trigger => {
+            const norm = trigger.profiles && trigger.profiles.norm;
+            return Number(trigger.conditions && trigger.conditions.function_id) === 1
+                && norm && norm.enabled === true
+                && canonicalClassicIdentity(norm.notation) === officialClassic;
+        });
+        if (identityTriggers.length !== 1) continue;
+        const direct = entry.routes.filter(route => route.source === "bcm_profile"
+            && route.direct_evidence === true && Number(route.owner_action_id) === id);
+        const winners = direct.filter(route => normalizeDisplay(route.display) === expectedDisplay);
+        if (winners.length !== 1 || direct.length <= 1) continue;
+        const removed = direct.filter(route => route !== winners[0]);
+        if (!removed.length) continue;
+        const removedSet = new Set(removed);
+        entry.routes = entry.routes.filter(route => !removedSet.has(route));
+        applied.push({
+            action_id: id,
+            official_classic_display: String(official.classic_display || ""),
+            official_modern_display: String(official.modern_display || ""),
+            matched_trigger_index: Number(identityTriggers[0].trigger_index),
+            retained_display: winners[0].display,
+            retained_trigger_index: Number(winners[0].trigger_index),
+            suppressed_routes: removed.map(route => ({
+                display: route.display,
+                trigger_index: Number(route.trigger_index),
+                profile: route.profile
+            })),
+            reason: OFFICIAL_DIRECT_ROUTE_REASON
+        });
+    }
+    return applied.sort((left, right) => left.action_id - right.action_id);
 }
 
 function atomicOfficialAssistedNormal(entry) {
@@ -1029,6 +1316,294 @@ function characterActionGraph(actionSource, actionSet) {
     return { objects, actions };
 }
 
+function actionBranches(root, objects) {
+    const keys = referencedObject(root, "Keys", objects);
+    const pending = keys ? [keys.object_id] : [];
+    const visited = new Set(), branches = [];
+    while (pending.length) {
+        const objectId = pending.pop();
+        if (visited.has(objectId)) continue;
+        visited.add(objectId);
+        const object = objects.get(objectId);
+        if (!object) continue;
+        if (object.object_type === "CharacterAsset.BranchKey") {
+            const fields = fieldsOf(object), branch = {};
+            for (const name of ["Action", "Type", "Attr", "ActionFrame", "Param00", "Param01",
+                "Param02", "Param03", "Param04", "Param05", "TriggerID"]) {
+                branch[name] = numericField(fields, name);
+            }
+            branches.push(branch);
+        }
+        for (const field of object.fields || []) {
+            if (field.value && field.value.kind === "ref") pending.push(field.value.object_id);
+        }
+        for (const item of object.items || []) {
+            if (item.value && item.value.kind === "ref") pending.push(item.value.object_id);
+        }
+    }
+    return branches;
+}
+
+function exactStateBranch(branch, type, param00, param01) {
+    return Number(branch.Type) === type && Number(branch.Attr) === 0
+        && Number(branch.ActionFrame) === 0 && Number(branch.Param00) === param00
+        && (param01 === undefined || Number(branch.Param01) === param01)
+        && Number(branch.Param02) === 0 && Number(branch.Param03) === 0
+        && Number(branch.Param04) === 0 && Number(branch.Param05) === 0
+        && Number(branch.TriggerID) === -1;
+}
+
+function strictStateChoiceEvidence(actionSource, bcmCatalog, actionSet) {
+    const { objects, actions } = characterActionGraph(actionSource, actionSet);
+    const branchesByAction = new Map([...actions].map(([id, root]) =>
+        [id, actionBranches(root, objects)]));
+    const directionOfMask = new Map([[1, "8"], [2, "2"], [4, "4"], [8, "6"]]);
+    const directionCandidates = [], neutralCandidates = [];
+    const stateSources = new Set();
+    for (const [sourceId, branches] of branchesByAction) {
+        const directions = branches.filter(branch => exactStateBranch(branch, 20, 1)
+            && directionOfMask.has(Number(branch.Param01)));
+        if (new Set(directions.map(branch => Number(branch.Param01))).size < 2) continue;
+        stateSources.add(sourceId);
+        for (const branch of directions) directionCandidates.push({
+            source_action_id: sourceId,
+            target_action_id: Number(branch.Action),
+            direction_mask: Number(branch.Param01),
+            direction: directionOfMask.get(Number(branch.Param01)),
+            branch_type: 20,
+            param00: 1,
+            param01: Number(branch.Param01),
+            param02: 0,
+            param03: 0,
+            reason: AC_STATE_DIRECTION_REASON
+        });
+        const neutralTargets = [...new Set(branches.filter(branch =>
+            exactStateBranch(branch, 1, 0, 0)).map(branch => Number(branch.Action)))];
+        if (neutralTargets.length === 1) neutralCandidates.push({
+            source_action_id: sourceId,
+            target_action_id: neutralTargets[0],
+            branch_type: 1,
+            reason: AC_STATE_NEUTRAL_REASON
+        });
+    }
+
+    const groupedDirections = new Map();
+    for (const relation of directionCandidates) {
+        const key = String(relation.target_action_id);
+        if (!groupedDirections.has(key)) groupedDirections.set(key, []);
+        groupedDirections.get(key).push(relation);
+    }
+    const directions = [];
+    for (const relations of groupedDirections.values()) {
+        const directionsFound = [...new Set(relations.map(item => item.direction))];
+        const targetId = relations[0].target_action_id;
+        if (directionsFound.length !== 1 || bcmCatalog.actions && bcmCatalog.actions[String(targetId)]) continue;
+        directions.push({
+            ...relations[0],
+            source_action_ids: [...new Set(relations.map(item => item.source_action_id))]
+                .sort((left, right) => left - right)
+        });
+    }
+
+    const neutrals = [];
+    for (const relation of neutralCandidates) {
+        if (bcmCatalog.actions && bcmCatalog.actions[String(relation.target_action_id)]) continue;
+        if (!neutrals.some(item => item.target_action_id === relation.target_action_id)) {
+            neutrals.push({ ...relation, source_action_ids: [relation.source_action_id] });
+        } else {
+            const existing = neutrals.find(item => item.target_action_id === relation.target_action_id);
+            existing.source_action_ids.push(relation.source_action_id);
+            existing.source_action_ids.sort((left, right) => left - right);
+        }
+    }
+
+    const directionBySource = new Map(directions.flatMap(relation =>
+        relation.source_action_ids.map(sourceId => [sourceId, relation])));
+    const releases = [];
+    for (const direction of directions) {
+        const targetBranches = branchesByAction.get(direction.target_action_id) || [];
+        const releaseTargets = [...new Set(targetBranches.filter(branch =>
+            exactStateBranch(branch, 20, 0, direction.direction_mask))
+            .map(branch => Number(branch.Action)))];
+        if (releaseTargets.length !== 1) continue;
+        const releaseTarget = releaseTargets[0];
+        if (bcmCatalog.actions && bcmCatalog.actions[String(releaseTarget)]) continue;
+        if (directions.some(item => item.target_action_id === releaseTarget)
+            || neutrals.some(item => item.target_action_id === releaseTarget)) continue;
+        releases.push({
+            source_action_id: direction.target_action_id,
+            source_action_ids: [direction.target_action_id],
+            target_action_id: releaseTarget,
+            direction_mask: direction.direction_mask,
+            direction: direction.direction,
+            branch_type: 20,
+            param00: 0,
+            param01: direction.direction_mask,
+            param02: 0,
+            param03: 0,
+            reason: AC_STATE_RELEASE_REASON
+        });
+    }
+
+    const type13Grouped = new Map();
+    for (const [sourceId, branches] of branchesByAction) {
+        if (!branches.some(branch => exactStateBranch(branch, 20, 1, 2))) continue;
+        for (const branch of branches.filter(item => exactStateBranch(item, 13, 0, 0))) {
+            const targetId = Number(branch.Action), targetBranches = branchesByAction.get(targetId) || [];
+            const exits = targetBranches.filter(item => Number(item.Type) === 5 && Number(item.Attr) === 288
+                && Number(item.ActionFrame) === 0 && Number(item.Param00) === 1
+                && Number(item.Param01) === 0 && Number(item.Param02) === 0
+                && Number(item.Param03) === 0 && Number(item.Param04) === 0
+                && Number(item.Param05) === 0 && Number(item.TriggerID) === -1);
+            if (exits.length !== 1 || bcmCatalog.actions && bcmCatalog.actions[String(targetId)]) continue;
+            if (!type13Grouped.has(targetId)) type13Grouped.set(targetId, {
+                source_action_id: sourceId,
+                source_action_ids: [],
+                target_action_id: targetId,
+                exit_action_id: Number(exits[0].Action),
+                branch_type: 13,
+                reason: AC_TYPE13_NEUTRAL_REASON
+            });
+            type13Grouped.get(targetId).source_action_ids.push(sourceId);
+        }
+    }
+    const type13Neutrals = [...type13Grouped.values()].map(relation => ({ ...relation,
+        source_action_ids: [...new Set(relation.source_action_ids)].sort((left, right) => left - right)
+    })).sort((left, right) => left.target_action_id - right.target_action_id);
+
+    directions.sort((left, right) => left.target_action_id - right.target_action_id);
+    neutrals.sort((left, right) => left.target_action_id - right.target_action_id);
+    releases.sort((left, right) => left.target_action_id - right.target_action_id);
+    return { directions, neutrals, type13Neutrals, releases };
+}
+
+function strictBcmZeroInputTransitions(bcmCatalog, runtime, actionSet) {
+    const output = [];
+    for (const [id, action] of Object.entries(bcmCatalog.actions || {})) {
+        const rule = runtime.validation && runtime.validation.rules && runtime.validation.rules[id];
+        if (!actionSet.has(id) || !rule || rule.display !== "Normal"
+            || rule.physical_button_required !== false || !(action.triggers || []).length) continue;
+        const valid = action.triggers.every(trigger => {
+            if (Number(trigger.conditions && trigger.conditions.function_id) !== 2) return false;
+            return ["norm", "easy", "sprt", "supr"].every(profileName => {
+                const profile = trigger.profiles && trigger.profiles[profileName];
+                return !profile || profile.enabled !== true
+                    || (String(profile.notation || "") === "Normal"
+                        && Number(profile.ok_key_flags || 0) === 0
+                        && Number(profile.ok_key_cond_flags || 0) === 0
+                        && !profile.command);
+            });
+        });
+        if (!valid) continue;
+        output.push({
+            action_id: Number(id),
+            trigger_indices: action.triggers.map(trigger => Number(trigger.trigger_index))
+                .sort((left, right) => left - right),
+            function_id: 2,
+            reason: BCM_ZERO_INPUT_TRANSITION_REASON
+        });
+    }
+    return output.sort((left, right) => left.action_id - right.action_id);
+}
+
+function chargeSelectorSignature(profile) {
+    if (!isChargeStateSelector(profile)) return null;
+    const command = profile.command;
+    return JSON.stringify({
+        ok_key_flags: Number(profile.ok_key_flags || 0),
+        ok_key_cond_flags: Number(profile.ok_key_cond_flags || 0),
+        dc_exc_flags: Number(profile.dc_exc_flags || 0),
+        ng_key_flags: Number(profile.ng_key_flags || 0),
+        command_no: Number(profile.command_no),
+        command_index: Number(profile.command_index),
+        command_notation: String(command.notation || ""),
+        charge_bit: Number(command.charge_bit || 0),
+        inputs: (command.inputs || []).map(input => ({
+            direction: String(input && input.direction || ""),
+            raw_mask: Number(input && input.raw_mask || 0),
+            type: Number(input && input.type || 0),
+            charge_id: Number(input && input.charge_id || 0),
+            charge_release: input && input.charge_release === true
+        }))
+    });
+}
+
+function acChargeContextEvidence(actionSource, bcmCatalog, actionSet) {
+    const { objects, actions } = characterActionGraph(actionSource, actionSet);
+    const groups = new Map();
+    for (const [actionId, root] of actions) {
+        const fingerprint = actionFullStructure(root, objects);
+        if (!fingerprint) continue;
+        if (!groups.has(fingerprint)) groups.set(fingerprint, []);
+        groups.get(fingerprint).push(actionId);
+    }
+    const contexts = new Map(), relations = [];
+    for (const [targetIdText, targetAction] of Object.entries(bcmCatalog.actions || {})) {
+        const targetId = Number(targetIdText);
+        if (!actionSet.has(String(targetId))) continue;
+        const fingerprint = actionFullStructure(actions.get(targetId), objects);
+        const peers = fingerprint && groups.get(fingerprint) || [];
+        if (peers.length < 2) continue;
+        for (const targetTrigger of targetAction.triggers || []) {
+            if (chargeContextFromProfiles(targetTrigger.profiles)) continue;
+            for (const profileName of ["easy", "supr"]) {
+                const targetProfile = targetTrigger.profiles && targetTrigger.profiles[profileName];
+                const selector = chargeSelectorSignature(targetProfile);
+                if (!selector) continue;
+                const candidates = [];
+                for (const sourceId of peers) {
+                    if (sourceId === targetId) continue;
+                    const sourceAction = bcmCatalog.actions && bcmCatalog.actions[String(sourceId)];
+                    for (const sourceTrigger of sourceAction && sourceAction.triggers || []) {
+                        if (triggerConditionSignature(sourceTrigger.conditions)
+                            !== triggerConditionSignature(targetTrigger.conditions)) continue;
+                        const sourceProfile = sourceTrigger.profiles && sourceTrigger.profiles[profileName];
+                        if (chargeSelectorSignature(sourceProfile) !== selector) continue;
+                        const context = chargeContextFromProfiles(sourceTrigger.profiles);
+                        if (context) candidates.push({ sourceId, sourceTrigger, context });
+                    }
+                }
+                const grouped = new Map();
+                for (const candidate of candidates) {
+                    const key = `${candidate.sourceId}:${candidate.context.profile}:${candidate.context.direction}`;
+                    if (!grouped.has(key)) grouped.set(key, { ...candidate,
+                        triggerIndices: [] });
+                    grouped.get(key).triggerIndices.push(Number(candidate.sourceTrigger.trigger_index));
+                }
+                if (grouped.size !== 1) continue;
+                const candidate = [...grouped.values()][0];
+                candidate.triggerIndices.sort((left, right) => left - right);
+                const relation = {
+                    source_action_id: Number(candidate.sourceId),
+                    target_action_id: targetId,
+                    source_trigger_indices: candidate.triggerIndices,
+                    target_trigger_index: Number(targetTrigger.trigger_index),
+                    profile: profileName,
+                    direction: candidate.context.direction,
+                    source_charge_profile: candidate.context.profile,
+                    source_charge_command_no: candidate.context.command_no,
+                    source_charge_command_index: candidate.context.command_index,
+                    source_charge_notation: candidate.context.notation,
+                    fingerprint_fields: [...AC_FULL_STRUCTURE_FIELDS],
+                    reason: AC_CHARGE_CONTEXT_REASON
+                };
+                contexts.set(`${targetId}:${targetTrigger.trigger_index}:${profileName}`, {
+                    ...candidate.context,
+                    source_action_id: Number(candidate.sourceId),
+                    source_trigger_indices: candidate.triggerIndices,
+                    relation: "ac_full_structure_peer",
+                    reason: AC_CHARGE_CONTEXT_REASON
+                });
+                relations.push(relation);
+            }
+        }
+    }
+    relations.sort((left, right) => left.target_action_id - right.target_action_id
+        || left.target_trigger_index - right.target_trigger_index
+        || left.profile.localeCompare(right.profile));
+    return { contexts, relations };
+}
+
 function referencedObject(root, fieldName, objects) {
     const field = root && (root.fields || []).find(item => item.name === fieldName);
     return field && field.value && field.value.kind === "ref"
@@ -1449,6 +2024,58 @@ function assertRoute(route) {
     if (evidenceCount !== 1) {
         throw new Error(`Modern route evidence 必须明确 direct、inherited、rebind、runtime-common、official-semantic 或 community-semantic 六选一: ${route.display}`);
     }
+    if (route.charge_context_evidence === true) {
+        const direction = String(route.charge_context_direction || "");
+        const manualDirection = String(route.charge_context_manual_direction || "");
+        const sourceActionId = Number(route.charge_context_source_action_id);
+        const sourceTriggers = route.charge_context_source_trigger_indices;
+        const localContext = route.charge_context_relation === "same_trigger_bcm";
+        const inheritedContext = route.charge_context_relation === "ac_full_structure_peer";
+        if (!["sprt", "norm"].includes(route.charge_context_profile)
+            || !["1", "2", "4", "6", "7", "8", "9"].includes(direction)
+            || !["1", "2", "4", "6", "7", "8", "9"].includes(manualDirection)
+            || !["sprt", "norm", "supr"].includes(route.charge_context_direction_profile)
+            || !Number.isFinite(Number(route.charge_context_command_no))
+            || Number(route.charge_context_command_no) < 0
+            || !Number.isFinite(Number(route.charge_context_command_index))
+            || Number(route.charge_context_command_index) < 0
+            || typeof route.charge_context_notation !== "string"
+            || !route.charge_context_notation.includes(`[${manualDirection}]`)
+            || !Number.isFinite(sourceActionId)
+            || !Array.isArray(sourceTriggers) || sourceTriggers.length === 0
+            || sourceTriggers.some(value => !Number.isFinite(Number(value)))
+            || (localContext && (sourceActionId !== Number(route.owner_action_id)
+                || route.charge_context_reason !== CHARGE_CONTEXT_REASON))
+            || (inheritedContext && (sourceActionId === Number(route.owner_action_id)
+                || route.charge_context_reason !== AC_CHARGE_CONTEXT_REASON))
+            || (!localContext && !inheritedContext)
+            || !String(route.display).includes(`[${direction}]`)) {
+            throw new Error(`Modern charge-context route 证据非法: ${route.display}`);
+        }
+    } else if ([route.charge_context_profile, route.charge_context_direction,
+        route.charge_context_manual_direction, route.charge_context_direction_profile,
+        route.charge_context_command_no, route.charge_context_command_index,
+        route.charge_context_notation, route.charge_context_source_action_id,
+        route.charge_context_relation, route.charge_context_reason]
+        .some(value => value !== null && value !== undefined)) {
+        throw new Error(`非 charge-context route 不得携带蓄力上下文: ${route.display}`);
+    } else if (Array.isArray(route.charge_context_source_trigger_indices)
+        && route.charge_context_source_trigger_indices.length !== 0) {
+        throw new Error(`非 charge-context route 不得携带蓄力 trigger: ${route.display}`);
+    }
+    if (route.super_shortcut_direction_evidence === true) {
+        if (route.super_shortcut_direction_profile !== "supr"
+            || !["1", "2", "4", "6", "7", "8", "9"].includes(
+                String(route.super_shortcut_direction || ""))
+            || typeof route.super_shortcut_direction_notation !== "string"
+            || route.super_shortcut_direction_reason !== SUPER_SHORTCUT_DIRECTION_REASON) {
+            throw new Error(`Modern super shortcut direction 证据非法: ${route.display}`);
+        }
+    } else if ([route.super_shortcut_direction_profile, route.super_shortcut_direction,
+        route.super_shortcut_direction_notation, route.super_shortcut_direction_reason]
+        .some(value => value !== null && value !== undefined)) {
+        throw new Error(`非 super shortcut route 不得携带方向证据: ${route.display}`);
+    }
     if (route.rebind_evidence === true) {
         for (const field of REQUIRED_REBIND_FIELDS) {
             if (!Object.prototype.hasOwnProperty.call(route, field)) {
@@ -1610,6 +2237,31 @@ function assertRoute(route) {
             throw new Error(`Modern Type20 action-phase route 证据非法: ${route.display}`);
         }
     }
+    if (["ac_type20_state_direction", "ac_type1_state_neutral",
+        "ac_type13_neutral_continuation"].includes(route.source)) {
+        const directionRoute = route.source === "ac_type20_state_direction";
+        const type1Route = route.source === "ac_type1_state_neutral";
+        const expectedType = directionRoute ? 20 : (type1Route ? 1 : 13);
+        const expectedReason = directionRoute ? AC_STATE_DIRECTION_REASON
+            : (type1Route ? AC_STATE_NEUTRAL_REASON : AC_TYPE13_NEUTRAL_REASON);
+        const expectedConfidence = directionRoute ? "verified_ac_state_direction"
+            : (type1Route ? "verified_ac_state_neutral" : "verified_ac_type13_neutral");
+        if (route.inheritance_evidence !== true || route.inheritance_reason !== expectedReason
+            || route.confidence !== expectedConfidence
+            || Number(route.ac_relation_type) !== expectedType || route.ac_path.length !== 2
+            || Number(route.ac_path[0]) !== Number(route.inherited_from_action_id)
+            || Number(route.ac_path[1]) !== Number(route.display_action_id)
+            || !Array.isArray(route.state_choice_source_action_ids)
+            || route.state_choice_source_action_ids.length === 0
+            || !route.state_choice_source_action_ids.includes(Number(route.inherited_from_action_id))
+            || (directionRoute && (![1, 2, 4, 8].includes(Number(route.state_choice_direction_mask))
+                || !["2", "4", "6", "8"].includes(route.display)))
+            || (!directionRoute && route.display !== "N")
+            || (route.source === "ac_type13_neutral_continuation"
+                && !Number.isFinite(Number(route.state_choice_exit_action_id)))) {
+            throw new Error(`Modern AC state-choice route 证据非法: ${route.display}`);
+        }
+    }
     if (route.source === "bcm_target_combo_repeat") {
         if (route.inheritance_evidence !== true || route.inheritance_reason !== TARGET_COMBO_REPEAT_REASON
             || route.confidence !== "verified_bcm_target_combo_repeat"
@@ -1643,12 +2295,23 @@ function buildModernDisplay(actionSource, bcmCatalog, runtime, supplement, optio
     const entries = {};
     const unresolvedCandidates = [];
     const runtimeCommonActions = [];
+    const suppressedChargeCompatibilityTriggers = [];
+    const acChargePlan = acChargeContextEvidence(actionSource, bcmCatalog, actionSet);
+    const stateChoicePlan = strictStateChoiceEvidence(actionSource, bcmCatalog, actionSet);
+    const zeroInputTransitions = strictBcmZeroInputTransitions(bcmCatalog, runtime, actionSet);
 
     for (const [id, action] of Object.entries(bcmCatalog.actions || {})) {
         if (!actionSet.has(id)) continue;
         const routes = [], seen = new Set();
         const rule = runtime.validation && runtime.validation.rules && runtime.validation.rules[id] || null;
-        const triggers = action.triggers || [];
+        const chargeSuppressions = chargeCompatibilitySuppressions(action);
+        const suppressedTriggerIndices = new Set(chargeSuppressions.map(item =>
+            item.suppressed_trigger_index));
+        for (const relation of chargeSuppressions) {
+            suppressedChargeCompatibilityTriggers.push({ action_id: Number(id), ...relation });
+        }
+        const triggers = (action.triggers || []).filter(trigger =>
+            !suppressedTriggerIndices.has(Number(trigger.trigger_index)));
         const commonRoutes = triggers.map(trigger => ({ trigger, common: commonSemantic(trigger, rule) }))
             .filter(item => item.common);
         if (commonRoutes.length) {
@@ -1662,7 +2325,11 @@ function buildModernDisplay(actionSource, bcmCatalog, runtime, supplement, optio
             for (const trigger of triggers) {
                 for (const profileName of selectedProfiles(trigger.conditions, trigger.profiles)) {
                     const profile = trigger.profiles && trigger.profiles[profileName];
-                    const detail = translateProfileDetailed(profileName, profile, trigger.conditions);
+                    const inheritedChargeContext = acChargePlan.contexts.get(
+                        `${Number(id)}:${Number(trigger.trigger_index)}:${profileName}`);
+                    const detail = translateProfileDetailed(
+                        profileName, profile, trigger.conditions, trigger.profiles,
+                        inheritedChargeContext);
                     const provenance = routeProvenance(
                         character, id, trigger, profileName, profile, detail, "bcm_profile");
                     if (!detail.display) {
@@ -1770,6 +2437,9 @@ function buildModernDisplay(actionSource, bcmCatalog, runtime, supplement, optio
         }
     }
 
+    const officialDirectRouteRestrictions = restrictDirectRoutesByExactOfficialSemantics(
+        entries, options.officialSemantics, bcmCatalog);
+
     const pairedSprtSpRelations = promotePairedSprtSpRoutes(entries, bcmCatalog);
 
     // supr can be a player shortcut or an internal command selector. Resolve
@@ -1777,6 +2447,42 @@ function buildModernDisplay(actionSource, bcmCatalog, runtime, supplement, optio
     // or the unique Drive-consuming owner in the same manual command family.
     // State/resource variants without such evidence intentionally remain.
     const shadowedSuprRoutes = suppressShadowedSuprRoutes(entries, bcmCatalog);
+
+    const appliedStateDirectionRelations = [];
+    for (const relation of stateChoicePlan.directions) {
+        const targetId = String(relation.target_action_id);
+        if (!actionSet.has(targetId) || entries[targetId]) continue;
+        const route = acStateChoiceRoute(character, relation, relation.direction,
+            "ac_type20_state_direction", AC_STATE_DIRECTION_REASON,
+            "verified_ac_state_direction");
+        assertRoute(route);
+        entries[targetId] = { routes: [route], ownership: "ac_state_direction" };
+        appliedStateDirectionRelations.push({ ...relation });
+    }
+
+    const appliedStateNeutralRelations = [];
+    for (const relation of stateChoicePlan.neutrals) {
+        const targetId = String(relation.target_action_id);
+        if (!actionSet.has(targetId) || entries[targetId]) continue;
+        const route = acStateChoiceRoute(character, relation, "N",
+            "ac_type1_state_neutral", AC_STATE_NEUTRAL_REASON,
+            "verified_ac_state_neutral");
+        assertRoute(route);
+        entries[targetId] = { routes: [route], ownership: "ac_state_neutral" };
+        appliedStateNeutralRelations.push({ ...relation });
+    }
+
+    const appliedType13NeutralRelations = [];
+    for (const relation of stateChoicePlan.type13Neutrals) {
+        const targetId = String(relation.target_action_id);
+        if (!actionSet.has(targetId) || entries[targetId]) continue;
+        const route = acStateChoiceRoute(character, relation, "N",
+            "ac_type13_neutral_continuation", AC_TYPE13_NEUTRAL_REASON,
+            "verified_ac_type13_neutral");
+        assertRoute(route);
+        entries[targetId] = { routes: [route], ownership: "ac_type13_neutral" };
+        appliedType13NeutralRelations.push({ ...relation });
+    }
 
     const type63Relations = (runtime.evidence && runtime.evidence.ac_derived_commands || [])
         .filter(relation => Number(relation.branch_type) === 63)
@@ -1968,6 +2674,35 @@ function buildModernDisplay(actionSource, bcmCatalog, runtime, supplement, optio
         suppressedAutomaticHoldTransitionCount += 1;
     }
 
+    const suppressedInternalTransitions = [];
+    for (const relation of stateChoicePlan.releases) {
+        const targetId = String(relation.target_action_id);
+        if (!actionSet.has(targetId) || entries[targetId]) continue;
+        const evidence = { kind: "ac_state_direction_release", ...relation };
+        entries[targetId] = {
+            routes: [],
+            ownership: "internal_state_transition",
+            suppress_display: true,
+            transition_evidence: evidence
+        };
+        suppressedInternalTransitions.push(evidence);
+    }
+    for (const relation of zeroInputTransitions) {
+        const targetId = String(relation.action_id);
+        if (!actionSet.has(targetId) || entries[targetId]) continue;
+        const evidence = { kind: "bcm_zero_input_transition",
+            target_action_id: relation.action_id, ...relation };
+        entries[targetId] = {
+            routes: [],
+            ownership: "internal_state_transition",
+            suppress_display: true,
+            transition_evidence: evidence
+        };
+        suppressedInternalTransitions.push(evidence);
+    }
+    suppressedInternalTransitions.sort((left, right) =>
+        Number(left.target_action_id) - Number(right.target_action_id));
+
     const type20PhaseCandidates = strictType20ActionPhaseRelations(actionSource, actionSet);
     const appliedType20PhaseRelations = [];
     let type20PhaseRouteCount = 0;
@@ -2061,10 +2796,25 @@ function buildModernDisplay(actionSource, bcmCatalog, runtime, supplement, optio
     const communitySemanticRouteCount = allRoutes.filter(route => route.community_semantic_evidence === true).length;
     const type20DirectionalRouteCount = allRoutes.filter(route =>
         route.source === "ac_type20_directional_air_attack").length;
+    const chargeContextRouteCount = allRoutes.filter(route =>
+        route.charge_context_evidence === true).length;
+    const superShortcutDirectionRouteCount = allRoutes.filter(route =>
+        route.super_shortcut_direction_evidence === true).length;
+    const appliedAcChargeKeys = new Set(allRoutes.filter(route =>
+        route.charge_context_relation === "ac_full_structure_peer")
+        .map(route => `${Number(route.owner_action_id)}:${Number(route.trigger_index)}:${route.profile}`));
+    const appliedAcChargeRelations = acChargePlan.relations.filter(relation =>
+        appliedAcChargeKeys.has(`${relation.target_action_id}:${relation.target_trigger_index}:${relation.profile}`));
     const targetComboRepeatRouteCount = allRoutes.filter(route =>
         route.source === "bcm_target_combo_repeat").length;
     const assistComboRouteCount = allRoutes.filter(route =>
         route.source === "bcm_assist_combo_recipe").length;
+    const stateDirectionRouteCount = allRoutes.filter(route =>
+        route.source === "ac_type20_state_direction").length;
+    const stateNeutralRouteCount = allRoutes.filter(route =>
+        route.source === "ac_type1_state_neutral").length;
+    const type13NeutralRouteCount = allRoutes.filter(route =>
+        route.source === "ac_type13_neutral_continuation").length;
     const relationCounts = {};
     for (const route of allRoutes) if (route.ac_relation_type !== null) {
         const key = String(route.ac_relation_type);
@@ -2103,6 +2853,16 @@ function buildModernDisplay(actionSource, bcmCatalog, runtime, supplement, optio
             type20_directional_route_count: type20DirectionalRouteCount,
             type20_hold_route_count: type20HoldRouteCount,
             type20_action_phase_route_count: type20PhaseRouteCount,
+            charge_context_route_count: chargeContextRouteCount,
+            super_shortcut_direction_route_count: superShortcutDirectionRouteCount,
+            ac_charge_context_relation_count: appliedAcChargeRelations.length,
+            ac_charge_context_relations: appliedAcChargeRelations,
+            charge_compatibility_trigger_suppression_count:
+                suppressedChargeCompatibilityTriggers.length,
+            charge_compatibility_trigger_suppressions:
+                suppressedChargeCompatibilityTriggers.sort((left, right) =>
+                    left.action_id - right.action_id
+                    || left.suppressed_trigger_index - right.suppressed_trigger_index),
             target_combo_repeat_route_count: targetComboRepeatRouteCount,
             structural_twin_route_count: structuralTwinRouteCount,
             assist_combo_route_count: assistComboRouteCount,
@@ -2111,6 +2871,16 @@ function buildModernDisplay(actionSource, bcmCatalog, runtime, supplement, optio
             paired_sprt_sp_relations: pairedSprtSpRelations,
             shadowed_supr_route_count: shadowedSuprRoutes.length,
             shadowed_supr_routes: shadowedSuprRoutes,
+            official_direct_route_restriction_count: officialDirectRouteRestrictions.length,
+            official_direct_route_restrictions: officialDirectRouteRestrictions,
+            ac_state_direction_route_count: stateDirectionRouteCount,
+            ac_state_direction_relations: appliedStateDirectionRelations,
+            ac_state_neutral_route_count: stateNeutralRouteCount,
+            ac_state_neutral_relations: appliedStateNeutralRelations,
+            ac_type13_neutral_route_count: type13NeutralRouteCount,
+            ac_type13_neutral_relations: appliedType13NeutralRelations,
+            internal_transition_suppression_count: suppressedInternalTransitions.length,
+            suppressed_internal_transitions: suppressedInternalTransitions,
             official_semantic_source_sha256: options.officialSemanticsSha256 || null,
             ac_relation_route_counts: relationCounts,
             ac_command_entry_rebinds: plannedRebinds.map(plan => ({
@@ -2175,6 +2945,11 @@ function buildModernDisplay(actionSource, bcmCatalog, runtime, supplement, optio
                 type20_hold_route_count: type20HoldRouteCount,
                 type20_action_phase_relation_count: appliedType20PhaseRelations.length,
                 type20_action_phase_route_count: type20PhaseRouteCount,
+                charge_context_route_count: chargeContextRouteCount,
+                super_shortcut_direction_route_count: superShortcutDirectionRouteCount,
+                ac_charge_context_relation_count: appliedAcChargeRelations.length,
+                charge_compatibility_trigger_suppression_count:
+                    suppressedChargeCompatibilityTriggers.length,
                 target_combo_repeat_relation_count: appliedTargetComboRelations.length,
                 target_combo_repeat_route_count: targetComboRepeatRouteCount,
                 structural_twin_relation_count: appliedStructuralTwins.length,
@@ -2187,6 +2962,14 @@ function buildModernDisplay(actionSource, bcmCatalog, runtime, supplement, optio
                 paired_sprt_sp_relation_count: pairedSprtSpRelations.length,
                 paired_sprt_sp_route_count: pairedSprtSpRelations.length,
                 shadowed_supr_route_count: shadowedSuprRoutes.length,
+                official_direct_route_restriction_count: officialDirectRouteRestrictions.length,
+                ac_state_direction_relation_count: appliedStateDirectionRelations.length,
+                ac_state_direction_route_count: stateDirectionRouteCount,
+                ac_state_neutral_relation_count: appliedStateNeutralRelations.length,
+                ac_state_neutral_route_count: stateNeutralRouteCount,
+                ac_type13_neutral_relation_count: appliedType13NeutralRelations.length,
+                ac_type13_neutral_route_count: type13NeutralRouteCount,
+                internal_transition_suppression_count: suppressedInternalTransitions.length,
                 ac_automatic_transition_route_count: 0,
                 replaces_profile_route_count: 0
             },
