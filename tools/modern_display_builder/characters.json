@@ -1,121 +1,151 @@
 {
   "AKI": {
+    "fighter_id": 13,
     "official_name": "aki",
     "url": "https://www.streetfighter.com/6/zh-hant/character/aki/frame"
   },
   "Akuma": {
+    "fighter_id": 22,
     "official_name": "gouki_akuma",
     "url": "https://www.streetfighter.com/6/zh-hant/character/gouki_akuma/frame"
   },
   "Alex": {
+    "fighter_id": 31,
     "official_name": "alex",
     "url": "https://www.streetfighter.com/6/zh-hant/character/alex/frame"
   },
   "Blanka": {
+    "fighter_id": 15,
     "official_name": "blanka",
     "url": "https://www.streetfighter.com/6/zh-hant/character/blanka/frame"
   },
   "CViper": {
+    "fighter_id": 30,
     "official_name": "cviper",
     "url": "https://www.streetfighter.com/6/zh-hant/character/cviper/frame"
   },
   "Cammy": {
+    "fighter_id": 9,
     "official_name": "cammy",
     "url": "https://www.streetfighter.com/6/zh-hant/character/cammy/frame"
   },
   "ChunLi": {
+    "fighter_id": 4,
     "official_name": "chunli",
     "url": "https://www.streetfighter.com/6/zh-hant/character/chunli/frame"
   },
   "DeeJay": {
+    "fighter_id": 11,
     "official_name": "deejay",
     "url": "https://www.streetfighter.com/6/zh-hant/character/deejay/frame"
   },
   "Dhalsim": {
+    "fighter_id": 8,
     "official_name": "dhalsim",
     "url": "https://www.streetfighter.com/6/zh-hant/character/dhalsim/frame"
   },
   "EHonda": {
+    "fighter_id": 20,
     "official_name": "ehonda",
     "url": "https://www.streetfighter.com/6/zh-hant/character/ehonda/frame"
   },
   "Ed": {
+    "fighter_id": 19,
     "official_name": "ed",
     "url": "https://www.streetfighter.com/6/zh-hant/character/ed/frame"
   },
   "Elena": {
+    "fighter_id": 29,
     "official_name": "elena",
     "url": "https://www.streetfighter.com/6/zh-hant/character/elena/frame"
   },
   "Guile": {
+    "fighter_id": 18,
     "official_name": "guile",
     "url": "https://www.streetfighter.com/6/zh-hant/character/guile/frame"
   },
   "Ingrid": {
+    "fighter_id": 32,
     "official_name": "ingrid",
     "url": "https://www.streetfighter.com/6/zh-hant/character/ingrid/frame"
   },
   "JP": {
+    "fighter_id": 7,
     "official_name": "jp",
     "url": "https://www.streetfighter.com/6/zh-hant/character/jp/frame"
   },
   "Jamie": {
+    "fighter_id": 21,
     "official_name": "jamie",
     "url": "https://www.streetfighter.com/6/zh-hant/character/jamie/frame"
   },
   "Juri": {
+    "fighter_id": 16,
     "official_name": "juri",
     "url": "https://www.streetfighter.com/6/zh-hant/character/juri/frame"
   },
   "Ken": {
+    "fighter_id": 10,
     "official_name": "ken",
     "url": "https://www.streetfighter.com/6/zh-hant/character/ken/frame"
   },
   "Kimberly": {
+    "fighter_id": 3,
     "official_name": "kimberly",
     "url": "https://www.streetfighter.com/6/zh-hant/character/kimberly/frame"
   },
   "Lily": {
+    "fighter_id": 12,
     "official_name": "lily",
     "url": "https://www.streetfighter.com/6/zh-hant/character/lily/frame"
   },
   "Luke": {
+    "fighter_id": 2,
     "official_name": "luke",
     "url": "https://www.streetfighter.com/6/zh-hant/character/luke/frame"
   },
   "MBison": {
+    "fighter_id": 26,
     "official_name": "vega_mbison",
     "url": "https://www.streetfighter.com/6/zh-hant/character/vega_mbison/frame"
   },
   "Mai": {
+    "fighter_id": 28,
     "official_name": "mai",
     "url": "https://www.streetfighter.com/6/zh-hant/character/mai/frame"
   },
   "Manon": {
+    "fighter_id": 5,
     "official_name": "manon",
     "url": "https://www.streetfighter.com/6/zh-hant/character/manon/frame"
   },
   "Marisa": {
+    "fighter_id": 17,
     "official_name": "marisa",
     "url": "https://www.streetfighter.com/6/zh-hant/character/marisa/frame"
   },
   "Rashid": {
+    "fighter_id": 14,
     "official_name": "rashid",
     "url": "https://www.streetfighter.com/6/zh-hant/character/rashid/frame"
   },
   "Ryu": {
+    "fighter_id": 1,
     "official_name": "ryu",
     "url": "https://www.streetfighter.com/6/zh-hant/character/ryu/frame"
   },
   "Sagat": {
+    "fighter_id": 25,
     "official_name": "sagat",
     "url": "https://www.streetfighter.com/6/zh-hant/character/sagat/frame"
   },
   "Terry": {
+    "fighter_id": 27,
     "official_name": "terry",
     "url": "https://www.streetfighter.com/6/zh-hant/character/terry/frame"
   },
   "Zangief": {
+    "fighter_id": 6,
     "official_name": "zangief",
     "url": "https://www.streetfighter.com/6/zh-hant/character/zangief/frame"
   }
