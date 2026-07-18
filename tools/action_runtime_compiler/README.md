@@ -1,10 +1,118 @@
-# AC+BCM 角色简表编译器
+# AC + BCM + OFF 角色指令生成器
 
-该工具直接读取 SF6CR 导出的完整 AC 与 BCM 对象图，生成版本化角色简表和独立诊断报告。
+本工具把三类证据合并为 SF6CC 使用的角色检测表与 Modern 指令显示表：
 
-运行时 Action ID 只来自游戏 dump。官网 OFF 出招表不能作为输入，也不能参与 Action ID 映射。
+- **AC**：游戏 Action Catalog 完整对象图，定义角色实际存在的 Action ID 及动作关系；
+- **BCM**：游戏 Command/Trigger 完整对象图，定义 Action ID 对应的 classic、easy、sprt、supr 指令入口；
+- **OFF**：Capcom 官网 Classic/Modern 出招表，提供招式名称和玩家可见语义。
 
-## 可视化批量构建（推荐）
+Action ID 的最终归属以游戏 dump 的 AC+BCM 为准。OFF 不能单独决定游戏 Action ID；生成器会用当前 BCM 指令身份绑定官网语义，并保留来源、哈希和路线证据。
+
+## 1. 推荐目录与版本规则
+
+每次游戏更新后创建一个日期目录，目录名直接作为版本。例如：
+
+```text
+D:\CP\SF6CR-evidence\AC+BCM+OFF\
+└─ 2026.5.28\
+   ├─ 卢克02-fab-action-catalog-full-classic.json
+   ├─ 卢克02-fab-bcm-full-classic.json
+   ├─ LUKE.json
+   ├─ 本田20-fab-action-catalog-full-classic.json
+   ├─ 本田20-fab-bcm-full-classic.json
+   ├─ E.HONDA.json
+   └─ ...
+```
+
+网页中的“Dump 目录”选择这个日期目录，“本次版本”填写同一个目录名 `2026.5.28`。不要把多个日期的文件混在同一目录。
+
+构建后，本地版本归档位于：
+
+```text
+tools/action_runtime_compiler/html/
+├─ acbcm/2026.5.28/  # 原始 AC+BCM、SHA-256、manifest
+├─ off/2026.5.28/    # 本次使用的 OFF 原始表和规范语义快照
+├─ char/2026.5.28/   # runtime、exceptions、modern、报告与版本差异
+├─ latest/            # 最新内部 runtime
+├─ latest_exceptions/ # 可同步的角色检测表
+└─ latest_modern/     # 可同步的 Modern 显示表
+```
+
+日期目录就是版本边界。新版本默认与最近一个包含该角色的历史目录比较；也可以在网页选择指定基准版本。同版本重复构建允许覆盖本次选择的角色，未选择角色保持不变，差异基准为覆盖前内容。
+
+## 2. 文件名对应关系
+
+### AC 与 BCM
+
+AC 与 BCM 必须具有完全相同的 `<stem>`，只允许结尾不同：
+
+```text
+<stem>-fab-action-catalog-full-classic.json
+<stem>-fab-bcm-full-classic.json
+```
+
+例如：
+
+```text
+卢克02-fab-action-catalog-full-classic.json
+卢克02-fab-bcm-full-classic.json
+```
+
+工具先按 stem 配对，再读取 `fighter_id` 得到规范角色名 `Luke`。归档后的 `manifest.json` 是最终文件对应关系，不依赖中文文件名前缀进行角色判断。
+
+### OFF 官网表
+
+OFF 原始 JSON 使用官网/采集器文件名；编译输出使用 SF6CC 规范角色名。当前对应如下：
+
+| 规范角色名 | OFF 原始文件 | 规范语义/最终表前缀 |
+| --- | --- | --- |
+| AKI | `A.K.I.json` | `AKI` |
+| Akuma | `GOUKI.json` | `Akuma` |
+| Alex | `ALEX.json` | `Alex` |
+| Blanka | `BLANKA.json` | `Blanka` |
+| CViper | `C.VIPER.json` | `CViper` |
+| Cammy | `CAMMY.json` | `Cammy` |
+| ChunLi | `CHUN-LI.json` | `ChunLi` |
+| DeeJay | `DEE JAY.json` | `DeeJay` |
+| Dhalsim | `DHALSIM.json` | `Dhalsim` |
+| EHonda | `E.HONDA.json` | `EHonda` |
+| Ed | `ED.json` | `Ed` |
+| Elena | `ELENA.json` | `Elena` |
+| Guile | `GUILE.json` | `Guile` |
+| Ingrid | `INGRID.json` | `Ingrid` |
+| JP | `JP.json` | `JP` |
+| Jamie | `JAMIE.json` | `Jamie` |
+| Juri | `JURI.json` | `Juri` |
+| Ken | `KEN.json` | `Ken` |
+| Kimberly | `KIMBERLY.json` | `Kimberly` |
+| Lily | `LILY.json` | `Lily` |
+| Luke | `LUKE.json` | `Luke` |
+| MBison | `VEGA.json` | `MBison` |
+| Mai | `MAI.json` | `Mai` |
+| Manon | `MANON.json` | `Manon` |
+| Marisa | `MARISA.json` | `Marisa` |
+| Rashid | `RASHID.json` | `Rashid` |
+| Ryu | `RYU.json` | `Ryu` |
+| Sagat | `SAGAT.json` | `Sagat` |
+| Terry | `TERRY.json` | `Terry` |
+| Zangief | `ZANGIEF.json` | `Zangief` |
+
+若日期目录包含该角色的 OFF 原始文件，网页构建会自动解析并使用它，同时保存：
+
+```text
+off/<版本>/<Character>.official.raw.json
+off/<版本>/<Character>.official.generated.json
+```
+
+若日期目录没有 OFF 原始文件，工具回退到仓库内已审核的：
+
+```text
+tools/modern_display_builder/out/<Character>.official.generated.json
+```
+
+回退文件同样会被快照到 `off/<版本>`，因此历史版本仍可复现。原始 OFF 只有招式表行时，生成文件使用 `_semantic_rows`；不要把官网行号当成 Action ID。
+
+## 3. 可视化一键构建
 
 双击：
 
@@ -12,32 +120,77 @@
 tools\action_runtime_compiler\start_html_builder.bat
 ```
 
-工具会启动仅监听 `127.0.0.1` 的本地服务并打开浏览器。界面中填写 dump 绝对目录和本次版本，扫描后可选择角色批量编译。同一版本可以分多次追加角色；再次选择版本中已有的角色时，会覆盖该角色的 AC+BCM、简表、报告和差异记录，未选择的角色保持不变。
+本地服务只监听 `127.0.0.1:8765`。操作顺序：
 
-本地输出位于 `tools\action_runtime_compiler\html`：
+1. 在“Dump 目录”填写日期目录绝对路径；
+2. “本次版本”填写日期目录名；
+3. 点击“扫描目录”，确认每个角色的 AC/BCM 成对；
+4. 选择要更新的角色；
+5. 可选指定历史对比版本；
+6. 点击“编译并归档”；
+7. 检查角色状态和差异；只有 `valid` 角色会更新 latest 目录。
 
-- `acbcm\<版本>\`：原始完整 AC+BCM、哈希和归档清单；
-- `char\<版本>\`：角色简表、编译报告、逐角色差异及汇总差异；
-- `latest\`：最新 v2 运行时表，保留给编译器内部审查；
-- `latest_exceptions\`：由 AC+BCM 自动生成并通过旧表兼容审计、且状态为 `valid` 的现有角色例外表格式，可全选复制到游戏的 `data\TrainingComboTrials_data\exceptions`；
-- `latest_modern\`：由 AC+BCM 的 `sprt/easy/supr` profile 自动生成、且状态为 `valid` 的现代显示映射，可复制到游戏的 `data\TrainingComboTrials_data\modern_display`；
-- `latest-manifest.json`：记录 latest 中每个角色来自哪个归档版本，放在 latest 外以免同步时混入。
+同版本可分多次追加角色，也可重新选择角色覆盖。Windows 同版本覆盖使用原子临时文件；不会删除未选择角色。
 
-以上归档和生成目录都被工具目录内的 `.gitignore` 排除，不会把大型研究 dump 或本机构建物带入提交。
+## 4. AC / BCM / OFF 预览页
 
-上传新版本时，工具默认与最近一次包含该角色的归档比较，也可以在界面中指定基准版本。同版本覆盖已有角色时，默认与覆盖前内容比较。差异覆盖：
+同一网页下方的“AC / BCM / OFF 数据预览”用于只读排查：
 
-- AC Action ID 增删；
-- 指令显示新增、删除与变化；
-- AC 派生/人工别名变化；
-- TC 与 DRC/RAW DR 语义变化；
-- 验证规则变化；
-- 编译诊断代码变化及 AC/BCM 源哈希。
+1. 选择归档版本；
+2. 选择角色；
+3. 点击“加载预览”；
+4. 在四个标签间切换：
+   - **AC 动作**：Action ID、scope、帧信息、Action 对象引用和字段 JSON；
+   - **BCM 指令**：每个 Action ID/trigger 的 norm、easy、sprt、supr、按键 flags 和条件；
+   - **OFF 官网语义**：招式名、分类、Classic/Modern 官网显示；
+   - **最终 Modern**：最终 Action ID、显示、route owner、profile、来源和置信度。
+5. 使用搜索框按 Action ID、`SP`、`AUTO`、profile、招式名或来源字段过滤。
 
-## 使用
+预览接口不会把完整的数十 MB 对象图直接发送到浏览器；服务端先解析为只读表格摘要。展开 JSON 可以查看该行的引用、条件或路线证据。
+
+## 5. 生成链与输出
+
+```text
+AC Action ID/关系
+        +
+BCM trigger/profile/command
+        +
+OFF Classic↔Modern 玩家语义
+        ↓
+版本化 runtime + exceptions + modern_display + audit + diff
+```
+
+主要输出：
+
+- `char/<版本>/<Character>.json`：内部 action runtime；
+- `char/<版本>/<Character>.exceptions.json`：兼容现有 Lua 的角色检测表；
+- `char/<版本>/<Character>.modern-display.json`：带 route provenance 的 Modern 显示表；
+- `char/<版本>/<Character>.report.json`：编译诊断；
+- `char/<版本>/<Character>.compatibility.json`：旧检测表兼容审计；
+- `char/<版本>/<Character>.diff.json`：相对基准版本的角色差异；
+- `char/<版本>/differences.json`：本次版本汇总差异；
+- `acbcm/<版本>/manifest.json`：中文 stem、规范角色名、fighter ID、AC/BCM 文件与哈希；
+- `off/<版本>/manifest.json`：OFF 原始/语义快照与哈希。
+
+差异包括 AC/BCM 源哈希、Action ID、显示、别名、TC、检测规则和 Modern 映射的新增、删除、变化。
+
+## 6. OFF 单独更新
+
+通常日期目录中的 OFF 会由网页自动转换。需要单独从官网下载或转换时使用：
 
 ```powershell
-node tools\action_runtime_compiler\compile.js `
+python tools/modern_display_builder/extract_modern_display.py `
+  --character Ingrid `
+  --official-dump "D:\CP\SF6CR-evidence\AC+BCM+OFF\2026.5.28\INGRID.json" `
+  --output tools/modern_display_builder/out/Ingrid.official.generated.json
+```
+
+也可使用 `--url` 从 Capcom frame 页面读取，或用 `--html` 读取保存的页面/JS chunk。详细说明见 `tools/modern_display_builder/README.md`。
+
+## 7. 命令行单角色编译
+
+```powershell
+node tools/action_runtime_compiler/compile.js `
   --ac <完整AC.json> `
   --bcm <完整BCM.json> `
   --output <角色简表.json> `
@@ -46,50 +199,29 @@ node tools\action_runtime_compiler\compile.js `
   [--character <规范角色名>]
 ```
 
-不传 `--exceptions` 等价于空例外表。人工例外只作为最后一层字段覆盖；编译报告会标记已不在当前 AC 中的过期 ID。
+命令行入口适合开发和回归；日常版本归档应使用网页，避免漏掉 manifest、OFF 快照和版本差异。
 
-AC 或 BCM 若标记为截断、hard gate 失败或角色动作全集为空，报告状态为 `invalid`，命令返回非零退出码。输出目录不存在时会自动创建；省略 `--report` 时默认写入与简表同目录的 `<简表名>.report.json`。
+## 8. 同步与边界
 
-## 输出
+- `latest_exceptions` 可复制到游戏 `data/TrainingComboTrials_data/exceptions`；
+- `latest_modern` 可复制到游戏 `data/TrainingComboTrials_data/modern_display`；
+- 归档目录被 `.gitignore` 排除，不提交大型 dump；
+- `tools/modern_display_builder/out` 是小型、可审查的官网语义输入，可提交；
+- 工具不会修改用户录制的连段 JSON；
+- 未通过 hard gate、截断、角色不匹配或兼容审计的角色不会更新 latest。
 
-- `sf6cc.action-runtime.v2`：保留兼容字段 `actions`、`aliases`，新增 `validation` 与 `evidence`。
-- `sf6cc.action-runtime-compile-report.v1`：记录覆盖率、未分类 AC 动作清单、AC 范围外 BCM 动作、TC 父动作上下文缺口、BCM 多显示候选和过期例外。未分类 AC 动作包含大量系统状态，本身不表示“缺失指令”。
-
-当前已自动解码：
-
-- BCM 经典指令；
-- DRC 与 RAW DR 系统动作；
-- `turn_around=2` 的 TC 后续段；
-- AC `BranchKey Type=29` 的条件/资源等级动作变体，以及结构同构的 Type 35 动作变体；长按等级图中的 Type 29 目标会物化为独立阶段，不再错误吸收到父动作；
-- AC Type 20 的空中方向攻击、Type 63 `Param02=1` 的八方向空中攻击与方向投；方向 mask 和终端 `force` 由分支图自动解码；
-- 由 Type 29 与 Type 20 至少两个共享等级目标的状态图识别已确认长按动作；精确 `charge_min/max` 没有可靠的角色无关公式时继续留给兼容层，不从 BCM 时间窗猜测；
-- BCM 蓄力释放序列的显示正规化，例如 `6646` 自动显示为 `[4]646`；
-- AC Type 13 的无输入/落地分支关系；同一语义名称的兄弟目标会同步已确认的 `force=true` 检测规则，例如豪鬼普通/OD 百鬼袭的无操作滑步 `996/1004`；
-- 同 BCM gate 的架势后续段（例如本田 `970 → 972`）；
-- TC 父动作关系；前后动作显示相同时会写入 `optional_parent_ids`，例如英格丽德 `655 → 656`；
-- 可选人工例外覆盖及其验证字段。
-- Modern 的手动简化输入（`sprt`）、SP 输入（`easy`）与 AUTO 辅助输入（`supr`）；AC 派生别名继承现代入口。官网出招表不参与 Action ID 映射。
-- Modern 一键连直接读取 BCM `AssistComboRecipeData.ComboData[,,]` 的固定 3×8×10 配方。每条 `TriggerID` 绑定自己的 Action ID；配方首段显示 `AUTO + 强度`，后续段显示 `> 强度`。辅助路线只追加到原有动作，不通过 AC 家族、别名或相邻 ID 传播，也不会覆盖动作已有的手动/必杀路线。
-- Modern 顺序按键会从 BCM `command.inputs[].raw_mask` 与最终按键解码，例如豪鬼瞬狱杀自动生成 `弱 > 弱 > 中 > 强`，不会把按键槽误显示为中立方向。
-- Modern 普通/OD 必杀按 BCM `focus_consume` 在 `easy` 与 `supr` 中选择；DRC、RAW DR、Drive Parry、DI/Drive Reversal、Throw 与 AC Type 63 后投按语义生成，不显示底层 trigger mask。输出元数据保留仍无 Modern profile 的经典动作 ID 审计清单。
-- 地面普通攻击同时出现 `sprt/supr` 时，以该 Action ID 的直接 Modern `sprt` 为准；只有 `sprt` 不可用且 `supr` 单独有效时才生成 AUTO 路线，避免把另一个动作会赢得的 AUTO 输入错误并入当前动作。
-
-现代显示编译时，现有表中只有标记为 `community_sample` 的实机确认入口可以作为兼容补充；`capcom_official` 条目不会回填，避免官网 Action ID 与游戏 dump 错位。生成入口优先，补充只增加原子入口或显式后续段。
-
-每个版本的 `char` 目录同时保存 `<角色>.exceptions.json`。生成表只写现有运行时真正消费的字段；`force=false`、`ignore=false`、`ignore_prev_frames=5` 等默认值不会重复写入。
-
-批量生成时会强制把每个角色与当前 `data/TrainingComboTrials_data/exceptions` 检测表比较，并保存 `<角色>.compatibility.json`。比较会按运行时真实默认值和等价指令写法规格化（例如缺省 `hold_partial_check=true`、`2HP/2+HP`、`drc/DRC`），避免把纯格式差异误算成人工缺口。纯 AC+BCM 已覆盖的旧规则不会重复保留；尚未覆盖但 Action ID 仍存在的规则会自动缩减成兼容兜底层。若最终输出仍遗漏旧表语义，该角色标记为 `invalid`，不会更新 `latest_exceptions`。
-
-编译器不会修改用户录制的连段 JSON。
-
-## 测试
+## 9. 测试
 
 ```powershell
-node tools\action_runtime_compiler\test_compiler.js
-node tools\action_runtime_compiler\test_archive_builder.js
+node tools/action_runtime_compiler/test_official_semantics.js
+node tools/action_runtime_compiler/test_preview_builder.js
+node tools/action_runtime_compiler/test_compiler.js
+node tools/action_runtime_compiler/test_archive_builder.js
+node tools/action_runtime_compiler/test_modern_display.js
+node tools/bcm_catalog_builder/test_bcm_catalog.js
 
-node tools\action_runtime_compiler\verify_known_samples.js `
+node tools/action_runtime_compiler/verify_known_samples.js `
   --evidence-dir "D:\CP\SF6CR-evidence\AC+BCM+OFF"
 ```
 
-最后一条命令使用外部研究 dump 回归本田、迪·杰与英格丽德已确认的普通技、派生动作、DRC/RAW DR 和 TC。它只读 dump，不把研究数据或生成物写入仓库。
+最后一条使用外部研究 dump 做已知样本回归，只读数据，不把研究文件写入仓库。

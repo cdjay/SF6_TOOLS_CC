@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>SF6CC AC+BCM 编译器</title>
+  <title>SF6CC AC+BCM+OFF 编译器</title>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -11,8 +11,8 @@
     <header class="hero">
       <div>
         <p class="eyebrow">SF6CC · LOCAL BUILD TOOL</p>
-        <h1>AC+BCM 角色简表编译器</h1>
-        <p class="lead">从游戏 dump 批量生成角色简表、检测例外表与现代模式显示映射，归档每个版本，并汇总到可直接同步的 latest 目录。</p>
+        <h1>AC+BCM+OFF 角色指令生成器</h1>
+        <p class="lead">从游戏 AC/BCM dump 与官网 OFF 表批量生成角色简表、检测例外表和现代模式显示映射，按日期归档并汇总到可直接同步的 latest 目录。</p>
       </div>
       <div class="status-pill" id="server-status">本地服务已连接</div>
     </header>
@@ -25,7 +25,7 @@
       <div class="form-grid">
         <label class="wide">
           <span>Dump 目录（绝对路径）</span>
-          <input id="dump-directory" type="text" spellcheck="false" placeholder="D:\CP\SF6CR-evidence\AC+BCM+OFF">
+          <input id="dump-directory" type="text" spellcheck="false" placeholder="D:\CP\SF6CR-evidence\AC+BCM+OFF\2026.5.28">
         </label>
         <label>
           <span>本次版本</span>
@@ -69,6 +69,42 @@
       </div>
       <div class="directory-grid" id="directory-grid"></div>
       <div class="result-list" id="result-list"></div>
+    </section>
+
+    <section class="panel" id="preview-panel">
+      <div class="section-title">
+        <div><span class="step">VIEW</span><h2>AC / BCM / OFF 数据预览</h2></div>
+        <p>按日期版本和角色读取归档；表格只读。可用 Action ID、指令、profile、招式名或来源字段过滤。</p>
+      </div>
+      <div class="preview-controls">
+        <label>
+          <span>归档版本</span>
+          <select id="preview-version"><option value="">请选择版本</option></select>
+        </label>
+        <label>
+          <span>角色</span>
+          <select id="preview-character"><option value="">请先选择版本</option></select>
+        </label>
+        <label class="preview-search-label">
+          <span>表内搜索</span>
+          <input id="preview-search" type="text" spellcheck="false" placeholder="例如 920、SP、sprt、波动拳">
+        </label>
+        <button class="primary" id="preview-load">加载预览</button>
+      </div>
+      <div class="source-chain" id="preview-source-chain">选择版本和角色后，会显示 AC、BCM、OFF 与最终 Modern 表的文件对应关系。</div>
+      <div class="preview-tabs" id="preview-tabs" role="tablist">
+        <button class="preview-tab active" data-kind="ac">AC 动作</button>
+        <button class="preview-tab" data-kind="bcm">BCM 指令</button>
+        <button class="preview-tab" data-kind="official">OFF 官网语义</button>
+        <button class="preview-tab" data-kind="modern">最终 Modern</button>
+      </div>
+      <div class="preview-meta" id="preview-meta">尚未加载。</div>
+      <div class="preview-table-wrap">
+        <table class="preview-table">
+          <thead id="preview-head"></thead>
+          <tbody id="preview-body"><tr><td class="empty-cell">请选择归档版本和角色。</td></tr></tbody>
+        </table>
+      </div>
     </section>
 
     <section class="panel storage-panel">

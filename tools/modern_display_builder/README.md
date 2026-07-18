@@ -50,6 +50,22 @@ python tools/modern_display_builder/extract_modern_display.py `
 - a saved Capcom frame HTML page, if its referenced Next.js frame chunk can also be found locally or fetched through `--url`
 - the frame page JavaScript chunk itself
 
+Use a paired official Classic/Modern table dump (for example the `INGRID.json`
+files stored beside a dated AC+BCM dump):
+
+```powershell
+python tools/modern_display_builder/extract_modern_display.py `
+  --character Ingrid `
+  --official-dump "D:\CP\SF6CR-evidence\AC+BCM+OFF\2026.5.28\INGRID.json" `
+  --output tools/modern_display_builder/out/Ingrid.official.generated.json
+```
+
+The dated HTML compiler automatically performs this conversion when a known
+OFF filename is present in the selected dump directory. It archives both the
+raw capture and normalized semantics under
+`tools/action_runtime_compiler/html/off/<version>/`; this standalone command is
+mainly for reviewing or updating the checked-in semantic input.
+
 Do not commit large raw HTML or JavaScript dumps. Small generated candidate JSON files and markdown diff reports are acceptable when they are useful for review.
 
 Batch build and merge every manifest character:

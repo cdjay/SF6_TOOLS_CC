@@ -6,6 +6,7 @@ const http = require("http");
 const path = require("path");
 const { spawn } = require("child_process");
 const archive = require("./archive_builder.js");
+const preview = require("./preview_builder.js");
 
 const ROOT = path.join(__dirname, "html");
 const HOST = "127.0.0.1";
@@ -58,6 +59,7 @@ function state() {
         output_root: ROOT,
         directories: {
             acbcm: path.join(ROOT, "acbcm"),
+            off: path.join(ROOT, "off"),
             char: path.join(ROOT, "char"),
             latest: path.join(ROOT, "latest"),
             latest_exceptions: path.join(ROOT, "latest_exceptions"),
@@ -72,7 +74,7 @@ function state() {
 }
 
 function openFolder(kind) {
-    if (!new Set(["acbcm", "char", "latest", "latest_exceptions", "latest_modern"]).has(kind)) throw new Error("不支持的目录类型。");
+    if (!new Set(["acbcm", "off", "char", "latest", "latest_exceptions", "latest_modern"]).has(kind)) throw new Error("不支持的目录类型。");
     const target = path.join(ROOT, kind);
     archive.ensureStorage(ROOT);
     const child = spawn("explorer.exe", [target], { detached: true, stdio: "ignore" });
@@ -105,6 +107,14 @@ async function handleApi(request, response, pathname) {
     }
     if (pathname === "/api/open-folder") {
         sendJson(response, 200, { opened: openFolder(body.kind) });
+        return true;
+    }
+    if (pathname === "/api/preview-index") {
+        sendJson(response, 200, preview.buildPreviewIndex(ROOT, body.version));
+        return true;
+    }
+    if (pathname === "/api/preview") {
+        sendJson(response, 200, preview.buildPreview(ROOT, body.version, body.character));
         return true;
     }
     return false;
@@ -150,7 +160,7 @@ const server = http.createServer(async (request, response) => {
 
 server.listen(PORT, HOST, () => {
     const url = `http://${HOST}:${PORT}/`;
-    console.log(`SF6CC AC+BCM 可视化编译器: ${url}`);
+    console.log(`SF6CC AC+BCM+OFF 可视化编译器: ${url}`);
     console.log(`输出目录: ${ROOT}`);
     if (process.argv.includes("--open")) {
         const child = spawn("explorer.exe", [url], { detached: true, stdio: "ignore" });

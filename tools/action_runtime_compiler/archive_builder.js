@@ -6,6 +6,7 @@ const path = require("path");
 const bcmCore = require("../bcm_catalog_builder/bcm_catalog_core.js");
 const compiler = require("./compiler_core.js");
 const modernDisplay = require("./modern_display_core.js");
+const officialCore = require("./official_semantics_core.js");
 
 const AC_SUFFIX = "-fab-action-catalog-full-classic.json";
 const BCM_SUFFIX = "-fab-bcm-full-classic.json";
@@ -30,7 +31,15 @@ function readSource(filename) {
     };
 }
 
-function loadOfficialSemantics(character) {
+function loadOfficialSemantics(character, dumpDirectory, generatedAt) {
+    const rawFilename = officialCore.findOfficialDump(dumpDirectory, character);
+    if (rawFilename) {
+        const rawSource = readSource(rawFilename);
+        const value = officialCore.buildOfficialSemantics(character, rawFilename, rawSource.value, {
+            sourceSha256: rawSource.sha256, generatedAt
+        });
+        return { filename: rawFilename, raw_filename: rawFilename, sha256: rawSource.sha256, value };
+    }
     const filename = path.join(OFFICIAL_SEMANTICS_ROOT, `${character}.official.generated.json`);
     if (!fs.existsSync(filename)) return { filename: null, sha256: null, value: null };
     const source = readSource(filename);
@@ -39,7 +48,7 @@ function loadOfficialSemantics(character) {
         || meta.character !== character) {
         throw new Error(`官网 Modern 语义文件契约不匹配: ${filename}`);
     }
-    return { filename, sha256: source.sha256, value: source.value };
+    return { filename, raw_filename: null, sha256: source.sha256, value: source.value };
 }
 
 function loadCommunitySemantics(character) {
@@ -319,7 +328,7 @@ function validateCharacterFilename(character) {
 }
 
 function ensureStorage(outputRoot) {
-    for (const name of ["acbcm", "char", "latest", "latest_exceptions", "latest_modern"]) ensureDirectory(path.join(outputRoot, name));
+    for (const name of ["acbcm", "off", "char", "latest", "latest_exceptions", "latest_modern"]) ensureDirectory(path.join(outputRoot, name));
 }
 
 function mergeEntries(existing, updates, keyOf, compare) {
@@ -337,6 +346,7 @@ function buildArchive(options) {
     const scan = scanDumpDirectory(options.dumpDirectory);
     ensureStorage(outputRoot);
     const rawFinal = path.join(outputRoot, "acbcm", version);
+    const offFinal = path.join(outputRoot, "off", version);
     const charFinal = path.join(outputRoot, "char", version);
     const rawExists = fs.existsSync(rawFinal);
     const charExists = fs.existsSync(charFinal);
@@ -350,6 +360,8 @@ function buildArchive(options) {
         ? readJsonIfExists(path.join(charFinal, "manifest.json")) : null;
     const existingDifferenceBundle = mergeExistingVersion
         ? readJsonIfExists(path.join(charFinal, "differences.json")) : null;
+    const existingOffManifest = mergeExistingVersion
+        ? readJsonIfExists(path.join(offFinal, "manifest.json")) : null;
     if (mergeExistingVersion && (!existingRawManifest || !existingCharacterManifest)) {
         throw new Error(`版本 ${version} 缺少归档清单，请先人工检查后再覆盖。`);
     }
@@ -365,12 +377,14 @@ function buildArchive(options) {
         || existingRawManifest && existingRawManifest.created_at || updatedAt;
     const stagingRoot = path.join(outputRoot, `.staging-${process.pid}-${Date.now()}`);
     const rawStage = path.join(stagingRoot, "acbcm");
+    const offStage = path.join(stagingRoot, "off");
     const charStage = path.join(stagingRoot, "char");
     if (!mergeExistingVersion) {
         ensureDirectory(rawStage);
+        ensureDirectory(offStage);
         ensureDirectory(charStage);
     }
-    const rawEntries = [], characterEntries = [], differences = [];
+    const rawEntries = [], offEntries = [], characterEntries = [], differences = [];
     const pendingWrites = [];
     const seenCharacters = new Set();
 
@@ -404,7 +418,7 @@ function buildArchive(options) {
                 generatedAt: updatedAt
             });
             const result = compiler.compileFromCatalog(ac.value, bcmCatalog, {}, compileOptions);
-            const officialSemantics = loadOfficialSemantics(resolvedCharacter);
+            const officialSemantics = loadOfficialSemantics(resolvedCharacter, scan.directory, updatedAt);
             const communitySemantics = loadCommunitySemantics(resolvedCharacter);
             const generatedModernDisplay = modernDisplay.buildModernDisplay(
                 ac.value, bcmCatalog, result.runtime, {},
@@ -477,7 +491,8 @@ function buildArchive(options) {
 
             pendingWrites.push({
                 pair, acPath, bcmPath, runtime: result.runtime, report: result.report,
-                generatedExceptions, generatedModernDisplay, compatibility, difference
+                generatedExceptions, generatedModernDisplay, compatibility, difference,
+                officialSemantics
             });
             differences.push(difference);
             rawEntries.push({
@@ -489,6 +504,14 @@ function buildArchive(options) {
                 ac_sha256: ac.sha256,
                 bcm_sha256: bcm.sha256,
                 source_directory: scan.directory
+            });
+            offEntries.push({
+                character: result.runtime.character,
+                fighter_id: result.runtime.fighter_id,
+                semantics_file: officialSemantics.filename ? `${result.runtime.character}.official.generated.json` : null,
+                raw_file: officialSemantics.raw_filename ? `${result.runtime.character}.official.raw.json` : null,
+                sha256: officialSemantics.sha256,
+                source_file: officialSemantics.filename
             });
             characterEntries.push({
                 stem: pair.stem,
@@ -521,6 +544,10 @@ function buildArchive(options) {
             existingCharacterManifest && existingCharacterManifest.characters, characterEntries,
             item => item.character,
             (left, right) => Number(left.fighter_id) - Number(right.fighter_id));
+        const mergedOffEntries = mergeEntries(
+            existingOffManifest && existingOffManifest.characters, offEntries,
+            item => item.character,
+            (left, right) => Number(left.fighter_id) - Number(right.fighter_id));
         const mergedDifferences = mergeEntries(
             existingDifferenceBundle && existingDifferenceBundle.differences, differences,
             item => item.character,
@@ -533,6 +560,10 @@ function buildArchive(options) {
         };
         const rawManifest = {
             schema: "sf6cc.acbcm-archive-manifest.v1", ...common, sources: mergedRawEntries
+        };
+        const offManifest = {
+            schema: "sf6cc.official-semantics-archive-manifest.v1", ...common,
+            characters: mergedOffEntries
         };
         const characterManifest = {
             schema: "sf6cc.action-runtime-archive-manifest.v1",
@@ -551,11 +582,22 @@ function buildArchive(options) {
         };
 
         const rawTarget = mergeExistingVersion ? rawFinal : rawStage;
+        const offTarget = mergeExistingVersion ? offFinal : offStage;
         const charTarget = mergeExistingVersion ? charFinal : charStage;
+        ensureDirectory(offTarget);
         for (const pending of pendingWrites) {
             const copy = mergeExistingVersion ? copyFileAtomic : fs.copyFileSync;
             copy(pending.acPath, path.join(rawTarget, pending.pair.ac));
             copy(pending.bcmPath, path.join(rawTarget, pending.pair.bcm));
+            if (pending.officialSemantics.filename) {
+                const write = mergeExistingVersion ? writeJsonAtomic : writeJson;
+                write(path.join(offTarget, `${pending.runtime.character}.official.generated.json`),
+                    pending.officialSemantics.value);
+                if (pending.officialSemantics.raw_filename) {
+                    copy(pending.officialSemantics.raw_filename,
+                        path.join(offTarget, `${pending.runtime.character}.official.raw.json`));
+                }
+            }
             const write = mergeExistingVersion ? writeJsonAtomic : writeJson;
             write(path.join(charTarget, `${pending.runtime.character}.json`), pending.runtime);
             write(path.join(charTarget, `${pending.runtime.character}.exceptions.json`), pending.generatedExceptions);
@@ -566,18 +608,25 @@ function buildArchive(options) {
         }
         const writeManifest = mergeExistingVersion ? writeJsonAtomic : writeJson;
         writeManifest(path.join(rawTarget, "manifest.json"), rawManifest);
+        writeManifest(path.join(offTarget, "manifest.json"), offManifest);
         writeManifest(path.join(charTarget, "manifest.json"), characterManifest);
         writeManifest(path.join(charTarget, "differences.json"), differenceBundle);
 
         if (!mergeExistingVersion) {
             let rawMoved = false;
+            let offMoved = false;
             try {
                 fs.renameSync(rawStage, rawFinal);
                 rawMoved = true;
+                fs.renameSync(offStage, offFinal);
+                offMoved = true;
                 fs.renameSync(charStage, charFinal);
             } catch (error) {
                 if (rawMoved && fs.existsSync(rawFinal) && !fs.existsSync(charFinal)) {
                     fs.rmSync(rawFinal, { recursive: true, force: true });
+                }
+                if (offMoved && fs.existsSync(offFinal) && !fs.existsSync(charFinal)) {
+                    fs.rmSync(offFinal, { recursive: true, force: true });
                 }
                 throw error;
             }
@@ -612,6 +661,7 @@ function buildArchive(options) {
             archive_mode: mergeExistingVersion ? "merged" : "created",
             output_root: outputRoot,
             raw_archive: rawFinal,
+            official_archive: offFinal,
             character_archive: charFinal,
             latest: latestRoot,
             latest_exceptions: latestExceptionsRoot,

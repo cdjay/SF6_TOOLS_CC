@@ -5,9 +5,13 @@ const elements = Object.fromEntries([
   "selection-panel", "scan-summary", "select-all", "selected-summary", "pair-list",
   "incomplete-box", "build-button", "result-panel", "result-summary", "directory-grid",
   "result-list", "storage-paths", "activity", "activity-text", "server-status"
+  , "preview-version", "preview-character", "preview-search", "preview-load",
+  "preview-source-chain", "preview-tabs", "preview-meta", "preview-head", "preview-body"
 ].map(id => [id, document.getElementById(id)]));
 
 let scanResult = null;
+let previewResult = null;
+let previewKind = "ac";
 
 async function api(path, options) {
   const response = await fetch(path, options);
@@ -29,6 +33,7 @@ function busy(active, text) {
   elements["activity-text"].textContent = text || "处理中…";
   elements["scan-button"].disabled = active;
   elements["build-button"].disabled = active;
+  elements["preview-load"].disabled = active;
 }
 
 function formatBytes(bytes) {
@@ -87,6 +92,7 @@ function renderResults(result) {
   elements["result-summary"].textContent = `版本 ${result.version} ${mode} ${result.characters.length} 个本次所选角色。`;
   const directories = [
     ["AC+BCM 原始归档", result.raw_archive, "acbcm"],
+    ["OFF 官网语义快照", result.official_archive, "off"],
     ["角色简表与报告", result.character_archive, "char"],
     ["v2 运行时（内部）", result.latest, "latest"],
     ["可同步角色例外表", result.latest_exceptions, "latest_exceptions"],
@@ -173,6 +179,115 @@ function renderStorage(state) {
   for (const item of state.versions) {
     select.append(new Option(`${item.version} · ${item.character_count} 角色`, item.version));
   }
+
+  const previewVersion = elements["preview-version"];
+  const previousPreviewVersion = previewVersion.value;
+  previewVersion.replaceChildren(new Option("请选择版本", ""));
+  for (const item of state.versions) {
+    previewVersion.append(new Option(`${item.version} · ${item.character_count} 角色`, item.version));
+  }
+  if (state.versions.some(item => item.version === previousPreviewVersion)) previewVersion.value = previousPreviewVersion;
+}
+
+function cellText(value) {
+  if (value === null || value === undefined || value === "") return "—";
+  if (Array.isArray(value)) return value.join("\n");
+  if (typeof value === "object") return JSON.stringify(value);
+  return String(value);
+}
+
+function profileText(profile) {
+  if (!profile || !profile.enabled) return "—";
+  const flags = [`cmd=${profile.command_no}`, `idx=${profile.command_index}`, `key=0x${Number(profile.ok_key_flags || 0).toString(16)}`];
+  return `${profile.notation || "Normal"}${profile.button && !String(profile.notation || "").includes(profile.button) ? ` + ${profile.button}` : ""}\n${flags.join(" · ")}`;
+}
+
+function previewSchema(kind) {
+  if (kind === "ac") return [
+    ["Action ID", row => row.action_id], ["Scope", row => row.source_scope], ["Style", row => row.style_index],
+    ["Frame", row => row.frame], ["Main / Follow / Margin", row => `${cellText(row.main_frame)} / ${cellText(row.follow_frame)} / ${cellText(row.margin_frame)}`],
+    ["对象引用", row => row.references], ["详情", row => row.details, true]
+  ];
+  if (kind === "bcm") return [
+    ["Action ID", row => row.action_id], ["Trigger", row => row.trigger_index], ["Classic", row => row.classic_display],
+    ["norm", row => profileText(row.norm)], ["easy", row => profileText(row.easy)],
+    ["sprt", row => profileText(row.sprt)], ["supr", row => profileText(row.supr)],
+    ["条件", row => row.conditions, true]
+  ];
+  if (kind === "official") return [
+    ["官网 ID/行", row => row.official_action_id ?? row.key], ["招式名", row => row.move_name], ["分类", row => row.category],
+    ["Classic", row => row.classic_display], ["Modern", row => row.modern_display], ["支持", row => row.control_support], ["备注", row => row.note]
+  ];
+  return [
+    ["Action ID", row => row.action_id], ["Modern 显示", row => row.modern_display], ["归属", row => row.ownership],
+    ["来源", row => row.source], ["路线数", row => row.routes.length], ["路线证据", row => row.routes, true]
+  ];
+}
+
+function previewRows() {
+  return previewResult && previewResult[previewKind] && previewResult[previewKind].rows || [];
+}
+
+function renderPreviewTable() {
+  const schema = previewSchema(previewKind);
+  const query = elements["preview-search"].value.trim().toLocaleLowerCase();
+  const rows = previewRows().filter(row => !query || JSON.stringify(row).toLocaleLowerCase().includes(query));
+  elements["preview-head"].replaceChildren();
+  const headerRow = document.createElement("tr");
+  for (const [label] of schema) { const th = document.createElement("th"); th.textContent = label; headerRow.append(th); }
+  elements["preview-head"].append(headerRow);
+  elements["preview-body"].replaceChildren();
+  if (!rows.length) {
+    const tr = document.createElement("tr"), td = document.createElement("td");
+    td.className = "empty-cell"; td.colSpan = schema.length; td.textContent = previewResult ? "没有匹配的数据。" : "请选择归档版本和角色。";
+    tr.append(td); elements["preview-body"].append(tr);
+  } else {
+    for (const row of rows) {
+      const tr = document.createElement("tr");
+      for (const [, getter, detail] of schema) {
+        const td = document.createElement("td"), value = getter(row);
+        if (detail) {
+          const details = document.createElement("details"), summary = document.createElement("summary"), pre = document.createElement("pre");
+          summary.textContent = "展开 JSON"; pre.textContent = JSON.stringify(value, null, 2); details.append(summary, pre); td.append(details);
+        } else td.textContent = cellText(value);
+        tr.append(td);
+      }
+      elements["preview-body"].append(tr);
+    }
+  }
+  const total = previewRows().length;
+  elements["preview-meta"].textContent = `${previewKind.toUpperCase()}：显示 ${rows.length} / ${total} 行${query ? `，过滤词“${elements["preview-search"].value.trim()}”` : ""}。`;
+}
+
+function fileLine(label, file) {
+  return file ? `${label}: ${file.name}` : `${label}: 缺失`;
+}
+
+function renderPreview(result) {
+  previewResult = result;
+  elements["preview-source-chain"].replaceChildren();
+  const title = document.createElement("strong"); title.textContent = `${result.version} / ${result.character} / Fighter ${result.fighter_id}`;
+  const code = document.createElement("code");
+  code.textContent = [fileLine("AC", result.files.ac), fileLine("BCM", result.files.bcm), fileLine("OFF原始", result.files.official_raw), fileLine("OFF语义", result.files.official), fileLine("Modern", result.files.modern)].join("  →  ");
+  const paths = document.createElement("small");
+  paths.textContent = `AC+BCM stem: ${result.stem}；OFF 与输出使用规范角色名 ${result.character}`;
+  elements["preview-source-chain"].append(title, code, paths);
+  renderPreviewTable();
+}
+
+async function loadPreviewIndex() {
+  const version = elements["preview-version"].value;
+  elements["preview-character"].replaceChildren(new Option(version ? "正在读取…" : "请先选择版本", ""));
+  if (!version) return;
+  try {
+    const index = await post("/api/preview-index", { version });
+    elements["preview-character"].replaceChildren(new Option("请选择角色", ""));
+    for (const item of index.characters) {
+      const status = `${item.ac_file && item.bcm_file ? "AC+BCM" : "源缺失"} / ${item.official_file ? "OFF" : "无OFF"} / ${item.modern_file ? "Modern" : "无输出"}`;
+      elements["preview-character"].append(new Option(`${item.character} · ${status}`, item.character));
+    }
+    elements["preview-source-chain"].textContent = `原始归档：${index.raw_directory}；OFF：${index.official_directory}；输出：${index.character_directory}`;
+  } catch (error) { alert(error.message); }
 }
 
 elements["select-all"].addEventListener("change", event => {
@@ -188,6 +303,10 @@ elements["scan-button"].addEventListener("click", async () => {
   busy(true, "正在扫描 AC+BCM 文件…");
   try {
     scanResult = await post("/api/scan", { dump_directory: directory });
+    if (!elements.version.value.trim()) {
+      const suggestedVersion = directory.replace(/[\\/]+$/, "").split(/[\\/]/).pop();
+      if (suggestedVersion) elements.version.value = suggestedVersion;
+    }
     renderPairs(scanResult);
   } catch (error) { alert(error.message); }
   finally { busy(false); }
@@ -210,6 +329,24 @@ elements["build-button"].addEventListener("click", async () => {
     renderResults(result);
     renderStorage(await api("/api/state"));
   } catch (error) { alert(error.message); }
+  finally { busy(false); }
+});
+
+elements["preview-version"].addEventListener("change", loadPreviewIndex);
+elements["preview-search"].addEventListener("input", renderPreviewTable);
+elements["preview-tabs"].addEventListener("click", event => {
+  const button = event.target.closest("[data-kind]");
+  if (!button) return;
+  previewKind = button.dataset.kind;
+  document.querySelectorAll(".preview-tab").forEach(tab => tab.classList.toggle("active", tab === button));
+  renderPreviewTable();
+});
+elements["preview-load"].addEventListener("click", async () => {
+  const version = elements["preview-version"].value, character = elements["preview-character"].value;
+  if (!version || !character) return alert("请选择归档版本和角色。");
+  busy(true, `正在解析 ${version} / ${character} 的 AC、BCM 与 OFF…`);
+  try { renderPreview(await post("/api/preview", { version, character })); }
+  catch (error) { alert(error.message); }
   finally { busy(false); }
 });
 
