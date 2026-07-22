@@ -50,19 +50,6 @@ local function parse_absorb_ids(exception)
     return ids
 end
 
-local function catalog_absorbs_action(catalog, expected_id, actual_id)
-    if type(catalog) ~= "table" or type(catalog.aliases) ~= "table" then return false end
-    local id = tostring(actual_id)
-    local target = tostring(expected_id)
-    local visited = {}
-    while catalog.aliases[id] ~= nil and not visited[id] do
-        visited[id] = true
-        id = tostring(catalog.aliases[id])
-        if id == target then return true end
-    end
-    return false
-end
-
 function CharacterRules.is_action_required(exception)
     if type(exception) ~= "table" then return false end
     return exception.action_required == true
@@ -76,7 +63,7 @@ local function absorb_requires_combo(exception)
     return not CharacterRules.is_action_required(exception)
 end
 
-function CharacterRules.find_recent_absorb_confirmation(character_rules, common_rules, expected, recent_inputs, character_name, catalog)
+function CharacterRules.find_recent_absorb_confirmation(character_rules, common_rules, expected, recent_inputs, character_name)
     if not expected then return { matched = false, block_reason = "missing_expected" } end
 
     local exception = CharacterRules.get_exception(character_rules, common_rules, expected.id)
@@ -91,8 +78,7 @@ function CharacterRules.find_recent_absorb_confirmation(character_rules, common_
         local recent = recent_inputs[i]
         local recent_id = recent and tonumber(recent.id)
         local is_exception_absorb = recent_id and absorb_ids and absorb_ids[recent_id]
-        local is_catalog_alias = recent_id and catalog_absorbs_action(catalog, expected.id, recent_id)
-        if is_exception_absorb or is_catalog_alias then
+        if is_exception_absorb then
             local combo_count = tonumber(recent.combo_count) or 0
             local combo_ok = (not absorb_requires_combo(exception)) or combo_count >= expected_combo
             if combo_ok then
@@ -110,7 +96,7 @@ function CharacterRules.find_recent_absorb_confirmation(character_rules, common_
                     expected_id = expected.id,
                     expected_combo = expected_combo,
                     absorb_ids = exception and exception.absorb_ids or nil,
-                    source = is_catalog_alias and "catalog_alias" or "exception",
+                    source = "exception",
                     ignore_combo_check = not absorb_requires_combo(exception)
                 }
             end
@@ -129,7 +115,7 @@ function CharacterRules.find_recent_absorb_confirmation(character_rules, common_
     return { matched = false, block_reason = "absorb_id_not_recent", absorb_ids = exception and exception.absorb_ids or nil }
 end
 
-function CharacterRules.match_current_absorb_confirmation(character_rules, common_rules, expected, action_id, combo_count, character_name, catalog)
+function CharacterRules.match_current_absorb_confirmation(character_rules, common_rules, expected, action_id, combo_count, character_name)
     if not expected then return { matched = false, block_reason = "missing_expected" } end
 
     local exception = CharacterRules.get_exception(character_rules, common_rules, expected.id)
@@ -139,8 +125,7 @@ function CharacterRules.match_current_absorb_confirmation(character_rules, commo
 
     local current_id = tonumber(action_id)
     local is_exception_absorb = current_id and absorb_ids and absorb_ids[current_id]
-    local is_catalog_alias = current_id and catalog_absorbs_action(catalog, expected.id, current_id)
-    if not current_id or not is_exception_absorb and not is_catalog_alias then
+    if not current_id or not is_exception_absorb then
         return { matched = false, block_reason = "current_id_not_absorbed", absorb_ids = exception and exception.absorb_ids or nil }
     end
 
@@ -168,7 +153,7 @@ function CharacterRules.match_current_absorb_confirmation(character_rules, commo
         expected_id = expected.id,
         expected_combo = expected_combo,
         absorb_ids = exception and exception.absorb_ids or nil,
-        source = is_catalog_alias and "catalog_alias" or "current_non_intentional_absorb",
+        source = "current_non_intentional_absorb",
         motion = "Unknown",
         real_input = "None",
         ignore_combo_check = not absorb_requires_combo(exception)

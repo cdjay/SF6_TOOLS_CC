@@ -97,68 +97,8 @@ assert.strictEqual(base.runtime.actions["661"], "6+MP");
 assert.strictEqual(base.runtime.aliases["905"], "904");
 assert.strictEqual(base.runtime.validation.rules["606"].target_combo_followup, true);
 assert.strictEqual(base.runtime.validation.rules["661"].target_combo_followup, false);
-assert.strictEqual(base.runtime.validation.rules["1200"].display_motion, "[4]646+HP");
 assert.strictEqual(base.runtime.evidence.alias_relations[0].branch_type, 29);
 assert.deepStrictEqual(base.report.inventory.ac_action_ids_without_command_semantics, [999]);
-const legacy = compiler.buildLegacyExceptionTable(base.runtime);
-assert.deepStrictEqual(legacy["500"], { override_name: "DRC" });
-assert.deepStrictEqual(legacy["904"], { override_name: "236+LP", absorb_ids: "905" });
-assert.deepStrictEqual(legacy["905"], { override_name: "236+LP", force: true });
-assert.deepStrictEqual(legacy["1200"], { override_name: "6646+HP", display_motion: "[4]646+HP" });
-const defaultHoldCompatibility = compiler.buildLegacyCompatibility({
-    "500": { override_name: "DRC", hold_partial_check: true }
-}, legacy, base.runtime.action_ids);
-assert.strictEqual(defaultHoldCompatibility.summary.fallback_entry_count, 0);
-const disabledHoldCompatibility = compiler.buildLegacyCompatibility({
-    "500": { override_name: "DRC", hold_partial_check: false }
-}, legacy, base.runtime.action_ids);
-assert.strictEqual(disabledHoldCompatibility.summary.fallback_entry_count, 1);
-const semanticDisplayCompatibility = compiler.buildLegacyCompatibility({
-    "500": { override_name: "drc" },
-    "501": { override_name: "drive rush" },
-    "661": { override_name: "6MP" }
-}, legacy, base.runtime.action_ids);
-assert.strictEqual(semanticDisplayCompatibility.summary.fallback_entry_count, 0);
-const compatibility = compiler.buildLegacyCompatibility({
-    "905": { override_name: "236+LP (Level)", force: false, ignore_prev_frames: 5 },
-    "999": { override_name: "MANUAL", force: true },
-    "1000": { override_name: "STALE" }
-}, legacy, base.runtime.action_ids);
-assert.deepStrictEqual(compatibility.missing_action_ids, [999]);
-assert.deepStrictEqual(compatibility.stale_reference_action_ids, [1000]);
-assert.strictEqual(compatibility.summary.fallback_entry_count, 2);
-assert.deepStrictEqual(compatibility.overlay["905"], {
-    override_name: "236+LP (Level)", force: false, ignore_prev_frames: 5
-});
-const compatibleLegacy = compiler.applyLegacyCompatibilityOverlay(legacy, compatibility.overlay);
-const compatibilityAfter = compiler.buildLegacyCompatibility(
-    { "905": { override_name: "236+LP (Level)", force: false, ignore_prev_frames: 5 } },
-    compatibleLegacy, base.runtime.action_ids);
-assert.strictEqual(compatibilityAfter.summary.fallback_entry_count, 0);
-
-const type13Source = {
-    objects: [
-        action(300, 990, 301), collection(301, [302]),
-        object(302, "CharacterAsset.BranchKey", { Action: scalar(996), Type: scalar(13) }),
-        action(310, 992, 311), collection(311, [312]),
-        object(312, "CharacterAsset.BranchKey", { Action: scalar(1004), Type: scalar(13) })
-    ],
-    records: [
-        { native_action_id: 990, source_scope: "character", action_ref: ref(300) },
-        { native_action_id: 992, source_scope: "character", action_ref: ref(310) }
-    ]
-};
-const type13Compatibility = compiler.propagateType13SiblingCompatibility(type13Source, {
-    "996": { override_name: "SLIDE  (Do Nothing)", force: true },
-    "1004": { override_name: "slide (do nothing)", force: false },
-    "2000": { override_name: "SLIDE (DO NOTHING)", force: false }
-});
-assert.strictEqual(type13Compatibility.table["996"].force, true);
-assert.strictEqual(type13Compatibility.table["1004"].force, true);
-assert.strictEqual(type13Compatibility.table["2000"].force, false);
-assert.deepStrictEqual(type13Compatibility.propagated, [{
-    action_id: 1004, semantic: "SLIDE (DO NOTHING)", field: "force", value: true
-}]);
 
 const holdLevelSource = {
     schema: "sf6cr.action-catalog-full.v2",
@@ -307,13 +247,12 @@ assert.strictEqual(acFollowupResult.runtime.validation.rules["1510"].target_comb
 assert.strictEqual(acFollowupResult.runtime.validation.rules["1510"].followup_evidence, undefined);
 
 const withExceptions = compiler.compileFromCatalog(acSource, bcmCatalog, {
-    "999": { override_name: "MANUAL", force: true, absorb_ids: "" },
-    "1000": { override_name: "STALE" }
+    "999": { force: true, absorb_ids: "" },
+    "1000": { force: true }
 }, { actionSourceSha256: "ac-test" });
-assert.strictEqual(withExceptions.runtime.actions["999"], "MANUAL");
+assert.strictEqual(withExceptions.runtime.actions["999"], undefined);
 assert.strictEqual(withExceptions.runtime.validation.rules["999"].force, true);
-assert.strictEqual(withExceptions.runtime.coverage.manual_exception_entry_count, 1);
-assert.strictEqual(withExceptions.runtime.coverage.manual_display_fill_count, 1);
+assert.strictEqual(withExceptions.runtime.coverage.manual_behavior_entry_count, 1);
 assert.strictEqual(withExceptions.runtime.coverage.manual_validation_rule_count, 1);
 assert.strictEqual(withExceptions.runtime.coverage.manual_absorb_alias_count, 0);
 assert.strictEqual(withExceptions.report.status, "valid-with-warnings");
@@ -321,11 +260,11 @@ assert.strictEqual(withExceptions.report.diagnostics[0].code, "STALE_EXCEPTION_A
 assert.strictEqual(withExceptions.report.diagnostics.some(item => item.code === "STALE_EXCEPTION_ABSORB_ID"), false);
 
 const explicitEmptyAbsorb = compiler.compileFromCatalog(acSource, bcmCatalog, {
-    "904": { override_name: "236+LP", absorb_ids: "" }
+    "904": { absorb_ids: "" }
 }, { actionSourceSha256: "ac-test" });
 assert.strictEqual(explicitEmptyAbsorb.runtime.aliases["905"], undefined);
 const explicitAbsorb = compiler.compileFromCatalog(acSource, bcmCatalog, {
-    "904": { override_name: "236+LP", absorb_ids: "905" }
+    "904": { absorb_ids: "905" }
 }, { actionSourceSha256: "ac-test" });
 assert.strictEqual(explicitAbsorb.runtime.aliases["905"], "904");
 

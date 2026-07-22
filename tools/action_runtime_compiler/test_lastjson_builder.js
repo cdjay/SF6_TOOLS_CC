@@ -21,7 +21,7 @@ const registry = JSON.parse(fs.readFileSync(path.resolve(
 assert.strictEqual(Object.keys(registry).length, 30);
 assert.strictEqual(new Set(Object.values(registry).map(entry => Number(entry.fighter_id))).size, 30);
 
-const formalRoot = path.resolve(__dirname, "../../data/TrainingComboTrials_data/modern_display");
+const formalRoot = path.resolve(__dirname, "../../data/TrainingComboTrials_data/command_display");
 let formalAlex = null;
 for (const [character, registryEntry] of Object.entries(registry)) {
     const formal = JSON.parse(fs.readFileSync(path.join(formalRoot, `${character}.json`), "utf8"));

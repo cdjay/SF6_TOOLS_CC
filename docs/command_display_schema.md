@@ -6,7 +6,7 @@ AC 提供动作及派生关系，BCM 的 `norm/easy/sprt/supr` 只负责提供�
 正式数据暂时保存在兼容目录：
 
 ```text
-data/TrainingComboTrials_data/modern_display/<Character>.json
+data/TrainingComboTrials_data/command_display/<Character>.json
 ```
 
 ## 条目
@@ -40,7 +40,6 @@ data/TrainingComboTrials_data/modern_display/<Character>.json
 - `simple_command`：现代简化指令投影，主要来自 `easy/supr`。
 - `motion_command`：现代搓招投影，主要来自 `sprt`。
 - `relation`：共享 ActionGraph 中已验证的派生关系。
-- `modern_display`：旧读取器使用的兼容摘要，不是权威字段。
 - `control_support`：`classic_modern`、`classic_only` 或 `unknown`。现代投影缺少经典文本时
   必须标记为 `unknown`，因为这表示编译器尚未补齐经典投影，不代表 Action 仅现代可用。
 
@@ -63,6 +62,5 @@ BCM 条件距离和 Assist Combo 强度取得可审计的经典投影。每条�
 吸收 ID、忽略帧等行为规则仍由 CharacterRules 和 exception 数据负责。加载器完成完整审计后，
 只缓存 Action ID 与三个指令槽，避免长期保留大型 JSON。
 
-经典、现代简化和现代搓招显示均以统一角色表为唯一权威。运行时不读取 exception 中的
-`override_name`、`display_motion` 或 `display_override`。历史 exception 文件只保留检测行为兼容；
-行为字段不得因显示统一而删除。
+经典、现代简化和现代搓招显示均以统一角色表为唯一权威。exception 文件禁止保存显示文本，
+只保留蓄力、吸收、强制识别、忽略帧等检测行为。

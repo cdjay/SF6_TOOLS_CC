@@ -1,409 +1,53 @@
 {
-  "17": {
-    "override_name": "66"
-  },
-  "18": {
-    "override_name": "44"
-  },
-  "480": {
-    "override_name": "Normal"
-  },
-  "600": {
-    "override_name": "LP"
-  },
-  "601": {
-    "override_name": "LP"
-  },
-  "602": {
-    "override_name": "LP"
-  },
-  "605": {
-    "override_name": "MP"
-  },
   "606": {
-    "override_name": ">MP",
     "optional_parent_ids": [
       605
     ]
   },
-  "608": {
-    "override_name": "HP"
-  },
-  "611": {
-    "override_name": "LK"
-  },
-  "614": {
-    "override_name": "MK"
-  },
-  "615": {
-    "override_name": ">HK",
-    "absorb_ids": "",
-    "force": false,
-    "ignore": false,
-    "is_holdable": false,
-    "hold_partial_check": true,
-    "ignore_prev_frames": 5
-  },
-  "617": {
-    "override_name": "HK"
-  },
-  "622": {
-    "override_name": "2+LP"
-  },
-  "623": {
-    "override_name": "2+LP"
-  },
-  "624": {
-    "override_name": "2+LP"
-  },
-  "627": {
-    "override_name": "2+MP"
-  },
-  "630": {
-    "override_name": "2+HP"
-  },
-  "635": {
-    "override_name": "2+LK"
-  },
-  "636": {
-    "override_name": "2+LK"
-  },
-  "637": {
-    "override_name": "2+LK"
-  },
-  "640": {
-    "override_name": "2+MK"
-  },
-  "643": {
-    "override_name": "2+HK"
-  },
-  "650": {
-    "override_name": "j.LP"
-  },
-  "651": {
-    "override_name": "j.MP"
-  },
-  "652": {
-    "override_name": "j.HP"
-  },
-  "653": {
-    "override_name": "j.LK"
-  },
-  "654": {
-    "override_name": "j.MK"
-  },
-  "655": {
-    "override_name": "j.HK"
-  },
-  "657": {
-    "override_name": "j.2+MK"
-  },
-  "661": {
-    "override_name": "6+MP"
-  },
-  "664": {
-    "override_name": "6+MK"
-  },
-  "667": {
-    "override_name": "6+HP"
-  },
-  "668": {
-    "override_name": ">6HP",
-    "force": false,
-    "ignore": false,
-    "is_holdable": false,
-    "ignore_prev_frames": 5
-  },
   "670": {
-    "override_name": ">HK",
     "optional_parent_ids": [
       617
     ]
   },
-  "672": {
-    "override_name": "4+HK"
-  },
-  "715": {
-    "override_name": "Throw"
-  },
   "717": {
-    "override_name": "4 (throw)",
-    "force": true,
-    "ignore": false,
-    "is_holdable": false,
-    "ignore_prev_frames": 5
-  },
-  "739": {
-    "override_name": "drc",
-    "force": false,
-    "ignore": false,
-    "is_holdable": false,
-    "ignore_prev_frames": 5
-  },
-  "740": {
-    "override_name": "RAW DR"
-  },
-  "850": {
-    "override_name": "6+DI"
-  },
-  "852": {
-    "override_name": "6"
-  },
-  "855": {
-    "override_name": "DI"
+    "force": true
   },
   "900": {
-    "override_name": "236+LP",
-    "force": false,
-    "ignore": false,
     "is_holdable": true,
     "charge_min": 24,
-    "charge_max": 49,
-    "ignore_prev_frames": 5
+    "charge_max": 49
   },
   "902": {
-    "override_name": "236+MP",
-    "force": false,
-    "ignore": false,
     "is_holdable": true,
     "charge_min": 24,
-    "charge_max": 49,
-    "ignore_prev_frames": 5
+    "charge_max": 49
   },
   "903": {
-    "override_name": "236+HP",
-    "force": false,
-    "ignore": false,
     "is_holdable": true,
     "charge_min": 24,
-    "charge_max": 49,
-    "ignore_prev_frames": 5
+    "charge_max": 49
   },
   "904": {
-    "override_name": "236+PP (OD)",
-    "force": false,
-    "ignore": false,
     "is_holdable": true,
     "charge_min": 24,
-    "charge_max": 24,
-    "ignore_prev_frames": 5
-  },
-  "943": {
-    "override_name": "j.236+LP"
-  },
-  "944": {
-    "override_name": "j.236+MP"
-  },
-  "945": {
-    "override_name": "j.236+HP"
-  },
-  "947": {
-    "override_name": "j.236+PP"
-  },
-  "949": {
-    "override_name": "j.214+PP"
-  },
-  "952": {
-    "override_name": "j.236+P"
-  },
-  "961": {
-    "override_name": "623+LP"
-  },
-  "962": {
-    "override_name": "623+MP"
-  },
-  "963": {
-    "override_name": "623+HP"
-  },
-  "964": {
-    "override_name": "623+PP"
-  },
-  "975": {
-    "override_name": "214+LP"
-  },
-  "976": {
-    "override_name": "214+MP"
-  },
-  "977": {
-    "override_name": "214+HP"
+    "charge_max": 24
   },
   "978": {
-    "override_name": "214+PP",
     "absorb_ids": "979"
   },
   "979": {
-    "override_name": "214+PP",
     "force": true
   },
-  "982": {
-    "override_name": ">6+P",
-    "absorb_ids": "",
-    "force": false,
-    "ignore": false,
-    "is_holdable": false,
-    "hold_partial_check": true,
-    "ignore_prev_frames": 5
-  },
-  "984": {
-    "override_name": ">6+P",
-    "absorb_ids": "",
-    "force": false,
-    "ignore": false,
-    "is_holdable": false,
-    "hold_partial_check": true,
-    "ignore_prev_frames": 5
-  },
-  "985": {
-    "override_name": ">6+P",
-    "absorb_ids": "",
-    "force": false,
-    "ignore": false,
-    "is_holdable": false,
-    "hold_partial_check": true,
-    "ignore_prev_frames": 5
-  },
-  "986": {
-    "override_name": ">6+P",
-    "absorb_ids": "",
-    "force": false,
-    "ignore": false,
-    "is_holdable": false,
-    "hold_partial_check": true,
-    "ignore_prev_frames": 5
-  },
-  "989": {
-    "override_name": "236+LK"
-  },
-  "990": {
-    "override_name": "236+MK"
-  },
-  "991": {
-    "override_name": "236+HK"
-  },
-  "992": {
-    "override_name": "236+KK"
-  },
   "996": {
-    "override_name": "SLIDE  (Do Nothing)",
-    "force": true,
-    "ignore": false,
-    "is_holdable": false,
-    "ignore_prev_frames": 5
-  },
-  "998": {
-    "override_name": "j.LK"
-  },
-  "999": {
-    "override_name": "j.MK"
-  },
-  "1000": {
-    "override_name": "j.HK"
-  },
-  "1001": {
-    "override_name": "j.P"
-  },
-  "1004": {
-    "override_name": "slide (do nothing)",
-    "force": false,
-    "ignore": false,
-    "is_holdable": false,
-    "ignore_prev_frames": 5
-  },
-  "1005": {
-    "override_name": "j.LK"
-  },
-  "1006": {
-    "override_name": "j.MK"
-  },
-  "1007": {
-    "override_name": "j.HK"
-  },
-  "1008": {
-    "override_name": "j.P"
+    "force": true
   },
   "1013": {
-    "override_name": "2 (Cancel Action)",
-    "force": true,
-    "ignore": false,
-    "is_holdable": false,
-    "ignore_prev_frames": 5
-  },
-  "1017": {
-    "override_name": "214+LK"
-  },
-  "1019": {
-    "override_name": "214+MK"
-  },
-  "1022": {
-    "override_name": "214+HK"
-  },
-  "1027": {
-    "override_name": "214+KK"
-  },
-  "1030": {
-    "override_name": "j.214+K"
-  },
-  "1031": {
-    "override_name": "j.214+KK"
-  },
-  "1033": {
-    "override_name": "j.214+K"
-  },
-  "1075": {
-    "override_name": "6+KKK"
-  },
-  "1081": {
-    "override_name": "4+KKK"
-  },
-  "1087": {
-    "override_name": "Throw"
+    "force": true
   },
   "1200": {
-    "override_name": "236236+P",
     "absorb_ids": "1201"
   },
   "1201": {
-    "override_name": "236236+P",
     "force": true
-  },
-  "1207": {
-    "override_name": "j.236236+K"
-  },
-  "1213": {
-    "override_name": "214214+P"
-  },
-  "1214": {
-    "override_name": "214214+P"
-  },
-  "1220": {
-    "override_name": "236236+K"
-  },
-  "1221": {
-    "override_name": "236236+K"
-  },
-  "1225": {
-    "override_name": "236236+K"
-  },
-  "1226": {
-    "override_name": "236236+K"
-  },
-  "1231": {
-    "override_name": "Shun Goku Satsu",
-    "force": false,
-    "ignore": false,
-    "is_holdable": false,
-    "ignore_prev_frames": 5
-  },
-  "1243": {
-    "override_name": "22+PPP"
-  },
-  "1247": {
-    "override_name": "214214+K"
-  },
-  "1495": {
-    "override_name": "2+LP+MP+HP+LK+MK+HK"
-  },
-  "1497": {
-    "override_name": "LP+MP+HP+LK+MK+HK"
   }
 }

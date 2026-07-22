@@ -1,139 +1,27 @@
-# Modern Display Builder
+# 官网指令语义快照工具
 
-This directory contains offline-friendly tooling for generating modern control display mapping candidates from Capcom official frame data.
+本目录只负责从 Capcom 官网数据生成 Classic/Modern 语义候选快照。官网 Action ID 不是游戏
+Action ID，快照不能直接作为运行时角色表。
 
-The generated files are candidates for review. They must not automatically overwrite the runtime mapping under:
+30 角色正式生成流程：
+
+```powershell
+tools\action_runtime_compiler\1_fetch_official_and_diff.bat 2026-05-28
+tools\action_runtime_compiler\2_build_lastjson.bat 2026-05-28
+```
+
+第一步写入版本化 `off/<版本>` 快照；第二步把 AC、BCM 与官网语义统一编译为
+`xt.command_display.v1`，正式数据位于：
 
 ```text
-data/TrainingComboTrials_data/modern_display/<Character>.json
+data/TrainingComboTrials_data/command_display/<Character>.json
 ```
 
-## Scope
+单角色抓取工具 `extract_modern_display.py` 仅用于研究候选，输出仍采用
+`xt.modern_display.v1` 官网语义 schema，不得直接复制到正式目录。
 
-`extract_modern_display.py` supports single-character candidate generation.
-
-`batch_build_modern_display.py` reads `characters.json`, generates official candidates, merges them into runtime mapping JSON files, and writes markdown reports. It does not modify Lua, validators, timeline data, recorder logic, website code, or raw official dumps.
-
-## Usage
-
-Fetch from the official URL and write a candidate JSON:
+测试：
 
 ```powershell
-python tools/modern_display_builder/extract_modern_display.py `
-  --character Akuma `
-  --url https://www.streetfighter.com/6/zh-hant/character/gouki_akuma/frame `
-  --output tools/modern_display_builder/out/Akuma.official.generated.json
+python tools/modern_display_builder/test_official_snapshot_tool.py
 ```
-
-Generate a diff report against the current runtime mapping:
-
-```powershell
-python tools/modern_display_builder/extract_modern_display.py `
-  --character Akuma `
-  --url https://www.streetfighter.com/6/zh-hant/character/gouki_akuma/frame `
-  --output tools/modern_display_builder/out/Akuma.official.generated.json `
-  --current data/TrainingComboTrials_data/modern_display/Akuma.json `
-  --diff-output docs/modern_display_akuma_official_diff.md
-```
-
-Use a local input when the network is unavailable:
-
-```powershell
-python tools/modern_display_builder/extract_modern_display.py `
-  --character Akuma `
-  --html path/to/gouki_akuma_frame.html `
-  --output tools/modern_display_builder/out/Akuma.official.generated.json
-```
-
-`--html` accepts either:
-
-- a saved Capcom frame HTML page, if its referenced Next.js frame chunk can also be found locally or fetched through `--url`
-- the frame page JavaScript chunk itself
-
-Use a paired official Classic/Modern table dump (for example the `INGRID.json`
-files stored beside a dated AC+BCM dump):
-
-```powershell
-python tools/modern_display_builder/extract_modern_display.py `
-  --character Ingrid `
-  --official-dump "D:\CP\SF6CR-evidence\AC+BCM+OFF\2026.5.28\INGRID.json" `
-  --output tools/modern_display_builder/out/Ingrid.official.generated.json
-```
-
-The dated HTML compiler automatically performs this conversion when a known
-OFF filename is present in the selected dump directory. It archives both the
-raw capture and normalized semantics under
-`tools/action_runtime_compiler/html/off/<version>/`; this standalone command is
-mainly for reviewing or updating the checked-in semantic input.
-
-Do not commit large raw HTML or JavaScript dumps. Small generated candidate JSON files and markdown diff reports are acceptable when they are useful for review.
-
-Batch build and merge every manifest character:
-
-```powershell
-python tools/modern_display_builder/batch_build_modern_display.py
-```
-
-Rebuild one manifest character:
-
-```powershell
-python tools/modern_display_builder/batch_build_modern_display.py --character Ryu
-```
-
-Batch outputs:
-
-- `tools/modern_display_builder/out/<Character>.official.generated.json`
-- `data/TrainingComboTrials_data/modern_display/<Character>.json`
-- `docs/modern_display_<Character>_official_diff.md`
-- `docs/modern_display_all_characters_batch_report.md`
-
-If a page is reachable but no official action IDs are found, the batch report marks that character as failed/skipped and does not create an empty formal mapping.
-
-## Output Shape
-
-Output follows `xt.modern_display.v1`:
-
-```json
-{
-  "_meta": {
-    "schema": "xt.modern_display.v1",
-    "character": "Akuma",
-    "generated_from": "capcom_official",
-    "source_url": "https://www.streetfighter.com/6/zh-hant/character/gouki_akuma/frame",
-    "updated_at": "YYYY-MM-DD",
-    "description": "Official Akuma modern display candidate generated from Capcom frame data."
-  },
-  "617": {
-    "classic_display": "HK",
-    "modern_display": "AUTO + 強",
-    "control_support": "classic_modern",
-    "source": "capcom_official",
-    "move_name": "立ち強K（首撥ね）",
-    "category": "NORMAL",
-    "note": "Generated from Capcom official frame data."
-  }
-}
-```
-
-If Capcom provides a classic command but no modern command, the generated entry uses:
-
-```json
-{
-  "modern_display": null,
-  "control_support": "classic_only",
-  "note": "No modern command found in official data."
-}
-```
-
-## Normalization Rules
-
-The tool intentionally keeps normalization small:
-
-- full-width plus and follow-up symbols become `+` and `>`
-- extra whitespace is collapsed
-- modern buttons are preserved as `弱`, `中`, `強`, `SP`, `AUTO`
-- `攻撃` is preserved and marked for review
-- air context is lightly normalized to `空中`
-- uncertain text remains in the generated display and is marked in `note`
-
-Generated output is a review candidate, not a direct source of truth.

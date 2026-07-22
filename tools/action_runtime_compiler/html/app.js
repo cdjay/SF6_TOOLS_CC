@@ -1,7 +1,7 @@
 "use strict";
 
 const elements = Object.fromEntries([
-  "dump-directory", "version", "compare-version", "use-exceptions", "scan-button",
+  "dump-directory", "version", "compare-version", "scan-button",
   "selection-panel", "scan-summary", "select-all", "selected-summary", "pair-list",
   "incomplete-box", "build-button", "result-panel", "result-summary", "directory-grid",
   "result-list", "storage-paths", "activity", "activity-text", "server-status"
@@ -95,8 +95,7 @@ function renderResults(result) {
     ["OFF 官网语义快照", result.official_archive, "off"],
     ["角色简表与报告", result.character_archive, "char"],
     ["v2 运行时（内部）", result.latest, "latest"],
-    ["可同步角色例外表", result.latest_exceptions, "latest_exceptions"],
-    ["可同步现代显示表", result.latest_modern, "latest_modern"]
+    ["统一三槽角色表", result.latest_command, "latest_command"]
   ];
   elements["directory-grid"].replaceChildren();
   for (const [label, directory, kind] of directories) {
@@ -130,12 +129,10 @@ function renderResults(result) {
       metric("别名 +", s.aliases_added), metric("别名 -", s.aliases_removed), metric("别名改", s.aliases_changed),
       metric("TC +", s.target_combos_added), metric("TC -", s.target_combos_removed),
       metric("验证改", s.validation_changed),
-      metric("现代 +", s.modern_displays_added || 0),
-      metric("现代 -", s.modern_displays_removed || 0),
-      metric("现代改", s.modern_displays_changed || 0),
-      metric("旧表缺项", entry.compatibility?.missing_action_count || 0),
-      metric("兼容兜底", entry.compatibility?.fallback_entry_count || 0),
-      metric("现代映射", entry.modern_display_action_count || 0)
+      metric("统一表 +", s.command_displays_added || 0),
+      metric("统一表 -", s.command_displays_removed || 0),
+      metric("统一表改", s.command_displays_changed || 0),
+      metric("统一指令", entry.command_display_action_count || 0)
     );
     content.append(name, metrics);
     const latest = document.createElement("span");
@@ -219,7 +216,8 @@ function previewSchema(kind) {
     ["Classic", row => row.classic_display], ["Modern", row => row.modern_display], ["支持", row => row.control_support], ["备注", row => row.note]
   ];
   return [
-    ["Action ID", row => row.action_id], ["Modern 显示", row => row.modern_display], ["归属", row => row.ownership],
+    ["Action ID", row => row.action_id], ["经典", row => row.classic_command],
+    ["现代简化", row => row.simple_command], ["现代搓招", row => row.motion_command], ["归属", row => row.ownership],
     ["来源", row => row.source], ["路线数", row => row.routes.length], ["路线证据", row => row.routes, true]
   ];
 }
@@ -268,7 +266,7 @@ function renderPreview(result) {
   elements["preview-source-chain"].replaceChildren();
   const title = document.createElement("strong"); title.textContent = `${result.version} / ${result.character} / Fighter ${result.fighter_id}`;
   const code = document.createElement("code");
-  code.textContent = [fileLine("AC", result.files.ac), fileLine("BCM", result.files.bcm), fileLine("OFF原始", result.files.official_raw), fileLine("OFF语义", result.files.official), fileLine("Modern", result.files.modern)].join("  →  ");
+  code.textContent = [fileLine("AC", result.files.ac), fileLine("BCM", result.files.bcm), fileLine("OFF原始", result.files.official_raw), fileLine("OFF语义", result.files.official), fileLine("统一表", result.files.command)].join("  →  ");
   const paths = document.createElement("small");
   paths.textContent = `AC+BCM stem: ${result.stem}；OFF 与输出使用规范角色名 ${result.character}`;
   elements["preview-source-chain"].append(title, code, paths);
@@ -283,7 +281,7 @@ async function loadPreviewIndex() {
     const index = await post("/api/preview-index", { version });
     elements["preview-character"].replaceChildren(new Option("请选择角色", ""));
     for (const item of index.characters) {
-      const status = `${item.ac_file && item.bcm_file ? "AC+BCM" : "源缺失"} / ${item.official_file ? "OFF" : "无OFF"} / ${item.modern_file ? "Modern" : "无输出"}`;
+      const status = `${item.ac_file && item.bcm_file ? "AC+BCM" : "源缺失"} / ${item.official_file ? "OFF" : "无OFF"} / ${item.command_file ? "统一表" : "无输出"}`;
       elements["preview-character"].append(new Option(`${item.character} · ${status}`, item.character));
     }
     elements["preview-source-chain"].textContent = `原始归档：${index.raw_directory}；OFF：${index.official_directory}；输出：${index.character_directory}`;
@@ -323,7 +321,6 @@ elements["build-button"].addEventListener("click", async () => {
       dump_directory: elements["dump-directory"].value.trim(),
       version,
       compare_version: elements["compare-version"].value || null,
-      use_exceptions: elements["use-exceptions"].checked,
       stems
     });
     renderResults(result);

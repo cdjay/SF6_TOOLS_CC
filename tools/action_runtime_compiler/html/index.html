@@ -12,7 +12,7 @@
       <div>
         <p class="eyebrow">SF6CC · LOCAL BUILD TOOL</p>
         <h1>AC+BCM+OFF 角色指令生成器</h1>
-        <p class="lead">从游戏 AC/BCM dump 与官网 OFF 表批量生成角色简表、检测例外表和现代模式显示映射，按日期归档并汇总到可直接同步的 latest 目录。</p>
+        <p class="lead">从游戏 AC/BCM dump 与官网 OFF 表批量生成检测运行时和统一三槽指令表，按日期归档并汇总到可直接同步的 latest 目录。</p>
       </div>
       <div class="status-pill" id="server-status">本地服务已连接</div>
     </header>
@@ -37,10 +37,6 @@
         </label>
       </div>
       <div class="actions-row">
-        <label class="check-option">
-          <input id="use-exceptions" type="checkbox" checked disabled>
-          <span><strong>强制旧表兼容审计</strong><small>逐角色对照现有检测表；未被 AC+BCM 覆盖的规则自动缩减为兜底层，仍有遗漏时禁止更新 latest。</small></span>
-        </label>
         <button class="primary" id="scan-button">扫描目录</button>
       </div>
     </section>
@@ -57,7 +53,7 @@
       <div class="pair-list" id="pair-list"></div>
       <div class="warning-box hidden" id="incomplete-box"></div>
       <div class="build-row">
-        <p>只有状态为 <code>valid</code> 的角色会更新 latest_exceptions 与 latest_modern；带警告或无效结果仍保存在版本归档中供检查。</p>
+        <p>只有状态为 <code>valid</code> 的角色会更新 latest 与 latest_command；带警告或无效结果仍保存在版本归档中供检查。</p>
         <button class="primary accent" id="build-button">编译并归档</button>
       </div>
     </section>
@@ -91,12 +87,12 @@
         </label>
         <button class="primary" id="preview-load">加载预览</button>
       </div>
-      <div class="source-chain" id="preview-source-chain">选择版本和角色后，会显示 AC、BCM、OFF 与最终 Modern 表的文件对应关系。</div>
+      <div class="source-chain" id="preview-source-chain">选择版本和角色后，会显示 AC、BCM、OFF 与统一三槽指令表的文件对应关系。</div>
       <div class="preview-tabs" id="preview-tabs" role="tablist">
         <button class="preview-tab active" data-kind="ac">AC 动作</button>
         <button class="preview-tab" data-kind="bcm">BCM 指令</button>
         <button class="preview-tab" data-kind="official">OFF 官网语义</button>
-        <button class="preview-tab" data-kind="modern">最终 Modern</button>
+        <button class="preview-tab" data-kind="command">统一三槽表</button>
       </div>
       <div class="preview-meta" id="preview-meta">尚未加载。</div>
       <div class="preview-table-wrap">

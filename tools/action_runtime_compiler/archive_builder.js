@@ -5,7 +5,7 @@ const fs = require("fs");
 const path = require("path");
 const bcmCore = require("../bcm_catalog_builder/bcm_catalog_core.js");
 const compiler = require("./compiler_core.js");
-const modernDisplay = require("./modern_display_core.js");
+const commandDisplay = require("./command_display_core.js");
 const officialCore = require("./official_semantics_core.js");
 
 const AC_SUFFIX = "-fab-action-catalog-full-classic.json";
@@ -292,23 +292,18 @@ function findPrevious(outputRoot, character, requestedVersion, currentVersion) {
         const versionRoot = path.join(outputRoot, "char", item.version);
         const runtimeFile = resolveWithin(versionRoot, entry.runtime_file || `${character}.json`);
         const reportFile = resolveWithin(versionRoot, entry.report_file || `${character}.report.json`);
-        const modernDisplayFile = resolveWithin(
-            versionRoot, entry.modern_display_file || `${character}.modern-display.json`);
+        const commandDisplayFile = resolveWithin(
+            versionRoot, entry.command_display_file || `${character}.command-display.json`);
         const runtime = readJsonIfExists(runtimeFile);
         if (runtime) return {
             version: item.version,
             same_version: item.version === currentVersion,
             runtime,
             report: readJsonIfExists(reportFile),
-            modern_display: readJsonIfExists(modernDisplayFile)
+            command_display: readJsonIfExists(commandDisplayFile)
         };
     }
     return null;
-}
-
-function loadExceptions(character) {
-    const filename = path.resolve(__dirname, "..", "..", "data", "TrainingComboTrials_data", "exceptions", `${character}.json`);
-    return { filename, value: readJsonIfExists(filename) || {} };
 }
 
 function validateVersion(version) {
@@ -328,7 +323,7 @@ function validateCharacterFilename(character) {
 }
 
 function ensureStorage(outputRoot) {
-    for (const name of ["acbcm", "off", "char", "latest", "latest_exceptions", "latest_modern"]) ensureDirectory(path.join(outputRoot, name));
+    for (const name of ["acbcm", "off", "char", "latest", "latest_command"]) ensureDirectory(path.join(outputRoot, name));
 }
 
 function mergeEntries(existing, updates, keyOf, compare) {
@@ -401,17 +396,11 @@ function buildArchive(options) {
                 throw new Error(`多个输入配对解析为同一角色 ${resolvedCharacter}，已停止以避免覆盖。`);
             }
             seenCharacters.add(resolvedCharacter);
-            const exceptionSource = loadExceptions(resolvedCharacter);
-            const type13Compatibility = compiler.propagateType13SiblingCompatibility(
-                ac.value, exceptionSource.value);
             const compileOptions = {
                 actionSourceSha256: ac.sha256,
                 bcmSourceSha256: bcm.sha256,
                 characterName: resolvedCharacter
             };
-            // Always compile the v2 runtime from AC+BCM alone. The existing
-            // legacy table is then audited and reduced to the smallest
-            // compatibility overlay needed to avoid detection regressions.
             const bcmCatalog = bcmCore.buildCatalog(bcm.value, {
                 characterName: resolvedCharacter,
                 sourceSha256: bcm.sha256,
@@ -420,52 +409,13 @@ function buildArchive(options) {
             const result = compiler.compileFromCatalog(ac.value, bcmCatalog, {}, compileOptions);
             const officialSemantics = loadOfficialSemantics(resolvedCharacter, scan.directory, updatedAt);
             const communitySemantics = loadCommunitySemantics(resolvedCharacter);
-            const generatedModernDisplay = modernDisplay.buildModernDisplay(
+            const generatedCommandDisplay = commandDisplay.buildCommandDisplay(
                 ac.value, bcmCatalog, result.runtime, {},
                 { ...compileOptions, generatedAt: updatedAt,
                     officialSemantics: officialSemantics.value,
                     officialSemanticsSha256: officialSemantics.sha256,
                     communitySemantics: communitySemantics.value,
                     communitySemanticsSha256: communitySemantics.sha256 });
-            const pureGeneratedExceptions = compiler.buildLegacyExceptionTable(result.runtime);
-            const compatibilityBefore = compiler.buildLegacyCompatibility(
-                type13Compatibility.table, pureGeneratedExceptions, result.runtime.action_ids);
-            const generatedExceptions = compiler.applyLegacyCompatibilityOverlay(
-                pureGeneratedExceptions, compatibilityBefore.overlay);
-            const compatibilityAfter = compiler.buildLegacyCompatibility(
-                type13Compatibility.table, generatedExceptions, result.runtime.action_ids);
-            const compatibility = {
-                schema: "sf6cc.legacy-exception-compatibility.v1",
-                character: result.runtime.character,
-                reference_file: exceptionSource.filename,
-                ac_type13_sibling_propagation: type13Compatibility.propagated,
-                pure_ac_bcm: compatibilityBefore,
-                final_output: compatibilityAfter,
-                fallback_overlay: compatibilityBefore.overlay
-            };
-            result.report.compatibility = compatibility;
-            result.runtime.coverage.compatibility_fallback_entry_count =
-                compatibilityBefore.summary.fallback_entry_count;
-            result.report.summary.compatibility_fallback_entry_count =
-                compatibilityBefore.summary.fallback_entry_count;
-            if (compatibilityBefore.summary.fallback_entry_count) result.report.diagnostics.push({
-                severity: "info",
-                code: "LEGACY_COMPATIBILITY_FALLBACK_APPLIED",
-                entry_count: compatibilityBefore.summary.fallback_entry_count
-            });
-            if (compatibilityBefore.summary.stale_reference_action_count) result.report.diagnostics.push({
-                severity: "info",
-                code: "STALE_LEGACY_REFERENCE_ACTIONS",
-                action_ids: compatibilityBefore.stale_reference_action_ids
-            });
-            if (compatibilityAfter.summary.fallback_entry_count) {
-                result.report.diagnostics.push({
-                    severity: "error",
-                    code: "LEGACY_COMPATIBILITY_REGRESSION",
-                    entry_count: compatibilityAfter.summary.fallback_entry_count
-                });
-                result.report.status = "invalid";
-            }
             const previous = findPrevious(
                 outputRoot, result.runtime.character, options.compareVersion || null, version);
             const difference = diffRuntimes(
@@ -477,21 +427,21 @@ function buildArchive(options) {
                         ? "same-version-before-overwrite" : "archived-version",
                     currentVersion: version
                 });
-            const modernBefore = previous && previous.modern_display || {};
-            const modernAfter = generatedModernDisplay;
-            const modernDiff = mapDiff(
-                Object.fromEntries(Object.entries(modernBefore).filter(([key]) => /^\d+$/.test(key))),
-                Object.fromEntries(Object.entries(modernAfter).filter(([key]) => /^\d+$/.test(key))));
-            difference.summary.modern_displays_added = modernDiff.added.length;
-            difference.summary.modern_displays_removed = modernDiff.removed.length;
-            difference.summary.modern_displays_changed = modernDiff.changed.length;
-            difference.details.modern_displays = modernDiff;
+            const commandBefore = previous && previous.command_display || {};
+            const commandAfter = generatedCommandDisplay;
+            const commandDiff = mapDiff(
+                Object.fromEntries(Object.entries(commandBefore).filter(([key]) => /^\d+$/.test(key))),
+                Object.fromEntries(Object.entries(commandAfter).filter(([key]) => /^\d+$/.test(key))));
+            difference.summary.command_displays_added = commandDiff.added.length;
+            difference.summary.command_displays_removed = commandDiff.removed.length;
+            difference.summary.command_displays_changed = commandDiff.changed.length;
+            difference.details.command_displays = commandDiff;
             difference.has_changes = !difference.baseline && Object.values(difference.summary)
                 .some(value => value === true || Number(value) > 0);
 
             pendingWrites.push({
                 pair, acPath, bcmPath, runtime: result.runtime, report: result.report,
-                generatedExceptions, generatedModernDisplay, compatibility, difference,
+                generatedCommandDisplay, difference,
                 officialSemantics
             });
             differences.push(difference);
@@ -519,19 +469,15 @@ function buildArchive(options) {
                 fighter_id: result.runtime.fighter_id,
                 status: result.report.status,
                 runtime_file: `${result.runtime.character}.json`,
-                generated_exception_file: `${result.runtime.character}.exceptions.json`,
-                modern_display_file: `${result.runtime.character}.modern-display.json`,
-                compatibility_file: `${result.runtime.character}.compatibility.json`,
+                command_display_file: `${result.runtime.character}.command-display.json`,
                 report_file: `${result.runtime.character}.report.json`,
                 diff_file: `${result.runtime.character}.diff.json`,
                 compare_version: previous && previous.version || null,
                 comparison_mode: previous && previous.same_version
                     ? "same-version-before-overwrite" : (previous ? "archived-version" : "baseline"),
                 latest_updated: result.report.status === "valid",
-                exception_file: exceptionSource.filename,
                 coverage: result.runtime.coverage,
-                compatibility: compatibilityBefore.summary,
-                modern_display_action_count: Object.keys(generatedModernDisplay).filter(key => /^\d+$/.test(key)).length,
+                command_display_action_count: Object.keys(generatedCommandDisplay).filter(key => /^\d+$/.test(key)).length,
                 difference: difference.summary
             });
         }
@@ -569,7 +515,6 @@ function buildArchive(options) {
             schema: "sf6cc.action-runtime-archive-manifest.v1",
             ...common,
             compiler_rules_version: compiler.RULES_VERSION,
-            use_exceptions: options.useExceptions === true,
             compare_version: options.compareVersion || null,
             characters: mergedCharacterEntries
         };
@@ -600,9 +545,7 @@ function buildArchive(options) {
             }
             const write = mergeExistingVersion ? writeJsonAtomic : writeJson;
             write(path.join(charTarget, `${pending.runtime.character}.json`), pending.runtime);
-            write(path.join(charTarget, `${pending.runtime.character}.exceptions.json`), pending.generatedExceptions);
-            write(path.join(charTarget, `${pending.runtime.character}.modern-display.json`), pending.generatedModernDisplay);
-            write(path.join(charTarget, `${pending.runtime.character}.compatibility.json`), pending.compatibility);
+            write(path.join(charTarget, `${pending.runtime.character}.command-display.json`), pending.generatedCommandDisplay);
             write(path.join(charTarget, `${pending.runtime.character}.report.json`), pending.report);
             write(path.join(charTarget, `${pending.runtime.character}.diff.json`), pending.difference);
         }
@@ -632,12 +575,10 @@ function buildArchive(options) {
             }
         }
         const latestRoot = path.join(outputRoot, "latest");
-        const latestExceptionsRoot = path.join(outputRoot, "latest_exceptions");
-        const latestModernRoot = path.join(outputRoot, "latest_modern");
+        const latestCommandRoot = path.join(outputRoot, "latest_command");
         for (const pending of pendingWrites.filter(item => item.report.status === "valid")) {
             writeJsonAtomic(path.join(latestRoot, `${pending.runtime.character}.json`), pending.runtime);
-            writeJsonAtomic(path.join(latestExceptionsRoot, `${pending.runtime.character}.json`), pending.generatedExceptions);
-            writeJsonAtomic(path.join(latestModernRoot, `${pending.runtime.character}.json`), pending.generatedModernDisplay);
+            writeJsonAtomic(path.join(latestCommandRoot, `${pending.runtime.character}.json`), pending.generatedCommandDisplay);
         }
         const latestManifestPath = path.join(outputRoot, "latest-manifest.json");
         const latestManifest = readJsonIfExists(latestManifestPath) || {
@@ -649,7 +590,7 @@ function buildArchive(options) {
                 version,
                 fighter_id: entry.fighter_id,
                 runtime_file: entry.runtime_file,
-                modern_display_file: entry.modern_display_file,
+                command_display_file: entry.command_display_file,
                 status: entry.status
             };
         }
@@ -664,8 +605,7 @@ function buildArchive(options) {
             official_archive: offFinal,
             character_archive: charFinal,
             latest: latestRoot,
-            latest_exceptions: latestExceptionsRoot,
-            latest_modern: latestModernRoot,
+            latest_command: latestCommandRoot,
             characters: characterEntries,
             differences
         };

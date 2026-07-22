@@ -498,7 +498,7 @@ def write_diff_report(candidate: dict[str, Any], current: dict[str, Any], output
         "\n",
         "Notes:\n",
         "\n",
-        "- This report does not modify `data/TrainingComboTrials_data/modern_display/Akuma.json`.\n",
+        "- This report does not modify `data/TrainingComboTrials_data/command_display/Akuma.json`.\n",
         "- `攻撃` is preserved in official candidates and marked for review instead of being forced to `強`.\n",
         "- Current-only IDs may be contextual, sample-derived, or absent from the public official table.\n",
     ])

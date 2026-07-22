@@ -10,7 +10,7 @@ const VALIDATION_FIELDS = [
     "force", "ignore", "is_holdable", "hold_partial_check", "charge_min", "charge_max",
     "perfect_min", "perfect_max", "ignore_prev_id", "ignore_prev_frames", "action_required",
     "no_combo_auto_advance", "require_absorb", "absorb_requires_combo", "optional_parent_ids",
-    "optional_parent_motions", "follow_up_motion", "display_motion"
+    "optional_parent_motions", "follow_up_motion"
 ];
 
 function sortedObject(input) {
@@ -21,131 +21,9 @@ function sortedObject(input) {
     return output;
 }
 
-const LEGACY_DEFAULTS = {
-    absorb_ids: "",
-    force: false,
-    ignore: false,
-    is_holdable: false,
-    hold_partial_check: true,
-    ignore_prev_frames: 5
-};
-
 const BRANCH_DIRECTION = {
     1: "8", 2: "2", 4: "4", 5: "7", 6: "1", 8: "6", 9: "9", 10: "3"
 };
-
-function normalizeLegacyValue(field, value, actionSet) {
-    if (field === "absorb_ids") {
-        const ids = String(value || "").split(",")
-            .map(token => token.trim())
-            .filter(token => /^-?\d+$/.test(token))
-            .map(Number)
-            .filter(id => !actionSet || actionSet.has(String(id)));
-        return [...new Set(ids)].sort((a, b) => a - b).join(",");
-    }
-    if (field === "override_name" && typeof value === "string") {
-        // Match the runtime motion fallback while retaining semantically
-        // meaningful annotations and the leading TC/follow-up marker.
-        return value.toUpperCase().replace(/\s+/g, "")
-            .replace(/DRIVERUSH/g, "RAWDR")
-            .replace(/LP\+LK/g, "THROW")
-            .replace(/\(THROW\)/g, "THROW")
-            .replace(/\+/g, "");
-    }
-    if (Array.isArray(value)) return JSON.stringify(value.slice().sort((a, b) => Number(a) - Number(b)));
-    if (value && typeof value === "object") return JSON.stringify(value);
-    return value;
-}
-
-function legacyValue(entry, field, actionSet) {
-    if (entry && Object.prototype.hasOwnProperty.call(entry, field)) {
-        return normalizeLegacyValue(field, entry[field], actionSet);
-    }
-    if (Object.prototype.hasOwnProperty.call(LEGACY_DEFAULTS, field)) return LEGACY_DEFAULTS[field];
-    return undefined;
-}
-
-function buildLegacyCompatibility(referenceTable, generatedTable, actionIds) {
-    const actionSet = new Set((actionIds || []).map(id => String(Number(id))));
-    const overlay = {};
-    const missingActionIds = [];
-    const changedEntries = [];
-    const staleReferenceActionIds = [];
-    const invalidReferenceKeys = [];
-    const fields = ["override_name", "absorb_ids", ...VALIDATION_FIELDS];
-
-    for (const [rawId, referenceEntry] of Object.entries(referenceTable || {})) {
-        if (!/^-?\d+$/.test(rawId) || !referenceEntry || typeof referenceEntry !== "object") {
-            invalidReferenceKeys.push(rawId);
-            continue;
-        }
-        const id = String(Number(rawId));
-        if (!actionSet.has(id)) {
-            staleReferenceActionIds.push(Number(id));
-            continue;
-        }
-        const generatedEntry = generatedTable && generatedTable[id];
-        const delta = {};
-        const changedFields = [];
-        for (const field of fields) {
-            if (!Object.prototype.hasOwnProperty.call(referenceEntry, field)) continue;
-            const expected = legacyValue(referenceEntry, field, actionSet);
-            const actual = legacyValue(generatedEntry, field, actionSet);
-            if (expected === actual) continue;
-            changedFields.push(field);
-            if (field === "absorb_ids") delta[field] = expected;
-            else delta[field] = referenceEntry[field];
-        }
-        if (!generatedEntry) missingActionIds.push(Number(id));
-        if (!changedFields.length) continue;
-        // Compatibility is minimized by entry, not by field. Applying an
-        // override_name can convert a generated alias into a direct rule, so
-        // every explicit legacy field must travel with that entry or defaults
-        // such as force/ignore_prev_frames could silently change.
-        const completeEntry = {};
-        for (const field of fields) {
-            if (!Object.prototype.hasOwnProperty.call(referenceEntry, field)) continue;
-            completeEntry[field] = field === "absorb_ids"
-                ? legacyValue(referenceEntry, field, actionSet)
-                : referenceEntry[field];
-        }
-        overlay[id] = completeEntry;
-        changedEntries.push({ action_id: Number(id), missing_entry: !generatedEntry, fields: changedFields });
-    }
-
-    missingActionIds.sort((a, b) => a - b);
-    staleReferenceActionIds.sort((a, b) => a - b);
-    changedEntries.sort((a, b) => a.action_id - b.action_id);
-    return {
-        overlay: sortedObject(overlay),
-        summary: {
-            reference_entry_count: Object.keys(referenceTable || {}).length,
-            generated_entry_count: Object.keys(generatedTable || {}).length,
-            in_scope_reference_entry_count: Object.keys(referenceTable || {}).length
-                - staleReferenceActionIds.length - invalidReferenceKeys.length,
-            missing_action_count: missingActionIds.length,
-            changed_entry_count: changedEntries.length,
-            fallback_entry_count: Object.keys(overlay).length,
-            stale_reference_action_count: staleReferenceActionIds.length,
-            invalid_reference_key_count: invalidReferenceKeys.length
-        },
-        missing_action_ids: missingActionIds,
-        changed_entries: changedEntries,
-        stale_reference_action_ids: staleReferenceActionIds,
-        invalid_reference_keys: invalidReferenceKeys
-    };
-}
-
-function applyLegacyCompatibilityOverlay(generatedTable, overlay) {
-    const output = {};
-    for (const [id, entry] of Object.entries(generatedTable || {})) output[String(Number(id))] = { ...entry };
-    // Replace the complete legacy entry. Legacy absorb_ids are evaluated per
-    // expected action and may intentionally contain the same alias under more
-    // than one parent, which cannot be represented by the v2 single-target
-    // alias map.
-    for (const [id, entry] of Object.entries(overlay || {})) output[String(Number(id))] = { ...entry };
-    return sortedObject(output);
-}
 
 function triggerSuppliesDisplay(trigger, action) {
     return trigger && trigger.classic_display === action.classic_display;
@@ -159,30 +37,6 @@ function selectedTriggers(action) {
 function isAirTrigger(trigger) {
     return Number(trigger && trigger.conditions && trigger.conditions.cond_owner_state_flags) === 4
         || (Number(trigger && trigger.conditions && trigger.conditions.category_flags) & 0x40000000) !== 0;
-}
-
-function inferChargeReleaseDisplay(action) {
-    const opposite = { "1": "9", "2": "8", "3": "7", "4": "6", "6": "4", "7": "3", "8": "2", "9": "1" };
-    for (const trigger of selectedTriggers(action)) {
-        const conditions = trigger.conditions || {};
-        // This notation is used by charge-release Super Art commands. Other
-        // internal state transitions can share charge_bit and must stay raw.
-        if (Number(conditions.function_id) !== 3 || Number(conditions.kind_level) !== 1) continue;
-        const profile = trigger.classic_profile && trigger.profiles
-            ? trigger.profiles[trigger.classic_profile] : null;
-        const command = profile && profile.command;
-        const inputs = command && command.inputs;
-        if (!command || Number(command.charge_bit || 0) === 0 || !Array.isArray(inputs) || inputs.length < 2) continue;
-        const first = inputs[0];
-        const holdDirection = first && first.charge_release === true ? opposite[String(first.direction)] : null;
-        if (!holdDirection) continue;
-        const remaining = inputs.slice(1).map(input => String(input && input.direction || ""));
-        if (remaining.some(direction => !/^[1-9]$/.test(direction))) continue;
-        const button = String(profile.button || "");
-        if (!button) continue;
-        return `[${holdDirection}]${remaining.join("")}+${button}`;
-    }
-    return null;
 }
 
 function inferBcmFollowups(bcmCatalog) {
@@ -304,42 +158,6 @@ function acBranchRelations(actionSource) {
     return relations;
 }
 
-function normalizeBranchSemanticName(value) {
-    return String(value || "").trim().toUpperCase().replace(/\s+/g, " ");
-}
-
-function propagateType13SiblingCompatibility(actionSource, referenceTable) {
-    const output = {};
-    for (const [id, entry] of Object.entries(referenceTable || {})) {
-        output[String(id)] = entry && typeof entry === "object" ? { ...entry } : entry;
-    }
-    const type13Targets = new Set(acBranchRelations(actionSource)
-        .filter(relation => relation.branch_type === 13)
-        .map(relation => String(relation.target_id)));
-    const groups = new Map();
-    for (const id of type13Targets) {
-        const entry = output[id];
-        const semantic = entry && normalizeBranchSemanticName(entry.override_name);
-        if (!semantic) continue;
-        if (!groups.has(semantic)) groups.set(semantic, []);
-        groups.get(semantic).push(id);
-    }
-
-    const propagated = [];
-    for (const [semantic, ids] of groups) {
-        if (ids.length < 2 || !ids.some(id => output[id] && output[id].force === true)) continue;
-        for (const id of ids) {
-            if (output[id].force === true) continue;
-            output[id] = { ...output[id], force: true };
-            propagated.push({ action_id: Number(id), semantic, field: "force", value: true });
-        }
-    }
-    return {
-        table: sortedObject(output),
-        propagated: propagated.sort((left, right) => left.action_id - right.action_id)
-    };
-}
-
 function inferHoldableSources(relations) {
     const bySource = new Map();
     for (const relation of relations) {
@@ -379,7 +197,6 @@ function classifyBcmAction(action, compiledDisplay, followup) {
             ? trigger.profiles[trigger.classic_profile] : null;
         return profile && profile.command && Number(profile.command.charge_bit || 0) !== 0;
     });
-    const displayMotion = inferChargeReleaseDisplay(action);
     return {
         display: compiledDisplay,
         display_source: "bcm",
@@ -392,8 +209,7 @@ function classifyBcmAction(action, compiledDisplay, followup) {
             ? followup.parent_ids : undefined,
         followup_evidence: targetComboFollowup ? followup.kind : undefined,
         physical_button_required: physicalButtonRequired,
-        charge_command: chargeCommand,
-        display_motion: displayMotion || undefined
+        charge_command: chargeCommand
     };
 }
 
@@ -435,24 +251,21 @@ function acBranchEvidence(actionSource, aliases) {
             alias_action_id: Number(aliasId),
             target_action_id: Number(targetId),
             relation: "equivalent-action-variant",
-            source: branchType == null ? "manual-exception" : "ac-branch",
+            source: branchType == null ? "manual-behavior-rule" : "ac-branch",
             branch_type: branchType
         });
     }
     return evidence.sort((left, right) => left.alias_action_id - right.alias_action_id);
 }
 
-function applyExceptions(actionIds, actions, aliases, rules, exceptionTable, diagnostics) {
+function applyBehaviorRules(actionIds, actions, aliases, rules, behaviorRules, diagnostics) {
     const actionSet = new Set(actionIds.map(String));
     const stats = {
         entry_count: 0,
-        display_override_count: 0,
-        display_fill_count: 0,
-        redundant_display_count: 0,
         validation_rule_count: 0,
         absorb_alias_count: 0
     };
-    for (const [rawId, exception] of Object.entries(exceptionTable || {})) {
+    for (const [rawId, exception] of Object.entries(behaviorRules || {})) {
         if (!exception || typeof exception !== "object") continue;
         if (!/^-?\d+$/.test(rawId) || !Number.isSafeInteger(Number(rawId))) {
             diagnostics.push({ severity: "warning", code: "INVALID_EXCEPTION_ACTION_ID", value: rawId });
@@ -465,17 +278,6 @@ function applyExceptions(actionIds, actions, aliases, rules, exceptionTable, dia
         }
         stats.entry_count += 1;
         const rule = rules[id] || { display: actions[id] || null, display_source: actions[id] ? "generated" : null };
-        if (typeof exception.override_name === "string" && exception.override_name !== "") {
-            const generatedDisplay = actions[id] || null;
-            delete aliases[id];
-            actions[id] = exception.override_name;
-            rule.display = exception.override_name;
-            if (generatedDisplay == null) stats.display_fill_count += 1;
-            else if (generatedDisplay !== exception.override_name) stats.display_override_count += 1;
-            else stats.redundant_display_count += 1;
-            if (generatedDisplay !== exception.override_name) rule.display_source = "manual-exception";
-            else rule.manual_display_redundant = true;
-        }
         let hasValidationRule = false;
         for (const field of VALIDATION_FIELDS) {
             if (Object.prototype.hasOwnProperty.call(exception, field)) {
@@ -484,7 +286,7 @@ function applyExceptions(actionIds, actions, aliases, rules, exceptionTable, dia
             }
         }
         if (hasValidationRule) stats.validation_rule_count += 1;
-        rule.manual_exception = true;
+        rule.manual_behavior_rule = true;
         rules[id] = rule;
 
         if (typeof exception.absorb_ids === "string") {
@@ -492,7 +294,7 @@ function applyExceptions(actionIds, actions, aliases, rules, exceptionTable, dia
                 .map(token => token.trim())
                 .filter(token => /^-?\d+$/.test(token) && actionSet.has(String(Number(token))))
                 .map(token => String(Number(token))));
-            // An explicit legacy absorb list is authoritative. This includes
+            // An explicit behavior absorb list is authoritative. This includes
             // the empty string, which means generated aliases targeting this
             // action must be removed.
             for (const [existingAliasId, existingTargetId] of Object.entries(aliases)) {
@@ -588,11 +390,9 @@ function appendSourceDiagnostics(actionSource, bcmCatalog, diagnostics) {
     }
 }
 
-function compileFromCatalog(actionSource, bcmCatalog, exceptionTable, options) {
+function compileFromCatalog(actionSource, bcmCatalog, behaviorRules, options) {
     options = options || {};
-    const type13Compatibility = propagateType13SiblingCompatibility(actionSource, exceptionTable || {});
-    exceptionTable = type13Compatibility.table;
-    const base = bcmCore.buildActionRuntimeCatalog(actionSource, bcmCatalog, {}, {
+    const base = bcmCore.buildActionRuntimeCatalog(actionSource, bcmCatalog, {
         actionSourceSha256: options.actionSourceSha256,
         characterName: options.characterName
     });
@@ -600,11 +400,6 @@ function compileFromCatalog(actionSource, bcmCatalog, exceptionTable, options) {
     const aliases = { ...base.aliases };
     const rules = {};
     const diagnostics = [];
-    if (type13Compatibility.propagated.length) diagnostics.push({
-        severity: "info",
-        code: "AC_TYPE13_SIBLING_COMPATIBILITY_PROPAGATED",
-        entries: type13Compatibility.propagated
-    });
     appendSourceDiagnostics(actionSource, bcmCatalog, diagnostics);
     const branchRelations = acBranchRelations(actionSource);
     const holdableSources = inferHoldableSources(branchRelations);
@@ -699,14 +494,14 @@ function compileFromCatalog(actionSource, bcmCatalog, exceptionTable, options) {
         }
     }
 
-    const exceptionStats = applyExceptions(
-        base.action_ids, actions, aliases, rules, exceptionTable, diagnostics);
+    const behaviorStats = applyBehaviorRules(
+        base.action_ids, actions, aliases, rules, behaviorRules, diagnostics);
     for (const [aliasId, targetId] of Object.entries(aliases)) {
         rules[aliasId] = {
             ...(rules[aliasId] || {}),
             display: actions[targetId] || null,
             display_source: base.aliases[aliasId] === targetId
-                ? "ac-derived-alias" : "manual-exception-alias",
+                ? "ac-derived-alias" : "manual-behavior-alias",
             alias_target: Number(targetId),
             exact_id_or_alias_required: true
         };
@@ -743,7 +538,7 @@ function compileFromCatalog(actionSource, bcmCatalog, exceptionTable, options) {
         compiler_rules_version: RULES_VERSION,
         character: base.character,
         fighter_id: base.fighter_id,
-        policy: "universe:ac; commands:bcm; semantics:ac+bcm; manual-exceptions:last; off:forbidden",
+        policy: "universe:ac; commands:bcm; semantics:ac+bcm; behavior-rules:last; off:forbidden",
         sources: base.sources,
         action_ids: base.action_ids,
         actions: sortedObject(actions),
@@ -767,12 +562,9 @@ function compileFromCatalog(actionSource, bcmCatalog, exceptionTable, options) {
             compiled_display_count: Object.keys(actions).length,
             alias_count: Object.keys(aliases).length,
             ac_derived_alias_count: base.coverage.ac_derived_alias_count,
-            manual_exception_entry_count: exceptionStats.entry_count,
-            manual_display_override_count: exceptionStats.display_override_count,
-            manual_display_fill_count: exceptionStats.display_fill_count,
-            redundant_manual_display_count: exceptionStats.redundant_display_count,
-            manual_validation_rule_count: exceptionStats.validation_rule_count,
-            manual_absorb_alias_count: exceptionStats.absorb_alias_count,
+            manual_behavior_entry_count: behaviorStats.entry_count,
+            manual_validation_rule_count: behaviorStats.validation_rule_count,
+            manual_absorb_alias_count: behaviorStats.absorb_alias_count,
             ac_action_ids_without_command_semantics_count: unclassifiedActionIds.length
         }
     };
@@ -798,41 +590,14 @@ function compileFromCatalog(actionSource, bcmCatalog, exceptionTable, options) {
     return { runtime, report };
 }
 
-function buildLegacyExceptionTable(runtime) {
-    const output = {};
-    const legacyFields = new Set(VALIDATION_FIELDS);
-    for (const [id, display] of Object.entries(runtime.actions || {})) {
-        const entry = { override_name: display };
-        const rule = runtime.validation && runtime.validation.rules && runtime.validation.rules[id] || {};
-        for (const field of legacyFields) {
-            if (rule[field] !== undefined && rule[field] !== null) entry[field] = rule[field];
-        }
-        output[id] = entry;
-    }
-    const absorbedByTarget = {};
-    for (const [aliasId, targetId] of Object.entries(runtime.aliases || {})) {
-        if (!absorbedByTarget[targetId]) absorbedByTarget[targetId] = [];
-        absorbedByTarget[targetId].push(Number(aliasId));
-        output[aliasId] = {
-            override_name: runtime.actions[targetId] || "Unknown",
-            force: true
-        };
-    }
-    for (const [targetId, aliasIds] of Object.entries(absorbedByTarget)) {
-        if (!output[targetId]) output[targetId] = { override_name: runtime.actions[targetId] || "Unknown" };
-        output[targetId].absorb_ids = aliasIds.sort((a, b) => a - b).join(",");
-    }
-    return sortedObject(output);
-}
-
-function compile(actionSource, bcmSource, exceptionTable, options) {
+function compile(actionSource, bcmSource, behaviorRules, options) {
     options = options || {};
     const bcmCatalog = bcmCore.buildCatalog(bcmSource, {
         characterName: options.characterName,
         sourceSha256: options.bcmSourceSha256,
         generatedAt: options.generatedAt
     });
-    return compileFromCatalog(actionSource, bcmCatalog, exceptionTable, options);
+    return compileFromCatalog(actionSource, bcmCatalog, behaviorRules, options);
 }
 
 module.exports = {
@@ -840,9 +605,5 @@ module.exports = {
     REPORT_SCHEMA,
     RULES_VERSION,
     compile,
-    compileFromCatalog,
-    buildLegacyExceptionTable,
-    buildLegacyCompatibility,
-    applyLegacyCompatibilityOverlay,
-    propagateType13SiblingCompatibility
+    compileFromCatalog
 };

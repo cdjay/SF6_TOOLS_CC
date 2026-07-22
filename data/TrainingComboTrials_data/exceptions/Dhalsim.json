@@ -1,349 +1,53 @@
 {
-  "17": {
-    "override_name": "66"
-  },
-  "18": {
-    "override_name": "44"
-  },
-  "34": {
-    "override_name": "8"
-  },
-  "480": {
-    "override_name": "Normal"
-  },
-  "600": {
-    "override_name": "LP"
-  },
-  "601": {
-    "override_name": "LP"
-  },
-  "603": {
-    "override_name": "MP"
-  },
-  "604": {
-    "override_name": "HP"
-  },
-  "605": {
-    "override_name": "LK"
-  },
-  "606": {
-    "override_name": "MK"
-  },
-  "607": {
-    "override_name": "HK"
-  },
-  "612": {
-    "override_name": "2+LP"
-  },
-  "613": {
-    "override_name": "2+LP"
-  },
-  "615": {
-    "override_name": "2+MP"
-  },
-  "616": {
-    "override_name": "2+HP"
-  },
-  "618": {
-    "override_name": "1+LK"
-  },
-  "619": {
-    "override_name": "1+LK"
-  },
-  "620": {
-    "override_name": "1+LK"
-  },
-  "621": {
-    "override_name": "1+MK"
-  },
-  "622": {
-    "override_name": "1+HK"
-  },
-  "640": {
-    "override_name": "j.LP"
-  },
-  "641": {
-    "override_name": "j.MP"
-  },
-  "642": {
-    "override_name": "j.HP"
-  },
-  "643": {
-    "override_name": "j.HP"
-  },
-  "644": {
-    "override_name": "j.LK"
-  },
-  "645": {
-    "override_name": "j.MK"
-  },
-  "646": {
-    "override_name": "j.HK"
-  },
-  "654": {
-    "override_name": "1+HP"
-  },
-  "655": {
-    "override_name": "4+MP"
-  },
-  "656": {
-    "override_name": "4+HP"
-  },
-  "657": {
-    "override_name": "2+LK"
-  },
-  "658": {
-    "override_name": "2+MK"
-  },
-  "659": {
-    "override_name": "2+HK"
-  },
-  "660": {
-    "override_name": "4+MK"
-  },
-  "661": {
-    "override_name": "4+HK"
-  },
-  "666": {
-    "override_name": ">j.2+LK"
-  },
-  "668": {
-    "override_name": ">j.2+MK"
-  },
-  "670": {
-    "override_name": ">j.2+HK"
-  },
-  "681": {
-    "override_name": ">j.2+LP"
-  },
-  "715": {
-    "override_name": "Throw"
-  },
   "717": {
-    "override_name": "4+THROW",
-    "force": true,
-    "ignore": false,
-    "is_holdable": false
+    "force": true
   },
   "719": {
-    "override_name": "2+THROW",
-    "force": false,
-    "ignore": false,
-    "is_holdable": false
-  },
-  "739": {
-    "override_name": "DRC"
-  },
-  "740": {
-    "override_name": "RAW DR"
-  },
-  "850": {
-    "override_name": "6+DI"
-  },
-  "852": {
-    "override_name": "6"
-  },
-  "855": {
-    "override_name": "DI"
+    "ignore": false
   },
   "900": {
-    "override_name": "236+LP",
-    "force": false,
-    "ignore": false,
     "is_holdable": true,
     "charge_min": 6,
     "charge_max": 27
   },
   "904": {
-    "override_name": "236+MP",
-    "force": false,
-    "ignore": false,
     "is_holdable": true,
     "charge_min": 6,
     "charge_max": 27
   },
   "908": {
-    "override_name": "236+HP",
-    "force": false,
-    "ignore": false,
     "is_holdable": true,
     "charge_min": 6,
     "charge_max": 27
   },
-  "912": {
-    "override_name": "236+LP+MP"
-  },
-  "913": {
-    "override_name": "236+LP+HP"
-  },
-  "914": {
-    "override_name": "236+MP+HP"
-  },
-  "937": {
-    "override_name": "63214+LK"
-  },
-  "938": {
-    "override_name": "63214+MK"
-  },
-  "939": {
-    "override_name": "63214+HK"
-  },
-  "940": {
-    "override_name": "63214+KK"
-  },
-  "966": {
-    "override_name": "63214+LP"
-  },
-  "967": {
-    "override_name": "63214+MP"
-  },
-  "968": {
-    "override_name": "63214+HP"
-  },
-  "969": {
-    "override_name": "63214+PP"
-  },
-  "988": {
-    "override_name": "236+LK"
-  },
-  "989": {
-    "override_name": "236+MK"
-  },
-  "990": {
-    "override_name": "236+HK"
-  },
-  "992": {
-    "override_name": "236+LK+MK"
-  },
-  "993": {
-    "override_name": "236+LK+HK"
-  },
-  "994": {
-    "override_name": "236+MK+HK"
-  },
-  "1031": {
-    "override_name": "6+PPP"
-  },
-  "1032": {
-    "override_name": "6+KKK"
-  },
-  "1033": {
-    "override_name": "4+PPP"
-  },
-  "1036": {
-    "override_name": "j.6+PPP"
-  },
-  "1037": {
-    "override_name": "j.6+KKK"
-  },
-  "1038": {
-    "override_name": "j.4+PPP"
-  },
-  "1039": {
-    "override_name": "j.4+KKK"
-  },
-  "1042": {
-    "override_name": "2+KK"
-  },
-  "1043": {
-    "override_name": "3+KK"
-  },
   "1044": {
-    "override_name": "j.6+KK",
     "force": true
   },
-  "1045": {
-    "override_name": "j.2+KK"
-  },
   "1046": {
-    "override_name": "j.6+KK",
     "force": true
   },
   "1047": {
-    "override_name": "j.6+KK",
     "force": true
   },
   "1048": {
-    "override_name": "j.4+KK",
     "force": true
   },
   "1049": {
-    "override_name": "j.4+KK",
     "force": true
   },
-  "1054": {
-    "override_name": "j.63214+LP"
-  },
-  "1055": {
-    "override_name": "j.63214+MP"
-  },
-  "1056": {
-    "override_name": "j.63214+HP"
-  },
-  "1057": {
-    "override_name": "j.63214+PP"
-  },
-  "1200": {
-    "override_name": "236236+LP"
-  },
-  "1203": {
-    "override_name": "236236+MP"
-  },
-  "1206": {
-    "override_name": "236236+HP"
-  },
   "1210": {
-    "override_name": "214214+LK",
-    "absorb_ids": "",
-    "force": false,
-    "ignore": false,
     "is_holdable": true,
-    "hold_partial_check": true,
     "charge_min": 139,
-    "charge_max": 188,
-    "ignore_prev_frames": 5
+    "charge_max": 188
   },
   "1232": {
-    "override_name": "214214+MK",
-    "absorb_ids": "",
-    "force": false,
-    "ignore": false,
     "is_holdable": true,
-    "hold_partial_check": true,
     "charge_min": 139,
-    "charge_max": 188,
-    "ignore_prev_frames": 5
+    "charge_max": 188
   },
   "1254": {
-    "override_name": "214214+HK",
-    "absorb_ids": "",
-    "force": false,
-    "ignore": false,
     "is_holdable": true,
-    "hold_partial_check": true,
     "charge_min": 139,
-    "charge_max": 188,
-    "ignore_prev_frames": 5
-  },
-  "1282": {
-    "override_name": "236236+K"
-  },
-  "1283": {
-    "override_name": "236236+K"
-  },
-  "1284": {
-    "override_name": "236236+K"
-  },
-  "1289": {
-    "override_name": "236236+K"
-  },
-  "1290": {
-    "override_name": "236236+K"
-  },
-  "1291": {
-    "override_name": "236236+K"
-  },
-  "1498": {
-    "override_name": "LP+MP+HP+LK+MK+HK"
+    "charge_max": 188
   }
 }

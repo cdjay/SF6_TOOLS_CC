@@ -43,18 +43,17 @@
 </head>
 <body>
 <header>
-    <div><h1><span>AC + BCM</span> 简表生成器</h1><div class="subtitle">AC Action 全集 → BCM 指令 → exceptions 与 AC 派生别名</div></div>
+    <div><h1><span>AC + BCM</span> 简表生成器</h1><div class="subtitle">AC Action 全集 → BCM 指令 → 行为规则与 AC 派生关系</div></div>
     <div class="muted">SF6CC Maintainer Tool · 本地离线处理</div>
 </header>
 <main>
     <section id="drop" class="panel drop" tabindex="0">
         <input id="file" type="file" accept="application/json,.json">
         <input id="acFile" type="file" accept="application/json,.json">
-        <input id="exceptionFile" type="file" accept="application/json,.json">
         <strong>拖入完整 BCM JSON，或点击选择文件</strong>
         <div id="fileName" class="muted">支持 sf6cr.*-bcm-full.v1 对象图；文件不会离开浏览器</div>
-        <div id="mergeStatus" class="muted">AC：未加载 · exceptions：未加载</div>
-        <div class="actions"><button id="choose">选择 BCM</button><button id="chooseAc">选择 AC</button><button id="chooseExceptions">选择例外表</button><button id="export" disabled>导出 BCM 审查表</button><button id="runtime" disabled>导出 MOD 简表</button><button id="copy" disabled>复制审查简表</button></div>
+        <div id="mergeStatus" class="muted">AC：未加载</div>
+        <div class="actions"><button id="choose">选择 BCM</button><button id="chooseAc">选择 AC</button><button id="export" disabled>导出 BCM 审查表</button><button id="runtime" disabled>导出检测运行时</button><button id="copy" disabled>复制审查简表</button></div>
     </section>
     <div id="warnings"></div>
     <section id="stats" class="stats" hidden></section>
@@ -74,11 +73,10 @@
 <script>
 (() => {
     const $ = id => document.getElementById(id);
-    let catalog = null, actionSource = null, actionSourceSha256 = null, exceptionTable = {};
+    let catalog = null, actionSource = null, actionSourceSha256 = null;
     const drop = $("drop"), input = $("file");
     $("choose").onclick = event => { event.stopPropagation(); input.click(); };
     $("chooseAc").onclick = event => { event.stopPropagation(); $("acFile").click(); };
-    $("chooseExceptions").onclick = event => { event.stopPropagation(); $("exceptionFile").click(); };
     drop.onclick = event => { if (!event.target.closest("button")) input.click(); };
     drop.onkeydown = event => { if (event.key === "Enter" || event.key === " ") input.click(); };
     for (const name of ["dragenter","dragover"]) drop.addEventListener(name, event => { event.preventDefault(); drop.classList.add("drag"); });
@@ -86,11 +84,6 @@
     drop.addEventListener("drop", event => load(event.dataTransfer.files[0]));
     input.onchange = () => load(input.files[0]);
     $("acFile").onchange = () => loadAc($("acFile").files[0]);
-    $("exceptionFile").onchange = async () => {
-        const file = $("exceptionFile").files[0]; if (!file) return;
-        try { exceptionTable = JSON.parse((await file.text()).replace(/^\uFEFF/, "")); updateMergeStatus(); }
-        catch (error) { $("warnings").innerHTML = `<div class="warning">例外表读取失败：${escapeHtml(error.message)}</div>`; }
-    };
 
     async function load(file) {
         if (!file) return;
@@ -128,8 +121,7 @@
 
     function updateMergeStatus() {
         const acText = actionSource ? `${actionSource.unique_action_ids_by_scope.character.length} Action` : "未加载";
-        const exceptionCount = Object.keys(exceptionTable || {}).length;
-        $("mergeStatus").textContent = `AC：${acText} · exceptions：${exceptionCount ? `${exceptionCount} 条` : "未加载"}`;
+        $("mergeStatus").textContent = `AC：${acText}`;
     }
 
     function renderStats() {
@@ -166,7 +158,7 @@
     $("export").onclick=()=>download(catalog,`${catalog.source.character}_BCM_Catalog.json`);
     $("runtime").onclick=()=>{
         const runtime = actionSource
-            ? SF6CCBcmCatalog.buildActionRuntimeCatalog(actionSource, catalog, exceptionTable, { actionSourceSha256 })
+            ? SF6CCBcmCatalog.buildActionRuntimeCatalog(actionSource, catalog, { actionSourceSha256 })
             : SF6CCBcmCatalog.buildRuntimeCatalog(catalog);
         download(runtime,`${runtime.character}.json`);
     };

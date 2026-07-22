@@ -172,7 +172,7 @@ end
 -- =========================================================
 -- Follow-up group helpers
 -- =========================================================
-local MODERN_DISPLAY_DIR = "TrainingComboTrials_data/modern_display/"
+local COMMAND_DISPLAY_DIR = "TrainingComboTrials_data/command_display/"
 local RUNTIME_COMMON_REASON = "sf6_stable_runtime_common_movement_action"
 local OFFICIAL_SEMANTIC_REASON = "capcom_official_command_semantics_matched_to_current_bcm_identity"
 local COMMUNITY_SEMANTIC_REASON = "verified_community_command_semantics_matched_to_current_bcm_identity"
@@ -201,13 +201,13 @@ local RUNTIME_COMMON_ACTIONS = {
     [38] = "7",
     [489] = "DP"
 }
-local modern_display_cache = {}
-local modern_display_runtime = {
+local command_display_cache = {}
+local command_display_runtime = {
     cache_status = {},
     seen_refs = setmetatable({}, { __mode = "k" }),
     seen_keys = {}
 }
-local build_slim_modern_display_map
+local build_slim_command_display_map
 
 local function get_sequence_meta(sequence)
     if type(sequence) ~= "table" then return nil end
@@ -295,17 +295,17 @@ local function build_author_upload_line(meta)
     return line
 end
 
-local function load_modern_display_map(character)
+local function load_command_display_map(character)
     local key = tostring(character or "")
     key = key:gsub("[^%w_]", "")
     if key == "" or key == "Unknown" then return nil, "invalid_character" end
 
-    if modern_display_cache[key] ~= nil then
-        return modern_display_cache[key] ~= false and modern_display_cache[key] or nil,
-            modern_display_runtime.cache_status[key]
+    if command_display_cache[key] ~= nil then
+        return command_display_cache[key] ~= false and command_display_cache[key] or nil,
+            command_display_runtime.cache_status[key]
     end
 
-    local path = MODERN_DISPLAY_DIR .. key .. ".json"
+    local path = COMMAND_DISPLAY_DIR .. key .. ".json"
     local ok, loaded = false, nil
     if type(_G.safe_load_json) == "function" then
         ok, loaded = pcall(_G.safe_load_json, path)
@@ -604,7 +604,7 @@ local function load_modern_display_map(character)
         and type(meta.suppressed_internal_transitions) == "table"
         and #meta.suppressed_internal_transitions == internal_suppressions
     local split_command_audit_ok = true
-    if schema == "xt.modern_display.v10" or schema == "xt.command_display.v1" then
+    if schema == "xt.command_display.v1" then
         local split_actions = type(audit) == "table"
             and tonumber(audit.split_command_action_count) or nil
         local followup_count = type(audit) == "table"
@@ -704,9 +704,6 @@ local function load_modern_display_map(character)
         and tonumber(audit.direct_overridden_count or -1) == 0
         and tonumber(audit.overlay_entry_count or -1) == 0
         and tonumber(audit.community_route_count or -1) == 0
-        and tonumber(audit.legacy_supplement_entry_count or -1) == 0
-        and tonumber(audit.classic_fallback_count or -1) == 0
-        and tonumber(audit.classic_token_leak_count or -1) == 0
         and tonumber(audit.alias_propagation_count or -1) == 0
         and tonumber(audit.type17_route_count or -1) == 0
         and tonumber(audit.ac_automatic_transition_route_count or -1) == 0
@@ -730,12 +727,8 @@ local function load_modern_display_map(character)
         and state_choice_audit_ok
         and split_command_audit_ok
         and unified_command_audit_ok
-    local supported_schema = (schema == "xt.modern_display.v9"
-            and policy == "verified_route_ownership_v9")
-        or (schema == "xt.modern_display.v10"
-            and policy == "verified_route_ownership_v10")
-        or (schema == "xt.command_display.v1"
-            and policy == "verified_action_graph_v1")
+    local supported_schema = schema == "xt.command_display.v1"
+        and policy == "verified_action_graph_v1"
     if type(meta) == "table"
         and supported_schema
         and (tostring(meta.generated_from or ""):lower() == "ac_bcm"
@@ -744,16 +737,16 @@ local function load_modern_display_map(character)
             or tostring(meta.generated_from or ""):lower() == "ac_bcm+capcom_official_semantics+community_verified_semantics")
         and tostring(meta.character or "") == key
         and strict_audit then
-        local slim = build_slim_modern_display_map(loaded)
+        local slim = build_slim_command_display_map(loaded)
         loaded = nil
-        modern_display_cache[key] = slim
-        modern_display_runtime.cache_status[key] = "loaded"
+        command_display_cache[key] = slim
+        command_display_runtime.cache_status[key] = "loaded"
         return slim, "loaded"
     end
 
-    modern_display_cache[key] = false
-    modern_display_runtime.cache_status[key] = ok and "invalid_schema_or_policy" or "map_load_failed"
-    return nil, modern_display_runtime.cache_status[key]
+    command_display_cache[key] = false
+    command_display_runtime.cache_status[key] = ok and "invalid_schema_or_policy" or "map_load_failed"
+    return nil, command_display_runtime.cache_status[key]
 end
 
 local function get_modern_display_motion(modern_map, step)
@@ -1364,16 +1357,12 @@ end
 -- 指令映射包含大量生成期审计与路由证据。加载时先用完整数据完成严格校验和
 -- 路由解析，随后只保留运行时实际需要的 action id、显示文本与解析状态，避免
 -- 多个约 490KB 的角色表长期驻留并触发周期性 GC 卡顿。
-build_slim_modern_display_map = function(loaded)
-    local schema = type(loaded._meta) == "table" and tostring(loaded._meta.schema or "") or ""
-    local structured = schema == "xt.modern_display.v10" or schema == "xt.command_display.v1"
-    local slim = { _slim = true, _structured = structured }
+build_slim_command_display_map = function(loaded)
+    local slim = { _slim = true }
     for action_id, entry in pairs(loaded) do
         if type(entry) == "table" and tostring(action_id):match("^%d+$") then
             local motion, status = get_modern_display_motion(loaded, { id = action_id })
-            if not structured then
-                slim[tostring(action_id)] = { motion = motion, status = status }
-            else
+            do
                 local function read_classic(command)
                     if type(command) ~= "table" or type(command.display) ~= "string"
                         or trim_string(command.display) == "" or type(command.inputs) ~= "table"
@@ -1429,7 +1418,7 @@ build_slim_modern_display_map = function(loaded)
             end
         end
     end
-    if structured then
+    do
         local function resolve(action_id, slot, stack)
             local key = tostring(action_id or "")
             local item = slim[key]
@@ -1516,8 +1505,8 @@ end
 
 local function clear_modern_unresolved_audit()
     local state = ctx and ctx.trial_state
-    modern_display_runtime.seen_refs = setmetatable({}, { __mode = "k" })
-    modern_display_runtime.seen_keys = {}
+    command_display_runtime.seen_refs = setmetatable({}, { __mode = "k" })
+    command_display_runtime.seen_keys = {}
     if type(state) ~= "table" then return end
     state.modern_unresolved_audit_session = (tonumber(state.modern_unresolved_audit_session) or 0) + 1
     state.modern_unresolved_audit = {
@@ -1533,12 +1522,12 @@ local function audit_modern_unresolved(character, step, context_name, source, so
     local audit = ensure_modern_unresolved_audit()
     if not audit then return end
     if type(step) == "table" then
-        if modern_display_runtime.seen_refs[step] then return end
-        modern_display_runtime.seen_refs[step] = true
+        if command_display_runtime.seen_refs[step] then return end
+        command_display_runtime.seen_refs[step] = true
     else
         local identity = tostring(stable_identity or "")
-        if modern_display_runtime.seen_keys[identity] then return end
-        modern_display_runtime.seen_keys[identity] = true
+        if command_display_runtime.seen_keys[identity] then return end
+        command_display_runtime.seen_keys[identity] = true
     end
 
     character = type(character) == "string" and character ~= "" and character or "Unknown"
@@ -1577,7 +1566,7 @@ end
 local function resolve_modern_display_context(sequence)
     local sequence_character = get_sequence_character(sequence)
     if is_modern_sequence(sequence) then
-        local modern_map, status = load_modern_display_map(sequence_character)
+        local modern_map, status = load_command_display_map(sequence_character)
         return true, modern_map, sequence_character or "Unknown", status
     end
 
@@ -1591,10 +1580,10 @@ local function resolve_modern_display_context(sequence)
         and recording_context.session_id == trial_state.recording_display_session_id
         and tostring(control_mode or ""):lower() == "modern" then
         local character = recording_context.character or "Unknown"
-        local modern_map, status = load_modern_display_map(character)
+        local modern_map, status = load_command_display_map(character)
         return true, modern_map, character, status
     end
-    local command_map, status = load_modern_display_map(sequence_character)
+    local command_map, status = load_command_display_map(sequence_character)
     return false, command_map, sequence_character or "Unknown", status or "classic"
 end
 
@@ -1613,7 +1602,7 @@ local function resolve_live_player_modern_display_context(player_idx)
         if tostring(control_mode or ""):lower() ~= "modern" then return false, nil,
             recording_context.character or "Unknown", "classic" end
         local character = recording_context.character or "Unknown"
-        local modern_map, status = load_modern_display_map(character)
+        local modern_map, status = load_command_display_map(character)
         return true, modern_map, character, status
     end
 
@@ -1627,7 +1616,7 @@ local function resolve_live_player_modern_display_context(player_idx)
         return false, nil, live_context and live_context.character or "Unknown", "classic_or_unknown"
     end
     local character = live_context.character or "Unknown"
-    local modern_map, status = load_modern_display_map(character)
+    local modern_map, status = load_command_display_map(character)
     return true, modern_map, character, status
 end
 
@@ -2979,7 +2968,7 @@ function M.get_modern_unresolved_audit()
 end
 
 function M.get_command_display(character, action_id, mode)
-    local command_map, status = load_modern_display_map(character)
+    local command_map, status = load_command_display_map(character)
     if not command_map then return nil, status end
     return get_command_display(command_map, action_id, mode)
 end

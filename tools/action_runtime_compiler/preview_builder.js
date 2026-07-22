@@ -53,9 +53,9 @@ function archivedOfficialRawFile(outputRoot, version, character) {
     return fs.existsSync(filename) ? filename : null;
 }
 
-function generatedModernFile(outputRoot, version, character) {
+function generatedCommandFile(outputRoot, version, character) {
     const root = resolveChild(path.join(outputRoot, "char"), version);
-    const filename = resolveChild(root, `${character}.modern-display.json`);
+    const filename = resolveChild(root, `${character}.command-display.json`);
     return fs.existsSync(filename) ? filename : null;
 }
 
@@ -71,7 +71,7 @@ function buildPreviewIndex(outputRoot, version, options = {}) {
             bcm_file: source.bcm_file,
             official_file: (archivedOfficialFile(outputRoot, version, character)
                 || officialFile(character, options.officialRoot)) && `${character}.official.generated.json`,
-            modern_file: generatedModernFile(outputRoot, version, character) && `${character}.modern-display.json`
+            command_file: generatedCommandFile(outputRoot, version, character) && `${character}.command-display.json`
         };
     }).sort((left, right) => left.character.localeCompare(right.character, "en"));
     return {
@@ -213,13 +213,15 @@ function buildOfficialRows(source) {
     });
 }
 
-function buildModernRows(source) {
+function buildCommandRows(source) {
     if (!source) return [];
     return Object.entries(source)
         .filter(([key, value]) => /^\d+$/.test(key) && value && typeof value === "object")
         .map(([key, value]) => ({
             action_id: Number(key),
-            modern_display: value.modern_display || "",
+            classic_command: value.classic_command?.display || "",
+            simple_command: value.simple_command?.display || "",
+            motion_command: value.motion_command?.display || "",
             ownership: value.ownership || "",
             source: value.source || "",
             routes: (value.routes || []).map(route => ({
@@ -245,15 +247,15 @@ function buildPreview(outputRoot, version, character, options = {}) {
     const bcmFilename = resolveChild(loaded.directory, sourceEntry.bcm_file);
     const offFilename = archivedOfficialFile(outputRoot, version, character)
         || officialFile(character, options.officialRoot);
-    const modernFilename = generatedModernFile(outputRoot, version, character);
+    const commandFilename = generatedCommandFile(outputRoot, version, character);
     const acSource = readJson(acFilename);
     const bcmSource = readJson(bcmFilename);
     const offSource = offFilename ? readJson(offFilename) : null;
-    const modernSource = modernFilename ? readJson(modernFilename) : null;
+    const commandSource = commandFilename ? readJson(commandFilename) : null;
     const bcm = buildBcmRows(bcmSource, sourceEntry);
     const acRows = buildAcRows(acSource);
     const offRows = buildOfficialRows(offSource);
-    const modernRows = buildModernRows(modernSource);
+    const commandRows = buildCommandRows(commandSource);
     return {
         version,
         character,
@@ -265,14 +267,14 @@ function buildPreview(outputRoot, version, character, options = {}) {
             official: offFilename ? { name: path.basename(offFilename), path: offFilename, schema: offSource?._meta?.schema || null } : null,
             official_raw: archivedOfficialRawFile(outputRoot, version, character)
                 ? { name: `${character}.official.raw.json`, path: archivedOfficialRawFile(outputRoot, version, character) } : null,
-            modern: modernFilename ? { name: path.basename(modernFilename), path: modernFilename, schema: modernSource?._meta?.schema || null } : null
+            command: commandFilename ? { name: path.basename(commandFilename), path: commandFilename, schema: commandSource?._meta?.schema || null } : null
         },
-        counts: { ac: acRows.length, bcm: bcm.rows.length, official: offRows.length, modern: modernRows.length },
+        counts: { ac: acRows.length, bcm: bcm.rows.length, official: offRows.length, command: commandRows.length },
         ac: { meta: { schema: acSource.schema, record_count: acSource.record_count, object_count: acSource.objects?.length || 0, truncated: acSource.truncated === true }, rows: acRows },
         bcm: { meta: { schema: bcmSource.schema, trigger_count: bcmSource.trigger_count, object_count: bcmSource.objects?.length || 0, truncated: bcmSource.truncated === true, stats: bcm.stats, warnings: bcm.warnings }, rows: bcm.rows },
         official: { meta: offSource?._meta || null, rows: offRows },
-        modern: { meta: modernSource?._meta || null, rows: modernRows }
+        command: { meta: commandSource?._meta || null, rows: commandRows }
     };
 }
 
-module.exports = { buildPreviewIndex, buildPreview, buildAcRows, buildBcmRows, buildOfficialRows, buildModernRows };
+module.exports = { buildPreviewIndex, buildPreview, buildAcRows, buildBcmRows, buildOfficialRows, buildCommandRows };

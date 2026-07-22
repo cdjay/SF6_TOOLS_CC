@@ -62,8 +62,7 @@ function state() {
             off: path.join(ROOT, "off"),
             char: path.join(ROOT, "char"),
             latest: path.join(ROOT, "latest"),
-            latest_exceptions: path.join(ROOT, "latest_exceptions"),
-            latest_modern: path.join(ROOT, "latest_modern")
+            latest_command: path.join(ROOT, "latest_command")
         },
         versions: archive.listVersionManifests(ROOT).map(item => ({
             version: item.version,
@@ -74,7 +73,7 @@ function state() {
 }
 
 function openFolder(kind) {
-    if (!new Set(["acbcm", "off", "char", "latest", "latest_exceptions", "latest_modern"]).has(kind)) throw new Error("不支持的目录类型。");
+    if (!new Set(["acbcm", "off", "char", "latest", "latest_command"]).has(kind)) throw new Error("不支持的目录类型。");
     const target = path.join(ROOT, kind);
     archive.ensureStorage(ROOT);
     const child = spawn("explorer.exe", [target], { detached: true, stdio: "ignore" });
@@ -99,7 +98,6 @@ async function handleApi(request, response, pathname) {
             version: body.version,
             stems: body.stems,
             compareVersion: body.compare_version || null,
-            useExceptions: body.use_exceptions === true,
             outputRoot: ROOT
         });
         sendJson(response, 200, result);

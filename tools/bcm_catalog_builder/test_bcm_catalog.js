@@ -272,15 +272,12 @@ const acSource = {
         { native_action_id: 906, source_scope: "character", action_ref: ref(102) }
     ]
 };
-const actionRuntime = core.buildActionRuntimeCatalog(acSource, hondaCatalog, {
-    "605": { override_name: "HP", absorb_ids: "606" },
-    "652": { override_name: "j.6+HP" }
-}, { actionSourceSha256: "ac-test" });
+const actionRuntime = core.buildActionRuntimeCatalog(acSource, hondaCatalog,
+    { actionSourceSha256: "ac-test" });
 assert.strictEqual(actionRuntime.schema, "sf6cc.action-runtime.v1");
-assert.strictEqual(actionRuntime.aliases["606"], "605");
-assert.strictEqual(actionRuntime.actions["652"], "j.6+HP");
+assert.strictEqual(actionRuntime.aliases["606"], undefined);
+assert.strictEqual(actionRuntime.actions["652"], undefined);
 assert.strictEqual(actionRuntime.action_ids.length, 6);
-assert.strictEqual(actionRuntime.aliases["606"], "605");
 assert.strictEqual(actionRuntime.aliases["905"], "904");
 assert.strictEqual(actionRuntime.aliases["906"], "904");
 assert.strictEqual(actionRuntime.coverage.ac_derived_alias_count, 2);

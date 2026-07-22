@@ -567,9 +567,8 @@
         return derivedAliasCount;
     }
 
-    function buildActionRuntimeCatalog(actionSource, bcmCatalog, exceptionTable, options) {
+    function buildActionRuntimeCatalog(actionSource, bcmCatalog, options) {
         options = options || {};
-        exceptionTable = exceptionTable || {};
         if (!actionSource || !actionSource.unique_action_ids_by_scope || !Array.isArray(actionSource.unique_action_ids_by_scope.character)) {
             throw new Error("这不是包含 character Action ID 全集的完整 AC 对象图。");
         }
@@ -585,25 +584,6 @@
         const actions = { ...bcmRuntime.actions };
         const aliases = {};
 
-        for (const [id, rule] of Object.entries(exceptionTable)) {
-            if (!actionSet.has(String(id)) || !rule || typeof rule !== "object") continue;
-            if (!actions[id] && typeof rule.override_name === "string" && rule.override_name !== "") {
-                actions[id] = rule.override_name;
-            }
-        }
-
-        for (const [targetId, rule] of Object.entries(exceptionTable)) {
-            if (!rule || typeof rule.absorb_ids !== "string" || rule.absorb_ids === "") continue;
-            const targetDisplay = (typeof rule.override_name === "string" && rule.override_name !== "")
-                ? rule.override_name : actions[targetId];
-            if (!targetDisplay) continue;
-            for (const token of rule.absorb_ids.split(",")) {
-                const aliasId = String(Number(token.trim()));
-                if (aliasId === "NaN" || !actionSet.has(aliasId) || actions[aliasId]) continue;
-                aliases[aliasId] = String(targetId);
-            }
-        }
-
         // Replacement branches directly name the runtime replacement action.
         const acDerivedAliasCount = buildAcDerivedAliases(
             actionSource, actionSet, bcmRuntime.actions, actions, aliases);
@@ -615,7 +595,7 @@
             schema: "sf6cc.action-runtime.v1",
             character,
             fighter_id: fighterId,
-            policy: "universe:ac; commands:bcm; aliases:exceptions+ac-derived",
+            policy: "universe:ac; commands:bcm; aliases:ac-derived",
             sources: {
                 ac_schema: actionSource.schema || null,
                 ac_sha256: options.actionSourceSha256 || null,

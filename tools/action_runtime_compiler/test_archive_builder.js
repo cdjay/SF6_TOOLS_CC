@@ -113,7 +113,9 @@ try {
     assert.deepStrictEqual(manifest.characters.map(item => item.character), ["Ryu", "EHonda"]);
     assert.strictEqual(rawManifest.sources.length, 2);
     assert.strictEqual(fs.existsSync(path.join(
-        outputRoot, "char", "same-version", "Ryu.exceptions.json")), true);
+        outputRoot, "char", "same-version", "Ryu.command-display.json")), true);
+    assert.strictEqual(fs.existsSync(path.join(
+        outputRoot, "char", "same-version", "Ryu.exceptions.json")), false);
     assert.strictEqual(overwritten.differences[0].comparison_mode, "same-version-before-overwrite");
     assert.strictEqual(overwritten.differences[0].has_changes, false);
 } finally {

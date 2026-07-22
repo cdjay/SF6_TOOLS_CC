@@ -8,7 +8,7 @@ const bcmCore = require("../bcm_catalog_builder/bcm_catalog_core.js");
 const compiler = require("./compiler_core.js");
 
 function usage() {
-    console.error("用法: node compile.js --ac <完整AC.json> --bcm <完整BCM.json> --output <角色简表.json> [--report <报告.json>] [--exceptions-output <自动例外表.json>] [--exceptions <人工兜底.json>] [--character <规范角色名>]");
+    console.error("用法: node compile.js --ac <完整AC.json> --bcm <完整BCM.json> --output <动作运行时.json> [--report <报告.json>] [--character <规范角色名>]");
 }
 
 function parseArgs(argv) {
@@ -54,12 +54,7 @@ try {
 try {
     const ac = readSource(args.ac);
     const bcm = readSource(args.bcm);
-    const exceptions = args.exceptions
-        ? JSON.parse(fs.readFileSync(path.resolve(args.exceptions), "utf8").replace(/^\uFEFF/, "")) : {};
-    if (!exceptions || Array.isArray(exceptions) || typeof exceptions !== "object") {
-        throw new Error("例外表根节点必须是以 Action ID 为键的 JSON 对象。");
-    }
-    const result = compiler.compile(ac.value, bcm.value, exceptions, {
+    const result = compiler.compile(ac.value, bcm.value, {}, {
         actionSourceSha256: ac.sha256,
         bcmSourceSha256: bcm.sha256,
         characterName: args.character
@@ -67,16 +62,9 @@ try {
     writeJson(args.output, result.runtime);
     const reportPath = args.report || defaultReportPath(args.output);
     writeJson(reportPath, result.report);
-    const parsedOutput = path.parse(args.output);
-    const legacyPath = args["exceptions-output"] || path.join(
-        parsedOutput.dir, `${parsedOutput.name}.exceptions.json`);
-    if (result.report.status !== "invalid") {
-        writeJson(legacyPath, compiler.buildLegacyExceptionTable(result.runtime));
-    }
     console.log(JSON.stringify({
         output: path.resolve(args.output),
         report: path.resolve(reportPath),
-        exceptions_output: result.report.status !== "invalid" ? path.resolve(legacyPath) : null,
         status: result.report.status,
         character: result.runtime.character,
         coverage: result.runtime.coverage

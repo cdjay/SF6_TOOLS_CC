@@ -47,9 +47,11 @@ try {
         _meta: { schema: "xt.modern_display.v1", character: "Luke", generated_from: "capcom_official" },
         600: { official_web_id: "600", move_name: "轻攻击", category: "NORMAL", classic_display: "LP", modern_display: "弱" }
     });
-    writeJson(path.join(char, "Luke.modern-display.json"), {
-        _meta: { schema: "xt.modern_display.v9", character: "Luke" },
-        600: { modern_display: "弱", ownership: "direct", routes: [{ display: "弱", owner_action_id: 600, trigger_index: 1, profile: "sprt", source: "bcm_profile" }] }
+    writeJson(path.join(char, "Luke.command-display.json"), {
+        _meta: { schema: "xt.command_display.v1", character: "Luke" },
+        600: { classic_command: { display: "LP", inputs: ["LP"] },
+            simple_command: { display: "弱", inputs: ["弱"] }, motion_command: null,
+            ownership: "direct", routes: [{ display: "弱", owner_action_id: 600, trigger_index: 1, profile: "easy", source: "bcm_profile" }] }
     });
 
     const index = preview.buildPreviewIndex(root, version, { officialRoot });
@@ -57,11 +59,13 @@ try {
     assert.strictEqual(index.characters[0].official_file, "Luke.official.generated.json");
     const acRows = preview.buildAcRows(readJson(path.join(raw, acName)));
     const offRows = preview.buildOfficialRows(readJson(path.join(officialRoot, "Luke.official.generated.json")));
-    const modernRows = preview.buildModernRows(readJson(path.join(char, "Luke.modern-display.json")));
+    const commandRows = preview.buildCommandRows(readJson(path.join(char, "Luke.command-display.json")));
     assert.strictEqual(acRows[0].action_id, 600);
     assert.strictEqual(acRows[0].main_frame, 5);
     assert.strictEqual(offRows[0].modern_display, "弱");
-    assert.strictEqual(modernRows[0].routes[0].owner_action_id, 600);
+    assert.strictEqual(commandRows[0].classic_command, "LP");
+    assert.strictEqual(commandRows[0].simple_command, "弱");
+    assert.strictEqual(commandRows[0].routes[0].owner_action_id, 600);
     assert.throws(() => preview.buildPreview(root, "../escape", "Luke", { officialRoot }), /安全/);
 
     const repositoryHtml = path.join(__dirname, "html");
@@ -71,7 +75,7 @@ try {
         assert(integration.ac.rows.length > 100);
         assert(integration.bcm.rows.length > 20);
         assert(integration.official.rows.length > 20);
-        assert(integration.modern.rows.length > 20);
+        if (integration.files.command) assert(integration.command.rows.length > 20);
     }
     console.log("preview builder tests passed");
 } finally {

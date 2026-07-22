@@ -8,9 +8,9 @@ end
 
 function ActionMatcher.normalize_motion_token(value)
     local s = tostring(value or ""):upper():gsub("%s+", "")
-    -- Legacy exception tables used several equivalent spellings. Normalize
-    -- them here so existing combo JSON keeps its motion fallback when newly
-    -- generated AC+BCM tables adopt one canonical display form.
+    -- Recorded combo JSON can contain equivalent historical spellings.
+    -- Normalize them so old recordings keep their motion fallback when the
+    -- unified command table adopts one canonical display form.
     s = s:gsub("DRIVERUSH", "RAWDR")
     s = s:gsub("LP%+LK", "THROW")
     s = s:gsub("%(THROW%)", "THROW")

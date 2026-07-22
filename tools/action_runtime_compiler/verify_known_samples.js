@@ -72,9 +72,6 @@ try {
     assert.strictEqual(deeJay.validation.rules["1230"].target_combo_followup, false);
     assert.strictEqual(deeJay.validation.rules["1219"].followup_evidence, undefined);
     assert.strictEqual(deeJay.validation.rules["1230"].followup_evidence, undefined);
-    const deeJayPureGenerated = compiler.buildLegacyExceptionTable(deeJay);
-    assert.deepStrictEqual(deeJayPureGenerated["1219"], { override_name: "LP" });
-    assert.deepStrictEqual(deeJayPureGenerated["1230"], { override_name: "LP" });
 
     const ingrid = compilePair(directory, "英格丽德32");
     expectActions(ingrid, {

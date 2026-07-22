@@ -203,7 +203,7 @@ function Assert-CommandDisplayPackage {
         [Parameter(Mandatory = $true)][string]$PackageRoot
     )
 
-    $relativeRoot = "data/TrainingComboTrials_data/modern_display"
+    $relativeRoot = "data/TrainingComboTrials_data/command_display"
     $trackedFiles = @(& git -C $SourceRoot ls-files -- "$relativeRoot/*.json")
     if ($LASTEXITCODE -ne 0) {
         throw "Unable to enumerate tracked command display files."
@@ -220,7 +220,7 @@ function Assert-CommandDisplayPackage {
         }
     }
 
-    $packagedRoot = Join-Path $PackageRoot "reframework\data\TrainingComboTrials_data\modern_display"
+    $packagedRoot = Join-Path $PackageRoot "reframework\data\TrainingComboTrials_data\command_display"
     $packagedFiles = @(Get-ChildItem -LiteralPath $packagedRoot -Filter "*.json" -File)
     if ($packagedFiles.Count -ne 30) {
         throw "Command display package must contain exactly 30 character JSON files. Found: $($packagedFiles.Count)"

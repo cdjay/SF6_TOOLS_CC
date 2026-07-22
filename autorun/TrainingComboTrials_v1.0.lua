@@ -7,14 +7,12 @@ local RuntimeSafety = require("func/RuntimeSafety")
 local GS = require("func/GameState")
 local ComboTrialsModules = {
     DebugTrace = require("func/ComboTrials/DebugTrace"),
-    BcmCatalog = require("func/ComboTrials/BcmCatalog"),
     ActionMatcher = require("func/ComboTrials/ActionMatcher"),
     CharacterRules = require("func/ComboTrials/CharacterRules"),
     Validator = require("func/ComboTrials/Validator"),
     PendingAbsorb = require("func/ComboTrials/PendingAbsorb")
 }
 local DebugTrace = ComboTrialsModules.DebugTrace
-local BcmCatalog = ComboTrialsModules.BcmCatalog
 local ActionMatcher = ComboTrialsModules.ActionMatcher
 local CharacterRules = ComboTrialsModules.CharacterRules
 local Validator = ComboTrialsModules.Validator
@@ -73,9 +71,12 @@ local BTN_MASKS = { [16] = "LP", [32] = "MP", [64] = "HP", [128] = "LK", [256] =
 -- BCM base table or its curated exception aliases.  Some stance normals use
 -- flags=16/action_code=0 even when the player pressed an attack button, so the
 -- generic intentionality heuristic alone incorrectly discards them.
-local function is_catalog_button_action(catalog, action_id, direct_input)
+local ComboTrials_D2D
+local function is_unified_command_action(character, action_id, direct_input)
     local buttons = (tonumber(direct_input) or 0) & 0xFFF0
-    return buttons ~= 0 and BcmCatalog.get_classic_display(catalog, action_id) ~= nil
+    if buttons == 0 or not ComboTrials_D2D or not ComboTrials_D2D.get_command_display then return false end
+    local ok, display = pcall(ComboTrials_D2D.get_command_display, character, action_id, "classic")
+    return ok and type(display) == "string" and display ~= ""
 end
 
 local esf_names_map = {
@@ -239,7 +240,7 @@ local players = {
     [0] = {
         log = {}, prev_act_id = -1, prev_act_frame = -1, last_combo_count = 0,
         action_instance_counter = 0, current_action_instance = 0, buffer_action_instance = 0,
-        bcm_catalog = nil, trigger_mask_cache = {}, trigger_cache_built = false,
+        trigger_mask_cache = {}, trigger_cache_built = false,
         last_bcm_ptr = "", last_direct_input = 0, input_history_queue = {},
         profile_name = "Unknown", last_profile_name = "", exceptions = {},
         editing_id = -1, edit_ignore = false, edit_force = false,
@@ -250,7 +251,7 @@ local players = {
     [1] = {
         log = {}, prev_act_id = -1, prev_act_frame = -1, last_combo_count = 0,
         action_instance_counter = 0, current_action_instance = 0, buffer_action_instance = 0,
-        bcm_catalog = nil, trigger_mask_cache = {}, trigger_cache_built = false,
+        trigger_mask_cache = {}, trigger_cache_built = false,
         last_bcm_ptr = "", last_direct_input = 0, input_history_queue = {},
         profile_name = "Unknown", last_profile_name = "", exceptions = {},
         editing_id = -1, edit_ignore = false, edit_force = false,
@@ -1145,7 +1146,7 @@ ctx.on_combo_file_change = function(info)
     ctx.stop_demo_playback(reason, old_file, new_file, true)
 end
 
-local ComboTrials_D2D = require("func/ComboTrials_D2D")
+ComboTrials_D2D = require("func/ComboTrials_D2D")
 ComboTrials_D2D.init(ctx)
 
 -- (D2D rendering code is now in ComboTrials_D2D.lua)
@@ -6078,7 +6079,6 @@ local function ct_player_init(p_idx, p_state)
         p_state.action_instance_counter = 0
         p_state.current_action_instance = 0
         p_state.buffer_action_instance = 0
-        p_state.bcm_catalog = nil
         p_state.trigger_mask_cache = {}
         p_state.trigger_cache_built = false
         p_state.last_bcm_ptr = ""
@@ -6120,7 +6120,6 @@ local function ct_player_init(p_idx, p_state)
         end
         if p_state.profile_name ~= "Unknown" then
             p_state.exceptions = CharacterRules.load_for_character(p_state.profile_name)
-            p_state.bcm_catalog = BcmCatalog.load_for_character(p_state.profile_name)
         end
     end
 
@@ -6834,8 +6833,8 @@ local function ct_player_input_buffer(p_state)
             -- command owner is a real player command. State/resource branches
             -- can replace it within the ghost window (for example, a status-
             -- dependent follow-up); the later action must not erase the command.
-            local buffered_is_catalog_command = is_catalog_button_action(
-                p_state.bcm_catalog, p_state.buffer_act_id, p_state.buffer_direct_input)
+            local buffered_is_catalog_command = is_unified_command_action(
+                p_state.profile_name, p_state.buffer_act_id, p_state.buffer_direct_input)
 
             if duration > 0 and duration < ghost_wait and p_state.buffer_act_id > 50
                 and not is_alex_exempt and not buffered_is_catalog_command then
@@ -6852,7 +6851,7 @@ local function ct_player_input_buffer(p_state)
                     end
                 end
                 if not new_is_intentional
-                    and is_catalog_button_action(p_state.bcm_catalog, _pf.act_id, _pf.direct_input) then
+                    and is_unified_command_action(p_state.profile_name, _pf.act_id, _pf.direct_input) then
                     new_is_intentional = true
                 end
                 if _pf.act_id == 36 or _pf.act_id == 37 or _pf.act_id == 38 then new_is_intentional = true end
@@ -7005,7 +7004,6 @@ local function ct_player_process_actions(p_idx, p_state, actions_to_process)
             end
 
             is_continuation = ActionMatcher.matches_absorb_id(parent_exc, act_id)
-                or BcmCatalog.is_alias_for(p_state.bcm_catalog, act_id, parent_id)
         end
 
         -- 2. CLOSING THE PREVIOUS ACTION
@@ -7050,7 +7048,8 @@ local function ct_player_process_actions(p_idx, p_state, actions_to_process)
             local deep_data = nil
             local best_match = nil
             local is_facing_left = false
-            local catalog_motion = BcmCatalog.get_classic_display(p_state.bcm_catalog, act_id)
+            local unified_command_action = is_unified_command_action(
+                p_state.profile_name, act_id, direct_input)
 
             if act_id > 50 or act_id == 17 or act_id == 18 or act_id == 36 or act_id == 37 or act_id == 38 then
                 is_trackable = true
@@ -7183,8 +7182,7 @@ local function ct_player_process_actions(p_idx, p_state, actions_to_process)
                 -- BCM/exception-backed stance normals are intentional when an
                 -- attack button is physically present, even if the engine marks
                 -- their transition as flags=16 with no action/branch code.
-                if not is_intentional and catalog_motion
-                    and ((tonumber(direct_input) or 0) & 0xFFF0) ~= 0 then
+                if not is_intentional and unified_command_action then
                     is_intentional = true
                 end
 
@@ -7361,9 +7359,9 @@ local function ct_player_process_actions(p_idx, p_state, actions_to_process)
 
                 -- 2. Final motion_str determination
                 -- The unified three-slot command table is the only source for
-                -- Classic command text. BCM catalog data remains detection
-                -- evidence above, but must not silently restore the legacy
-                -- display path when a generated table fails its audit.
+                -- Classic command text. Live trigger/action data remains
+                -- detection evidence above, but must not silently restore another
+                -- display source when a generated table fails its audit.
                 local unified_classic_motion = nil
                 if ComboTrials_D2D and ComboTrials_D2D.get_command_display then
                     local ok, value = pcall(ComboTrials_D2D.get_command_display,
@@ -7770,8 +7768,7 @@ local function ct_player_process_actions(p_idx, p_state, actions_to_process)
                                     common_exceptions,
                                     expected,
                                     p_state.log,
-                                    p_state.profile_name,
-                                    p_state.bcm_catalog
+                                    p_state.profile_name
                                 )
                                 match_probe.recent_absorb = recent_absorb
                                 if recent_absorb.matched then
@@ -7814,8 +7811,7 @@ local function ct_player_process_actions(p_idx, p_state, actions_to_process)
                                                 common_exceptions,
                                                 chain_expected,
                                                 p_state.log,
-                                                p_state.profile_name,
-                                                p_state.bcm_catalog
+                                                p_state.profile_name
                                             )
                                             local chain_record = {
                                                 chain_iteration = chain_count + 1,
@@ -8191,8 +8187,7 @@ local function ct_player_process_actions(p_idx, p_state, actions_to_process)
                     expected,
                     act_id,
                     _pf.current_combo or 0,
-                    p_state.profile_name,
-                    p_state.bcm_catalog
+                    p_state.profile_name
                 )
                 local match_probe = build_match_probe(expected, "non_intentional_action")
                 match_probe.current_absorb = current_absorb

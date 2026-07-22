@@ -7,7 +7,7 @@ const path = require("path");
 const archive = require("./archive_builder.js");
 const bcmCore = require("../bcm_catalog_builder/bcm_catalog_core.js");
 const compiler = require("./compiler_core.js");
-const modern = require("./modern_display_core.js");
+const commandDisplay = require("./command_display_core.js");
 
 const TOOL_ROOT = __dirname;
 const DEFAULT_ACBCM_ROOT = path.join(TOOL_ROOT, "acbcm");
@@ -17,7 +17,6 @@ const CHARACTER_MANIFEST = path.resolve(TOOL_ROOT, "../modern_display_builder/ch
 const ZERO_AUDIT_FIELDS = [
     "owner_missing_count", "no_evidence_count", "direct_overridden_count",
     "non_whitelist_propagation_count", "overlay_entry_count",
-    "legacy_supplement_entry_count", "classic_fallback_count", "classic_token_leak_count",
     "alias_propagation_count", "type17_route_count", "ac_automatic_transition_route_count",
     "replaces_profile_route_count"
 ];
@@ -112,9 +111,7 @@ function loadCommunity(character) {
 
 function validateOutput(output, character, fighterId) {
     const meta = output && output._meta || {};
-    const supportedSchemas = new Set([
-        modern.SCHEMA, "xt.modern_display.v9", "xt.modern_display.v10"
-    ]);
+    const supportedSchemas = new Set([commandDisplay.SCHEMA]);
     if (!supportedSchemas.has(meta.schema) || meta.character !== character
         || Number(meta.fighter_id) !== Number(fighterId)) {
         throw new Error(`${character} 指令输出 schema/角色/Fighter ID 不匹配。`);
@@ -125,7 +122,7 @@ function validateOutput(output, character, fighterId) {
     }
     const count = Object.keys(output).filter(key => /^\d+$/.test(key)).length;
     if (!count) throw new Error(`${character} 指令输出没有任何 Action ID。`);
-    if (meta.schema === modern.SCHEMA) {
+    if (meta.schema === commandDisplay.SCHEMA) {
         let classicCount = 0, modernCount = 0, sharedCount = 0;
         for (const [id, entry] of Object.entries(numericEntries(output))) {
             for (const slot of ["classic_command", "simple_command", "motion_command"]) {
@@ -352,7 +349,7 @@ function buildVersion(options) {
             });
             const compiled = compiler.compileFromCatalog(ac.value, catalog, {}, options);
             if (compiled.report.status === "invalid") throw new Error(`${character} AC+BCM 编译为 invalid。`);
-            const output = modern.buildModernDisplay(ac.value, catalog, compiled.runtime, {}, options);
+            const output = commandDisplay.buildCommandDisplay(ac.value, catalog, compiled.runtime, {}, options);
             const actionCount = validateOutput(output, character, fighterId);
             writeJson(path.join(stage, `${character}.json`), output);
             const difference = mapDiff(previous.get(character), output);
@@ -378,7 +375,7 @@ function buildVersion(options) {
         source_directory: versionDirectory,
         official_directory: offDirectory,
         character_count: results.length,
-        command_schema: modern.SCHEMA,
+        command_schema: commandDisplay.SCHEMA,
         characters: results
     };
     writeJson(path.join(versionDirectory, "lastjson-manifest.json"), manifest);
