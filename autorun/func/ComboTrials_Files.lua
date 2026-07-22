@@ -397,11 +397,14 @@ local function filter_combo_lists(display_all, path_all, control_all)
     file_system.combo_control_filter = filter
     local effective_filter = effective_combo_control_filter(filter)
     file_system.combo_control_effective_filter = effective_filter
+    local include_classic_in_modern = effective_filter == "modern"
+        and ctx and ctx.d2d_cfg and ctx.d2d_cfg.allow_classic_trials_in_modern == true
 
     local info_list, path_list, control_list = {}, {}, {}
     for idx, path in ipairs(path_all or {}) do
         local control_type = control_all[idx] or "classic"
-        if effective_filter == "all" or effective_filter == control_type then
+        if effective_filter == "all" or effective_filter == control_type
+            or (include_classic_in_modern and control_type == "classic") then
             info_list[#info_list + 1] = display_all[idx]
             path_list[#path_list + 1] = path
             control_list[#control_list + 1] = control_type

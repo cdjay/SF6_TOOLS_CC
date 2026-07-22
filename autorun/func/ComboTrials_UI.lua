@@ -1397,6 +1397,19 @@ local function draw_combo_trials_menu_ui()
         imgui.text_colored("简化：优先显示 SP、AUTO 等现代快捷输入。", COLORS.DarkGrey)
         imgui.text_colored("搓招：显示方向指令与攻击键输入。", COLORS.DarkGrey)
         imgui.text_colored("可同时勾选；同时勾选即显示两套指令。“>”表示派生动作顺序。", COLORS.DarkGrey)
+        local classic_support_changed, classic_support_checked = imgui.checkbox(
+            "现代模式下显示经典连段",
+            d2d_cfg.allow_classic_trials_in_modern == true
+        )
+        if classic_support_changed then
+            d2d_cfg.allow_classic_trials_in_modern = classic_support_checked == true
+            if ctx.save_d2d_config then ctx.save_d2d_config() end
+            if file_system and file_system.refresh_combo_list_preserve_selection then
+                file_system.refresh_combo_list_preserve_selection(false)
+            elseif refresh_combo_list then
+                refresh_combo_list()
+            end
+        end
         local modern_mode = tostring(d2d_cfg.modern_display_mode or "simple")
         local show_simple = modern_mode == "simple" or modern_mode == "all"
         local show_motion = modern_mode == "motion" or modern_mode == "all"

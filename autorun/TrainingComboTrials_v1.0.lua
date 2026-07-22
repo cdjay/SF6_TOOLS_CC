@@ -516,10 +516,13 @@ function CTJsonInterop.sequence_control_mode(sequence)
     return mode == "modern" and "modern" or "classic"
 end
 
-function CTJsonInterop.warn_control_mode_mismatch(sequence, player_idx)
+function CTJsonInterop.warn_control_mode_mismatch(sequence, player_idx, allow_classic_in_modern)
     local file_mode = CTJsonInterop.sequence_control_mode(sequence)
     local live_mode = control_type_from_input_type(read_player_input_type(player_idx or 0))
     if file_mode == live_mode then return false end
+    if allow_classic_in_modern == true and file_mode == "classic" and live_mode == "modern" then
+        return false
+    end
     local message = string.format("控制模式不一致：配置为%s，当前为%s", file_mode, live_mode)
     if type(_G.show_custom_ticker) == "function" then
         pcall(_G.show_custom_ticker, message, 0.3)
@@ -895,6 +898,7 @@ local d2d_cfg = {
     show_combo_count = false,
     show_modern_unresolved_ids = false,
     modern_display_mode = "simple",
+    allow_classic_trials_in_modern = false,
     pos_p1 = { x = 0.050, y = 0.350 },
     pos_p2 = { x = 0.850, y = 0.350 },
     raw_pos_p1 = { x = 0.050, y = 0.350 },
@@ -1006,6 +1010,7 @@ if d2d_cfg.modern_display_mode ~= "simple"
     and d2d_cfg.modern_display_mode ~= "all" then
     d2d_cfg.modern_display_mode = "simple"
 end
+d2d_cfg.allow_classic_trials_in_modern = d2d_cfg.allow_classic_trials_in_modern == true
 
 -- =========================================================
 -- COMPLETED TRIALS TRACKING (runtime file, not committed)
@@ -4360,7 +4365,11 @@ local function start_trial(player_idx)
     update_trial_flip_state()
     apply_forced_position()
     trial_state._pending_reinject_settings = true
-    CTJsonInterop.warn_control_mode_mismatch(trial_state.sequence, player_idx)
+    CTJsonInterop.warn_control_mode_mismatch(
+        trial_state.sequence,
+        player_idx,
+        d2d_cfg.allow_classic_trials_in_modern == true
+    )
 end
 
 local function clear_recording_logger(player_idx)

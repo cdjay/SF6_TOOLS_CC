@@ -1563,11 +1563,39 @@ local function clone_step_for_display(step, motion)
     return copy
 end
 
+local function get_classic_trial_modern_projection(sequence, sequence_character)
+    local state = ctx and ctx.trial_state
+    local config = ctx and ctx.d2d_cfg
+    if not state or not config or config.allow_classic_trials_in_modern ~= true
+        or state.is_recording == true or sequence ~= state.sequence or is_modern_sequence(sequence) then
+        return nil
+    end
+
+    local player_idx = tonumber(state.playing_player) or 0
+    local contexts = state.live_display_contexts
+    local live_context = type(contexts) == "table" and contexts[player_idx] or nil
+    local control_mode = live_context and (live_context.control_mode or live_context.control_type)
+    if type(live_context) ~= "table" or live_context.active ~= true
+        or tostring(control_mode or ""):lower() ~= "modern" then
+        return nil
+    end
+
+    local character = sequence_character
+    if type(character) ~= "string" or character == "" then character = live_context.character end
+    if type(character) ~= "string" or character == "" then character = "Unknown" end
+    local command_map, status = load_command_display_map(character)
+    return {
+        command_map = command_map,
+        character = character,
+        status = status
+    }
+end
+
 local function resolve_modern_display_context(sequence)
     local sequence_character = get_sequence_character(sequence)
     if is_modern_sequence(sequence) then
         local modern_map, status = load_command_display_map(sequence_character)
-        return true, modern_map, sequence_character or "Unknown", status
+        return true, modern_map, sequence_character or "Unknown", status, false
     end
 
     local trial_state = ctx and ctx.trial_state
@@ -1581,10 +1609,14 @@ local function resolve_modern_display_context(sequence)
         and tostring(control_mode or ""):lower() == "modern" then
         local character = recording_context.character or "Unknown"
         local modern_map, status = load_command_display_map(character)
-        return true, modern_map, character, status
+        return true, modern_map, character, status, false
+    end
+    local projection = get_classic_trial_modern_projection(sequence, sequence_character)
+    if projection then
+        return true, projection.command_map, projection.character, projection.status, true
     end
     local command_map, status = load_command_display_map(sequence_character)
-    return false, command_map, sequence_character or "Unknown", status or "classic"
+    return false, command_map, sequence_character or "Unknown", status or "classic", false
 end
 
 local function resolve_live_player_modern_display_context(player_idx)
@@ -1641,7 +1673,8 @@ end
 local function build_display_lines(sequence)
     local lines = {}
     local sequence_character = get_sequence_character(sequence)
-    local is_modern, modern_map, modern_character, modern_status = resolve_modern_display_context(sequence)
+    local is_modern, modern_map, modern_character, modern_status, classic_modern_projection =
+        resolve_modern_display_context(sequence)
     local state = ctx and ctx.trial_state
     local audit_context = state and state.is_recording == true and sequence == state.sequence
         and "recording" or "loaded"
@@ -1651,11 +1684,13 @@ local function build_display_lines(sequence)
     for i, raw_step in ipairs(sequence) do
         local step = raw_step
         local include_step = true
+        local modern_unavailable = false
         if is_modern then
             local modern_motion, route_status = get_modern_display_motion(modern_map, raw_step)
             if route_status == "suppress_transition" then
                 include_step = false
             elseif not modern_motion then
+                modern_unavailable = classic_modern_projection == true
                 modern_motion = modern_unresolved_placeholder(raw_step)
                 audit_modern_unresolved(modern_character, raw_step, audit_context,
                     modern_status ~= "loaded" and modern_status or route_status,
@@ -1670,14 +1705,21 @@ local function build_display_lines(sequence)
         if include_step then
             local gid = step.group_id or i
             if #lines == 0 or lines[#lines].group_id ~= gid then
-                table.insert(lines, { group_id = gid, first = i, last = i, steps = { step } })
+                table.insert(lines, {
+                    group_id = gid,
+                    first = i,
+                    last = i,
+                    steps = { step },
+                    modern_unavailable = modern_unavailable
+                })
             else
                 lines[#lines].last = i
                 table.insert(lines[#lines].steps, step)
+                lines[#lines].modern_unavailable = lines[#lines].modern_unavailable or modern_unavailable
             end
         end
     end
-    return lines
+    return lines, classic_modern_projection == true
 end
 
 local function merge_group_log_item(steps)
@@ -2733,8 +2775,27 @@ local function d2d_draw_inner()
         local final_rect_x = rect_x + c_off_x
 
         -- Build display lines (follow-up groups)
-        local display_lines = build_display_lines(trial_state.sequence)
+        local display_lines, classic_modern_projection = build_display_lines(trial_state.sequence)
         local n_lines = #display_lines
+        if classic_modern_projection and assets.font then
+            -- Calibrated at desktop (2800, 260), i.e. game-local (240, 260)
+            -- after the 2560 px-wide primary display. Keep the calibration
+            -- relative to the current trial-table anchor so layout movement
+            -- moves this warning by the same amount.
+            local warning_text = "经典指令转现代指令，自动播放无效"
+            local _, warning_h = measure_text(warning_text)
+            local trial_pos = d2d_cfg.pos_trial_p1 or d2d_cfg.pos_p1 or { x = 0.105, y = 0.212 }
+            local warning_x = (2800 - 2560) + ((trial_pos.x or 0.105) - 0.105) * sw
+            local warning_center_y = 260 + ((trial_pos.y or 0.212) - 0.212) * sh
+            local warning_y = warning_center_y - ((warning_h or 0) * 0.5)
+            draw_text_with_shadow(
+                assets.font,
+                warning_text,
+                warning_x,
+                warning_y,
+                0xFFFF0000
+            )
+        end
         local trial_meta = get_trial_meta()
         local final_step = trial_state.sequence and trial_state.sequence[#trial_state.sequence] or nil
         local final_visual_complete = false
@@ -2842,6 +2903,29 @@ local function d2d_draw_inner()
             end
         else
             d2d_anim.active_y = nil
+        end
+
+        -- Static compatibility marker only: it does not mutate trial failure
+        -- state and therefore cannot affect Action ID validation.
+        if classic_modern_projection then
+            for dl_idx = start_idx, math.min(start_idx + visible - 1, n_lines) do
+                local dl = display_lines[dl_idx]
+                if dl and dl.modern_unavailable then
+                    local cur_y_pos = trial_y + (dl_idx - start_idx) * spacing_y
+                    local sy = cur_y_pos - padding_y + c_off_y
+                    if assets.imgs["fail_bar"] then
+                        d2d.image(assets.imgs["fail_bar"], final_rect_x + b_off_x,
+                            sy + b_off_y, cartouche_w, active_bg_h)
+                    else
+                        d2d.fill_rect(final_rect_x, sy, cartouche_w, active_bg_h,
+                            d2d_cfg.colors.bg_fail)
+                        d2d.fill_rect(final_rect_x, sy, cartouche_w, 3,
+                            d2d_cfg.colors.bg_fail_line)
+                        d2d.fill_rect(final_rect_x, sy + active_bg_h - 3, cartouche_w, 3,
+                            d2d_cfg.colors.bg_fail_line)
+                    end
+                end
+            end
         end
 
         local result_col_w = (d2d_cfg.result_col_width or 0.027) * sw
