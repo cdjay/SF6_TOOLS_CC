@@ -10,7 +10,8 @@ local ComboTrialsModules = {
     ActionMatcher = require("func/ComboTrials/ActionMatcher"),
     CharacterRules = require("func/ComboTrials/CharacterRules"),
     Validator = require("func/ComboTrials/Validator"),
-    PendingAbsorb = require("func/ComboTrials/PendingAbsorb")
+    PendingAbsorb = require("func/ComboTrials/PendingAbsorb"),
+    Telemetry = require("func/ComboTrials/Telemetry")
 }
 local DebugTrace = ComboTrialsModules.DebugTrace
 local ActionMatcher = ComboTrialsModules.ActionMatcher
@@ -4198,6 +4199,58 @@ end
 local reset_combo_visual_runtime
 local step_combo_reset_gc
 
+ctx.build_trial_telemetry_context = function(source)
+    local player_idx = trial_state.playing_player or 0
+    local first = type(trial_state.sequence) == "table" and trial_state.sequence[1] or nil
+    local meta = type(first) == "table" and first._xt_meta or nil
+    local declared_control = CTJsonInterop.sequence_control_mode(trial_state.sequence)
+    local player_control = control_type_from_input_type(read_player_input_type(player_idx))
+    local projection = declared_control == "classic" and player_control == "modern"
+        and "classic_to_modern" or "none"
+    local character = type(meta) == "table" and meta.character or nil
+    if type(character) ~= "string" or character == "" then
+        character = players[player_idx] and players[player_idx].profile_name or "Unknown"
+    end
+    return {
+        sequence = trial_state.sequence,
+        file_path = trial_state.current_file_path or trial_state.current_file,
+        file_name = trial_state.current_file_name,
+        character = character,
+        declared_control = declared_control,
+        player_control = player_control,
+        projection = projection,
+        source = source,
+        demo_kind = source == "auto_demo" and (demo_state.raw_buffer and "raw" or "timeline") or nil,
+        engine_frame = engine_frame_count or 0
+    }
+end
+
+ctx.begin_trial_telemetry_attempt = function(source)
+    pcall(ComboTrialsModules.Telemetry.begin_attempt, ctx.build_trial_telemetry_context(source))
+end
+
+ctx.finish_trial_telemetry_attempt = function(outcome, failure_reason)
+    pcall(ComboTrialsModules.Telemetry.finish_attempt, outcome, {
+        failure_reason = failure_reason,
+        current_step = trial_state.current_step,
+        total_steps = type(trial_state.sequence) == "table" and #trial_state.sequence or 0,
+        engine_frame = engine_frame_count or 0
+    })
+end
+
+ctx.finish_demo_telemetry_cycle = function()
+    local total_steps = type(trial_state.sequence) == "table" and #trial_state.sequence or 0
+    local failed = trial_state.fail_reason ~= nil
+        or (trial_state.fail_timer or 0) > 0
+        or trial_state.manual_reset_pending == true
+    local completed = total_steps > 0 and (trial_state.current_step or 1) > total_steps
+    if not failed and completed then
+        ctx.finish_trial_telemetry_attempt("success")
+    else
+        ctx.finish_trial_telemetry_attempt("fail", trial_state.fail_reason or "DEMO INCOMPLETE")
+    end
+end
+
 local function clear_trial_attempt_state(player_idx, phase)
     trial_state.success_timer = 0
     trial_state.fail_timer = 0
@@ -4246,6 +4299,7 @@ local function clear_trial_attempt_state(player_idx, phase)
     end
     reset_combo_visual_runtime()
     step_combo_reset_gc()
+    ctx.begin_trial_telemetry_attempt((demo_state and demo_state.is_playing) and "auto_demo" or "manual")
 end
 
 reset_combo_visual_runtime = function()
@@ -8405,6 +8459,14 @@ ctx.advance_to_next_trial = function()
 end
 
 ctx.handle_trial_auto_flow = function()
+    if trial_state.is_playing and not (demo_state and demo_state.is_playing) then
+        if (trial_state.fail_timer or 0) > 0 then
+            ctx.finish_trial_telemetry_attempt("fail", trial_state.fail_reason)
+        elseif (trial_state.success_timer or 0) > 0 then
+            ctx.finish_trial_telemetry_attempt("success")
+        end
+    end
+
     if not trial_state.is_playing or (demo_state and demo_state.is_playing) then
         if demo_state and demo_state.is_playing then
             -- Demo playback drives the same validation pipeline, and the
@@ -9170,6 +9232,7 @@ local function start_demo(opts)
     demo_state.current_file = trial_state.current_file
     demo_state.current_file_path = trial_state.current_file_path
     demo_state.current_file_name = trial_state.current_file_name
+    ctx.begin_trial_telemetry_attempt("auto_demo")
 
     print("[ComboTrials] DEMO Started" .. (use_raw_inputs and " (RAW native)" or " (LEGACY timeline)"))
     return true
@@ -9537,6 +9600,7 @@ table.insert(_G._shared_input_pre, function(p_id, args)
                         CTStunDemoRuntime.advance_timeline_frames(1)
                         demo_state._last_tick_frame = engine_frame_count or 0
                     else
+                        ctx.finish_demo_telemetry_cycle()
                         if demo_state.playlist_active == true then
                             demo_state.is_playing = false
                             demo_state.current_frame = 0
@@ -9622,6 +9686,7 @@ function CTRawInputRuntime.play()
     if type(buffer) ~= "table" or #buffer == 0 then return end
     local index = demo_state.play_index or 1
     if index > #buffer then
+        ctx.finish_demo_telemetry_cycle()
         if demo_state.playlist_active == true then
             demo_state.is_playing = false
             demo_state.raw_buffer = nil

@@ -22,6 +22,7 @@ sync_signal.json
 /data/TrainingComboTrials_data/*/SF6_Replay_Data.json
 /data/Stats/
 /data/TrainingComboTrials_data/Backups/
+/data/SF6_TrainingRemoteControl_data/ComboTrialTelemetry/
 /data/SF6CC_DynamicRecords/*.json
 /data/SF6CC_DynamicRecords/backups/
 
