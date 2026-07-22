@@ -1,4 +1,5 @@
 {
+    "allow_classic_trials_in_modern": false,
     "arrow_size": 0.050999999046325684,
     "auto_launch_idx": 2,
     "auto_load": true,
