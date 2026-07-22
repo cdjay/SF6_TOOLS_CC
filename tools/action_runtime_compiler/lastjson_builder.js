@@ -128,6 +128,17 @@ function validateOutput(output, character, fighterId) {
     if (meta.schema === modern.SCHEMA) {
         let classicCount = 0, modernCount = 0, sharedCount = 0;
         for (const [id, entry] of Object.entries(numericEntries(output))) {
+            for (const slot of ["classic_command", "simple_command", "motion_command"]) {
+                if (!Object.prototype.hasOwnProperty.call(entry, slot)) {
+                    throw new Error(`${character} Action ${id} 缺少统一指令槽 ${slot}。`);
+                }
+                const command = entry[slot];
+                const valid = command === null || (typeof command === "object"
+                    && typeof command.display === "string" && command.display.trim() !== ""
+                    && Array.isArray(command.inputs) && command.inputs.length > 0
+                    && command.inputs.every(input => typeof input === "string" && input.trim() !== ""));
+                if (!valid) throw new Error(`${character} Action ${id} ${slot} 契约无效。`);
+            }
             const classic = entry && entry.classic_command;
             const hasClassic = classic && typeof classic.display === "string"
                 && classic.display.trim() !== "" && Array.isArray(classic.inputs)
@@ -136,7 +147,7 @@ function validateOutput(output, character, fighterId) {
             if (classic !== null && classic !== undefined && !hasClassic) {
                 throw new Error(`${character} Action ${id} classic_command 契约无效。`);
             }
-            const hasModern = Boolean(entry && (entry.simple_command || entry.motion_command));
+            const hasModern = Boolean(entry.simple_command || entry.motion_command);
             const expectedSupport = hasClassic && hasModern ? "classic_modern"
                 : (hasClassic ? "classic_only" : "unknown");
             if (entry.control_support !== expectedSupport) {

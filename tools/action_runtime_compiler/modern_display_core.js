@@ -3000,7 +3000,10 @@ function buildModernDisplay(actionSource, bcmCatalog, runtime, supplement, optio
             if (command) classicCommands.set(String(Number(id)), command);
         }
     }
-    const equivalentOwnership = new Set(["verified_alias", "structural_twin", "rebind"]);
+    const equivalentOwnership = new Set([
+        "verified_alias", "structural_twin", "rebind",
+        "type20_hold_continuation", "type20_action_phase"
+    ]);
     let classicProjectionChanged = true;
     while (classicProjectionChanged) {
         classicProjectionChanged = false;
@@ -3219,6 +3222,8 @@ function buildModernDisplay(actionSource, bcmCatalog, runtime, supplement, optio
             output[id] = {
                 modern_display: null,
                 classic_command: classicCommand,
+                simple_command: null,
+                motion_command: null,
                 control_support: commandControlSupport(classicCommand, false),
                 source: generatedFrom,
                 ownership: entry.ownership,

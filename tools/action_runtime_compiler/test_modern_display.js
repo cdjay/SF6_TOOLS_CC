@@ -986,10 +986,12 @@ const holdCatalog = { source: { character: "HoldEvidence" }, actions: {
 } };
 const holdRuntime = { character: "HoldEvidence", fighter_id: 104,
     action_ids: [3000, 3001], aliases: {}, sources: {}, validation: { rules: {} },
+    actions: { "3000": "22+P" },
     evidence: { ac_derived_commands: [], alias_relations: [] } };
 const holdOutput = modern.buildModernDisplay(makeStrictHoldActionSource(0, -1),
     holdCatalog, holdRuntime, {}, { generatedAt: "type20-hold" });
 assert.strictEqual(holdOutput["3001"].modern_display, "> 任意键");
+assert.strictEqual(holdOutput["3001"].classic_command.display, "22+P");
 assert.strictEqual(holdOutput["3001"].routes[0].source, "ac_type20_hold_continuation");
 assert.strictEqual(holdOutput._meta.audit.type20_hold_relation_count, 1);
 const rejectedHold = modern.buildModernDisplay(makeStrictHoldActionSource(-1, -1),
@@ -1024,11 +1026,13 @@ const phaseCatalog = { source: { character: "ActionPhase" }, actions: {
 } };
 const phaseRuntime = { character: "ActionPhase", fighter_id: 106,
     action_ids: [3100, 3101], aliases: {}, sources: {}, validation: { rules: {} },
+    actions: { "3100": "236+MP" },
     evidence: { ac_derived_commands: [], alias_relations: [] } };
 const phaseOutput = modern.buildModernDisplay(makeType20ActionPhaseSource(true), phaseCatalog,
     phaseRuntime, {}, { generatedAt: "type20-action-phase" });
 assert.strictEqual(phaseOutput["3100"].modern_display, "6 + SP");
 assert.strictEqual(phaseOutput["3101"].modern_display, "6 + SP");
+assert.strictEqual(phaseOutput["3101"].classic_command.display, "236+MP");
 assert.strictEqual(phaseOutput["3101"].ownership, "type20_action_phase");
 assert.strictEqual(phaseOutput._meta.audit.type20_action_phase_relation_count, 1);
 const rejectedPhase = modern.buildModernDisplay(makeType20ActionPhaseSource(false), phaseCatalog,

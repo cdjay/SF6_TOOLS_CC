@@ -158,9 +158,9 @@ able to declare equivalences explicitly:
 
 - Matchers normalize notations (uppercase, strip whitespace and whiff markers)
   and accept `motion` or any alias.
-- Per-character exception files map variant ids to the base notation
-  (`force` + `override_name` = base move notation) so both states record and
-  replay interchangeably.
+- The unified per-character command table maps variant IDs to the canonical
+  Classic, Modern Simple, and Modern Motion projections. Exception files only
+  control detection behavior and never override recorded or displayed notation.
 
 ## 4. Compatibility rules
 

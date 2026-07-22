@@ -5189,8 +5189,13 @@
   },
   "975": {
     "modern_display": "> 弱",
-    "classic_command": null,
-    "control_support": "unknown",
+    "classic_command": {
+      "display": "214+LP",
+      "inputs": [
+        "214+LP"
+      ]
+    },
+    "control_support": "classic_modern",
     "source": "ac_bcm+capcom_official_semantics",
     "ownership": "type20_hold_continuation",
     "simple_command": {
@@ -5271,8 +5276,13 @@
   },
   "976": {
     "modern_display": "> 弱",
-    "classic_command": null,
-    "control_support": "unknown",
+    "classic_command": {
+      "display": "214+LP",
+      "inputs": [
+        "214+LP"
+      ]
+    },
+    "control_support": "classic_modern",
     "source": "ac_bcm+capcom_official_semantics",
     "ownership": "type20_hold_continuation",
     "simple_command": {
@@ -5354,8 +5364,13 @@
   },
   "977": {
     "modern_display": "> 弱",
-    "classic_command": null,
-    "control_support": "unknown",
+    "classic_command": {
+      "display": "214+LP",
+      "inputs": [
+        "214+LP"
+      ]
+    },
+    "control_support": "classic_modern",
     "source": "ac_bcm+capcom_official_semantics",
     "ownership": "type20_hold_continuation",
     "simple_command": {
@@ -5437,8 +5452,13 @@
   },
   "980": {
     "modern_display": "> 弱",
-    "classic_command": null,
-    "control_support": "unknown",
+    "classic_command": {
+      "display": "214+LP",
+      "inputs": [
+        "214+LP"
+      ]
+    },
+    "control_support": "classic_modern",
     "source": "ac_bcm+capcom_official_semantics",
     "ownership": "type20_hold_continuation",
     "simple_command": {
@@ -15231,9 +15251,9 @@
       "ac_type13_neutral_route_count": 0,
       "internal_transition_suppression_count": 0,
       "split_command_action_count": 116,
-      "classic_command_action_count": 126,
-      "shared_command_action_count": 112,
-      "classic_projection_pending_count": 4,
+      "classic_command_action_count": 130,
+      "shared_command_action_count": 116,
+      "classic_projection_pending_count": 0,
       "command_display_action_count": 130,
       "followup_relation_count": 0,
       "command_slot_overflow_count": 0,

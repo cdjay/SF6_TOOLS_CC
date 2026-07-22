@@ -1751,10 +1751,6 @@ local function draw_combo_trials_menu_ui()
                 end
 
                 imgui.spacing()
-                local ct, nt = imgui.input_text("新名称（留空保留原名）", p_state.edit_text)
-                if ct then p_state.edit_text = nt end
-
-                imgui.spacing()
                 local cc, nc = imgui.checkbox("应用到所有角色（通用）", p_state.edit_is_common)
                 if cc then p_state.edit_is_common = nc end
 
@@ -1793,7 +1789,6 @@ local function draw_combo_trials_menu_ui()
                         charge_max = parsed_max,
                         perfect_min = tonumber(p_state.edit_perfect_min),
                         perfect_max = tonumber(p_state.edit_perfect_max),
-                        override_name = (p_state.edit_text ~= "") and p_state.edit_text or nil,
                         ignore_prev_id = _parsed_prev,
                         ignore_prev_frames = tonumber(p_state.edit_ignore_prev_frames) or 5
                     }
@@ -1834,12 +1829,6 @@ local function draw_combo_trials_menu_ui()
                                 l.intentional = true
                             end
 
-                            if new_exc.override_name then
-                                l.motion = new_exc.override_name
-                            else
-                                l.motion = l.name
-                            end
-
                             l.is_holdable = new_exc.is_holdable
                             l.charge_min = new_exc.charge_min
                             l.charge_max = new_exc.charge_max
@@ -1848,15 +1837,6 @@ local function draw_combo_trials_menu_ui()
                     end
                     p_state.log = new_log
 
-                    for _, step in ipairs(trial_state.sequence) do
-                        if step.id == p_state.editing_id then
-                            if new_exc.override_name then
-                                step.motion = new_exc.override_name
-                            else
-                                step.motion = step.name or "Unknown"
-                            end
-                        end
-                    end
                     p_state.editing_id = -1
                 end
 
@@ -1895,7 +1875,6 @@ local function draw_combo_trials_menu_ui()
                                 desc = desc .. "[HOLD(" .. min_s .. "-" .. max_s .. ")] "
                             end
                         end
-                        if exc.override_name then desc = desc .. "[NAME: " .. exc.override_name .. "] " end
                         if exc.ignore_prev_id then
                             local id_disp = type(exc.ignore_prev_id) == "table" and table.concat(exc.ignore_prev_id, ",") or tostring(exc.ignore_prev_id)
                             desc = desc ..
@@ -1916,7 +1895,6 @@ local function draw_combo_trials_menu_ui()
                             p_state.edit_charge_max = exc.charge_max and tostring(exc.charge_max) or ""
                             p_state.edit_perfect_min = exc.perfect_min and tostring(exc.perfect_min) or ""
                             p_state.edit_perfect_max = exc.perfect_max and tostring(exc.perfect_max) or ""
-                            p_state.edit_text = exc.override_name or ""
                             p_state.edit_ignore_prev_id = not exc.ignore_prev_id and "" or (type(exc.ignore_prev_id) == "table" and table.concat(exc.ignore_prev_id, ",") or tostring(exc.ignore_prev_id))
                             p_state.edit_ignore_prev_frames = exc.ignore_prev_frames and tostring(exc.ignore_prev_frames) or
                                 "5"
@@ -1948,7 +1926,6 @@ local function draw_combo_trials_menu_ui()
                             local max_s = exc.charge_max and (exc.charge_max .. "f") or "?"
                             desc = desc .. "[HOLD(" .. min_s .. "-" .. max_s .. ")] "
                         end
-                        if exc.override_name then desc = desc .. "[NAME: " .. exc.override_name .. "]" end
 
                         imgui.text("ID " .. id_str .. " -> " .. desc)
                         imgui.same_line(450)
@@ -1964,7 +1941,6 @@ local function draw_combo_trials_menu_ui()
                             p_state.edit_charge_max = exc.charge_max and tostring(exc.charge_max) or ""
                             p_state.edit_perfect_min = exc.perfect_min and tostring(exc.perfect_min) or ""
                             p_state.edit_perfect_max = exc.perfect_max and tostring(exc.perfect_max) or ""
-                            p_state.edit_text = exc.override_name or ""
                             p_state.edit_ignore_prev_id = not exc.ignore_prev_id and "" or (type(exc.ignore_prev_id) == "table" and table.concat(exc.ignore_prev_id, ",") or tostring(exc.ignore_prev_id))
                             p_state.edit_ignore_prev_frames = exc.ignore_prev_frames and tostring(exc.ignore_prev_frames) or
                                 "5"
@@ -2108,7 +2084,6 @@ local function draw_combo_trials_menu_ui()
                             p_state.edit_absorb_ids = exc.absorb_ids or ""
                             p_state.edit_charge_min = exc.charge_min and tostring(exc.charge_min) or ""
                             p_state.edit_charge_max = exc.charge_max and tostring(exc.charge_max) or ""
-                            p_state.edit_text = exc.override_name or ""
                             p_state.edit_ignore_prev_id = not exc.ignore_prev_id and "" or (type(exc.ignore_prev_id) == "table" and table.concat(exc.ignore_prev_id, ",") or tostring(exc.ignore_prev_id))
                             p_state.edit_ignore_prev_frames = exc.ignore_prev_frames and tostring(exc.ignore_prev_frames) or
                                 "5"
@@ -2120,7 +2095,6 @@ local function draw_combo_trials_menu_ui()
                             p_state.edit_absorb_ids = ""
                             p_state.edit_charge_min = ""
                             p_state.edit_charge_max = ""
-                            p_state.edit_text = log.motion or log.name
                             p_state.edit_ignore_prev_id = ""
                             p_state.edit_ignore_prev_frames = "5"
                         end

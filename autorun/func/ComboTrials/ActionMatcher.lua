@@ -86,9 +86,7 @@ end
 function ActionMatcher.is_optional_parent_for_followup(actual_motion, expected_step, actual_action_id, expected_exception)
     if type(actual_motion) ~= "string" or type(expected_step) ~= "table" then return false end
     local expected_motion = trim(expected_step.motion)
-    local exception_motion = expected_exception and (
-        expected_exception.follow_up_motion or expected_exception.override_name or expected_exception.display_motion
-    ) or nil
+    local exception_motion = expected_exception and expected_exception.follow_up_motion or nil
     if not motion_has_followup_marker(exception_motion or expected_motion) then return false end
 
     if expected_exception then
@@ -124,7 +122,6 @@ function ActionMatcher.build_edit_exception(p_state)
         absorb_ids = p_state.edit_absorb_ids,
         charge_min = tonumber(p_state.edit_charge_min),
         charge_max = tonumber(p_state.edit_charge_max),
-        override_name = (p_state.edit_text ~= "") and p_state.edit_text or nil,
         ignore_prev_id = parsed_prev,
         ignore_prev_frames = tonumber(p_state.edit_ignore_prev_frames) or 5
     }
@@ -172,13 +169,6 @@ end
 
 function ActionMatcher.is_exception_ignored(exception)
     return exception and exception.ignore == true
-end
-
-function ActionMatcher.apply_override_name(motion, exception)
-    if exception and exception.override_name and exception.override_name ~= "" then
-        return exception.override_name
-    end
-    return motion
 end
 
 function ActionMatcher.hold_partial_check_enabled(exception)

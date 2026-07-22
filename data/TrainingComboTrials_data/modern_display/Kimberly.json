@@ -3711,8 +3711,13 @@
   },
   "901": {
     "modern_display": "6 + SP",
-    "classic_command": null,
-    "control_support": "unknown",
+    "classic_command": {
+      "display": "236+K",
+      "inputs": [
+        "236+K"
+      ]
+    },
+    "control_support": "classic_modern",
     "source": "ac_bcm+capcom_official_semantics",
     "ownership": "type20_action_phase",
     "simple_command": {
@@ -3960,8 +3965,13 @@
   },
   "904": {
     "modern_display": "6 + AUTO + SP",
-    "classic_command": null,
-    "control_support": "unknown",
+    "classic_command": {
+      "display": "236+KK",
+      "inputs": [
+        "236+KK"
+      ]
+    },
+    "control_support": "classic_modern",
     "source": "ac_bcm+capcom_official_semantics",
     "ownership": "type20_action_phase",
     "simple_command": {
@@ -12101,9 +12111,9 @@
       "ac_type13_neutral_route_count": 0,
       "internal_transition_suppression_count": 0,
       "split_command_action_count": 92,
-      "classic_command_action_count": 97,
-      "shared_command_action_count": 89,
-      "classic_projection_pending_count": 3,
+      "classic_command_action_count": 99,
+      "shared_command_action_count": 91,
+      "classic_projection_pending_count": 1,
       "command_display_action_count": 100,
       "followup_relation_count": 0,
       "command_slot_overflow_count": 0,

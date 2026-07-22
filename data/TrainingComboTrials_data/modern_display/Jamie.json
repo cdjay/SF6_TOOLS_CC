@@ -11492,8 +11492,13 @@
   },
   "1011": {
     "modern_display": "> 任意键",
-    "classic_command": null,
-    "control_support": "unknown",
+    "classic_command": {
+      "display": "22+P",
+      "inputs": [
+        "22+P"
+      ]
+    },
+    "control_support": "classic_modern",
     "source": "ac_bcm+capcom_official_semantics",
     "ownership": "type20_hold_continuation",
     "simple_command": null,
@@ -11580,6 +11585,8 @@
   "1013": {
     "modern_display": null,
     "classic_command": null,
+    "simple_command": null,
+    "motion_command": null,
     "control_support": "unknown",
     "source": "ac_bcm+capcom_official_semantics",
     "ownership": "automatic_hold_transition",
@@ -11696,8 +11703,13 @@
   },
   "1015": {
     "modern_display": "> 任意键",
-    "classic_command": null,
-    "control_support": "unknown",
+    "classic_command": {
+      "display": "22+P",
+      "inputs": [
+        "22+P"
+      ]
+    },
+    "control_support": "classic_modern",
     "source": "ac_bcm+capcom_official_semantics",
     "ownership": "type20_hold_continuation",
     "simple_command": null,
@@ -15462,9 +15474,9 @@
       "ac_type13_neutral_route_count": 0,
       "internal_transition_suppression_count": 0,
       "split_command_action_count": 123,
-      "classic_command_action_count": 129,
-      "shared_command_action_count": 121,
-      "classic_projection_pending_count": 2,
+      "classic_command_action_count": 131,
+      "shared_command_action_count": 123,
+      "classic_projection_pending_count": 0,
       "command_display_action_count": 132,
       "followup_relation_count": 0,
       "command_slot_overflow_count": 0,

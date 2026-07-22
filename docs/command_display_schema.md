@@ -46,7 +46,12 @@ data/TrainingComboTrials_data/modern_display/<Character>.json
 
 经典投影依次使用已编译运行时语义、稳定公共 Action、BCM `classic_display`，并允许经过严格
 验证的等价 Action、结构同源 Action 和 command-entry rebind 继承同一经典指令。无法证明的
-Assist Combo 内部阶段和保持转换不会猜测，计入 `classic_projection_pending_count`。
+经验证的 Type20 保持续段和动作阶段可继承父节点经典投影；无法证明的 Assist Combo 内部阶段
+不会猜测，计入 `classic_projection_pending_count`。
+
+三个指令槽是每条 Action 记录的强制字段。某种控制方式确实没有可执行输入时，该槽写为
+`null`；不得为了消除空值而伪造指令。显示层选择简化或搓招时，允许回退到另一个已验证的现代槽。
+修复动作关系、投影规则或未识别 Action ID 后，必须重新生成整张角色表，使三个槽在同一次生成中更新。
 
 ## 运行时边界
 
@@ -54,5 +59,6 @@ Assist Combo 内部阶段和保持转换不会猜测，计入 `classic_projectio
 吸收 ID、忽略帧等行为规则仍由 CharacterRules 和 exception 数据负责。加载器完成完整审计后，
 只缓存 Action ID 与三个指令槽，避免长期保留大型 JSON。
 
-迁移期间经典显示仍以已有 exception 显示覆盖为最高优先级，再回退到 `classic_command`；
-完成 30 角色回归后才能删除 exception 中纯显示字段，行为字段不得随之删除。
+经典、现代简化和现代搓招显示均以统一角色表为唯一权威。运行时不读取 exception 中的
+`override_name`、`display_motion` 或 `display_override`。历史 exception 文件只保留检测行为兼容；
+行为字段不得因显示统一而删除。

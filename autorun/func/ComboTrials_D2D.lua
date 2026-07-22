@@ -173,7 +173,6 @@ end
 -- Follow-up group helpers
 -- =========================================================
 local MODERN_DISPLAY_DIR = "TrainingComboTrials_data/modern_display/"
-local EXCEPTION_DISPLAY_DIR = "TrainingComboTrials_data/exceptions/"
 local RUNTIME_COMMON_REASON = "sf6_stable_runtime_common_movement_action"
 local OFFICIAL_SEMANTIC_REASON = "capcom_official_command_semantics_matched_to_current_bcm_identity"
 local COMMUNITY_SEMANTIC_REASON = "verified_community_command_semantics_matched_to_current_bcm_identity"
@@ -203,7 +202,6 @@ local RUNTIME_COMMON_ACTIONS = {
     [489] = "DP"
 }
 local modern_display_cache = {}
-local exception_display_cache = {}
 local modern_display_runtime = {
     cache_status = {},
     seen_refs = setmetatable({}, { __mode = "k" }),
@@ -1451,6 +1449,21 @@ local function get_classic_display_motion(command_map, step)
     return type(resolved) == "table" and resolved.classic or nil
 end
 
+local function get_command_display(command_map, action_id, mode)
+    if type(command_map) ~= "table" or command_map._slim ~= true then
+        return nil, "map_unavailable"
+    end
+    local resolved = command_map[tostring(action_id or "")]
+    if type(resolved) ~= "table" then return nil, "action_id_missing" end
+    if resolved.status == "suppress_transition" then return nil, resolved.status end
+    if mode == "classic" then return resolved.classic, resolved.status or "loaded" end
+    local commands = resolved.commands
+    if type(commands) ~= "table" then return nil, resolved.status or "command_unavailable" end
+    if mode ~= "motion" and mode ~= "all" then mode = "simple" end
+    return commands[mode] or commands.simple or commands.motion or commands.all,
+        resolved.status or "loaded"
+end
+
 local function modern_unresolved_placeholder(step)
     if ctx and ctx.d2d_cfg and ctx.d2d_cfg.show_modern_unresolved_ids == true then
         return string.format("[ID %s 未识别]", tostring(step and step.id or "?"))
@@ -1522,40 +1535,6 @@ local function audit_modern_unresolved(character, step, context_name, source, so
     entry.occurrence_count = (entry.occurrence_count or 0) + 1
     audit.unresolved_step_count = (audit.unresolved_step_count or 0) + 1
     audit.current_character = character
-end
-
-local function load_exception_display_map(character)
-    if type(character) ~= "string" or character == "" then return nil end
-    local safe_character = character:gsub("[^%w_]", "")
-    if safe_character == "" then return nil end
-    if exception_display_cache[safe_character] ~= nil then
-        return exception_display_cache[safe_character] ~= false and exception_display_cache[safe_character] or nil
-    end
-
-    local loaded = nil
-    local ok = false
-    local path = EXCEPTION_DISPLAY_DIR .. safe_character .. ".json"
-    if type(_G.safe_load_json) == "function" then
-        ok, loaded = pcall(_G.safe_load_json, path)
-    end
-    if ok and type(loaded) == "table" then
-        exception_display_cache[safe_character] = loaded
-        return loaded
-    end
-
-    exception_display_cache[safe_character] = false
-    return nil
-end
-
-local function get_exception_display_motion(exception_map, step)
-    if type(exception_map) ~= "table" or type(step) ~= "table" then return nil end
-    local entry = exception_map[tostring(step.id or "")]
-    if type(entry) == "table" then
-        for _, key in ipairs({ "display_motion", "display_override", "override_name" }) do
-            if type(entry[key]) == "string" and entry[key] ~= "" then return entry[key] end
-        end
-    end
-    return nil
 end
 
 local function clone_step_for_display(step, motion)
@@ -1646,9 +1625,6 @@ local function build_display_lines(sequence)
     local lines = {}
     local sequence_character = get_sequence_character(sequence)
     local is_modern, modern_map, modern_character, modern_status = resolve_modern_display_context(sequence)
-    -- Behavior exceptions remain authoritative during migration; the unified
-    -- command table supplies Classic display when no legacy override exists.
-    local exception_map = not is_modern and load_exception_display_map(sequence_character) or nil
     local state = ctx and ctx.trial_state
     local audit_context = state and state.is_recording == true and sequence == state.sequence
         and "recording" or "loaded"
@@ -1671,8 +1647,7 @@ local function build_display_lines(sequence)
             modern_motion = select_modern_display_motion(modern_motion)
             step = clone_step_for_display(raw_step, modern_motion)
         else
-            local classic_motion = get_exception_display_motion(exception_map, raw_step)
-                or get_classic_display_motion(modern_map, raw_step)
+            local classic_motion = get_classic_display_motion(modern_map, raw_step)
             step = clone_step_for_display(raw_step, classic_motion)
         end
         if include_step then
@@ -2973,6 +2948,12 @@ end
 
 function M.get_modern_unresolved_audit()
     return ensure_modern_unresolved_audit()
+end
+
+function M.get_command_display(character, action_id, mode)
+    local command_map, status = load_modern_display_map(character)
+    if not command_map then return nil, status end
+    return get_command_display(command_map, action_id, mode)
 end
 
 function M.reset_anim()

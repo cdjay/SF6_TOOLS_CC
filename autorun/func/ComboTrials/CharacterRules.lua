@@ -180,11 +180,6 @@ function CharacterRules.apply_runtime_overrides(character_name, action_id, excep
         if #log > 0 and (log[1].id == 652 or log[1].id == 653 or log[1].id == 926) then
             if not exception then exception = {} end
             exception.force = true
-            if action_id == 908 then
-                exception.override_name = "236+HK"
-            elseif action_id == 922 then
-                exception.override_name = "623+HK"
-            end
         end
     end
     return exception

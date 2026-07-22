@@ -242,7 +242,7 @@ local players = {
         bcm_cache = {}, bcm_catalog = nil, trigger_mask_cache = {}, cache_built = false,
         last_bcm_ptr = "", last_direct_input = 0, input_history_queue = {},
         profile_name = "Unknown", last_profile_name = "", exceptions = {},
-        editing_id = -1, edit_ignore = false, edit_force = false, edit_text = "",
+        editing_id = -1, edit_ignore = false, edit_force = false,
 		edit_is_common = false, edit_holdable = false, edit_absorb_ids = "",
         edit_charge_min = "", edit_charge_max = "", enable_deep_logging = false,
         edit_ignore_prev_id = "", edit_ignore_prev_frames = "5"
@@ -253,7 +253,7 @@ local players = {
         bcm_cache = {}, bcm_catalog = nil, trigger_mask_cache = {}, cache_built = false,
         last_bcm_ptr = "", last_direct_input = 0, input_history_queue = {},
         profile_name = "Unknown", last_profile_name = "", exceptions = {},
-        editing_id = -1, edit_ignore = false, edit_force = false, edit_text = "",
+        editing_id = -1, edit_ignore = false, edit_force = false,
 		edit_is_common = false, edit_holdable = false, edit_absorb_ids = "",
         edit_charge_min = "", edit_charge_max = "", enable_deep_logging = false,
         edit_ignore_prev_id = "", edit_ignore_prev_frames = "5"
@@ -7451,10 +7451,16 @@ local function ct_player_process_actions(p_idx, p_state, actions_to_process)
                 end
 
                 -- 2. Final motion_str determination
-                -- Versioned offline BCM is the stable base. Live BCM remains the
-                -- fallback for characters without a compiled catalog; behavior
-                -- and display exceptions are still applied last below.
-                motion_str = catalog_motion or p_state.bcm_cache[act_id]
+                -- The unified three-slot command table is authoritative for
+                -- Classic display. Catalog/live BCM are resilience fallbacks
+                -- only when a character table or Action ID is unavailable.
+                local unified_classic_motion = nil
+                if ComboTrials_D2D and ComboTrials_D2D.get_command_display then
+                    local ok, value = pcall(ComboTrials_D2D.get_command_display,
+                        p_state.profile_name, act_id, "classic")
+                    if ok then unified_classic_motion = value end
+                end
+                motion_str = unified_classic_motion or catalog_motion or p_state.bcm_cache[act_id]
                 local required_mask = p_state.trigger_mask_cache[act_id] or 0
                 local best_match = nil
 
@@ -7534,8 +7540,6 @@ local function ct_player_process_actions(p_idx, p_state, actions_to_process)
                 if act_id == 38 then
                     motion_str = "7"; real_input_str = "7"; frame_diff_str = "Mouvement"
                 end
-
-                motion_str = ActionMatcher.apply_override_name(motion_str, exc)
 
                 -- 3. COMBO TRIAL HANDLING (Now that motion_str is finalized!)
                 if trial_state.is_recording and p_idx == trial_state.recording_player then

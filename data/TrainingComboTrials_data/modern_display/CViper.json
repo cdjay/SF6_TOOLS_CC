@@ -3868,6 +3868,8 @@
         "Normal"
       ]
     },
+    "simple_command": null,
+    "motion_command": null,
     "control_support": "classic_only",
     "source": "ac_bcm+capcom_official_semantics",
     "ownership": "internal_state_transition",
@@ -3893,6 +3895,8 @@
         "Normal"
       ]
     },
+    "simple_command": null,
+    "motion_command": null,
     "control_support": "classic_only",
     "source": "ac_bcm+capcom_official_semantics",
     "ownership": "internal_state_transition",
@@ -7724,6 +7728,8 @@
         "Normal"
       ]
     },
+    "simple_command": null,
+    "motion_command": null,
     "control_support": "classic_only",
     "source": "ac_bcm+capcom_official_semantics",
     "ownership": "internal_state_transition",

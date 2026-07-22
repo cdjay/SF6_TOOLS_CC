@@ -1,6 +1,6 @@
 # AC + BCM + OFF Modern 指令生成工具
 
-这套工具把游戏 dump 的 AC/BCM 与 Capcom 官网数据分开版本化，再为每个 AC/BCM 版本一次生成30个角色的 Modern 运行时表。
+这套工具把游戏 dump 的 AC/BCM 与 Capcom 官网数据分开版本化，再为每个 AC/BCM 版本一次生成30个角色的统一指令表。
 
 核心原则：
 
@@ -205,11 +205,15 @@ acbcm/<版本>/lastjson/<Character>.json
 - `motion_command`：搓招输入；
 - `relation`：派生动作通过 `type: followup` 和 `source_action_id` 引用前置动作。
 
-`modern_display` 仅作为兼容摘要。运行时优先读取两个指令槽，并根据派生关系生成 `>`；
+`modern_display` 仅作为兼容摘要。运行时读取三个指令槽，并根据派生关系生成 `>`；
 `/` 只用于分隔完整的简化路线与搓招路线，不再表示动作阶段。
 
+每个 Action ID 必须显式携带以上三个槽；控制方式确实不可用时写 `null`。生成验证会拒绝
+缺槽、结构无效或审计计数不一致的输出。简化/搓招的显示回退只发生在运行时，不伪造源数据。
+
 正式文件暂时仍放在 `data/TrainingComboTrials_data/modern_display`，以兼容旧版本和打包路径；
-目录名不再代表数据模型。经典显示迁移期间仍允许角色 exception 的显示覆盖优先，行为规则不受影响。
+目录名不再代表数据模型。三种显示都只读取统一角色表；角色 exception 仅处理蓄力、吸收、
+强制识别、忽略帧等检测行为，不再覆盖指令文本。
 
 ## 8. 测试
 

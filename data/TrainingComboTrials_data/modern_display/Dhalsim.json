@@ -5738,6 +5738,8 @@
         "j.6+KK"
       ]
     },
+    "simple_command": null,
+    "motion_command": null,
     "control_support": "classic_only",
     "source": "ac_bcm+capcom_official_semantics",
     "ownership": "internal_state_transition",
@@ -5855,6 +5857,8 @@
         "j.4+KK"
       ]
     },
+    "simple_command": null,
+    "motion_command": null,
     "control_support": "classic_only",
     "source": "ac_bcm+capcom_official_semantics",
     "ownership": "internal_state_transition",
