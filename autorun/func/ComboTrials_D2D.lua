@@ -749,17 +749,38 @@ local function load_command_display_map(character)
     return nil, command_display_runtime.cache_status[key]
 end
 
+local function get_player_visible_transition_motion(step)
+    if type(step) ~= "table" then return nil end
+    local motion = trim_string(step.motion)
+    if motion == "" then return nil end
+    if step.player_input_transition == true or step._ct_player_input_transition == true then return motion end
+    local upper = motion:upper()
+    if motion:match("^>") and (upper:find("FEINT", 1, true)
+        or upper:find("CANCEL", 1, true)
+        or motion:find("取消", 1, true)
+        or motion:find("假动作", 1, true)) then
+        return motion
+    end
+    return nil
+end
+
 local function get_modern_display_motion(modern_map, step)
     if type(modern_map) ~= "table" or type(step) ~= "table" then return nil, "map_unavailable" end
     local step_id = tonumber(step.id)
     if modern_map._slim == true then
         local resolved = modern_map[tostring(step.id or "")]
         if type(resolved) ~= "table" then return nil, "action_id_missing" end
+        if resolved.status == "suppress_transition" then
+            local player_transition = get_player_visible_transition_motion(step)
+            if player_transition then return player_transition, "player_input_transition" end
+        end
         return resolved.commands or resolved.motion, resolved.status or "route_unverified"
     end
     local entry = modern_map[tostring(step.id or "")]
     if type(entry) ~= "table" or type(entry.routes) ~= "table" then return nil, "action_id_missing" end
     if entry.suppress_display == true then
+        local player_transition = get_player_visible_transition_motion(step)
+        if player_transition then return player_transition, "player_input_transition" end
         local evidence = entry.transition_evidence
         local declared = false
         local internal_declarations = type(modern_map._meta) == "table"
@@ -1460,10 +1481,30 @@ end
 
 local function get_classic_display_motion(command_map, step)
     if type(command_map) ~= "table" or type(step) ~= "table" or command_map._slim ~= true then
-        return nil
+        return nil, "map_unavailable"
     end
     local resolved = command_map[tostring(step.id or "")]
-    return type(resolved) == "table" and resolved.classic or nil
+    if type(resolved) ~= "table" then return nil, "action_id_missing" end
+    if resolved.status == "suppress_transition" then
+        local player_transition = get_player_visible_transition_motion(step)
+        if player_transition then return player_transition, "player_input_transition" end
+        return nil, resolved.status
+    end
+    local recorded_motion = trim_string(step.motion)
+    local contextual_motion = recorded_motion:match("^>") ~= nil
+        or recorded_motion:upper():match("^J%.") ~= nil
+        or recorded_motion:upper():find("[AIR]", 1, true) ~= nil
+        or recorded_motion:find("空中", 1, true) ~= nil
+        or recorded_motion:match("%b()") ~= nil
+    -- The generated table describes the action's standalone command. A saved
+    -- trial can carry stricter contextual input (cancel shortcut, aerial state,
+    -- timing/hold annotation). Replacing that text changes the trial semantics,
+    -- so preserve it and use the generated command only for plain actions.
+    if recorded_motion ~= "" and contextual_motion then return recorded_motion, "recorded_context" end
+    if type(resolved.classic) == "string" and resolved.classic ~= "" then
+        return resolved.classic, resolved.status or "loaded"
+    end
+    return nil, resolved.status or "command_unavailable"
 end
 
 local function get_command_display(command_map, action_id, mode)
@@ -1481,36 +1522,36 @@ local function get_command_display(command_map, action_id, mode)
         resolved.status or "loaded"
 end
 
-local function modern_unresolved_placeholder(step)
-    if ctx and ctx.d2d_cfg and ctx.d2d_cfg.show_modern_unresolved_ids == true then
+local function unresolved_action_placeholder(step)
+    if ctx and ctx.d2d_cfg and ctx.d2d_cfg.show_unresolved_action_ids == true then
         return string.format("[ID %s 未识别]", tostring(step and step.id or "?"))
     end
-    return "[现代指令未识别]"
+    return "[指令未识别]"
 end
 
-local function ensure_modern_unresolved_audit()
+local function ensure_unresolved_action_audit()
     local state = ctx and ctx.trial_state
     if type(state) ~= "table" then return nil end
-    if type(state.modern_unresolved_audit) ~= "table" then
-        state.modern_unresolved_audit = {
-            session_id = tonumber(state.modern_unresolved_audit_session) or 0,
+    if type(state.unresolved_action_audit) ~= "table" then
+        state.unresolved_action_audit = {
+            session_id = tonumber(state.unresolved_action_audit_session) or 0,
             unresolved_id_count = 0,
             unresolved_step_count = 0,
             current_character = "Unknown",
             entries = {}
         }
     end
-    return state.modern_unresolved_audit
+    return state.unresolved_action_audit
 end
 
-local function clear_modern_unresolved_audit()
+local function clear_unresolved_action_audit()
     local state = ctx and ctx.trial_state
     command_display_runtime.seen_refs = setmetatable({}, { __mode = "k" })
     command_display_runtime.seen_keys = {}
     if type(state) ~= "table" then return end
-    state.modern_unresolved_audit_session = (tonumber(state.modern_unresolved_audit_session) or 0) + 1
-    state.modern_unresolved_audit = {
-        session_id = state.modern_unresolved_audit_session,
+    state.unresolved_action_audit_session = (tonumber(state.unresolved_action_audit_session) or 0) + 1
+    state.unresolved_action_audit = {
+        session_id = state.unresolved_action_audit_session,
         unresolved_id_count = 0,
         unresolved_step_count = 0,
         current_character = "Unknown",
@@ -1518,8 +1559,8 @@ local function clear_modern_unresolved_audit()
     }
 end
 
-local function audit_modern_unresolved(character, step, context_name, source, source_file, stable_identity)
-    local audit = ensure_modern_unresolved_audit()
+local function audit_unresolved_action(character, step, context_name, control_mode, source, source_file, stable_identity)
+    local audit = ensure_unresolved_action_audit()
     if not audit then return end
     if type(step) == "table" then
         if command_display_runtime.seen_refs[step] then return end
@@ -1541,7 +1582,7 @@ local function audit_modern_unresolved(character, step, context_name, source, so
             occurrence_count = 0,
             first_seen_at = os.time(),
             context = context_name or "live",
-            control_mode = "modern",
+            control_mode = control_mode or "unknown",
             source_file = source_file,
             classic_motion_debug_reference = type(step) == "table" and tostring(step.motion or "") or "",
             source = source or "unresolved"
@@ -1549,17 +1590,18 @@ local function audit_modern_unresolved(character, step, context_name, source, so
         audit.entries[key] = entry
         audit.unresolved_id_count = (audit.unresolved_id_count or 0) + 1
     end
+    entry.control_mode = control_mode or entry.control_mode or "unknown"
     entry.occurrence_count = (entry.occurrence_count or 0) + 1
     audit.unresolved_step_count = (audit.unresolved_step_count or 0) + 1
     audit.current_character = character
 end
 
-local function clone_step_for_display(step, motion)
+local function clone_step_for_display(step, motion, is_modern)
     if not motion then return step end
     local copy = {}
     for k, v in pairs(step) do copy[k] = v end
     copy.motion = motion
-    copy._ct_modern_display = true
+    copy._ct_modern_display = is_modern == true
     return copy
 end
 
@@ -1619,7 +1661,7 @@ local function resolve_modern_display_context(sequence)
     return false, command_map, sequence_character or "Unknown", status or "classic", false
 end
 
-local function resolve_live_player_modern_display_context(player_idx)
+local function resolve_live_player_command_display_context(player_idx)
     local trial_state = ctx and ctx.trial_state
     if type(trial_state) ~= "table" then return false, nil, "Unknown", "missing_state" end
 
@@ -1631,11 +1673,9 @@ local function resolve_live_player_modern_display_context(player_idx)
             or recording_context.session_id ~= trial_state.recording_display_session_id then
             return false, nil, "Unknown", "invalid_recording_context"
         end
-        if tostring(control_mode or ""):lower() ~= "modern" then return false, nil,
-            recording_context.character or "Unknown", "classic" end
         local character = recording_context.character or "Unknown"
-        local modern_map, status = load_command_display_map(character)
-        return true, modern_map, character, status
+        local command_map, status = load_command_display_map(character)
+        return tostring(control_mode or ""):lower() == "modern", command_map, character, status
     end
 
     local contexts = trial_state.live_display_contexts
@@ -1643,13 +1683,12 @@ local function resolve_live_player_modern_display_context(player_idx)
     local control_mode = live_context and (live_context.control_mode or live_context.control_type)
     if type(live_context) ~= "table" or live_context.active ~= true
         or live_context.player_idx ~= player_idx
-        or type(live_context.generation) ~= "number"
-        or tostring(control_mode or ""):lower() ~= "modern" then
-        return false, nil, live_context and live_context.character or "Unknown", "classic_or_unknown"
+        or type(live_context.generation) ~= "number" then
+        return false, nil, live_context and live_context.character or "Unknown", "invalid_live_context"
     end
     local character = live_context.character or "Unknown"
-    local modern_map, status = load_command_display_map(character)
-    return true, modern_map, character, status
+    local command_map, status = load_command_display_map(character)
+    return tostring(control_mode or ""):lower() == "modern", command_map, character, status
 end
 
 local function select_modern_display_motion(motion)
@@ -1691,16 +1730,24 @@ local function build_display_lines(sequence)
                 include_step = false
             elseif not modern_motion then
                 modern_unavailable = classic_modern_projection == true
-                modern_motion = modern_unresolved_placeholder(raw_step)
-                audit_modern_unresolved(modern_character, raw_step, audit_context,
+                modern_motion = unresolved_action_placeholder(raw_step)
+                audit_unresolved_action(modern_character, raw_step, audit_context, "modern",
                     modern_status ~= "loaded" and modern_status or route_status,
                     source_file, audit_context .. ":" .. tostring(i))
             end
             modern_motion = select_modern_display_motion(modern_motion)
-            step = clone_step_for_display(raw_step, modern_motion)
+            step = clone_step_for_display(raw_step, modern_motion, true)
         else
-            local classic_motion = get_classic_display_motion(modern_map, raw_step)
-            step = clone_step_for_display(raw_step, classic_motion)
+            local classic_motion, route_status = get_classic_display_motion(modern_map, raw_step)
+            if route_status == "suppress_transition" then
+                include_step = false
+            elseif not classic_motion and type(modern_map) == "table" then
+                classic_motion = unresolved_action_placeholder(raw_step)
+                audit_unresolved_action(modern_character, raw_step, audit_context, "classic",
+                    modern_status ~= "loaded" and modern_status or route_status,
+                    source_file, audit_context .. ":" .. tostring(i))
+            end
+            step = clone_step_for_display(raw_step, classic_motion, false)
         end
         if include_step then
             local gid = step.group_id or i
@@ -1848,7 +1895,7 @@ local function parse_motion_to_icons(log_entry, trial_mode, should_flip, reverse
     local text_blocks = {}
     local text_idx = 0
 
-    -- Protect Modern unresolved placeholders before horizontal direction
+    -- Protect unresolved placeholders before horizontal direction
     -- inversion. The temporary marker deliberately contains no digits, so an
     -- Action ID such as 1021 cannot be mirrored into a different ID.
     local function protect_unresolved_placeholder(match)
@@ -1856,6 +1903,9 @@ local function parse_motion_to_icons(log_entry, trial_mode, should_flip, reverse
         text_blocks[text_idx] = match
         return "##U" .. string.char(64 + text_idx) .. "##"
     end
+    s = s:gsub("(%[指令未识别%])", protect_unresolved_placeholder)
+    -- Compatibility with sequences/logs produced before the audit became
+    -- common to both control modes.
     s = s:gsub("(%[现代指令未识别%])", protect_unresolved_placeholder)
     s = s:gsub("(%[ID%s+%d+%s+未识别%])", protect_unresolved_placeholder)
 
@@ -2563,13 +2613,24 @@ local function d2d_draw_inner()
                 if route_status == "suppress_transition" then
                     suppress_log = true
                 elseif not modern_motion then
-                    modern_motion = modern_unresolved_placeholder(log)
-                    audit_modern_unresolved(modern_character, log, audit_context or "live",
+                    modern_motion = unresolved_action_placeholder(log)
+                    audit_unresolved_action(modern_character, log, audit_context or "live", "modern",
                         modern_status ~= "loaded" and modern_status or route_status,
                         nil, (audit_context or "live") .. ":" .. tostring(p_idx) .. ":" .. tostring(i))
                 end
                 modern_motion = select_modern_display_motion(modern_motion)
-                if not suppress_log then display_log = clone_step_for_display(log, modern_motion) end
+                if not suppress_log then display_log = clone_step_for_display(log, modern_motion, true) end
+            else
+                local classic_motion, route_status = get_classic_display_motion(modern_map, log)
+                if route_status == "suppress_transition" then
+                    suppress_log = true
+                elseif not classic_motion and type(modern_map) == "table" then
+                    classic_motion = unresolved_action_placeholder(log)
+                    audit_unresolved_action(modern_character, log, audit_context or "live", "classic",
+                        modern_status ~= "loaded" and modern_status or route_status,
+                        nil, (audit_context or "live") .. ":" .. tostring(p_idx) .. ":" .. tostring(i))
+                end
+                if not suppress_log then display_log = clone_step_for_display(log, classic_motion, false) end
             end
             if not suppress_log then
                 local y = base_y + draw_row * spacing_y
@@ -2702,7 +2763,7 @@ local function d2d_draw_inner()
         if live_raw_p1 then
             draw_raw_player(raw_state.history_p1, raw_pos_p1.x * sw, raw_pos_p1.y * sh, raw_flip_p1, live_raw_max)
         else
-            local is_modern, modern_map, character, status = resolve_live_player_modern_display_context(0)
+            local is_modern, modern_map, character, status = resolve_live_player_command_display_context(0)
             local audit_context = trial_state.is_recording and trial_state.recording_player == 0
                 and "recording" or "live"
             draw_player_icons(0, nr_pos_p1.x * sw, nr_pos_p1.y * sh, nr_align_p1, live_max, in_trial,
@@ -2714,7 +2775,7 @@ local function d2d_draw_inner()
         if live_raw_p2 then
             draw_raw_player(raw_state.history_p2, raw_pos_p2.x * sw, raw_pos_p2.y * sh, raw_flip_p2, live_raw_max)
         else
-            local is_modern, modern_map, character, status = resolve_live_player_modern_display_context(1)
+            local is_modern, modern_map, character, status = resolve_live_player_command_display_context(1)
             local audit_context = trial_state.is_recording and trial_state.recording_player == 1
                 and "recording" or "live"
             draw_player_icons(1, nr_pos_p2.x * sw, nr_pos_p2.y * sh, nr_align_p2, live_max, true,
@@ -3032,8 +3093,8 @@ end
 
 function M.init(shared_ctx)
     ctx = shared_ctx
-    clear_modern_unresolved_audit()
-    ctx.clear_modern_unresolved_audit = M.clear_modern_unresolved_audit
+    clear_unresolved_action_audit()
+    ctx.clear_unresolved_action_audit = M.clear_unresolved_action_audit
     ctx.localize_motion_text = function(motion, action_id)
         if action_id == 1231 and is_shun_goku_satsu_motion(motion) then
             return "LP,LP,6,LK,HP (瞬狱杀)"
@@ -3043,12 +3104,12 @@ function M.init(shared_ctx)
     d2d.register(d2d_init, d2d_draw)
 end
 
-function M.clear_modern_unresolved_audit()
-    clear_modern_unresolved_audit()
+function M.clear_unresolved_action_audit()
+    clear_unresolved_action_audit()
 end
 
-function M.get_modern_unresolved_audit()
-    return ensure_modern_unresolved_audit()
+function M.get_unresolved_action_audit()
+    return ensure_unresolved_action_audit()
 end
 
 function M.get_command_display(character, action_id, mode)

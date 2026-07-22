@@ -1,0 +1,80 @@
+local function read_all(path)
+    local file = assert(io.open(path, "rb"))
+    local value = assert(file:read("*a"))
+    file:close()
+    return value
+end
+
+-- Load only the two pure resolver functions; do not boot REFramework globals.
+local d2d_source = read_all("autorun/func/ComboTrials_D2D.lua")
+local classic_block = assert(d2d_source:match(
+    "(local function get_player_visible_transition_motion.-)\nlocal function get_command_display"))
+trim_string = function(value)
+    return tostring(value or ""):match("^%s*(.-)%s*$")
+end
+assert(load(classic_block .. "\n_G.get_classic_display_motion = get_classic_display_motion",
+    "classic-command-resolution", "t", _G))()
+
+local command_map = {
+    _slim = true,
+    ["901"] = { classic = "214+MP", status = "strict_route" },
+    ["906"] = { classic = "Normal", status = "suppress_transition" },
+    ["1037"] = { classic = "528", status = "strict_route" }
+}
+
+local motion, status = get_classic_display_motion(command_map, { id = 901, motion = "Unknown" })
+assert(motion == "214+MP" and status == "strict_route", "classic mode must use the unified command table")
+
+motion, status = get_classic_display_motion(command_map, { id = 906, motion = "Unknown" })
+assert(motion == nil and status == "suppress_transition",
+    "an audited zero-input transition must remain suppressed")
+
+motion, status = get_classic_display_motion(command_map, { id = 906, motion = ">K (FEINT)" })
+assert(motion == ">K (FEINT)" and status == "player_input_transition",
+    "saved player-triggered cancels must override zero-input suppression")
+
+motion, status = get_classic_display_motion(command_map, { id = 1037, motion = ">29 (cancel)" })
+assert(motion == ">29 (cancel)" and status == "recorded_context",
+    "contextual trial notation must survive classic command resolution")
+
+motion, status = get_classic_display_motion(command_map, { id = 9999, motion = "Unknown" })
+assert(motion == nil and status == "action_id_missing", "missing classic IDs must reach the common audit path")
+
+local main_source = read_all("autorun/TrainingComboTrials_v1.0.lua")
+local resolver_block = assert(main_source:match(
+    "(local function decode_transition_button_mask.-)\nend\n\nlocal esf_names_map"))
+ComboTrials_D2D = {
+    get_command_display = function(_, action_id)
+        if action_id == 906 then return nil, "suppress_transition" end
+        if action_id == 901 then return "214+MP", "strict_route" end
+        return nil, "action_id_missing"
+    end
+}
+assert(load(resolver_block
+    .. "\n_G.resolve_unified_command_action = resolve_unified_command_action"
+    .. "\n_G.find_recent_action_button_edge = find_recent_action_button_edge",
+    "recording-command-resolution", "t", _G))()
+
+local recent_edge = find_recent_action_button_edge({
+    { frame_tick = 100, mask = 32 },  -- MP launched the parent 214+MP
+    { frame_tick = 105, mask = 128 }  -- K requested the derived cancel
+}, 100, 106, 12)
+assert(recent_edge == 128, "a delayed cancel must recover the newest post-parent button edge")
+assert(find_recent_action_button_edge({ { frame_tick = 100, mask = 32 } }, 100, 106, 12) == 0,
+    "the parent attack button must never be reinterpreted as a cancel")
+assert(find_recent_action_button_edge({ { frame_tick = 90, mask = 128 } }, 100, 106, 12) == 0,
+    "a stale pre-parent button must never produce a derived cancel")
+
+local intentional, route_status, classic = resolve_unified_command_action("AnyCharacter", 901, 32, 32)
+assert(intentional == true and route_status == "strict_route" and classic == "214+MP",
+    "a physical catalog command must remain intentional")
+
+intentional, route_status, classic = resolve_unified_command_action("AnyCharacter", 906, 0, 0)
+assert(intentional == false and route_status == "suppress_transition" and classic == nil,
+    "a zero-input internal transition must be non-intentional in every control mode")
+
+intentional, route_status, classic = resolve_unified_command_action("AnyCharacter", 906, 128, 128)
+assert(intentional == true and route_status == "player_input_transition" and classic == ">K (取消)",
+    "a physical button edge must recover a player-triggered cancel without character-specific IDs")
+
+print("combo command resolution tests passed")

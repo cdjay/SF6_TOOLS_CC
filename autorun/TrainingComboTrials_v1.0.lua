@@ -68,16 +68,61 @@ local DIR_MAP = {
 }
 local BTN_MASKS = { [16] = "LP", [32] = "MP", [64] = "HP", [128] = "LK", [256] = "MK", [512] = "HK" }
 
+local function decode_transition_button_mask(mask)
+    mask = (tonumber(mask) or 0) & 0xFFF0
+    local punch_count = ((mask & 16) ~= 0 and 1 or 0)
+        + ((mask & 32) ~= 0 and 1 or 0) + ((mask & 64) ~= 0 and 1 or 0)
+    local kick_count = ((mask & 128) ~= 0 and 1 or 0)
+        + ((mask & 256) ~= 0 and 1 or 0) + ((mask & 512) ~= 0 and 1 or 0)
+    if punch_count > 0 and kick_count == 0 then return punch_count >= 2 and "PP" or "P" end
+    if kick_count > 0 and punch_count == 0 then return kick_count >= 2 and "KK" or "K" end
+    local parts = {}
+    for _, bit in ipairs({ 16, 32, 64, 128, 256, 512 }) do
+        if (mask & bit) ~= 0 then table.insert(parts, BTN_MASKS[bit]) end
+    end
+    return table.concat(parts, "+")
+end
+
+local PLAYER_TRANSITION_INPUT_WINDOW = 12
+local function find_recent_action_button_edge(history, parent_start_frame, current_frame, window)
+    if type(history) ~= "table" then return 0 end
+    parent_start_frame = tonumber(parent_start_frame) or -1
+    current_frame = tonumber(current_frame) or parent_start_frame
+    window = tonumber(window) or PLAYER_TRANSITION_INPUT_WINDOW
+    for i = #history, 1, -1 do
+        local entry = history[i]
+        local frame_tick = tonumber(type(entry) == "table" and entry.frame_tick) or -1
+        if (current_frame - frame_tick) > window then break end
+        -- Only edges pressed after the parent action began can describe a
+        -- derived cancel. This excludes the P edge that launched 214+P.
+        if frame_tick <= parent_start_frame then break end
+        local button_edge = (tonumber(entry.mask) or 0) & 0xFFF0
+        if button_edge ~= 0 then return button_edge end
+    end
+    return 0
+end
+
 -- A resolved catalog entry means the action was deliberately admitted by the
 -- BCM base table or its curated exception aliases.  Some stance normals use
 -- flags=16/action_code=0 even when the player pressed an attack button, so the
 -- generic intentionality heuristic alone incorrectly discards them.
 local ComboTrials_D2D
-local function is_unified_command_action(character, action_id, direct_input)
+local function resolve_unified_command_action(character, action_id, direct_input, newly_pressed)
     local buttons = (tonumber(direct_input) or 0) & 0xFFF0
-    if buttons == 0 or not ComboTrials_D2D or not ComboTrials_D2D.get_command_display then return false end
-    local ok, display = pcall(ComboTrials_D2D.get_command_display, character, action_id, "classic")
-    return ok and type(display) == "string" and display ~= ""
+    if not ComboTrials_D2D or not ComboTrials_D2D.get_command_display then
+        return false, "resolver_unavailable", nil
+    end
+    local ok, display, status = pcall(ComboTrials_D2D.get_command_display, character, action_id, "classic")
+    if not ok then return false, "resolver_error", nil end
+    if status == "suppress_transition" then
+        local transition_button = decode_transition_button_mask(newly_pressed)
+        if transition_button ~= "" then
+            return true, "player_input_transition", ">" .. transition_button .. " (取消)"
+        end
+        return false, status, nil
+    end
+    local is_player_command = buttons ~= 0 and type(display) == "string" and display ~= ""
+    return is_player_command, status, display
 end
 
 local esf_names_map = {
@@ -270,8 +315,8 @@ local trial_state = {
     recording_display_session_id = 0,
     live_display_contexts = {},
     live_display_generation = 0,
-    modern_unresolved_audit = nil,
-    modern_unresolved_audit_session = 0,
+    unresolved_action_audit = nil,
+    unresolved_action_audit_session = 0,
     is_playing = false,
     playing_player = 0,
     sequence = {},
@@ -897,7 +942,7 @@ local d2d_cfg = {
     mirror_p1 = false,
     mirror_p2 = false,
     show_combo_count = false,
-    show_modern_unresolved_ids = false,
+    show_unresolved_action_ids = false,
     modern_display_mode = "simple",
     allow_classic_trials_in_modern = false,
     pos_p1 = { x = 0.050, y = 0.350 },
@@ -998,6 +1043,12 @@ local function load_d2d_config()
                 d2d_cfg[k] = v
             end
         end
+        -- 0.99 以前该开关只用于现代模式。保留用户旧值，但统一迁移到
+        -- 经典/现代共用的未识别 Action ID 调试开关。
+        if loaded.show_unresolved_action_ids == nil and loaded.show_modern_unresolved_ids ~= nil then
+            d2d_cfg.show_unresolved_action_ids = loaded.show_modern_unresolved_ids == true
+        end
+        d2d_cfg.show_modern_unresolved_ids = nil
     end
 end
 
@@ -3830,8 +3881,168 @@ function CTTimelineSequenceNormalizer.build_press_events(timeline)
     return events
 end
 
+function CTTimelineSequenceNormalizer.direction_motion(step, resolve_classic_motion)
+    if type(step) ~= "table" then return nil end
+
+    local function extract(value)
+        local motion = CTTimelineSequenceNormalizer.compact_motion(value)
+        motion = motion:gsub("^>", ""):gsub("%b()", "")
+        if motion:match("^[1-9][1-9]+$") then return motion end
+        return nil
+    end
+
+    if type(resolve_classic_motion) == "function" then
+        local ok, resolved = pcall(resolve_classic_motion, step)
+        if ok then
+            local motion = extract(resolved)
+            if motion then return motion end
+        end
+    end
+    return extract(step.motion)
+end
+
+function CTTimelineSequenceNormalizer.direction_step_key(step, resolve_classic_motion)
+    local motion = CTTimelineSequenceNormalizer.direction_motion(step, resolve_classic_motion)
+    if not motion then return nil, nil end
+    local action_id = step and step.id
+    local key = action_id ~= nil and ("id:" .. tostring(action_id)) or ("motion:" .. motion)
+    return key, motion
+end
+
+function CTTimelineSequenceNormalizer.build_direction_states(timeline)
+    local states = {}
+    local frame = 0
+    local prev_dir = nil
+    if type(timeline) ~= "table" then return states end
+
+    for idx, line in ipairs(timeline) do
+        local frames_str, rest = tostring(line or ""):match("^(%d+)f%s*:%s*(.*)$")
+        local duration = tonumber(frames_str)
+        if duration then
+            local dir = CTTimelineSequenceNormalizer.parse_input(rest)
+            if dir ~= prev_dir then
+                states[#states + 1] = {
+                    index = idx,
+                    start_frame = frame,
+                    duration = duration,
+                    dir = dir
+                }
+                prev_dir = dir
+            end
+            frame = frame + duration
+        end
+    end
+    return states
+end
+
+function CTTimelineSequenceNormalizer.find_direction_occurrences(states, motion)
+    local occurrences = {}
+    motion = tostring(motion or "")
+    if #motion < 2 or type(states) ~= "table" then return occurrences end
+
+    local search_from = 1
+    while search_from <= #states do
+        local found = nil
+        for start_idx = search_from, #states do
+            local first_matches, orientation = CTTimelineSequenceNormalizer.direction_matches_orientation(
+                states[start_idx].dir, motion:sub(1, 1), nil)
+            if first_matches then
+                local cursor = start_idx + 1
+                local matched = { start_idx }
+                local anchor_frame = states[start_idx].start_frame or 0
+                -- A leading neutral is a state boundary, not a pressed input;
+                -- long idle time before the next direction must not consume the
+                -- command window. Anchor it at the neutral state's release.
+                if motion:sub(1, 1) == "5" then
+                    anchor_frame = anchor_frame + (tonumber(states[start_idx].duration) or 0)
+                end
+                local deadline = anchor_frame + 30
+                local complete = true
+                for digit_idx = 2, #motion do
+                    local target = motion:sub(digit_idx, digit_idx)
+                    local target_idx = nil
+                    while cursor <= #states and (states[cursor].start_frame or 0) <= deadline do
+                        local direction_matches, next_orientation =
+                            CTTimelineSequenceNormalizer.direction_matches_orientation(
+                                states[cursor].dir, target, orientation)
+                        if direction_matches then
+                            target_idx = cursor
+                            orientation = next_orientation
+                            break
+                        end
+                        cursor = cursor + 1
+                    end
+                    if not target_idx then complete = false; break end
+                    matched[#matched + 1] = target_idx
+                    cursor = target_idx + 1
+                end
+                if complete then
+                    found = {
+                        first_state = matched[1],
+                        last_state = matched[#matched]
+                    }
+                    break
+                end
+            end
+        end
+        if not found then break end
+        occurrences[#occurrences + 1] = found
+        search_from = found.last_state + 1
+    end
+    return occurrences
+end
+
+function CTTimelineSequenceNormalizer.build_direction_events(timeline, sequence, resolve_classic_motion)
+    local events = {}
+    local descriptors = {}
+    local order = {}
+    for step_index, step in ipairs(type(sequence) == "table" and sequence or {}) do
+        local key, motion = CTTimelineSequenceNormalizer.direction_step_key(step, resolve_classic_motion)
+        if key and not descriptors[key] then
+            descriptors[key] = { key = key, motion = motion, template_index = step_index }
+            order[#order + 1] = key
+        end
+    end
+    if #order == 0 then return events end
+
+    local states = CTTimelineSequenceNormalizer.build_direction_states(timeline)
+    for _, key in ipairs(order) do
+        local descriptor = descriptors[key]
+        for _, occurrence in ipairs(CTTimelineSequenceNormalizer.find_direction_occurrences(states, descriptor.motion)) do
+            local completion = states[occurrence.last_state]
+            events[#events + 1] = {
+                kind = "direction",
+                direction_step_key = key,
+                direction_motion = descriptor.motion,
+                template_index = descriptor.template_index,
+                index = completion.index,
+                start_frame = completion.start_frame,
+                duration = completion.duration
+            }
+        end
+    end
+    return events
+end
+
+function CTTimelineSequenceNormalizer.build_events(timeline, sequence, resolve_classic_motion)
+    local events = CTTimelineSequenceNormalizer.build_press_events(timeline)
+    for _, event in ipairs(CTTimelineSequenceNormalizer.build_direction_events(
+        timeline, sequence, resolve_classic_motion)) do
+        events[#events + 1] = event
+    end
+    table.sort(events, function(a, b)
+        local af, bf = tonumber(a.start_frame) or 0, tonumber(b.start_frame) or 0
+        if af ~= bf then return af < bf end
+        local ai, bi = tonumber(a.index) or 0, tonumber(b.index) or 0
+        if ai ~= bi then return ai < bi end
+        return a.kind == "direction" and b.kind ~= "direction"
+    end)
+    return events
+end
+
 function CTTimelineSequenceNormalizer.simple_motion_parts(step)
-    local motion = CTTimelineSequenceNormalizer.compact_motion(step and step.motion or ""):gsub("^J%.", "")
+    local motion = CTTimelineSequenceNormalizer.compact_motion(step and step.motion or "")
+        :gsub("%b()", ""):gsub("^>", ""):gsub("^J%.", "")
     local dir, btn = motion:match("^([1-9])([LMH][PK])$")
     if dir and btn then return dir, btn end
     btn = motion:match("^([LMH][PK])$")
@@ -3850,8 +4061,26 @@ function CTTimelineSequenceNormalizer.direction_matches(event_dir, step_dir)
     return event_dir == step_dir or event_dir == CTTimelineSequenceNormalizer.mirror_dir(step_dir)
 end
 
+function CTTimelineSequenceNormalizer.direction_matches_orientation(event_dir, step_dir, mirrored)
+    event_dir = tostring(event_dir or "5")
+    step_dir = tostring(step_dir or "5")
+    if step_dir == "2" then
+        return event_dir == "1" or event_dir == "2" or event_dir == "3", mirrored
+    end
+
+    local mirror = CTTimelineSequenceNormalizer.mirror_dir(step_dir)
+    if mirror == step_dir then return event_dir == step_dir, mirrored end
+    if mirrored == nil then
+        if event_dir == step_dir then return true, false end
+        if event_dir == mirror then return true, true end
+        return false, nil
+    end
+    return event_dir == (mirrored and mirror or step_dir), mirrored
+end
+
 function CTTimelineSequenceNormalizer.motion_anchor_parts(step)
-    local motion = CTTimelineSequenceNormalizer.compact_motion(step and step.motion or ""):gsub("^J%.", "")
+    local motion = CTTimelineSequenceNormalizer.compact_motion(step and step.motion or "")
+        :gsub("%b()", ""):gsub("^>", ""):gsub("^J%.", "")
     local dirs, btn = motion:match("^([1-9]+)%+(.+)$")
     if not dirs or not btn then dirs, btn = motion:match("^([1-9]+)(PP)$") end
     if not dirs or not btn then dirs, btn = motion:match("^([1-9]+)(KK)$") end
@@ -3941,8 +4170,12 @@ function CTTimelineSequenceNormalizer.build_single_hit_evidence(sequence)
     return evidence
 end
 
-function CTTimelineSequenceNormalizer.event_matches_step(event, step)
+function CTTimelineSequenceNormalizer.event_matches_step(event, step, resolve_classic_motion)
     if type(event) ~= "table" or type(step) ~= "table" then return false end
+    local direction_key = CTTimelineSequenceNormalizer.direction_step_key(step, resolve_classic_motion)
+    if direction_key then
+        return event.kind == "direction" and event.direction_step_key == direction_key
+    end
     if CTTimelineSequenceNormalizer.is_drive_rush_step(step) then
         return event.new_buttons and event.new_buttons.MP and event.new_buttons.MK
             and event.new_button_key == "MP+MK"
@@ -3959,9 +4192,9 @@ function CTTimelineSequenceNormalizer.event_matches_step(event, step)
         and (event.dir == "5" or CTTimelineSequenceNormalizer.direction_matches(event.dir, dir))
 end
 
-function CTTimelineSequenceNormalizer.find_event_for_step(events, start_idx, step)
+function CTTimelineSequenceNormalizer.find_event_for_step(events, start_idx, step, resolve_classic_motion)
     for i = math.max(1, tonumber(start_idx) or 1), #events do
-        if CTTimelineSequenceNormalizer.event_matches_step(events[i], step) then return i end
+        if CTTimelineSequenceNormalizer.event_matches_step(events[i], step, resolve_classic_motion) then return i end
     end
     return nil
 end
@@ -3994,22 +4227,102 @@ function CTTimelineSequenceNormalizer.repeat_combo_value(prev_combo, final_combo
     return value
 end
 
-function CTTimelineSequenceNormalizer.expand(sequence)
+function CTTimelineSequenceNormalizer.insert_missing_direction_steps(sequence, events, matches)
+    local matched_events = {}
+    local matched_direction_keys = {}
+    for step_index = 1, #sequence do
+        local event_idx = matches[step_index]
+        if event_idx then
+            matched_events[event_idx] = true
+            local event = events[event_idx]
+            if event and event.kind == "direction" then
+                matched_direction_keys[event.direction_step_key] = true
+            end
+        end
+    end
+
+    local insertions = {}
+    for event_idx, event in ipairs(events) do
+        if event.kind == "direction" and not matched_events[event_idx]
+            and matched_direction_keys[event.direction_step_key] then
+            local prev_step_idx = nil
+            local next_step_idx = nil
+            for step_idx = 1, #sequence do
+                local matched_idx = matches[step_idx]
+                if matched_idx and matched_idx < event_idx then prev_step_idx = step_idx end
+                if matched_idx and matched_idx > event_idx then next_step_idx = step_idx; break end
+            end
+            -- Only repair a repeat bracketed by two already identified actions.
+            -- This prevents pre-trial movement and trailing idle input from
+            -- becoming synthetic validation steps.
+            if prev_step_idx and next_step_idx then
+                insertions[next_step_idx] = insertions[next_step_idx] or {}
+                insertions[next_step_idx][#insertions[next_step_idx] + 1] = event
+            end
+        end
+    end
+    if next(insertions) == nil then return false end
+
+    local augmented = {}
+    local last_event = nil
+    for step_idx, step in ipairs(sequence) do
+        for _, event in ipairs(insertions[step_idx] or {}) do
+            local template = sequence[event.template_index]
+            local previous = augmented[#augmented]
+            if template and previous then
+                local clone = CTTimelineSequenceNormalizer.clone_step(template)
+                clone._ct_direction_repeat = true
+                clone.expected_combo = tonumber(previous.expected_combo) or 0
+                clone.actual_combo = 0
+                clone.has_hit = false
+                clone.expected_hp = previous.expected_hp
+                clone.damage_at_step = previous.damage_at_step
+                clone.action_instance = nil
+                clone.delay_from_prev = last_event
+                    and math.max(0, (event.start_frame or 0) - (last_event.start_frame or 0)) or 0
+                augmented[#augmented + 1] = clone
+                last_event = event
+            end
+        end
+        augmented[#augmented + 1] = step
+        local matched_idx = matches[step_idx]
+        if matched_idx then last_event = events[matched_idx] end
+    end
+
+    for i = #sequence, 1, -1 do sequence[i] = nil end
+    for i, step in ipairs(augmented) do sequence[i] = step end
+    return true
+end
+
+function CTTimelineSequenceNormalizer.expand(sequence, resolve_classic_motion)
     if type(sequence) ~= "table" or type(sequence[1]) ~= "table" then return end
     local timeline = sequence[1].timeline
     if type(timeline) ~= "table" or #timeline == 0 then return end
 
-    local events = CTTimelineSequenceNormalizer.build_press_events(timeline)
+    local events = CTTimelineSequenceNormalizer.build_events(timeline, sequence, resolve_classic_motion)
     if #events == 0 then return end
-    local single_hit_evidence = CTTimelineSequenceNormalizer.build_single_hit_evidence(sequence)
 
     local matches = {}
     local search_idx = 1
     for i, step in ipairs(sequence) do
-        local event_idx = CTTimelineSequenceNormalizer.find_event_for_step(events, search_idx, step)
+        local event_idx = CTTimelineSequenceNormalizer.find_event_for_step(
+            events, search_idx, step, resolve_classic_motion)
         matches[i] = event_idx
         if event_idx then search_idx = event_idx + 1 end
     end
+
+    if CTTimelineSequenceNormalizer.insert_missing_direction_steps(sequence, events, matches) then
+        events = CTTimelineSequenceNormalizer.build_events(timeline, sequence, resolve_classic_motion)
+        matches = {}
+        search_idx = 1
+        for i, step in ipairs(sequence) do
+            local event_idx = CTTimelineSequenceNormalizer.find_event_for_step(
+                events, search_idx, step, resolve_classic_motion)
+            matches[i] = event_idx
+            if event_idx then search_idx = event_idx + 1 end
+        end
+    end
+    local single_hit_evidence = CTTimelineSequenceNormalizer.build_single_hit_evidence(sequence)
 
     local expanded = {}
     local changed = false
@@ -4034,7 +4347,8 @@ function CTTimelineSequenceNormalizer.expand(sequence)
             if next_event_idx then
                 local scan_end = next_event_idx - 1
                 for event_idx = step_event_idx + 1, scan_end do
-                    if CTTimelineSequenceNormalizer.event_matches_step(events[event_idx], step) then
+                    if CTTimelineSequenceNormalizer.event_matches_step(
+                        events[event_idx], step, resolve_classic_motion) then
                         duplicate_events[#duplicate_events + 1] = event_idx
                     end
                 end
@@ -4083,7 +4397,14 @@ end
 
 local function normalize_sequence_counter_types(sequence)
     if type(sequence) ~= "table" or type(sequence[1]) ~= "table" then return end
-    CTTimelineSequenceNormalizer.expand(sequence)
+    local character = type(sequence[1]._xt_meta) == "table" and sequence[1]._xt_meta.character or nil
+    local function resolve_classic_motion(step)
+        if not character or not ComboTrials_D2D or not ComboTrials_D2D.get_command_display then return nil end
+        local ok, motion = pcall(ComboTrials_D2D.get_command_display, character, step and step.id, "classic")
+        if ok then return motion end
+        return nil
+    end
+    CTTimelineSequenceNormalizer.expand(sequence, resolve_classic_motion)
     local first = sequence[1]
     if (first.counter_type == nil or first.counter_type == 0) and type(first.combo_stats) == "table" then
         local inferred = counter_type_from_hit_type(first.combo_stats.hit_type)
@@ -4164,6 +4485,7 @@ local function reset_player_action_buffers(p_state)
     p_state.buffer_flags = _pf.flags or 0
     p_state.buffer_action_code = _pf.action_code or 0
     p_state.buffer_direct_input = direct_input
+    p_state.buffer_newly_pressed = 0
     p_state.buffer_b_type = _pf.b_type or 0
     p_state.buffer_hold_frames = 0
     p_state.buffer_is_committed = true
@@ -5839,7 +6161,7 @@ local function cleanup_combo_trials_runtime_on_scene_exit(reason)
     publish_combo_trials_inactive_state()
     invalidate_recording_display_context()
     live_display_context.invalidate()
-    ComboTrials_D2D.clear_modern_unresolved_audit()
+    ComboTrials_D2D.clear_unresolved_action_audit()
 
     if trial_state.is_recording then
         cancel_recording()
@@ -5913,7 +6235,7 @@ local function ct_handle_mode_exit()
         invalidate_recording_display_context()
         live_display_context.invalidate()
         if trial_state._vital_initialized ~= false then
-            ComboTrials_D2D.clear_modern_unresolved_audit()
+            ComboTrials_D2D.clear_unresolved_action_audit()
         end
         _G.ComboTrialsD2DEnabled = false
         _G.ComboTrials_HideNativeHUD = false
@@ -5953,7 +6275,7 @@ local function ct_handle_first_frame_init()
     if not trial_state._vital_initialized then
         invalidate_recording_display_context()
         live_display_context.ensure()
-        ComboTrials_D2D.clear_modern_unresolved_audit()
+        ComboTrials_D2D.clear_unresolved_action_audit()
         trial_state._vital_initialized = true
 
         -- Force stop everything lingering from a previous session
@@ -6843,6 +7165,7 @@ local function ct_player_input_buffer(p_state)
     p_state.buffer_flags = p_state.buffer_flags or 0
     p_state.buffer_action_code = p_state.buffer_action_code or 0
     p_state.buffer_direct_input = p_state.buffer_direct_input or 0
+    p_state.buffer_newly_pressed = p_state.buffer_newly_pressed or 0
     p_state.buffer_b_type = p_state.buffer_b_type or 0
     p_state.buffer_hold_frames = p_state.buffer_hold_frames or 0
     p_state.action_instance_counter = p_state.action_instance_counter or 0
@@ -6880,6 +7203,15 @@ local function ct_player_input_buffer(p_state)
         started_new_action = true
         started_new_action_reason = "act_frame_rewind"
     end
+    local action_input_edge = newly_pressed & 0xFFF0
+    if started_new_action and action_input_edge == 0 then
+        -- Some actions switch one or two frames after the button edge. Reuse the
+        -- newest post-parent physical edge instead of treating a held button as
+        -- new. Character cancel transitions can arrive later than ghost_wait.
+        action_input_edge = find_recent_action_button_edge(
+            p_state.input_history_queue, p_state.buffer_start_frame,
+            engine_frame_count, PLAYER_TRANSITION_INPUT_WINDOW)
+    end
     _G.CTSameActionTrace.trace("action_sample", p_state, {
         current_action_id = _pf.act_id,
         current_action_frame = _pf.act_frame,
@@ -6908,8 +7240,9 @@ local function ct_player_input_buffer(p_state)
             -- command owner is a real player command. State/resource branches
             -- can replace it within the ghost window (for example, a status-
             -- dependent follow-up); the later action must not erase the command.
-            local buffered_is_catalog_command = is_unified_command_action(
-                p_state.profile_name, p_state.buffer_act_id, p_state.buffer_direct_input)
+            local buffered_is_catalog_command = resolve_unified_command_action(
+                p_state.profile_name, p_state.buffer_act_id, p_state.buffer_direct_input,
+                p_state.buffer_newly_pressed)
 
             if duration > 0 and duration < ghost_wait and p_state.buffer_act_id > 50
                 and not is_alex_exempt and not buffered_is_catalog_command then
@@ -6925,14 +7258,18 @@ local function ct_player_input_buffer(p_state)
                         new_is_intentional = true
                     end
                 end
-                if not new_is_intentional
-                    and is_unified_command_action(p_state.profile_name, _pf.act_id, _pf.direct_input) then
+                local new_is_catalog_command, new_command_status = resolve_unified_command_action(
+                    p_state.profile_name, _pf.act_id, _pf.direct_input, action_input_edge)
+                if not new_is_intentional and new_is_catalog_command then
                     new_is_intentional = true
                 end
                 if _pf.act_id == 36 or _pf.act_id == 37 or _pf.act_id == 38 then new_is_intentional = true end
 
                 local exc_new = CharacterRules.get_exception(p_state.exceptions, common_exceptions, _pf.act_id)
                 if ActionMatcher.is_force_enabled(exc_new) then new_is_intentional = true end
+                -- 指令表已审计的零输入/自动状态跳转不是第二次玩家输入，不能
+                -- 把它当成新意图并误删前一个真实指令。
+                if new_command_status == "suppress_transition" then new_is_intentional = false end
 
                 -- If the NEW action is truly intentional (e.g. player hit P, then PP 2 frames later),
                 -- THEN the buffered action is a ghost.
@@ -6973,6 +7310,7 @@ local function ct_player_input_buffer(p_state)
                     flags = p_state.buffer_flags,
                     action_code = p_state.buffer_action_code,
                     direct_input = p_state.buffer_direct_input,
+                    newly_pressed = p_state.buffer_newly_pressed,
                     b_type = p_state.buffer_b_type,
                     engine_frame = p_state.buffer_start_frame,
                     action_instance = p_state.buffer_action_instance,
@@ -7003,6 +7341,7 @@ local function ct_player_input_buffer(p_state)
         p_state.buffer_flags = _pf.flags
         p_state.buffer_action_code = _pf.action_code
         p_state.buffer_direct_input = _pf.direct_input
+        p_state.buffer_newly_pressed = action_input_edge
         p_state.buffer_b_type = _pf.b_type
         p_state.buffer_hold_frames = 0
         p_state.buffer_current_hp = _pf.p_char.vital_new
@@ -7027,6 +7366,7 @@ local function ct_player_input_buffer(p_state)
             flags = p_state.buffer_flags,
             action_code = p_state.buffer_action_code,
             direct_input = p_state.buffer_direct_input,
+            newly_pressed = p_state.buffer_newly_pressed,
             b_type = p_state.buffer_b_type,
             engine_frame = p_state.buffer_start_frame,
             action_instance = p_state.buffer_action_instance,
@@ -7123,8 +7463,8 @@ local function ct_player_process_actions(p_idx, p_state, actions_to_process)
             local deep_data = nil
             local best_match = nil
             local is_facing_left = false
-            local unified_command_action = is_unified_command_action(
-                p_state.profile_name, act_id, direct_input)
+            local unified_command_action, unified_command_status, unified_classic_motion = resolve_unified_command_action(
+                p_state.profile_name, act_id, direct_input, process_act.newly_pressed)
 
             if act_id > 50 or act_id == 17 or act_id == 18 or act_id == 36 or act_id == 37 or act_id == 38 then
                 is_trackable = true
@@ -7220,6 +7560,12 @@ local function ct_player_process_actions(p_idx, p_state, actions_to_process)
                 if ActionMatcher.is_exception_ignored(exc) then
                     is_ignored = true
                     ignore_reason = "[例外：忽略]"
+                end
+                -- 角色指令表中的 suppress_transition 是跨操作模式的共用语义：
+                -- 该 Action 只负责返回/切换内部状态，没有第二次可见玩家输入。
+                if unified_command_status == "suppress_transition" then
+                    is_ignored = true
+                    ignore_reason = "[指令表：内部状态跳转]"
                 end
 
                 -- Check ignore_prev_id condition (supports single number or table of numbers).
@@ -7437,12 +7783,6 @@ local function ct_player_process_actions(p_idx, p_state, actions_to_process)
                 -- Classic command text. Live trigger/action data remains
                 -- detection evidence above, but must not silently restore another
                 -- display source when a generated table fails its audit.
-                local unified_classic_motion = nil
-                if ComboTrials_D2D and ComboTrials_D2D.get_command_display then
-                    local ok, value = pcall(ComboTrials_D2D.get_command_display,
-                        p_state.profile_name, act_id, "classic")
-                    if ok then unified_classic_motion = value end
-                end
                 motion_str = unified_classic_motion or act_name
                 local required_mask = p_state.trigger_mask_cache[act_id] or 0
                 local best_match = nil
@@ -7594,6 +7934,7 @@ local function ct_player_process_actions(p_idx, p_state, actions_to_process)
                     table.insert(trial_state.sequence, {
                         id = act_id,
                         motion = motion_str,
+                        player_input_transition = unified_command_status == "player_input_transition",
                         expected_hp = process_act.current_hp,
                         is_holdable = is_holdable,
                         dual_threshold = dual_threshold,
@@ -8329,6 +8670,7 @@ local function ct_player_process_actions(p_idx, p_state, actions_to_process)
                 id = act_id,
                 name = act_name,
                 motion = motion_str,
+                _ct_player_input_transition = unified_command_status == "player_input_transition",
                 real_input = real_input_str,
                 frame_diff = frame_diff_str,
                 intentional = is_intentional,
