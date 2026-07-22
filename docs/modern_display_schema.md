@@ -1,4 +1,7 @@
-# Modern Display Mapping Schema v1
+# Modern Display Mapping Schema v1（历史文档）
+
+> 当前生成器已经升级为统一的 `xt.command_display.v1`。经典和现代指令共享同一份
+> AC ActionGraph，正式规范见 [command_display_schema.md](command_display_schema.md)。本文仅保留用于解释旧 v1 文件。
 
 本文档定义 SF6CC 现代控制模式显示映射的数据结构。该结构只服务于连段列表和步骤显示，不参与验证、自动演示、录制主流程或 timeline 解释。
 

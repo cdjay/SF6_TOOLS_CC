@@ -107,7 +107,7 @@ Version rules:
 
 * Every release package must explicitly pass the intended target version with `-Version`.
 * Do not use "latest package" as a release target. Do not infer a release version from `sf6cm_manifest.json`, Lua UI text, folder names, zip names, Git tags, or previous artifacts.
-* The current new-mechanism release target is `0.9c`. If the next release remains in the `0.9` series, it should be `0.9d`. If the project explicitly moves to the `0.91` series, start from `0.91a`, then `0.91b`, `0.91c`, and so on.
+* The current release target is `0.99`. Future release versions must be chosen explicitly; do not infer them from existing artifacts or manifests.
 * `0.9a` is the online stable release and must be treated as immutable. Normal release packaging must not rebuild or overwrite `0.9a`.
 * Rebuilding an immutable stable release requires an explicit special override and must be done from the corresponding tag, commit, or isolated worktree, never silently from the current development `HEAD`.
 

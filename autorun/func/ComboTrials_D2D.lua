@@ -606,7 +606,7 @@ local function load_modern_display_map(character)
         and type(meta.suppressed_internal_transitions) == "table"
         and #meta.suppressed_internal_transitions == internal_suppressions
     local split_command_audit_ok = true
-    if schema == "xt.modern_display.v10" then
+    if schema == "xt.modern_display.v10" or schema == "xt.command_display.v1" then
         local split_actions = type(audit) == "table"
             and tonumber(audit.split_command_action_count) or nil
         local followup_count = type(audit) == "table"
@@ -633,6 +633,44 @@ local function load_modern_display_map(character)
                 end
             end
         end
+    end
+    local unified_command_audit_ok = true
+    if schema == "xt.command_display.v1" then
+        local classic_count = 0
+        local shared_count = 0
+        local action_count = 0
+        for action_id, entry in pairs(loaded) do
+            if tostring(action_id):match("^%d+$") and type(entry) == "table" then
+                action_count = action_count + 1
+                local classic = entry.classic_command
+                local has_classic = type(classic) == "table"
+                    and type(classic.display) == "string" and trim_string(classic.display) ~= ""
+                    and type(classic.inputs) == "table" and #classic.inputs > 0
+                if has_classic then
+                    for _, input in ipairs(classic.inputs) do
+                        if type(input) ~= "string" or trim_string(input) == "" then
+                            has_classic = false
+                            break
+                        end
+                    end
+                elseif classic ~= nil then
+                    unified_command_audit_ok = false
+                end
+                local has_modern = type(entry.simple_command) == "table"
+                    or type(entry.motion_command) == "table"
+                if has_classic then classic_count = classic_count + 1 end
+                if has_classic and has_modern then shared_count = shared_count + 1 end
+            end
+        end
+        unified_command_audit_ok = unified_command_audit_ok
+            and tonumber(audit and audit.classic_command_action_count) == classic_count
+            and tonumber(audit and audit.shared_command_action_count) == shared_count
+            and tonumber(audit and audit.classic_projection_pending_count)
+                == tonumber(audit and audit.split_command_action_count) - shared_count
+            and tonumber(audit and audit.command_display_action_count) == action_count
+            and type(meta.classic_profile_order) == "table"
+            and meta.classic_profile_order[1] == "norm"
+            and meta.classic_profile_order[2] == "sprt"
     end
     local strict_audit = type(audit) == "table" and audit.strict_route_ownership == true
         and tonumber(audit.owner_missing_count or -1) == 0
@@ -665,10 +703,13 @@ local function load_modern_display_map(character)
         and charge_context_audit_ok
         and state_choice_audit_ok
         and split_command_audit_ok
+        and unified_command_audit_ok
     local supported_schema = (schema == "xt.modern_display.v9"
             and policy == "verified_route_ownership_v9")
         or (schema == "xt.modern_display.v10"
             and policy == "verified_route_ownership_v10")
+        or (schema == "xt.command_display.v1"
+            and policy == "verified_action_graph_v1")
     if type(meta) == "table"
         and supported_schema
         and (tostring(meta.generated_from or ""):lower() == "ac_bcm"
@@ -1294,12 +1335,12 @@ local function get_modern_display_motion(modern_map, step)
     return table.concat(displays, "/"), "strict_route"
 end
 
--- v9 映射包含大量生成期审计与路由证据。加载时先用完整数据完成严格校验和
+-- 指令映射包含大量生成期审计与路由证据。加载时先用完整数据完成严格校验和
 -- 路由解析，随后只保留运行时实际需要的 action id、显示文本与解析状态，避免
 -- 多个约 490KB 的角色表长期驻留并触发周期性 GC 卡顿。
 build_slim_modern_display_map = function(loaded)
     local schema = type(loaded._meta) == "table" and tostring(loaded._meta.schema or "") or ""
-    local structured = schema == "xt.modern_display.v10"
+    local structured = schema == "xt.modern_display.v10" or schema == "xt.command_display.v1"
     local slim = { _slim = true, _structured = structured }
     for action_id, entry in pairs(loaded) do
         if type(entry) == "table" and tostring(action_id):match("^%d+$") then
@@ -1307,8 +1348,18 @@ build_slim_modern_display_map = function(loaded)
             if not structured then
                 slim[tostring(action_id)] = { motion = motion, status = status }
             else
+                local function read_classic(command)
+                    if type(command) ~= "table" or type(command.display) ~= "string"
+                        or trim_string(command.display) == "" or type(command.inputs) ~= "table"
+                        or #command.inputs == 0 then return nil end
+                    for _, input in ipairs(command.inputs) do
+                        if type(input) ~= "string" or trim_string(input) == "" then return nil end
+                    end
+                    return trim_string(command.display)
+                end
+                local classic = read_classic(entry.classic_command)
                 if status == "suppress_transition" then
-                    slim[tostring(action_id)] = { motion = nil, status = status }
+                    slim[tostring(action_id)] = { classic = classic, motion = nil, status = status }
                 else
                     local relation = type(entry.relation) == "table" and entry.relation or nil
                     local strip_followup = relation and relation.type == "followup"
@@ -1334,8 +1385,9 @@ build_slim_modern_display_map = function(loaded)
                     local relation_ok = relation == nil or (relation.type == "followup"
                         and tonumber(relation.source_action_id) ~= nil
                         and relation.evidence == "capcom_official_followup_context_matches_source_move")
-                    if (simple or manual) and relation_ok then
+                    if (simple or manual or classic) and relation_ok then
                         slim[tostring(action_id)] = {
+                            classic = classic,
                             simple = simple,
                             motion = manual,
                             relation = relation and {
@@ -1379,7 +1431,7 @@ build_slim_modern_display_map = function(loaded)
                     item.commands.all = item.commands.simple == item.commands.motion
                         and item.commands.simple
                         or (item.commands.simple .. "/" .. item.commands.motion)
-                else
+                elseif not item.classic then
                     item.status = "invalid_followup_relation"
                 end
                 item.simple = nil
@@ -1389,6 +1441,14 @@ build_slim_modern_display_map = function(loaded)
         end
     end
     return slim
+end
+
+local function get_classic_display_motion(command_map, step)
+    if type(command_map) ~= "table" or type(step) ~= "table" or command_map._slim ~= true then
+        return nil
+    end
+    local resolved = command_map[tostring(step.id or "")]
+    return type(resolved) == "table" and resolved.classic or nil
 end
 
 local function modern_unresolved_placeholder(step)
@@ -1527,7 +1587,8 @@ local function resolve_modern_display_context(sequence)
         local modern_map, status = load_modern_display_map(character)
         return true, modern_map, character, status
     end
-    return false, nil, sequence_character or "Unknown", "classic"
+    local command_map, status = load_modern_display_map(sequence_character)
+    return false, command_map, sequence_character or "Unknown", status or "classic"
 end
 
 local function resolve_live_player_modern_display_context(player_idx)
@@ -1585,7 +1646,8 @@ local function build_display_lines(sequence)
     local lines = {}
     local sequence_character = get_sequence_character(sequence)
     local is_modern, modern_map, modern_character, modern_status = resolve_modern_display_context(sequence)
-    -- Classic-only display exceptions must never enter the Modern branch.
+    -- Behavior exceptions remain authoritative during migration; the unified
+    -- command table supplies Classic display when no legacy override exists.
     local exception_map = not is_modern and load_exception_display_map(sequence_character) or nil
     local state = ctx and ctx.trial_state
     local audit_context = state and state.is_recording == true and sequence == state.sequence
@@ -1609,7 +1671,9 @@ local function build_display_lines(sequence)
             modern_motion = select_modern_display_motion(modern_motion)
             step = clone_step_for_display(raw_step, modern_motion)
         else
-            step = clone_step_for_display(raw_step, get_exception_display_motion(exception_map, raw_step))
+            local classic_motion = get_exception_display_motion(exception_map, raw_step)
+                or get_classic_display_motion(modern_map, raw_step)
+            step = clone_step_for_display(raw_step, classic_motion)
         end
         if include_step then
             local gid = step.group_id or i

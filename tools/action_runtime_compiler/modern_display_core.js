@@ -1,7 +1,8 @@
 "use strict";
 
-const SCHEMA = "xt.modern_display.v10";
-const STRICT_POLICY = "verified_route_ownership_v10";
+const SCHEMA = "xt.command_display.v1";
+const STRICT_POLICY = "verified_action_graph_v1";
+const CLASSIC_PROFILE_ORDER = ["norm", "sprt"];
 const MODERN_PROFILE_ORDER = ["easy", "supr", "sprt"];
 const CLASSIC_TOKEN = /(^|[\s+>/])(?:LP|MP|HP|LK|MK|HK|PPP|KKK|PP|KK|P|K)(?=$|[\s+>/])/i;
 const PROFILE_BUTTONS = new Set([
@@ -220,6 +221,13 @@ function translateSprt(profile, conditions) {
     const raw = Number(profile && profile.ok_key_flags || 0);
     const count = requiredButtonCount(profile);
     const candidates = attackCandidates(profile);
+    const pureDirection = directions.length === 1 && parts.length === 1
+        && candidates.length === 0 && !profile.button && !profile.command
+        && Number(conditions && conditions.function_id) === 1
+        && [1, 2, 4, 8].includes(raw);
+    if (pureDirection) {
+        return resolved(`${air ? "空中 " : ""}${directions[0]}`, directions[0], null, [], 0);
+    }
     let buttons = [];
     if (profile.button === "Throw" || raw === 144) buttons = ["THROW"];
     else if (profile.button === "Parry" || raw === 288) buttons = ["DP"];
@@ -254,6 +262,10 @@ function translateEasy(profile, conditions) {
     const candidates = attackCandidates(profile);
     const count = requiredButtonCount(profile);
     if (candidates.length > 1) {
+        if (candidates.length === count) {
+            return resolved(joinRoute(air, directions, candidates), direction,
+                candidates.join(" + "), candidates, count);
+        }
         const contextualAnyAttack = raw === 432 && count === 1
             && Number(profile.ng_key_flags || 0) === 2
             && Number(conditions && conditions.function_id) === 2
@@ -341,6 +353,29 @@ function selectedProfiles(conditions, profiles) {
     }
     if (functionId === 3) return ["easy", "sprt"];
     return ["supr", "sprt"];
+}
+
+function canonicalMultiButtonIdentity(value) {
+    return normalizeClassicIdentity(value)
+        .replace(/(?:LPMPHP|PPP|PP)$/i, "P_MULTI")
+        .replace(/(?:LKMKHK|KKK|KK)$/i, "K_MULTI");
+}
+
+function selectedProfilesForAction(actionId, trigger, officialSemantics) {
+    const selected = selectedProfiles(trigger.conditions, trigger.profiles);
+    if (Number(trigger.conditions && trigger.conditions.function_id) !== 1) return selected;
+    const profiles = trigger.profiles || {};
+    const official = officialSemantics && officialSemantics[String(actionId)];
+    const norm = profiles.norm;
+    const verifiedOfficialFallback = official && String(official.modern_display || "").trim() !== ""
+        && norm && norm.enabled === true
+        && profiles.easy && profiles.easy.enabled === true
+        && (!profiles.sprt || profiles.sprt.enabled !== true)
+        && profiles.supr && profiles.supr.enabled === true
+        && Number(profiles.supr.ok_key_flags || 0) === 2147483648
+        && canonicalMultiButtonIdentity(official.classic_display)
+            === canonicalMultiButtonIdentity(norm.notation);
+    return verifiedOfficialFallback ? ["easy"] : selected;
 }
 
 function chargeCompatibilityConditionKey(conditions) {
@@ -911,6 +946,21 @@ function splitCommands(entry, relation) {
     return { simple, motion };
 }
 
+function compactClassicCommand(value) {
+    const display = String(value || "").trim();
+    if (!display || display === "Unknown") return null;
+    return { display, inputs: [display] };
+}
+
+function commandControlSupport(classic, modern) {
+    if (classic && modern) return "classic_modern";
+    if (classic) return "classic_only";
+    // A missing Classic projection is a compiler coverage gap, not evidence
+    // that the underlying Action is Modern-only.
+    if (modern) return "unknown";
+    return "unknown";
+}
+
 function canonicalClassicIdentity(value) {
     return normalizeClassicIdentity(value)
         .replace(/PPP$/i, "LPMPHP")
@@ -1457,7 +1507,19 @@ function strictStateChoiceEvidence(actionSource, bcmCatalog, actionSet) {
     for (const [sourceId, branches] of branchesByAction) {
         const directions = branches.filter(branch => exactStateBranch(branch, 20, 1)
             && directionOfMask.has(Number(branch.Param01)));
-        if (new Set(directions.map(branch => Number(branch.Param01))).size < 2) continue;
+        const sourceAction = bcmCatalog.actions && bcmCatalog.actions[String(sourceId)];
+        const verifiedInternalSelectorEntry = sourceAction && (sourceAction.triggers || []).length === 1
+            && (sourceAction.triggers || []).every(trigger => {
+                const profiles = trigger.profiles || {};
+                return Number(trigger.conditions && trigger.conditions.function_id) === 1
+                    && profiles.easy && profiles.easy.enabled === true
+                    && (!profiles.sprt || profiles.sprt.enabled !== true)
+                    && profiles.supr && profiles.supr.enabled === true
+                    && Number(profiles.supr.ok_key_flags || 0) === 2147483648;
+            });
+        const isMultiDirectionChoice = new Set(directions.map(branch => Number(branch.Param01))).size >= 2;
+        if (!isMultiDirectionChoice
+            && !verifiedInternalSelectorEntry) continue;
         stateSources.add(sourceId);
         for (const branch of directions) directionCandidates.push({
             source_action_id: sourceId,
@@ -1471,8 +1533,8 @@ function strictStateChoiceEvidence(actionSource, bcmCatalog, actionSet) {
             param03: 0,
             reason: AC_STATE_DIRECTION_REASON
         });
-        const neutralTargets = [...new Set(branches.filter(branch =>
-            exactStateBranch(branch, 1, 0, 0)).map(branch => Number(branch.Action)))];
+        const neutralTargets = isMultiDirectionChoice ? [...new Set(branches.filter(branch =>
+            exactStateBranch(branch, 1, 0, 0)).map(branch => Number(branch.Action)))] : [];
         if (neutralTargets.length === 1) neutralCandidates.push({
             source_action_id: sourceId,
             target_action_id: neutralTargets[0],
@@ -2417,7 +2479,8 @@ function buildModernDisplay(actionSource, bcmCatalog, runtime, supplement, optio
             }
         } else {
             for (const trigger of triggers) {
-                for (const profileName of selectedProfiles(trigger.conditions, trigger.profiles)) {
+                for (const profileName of selectedProfilesForAction(
+                    id, trigger, options.officialSemantics)) {
                     const profile = trigger.profiles && trigger.profiles[profileName];
                     const inheritedChargeContext = acChargePlan.contexts.get(
                         `${Number(id)}:${Number(trigger.trigger_index)}:${profileName}`);
@@ -2922,6 +2985,58 @@ function buildModernDisplay(actionSource, bcmCatalog, runtime, supplement, optio
     }
     const splitCommandActionCount = [...separatedCommands.values()]
         .filter(commands => commands.simple || commands.motion).length;
+    const classicCommands = new Map(Object.entries(runtime.actions || {})
+        .filter(([id]) => actionSet.has(String(Number(id))))
+        .map(([id, display]) => [String(Number(id)), compactClassicCommand(display)])
+        .filter(([, command]) => command));
+    for (const [id, display] of Object.entries(RUNTIME_COMMON_ACTIONS)) {
+        if (actionSet.has(String(Number(id))) && !classicCommands.has(String(Number(id)))) {
+            classicCommands.set(String(Number(id)), compactClassicCommand(display));
+        }
+    }
+    for (const [id, action] of Object.entries(bcmCatalog.actions || {})) {
+        if (actionSet.has(String(Number(id))) && !classicCommands.has(String(Number(id)))) {
+            const command = compactClassicCommand(action && action.classic_display);
+            if (command) classicCommands.set(String(Number(id)), command);
+        }
+    }
+    const equivalentOwnership = new Set(["verified_alias", "structural_twin", "rebind"]);
+    let classicProjectionChanged = true;
+    while (classicProjectionChanged) {
+        classicProjectionChanged = false;
+        for (const [id, entry] of Object.entries(entries)) {
+            if (classicCommands.has(id)) continue;
+            if (["ac_state_direction", "ac_state_neutral", "ac_type13_neutral"]
+                .includes(entry.ownership)) {
+                const displays = [...new Set((entry.routes || []).map(route => String(route.display || ""))
+                    .filter(display => /^(?:N|[1246789])$/.test(display)))];
+                if (displays.length === 1) {
+                    classicCommands.set(id, compactClassicCommand(displays[0]));
+                    classicProjectionChanged = true;
+                    continue;
+                }
+            }
+            if (!equivalentOwnership.has(entry.ownership)) continue;
+            const inherited = [...new Set((entry.routes || [])
+                .map(route => route.inherited_from_action_id != null
+                    ? String(Number(route.inherited_from_action_id))
+                    : (entry.ownership === "rebind"
+                        ? String(Number(route.bcm_owner_action_id)) : "NaN"))
+                .filter(sourceId => sourceId !== "NaN" && classicCommands.has(sourceId))
+                .map(sourceId => classicCommands.get(sourceId).display))];
+            if (inherited.length === 1) {
+                classicCommands.set(id, compactClassicCommand(inherited[0]));
+                classicProjectionChanged = true;
+            }
+        }
+    }
+    const outputActionIds = [...new Set([...Object.keys(entries), ...classicCommands.keys()])]
+        .sort((left, right) => Number(left) - Number(right));
+    const sharedCommandActionCount = outputActionIds.filter(id => {
+        const commands = separatedCommands.get(id);
+        return classicCommands.has(id) && commands && (commands.simple || commands.motion);
+    }).length;
+    const classicProjectionPendingCount = splitCommandActionCount - sharedCommandActionCount;
     const followupRelations = [...officialFollowupRelations.entries()]
         .map(([targetId, relation]) => ({ target_action_id: Number(targetId), ...relation }))
         .sort((left, right) => left.target_action_id - right.target_action_id);
@@ -2990,6 +3105,7 @@ function buildModernDisplay(actionSource, bcmCatalog, runtime, supplement, optio
             followup_relation_count: followupRelations.length,
             followup_relations: followupRelations,
             official_semantic_source_sha256: options.officialSemanticsSha256 || null,
+            classic_profile_order: CLASSIC_PROFILE_ORDER,
             ac_relation_route_counts: relationCounts,
             ac_command_entry_rebinds: plannedRebinds.map(plan => ({
                 source_action_id: Number(plan.sourceId),
@@ -3079,41 +3195,49 @@ function buildModernDisplay(actionSource, bcmCatalog, runtime, supplement, optio
                 ac_type13_neutral_route_count: type13NeutralRouteCount,
                 internal_transition_suppression_count: suppressedInternalTransitions.length,
                 split_command_action_count: splitCommandActionCount,
+                classic_command_action_count: classicCommands.size,
+                shared_command_action_count: sharedCommandActionCount,
+                classic_projection_pending_count: classicProjectionPendingCount,
+                command_display_action_count: outputActionIds.length,
                 followup_relation_count: followupRelations.length,
                 command_slot_overflow_count: 0,
                 ac_automatic_transition_route_count: 0,
                 replaces_profile_route_count: 0
             },
-            description: `${character} Modern display routes generated from direct BCM evidence, whitelisted AC relations, verified command-entry rebinds, stable runtime-common actions, and Capcom command semantics rebound to current BCM identities without trusting official Action IDs.`
+            description: `${character} unified Classic and Modern command projections generated from one verified AC ActionGraph, BCM profiles, runtime semantics, and Capcom command semantics.`
         }
     };
 
-    for (const id of Object.keys(entries).sort((left, right) => Number(left) - Number(right))) {
-        if (entries[id].suppress_display === true) {
+    for (const id of outputActionIds) {
+        const entry = entries[id] || { routes: [], ownership: "classic_runtime" };
+        const classicCommand = classicCommands.get(id) || null;
+        const commands = separatedCommands.get(id) || { simple: null, motion: null };
+        const displays = [commands.simple && commands.simple.display,
+            commands.motion && commands.motion.display].filter(Boolean);
+        const hasModernCommand = displays.length > 0;
+        if (entry.suppress_display === true) {
             output[id] = {
                 modern_display: null,
-                control_support: "modern",
+                classic_command: classicCommand,
+                control_support: commandControlSupport(classicCommand, false),
                 source: generatedFrom,
-                ownership: entries[id].ownership,
+                ownership: entry.ownership,
                 suppress_display: true,
-                transition_evidence: entries[id].transition_evidence,
+                transition_evidence: entry.transition_evidence,
                 routes: []
             };
             continue;
         }
-        const routes = entries[id].routes;
-        const commands = separatedCommands.get(id) || { simple: null, motion: null };
-        const displays = [commands.simple && commands.simple.display,
-            commands.motion && commands.motion.display].filter(Boolean);
         output[id] = {
-            modern_display: displays.join("/"),
-            control_support: "modern",
+            modern_display: hasModernCommand ? displays.join("/") : null,
+            classic_command: classicCommand,
+            control_support: commandControlSupport(classicCommand, hasModernCommand),
             source: generatedFrom,
-            ownership: entries[id].ownership,
+            ownership: entry.ownership,
             simple_command: commands.simple,
             motion_command: commands.motion,
             relation: officialFollowupRelations.get(id) || undefined,
-            routes
+            routes: entry.routes
         };
     }
     return output;
@@ -3122,6 +3246,7 @@ function buildModernDisplay(actionSource, bcmCatalog, runtime, supplement, optio
 module.exports = {
     SCHEMA,
     STRICT_POLICY,
+    CLASSIC_PROFILE_ORDER,
     MODERN_PROFILE_ORDER,
     RUNTIME_COMMON_ACTIONS,
     buildModernDisplay,

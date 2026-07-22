@@ -149,7 +149,7 @@ tools\action_runtime_compiler\2_build_lastjson.bat 2026-05-28
 3. Fighter ID 不能缺失或重复；
 4. AC、BCM和文件名 Fighter ID 必须一致；
 5. 每个角色 AC+BCM 编译必须有效；
-6. Modern 输出 hard audit 必须通过；
+6. 统一指令输出 hard audit 必须通过；
 7. 暂存目录必须正好得到30个角色 JSON。
 
 全部通过后才原子替换旧 `lastjson`。若中途失败，原 `lastjson` 保持不变。
@@ -196,16 +196,20 @@ acbcm/<版本>/lastjson/<Character>.json
 - 把官网 Action ID 当游戏 Action ID；
 - 在缺少角色时输出残缺的 `lastjson`。
 
-## 7. Modern v10 指令分槽
+## 7. 统一指令表 v1
 
-`xt.modern_display.v10` 在保留 `routes` 审计证据的同时，将运行时指令拆成两个固定槽：
+`xt.command_display.v1` 基于同一份 AC ActionGraph 输出经典与现代指令投影：
 
+- `classic_command`：经典输入，来源顺序为 `norm → sprt`；
 - `simple_command`：简化输入；同一招的等价方向保存在 `inputs` 中；
 - `motion_command`：搓招输入；
 - `relation`：派生动作通过 `type: followup` 和 `source_action_id` 引用前置动作。
 
 `modern_display` 仅作为兼容摘要。运行时优先读取两个指令槽，并根据派生关系生成 `>`；
 `/` 只用于分隔完整的简化路线与搓招路线，不再表示动作阶段。
+
+正式文件暂时仍放在 `data/TrainingComboTrials_data/modern_display`，以兼容旧版本和打包路径；
+目录名不再代表数据模型。经典显示迁移期间仍允许角色 exception 的显示覆盖优先，行为规则不受影响。
 
 ## 8. 测试
 

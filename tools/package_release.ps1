@@ -197,6 +197,36 @@ function Copy-TrackedReframeworkFiles {
     }
 }
 
+function Assert-CommandDisplayPackage {
+    param(
+        [Parameter(Mandatory = $true)][string]$SourceRoot,
+        [Parameter(Mandatory = $true)][string]$PackageRoot
+    )
+
+    $relativeRoot = "data/TrainingComboTrials_data/modern_display"
+    $trackedFiles = @(& git -C $SourceRoot ls-files -- "$relativeRoot/*.json")
+    if ($LASTEXITCODE -ne 0) {
+        throw "Unable to enumerate tracked command display files."
+    }
+    if ($trackedFiles.Count -ne 30) {
+        throw "Command display source must contain exactly 30 tracked character JSON files. Found: $($trackedFiles.Count)"
+    }
+
+    foreach ($relativePath in $trackedFiles) {
+        $windowsRelativePath = $relativePath -replace '/', '\'
+        $packagedPath = Join-Path $PackageRoot (Join-Path "reframework" $windowsRelativePath)
+        if (-not (Test-Path -LiteralPath $packagedPath -PathType Leaf)) {
+            throw "Command display file was not copied into the package: $relativePath"
+        }
+    }
+
+    $packagedRoot = Join-Path $PackageRoot "reframework\data\TrainingComboTrials_data\modern_display"
+    $packagedFiles = @(Get-ChildItem -LiteralPath $packagedRoot -Filter "*.json" -File)
+    if ($packagedFiles.Count -ne 30) {
+        throw "Command display package must contain exactly 30 character JSON files. Found: $($packagedFiles.Count)"
+    }
+}
+
 function New-ZipFromDirectory {
     param(
         [Parameter(Mandatory = $true)][string]$SourceDirectory,
@@ -344,7 +374,7 @@ function Write-PlanSummary {
 }
 
 if ([string]::IsNullOrWhiteSpace($Version)) {
-    throw "Version is required. Pass an explicit target version, for example: tools\package_release.bat -Version 0.9c"
+    throw "Version is required. Pass an explicit target version, for example: tools\package_release.bat -Version 0.99"
 }
 
 $releaseVersion = $Version.Trim()
@@ -498,6 +528,8 @@ New-Item -ItemType Directory -Path $runtimePackagePath | Out-Null
 
 Copy-TrackedReframeworkFiles -SourceRoot $workspacePath -PackageRoot $standardPackagePath
 Copy-TrackedReframeworkFiles -SourceRoot $workspacePath -PackageRoot $runtimePackagePath
+Assert-CommandDisplayPackage -SourceRoot $workspacePath -PackageRoot $standardPackagePath
+Assert-CommandDisplayPackage -SourceRoot $workspacePath -PackageRoot $runtimePackagePath
 
 Copy-Item -LiteralPath $dinputPath -Destination (Join-Path $standardPackagePath "dinput8.dll") -Force
 Copy-Item -LiteralPath $dinputPath -Destination (Join-Path $runtimePackagePath "dinput8.dll") -Force

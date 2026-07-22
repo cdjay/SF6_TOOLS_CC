@@ -1,9 +1,22 @@
 {
   "17": {
     "modern_display": "66",
-    "control_support": "modern",
+    "classic_command": {
+      "display": "66",
+      "inputs": [
+        "66"
+      ]
+    },
+    "control_support": "classic_modern",
     "source": "ac_bcm+capcom_official_semantics",
     "ownership": "runtime_common",
+    "simple_command": null,
+    "motion_command": {
+      "display": "66",
+      "inputs": [
+        "66"
+      ]
+    },
     "routes": [
       {
         "display": "66",
@@ -47,9 +60,22 @@
   },
   "18": {
     "modern_display": "44",
-    "control_support": "modern",
+    "classic_command": {
+      "display": "44",
+      "inputs": [
+        "44"
+      ]
+    },
+    "control_support": "classic_modern",
     "source": "ac_bcm+capcom_official_semantics",
     "ownership": "runtime_common",
+    "simple_command": null,
+    "motion_command": {
+      "display": "44",
+      "inputs": [
+        "44"
+      ]
+    },
     "routes": [
       {
         "display": "44",
@@ -91,11 +117,39 @@
       }
     ]
   },
+  "34": {
+    "modern_display": null,
+    "classic_command": {
+      "display": "8",
+      "inputs": [
+        "8"
+      ]
+    },
+    "control_support": "classic_only",
+    "source": "ac_bcm+capcom_official_semantics",
+    "ownership": "classic_runtime",
+    "simple_command": null,
+    "motion_command": null,
+    "routes": []
+  },
   "36": {
     "modern_display": "8",
-    "control_support": "modern",
+    "classic_command": {
+      "display": "8",
+      "inputs": [
+        "8"
+      ]
+    },
+    "control_support": "classic_modern",
     "source": "ac_bcm+capcom_official_semantics",
     "ownership": "runtime_common",
+    "simple_command": null,
+    "motion_command": {
+      "display": "8",
+      "inputs": [
+        "8"
+      ]
+    },
     "routes": [
       {
         "display": "8",
@@ -139,9 +193,22 @@
   },
   "37": {
     "modern_display": "9",
-    "control_support": "modern",
+    "classic_command": {
+      "display": "9",
+      "inputs": [
+        "9"
+      ]
+    },
+    "control_support": "classic_modern",
     "source": "ac_bcm+capcom_official_semantics",
     "ownership": "runtime_common",
+    "simple_command": null,
+    "motion_command": {
+      "display": "9",
+      "inputs": [
+        "9"
+      ]
+    },
     "routes": [
       {
         "display": "9",
@@ -185,9 +252,22 @@
   },
   "38": {
     "modern_display": "7",
-    "control_support": "modern",
+    "classic_command": {
+      "display": "7",
+      "inputs": [
+        "7"
+      ]
+    },
+    "control_support": "classic_modern",
     "source": "ac_bcm+capcom_official_semantics",
     "ownership": "runtime_common",
+    "simple_command": null,
+    "motion_command": {
+      "display": "7",
+      "inputs": [
+        "7"
+      ]
+    },
     "routes": [
       {
         "display": "7",
@@ -231,9 +311,22 @@
   },
   "480": {
     "modern_display": "DP",
-    "control_support": "modern",
+    "classic_command": {
+      "display": "Normal",
+      "inputs": [
+        "Normal"
+      ]
+    },
+    "control_support": "classic_modern",
     "source": "ac_bcm+capcom_official_semantics",
     "ownership": "direct",
+    "simple_command": null,
+    "motion_command": {
+      "display": "DP",
+      "inputs": [
+        "DP"
+      ]
+    },
     "routes": [
       {
         "display": "DP",
@@ -292,9 +385,22 @@
   },
   "489": {
     "modern_display": "DP",
-    "control_support": "modern",
+    "classic_command": {
+      "display": "DP",
+      "inputs": [
+        "DP"
+      ]
+    },
+    "control_support": "classic_modern",
     "source": "ac_bcm+capcom_official_semantics",
     "ownership": "runtime_common",
+    "simple_command": null,
+    "motion_command": {
+      "display": "DP",
+      "inputs": [
+        "DP"
+      ]
+    },
     "routes": [
       {
         "display": "DP",
@@ -338,9 +444,22 @@
   },
   "600": {
     "modern_display": "弱",
-    "control_support": "modern",
+    "classic_command": {
+      "display": "LP",
+      "inputs": [
+        "LP"
+      ]
+    },
+    "control_support": "classic_modern",
     "source": "ac_bcm+capcom_official_semantics",
     "ownership": "direct",
+    "simple_command": null,
+    "motion_command": {
+      "display": "弱",
+      "inputs": [
+        "弱"
+      ]
+    },
     "routes": [
       {
         "display": "弱",
@@ -401,9 +520,22 @@
   },
   "601": {
     "modern_display": "弱",
-    "control_support": "modern",
+    "classic_command": {
+      "display": "LP",
+      "inputs": [
+        "LP"
+      ]
+    },
+    "control_support": "classic_modern",
     "source": "ac_bcm+capcom_official_semantics",
     "ownership": "direct",
+    "simple_command": null,
+    "motion_command": {
+      "display": "弱",
+      "inputs": [
+        "弱"
+      ]
+    },
     "routes": [
       {
         "display": "弱",
@@ -464,9 +596,22 @@
   },
   "602": {
     "modern_display": "弱",
-    "control_support": "modern",
+    "classic_command": {
+      "display": "LP",
+      "inputs": [
+        "LP"
+      ]
+    },
+    "control_support": "classic_modern",
     "source": "ac_bcm+capcom_official_semantics",
     "ownership": "direct",
+    "simple_command": null,
+    "motion_command": {
+      "display": "弱",
+      "inputs": [
+        "弱"
+      ]
+    },
     "routes": [
       {
         "display": "弱",
@@ -527,9 +672,22 @@
   },
   "605": {
     "modern_display": "AUTO + 强",
-    "control_support": "modern",
+    "classic_command": {
+      "display": "MP",
+      "inputs": [
+        "MP"
+      ]
+    },
+    "control_support": "classic_modern",
     "source": "ac_bcm+capcom_official_semantics",
     "ownership": "assist_combo",
+    "simple_command": {
+      "display": "AUTO + 强",
+      "inputs": [
+        "AUTO + 强"
+      ]
+    },
+    "motion_command": null,
     "routes": [
       {
         "display": "AUTO + 强",
@@ -609,9 +767,22 @@
   },
   "607": {
     "modern_display": "> 强",
-    "control_support": "modern",
+    "classic_command": {
+      "display": ">4+HP",
+      "inputs": [
+        ">4+HP"
+      ]
+    },
+    "control_support": "classic_modern",
     "source": "ac_bcm+capcom_official_semantics",
     "ownership": "assist_combo",
+    "simple_command": {
+      "display": "> 强",
+      "inputs": [
+        "> 强"
+      ]
+    },
+    "motion_command": null,
     "routes": [
       {
         "display": "> 强",
@@ -689,11 +860,39 @@
       }
     ]
   },
+  "609": {
+    "modern_display": null,
+    "classic_command": {
+      "display": "HP",
+      "inputs": [
+        "HP"
+      ]
+    },
+    "control_support": "classic_only",
+    "source": "ac_bcm+capcom_official_semantics",
+    "ownership": "classic_runtime",
+    "simple_command": null,
+    "motion_command": null,
+    "routes": []
+  },
   "612": {
     "modern_display": "> 弱",
-    "control_support": "modern",
+    "classic_command": {
+      "display": "LK",
+      "inputs": [
+        "LK"
+      ]
+    },
+    "control_support": "classic_modern",
     "source": "ac_bcm+capcom_official_semantics",
     "ownership": "assist_combo",
+    "simple_command": {
+      "display": "> 弱",
+      "inputs": [
+        "> 弱"
+      ]
+    },
+    "motion_command": null,
     "routes": [
       {
         "display": "> 弱",
@@ -758,9 +957,22 @@
   },
   "615": {
     "modern_display": "中",
-    "control_support": "modern",
+    "classic_command": {
+      "display": "MK",
+      "inputs": [
+        "MK"
+      ]
+    },
+    "control_support": "classic_modern",
     "source": "ac_bcm+capcom_official_semantics",
     "ownership": "direct",
+    "simple_command": null,
+    "motion_command": {
+      "display": "中",
+      "inputs": [
+        "中"
+      ]
+    },
     "routes": [
       {
         "display": "中",
@@ -821,9 +1033,22 @@
   },
   "618": {
     "modern_display": "强",
-    "control_support": "modern",
+    "classic_command": {
+      "display": "HK",
+      "inputs": [
+        "HK"
+      ]
+    },
+    "control_support": "classic_modern",
     "source": "ac_bcm+capcom_official_semantics",
     "ownership": "direct",
+    "simple_command": null,
+    "motion_command": {
+      "display": "强",
+      "inputs": [
+        "强"
+      ]
+    },
     "routes": [
       {
         "display": "强",
@@ -884,9 +1109,22 @@
   },
   "621": {
     "modern_display": "2 + 弱",
-    "control_support": "modern",
+    "classic_command": {
+      "display": "2+LP",
+      "inputs": [
+        "2+LP"
+      ]
+    },
+    "control_support": "classic_modern",
     "source": "ac_bcm+capcom_official_semantics",
     "ownership": "direct",
+    "simple_command": null,
+    "motion_command": {
+      "display": "2 + 弱",
+      "inputs": [
+        "2 + 弱"
+      ]
+    },
     "routes": [
       {
         "display": "2 + 弱",
@@ -947,9 +1185,22 @@
   },
   "623": {
     "modern_display": "2 + 弱",
-    "control_support": "modern",
+    "classic_command": {
+      "display": "2+LP",
+      "inputs": [
+        "2+LP"
+      ]
+    },
+    "control_support": "classic_modern",
     "source": "ac_bcm+capcom_official_semantics",
     "ownership": "direct",
+    "simple_command": null,
+    "motion_command": {
+      "display": "2 + 弱",
+      "inputs": [
+        "2 + 弱"
+      ]
+    },
     "routes": [
       {
         "display": "2 + 弱",
@@ -1010,9 +1261,22 @@
   },
   "626": {
     "modern_display": "AUTO + 中",
-    "control_support": "modern",
+    "classic_command": {
+      "display": "2+MP",
+      "inputs": [
+        "2+MP"
+      ]
+    },
+    "control_support": "classic_modern",
     "source": "ac_bcm+capcom_official_semantics",
     "ownership": "official_semantic",
+    "simple_command": {
+      "display": "AUTO + 中",
+      "inputs": [
+        "AUTO + 中"
+      ]
+    },
+    "motion_command": null,
     "routes": [
       {
         "character": "Guile",
@@ -1083,9 +1347,22 @@
   },
   "627": {
     "modern_display": "> 2 + 中",
-    "control_support": "modern",
+    "classic_command": {
+      "display": ">2+MP",
+      "inputs": [
+        ">2+MP"
+      ]
+    },
+    "control_support": "classic_modern",
     "source": "ac_bcm+capcom_official_semantics",
     "ownership": "direct",
+    "simple_command": null,
+    "motion_command": {
+      "display": "> 2 + 中",
+      "inputs": [
+        "> 2 + 中"
+      ]
+    },
     "routes": [
       {
         "display": "> 2 + 中",
@@ -1146,9 +1423,22 @@
   },
   "629": {
     "modern_display": "2 + 强",
-    "control_support": "modern",
+    "classic_command": {
+      "display": "2+HP",
+      "inputs": [
+        "2+HP"
+      ]
+    },
+    "control_support": "classic_modern",
     "source": "ac_bcm+capcom_official_semantics",
     "ownership": "direct",
+    "simple_command": null,
+    "motion_command": {
+      "display": "2 + 强",
+      "inputs": [
+        "2 + 强"
+      ]
+    },
     "routes": [
       {
         "display": "2 + 强",
@@ -1209,9 +1499,22 @@
   },
   "632": {
     "modern_display": "AUTO + 弱",
-    "control_support": "modern",
+    "classic_command": {
+      "display": "2+LK",
+      "inputs": [
+        "2+LK"
+      ]
+    },
+    "control_support": "classic_modern",
     "source": "ac_bcm+capcom_official_semantics",
     "ownership": "official_semantic",
+    "simple_command": {
+      "display": "AUTO + 弱",
+      "inputs": [
+        "AUTO + 弱"
+      ]
+    },
+    "motion_command": null,
     "routes": [
       {
         "character": "Guile",
@@ -1282,9 +1585,22 @@
   },
   "634": {
     "modern_display": "AUTO + 弱",
-    "control_support": "modern",
+    "classic_command": {
+      "display": "2+LK",
+      "inputs": [
+        "2+LK"
+      ]
+    },
+    "control_support": "classic_modern",
     "source": "ac_bcm+capcom_official_semantics",
     "ownership": "assist_combo",
+    "simple_command": {
+      "display": "AUTO + 弱",
+      "inputs": [
+        "AUTO + 弱"
+      ]
+    },
+    "motion_command": null,
     "routes": [
       {
         "display": "AUTO + 弱",
@@ -1349,9 +1665,22 @@
   },
   "637": {
     "modern_display": "2 + 中",
-    "control_support": "modern",
+    "classic_command": {
+      "display": "2+MK",
+      "inputs": [
+        "2+MK"
+      ]
+    },
+    "control_support": "classic_modern",
     "source": "ac_bcm+capcom_official_semantics",
     "ownership": "direct",
+    "simple_command": null,
+    "motion_command": {
+      "display": "2 + 中",
+      "inputs": [
+        "2 + 中"
+      ]
+    },
     "routes": [
       {
         "display": "2 + 中",
@@ -1412,9 +1741,22 @@
   },
   "639": {
     "modern_display": "> 6 + 中",
-    "control_support": "modern",
+    "classic_command": {
+      "display": ">6",
+      "inputs": [
+        ">6"
+      ]
+    },
+    "control_support": "classic_modern",
     "source": "ac_bcm+capcom_official_semantics",
     "ownership": "direct",
+    "simple_command": null,
+    "motion_command": {
+      "display": "> 6 + 中",
+      "inputs": [
+        "> 6 + 中"
+      ]
+    },
     "routes": [
       {
         "display": "> 6 + 中",
@@ -1475,9 +1817,22 @@
   },
   "641": {
     "modern_display": "3 + 强",
-    "control_support": "modern",
+    "classic_command": {
+      "display": "2+HK",
+      "inputs": [
+        "2+HK"
+      ]
+    },
+    "control_support": "classic_modern",
     "source": "ac_bcm+capcom_official_semantics",
     "ownership": "direct",
+    "simple_command": null,
+    "motion_command": {
+      "display": "3 + 强",
+      "inputs": [
+        "3 + 强"
+      ]
+    },
     "routes": [
       {
         "display": "3 + 强",
@@ -1538,9 +1893,22 @@
   },
   "645": {
     "modern_display": "空中 弱",
-    "control_support": "modern",
+    "classic_command": {
+      "display": "j.LP",
+      "inputs": [
+        "j.LP"
+      ]
+    },
+    "control_support": "classic_modern",
     "source": "ac_bcm+capcom_official_semantics",
     "ownership": "direct",
+    "simple_command": null,
+    "motion_command": {
+      "display": "空中 弱",
+      "inputs": [
+        "空中 弱"
+      ]
+    },
     "routes": [
       {
         "display": "空中 弱",
@@ -1601,9 +1969,22 @@
   },
   "646": {
     "modern_display": "空中 中",
-    "control_support": "modern",
+    "classic_command": {
+      "display": "j.MP",
+      "inputs": [
+        "j.MP"
+      ]
+    },
+    "control_support": "classic_modern",
     "source": "ac_bcm+capcom_official_semantics",
     "ownership": "direct",
+    "simple_command": null,
+    "motion_command": {
+      "display": "空中 中",
+      "inputs": [
+        "空中 中"
+      ]
+    },
     "routes": [
       {
         "display": "空中 中",
@@ -1664,9 +2045,22 @@
   },
   "647": {
     "modern_display": "空中 AUTO + 强",
-    "control_support": "modern",
+    "classic_command": {
+      "display": "j.HP",
+      "inputs": [
+        "j.HP"
+      ]
+    },
+    "control_support": "classic_modern",
     "source": "ac_bcm+capcom_official_semantics",
     "ownership": "direct",
+    "simple_command": {
+      "display": "空中 AUTO + 强",
+      "inputs": [
+        "空中 AUTO + 强"
+      ]
+    },
+    "motion_command": null,
     "routes": [
       {
         "display": "空中 AUTO + 强",
@@ -1727,9 +2121,22 @@
   },
   "648": {
     "modern_display": "空中 AUTO + 弱",
-    "control_support": "modern",
+    "classic_command": {
+      "display": "j.LK",
+      "inputs": [
+        "j.LK"
+      ]
+    },
+    "control_support": "classic_modern",
     "source": "ac_bcm+capcom_official_semantics",
     "ownership": "direct",
+    "simple_command": {
+      "display": "空中 AUTO + 弱",
+      "inputs": [
+        "空中 AUTO + 弱"
+      ]
+    },
+    "motion_command": null,
     "routes": [
       {
         "display": "空中 AUTO + 弱",
@@ -1790,9 +2197,22 @@
   },
   "649": {
     "modern_display": "空中 AUTO + 中",
-    "control_support": "modern",
+    "classic_command": {
+      "display": "j.MK",
+      "inputs": [
+        "j.MK"
+      ]
+    },
+    "control_support": "classic_modern",
     "source": "ac_bcm+capcom_official_semantics",
     "ownership": "direct",
+    "simple_command": {
+      "display": "空中 AUTO + 中",
+      "inputs": [
+        "空中 AUTO + 中"
+      ]
+    },
+    "motion_command": null,
     "routes": [
       {
         "display": "空中 AUTO + 中",
@@ -1853,9 +2273,22 @@
   },
   "650": {
     "modern_display": "空中 强",
-    "control_support": "modern",
+    "classic_command": {
+      "display": "j.HK",
+      "inputs": [
+        "j.HK"
+      ]
+    },
+    "control_support": "classic_modern",
     "source": "ac_bcm+capcom_official_semantics",
     "ownership": "direct",
+    "simple_command": null,
+    "motion_command": {
+      "display": "空中 强",
+      "inputs": [
+        "空中 强"
+      ]
+    },
     "routes": [
       {
         "display": "空中 强",
@@ -1914,11 +2347,39 @@
       }
     ]
   },
+  "653": {
+    "modern_display": null,
+    "classic_command": {
+      "display": "3+HK",
+      "inputs": [
+        "3+HK"
+      ]
+    },
+    "control_support": "classic_only",
+    "source": "ac_bcm+capcom_official_semantics",
+    "ownership": "classic_runtime",
+    "simple_command": null,
+    "motion_command": null,
+    "routes": []
+  },
   "654": {
     "modern_display": "> 3 + 强",
-    "control_support": "modern",
+    "classic_command": {
+      "display": ">3+HK",
+      "inputs": [
+        ">3+HK"
+      ]
+    },
+    "control_support": "classic_modern",
     "source": "ac_bcm+capcom_official_semantics",
     "ownership": "direct",
+    "simple_command": null,
+    "motion_command": {
+      "display": "> 3 + 强",
+      "inputs": [
+        "> 3 + 强"
+      ]
+    },
     "routes": [
       {
         "display": "> 3 + 强",
@@ -1979,9 +2440,22 @@
   },
   "656": {
     "modern_display": "4 + 强",
-    "control_support": "modern",
+    "classic_command": {
+      "display": "4+HP",
+      "inputs": [
+        "4+HP"
+      ]
+    },
+    "control_support": "classic_modern",
     "source": "ac_bcm+capcom_official_semantics",
     "ownership": "direct",
+    "simple_command": null,
+    "motion_command": {
+      "display": "4 + 强",
+      "inputs": [
+        "4 + 强"
+      ]
+    },
     "routes": [
       {
         "display": "4 + 强",
@@ -2042,9 +2516,22 @@
   },
   "659": {
     "modern_display": "4 + 弱",
-    "control_support": "modern",
+    "classic_command": {
+      "display": "4+LK",
+      "inputs": [
+        "4+LK"
+      ]
+    },
+    "control_support": "classic_modern",
     "source": "ac_bcm+capcom_official_semantics",
     "ownership": "direct",
+    "simple_command": null,
+    "motion_command": {
+      "display": "4 + 弱",
+      "inputs": [
+        "4 + 弱"
+      ]
+    },
     "routes": [
       {
         "display": "4 + 弱",
@@ -2105,9 +2592,22 @@
   },
   "662": {
     "modern_display": "4 + 中",
-    "control_support": "modern",
+    "classic_command": {
+      "display": "4+MK",
+      "inputs": [
+        "4+MK"
+      ]
+    },
+    "control_support": "classic_modern",
     "source": "ac_bcm+capcom_official_semantics",
     "ownership": "direct",
+    "simple_command": null,
+    "motion_command": {
+      "display": "4 + 中",
+      "inputs": [
+        "4 + 中"
+      ]
+    },
     "routes": [
       {
         "display": "4 + 中",
@@ -2166,11 +2666,39 @@
       }
     ]
   },
+  "665": {
+    "modern_display": null,
+    "classic_command": {
+      "display": "6+MP",
+      "inputs": [
+        "6+MP"
+      ]
+    },
+    "control_support": "classic_only",
+    "source": "ac_bcm+capcom_official_semantics",
+    "ownership": "classic_runtime",
+    "simple_command": null,
+    "motion_command": null,
+    "routes": []
+  },
   "668": {
     "modern_display": "6 + 强",
-    "control_support": "modern",
+    "classic_command": {
+      "display": "6+HP",
+      "inputs": [
+        "6+HP"
+      ]
+    },
+    "control_support": "classic_modern",
     "source": "ac_bcm+capcom_official_semantics",
     "ownership": "direct",
+    "simple_command": null,
+    "motion_command": {
+      "display": "6 + 强",
+      "inputs": [
+        "6 + 强"
+      ]
+    },
     "routes": [
       {
         "display": "6 + 强",
@@ -2231,9 +2759,22 @@
   },
   "671": {
     "modern_display": "6 + 中",
-    "control_support": "modern",
+    "classic_command": {
+      "display": "6+MK",
+      "inputs": [
+        "6+MK"
+      ]
+    },
+    "control_support": "classic_modern",
     "source": "ac_bcm+capcom_official_semantics",
     "ownership": "direct",
+    "simple_command": null,
+    "motion_command": {
+      "display": "6 + 中",
+      "inputs": [
+        "6 + 中"
+      ]
+    },
     "routes": [
       {
         "display": "6 + 中",
@@ -2292,11 +2833,39 @@
       }
     ]
   },
+  "674": {
+    "modern_display": null,
+    "classic_command": {
+      "display": "6+HK",
+      "inputs": [
+        "6+HK"
+      ]
+    },
+    "control_support": "classic_only",
+    "source": "ac_bcm+capcom_official_semantics",
+    "ownership": "classic_runtime",
+    "simple_command": null,
+    "motion_command": null,
+    "routes": []
+  },
   "700": {
     "modern_display": "THROW",
-    "control_support": "modern",
+    "classic_command": {
+      "display": "Throw",
+      "inputs": [
+        "Throw"
+      ]
+    },
+    "control_support": "classic_modern",
     "source": "ac_bcm+capcom_official_semantics",
     "ownership": "direct",
+    "simple_command": null,
+    "motion_command": {
+      "display": "THROW",
+      "inputs": [
+        "THROW"
+      ]
+    },
     "routes": [
       {
         "display": "THROW",
@@ -2358,9 +2927,22 @@
   },
   "701": {
     "modern_display": "4 + THROW",
-    "control_support": "modern",
+    "classic_command": {
+      "display": "4+THROW",
+      "inputs": [
+        "4+THROW"
+      ]
+    },
+    "control_support": "classic_modern",
     "source": "ac_bcm+capcom_official_semantics",
     "ownership": "inherited",
+    "simple_command": null,
+    "motion_command": {
+      "display": "4 + THROW",
+      "inputs": [
+        "4 + THROW"
+      ]
+    },
     "routes": [
       {
         "display": "4 + THROW",
@@ -2408,9 +2990,22 @@
   },
   "702": {
     "modern_display": "空中 THROW",
-    "control_support": "modern",
+    "classic_command": {
+      "display": "j.Throw",
+      "inputs": [
+        "j.Throw"
+      ]
+    },
+    "control_support": "classic_modern",
     "source": "ac_bcm+capcom_official_semantics",
     "ownership": "direct",
+    "simple_command": null,
+    "motion_command": {
+      "display": "空中 THROW",
+      "inputs": [
+        "空中 THROW"
+      ]
+    },
     "routes": [
       {
         "display": "空中 THROW",
@@ -2472,9 +3067,22 @@
   },
   "703": {
     "modern_display": "4 + THROW",
-    "control_support": "modern",
+    "classic_command": {
+      "display": "4+THROW",
+      "inputs": [
+        "4+THROW"
+      ]
+    },
+    "control_support": "classic_modern",
     "source": "ac_bcm+capcom_official_semantics",
     "ownership": "inherited",
+    "simple_command": null,
+    "motion_command": {
+      "display": "4 + THROW",
+      "inputs": [
+        "4 + THROW"
+      ]
+    },
     "routes": [
       {
         "display": "4 + THROW",
@@ -2522,9 +3130,22 @@
   },
   "730": {
     "modern_display": "DRC",
-    "control_support": "modern",
+    "classic_command": {
+      "display": "DRC",
+      "inputs": [
+        "DRC"
+      ]
+    },
+    "control_support": "classic_modern",
     "source": "ac_bcm+capcom_official_semantics",
     "ownership": "direct",
+    "simple_command": null,
+    "motion_command": {
+      "display": "DRC",
+      "inputs": [
+        "DRC"
+      ]
+    },
     "routes": [
       {
         "display": "DRC",
@@ -2636,9 +3257,22 @@
   },
   "731": {
     "modern_display": "RAW DR",
-    "control_support": "modern",
+    "classic_command": {
+      "display": "RAW DR",
+      "inputs": [
+        "RAW DR"
+      ]
+    },
+    "control_support": "classic_modern",
     "source": "ac_bcm+capcom_official_semantics",
     "ownership": "direct",
+    "simple_command": null,
+    "motion_command": {
+      "display": "RAW DR",
+      "inputs": [
+        "RAW DR"
+      ]
+    },
     "routes": [
       {
         "display": "RAW DR",
@@ -2750,9 +3384,22 @@
   },
   "850": {
     "modern_display": "DI",
-    "control_support": "modern",
+    "classic_command": {
+      "display": "6+DI",
+      "inputs": [
+        "6+DI"
+      ]
+    },
+    "control_support": "classic_modern",
     "source": "ac_bcm+capcom_official_semantics",
     "ownership": "direct",
+    "simple_command": null,
+    "motion_command": {
+      "display": "DI",
+      "inputs": [
+        "DI"
+      ]
+    },
     "routes": [
       {
         "display": "DI",
@@ -2809,11 +3456,39 @@
       }
     ]
   },
+  "852": {
+    "modern_display": null,
+    "classic_command": {
+      "display": "6",
+      "inputs": [
+        "6"
+      ]
+    },
+    "control_support": "classic_only",
+    "source": "ac_bcm+capcom_official_semantics",
+    "ownership": "classic_runtime",
+    "simple_command": null,
+    "motion_command": null,
+    "routes": []
+  },
   "855": {
     "modern_display": "DI",
-    "control_support": "modern",
+    "classic_command": {
+      "display": "DI",
+      "inputs": [
+        "DI"
+      ]
+    },
+    "control_support": "classic_modern",
     "source": "ac_bcm+capcom_official_semantics",
     "ownership": "direct",
+    "simple_command": null,
+    "motion_command": {
+      "display": "DI",
+      "inputs": [
+        "DI"
+      ]
+    },
     "routes": [
       {
         "display": "DI",
@@ -2872,9 +3547,17 @@
   },
   "898": {
     "modern_display": "4 + AUTO + SP",
-    "control_support": "modern",
+    "classic_command": null,
+    "control_support": "unknown",
     "source": "ac_bcm+capcom_official_semantics",
     "ownership": "direct",
+    "simple_command": {
+      "display": "4 + AUTO + SP",
+      "inputs": [
+        "4 + AUTO + SP"
+      ]
+    },
+    "motion_command": null,
     "routes": [
       {
         "display": "4 + AUTO + SP",
@@ -2933,9 +3616,17 @@
   },
   "899": {
     "modern_display": "[4] + SP",
-    "control_support": "modern",
+    "classic_command": null,
+    "control_support": "unknown",
     "source": "ac_bcm+capcom_official_semantics",
     "ownership": "direct",
+    "simple_command": {
+      "display": "[4] + SP",
+      "inputs": [
+        "[4] + SP"
+      ]
+    },
+    "motion_command": null,
     "routes": [
       {
         "display": "[4] + SP",
@@ -2999,9 +3690,27 @@
   },
   "900": {
     "modern_display": "[4] + SP/[4]6 + 弱",
-    "control_support": "modern",
+    "classic_command": {
+      "display": "[4]6+LP",
+      "inputs": [
+        "[4]6+LP"
+      ]
+    },
+    "control_support": "classic_modern",
     "source": "ac_bcm+capcom_official_semantics",
     "ownership": "direct",
+    "simple_command": {
+      "display": "[4] + SP",
+      "inputs": [
+        "[4] + SP"
+      ]
+    },
+    "motion_command": {
+      "display": "[4]6 + 弱",
+      "inputs": [
+        "[4]6 + 弱"
+      ]
+    },
     "routes": [
       {
         "display": "[4] + SP",
@@ -3237,9 +3946,27 @@
   },
   "901": {
     "modern_display": "[4]6 + SP/[4]6 + 弱",
-    "control_support": "modern",
+    "classic_command": {
+      "display": "[4]6+LP",
+      "inputs": [
+        "[4]6+LP"
+      ]
+    },
+    "control_support": "classic_modern",
     "source": "ac_bcm+capcom_official_semantics",
     "ownership": "direct",
+    "simple_command": {
+      "display": "[4]6 + SP",
+      "inputs": [
+        "[4]6 + SP"
+      ]
+    },
+    "motion_command": {
+      "display": "[4]6 + 弱",
+      "inputs": [
+        "[4]6 + 弱"
+      ]
+    },
     "routes": [
       {
         "display": "[4]6 + SP",
@@ -3473,9 +4200,22 @@
   },
   "902": {
     "modern_display": "[4]6 + 中",
-    "control_support": "modern",
+    "classic_command": {
+      "display": "[4]6+MP",
+      "inputs": [
+        "[4]6+MP"
+      ]
+    },
+    "control_support": "classic_modern",
     "source": "ac_bcm+capcom_official_semantics",
     "ownership": "direct",
+    "simple_command": null,
+    "motion_command": {
+      "display": "[4]6 + 中",
+      "inputs": [
+        "[4]6 + 中"
+      ]
+    },
     "routes": [
       {
         "display": "[4]6 + 中",
@@ -3539,9 +4279,22 @@
   },
   "903": {
     "modern_display": "[4]6 + 中",
-    "control_support": "modern",
+    "classic_command": {
+      "display": "[4]6+MP",
+      "inputs": [
+        "[4]6+MP"
+      ]
+    },
+    "control_support": "classic_modern",
     "source": "ac_bcm+capcom_official_semantics",
     "ownership": "direct",
+    "simple_command": null,
+    "motion_command": {
+      "display": "[4]6 + 中",
+      "inputs": [
+        "[4]6 + 中"
+      ]
+    },
     "routes": [
       {
         "display": "[4]6 + 中",
@@ -3605,9 +4358,22 @@
   },
   "904": {
     "modern_display": "[4]6 + 强",
-    "control_support": "modern",
+    "classic_command": {
+      "display": "[4]6+HP",
+      "inputs": [
+        "[4]6+HP"
+      ]
+    },
+    "control_support": "classic_modern",
     "source": "ac_bcm+capcom_official_semantics",
     "ownership": "direct",
+    "simple_command": null,
+    "motion_command": {
+      "display": "[4]6 + 强",
+      "inputs": [
+        "[4]6 + 强"
+      ]
+    },
     "routes": [
       {
         "display": "[4]6 + 强",
@@ -3671,9 +4437,27 @@
   },
   "905": {
     "modern_display": "[4] + AUTO + SP/[4]6 + 强",
-    "control_support": "modern",
+    "classic_command": {
+      "display": "[4]6+HP",
+      "inputs": [
+        "[4]6+HP"
+      ]
+    },
+    "control_support": "classic_modern",
     "source": "ac_bcm+capcom_official_semantics",
     "ownership": "direct",
+    "simple_command": {
+      "display": "[4] + AUTO + SP",
+      "inputs": [
+        "[4] + AUTO + SP"
+      ]
+    },
+    "motion_command": {
+      "display": "[4]6 + 强",
+      "inputs": [
+        "[4]6 + 强"
+      ]
+    },
     "routes": [
       {
         "display": "[4] + AUTO + SP",
@@ -3792,9 +4576,27 @@
   },
   "906": {
     "modern_display": "[4] + AUTO + SP/[4]6 + 任意键 + 任意键",
-    "control_support": "modern",
+    "classic_command": {
+      "display": "[4]6+PP",
+      "inputs": [
+        "[4]6+PP"
+      ]
+    },
+    "control_support": "classic_modern",
     "source": "ac_bcm+capcom_official_semantics",
     "ownership": "direct",
+    "simple_command": {
+      "display": "[4] + AUTO + SP",
+      "inputs": [
+        "[4] + AUTO + SP"
+      ]
+    },
+    "motion_command": {
+      "display": "[4]6 + 任意键 + 任意键",
+      "inputs": [
+        "[4]6 + 任意键 + 任意键"
+      ]
+    },
     "routes": [
       {
         "display": "[4] + AUTO + SP",
@@ -3915,9 +4717,27 @@
   },
   "918": {
     "modern_display": "SP/214 + 弱",
-    "control_support": "modern",
+    "classic_command": {
+      "display": "214+LP",
+      "inputs": [
+        "214+LP"
+      ]
+    },
+    "control_support": "classic_modern",
     "source": "ac_bcm+capcom_official_semantics",
     "ownership": "direct",
+    "simple_command": {
+      "display": "SP",
+      "inputs": [
+        "SP"
+      ]
+    },
+    "motion_command": {
+      "display": "214 + 弱",
+      "inputs": [
+        "214 + 弱"
+      ]
+    },
     "routes": [
       {
         "display": "SP",
@@ -4035,9 +4855,22 @@
   },
   "919": {
     "modern_display": "214 + 中",
-    "control_support": "modern",
+    "classic_command": {
+      "display": "214+MP",
+      "inputs": [
+        "214+MP"
+      ]
+    },
+    "control_support": "classic_modern",
     "source": "ac_bcm+capcom_official_semantics",
     "ownership": "direct",
+    "simple_command": null,
+    "motion_command": {
+      "display": "214 + 中",
+      "inputs": [
+        "214 + 中"
+      ]
+    },
     "routes": [
       {
         "display": "214 + 中",
@@ -4102,9 +4935,22 @@
   },
   "920": {
     "modern_display": "214 + 强",
-    "control_support": "modern",
+    "classic_command": {
+      "display": "214+HP",
+      "inputs": [
+        "214+HP"
+      ]
+    },
+    "control_support": "classic_modern",
     "source": "ac_bcm+capcom_official_semantics",
     "ownership": "direct",
+    "simple_command": null,
+    "motion_command": {
+      "display": "214 + 强",
+      "inputs": [
+        "214 + 强"
+      ]
+    },
     "routes": [
       {
         "display": "214 + 强",
@@ -4169,9 +5015,22 @@
   },
   "921": {
     "modern_display": "214 + 任意键 + 任意键",
-    "control_support": "modern",
+    "classic_command": {
+      "display": "214+PP",
+      "inputs": [
+        "214+PP"
+      ]
+    },
+    "control_support": "classic_modern",
     "source": "ac_bcm+capcom_official_semantics",
     "ownership": "direct",
+    "simple_command": null,
+    "motion_command": {
+      "display": "214 + 任意键 + 任意键",
+      "inputs": [
+        "214 + 任意键 + 任意键"
+      ]
+    },
     "routes": [
       {
         "display": "214 + 任意键 + 任意键",
@@ -4237,10 +5096,28 @@
     ]
   },
   "939": {
-    "modern_display": "6 + 弱/SP",
-    "control_support": "modern",
+    "modern_display": "SP/6 + 弱",
+    "classic_command": {
+      "display": "6+LP",
+      "inputs": [
+        "6+LP"
+      ]
+    },
+    "control_support": "classic_modern",
     "source": "ac_bcm+capcom_official_semantics",
     "ownership": "direct",
+    "simple_command": {
+      "display": "SP",
+      "inputs": [
+        "SP"
+      ]
+    },
+    "motion_command": {
+      "display": "6 + 弱",
+      "inputs": [
+        "6 + 弱"
+      ]
+    },
     "routes": [
       {
         "display": "6 + 弱",
@@ -4353,10 +5230,24 @@
     ]
   },
   "940": {
-    "modern_display": "56 + 弱/56 + SP",
-    "control_support": "modern",
+    "modern_display": "56 + 弱 或 56 + SP",
+    "classic_command": {
+      "display": "56+LP",
+      "inputs": [
+        "56+LP"
+      ]
+    },
+    "control_support": "classic_modern",
     "source": "ac_bcm+capcom_official_semantics",
     "ownership": "direct",
+    "simple_command": null,
+    "motion_command": {
+      "display": "56 + 弱 或 56 + SP",
+      "inputs": [
+        "56 + 弱",
+        "56 + SP"
+      ]
+    },
     "routes": [
       {
         "display": "56 + 弱",
@@ -4476,9 +5367,22 @@
   },
   "941": {
     "modern_display": "6 + 中",
-    "control_support": "modern",
+    "classic_command": {
+      "display": "6+MP",
+      "inputs": [
+        "6+MP"
+      ]
+    },
+    "control_support": "classic_modern",
     "source": "ac_bcm+capcom_official_semantics",
     "ownership": "direct",
+    "simple_command": null,
+    "motion_command": {
+      "display": "6 + 中",
+      "inputs": [
+        "6 + 中"
+      ]
+    },
     "routes": [
       {
         "display": "6 + 中",
@@ -4539,9 +5443,22 @@
   },
   "942": {
     "modern_display": "56 + 中",
-    "control_support": "modern",
+    "classic_command": {
+      "display": "56+MP",
+      "inputs": [
+        "56+MP"
+      ]
+    },
+    "control_support": "classic_modern",
     "source": "ac_bcm+capcom_official_semantics",
     "ownership": "direct",
+    "simple_command": null,
+    "motion_command": {
+      "display": "56 + 中",
+      "inputs": [
+        "56 + 中"
+      ]
+    },
     "routes": [
       {
         "display": "56 + 中",
@@ -4605,9 +5522,22 @@
   },
   "943": {
     "modern_display": "6 + 强",
-    "control_support": "modern",
+    "classic_command": {
+      "display": "6+HP",
+      "inputs": [
+        "6+HP"
+      ]
+    },
+    "control_support": "classic_modern",
     "source": "ac_bcm+capcom_official_semantics",
     "ownership": "direct",
+    "simple_command": null,
+    "motion_command": {
+      "display": "6 + 强",
+      "inputs": [
+        "6 + 强"
+      ]
+    },
     "routes": [
       {
         "display": "6 + 强",
@@ -4668,9 +5598,22 @@
   },
   "944": {
     "modern_display": "56 + 强",
-    "control_support": "modern",
+    "classic_command": {
+      "display": "56+HP",
+      "inputs": [
+        "56+HP"
+      ]
+    },
+    "control_support": "classic_modern",
     "source": "ac_bcm+capcom_official_semantics",
     "ownership": "direct",
+    "simple_command": null,
+    "motion_command": {
+      "display": "56 + 强",
+      "inputs": [
+        "56 + 强"
+      ]
+    },
     "routes": [
       {
         "display": "56 + 强",
@@ -4734,9 +5677,27 @@
   },
   "945": {
     "modern_display": "AUTO + SP/6 + 任意键 + 任意键",
-    "control_support": "modern",
+    "classic_command": {
+      "display": "6+PP",
+      "inputs": [
+        "6+PP"
+      ]
+    },
+    "control_support": "classic_modern",
     "source": "ac_bcm+capcom_official_semantics",
     "ownership": "direct",
+    "simple_command": {
+      "display": "AUTO + SP",
+      "inputs": [
+        "AUTO + SP"
+      ]
+    },
+    "motion_command": {
+      "display": "6 + 任意键 + 任意键",
+      "inputs": [
+        "6 + 任意键 + 任意键"
+      ]
+    },
     "routes": [
       {
         "display": "AUTO + SP",
@@ -5173,10 +6134,28 @@
     ]
   },
   "947": {
-    "modern_display": "6 + 弱/SP",
-    "control_support": "modern",
+    "modern_display": "SP/6 + 弱",
+    "classic_command": {
+      "display": "6+LP",
+      "inputs": [
+        "6+LP"
+      ]
+    },
+    "control_support": "classic_modern",
     "source": "ac_bcm+capcom_official_semantics",
     "ownership": "direct",
+    "simple_command": {
+      "display": "SP",
+      "inputs": [
+        "SP"
+      ]
+    },
+    "motion_command": {
+      "display": "6 + 弱",
+      "inputs": [
+        "6 + 弱"
+      ]
+    },
     "routes": [
       {
         "display": "6 + 弱",
@@ -5289,10 +6268,24 @@
     ]
   },
   "948": {
-    "modern_display": "56 + 弱/56 + SP",
-    "control_support": "modern",
+    "modern_display": "56 + 弱 或 56 + SP",
+    "classic_command": {
+      "display": "56+LP",
+      "inputs": [
+        "56+LP"
+      ]
+    },
+    "control_support": "classic_modern",
     "source": "ac_bcm+capcom_official_semantics",
     "ownership": "direct",
+    "simple_command": null,
+    "motion_command": {
+      "display": "56 + 弱 或 56 + SP",
+      "inputs": [
+        "56 + 弱",
+        "56 + SP"
+      ]
+    },
     "routes": [
       {
         "display": "56 + 弱",
@@ -5412,9 +6405,22 @@
   },
   "949": {
     "modern_display": "6 + 中",
-    "control_support": "modern",
+    "classic_command": {
+      "display": "6+MP",
+      "inputs": [
+        "6+MP"
+      ]
+    },
+    "control_support": "classic_modern",
     "source": "ac_bcm+capcom_official_semantics",
     "ownership": "direct",
+    "simple_command": null,
+    "motion_command": {
+      "display": "6 + 中",
+      "inputs": [
+        "6 + 中"
+      ]
+    },
     "routes": [
       {
         "display": "6 + 中",
@@ -5475,9 +6481,22 @@
   },
   "950": {
     "modern_display": "56 + 中",
-    "control_support": "modern",
+    "classic_command": {
+      "display": "56+MP",
+      "inputs": [
+        "56+MP"
+      ]
+    },
+    "control_support": "classic_modern",
     "source": "ac_bcm+capcom_official_semantics",
     "ownership": "direct",
+    "simple_command": null,
+    "motion_command": {
+      "display": "56 + 中",
+      "inputs": [
+        "56 + 中"
+      ]
+    },
     "routes": [
       {
         "display": "56 + 中",
@@ -5541,9 +6560,22 @@
   },
   "951": {
     "modern_display": "6 + 强",
-    "control_support": "modern",
+    "classic_command": {
+      "display": "6+HP",
+      "inputs": [
+        "6+HP"
+      ]
+    },
+    "control_support": "classic_modern",
     "source": "ac_bcm+capcom_official_semantics",
     "ownership": "direct",
+    "simple_command": null,
+    "motion_command": {
+      "display": "6 + 强",
+      "inputs": [
+        "6 + 强"
+      ]
+    },
     "routes": [
       {
         "display": "6 + 强",
@@ -5604,9 +6636,22 @@
   },
   "952": {
     "modern_display": "56 + 强",
-    "control_support": "modern",
+    "classic_command": {
+      "display": "56+HP",
+      "inputs": [
+        "56+HP"
+      ]
+    },
+    "control_support": "classic_modern",
     "source": "ac_bcm+capcom_official_semantics",
     "ownership": "direct",
+    "simple_command": null,
+    "motion_command": {
+      "display": "56 + 强",
+      "inputs": [
+        "56 + 强"
+      ]
+    },
     "routes": [
       {
         "display": "56 + 强",
@@ -5670,9 +6715,27 @@
   },
   "955": {
     "modern_display": "[4] + SP/[4]6 + 弱",
-    "control_support": "modern",
+    "classic_command": {
+      "display": "[4]6+LP",
+      "inputs": [
+        "[4]6+LP"
+      ]
+    },
+    "control_support": "classic_modern",
     "source": "ac_bcm+capcom_official_semantics",
     "ownership": "verified_alias",
+    "simple_command": {
+      "display": "[4] + SP",
+      "inputs": [
+        "[4] + SP"
+      ]
+    },
+    "motion_command": {
+      "display": "[4]6 + 弱",
+      "inputs": [
+        "[4]6 + 弱"
+      ]
+    },
     "routes": [
       {
         "display": "[4] + SP",
@@ -5924,9 +6987,27 @@
   },
   "956": {
     "modern_display": "[4]6 + SP/[4]6 + 弱",
-    "control_support": "modern",
+    "classic_command": {
+      "display": "[4]6+LP",
+      "inputs": [
+        "[4]6+LP"
+      ]
+    },
+    "control_support": "classic_modern",
     "source": "ac_bcm+capcom_official_semantics",
     "ownership": "verified_alias",
+    "simple_command": {
+      "display": "[4]6 + SP",
+      "inputs": [
+        "[4]6 + SP"
+      ]
+    },
+    "motion_command": {
+      "display": "[4]6 + 弱",
+      "inputs": [
+        "[4]6 + 弱"
+      ]
+    },
     "routes": [
       {
         "display": "[4]6 + SP",
@@ -6176,9 +7257,22 @@
   },
   "957": {
     "modern_display": "[4]6 + 中",
-    "control_support": "modern",
+    "classic_command": {
+      "display": "[4]6+MP",
+      "inputs": [
+        "[4]6+MP"
+      ]
+    },
+    "control_support": "classic_modern",
     "source": "ac_bcm+capcom_official_semantics",
     "ownership": "verified_alias",
+    "simple_command": null,
+    "motion_command": {
+      "display": "[4]6 + 中",
+      "inputs": [
+        "[4]6 + 中"
+      ]
+    },
     "routes": [
       {
         "display": "[4]6 + 中",
@@ -6246,9 +7340,22 @@
   },
   "958": {
     "modern_display": "[4]6 + 中",
-    "control_support": "modern",
+    "classic_command": {
+      "display": "[4]6+MP",
+      "inputs": [
+        "[4]6+MP"
+      ]
+    },
+    "control_support": "classic_modern",
     "source": "ac_bcm+capcom_official_semantics",
     "ownership": "verified_alias",
+    "simple_command": null,
+    "motion_command": {
+      "display": "[4]6 + 中",
+      "inputs": [
+        "[4]6 + 中"
+      ]
+    },
     "routes": [
       {
         "display": "[4]6 + 中",
@@ -6316,9 +7423,22 @@
   },
   "959": {
     "modern_display": "[4]6 + 强",
-    "control_support": "modern",
+    "classic_command": {
+      "display": "[4]6+HP",
+      "inputs": [
+        "[4]6+HP"
+      ]
+    },
+    "control_support": "classic_modern",
     "source": "ac_bcm+capcom_official_semantics",
     "ownership": "verified_alias",
+    "simple_command": null,
+    "motion_command": {
+      "display": "[4]6 + 强",
+      "inputs": [
+        "[4]6 + 强"
+      ]
+    },
     "routes": [
       {
         "display": "[4]6 + 强",
@@ -6386,9 +7506,27 @@
   },
   "960": {
     "modern_display": "[4] + AUTO + SP/[4]6 + 强",
-    "control_support": "modern",
+    "classic_command": {
+      "display": "[4]6+HP",
+      "inputs": [
+        "[4]6+HP"
+      ]
+    },
+    "control_support": "classic_modern",
     "source": "ac_bcm+capcom_official_semantics",
     "ownership": "verified_alias",
+    "simple_command": {
+      "display": "[4] + AUTO + SP",
+      "inputs": [
+        "[4] + AUTO + SP"
+      ]
+    },
+    "motion_command": {
+      "display": "[4]6 + 强",
+      "inputs": [
+        "[4]6 + 强"
+      ]
+    },
     "routes": [
       {
         "display": "[4] + AUTO + SP",
@@ -6515,9 +7653,27 @@
   },
   "961": {
     "modern_display": "[4] + SP/[4]6 + 弱",
-    "control_support": "modern",
+    "classic_command": {
+      "display": "[4]6+LP",
+      "inputs": [
+        "[4]6+LP"
+      ]
+    },
+    "control_support": "classic_modern",
     "source": "ac_bcm+capcom_official_semantics",
     "ownership": "verified_alias",
+    "simple_command": {
+      "display": "[4] + SP",
+      "inputs": [
+        "[4] + SP"
+      ]
+    },
+    "motion_command": {
+      "display": "[4]6 + 弱",
+      "inputs": [
+        "[4]6 + 弱"
+      ]
+    },
     "routes": [
       {
         "display": "[4] + SP",
@@ -6769,9 +7925,27 @@
   },
   "962": {
     "modern_display": "[4] + AUTO + SP/[4]6 + 任意键 + 任意键",
-    "control_support": "modern",
+    "classic_command": {
+      "display": "[4]6+PP",
+      "inputs": [
+        "[4]6+PP"
+      ]
+    },
+    "control_support": "classic_modern",
     "source": "ac_bcm+capcom_official_semantics",
     "ownership": "verified_alias",
+    "simple_command": {
+      "display": "[4] + AUTO + SP",
+      "inputs": [
+        "[4] + AUTO + SP"
+      ]
+    },
+    "motion_command": {
+      "display": "[4]6 + 任意键 + 任意键",
+      "inputs": [
+        "[4]6 + 任意键 + 任意键"
+      ]
+    },
     "routes": [
       {
         "display": "[4] + AUTO + SP",
@@ -6900,9 +8074,22 @@
   },
   "989": {
     "modern_display": "[2]8 + 弱",
-    "control_support": "modern",
+    "classic_command": {
+      "display": "[2]8+LK",
+      "inputs": [
+        "[2]8+LK"
+      ]
+    },
+    "control_support": "classic_modern",
     "source": "ac_bcm+capcom_official_semantics",
     "ownership": "direct",
+    "simple_command": null,
+    "motion_command": {
+      "display": "[2]8 + 弱",
+      "inputs": [
+        "[2]8 + 弱"
+      ]
+    },
     "routes": [
       {
         "display": "[2]8 + 弱",
@@ -7024,9 +8211,22 @@
   },
   "990": {
     "modern_display": "[2]8 + 弱",
-    "control_support": "modern",
+    "classic_command": {
+      "display": "[2]8+LK",
+      "inputs": [
+        "[2]8+LK"
+      ]
+    },
+    "control_support": "classic_modern",
     "source": "ac_bcm+capcom_official_semantics",
     "ownership": "direct",
+    "simple_command": null,
+    "motion_command": {
+      "display": "[2]8 + 弱",
+      "inputs": [
+        "[2]8 + 弱"
+      ]
+    },
     "routes": [
       {
         "display": "[2]8 + 弱",
@@ -7148,9 +8348,27 @@
   },
   "991": {
     "modern_display": "[2] + SP/[2]8 + 中",
-    "control_support": "modern",
+    "classic_command": {
+      "display": "[2]8+MK",
+      "inputs": [
+        "[2]8+MK"
+      ]
+    },
+    "control_support": "classic_modern",
     "source": "ac_bcm+capcom_official_semantics",
     "ownership": "direct",
+    "simple_command": {
+      "display": "[2] + SP",
+      "inputs": [
+        "[2] + SP"
+      ]
+    },
+    "motion_command": {
+      "display": "[2]8 + 中",
+      "inputs": [
+        "[2]8 + 中"
+      ]
+    },
     "routes": [
       {
         "display": "[2] + SP",
@@ -7271,9 +8489,27 @@
   },
   "992": {
     "modern_display": "[2]8 + SP/[2]8 + 中",
-    "control_support": "modern",
+    "classic_command": {
+      "display": "[2]8+MK",
+      "inputs": [
+        "[2]8+MK"
+      ]
+    },
+    "control_support": "classic_modern",
     "source": "ac_bcm+capcom_official_semantics",
     "ownership": "direct",
+    "simple_command": {
+      "display": "[2]8 + SP",
+      "inputs": [
+        "[2]8 + SP"
+      ]
+    },
+    "motion_command": {
+      "display": "[2]8 + 中",
+      "inputs": [
+        "[2]8 + 中"
+      ]
+    },
     "routes": [
       {
         "display": "[2]8 + SP",
@@ -7393,9 +8629,22 @@
   },
   "993": {
     "modern_display": "[2]8 + 强",
-    "control_support": "modern",
+    "classic_command": {
+      "display": "[2]8+HK",
+      "inputs": [
+        "[2]8+HK"
+      ]
+    },
+    "control_support": "classic_modern",
     "source": "ac_bcm+capcom_official_semantics",
     "ownership": "direct",
+    "simple_command": null,
+    "motion_command": {
+      "display": "[2]8 + 强",
+      "inputs": [
+        "[2]8 + 强"
+      ]
+    },
     "routes": [
       {
         "display": "[2]8 + 强",
@@ -7459,9 +8708,27 @@
   },
   "994": {
     "modern_display": "[2] + AUTO + SP/[2]8 + 强",
-    "control_support": "modern",
+    "classic_command": {
+      "display": "[2]8+HK",
+      "inputs": [
+        "[2]8+HK"
+      ]
+    },
+    "control_support": "classic_modern",
     "source": "ac_bcm+capcom_official_semantics",
     "ownership": "direct",
+    "simple_command": {
+      "display": "[2] + AUTO + SP",
+      "inputs": [
+        "[2] + AUTO + SP"
+      ]
+    },
+    "motion_command": {
+      "display": "[2]8 + 强",
+      "inputs": [
+        "[2]8 + 强"
+      ]
+    },
     "routes": [
       {
         "display": "[2] + AUTO + SP",
@@ -7580,9 +8847,27 @@
   },
   "995": {
     "modern_display": "[2] + AUTO + SP/[2]8 + 任意键 + 任意键",
-    "control_support": "modern",
+    "classic_command": {
+      "display": "[2]8+KK",
+      "inputs": [
+        "[2]8+KK"
+      ]
+    },
+    "control_support": "classic_modern",
     "source": "ac_bcm+capcom_official_semantics",
     "ownership": "direct",
+    "simple_command": {
+      "display": "[2] + AUTO + SP",
+      "inputs": [
+        "[2] + AUTO + SP"
+      ]
+    },
+    "motion_command": {
+      "display": "[2]8 + 任意键 + 任意键",
+      "inputs": [
+        "[2]8 + 任意键 + 任意键"
+      ]
+    },
     "routes": [
       {
         "display": "[2] + AUTO + SP",
@@ -7703,9 +8988,22 @@
   },
   "1200": {
     "modern_display": "[4] + SP + 强",
-    "control_support": "modern",
+    "classic_command": {
+      "display": "[4]646+LP+MP",
+      "inputs": [
+        "[4]646+LP+MP"
+      ]
+    },
+    "control_support": "classic_modern",
     "source": "ac_bcm+capcom_official_semantics",
     "ownership": "direct",
+    "simple_command": {
+      "display": "[4] + SP + 强",
+      "inputs": [
+        "[4] + SP + 强"
+      ]
+    },
+    "motion_command": null,
     "routes": [
       {
         "display": "[4] + SP + 强",
@@ -7770,9 +9068,22 @@
   },
   "1201": {
     "modern_display": "[4]646 + 弱",
-    "control_support": "modern",
+    "classic_command": {
+      "display": "[4]646+HP",
+      "inputs": [
+        "[4]646+HP"
+      ]
+    },
+    "control_support": "classic_modern",
     "source": "ac_bcm+capcom_official_semantics",
     "ownership": "direct",
+    "simple_command": null,
+    "motion_command": {
+      "display": "[4]646 + 弱",
+      "inputs": [
+        "[4]646 + 弱"
+      ]
+    },
     "routes": [
       {
         "display": "[4]646 + 弱",
@@ -7838,9 +9149,27 @@
   },
   "1210": {
     "modern_display": "4 + SP + 强/214214 + 中",
-    "control_support": "modern",
+    "classic_command": {
+      "display": "214214+P",
+      "inputs": [
+        "214214+P"
+      ]
+    },
+    "control_support": "classic_modern",
     "source": "ac_bcm+capcom_official_semantics",
     "ownership": "direct",
+    "simple_command": {
+      "display": "4 + SP + 强",
+      "inputs": [
+        "4 + SP + 强"
+      ]
+    },
+    "motion_command": {
+      "display": "214214 + 中",
+      "inputs": [
+        "214214 + 中"
+      ]
+    },
     "routes": [
       {
         "display": "4 + SP + 强",
@@ -7962,9 +9291,22 @@
   },
   "1212": {
     "modern_display": "4 + 中 + 强",
-    "control_support": "modern",
+    "classic_command": {
+      "display": "4+PP",
+      "inputs": [
+        "4+PP"
+      ]
+    },
+    "control_support": "classic_modern",
     "source": "ac_bcm+capcom_official_semantics",
     "ownership": "direct",
+    "simple_command": null,
+    "motion_command": {
+      "display": "4 + 中 + 强",
+      "inputs": [
+        "4 + 中 + 强"
+      ]
+    },
     "routes": [
       {
         "display": "4 + 中 + 强",
@@ -8026,9 +9368,22 @@
   },
   "1213": {
     "modern_display": "中 + 强",
-    "control_support": "modern",
+    "classic_command": {
+      "display": "PP",
+      "inputs": [
+        "PP"
+      ]
+    },
+    "control_support": "classic_modern",
     "source": "ac_bcm+capcom_official_semantics",
     "ownership": "direct",
+    "simple_command": null,
+    "motion_command": {
+      "display": "中 + 强",
+      "inputs": [
+        "中 + 强"
+      ]
+    },
     "routes": [
       {
         "display": "中 + 强",
@@ -8090,9 +9445,27 @@
   },
   "1214": {
     "modern_display": "4 + AUTO + 强/6 + 中 + 强",
-    "control_support": "modern",
+    "classic_command": {
+      "display": "6+PP",
+      "inputs": [
+        "6+PP"
+      ]
+    },
+    "control_support": "classic_modern",
     "source": "ac_bcm+capcom_official_semantics",
     "ownership": "direct",
+    "simple_command": {
+      "display": "4 + AUTO + 强",
+      "inputs": [
+        "4 + AUTO + 强"
+      ]
+    },
+    "motion_command": {
+      "display": "6 + 中 + 强",
+      "inputs": [
+        "6 + 中 + 强"
+      ]
+    },
     "routes": [
       {
         "display": "4 + AUTO + 强",
@@ -8207,9 +9580,22 @@
   },
   "1215": {
     "modern_display": "弱",
-    "control_support": "modern",
+    "classic_command": {
+      "display": "LP",
+      "inputs": [
+        "LP"
+      ]
+    },
+    "control_support": "classic_modern",
     "source": "ac_bcm+capcom_official_semantics",
     "ownership": "direct",
+    "simple_command": null,
+    "motion_command": {
+      "display": "弱",
+      "inputs": [
+        "弱"
+      ]
+    },
     "routes": [
       {
         "display": "弱",
@@ -8270,9 +9656,22 @@
   },
   "1216": {
     "modern_display": "中",
-    "control_support": "modern",
+    "classic_command": {
+      "display": "MP",
+      "inputs": [
+        "MP"
+      ]
+    },
+    "control_support": "classic_modern",
     "source": "ac_bcm+capcom_official_semantics",
     "ownership": "direct",
+    "simple_command": null,
+    "motion_command": {
+      "display": "中",
+      "inputs": [
+        "中"
+      ]
+    },
     "routes": [
       {
         "display": "中",
@@ -8333,9 +9732,27 @@
   },
   "1217": {
     "modern_display": "4 + AUTO + 强/强",
-    "control_support": "modern",
+    "classic_command": {
+      "display": "HP",
+      "inputs": [
+        "HP"
+      ]
+    },
+    "control_support": "classic_modern",
     "source": "ac_bcm+capcom_official_semantics",
     "ownership": "direct",
+    "simple_command": {
+      "display": "4 + AUTO + 强",
+      "inputs": [
+        "4 + AUTO + 强"
+      ]
+    },
+    "motion_command": {
+      "display": "强",
+      "inputs": [
+        "强"
+      ]
+    },
     "routes": [
       {
         "display": "4 + AUTO + 强",
@@ -8449,9 +9866,22 @@
   },
   "1218": {
     "modern_display": "弱",
-    "control_support": "modern",
+    "classic_command": {
+      "display": "LP",
+      "inputs": [
+        "LP"
+      ]
+    },
+    "control_support": "classic_modern",
     "source": "ac_bcm+capcom_official_semantics",
     "ownership": "direct",
+    "simple_command": null,
+    "motion_command": {
+      "display": "弱",
+      "inputs": [
+        "弱"
+      ]
+    },
     "routes": [
       {
         "display": "弱",
@@ -8512,9 +9942,22 @@
   },
   "1219": {
     "modern_display": "中",
-    "control_support": "modern",
+    "classic_command": {
+      "display": "MP",
+      "inputs": [
+        "MP"
+      ]
+    },
+    "control_support": "classic_modern",
     "source": "ac_bcm+capcom_official_semantics",
     "ownership": "direct",
+    "simple_command": null,
+    "motion_command": {
+      "display": "中",
+      "inputs": [
+        "中"
+      ]
+    },
     "routes": [
       {
         "display": "中",
@@ -8575,9 +10018,27 @@
   },
   "1220": {
     "modern_display": "4 + AUTO + 强/强",
-    "control_support": "modern",
+    "classic_command": {
+      "display": "HP",
+      "inputs": [
+        "HP"
+      ]
+    },
+    "control_support": "classic_modern",
     "source": "ac_bcm+capcom_official_semantics",
     "ownership": "direct",
+    "simple_command": {
+      "display": "4 + AUTO + 强",
+      "inputs": [
+        "4 + AUTO + 强"
+      ]
+    },
+    "motion_command": {
+      "display": "强",
+      "inputs": [
+        "强"
+      ]
+    },
     "routes": [
       {
         "display": "4 + AUTO + 强",
@@ -8691,9 +10152,22 @@
   },
   "1221": {
     "modern_display": "任意键",
-    "control_support": "modern",
+    "classic_command": {
+      "display": "P",
+      "inputs": [
+        "P"
+      ]
+    },
+    "control_support": "classic_modern",
     "source": "ac_bcm+capcom_official_semantics",
     "ownership": "direct",
+    "simple_command": null,
+    "motion_command": {
+      "display": "任意键",
+      "inputs": [
+        "任意键"
+      ]
+    },
     "routes": [
       {
         "display": "任意键",
@@ -8756,9 +10230,22 @@
   },
   "1222": {
     "modern_display": "任意键",
-    "control_support": "modern",
+    "classic_command": {
+      "display": "P",
+      "inputs": [
+        "P"
+      ]
+    },
+    "control_support": "classic_modern",
     "source": "ac_bcm+capcom_official_semantics",
     "ownership": "direct",
+    "simple_command": null,
+    "motion_command": {
+      "display": "任意键",
+      "inputs": [
+        "任意键"
+      ]
+    },
     "routes": [
       {
         "display": "任意键",
@@ -8821,9 +10308,22 @@
   },
   "1224": {
     "modern_display": "弱",
-    "control_support": "modern",
+    "classic_command": {
+      "display": "LP",
+      "inputs": [
+        "LP"
+      ]
+    },
+    "control_support": "classic_modern",
     "source": "ac_bcm+capcom_official_semantics",
     "ownership": "verified_alias",
+    "simple_command": null,
+    "motion_command": {
+      "display": "弱",
+      "inputs": [
+        "弱"
+      ]
+    },
     "routes": [
       {
         "display": "弱",
@@ -8888,9 +10388,22 @@
   },
   "1225": {
     "modern_display": "中",
-    "control_support": "modern",
+    "classic_command": {
+      "display": "MP",
+      "inputs": [
+        "MP"
+      ]
+    },
+    "control_support": "classic_modern",
     "source": "ac_bcm+capcom_official_semantics",
     "ownership": "verified_alias",
+    "simple_command": null,
+    "motion_command": {
+      "display": "中",
+      "inputs": [
+        "中"
+      ]
+    },
     "routes": [
       {
         "display": "中",
@@ -8955,9 +10468,27 @@
   },
   "1226": {
     "modern_display": "4 + AUTO + 强/强",
-    "control_support": "modern",
+    "classic_command": {
+      "display": "HP",
+      "inputs": [
+        "HP"
+      ]
+    },
+    "control_support": "classic_modern",
     "source": "ac_bcm+capcom_official_semantics",
     "ownership": "verified_alias",
+    "simple_command": {
+      "display": "4 + AUTO + 强",
+      "inputs": [
+        "4 + AUTO + 强"
+      ]
+    },
+    "motion_command": {
+      "display": "强",
+      "inputs": [
+        "强"
+      ]
+    },
     "routes": [
       {
         "display": "4 + AUTO + 强",
@@ -9079,9 +10610,22 @@
   },
   "1227": {
     "modern_display": "弱",
-    "control_support": "modern",
+    "classic_command": {
+      "display": "LP",
+      "inputs": [
+        "LP"
+      ]
+    },
+    "control_support": "classic_modern",
     "source": "ac_bcm+capcom_official_semantics",
     "ownership": "verified_alias",
+    "simple_command": null,
+    "motion_command": {
+      "display": "弱",
+      "inputs": [
+        "弱"
+      ]
+    },
     "routes": [
       {
         "display": "弱",
@@ -9146,9 +10690,22 @@
   },
   "1228": {
     "modern_display": "中",
-    "control_support": "modern",
+    "classic_command": {
+      "display": "MP",
+      "inputs": [
+        "MP"
+      ]
+    },
+    "control_support": "classic_modern",
     "source": "ac_bcm+capcom_official_semantics",
     "ownership": "verified_alias",
+    "simple_command": null,
+    "motion_command": {
+      "display": "中",
+      "inputs": [
+        "中"
+      ]
+    },
     "routes": [
       {
         "display": "中",
@@ -9213,9 +10770,27 @@
   },
   "1229": {
     "modern_display": "4 + AUTO + 强/强",
-    "control_support": "modern",
+    "classic_command": {
+      "display": "HP",
+      "inputs": [
+        "HP"
+      ]
+    },
+    "control_support": "classic_modern",
     "source": "ac_bcm+capcom_official_semantics",
     "ownership": "verified_alias",
+    "simple_command": {
+      "display": "4 + AUTO + 强",
+      "inputs": [
+        "4 + AUTO + 强"
+      ]
+    },
+    "motion_command": {
+      "display": "强",
+      "inputs": [
+        "强"
+      ]
+    },
     "routes": [
       {
         "display": "4 + AUTO + 强",
@@ -9337,9 +10912,27 @@
   },
   "1240": {
     "modern_display": "[2] + SP + 强/[4]646 + 强",
-    "control_support": "modern",
+    "classic_command": {
+      "display": "[4]646+K",
+      "inputs": [
+        "[4]646+K"
+      ]
+    },
+    "control_support": "classic_modern",
     "source": "ac_bcm+capcom_official_semantics",
     "ownership": "direct",
+    "simple_command": {
+      "display": "[2] + SP + 强",
+      "inputs": [
+        "[2] + SP + 强"
+      ]
+    },
+    "motion_command": {
+      "display": "[4]646 + 强",
+      "inputs": [
+        "[4]646 + 强"
+      ]
+    },
     "routes": [
       {
         "display": "[2] + SP + 强",
@@ -9464,9 +11057,27 @@
   },
   "1241": {
     "modern_display": "[2] + SP + 强/[4]646 + 强",
-    "control_support": "modern",
+    "classic_command": {
+      "display": "[4]646+K",
+      "inputs": [
+        "[4]646+K"
+      ]
+    },
+    "control_support": "classic_modern",
     "source": "ac_bcm+capcom_official_semantics",
     "ownership": "direct",
+    "simple_command": {
+      "display": "[2] + SP + 强",
+      "inputs": [
+        "[2] + SP + 强"
+      ]
+    },
+    "motion_command": {
+      "display": "[4]646 + 强",
+      "inputs": [
+        "[4]646 + 强"
+      ]
+    },
     "routes": [
       {
         "display": "[2] + SP + 强",
@@ -9591,9 +11202,27 @@
   },
   "1243": {
     "modern_display": "[2] + SP + 强/[4]646 + 强",
-    "control_support": "modern",
+    "classic_command": {
+      "display": "[4]646+K",
+      "inputs": [
+        "[4]646+K"
+      ]
+    },
+    "control_support": "classic_modern",
     "source": "ac_bcm+capcom_official_semantics",
     "ownership": "direct",
+    "simple_command": {
+      "display": "[2] + SP + 强",
+      "inputs": [
+        "[2] + SP + 强"
+      ]
+    },
+    "motion_command": {
+      "display": "[4]646 + 强",
+      "inputs": [
+        "[4]646 + 强"
+      ]
+    },
     "routes": [
       {
         "display": "[2] + SP + 强",
@@ -9718,9 +11347,27 @@
   },
   "1244": {
     "modern_display": "[2] + SP + 强/[4]646 + 强",
-    "control_support": "modern",
+    "classic_command": {
+      "display": "[4]646+K",
+      "inputs": [
+        "[4]646+K"
+      ]
+    },
+    "control_support": "classic_modern",
     "source": "ac_bcm+capcom_official_semantics",
     "ownership": "direct",
+    "simple_command": {
+      "display": "[2] + SP + 强",
+      "inputs": [
+        "[2] + SP + 强"
+      ]
+    },
+    "motion_command": {
+      "display": "[4]646 + 强",
+      "inputs": [
+        "[4]646 + 强"
+      ]
+    },
     "routes": [
       {
         "display": "[2] + SP + 强",
@@ -9845,9 +11492,22 @@
   },
   "1500": {
     "modern_display": "弱 + 中 + 强",
-    "control_support": "modern",
+    "classic_command": {
+      "display": "LP+MP+HP+LK+MK+HK",
+      "inputs": [
+        "LP+MP+HP+LK+MK+HK"
+      ]
+    },
+    "control_support": "classic_modern",
     "source": "ac_bcm+capcom_official_semantics",
     "ownership": "direct",
+    "simple_command": null,
+    "motion_command": {
+      "display": "弱 + 中 + 强",
+      "inputs": [
+        "弱 + 中 + 强"
+      ]
+    },
     "routes": [
       {
         "display": "弱 + 中 + 强",
@@ -9909,12 +11569,12 @@
     ]
   },
   "_meta": {
-    "schema": "xt.modern_display.v9",
-    "strict_policy": "verified_route_ownership_v9",
+    "schema": "xt.command_display.v1",
+    "strict_policy": "verified_action_graph_v1",
     "character": "Guile",
     "fighter_id": 18,
     "generated_from": "ac_bcm+capcom_official_semantics",
-    "generated_at": "2026-07-18T00:52:58.795Z",
+    "generated_at": "2026-05-28T00:00:00.000Z",
     "ac_sha256": "67422f207664f63b1de2f8103d2a21a4398022cc78ca74098ad4704390a42964",
     "bcm_sha256": "19e1c629dcb6054b7ffeae86213a70eed997d3dee55b773450625f8df0d48c3c",
     "modern_profile_order": [
@@ -10024,7 +11684,14 @@
     "ac_type13_neutral_relations": [],
     "internal_transition_suppression_count": 0,
     "suppressed_internal_transitions": [],
-    "official_semantic_source_sha256": "1c1ad8037f1e1808dd0f4b0ec30a802f4cf418c0d987ef3d42ba62ea6eafb166",
+    "split_command_action_count": 111,
+    "followup_relation_count": 0,
+    "followup_relations": [],
+    "official_semantic_source_sha256": "d5b4afdac77e717e5dbb11e40c2d6330b53545c4569529c2472520a77d8f3cd1",
+    "classic_profile_order": [
+      "norm",
+      "sprt"
+    ],
     "ac_relation_route_counts": {
       "29": 27,
       "63": 2
@@ -12061,9 +13728,16 @@
       "ac_type13_neutral_relation_count": 0,
       "ac_type13_neutral_route_count": 0,
       "internal_transition_suppression_count": 0,
+      "split_command_action_count": 111,
+      "classic_command_action_count": 115,
+      "shared_command_action_count": 109,
+      "classic_projection_pending_count": 2,
+      "command_display_action_count": 117,
+      "followup_relation_count": 0,
+      "command_slot_overflow_count": 0,
       "ac_automatic_transition_route_count": 0,
       "replaces_profile_route_count": 0
     },
-    "description": "Guile Modern display routes generated from direct BCM evidence, whitelisted AC relations, verified command-entry rebinds, stable runtime-common actions, and Capcom command semantics rebound to current BCM identities without trusting official Action IDs."
+    "description": "Guile unified Classic and Modern command projections generated from one verified AC ActionGraph, BCM profiles, runtime semantics, and Capcom command semantics."
   }
 }

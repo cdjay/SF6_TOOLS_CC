@@ -134,6 +134,12 @@ function makeActionSource() {
     addAction(1511, 30, [{ action: 1512, type: 5, attr: 288, p00: 1 }]);
     addAction(1512, 30, []);
     addAction(1513, 30, []);
+    addAction(1600, 65, [
+        { action: 1601, type: 20, p00: 1, p01: 1 },
+        { action: 1601, type: 33, p00: 1, p01: 1 }
+    ]);
+    addAction(1601, 78, []);
+    addAction(1602, 106, []);
     return { records, objects };
 }
 
@@ -153,14 +159,15 @@ const actionIds = [
     480, 489, 600, 605, 606, 627, 640, 642, 647, 651, 652, 653, 681, 692, 715, 716, 717, 718,
     739, 740, 850, 855, 903, 904, 917, 918, 923, 924, 956, 957, 975, 976, 977, 978, 979, 1015, 1020,
     985, 1075, 1076, 1077, 1218, 1231, 1240, 1300, 1301, 1302, 1303, 1304,
-    1400, 1401, 1500, 1501, 1502, 1503, 1504, 1510, 1511, 1512, 1513
+    1400, 1401, 1500, 1501, 1502, 1503, 1504, 1510, 1511, 1512, 1513,
+    1600, 1601, 1602
 ];
 const runtime = {
     character: "Zangief",
     fighter_id: 6,
     action_ids: actionIds,
-    // Classic strings deliberately contain tempting values. Strict Modern
-    // generation must never inspect this table.
+    // Classic strings are projected only after Strict Modern route generation;
+    // they must never influence Modern route selection.
     actions: {
         "850": "6+DI", "855": "DI", "917": "63214789+LP", "918": "63214789+MP",
         "923": "63214789+LK", "924": "63214789+MK", "979": "236+HP"
@@ -371,6 +378,14 @@ const catalog = { source: { character: "Zangief" }, actions: {
             profile(true, "Normal", 0, 0), profile(true, "Normal", 0, 0)),
         { function_id: 2 })
     ] }
+    , "1600": { action_id: 1600, triggers: [trigger(310, profiles(
+        null,
+        profile(true, "2+LK+MK", 384, 16480),
+        profile(true, "Normal", 2147483648),
+        profile(true, "2+PP", 112, 16480)), { function_id: 1 })] }
+    , "1602": { action_id: 1602, triggers: [trigger(311, profiles(
+        profile(true, "6", 8, 1026), null, null,
+        profile(true, "6", 8, 1026)), { function_id: 1 })] }
 } };
 
 catalog.assist_combo_recipes = [
@@ -399,12 +414,20 @@ const officialSemantics = {
         official_web_id: "120", move_name: "jumping heavy punch" }
     , "1400": { classic_display: "LKMKHK", modern_display: "中強", category: "NORMAL",
         official_web_id: "300", move_name: "exact official multi-button" }
+    , "1600": { classic_display: "2 + LPMPHP", modern_display: "2 + 中強", category: "SPECIAL",
+        official_web_id: "400", move_name: "破坏姿势" }
 };
 const output = modern.buildModernDisplay(actionSource, catalog, runtime, {}, {
     generatedAt: "test", officialSemantics, officialSemanticsSha256: "official"
 });
-assert.strictEqual(output._meta.schema, "xt.modern_display.v10");
+assert.strictEqual(output._meta.schema, "xt.command_display.v1");
 assert.strictEqual(output._meta.strict_policy, modern.STRICT_POLICY);
+assert.deepStrictEqual(output._meta.classic_profile_order, ["norm", "sprt"]);
+assert.strictEqual(output._meta.audit.classic_command_action_count, 18);
+assert.strictEqual(output._meta.audit.classic_projection_pending_count,
+    output._meta.audit.split_command_action_count - output._meta.audit.shared_command_action_count);
+assert.strictEqual(output._meta.audit.command_display_action_count,
+    Object.keys(output).filter(key => /^\d+$/.test(key)).length);
 assert.strictEqual(output._meta.generated_from, "ac_bcm+capcom_official_semantics");
 assert.strictEqual(output["1400"].modern_display, "中 + 强");
 assert.strictEqual(output._meta.official_direct_route_restriction_count, 1);
@@ -419,6 +442,11 @@ assert.strictEqual(output["1504"].suppress_display, true);
 assert.strictEqual(output["1504"].transition_evidence.kind, "ac_state_direction_release");
 assert.strictEqual(output["1511"].modern_display, "N");
 assert.strictEqual(output["1511"].routes[0].source, "ac_type13_neutral_continuation");
+assert.strictEqual(output["1600"].modern_display, "2 + 中 + 强");
+assert.strictEqual(output["1601"].modern_display, "8");
+assert.strictEqual(output["1601"].routes[0].source, "ac_type20_state_direction");
+assert.strictEqual(output["1602"].modern_display, "6");
+assert.strictEqual(output["1602"].relation, undefined);
 assert.strictEqual(output["600"].modern_display, "弱");
 assert.strictEqual(output["605"].modern_display, "AUTO + 强");
 assert.strictEqual(output["606"].modern_display, "> 强");
@@ -483,7 +511,10 @@ assert.strictEqual(chargeRoute.charge_context_reason,
 
 // Only the command-entry targets are rebound. Their internal Type17 stage
 // edges must not be mistaken for another propagation hop.
-for (const id of [917, 923, 979]) assert.strictEqual(output[String(id)], undefined);
+for (const id of [917, 923, 979]) {
+    assert.strictEqual(output[String(id)].modern_display, null);
+    assert.strictEqual(output[String(id)].control_support, "classic_only");
+}
 for (const id of [917, 923, 1015, 1020]) assert(output._meta.unmapped_action_ids.includes(id));
 for (const id of [918, 924]) assert.strictEqual(output._meta.unmapped_action_ids.includes(id), false);
 
@@ -540,6 +571,10 @@ for (const [id, entry] of Object.entries(output).filter(([key]) => /^\d+$/.test(
         modern.assertValidDisplay(route.display);
     }
 }
+assert.deepStrictEqual(output["850"].classic_command, { display: "6+DI", inputs: ["6+DI"] });
+assert.strictEqual(output["850"].control_support, "classic_modern");
+assert.strictEqual(output["600"].classic_command, null);
+assert.strictEqual(output["600"].control_support, "unknown");
 
 assert.strictEqual(output._meta.unresolved_candidates.some(item => item.action_id === 1015), false);
 const candidate1077 = output._meta.unresolved_candidates.find(item =>
@@ -662,52 +697,53 @@ assert.strictEqual(output["642"].routes.some(route => route.direct_evidence === 
 const clone = value => JSON.parse(JSON.stringify(value));
 const rebuild = (ac, bcm, compiled) => modern.buildModernDisplay(
     ac || actionSource, bcm || catalog, compiled || runtime, {}, { generatedAt: "negative" });
+const assertNoModernCommand = entry => assert(entry === undefined || entry.modern_display === null);
 
 // Every field in the raw BranchKey signature is mandatory.
 const missingParam = clone(actionSource);
 branchObject(missingParam, 918, 9).fields = branchObject(missingParam, 918, 9).fields
     .filter(field => field.name !== "Param05");
-assert.strictEqual(rebuild(missingParam)["918"], undefined);
+assertNoModernCommand(rebuild(missingParam)["918"]);
 const wrongTrigger = clone(actionSource);
 branchObject(wrongTrigger, 918, 9).fields.find(field => field.name === "TriggerID").value.value = 0;
-assert.strictEqual(rebuild(wrongTrigger)["918"], undefined);
+assertNoModernCommand(rebuild(wrongTrigger)["918"]);
 const wrongRelationFrame = clone(actionSource);
 branchObject(wrongRelationFrame, 918, 9).fields
     .find(field => field.name === "ActionFrame").value.value = 1;
-assert.strictEqual(rebuild(wrongRelationFrame)["918"], undefined);
+assertNoModernCommand(rebuild(wrongRelationFrame)["918"]);
 const wrongParam00 = clone(actionSource);
 branchObject(wrongParam00, 918, 9).fields.find(field => field.name === "Param00").value.value = 8;
-assert.strictEqual(rebuild(wrongParam00)["918"], undefined);
+assertNoModernCommand(rebuild(wrongParam00)["918"]);
 const wrongParam01 = clone(actionSource);
 branchObject(wrongParam01, 918, 9).fields.find(field => field.name === "Param01").value.value = 119;
-assert.strictEqual(rebuild(wrongParam01)["918"], undefined);
+assertNoModernCommand(rebuild(wrongParam01)["918"]);
 const sourceSelfLoop = clone(actionSource);
 branchObject(sourceSelfLoop, 918, 9).fields.find(field => field.name === "Action").value.value = 1015;
-assert.strictEqual(rebuild(sourceSelfLoop)["918"], undefined);
+assertNoModernCommand(rebuild(sourceSelfLoop)["918"]);
 
 // Frame order, structural category, target stage family, target BCM absence,
 // and ground-only source triggers are independent hard gates.
 const reversedFrame = clone(actionSource);
 actionRoot(reversedFrame, 918).fields.find(field => field.name === "Frame").value.value = 70;
-assert.strictEqual(rebuild(reversedFrame)["918"], undefined);
+assertNoModernCommand(rebuild(reversedFrame)["918"]);
 const changedCategory = clone(actionSource);
 const differentCategoryId = Math.max(...changedCategory.objects.map(object => object.object_id)) + 1;
 changedCategory.objects.push({ object_id: differentCategoryId, kind: "managed-object",
     object_type: "Test.Category.Different", fields: [] });
 actionRoot(changedCategory, 918).fields.find(field => field.name === "Category").value = ref(differentCategoryId);
-assert.strictEqual(rebuild(changedCategory)["918"], undefined);
+assertNoModernCommand(rebuild(changedCategory)["918"]);
 const missingSelfStage = clone(actionSource);
 branchObject(missingSelfStage, 918, 10).fields.find(field => field.name === "Param00").value.value = 11;
-assert.strictEqual(rebuild(missingSelfStage)["918"], undefined);
+assertNoModernCommand(rebuild(missingSelfStage)["918"]);
 const targetHasBcm = clone(catalog);
 targetHasBcm.actions["918"] = { action_id: 918, triggers: [] };
-assert.strictEqual(rebuild(actionSource, targetHasBcm)["918"], undefined);
+assertNoModernCommand(rebuild(actionSource, targetHasBcm)["918"]);
 const sourceWithoutBcm = clone(catalog);
 delete sourceWithoutBcm.actions["1015"];
-assert.strictEqual(rebuild(actionSource, sourceWithoutBcm)["918"], undefined);
+assertNoModernCommand(rebuild(actionSource, sourceWithoutBcm)["918"]);
 const airSource = clone(catalog);
 airSource.actions["1015"].triggers[0].conditions.cond_owner_state_flags = 4;
-assert.strictEqual(rebuild(actionSource, airSource)["918"], undefined);
+assertNoModernCommand(rebuild(actionSource, airSource)["918"]);
 
 // Normal and OD resource entries on different trigger structures cannot be
 // merged into one command-entry owner.
@@ -717,7 +753,7 @@ odTrigger.trigger_index = 88;
 odTrigger.conditions.focus_consume = 20000;
 normalOdConflict.actions["1015"].triggers.push(odTrigger);
 const normalOdOutput = rebuild(actionSource, normalOdConflict);
-assert.strictEqual(normalOdOutput["918"], undefined);
+assertNoModernCommand(normalOdOutput["918"]);
 assert.strictEqual(normalOdOutput["1015"].ownership, "direct");
 
 // Rebound targets contain their own Type17 stage family. They must never feed
@@ -728,8 +764,8 @@ assert.strictEqual(output["918"].routes.every(route => route.ac_path.length === 
     && route.ac_path[0] === 1015 && route.ac_path[1] === 918), true);
 assert.strictEqual(output["924"].routes.every(route => route.ac_path.length === 2
     && route.ac_path[0] === 1020 && route.ac_path[1] === 924), true);
-assert.strictEqual(output["917"], undefined);
-assert.strictEqual(output["923"], undefined);
+assertNoModernCommand(output["917"]);
+assertNoModernCommand(output["923"]);
 
 // A source with more than one Type17 target is ambiguous and must stay direct.
 const ambiguousSource = clone(actionSource);
@@ -740,7 +776,7 @@ ambiguousSource.objects.push(duplicateBranch);
 const sourceKeys = actionRoot(ambiguousSource, 1015).fields.find(field => field.name === "Keys").value.object_id;
 const sourceKeysObject = ambiguousSource.objects.find(object => object.object_id === sourceKeys);
 sourceKeysObject.items.push({ index: sourceKeysObject.items.length, value: ref(duplicateBranch.object_id) });
-assert.strictEqual(rebuild(ambiguousSource)["918"], undefined);
+assertNoModernCommand(rebuild(ambiguousSource)["918"]);
 
 // Official Action IDs are hints, never targets. A stale ID is rebound to the
 // unique nearest current BCM owner with the same Classic command identity.
@@ -958,7 +994,7 @@ assert.strictEqual(holdOutput["3001"].routes[0].source, "ac_type20_hold_continua
 assert.strictEqual(holdOutput._meta.audit.type20_hold_relation_count, 1);
 const rejectedHold = modern.buildModernDisplay(makeStrictHoldActionSource(-1, -1),
     holdCatalog, holdRuntime, {}, { generatedAt: "type20-hold-negative" });
-assert.strictEqual(rejectedHold["3001"], undefined);
+assertNoModernCommand(rejectedHold["3001"]);
 
 function makeType20ActionPhaseSource(complete) {
     let id = 1;
@@ -997,7 +1033,7 @@ assert.strictEqual(phaseOutput["3101"].ownership, "type20_action_phase");
 assert.strictEqual(phaseOutput._meta.audit.type20_action_phase_relation_count, 1);
 const rejectedPhase = modern.buildModernDisplay(makeType20ActionPhaseSource(false), phaseCatalog,
     phaseRuntime, {}, { generatedAt: "type20-action-phase-negative" });
-assert.strictEqual(rejectedPhase["3101"], undefined);
+assertNoModernCommand(rejectedPhase["3101"]);
 
 // Only compiler-verified Type29/35 equivalent-action aliases inherit a route.
 const aliasRuntime = clone(runtime);
@@ -1012,7 +1048,7 @@ assert.strictEqual(aliasOutput["979"].routes[0].inherited_from_action_id, 903);
 assert.strictEqual(aliasOutput._meta.audit.verified_alias_relation_count, 1);
 const rejectedAliasRuntime = clone(aliasRuntime);
 rejectedAliasRuntime.evidence.alias_relations[0].branch_type = 17;
-assert.strictEqual(rebuild(actionSource, catalog, rejectedAliasRuntime)["979"], undefined);
+assertNoModernCommand(rebuild(actionSource, catalog, rejectedAliasRuntime)["979"]);
 
 // A Type29 target reached from multiple distinct source actions, including a
 // verified Type20 hold continuation, is an automatic hold/state transition.

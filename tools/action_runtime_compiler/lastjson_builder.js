@@ -112,16 +112,48 @@ function loadCommunity(character) {
 
 function validateOutput(output, character, fighterId) {
     const meta = output && output._meta || {};
-    if (meta.schema !== modern.SCHEMA || meta.character !== character
+    const supportedSchemas = new Set([
+        modern.SCHEMA, "xt.modern_display.v9", "xt.modern_display.v10"
+    ]);
+    if (!supportedSchemas.has(meta.schema) || meta.character !== character
         || Number(meta.fighter_id) !== Number(fighterId)) {
-        throw new Error(`${character} Modern 输出 schema/角色/Fighter ID 不匹配。`);
+        throw new Error(`${character} 指令输出 schema/角色/Fighter ID 不匹配。`);
     }
     const audit = meta.audit || {};
     for (const field of ZERO_AUDIT_FIELDS) {
         if (Number(audit[field] || 0) !== 0) throw new Error(`${character} hard audit 失败: ${field}=${audit[field]}`);
     }
     const count = Object.keys(output).filter(key => /^\d+$/.test(key)).length;
-    if (!count) throw new Error(`${character} Modern 输出没有任何 Action ID。`);
+    if (!count) throw new Error(`${character} 指令输出没有任何 Action ID。`);
+    if (meta.schema === modern.SCHEMA) {
+        let classicCount = 0, modernCount = 0, sharedCount = 0;
+        for (const [id, entry] of Object.entries(numericEntries(output))) {
+            const classic = entry && entry.classic_command;
+            const hasClassic = classic && typeof classic.display === "string"
+                && classic.display.trim() !== "" && Array.isArray(classic.inputs)
+                && classic.inputs.length > 0 && classic.inputs.every(input =>
+                    typeof input === "string" && input.trim() !== "");
+            if (classic !== null && classic !== undefined && !hasClassic) {
+                throw new Error(`${character} Action ${id} classic_command 契约无效。`);
+            }
+            const hasModern = Boolean(entry && (entry.simple_command || entry.motion_command));
+            const expectedSupport = hasClassic && hasModern ? "classic_modern"
+                : (hasClassic ? "classic_only" : "unknown");
+            if (entry.control_support !== expectedSupport) {
+                throw new Error(`${character} Action ${id} control_support 与指令槽不一致。`);
+            }
+            if (hasClassic) classicCount += 1;
+            if (hasModern) modernCount += 1;
+            if (hasClassic && hasModern) sharedCount += 1;
+        }
+        if (Number(audit.command_display_action_count) !== count
+            || Number(audit.classic_command_action_count) !== classicCount
+            || Number(audit.split_command_action_count) !== modernCount
+            || Number(audit.shared_command_action_count) !== sharedCount
+            || Number(audit.classic_projection_pending_count) !== modernCount - sharedCount) {
+            throw new Error(`${character} 统一指令覆盖审计与实际条目不一致。`);
+        }
+    }
     return count;
 }
 
@@ -305,12 +337,12 @@ function buildVersion(options) {
         if (fs.existsSync(stage)) fs.rmSync(stage, { recursive: true, force: true });
     }
     const manifest = {
-        schema: "sf6cc.modern-lastjson-manifest.v1",
+        schema: "sf6cc.command-lastjson-manifest.v1",
         version: normalizedVersion,
         source_directory: versionDirectory,
         official_directory: offDirectory,
         character_count: results.length,
-        modern_schema: modern.SCHEMA,
+        command_schema: modern.SCHEMA,
         characters: results
     };
     writeJson(path.join(versionDirectory, "lastjson-manifest.json"), manifest);
