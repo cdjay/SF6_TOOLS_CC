@@ -50,6 +50,8 @@ values.
   "runtime": {
     "demo_kind": null,
     "player_control": "classic",
+    "position_mode": "original",
+    "position_side": "p1",
     "projection": "none",
     "sf6cc_version": "0.99",
     "source": "manual"
@@ -76,6 +78,7 @@ The server should aggregate exact revisions by:
 combo_id or revision_hash
 + revision_hash
 + player_control
++ position_side
 + runtime.source
 + compatible game/mod version
 ```
@@ -89,5 +92,13 @@ inside the telemetry event.
 An automatic demonstration emits one event per completed playback cycle. A
 cycle succeeds only when validation reaches the end of the sequence without a
 failure state. An incomplete cycle is recorded as `fail` with
-`DEMO INCOMPLETE`. Manual stops and unsupported demonstrations do not emit a
-success/failure event and must not affect the health rate.
+`DEMO INCOMPLETE`. Manual stops, trial changes, scene exits and unsupported
+demonstrations cancel the active attempt without emitting a success/failure
+event and must not affect the health rate.
+
+## Position split
+
+`position_mode` preserves the MOD selection: `any`, `original`, or `mirror`.
+`position_side` is the aggregation-friendly side: original position is `p1`,
+mirror position is `p2`, and any position uses the player's actual starting
+side. Public and per-user success rates should be split by `position_side`.

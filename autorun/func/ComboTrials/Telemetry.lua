@@ -315,6 +315,8 @@ function Telemetry.begin_attempt(context)
         source = context.source == "auto_demo" and "auto_demo" or "manual",
         player_control = context.player_control == "modern" and "modern" or "classic",
         projection = clean_text(context.projection) or "none",
+        position_mode = clean_text(context.position_mode) or "any",
+        position_side = clean_text(context.position_side) or "p1",
         demo_kind = clean_text(context.demo_kind),
         started_at = iso8601_utc(),
         started_frame = tonumber(context.engine_frame or 0) or 0,
@@ -355,6 +357,8 @@ function Telemetry.finish_attempt(outcome, context)
             sf6cc_version = Telemetry.MOD_VERSION,
             player_control = attempt.player_control,
             projection = attempt.projection,
+            position_mode = attempt.position_mode,
+            position_side = attempt.position_side,
             source = attempt.source,
             demo_kind = attempt.demo_kind
         },

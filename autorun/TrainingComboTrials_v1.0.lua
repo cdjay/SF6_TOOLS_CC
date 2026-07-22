@@ -1086,6 +1086,10 @@ ctx.stop_demo_playback = function(reason, old_file, new_file, stop_trial, keep_p
         or demo_state.playlist_pending_next == true
     if not had_demo_state then return end
 
+    -- A user may stop after watching only the useful part of a demo. Explicit
+    -- stops, trial changes and scene cleanup are cancellations, never failures.
+    ComboTrialsModules.Telemetry.cancel_attempt()
+
     demo_state.is_playing = false
     trial_state._demo_timing_ui_baseline = false
     demo_state.current_frame = 0
@@ -4207,6 +4211,11 @@ ctx.build_trial_telemetry_context = function(source)
     local player_control = control_type_from_input_type(read_player_input_type(player_idx))
     local projection = declared_control == "classic" and player_control == "modern"
         and "classic_to_modern" or "none"
+    local position_index = tonumber(d2d_cfg.forced_position_idx or 1) or 1
+    local position_mode = position_index == 2 and "original"
+        or (position_index == 3 and "mirror" or "any")
+    local position_side = position_index == 2 and "p1"
+        or (position_index == 3 and "p2" or (trial_state.flip_inputs and "p2" or "p1"))
     local character = type(meta) == "table" and meta.character or nil
     if type(character) ~= "string" or character == "" then
         character = players[player_idx] and players[player_idx].profile_name or "Unknown"
@@ -4219,6 +4228,8 @@ ctx.build_trial_telemetry_context = function(source)
         declared_control = declared_control,
         player_control = player_control,
         projection = projection,
+        position_mode = position_mode,
+        position_side = position_side,
         source = source,
         demo_kind = source == "auto_demo" and (demo_state.raw_buffer and "raw" or "timeline") or nil,
         engine_frame = engine_frame_count or 0
@@ -4299,7 +4310,6 @@ local function clear_trial_attempt_state(player_idx, phase)
     end
     reset_combo_visual_runtime()
     step_combo_reset_gc()
-    ctx.begin_trial_telemetry_attempt((demo_state and demo_state.is_playing) and "auto_demo" or "manual")
 end
 
 reset_combo_visual_runtime = function()
@@ -4419,6 +4429,7 @@ local function start_trial(player_idx)
     update_trial_flip_state()
     apply_forced_position()
     trial_state._pending_reinject_settings = true
+    ctx.begin_trial_telemetry_attempt("manual")
     CTJsonInterop.warn_control_mode_mismatch(
         trial_state.sequence,
         player_idx,
@@ -4559,6 +4570,7 @@ local function reset_trial_steps()
     -- Reset positions if forced pos / mirror is active
     apply_forced_position()
     trial_state._pending_reinject_settings = true
+    ctx.begin_trial_telemetry_attempt((demo_state and demo_state.is_playing) and "auto_demo" or "manual")
 end
 
 local function refresh_combo_list_preserve_selection(reload_current_file)
