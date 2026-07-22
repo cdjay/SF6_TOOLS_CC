@@ -239,7 +239,7 @@ local players = {
     [0] = {
         log = {}, prev_act_id = -1, prev_act_frame = -1, last_combo_count = 0,
         action_instance_counter = 0, current_action_instance = 0, buffer_action_instance = 0,
-        bcm_cache = {}, bcm_catalog = nil, trigger_mask_cache = {}, cache_built = false,
+        bcm_catalog = nil, trigger_mask_cache = {}, trigger_cache_built = false,
         last_bcm_ptr = "", last_direct_input = 0, input_history_queue = {},
         profile_name = "Unknown", last_profile_name = "", exceptions = {},
         editing_id = -1, edit_ignore = false, edit_force = false,
@@ -250,7 +250,7 @@ local players = {
     [1] = {
         log = {}, prev_act_id = -1, prev_act_frame = -1, last_combo_count = 0,
         action_instance_counter = 0, current_action_instance = 0, buffer_action_instance = 0,
-        bcm_cache = {}, bcm_catalog = nil, trigger_mask_cache = {}, cache_built = false,
+        bcm_catalog = nil, trigger_mask_cache = {}, trigger_cache_built = false,
         last_bcm_ptr = "", last_direct_input = 0, input_history_queue = {},
         profile_name = "Unknown", last_profile_name = "", exceptions = {},
         editing_id = -1, edit_ignore = false, edit_force = false,
@@ -1180,15 +1180,6 @@ local function get_exc_filename(name)
     return CharacterRules.get_exception_filename(name)
 end
 
-local function format_charge_motion(notation)
-    local opposite = { ["6"] = "4", ["8"] = "2", ["4"] = "6", ["2"] = "8", ["9"] = "1", ["3"] = "7" }
-    if #notation == 2 then
-        local release = notation:sub(1, 1); local press = notation:sub(2, 2); local hold = opposite[press]
-        if hold then return "[" .. hold .. "]" .. press end
-    end
-    return notation
-end
-
 local function decode_button_mask(mask)
     local parts = {}
     if (mask & 16) ~= 0 then table.insert(parts, "LP") end
@@ -1200,65 +1191,12 @@ local function decode_button_mask(mask)
     return table.concat(parts, "+")
 end
 
-local function decode_ok_key(ok_key, ok_key_cond)
-    local btn_count = ((ok_key_cond >> 6) & 3) + 1
-    if ok_key == 144 then return "Throw" end
-    if ok_key == 288 then return "Parry" end
-    if ok_key == 576 then return "DI" end
-
-    local base_btn = ""
-    if ok_key == 112 then
-        if btn_count == 3 then base_btn = "PPP" elseif btn_count == 2 then base_btn = "PP" else base_btn = "P" end
-    elseif ok_key == 896 then
-        if btn_count == 3 then base_btn = "KKK" elseif btn_count == 2 then base_btn = "KK" else base_btn = "K" end
-    else
-        base_btn = decode_button_mask(ok_key)
-    end
-    return base_btn
-end
-
-local function build_bcm_cache(player_idx)
+local function build_bcm_trigger_cache(player_idx)
     local gBattle = _td_gBattle
     if not gBattle then return false end
     local cmd_obj = gBattle:get_field("Command"):get_data(nil)
     if not cmd_obj then return false end
 
-    local cmd_data = {}
-    pcall(function()
-        local pCommand = cmd_obj:get_field("mpBCMResource")[player_idx]:get_field("pCommand")
-        for i, entry in pairs(pCommand._entries) do
-            if entry and entry.value then
-                local cmds = entry.value:get_elements()
-                for ci = 1, #cmds do
-                    local c = cmds[ci]
-                    if c then
-                        local inum = c:get_field("input_num")
-                        local charge_bit = c:get_field("charge_bit")
-                        if inum and inum > 0 then
-                            local dirs, has_charge, elems = {}, false, c:get_field("inputs"):get_elements()
-                            for j = 1, math.min(#elems, inum) do
-                                pcall(function()
-                                    table.insert(dirs,
-                                        DIR_MAP[elems[j]:get_field("normal"):get_field("ok_key_flags") & 0xF] or "5")
-                                    if elems[j]:get_field("charge"):get_field("id") > 0 then has_charge = true end
-                                end)
-                            end
-                            local raw_motion = table.concat(dirs, "")
-                            raw_motion = raw_motion:gsub("23626", "236236"):gsub("21424", "214214"):gsub("626", "623")
-                                :gsub("424", "421"):gsub("6314", "63214"):gsub("4136", "41236")
-                            if has_charge or (charge_bit and charge_bit ~= 0) then
-                                raw_motion = format_charge_motion(
-                                    raw_motion)
-                            end
-                            if not cmd_data[entry.key] then cmd_data[entry.key] = raw_motion end
-                        end
-                    end
-                end
-            end
-        end
-    end)
-
-    local cache = {}
     local mask_cache = {}
     local trigger_count = 0
     pcall(function()
@@ -1283,39 +1221,6 @@ local function build_bcm_cache(player_idx)
 
                     if cmd_src then
                         local ok_key = cmd_src:get_field("ok_key_flags") or 0
-                        local cmd_no = cmd_src:get_field("command_no") or -1
-                        local ok_key_cond = cmd_src:get_field("ok_key_cond_flags") or 0
-                        local dc_exc = cmd_src:get_field("dc_exc_flags") or 0
-
-                        local btn = decode_ok_key(ok_key, ok_key_cond)
-
-
-                        local owner_state = t:get_field("cond_owner_state_flags") or 0
-                        local cat_flags = t:get_field("category_flags") or 0
-                        local is_air = (owner_state == 4) or ((cat_flags & 0x40000000) ~= 0)
-                        local air_prefix = is_air and "j." or ""
-
-                        local new_str = ""
-                        if cmd_no >= 0 and cmd_data[cmd_no] then
-                            new_str = air_prefix .. cmd_data[cmd_no] .. (btn ~= "" and "+" .. btn or "")
-                        else
-                            local req_dir = ""
-                            local exc_dir_bit = dc_exc & 0xF
-                            if exc_dir_bit ~= 0 and exc_dir_bit ~= 5 then
-                                req_dir = DIR_MAP[exc_dir_bit] or ""
-                            else
-                                local ok_dir_bit = ok_key & 0xF
-                                if ok_dir_bit ~= 0 and ok_dir_bit ~= 15 and ok_dir_bit ~= 5 then
-                                    req_dir = DIR_MAP
-                                        [ok_dir_bit] or ""
-                                end
-                            end
-                            new_str = air_prefix .. req_dir .. (btn ~= "" and btn or "Normal")
-                        end
-
-                        if not cache[aid] then
-                            cache[aid] = new_str
-                        end
                         mask_cache[aid] = (mask_cache[aid] or 0) | ok_key
                         trigger_count = trigger_count + 1
                     end
@@ -1325,9 +1230,8 @@ local function build_bcm_cache(player_idx)
     end)
 
     if trigger_count < 10 then return false end
-    players[player_idx].bcm_cache = cache
     players[player_idx].trigger_mask_cache = mask_cache
-    players[player_idx].cache_built = true
+    players[player_idx].trigger_cache_built = true
     return true
 end
 
@@ -6174,10 +6078,9 @@ local function ct_player_init(p_idx, p_state)
         p_state.action_instance_counter = 0
         p_state.current_action_instance = 0
         p_state.buffer_action_instance = 0
-        p_state.bcm_cache = {}
         p_state.bcm_catalog = nil
         p_state.trigger_mask_cache = {}
-        p_state.cache_built = false
+        p_state.trigger_cache_built = false
         p_state.last_bcm_ptr = ""
 
         -- RESET TRIAL on character change
@@ -6968,10 +6871,16 @@ local function ct_player_input_buffer(p_state)
 
             if is_ghost then
                 local g_name = act_id_reverse_enum[p_state.buffer_act_id] or "Unknown"
+                local ghost_motion = nil
+                if ComboTrials_D2D and ComboTrials_D2D.get_command_display then
+                    local ok, value = pcall(ComboTrials_D2D.get_command_display,
+                        p_state.profile_name, p_state.buffer_act_id, "classic")
+                    if ok then ghost_motion = value end
+                end
                 table.insert(p_state.log, 1, {
                     id = p_state.buffer_act_id,
                     name = g_name,
-                    motion = p_state.bcm_cache[p_state.buffer_act_id] or g_name,
+                    motion = ghost_motion or g_name,
                     real_input = "Ghost",
                     frame_diff = "0f",
                     intentional = false,
@@ -7451,16 +7360,17 @@ local function ct_player_process_actions(p_idx, p_state, actions_to_process)
                 end
 
                 -- 2. Final motion_str determination
-                -- The unified three-slot command table is authoritative for
-                -- Classic display. Catalog/live BCM are resilience fallbacks
-                -- only when a character table or Action ID is unavailable.
+                -- The unified three-slot command table is the only source for
+                -- Classic command text. BCM catalog data remains detection
+                -- evidence above, but must not silently restore the legacy
+                -- display path when a generated table fails its audit.
                 local unified_classic_motion = nil
                 if ComboTrials_D2D and ComboTrials_D2D.get_command_display then
                     local ok, value = pcall(ComboTrials_D2D.get_command_display,
                         p_state.profile_name, act_id, "classic")
                     if ok then unified_classic_motion = value end
                 end
-                motion_str = unified_classic_motion or catalog_motion or p_state.bcm_cache[act_id]
+                motion_str = unified_classic_motion or act_name
                 local required_mask = p_state.trigger_mask_cache[act_id] or 0
                 local best_match = nil
 
@@ -8694,10 +8604,10 @@ re.on_frame(function()
             local current_bcm_ptr = tostring(p_bcm)
             if current_bcm_ptr ~= p_state.last_bcm_ptr then
                 p_state.last_bcm_ptr = current_bcm_ptr
-                p_state.cache_built = false
+                p_state.trigger_cache_built = false
             end
         end
-        if not p_state.cache_built then build_bcm_cache(p_idx) end
+        if not p_state.trigger_cache_built then build_bcm_trigger_cache(p_idx) end
 
         _pf.act_id, _pf.act_frame, _pf.flags, _pf.action_code, _pf.direct_input, _pf.b_type = get_action_data(_pf.p_char)
         _pf.current_combo = get_combo_count(_pf.p_char)

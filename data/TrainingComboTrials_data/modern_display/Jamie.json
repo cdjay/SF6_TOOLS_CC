@@ -12821,6 +12821,7 @@
     "structural_twin_route_count": 0,
     "assist_combo_route_count": 2,
     "assist_combo_normalized_to_existing_count": 23,
+    "classic_projection_relation_count": 0,
     "paired_sprt_sp_route_count": 1,
     "paired_sprt_sp_relations": [
       {
@@ -13171,6 +13172,7 @@
         ]
       }
     ],
+    "classic_projection_relations": [],
     "unresolved_candidate_count": 36,
     "unresolved_candidates": [
       {
@@ -15462,6 +15464,7 @@
       "assist_combo_route_count": 2,
       "assist_combo_duplicate_display_count": 3,
       "assist_combo_normalized_to_existing_count": 23,
+      "classic_projection_relation_count": 0,
       "paired_sprt_sp_relation_count": 1,
       "paired_sprt_sp_route_count": 1,
       "shadowed_supr_route_count": 4,

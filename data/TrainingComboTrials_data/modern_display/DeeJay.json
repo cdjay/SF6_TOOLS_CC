@@ -5900,8 +5900,13 @@
   },
   "989": {
     "modern_display": "> 强",
-    "classic_command": null,
-    "control_support": "unknown",
+    "classic_command": {
+      "display": "214+KK",
+      "inputs": [
+        "214+KK"
+      ]
+    },
+    "control_support": "classic_modern",
     "source": "ac_bcm+capcom_official_semantics",
     "ownership": "assist_combo",
     "simple_command": {
@@ -5911,6 +5916,16 @@
       ]
     },
     "motion_command": null,
+    "classic_projection": {
+      "target_action_id": 989,
+      "source_action_id": 988,
+      "candidate_source_action_ids": [
+        988
+      ],
+      "classic_display": "214+KK",
+      "evidence_type": "full_structure_unique_display",
+      "reason": "ac_full_structure_unique_classic_projection"
+    },
     "routes": [
       {
         "display": "> 强",
@@ -8768,8 +8783,13 @@
   },
   "1240": {
     "modern_display": "> 中",
-    "classic_command": null,
-    "control_support": "unknown",
+    "classic_command": {
+      "display": "236236+LP",
+      "inputs": [
+        "236236+LP"
+      ]
+    },
+    "control_support": "classic_modern",
     "source": "ac_bcm+capcom_official_semantics",
     "ownership": "assist_combo",
     "simple_command": {
@@ -8779,6 +8799,17 @@
       ]
     },
     "motion_command": null,
+    "classic_projection": {
+      "target_action_id": 1240,
+      "source_action_id": 1205,
+      "candidate_source_action_ids": [
+        1205
+      ],
+      "classic_display": "236236+LP",
+      "evidence_type": "global_condition_unique_display",
+      "reason": "bcm_unique_condition_classic_projection",
+      "condition_distance": 0
+    },
     "routes": [
       {
         "display": "> 中",
@@ -9931,6 +9962,7 @@
     "structural_twin_route_count": 0,
     "assist_combo_route_count": 4,
     "assist_combo_normalized_to_existing_count": 9,
+    "classic_projection_relation_count": 2,
     "paired_sprt_sp_route_count": 0,
     "paired_sprt_sp_relations": [],
     "shadowed_supr_route_count": 3,
@@ -10154,6 +10186,29 @@
             "wt_action_is_air": false
           }
         ]
+      }
+    ],
+    "classic_projection_relations": [
+      {
+        "target_action_id": 989,
+        "source_action_id": 988,
+        "candidate_source_action_ids": [
+          988
+        ],
+        "classic_display": "214+KK",
+        "evidence_type": "full_structure_unique_display",
+        "reason": "ac_full_structure_unique_classic_projection"
+      },
+      {
+        "target_action_id": 1240,
+        "source_action_id": 1205,
+        "candidate_source_action_ids": [
+          1205
+        ],
+        "classic_display": "236236+LP",
+        "evidence_type": "global_condition_unique_display",
+        "reason": "bcm_unique_condition_classic_projection",
+        "condition_distance": 0
       }
     ],
     "unresolved_candidate_count": 60,
@@ -13721,6 +13776,7 @@
       "assist_combo_route_count": 4,
       "assist_combo_duplicate_display_count": 2,
       "assist_combo_normalized_to_existing_count": 9,
+      "classic_projection_relation_count": 2,
       "paired_sprt_sp_relation_count": 0,
       "paired_sprt_sp_route_count": 0,
       "shadowed_supr_route_count": 3,
@@ -13733,9 +13789,9 @@
       "ac_type13_neutral_route_count": 0,
       "internal_transition_suppression_count": 0,
       "split_command_action_count": 114,
-      "classic_command_action_count": 119,
-      "shared_command_action_count": 112,
-      "classic_projection_pending_count": 2,
+      "classic_command_action_count": 121,
+      "shared_command_action_count": 114,
+      "classic_projection_pending_count": 0,
       "command_display_action_count": 121,
       "followup_relation_count": 0,
       "command_slot_overflow_count": 0,

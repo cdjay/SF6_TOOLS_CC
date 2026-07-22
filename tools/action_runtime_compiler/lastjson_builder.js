@@ -164,6 +164,31 @@ function validateOutput(output, character, fighterId) {
             || Number(audit.classic_projection_pending_count) !== modernCount - sharedCount) {
             throw new Error(`${character} 统一指令覆盖审计与实际条目不一致。`);
         }
+        if (modernCount !== sharedCount || Number(audit.classic_projection_pending_count) !== 0) {
+            throw new Error(`${character} 仍有现代指令缺少经典投影: ${modernCount - sharedCount}`);
+        }
+        const projectionRelations = Array.isArray(meta.classic_projection_relations)
+            ? meta.classic_projection_relations : [];
+        const projectionCount = Number(meta.classic_projection_relation_count);
+        if (!Number.isInteger(projectionCount) || projectionCount !== projectionRelations.length
+            || Number(audit.classic_projection_relation_count) !== projectionCount) {
+            throw new Error(`${character} 经典投影关系审计不一致。`);
+        }
+        const projectionReasons = new Set([
+            "ac_full_structure_unique_classic_projection",
+            "ac_full_structure_bcm_condition_classic_projection",
+            "ac_full_structure_assist_strength_classic_projection",
+            "bcm_unique_condition_classic_projection"
+        ]);
+        for (const relation of projectionRelations) {
+            if (!relation || !Number.isFinite(Number(relation.source_action_id))
+                || !Number.isFinite(Number(relation.target_action_id))
+                || Number(relation.source_action_id) === Number(relation.target_action_id)
+                || typeof relation.classic_display !== "string" || relation.classic_display.trim() === ""
+                || !projectionReasons.has(relation.reason)) {
+                throw new Error(`${character} 经典投影关系契约无效。`);
+            }
+        }
     }
     return count;
 }

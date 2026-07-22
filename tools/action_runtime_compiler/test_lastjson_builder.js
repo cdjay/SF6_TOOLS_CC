@@ -22,10 +22,26 @@ assert.strictEqual(Object.keys(registry).length, 30);
 assert.strictEqual(new Set(Object.values(registry).map(entry => Number(entry.fighter_id))).size, 30);
 
 const formalRoot = path.resolve(__dirname, "../../data/TrainingComboTrials_data/modern_display");
+let formalAlex = null;
 for (const [character, registryEntry] of Object.entries(registry)) {
     const formal = JSON.parse(fs.readFileSync(path.join(formalRoot, `${character}.json`), "utf8"));
     assert.ok(builder.validateOutput(formal, character, registryEntry.fighter_id) > 0);
+    assert.ok(Number(formal._meta.audit.classic_command_action_count)
+        >= Number(formal._meta.audit.split_command_action_count));
+    assert.strictEqual(Number(formal._meta.audit.classic_projection_pending_count), 0);
+    if (character === "Alex") formalAlex = formal;
 }
+
+const incompleteAlex = structuredClone(formalAlex);
+const incompleteId = Object.keys(incompleteAlex).find(id => /^\d+$/.test(id)
+    && incompleteAlex[id].classic_command && (incompleteAlex[id].simple_command
+        || incompleteAlex[id].motion_command));
+incompleteAlex[incompleteId].classic_command = null;
+incompleteAlex[incompleteId].control_support = "unknown";
+incompleteAlex._meta.audit.classic_command_action_count -= 1;
+incompleteAlex._meta.audit.shared_command_action_count -= 1;
+incompleteAlex._meta.audit.classic_projection_pending_count += 1;
+assert.throws(() => builder.validateOutput(incompleteAlex, "Alex", 31), /仍有现代指令缺少经典投影/);
 
 const temporary = fs.mkdtempSync(path.join(os.tmpdir(), "sf6cc-lastjson-test-"));
 try {

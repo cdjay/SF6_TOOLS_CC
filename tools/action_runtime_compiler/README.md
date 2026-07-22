@@ -150,7 +150,8 @@ tools\action_runtime_compiler\2_build_lastjson.bat 2026-05-28
 4. AC、BCM和文件名 Fighter ID 必须一致；
 5. 每个角色 AC+BCM 编译必须有效；
 6. 统一指令输出 hard audit 必须通过；
-7. 暂存目录必须正好得到30个角色 JSON。
+7. 所有现代指令必须拥有经典投影，`classic_projection_pending_count` 必须为零；
+8. 暂存目录必须正好得到30个角色 JSON。
 
 全部通过后才原子替换旧 `lastjson`。若中途失败，原 `lastjson` 保持不变。
 

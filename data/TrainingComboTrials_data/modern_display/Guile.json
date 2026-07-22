@@ -3547,8 +3547,13 @@
   },
   "898": {
     "modern_display": "4 + AUTO + SP",
-    "classic_command": null,
-    "control_support": "unknown",
+    "classic_command": {
+      "display": "[4]6+PP",
+      "inputs": [
+        "[4]6+PP"
+      ]
+    },
+    "control_support": "classic_modern",
     "source": "ac_bcm+capcom_official_semantics",
     "ownership": "direct",
     "simple_command": {
@@ -3558,6 +3563,17 @@
       ]
     },
     "motion_command": null,
+    "classic_projection": {
+      "target_action_id": 898,
+      "source_action_id": 906,
+      "candidate_source_action_ids": [
+        906
+      ],
+      "classic_display": "[4]6+PP",
+      "evidence_type": "full_structure_condition_match",
+      "reason": "ac_full_structure_bcm_condition_classic_projection",
+      "condition_distance": 0
+    },
     "routes": [
       {
         "display": "4 + AUTO + SP",
@@ -3616,8 +3632,13 @@
   },
   "899": {
     "modern_display": "[4] + SP",
-    "classic_command": null,
-    "control_support": "unknown",
+    "classic_command": {
+      "display": "[4]6+LP",
+      "inputs": [
+        "[4]6+LP"
+      ]
+    },
+    "control_support": "classic_modern",
     "source": "ac_bcm+capcom_official_semantics",
     "ownership": "direct",
     "simple_command": {
@@ -3627,6 +3648,18 @@
       ]
     },
     "motion_command": null,
+    "classic_projection": {
+      "target_action_id": 899,
+      "source_action_id": 900,
+      "candidate_source_action_ids": [
+        900,
+        901
+      ],
+      "classic_display": "[4]6+LP",
+      "evidence_type": "full_structure_condition_match",
+      "reason": "ac_full_structure_bcm_condition_classic_projection",
+      "condition_distance": 0
+    },
     "routes": [
       {
         "display": "[4] + SP",
@@ -11633,6 +11666,7 @@
     "structural_twin_route_count": 0,
     "assist_combo_route_count": 4,
     "assist_combo_normalized_to_existing_count": 10,
+    "classic_projection_relation_count": 2,
     "paired_sprt_sp_route_count": 0,
     "paired_sprt_sp_relations": [],
     "shadowed_supr_route_count": 4,
@@ -11973,6 +12007,31 @@
             "wt_action_is_air": false
           }
         ]
+      }
+    ],
+    "classic_projection_relations": [
+      {
+        "target_action_id": 898,
+        "source_action_id": 906,
+        "candidate_source_action_ids": [
+          906
+        ],
+        "classic_display": "[4]6+PP",
+        "evidence_type": "full_structure_condition_match",
+        "reason": "ac_full_structure_bcm_condition_classic_projection",
+        "condition_distance": 0
+      },
+      {
+        "target_action_id": 899,
+        "source_action_id": 900,
+        "candidate_source_action_ids": [
+          900,
+          901
+        ],
+        "classic_display": "[4]6+LP",
+        "evidence_type": "full_structure_condition_match",
+        "reason": "ac_full_structure_bcm_condition_classic_projection",
+        "condition_distance": 0
       }
     ],
     "unresolved_candidate_count": 26,
@@ -13717,6 +13776,7 @@
       "assist_combo_route_count": 4,
       "assist_combo_duplicate_display_count": 2,
       "assist_combo_normalized_to_existing_count": 10,
+      "classic_projection_relation_count": 2,
       "paired_sprt_sp_relation_count": 0,
       "paired_sprt_sp_route_count": 0,
       "shadowed_supr_route_count": 4,
@@ -13729,9 +13789,9 @@
       "ac_type13_neutral_route_count": 0,
       "internal_transition_suppression_count": 0,
       "split_command_action_count": 111,
-      "classic_command_action_count": 115,
-      "shared_command_action_count": 109,
-      "classic_projection_pending_count": 2,
+      "classic_command_action_count": 117,
+      "shared_command_action_count": 111,
+      "classic_projection_pending_count": 0,
       "command_display_action_count": 117,
       "followup_relation_count": 0,
       "command_slot_overflow_count": 0,

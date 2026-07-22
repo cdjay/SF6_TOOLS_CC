@@ -44,10 +44,14 @@ data/TrainingComboTrials_data/modern_display/<Character>.json
 - `control_support`：`classic_modern`、`classic_only` 或 `unknown`。现代投影缺少经典文本时
   必须标记为 `unknown`，因为这表示编译器尚未补齐经典投影，不代表 Action 仅现代可用。
 
+经典指令是独立全集，现代指令是其子集。生成器禁止读取 `simple_command` 或 `motion_command`
+的文本来反推经典指令；现代槽只用于执行“所有现代 Action 必须已包含在经典全集中”的完整性检查。
+
 经典投影依次使用已编译运行时语义、稳定公共 Action、BCM `classic_display`，并允许经过严格
-验证的等价 Action、结构同源 Action 和 command-entry rebind 继承同一经典指令。无法证明的
-经验证的 Type20 保持续段和动作阶段可继承父节点经典投影；无法证明的 Assist Combo 内部阶段
-不会猜测，计入 `classic_projection_pending_count`。
+验证的等价 Action、结构同源 Action 和 command-entry rebind 继承同一经典指令。经验证的
+Type20 保持续段和动作阶段可继承父节点经典投影；其余现代内部阶段只允许通过 AC 完整结构、
+BCM 条件距离和 Assist Combo 强度取得可审计的经典投影。每条推导都会写入
+`classic_projection_relations`；正式生成要求 `classic_projection_pending_count` 为零，否则整批拒绝发布。
 
 三个指令槽是每条 Action 记录的强制字段。某种控制方式确实没有可执行输入时，该槽写为
 `null`；不得为了消除空值而伪造指令。显示层选择简化或搓招时，允许回退到另一个已验证的现代槽。

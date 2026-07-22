@@ -4262,8 +4262,13 @@
   },
   "951": {
     "modern_display": "> 中",
-    "classic_command": null,
-    "control_support": "unknown",
+    "classic_command": {
+      "display": "236+MK",
+      "inputs": [
+        "236+MK"
+      ]
+    },
+    "control_support": "classic_modern",
     "source": "ac_bcm+capcom_official_semantics",
     "ownership": "assist_combo",
     "simple_command": {
@@ -4273,6 +4278,17 @@
       ]
     },
     "motion_command": null,
+    "classic_projection": {
+      "target_action_id": 951,
+      "source_action_id": 942,
+      "candidate_source_action_ids": [
+        942
+      ],
+      "classic_display": "236+MK",
+      "evidence_type": "full_structure_assist_strength_match",
+      "reason": "ac_full_structure_assist_strength_classic_projection",
+      "assist_strength": "中"
+    },
     "routes": [
       {
         "display": "> 中",
@@ -4977,8 +4993,13 @@
   },
   "985": {
     "modern_display": "> 强",
-    "classic_command": null,
-    "control_support": "unknown",
+    "classic_command": {
+      "display": "KK",
+      "inputs": [
+        "KK"
+      ]
+    },
+    "control_support": "classic_modern",
     "source": "ac_bcm+capcom_official_semantics",
     "ownership": "assist_combo",
     "simple_command": {
@@ -4988,6 +5009,18 @@
       ]
     },
     "motion_command": null,
+    "classic_projection": {
+      "target_action_id": 985,
+      "source_action_id": 986,
+      "candidate_source_action_ids": [
+        986,
+        987,
+        988
+      ],
+      "classic_display": "KK",
+      "evidence_type": "full_structure_unique_display",
+      "reason": "ac_full_structure_unique_classic_projection"
+    },
     "routes": [
       {
         "display": "> 强",
@@ -7872,6 +7905,7 @@
     "structural_twin_route_count": 0,
     "assist_combo_route_count": 3,
     "assist_combo_normalized_to_existing_count": 11,
+    "classic_projection_relation_count": 2,
     "paired_sprt_sp_route_count": 0,
     "paired_sprt_sp_relations": [],
     "shadowed_supr_route_count": 4,
@@ -8113,6 +8147,31 @@
             "wt_action_is_air": false
           }
         ]
+      }
+    ],
+    "classic_projection_relations": [
+      {
+        "target_action_id": 951,
+        "source_action_id": 942,
+        "candidate_source_action_ids": [
+          942
+        ],
+        "classic_display": "236+MK",
+        "evidence_type": "full_structure_assist_strength_match",
+        "reason": "ac_full_structure_assist_strength_classic_projection",
+        "assist_strength": "中"
+      },
+      {
+        "target_action_id": 985,
+        "source_action_id": 986,
+        "candidate_source_action_ids": [
+          986,
+          987,
+          988
+        ],
+        "classic_display": "KK",
+        "evidence_type": "full_structure_unique_display",
+        "reason": "ac_full_structure_unique_classic_projection"
       }
     ],
     "unresolved_candidate_count": 37,
@@ -10473,6 +10532,7 @@
       "assist_combo_route_count": 3,
       "assist_combo_duplicate_display_count": 3,
       "assist_combo_normalized_to_existing_count": 11,
+      "classic_projection_relation_count": 2,
       "paired_sprt_sp_relation_count": 0,
       "paired_sprt_sp_route_count": 0,
       "shadowed_supr_route_count": 4,
@@ -10485,9 +10545,9 @@
       "ac_type13_neutral_route_count": 0,
       "internal_transition_suppression_count": 0,
       "split_command_action_count": 74,
-      "classic_command_action_count": 78,
-      "shared_command_action_count": 72,
-      "classic_projection_pending_count": 2,
+      "classic_command_action_count": 80,
+      "shared_command_action_count": 74,
+      "classic_projection_pending_count": 0,
       "command_display_action_count": 80,
       "followup_relation_count": 0,
       "command_slot_overflow_count": 0,

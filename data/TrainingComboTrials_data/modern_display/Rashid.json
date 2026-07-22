@@ -9195,8 +9195,13 @@
   },
   "1086": {
     "modern_display": "> 中",
-    "classic_command": null,
-    "control_support": "unknown",
+    "classic_command": {
+      "display": "214+HP",
+      "inputs": [
+        "214+HP"
+      ]
+    },
+    "control_support": "classic_modern",
     "source": "ac_bcm+capcom_official_semantics",
     "ownership": "assist_combo",
     "simple_command": {
@@ -9206,6 +9211,17 @@
       ]
     },
     "motion_command": null,
+    "classic_projection": {
+      "target_action_id": 1086,
+      "source_action_id": 972,
+      "candidate_source_action_ids": [
+        972,
+        991
+      ],
+      "classic_display": "214+HP",
+      "evidence_type": "full_structure_unique_display",
+      "reason": "ac_full_structure_unique_classic_projection"
+    },
     "routes": [
       {
         "display": "> 中",
@@ -10462,6 +10478,7 @@
     "structural_twin_route_count": 0,
     "assist_combo_route_count": 7,
     "assist_combo_normalized_to_existing_count": 10,
+    "classic_projection_relation_count": 1,
     "paired_sprt_sp_route_count": 0,
     "paired_sprt_sp_relations": [],
     "shadowed_supr_route_count": 2,
@@ -10872,6 +10889,19 @@
             "wt_action_is_air": false
           }
         ]
+      }
+    ],
+    "classic_projection_relations": [
+      {
+        "target_action_id": 1086,
+        "source_action_id": 972,
+        "candidate_source_action_ids": [
+          972,
+          991
+        ],
+        "classic_display": "214+HP",
+        "evidence_type": "full_structure_unique_display",
+        "reason": "ac_full_structure_unique_classic_projection"
       }
     ],
     "unresolved_candidate_count": 30,
@@ -12873,6 +12903,7 @@
       "assist_combo_route_count": 7,
       "assist_combo_duplicate_display_count": 3,
       "assist_combo_normalized_to_existing_count": 10,
+      "classic_projection_relation_count": 1,
       "paired_sprt_sp_relation_count": 0,
       "paired_sprt_sp_route_count": 0,
       "shadowed_supr_route_count": 2,
@@ -12885,9 +12916,9 @@
       "ac_type13_neutral_route_count": 0,
       "internal_transition_suppression_count": 0,
       "split_command_action_count": 111,
-      "classic_command_action_count": 114,
-      "shared_command_action_count": 110,
-      "classic_projection_pending_count": 1,
+      "classic_command_action_count": 115,
+      "shared_command_action_count": 111,
+      "classic_projection_pending_count": 0,
       "command_display_action_count": 115,
       "followup_relation_count": 0,
       "command_slot_overflow_count": 0,

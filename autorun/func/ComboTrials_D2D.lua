@@ -665,10 +665,38 @@ local function load_modern_display_map(character)
             and tonumber(audit and audit.shared_command_action_count) == shared_count
             and tonumber(audit and audit.classic_projection_pending_count)
                 == tonumber(audit and audit.split_command_action_count) - shared_count
+            and tonumber(audit and audit.classic_projection_pending_count) == 0
             and tonumber(audit and audit.command_display_action_count) == action_count
             and type(meta.classic_profile_order) == "table"
             and meta.classic_profile_order[1] == "norm"
             and meta.classic_profile_order[2] == "sprt"
+        local projection_count = tonumber(meta.classic_projection_relation_count)
+        local projection_relations = meta.classic_projection_relations
+        unified_command_audit_ok = unified_command_audit_ok
+            and projection_count ~= nil
+            and tonumber(audit and audit.classic_projection_relation_count) == projection_count
+            and type(projection_relations) == "table"
+            and #projection_relations == projection_count
+        local projection_reasons = {
+            ac_full_structure_unique_classic_projection = true,
+            ac_full_structure_bcm_condition_classic_projection = true,
+            ac_full_structure_assist_strength_classic_projection = true,
+            bcm_unique_condition_classic_projection = true,
+        }
+        if unified_command_audit_ok then
+            for _, relation in ipairs(projection_relations) do
+                if type(relation) ~= "table"
+                    or tonumber(relation.source_action_id) == nil
+                    or tonumber(relation.target_action_id) == nil
+                    or tonumber(relation.source_action_id) == tonumber(relation.target_action_id)
+                    or type(relation.classic_display) ~= "string"
+                    or trim_string(relation.classic_display) == ""
+                    or projection_reasons[relation.reason] ~= true then
+                    unified_command_audit_ok = false
+                    break
+                end
+            end
+        end
     end
     local strict_audit = type(audit) == "table" and audit.strict_route_ownership == true
         and tonumber(audit.owner_missing_count or -1) == 0

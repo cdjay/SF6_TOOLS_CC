@@ -31,6 +31,10 @@ const BCM_ZERO_INPUT_TRANSITION_REASON = "bcm_function2_normal_has_no_player_vis
 const TARGET_COMBO_REPEAT_REASON = "bcm_turn_around_target_combo_repeats_parent_button";
 const STRUCTURAL_TWIN_REASON = "ac_bcm_unique_structural_twin_with_internal_use_super_delta";
 const ASSIST_COMBO_REASON = "bcm_assist_combo_recipe_direct_input_sequence";
+const CLASSIC_PROJECTION_STRUCTURE_REASON = "ac_full_structure_unique_classic_projection";
+const CLASSIC_PROJECTION_CONDITION_REASON = "ac_full_structure_bcm_condition_classic_projection";
+const CLASSIC_PROJECTION_STRENGTH_REASON = "ac_full_structure_assist_strength_classic_projection";
+const CLASSIC_PROJECTION_GLOBAL_REASON = "bcm_unique_condition_classic_projection";
 const OFFICIAL_FOLLOWUP_REASON = "capcom_official_followup_context_matches_source_move";
 const ANY_BUTTON = "任意键";
 const RUNTIME_COMMON_ACTIONS = Object.freeze({
@@ -1991,6 +1995,140 @@ function structuralTwinEvidence(actionSource, bcmCatalog, actionSet, entries) {
     return relations;
 }
 
+const CLASSIC_PROJECTION_IGNORED_CONDITIONS = new Set([
+    "use_super", "use_sprt", "fightstyle_flags"
+]);
+
+function classicProjectionConditionDistance(left, right) {
+    const keys = new Set([...Object.keys(left || {}), ...Object.keys(right || {})]);
+    let distance = 0;
+    for (const key of keys) {
+        if (CLASSIC_PROJECTION_IGNORED_CONDITIONS.has(key)) continue;
+        if (JSON.stringify(left && left[key]) !== JSON.stringify(right && right[key])) distance += 1;
+    }
+    return distance;
+}
+
+function classicProjectionStrengths(command) {
+    const text = String(command && command.display || "").toUpperCase();
+    const strengths = new Set();
+    if (/(?:^|[+>\/])(?:LP|LK)(?:$|[+>\/])/.test(text)) strengths.add("弱");
+    if (/(?:^|[+>\/])(?:MP|MK)(?:$|[+>\/])/.test(text)) strengths.add("中");
+    if (/(?:^|[+>\/])(?:HP|HK)(?:$|[+>\/])/.test(text)) strengths.add("强");
+    return strengths;
+}
+
+function classicProjectionEvidence(actionSource, bcmCatalog, actionSet, entries,
+    separatedCommands, classicCommands) {
+    const { objects, actions } = characterActionGraph(actionSource, actionSet);
+    const fingerprintGroups = new Map();
+    for (const [actionId, root] of actions) {
+        const fingerprint = actionFullStructure(root, objects);
+        if (!fingerprint) continue;
+        if (!fingerprintGroups.has(fingerprint)) fingerprintGroups.set(fingerprint, []);
+        fingerprintGroups.get(fingerprint).push(actionId);
+    }
+
+    const commandCandidate = sourceId => {
+        const command = classicCommands.get(String(sourceId));
+        return command ? { sourceId: Number(sourceId), command } : null;
+    };
+    const uniqueDisplay = candidates => {
+        const displays = [...new Set(candidates.map(candidate => candidate.command.display))];
+        if (displays.length !== 1) return null;
+        return candidates.find(candidate => candidate.command.display === displays[0]);
+    };
+    const rankedByCondition = (targetId, candidates) => {
+        const targetTriggers = bcmCatalog.actions && bcmCatalog.actions[String(targetId)]
+            && bcmCatalog.actions[String(targetId)].triggers || [];
+        const ranked = [];
+        for (const candidate of candidates) {
+            const sourceTriggers = bcmCatalog.actions && bcmCatalog.actions[String(candidate.sourceId)]
+                && bcmCatalog.actions[String(candidate.sourceId)].triggers || [];
+            let distance = Infinity;
+            for (const targetTrigger of targetTriggers) {
+                for (const sourceTrigger of sourceTriggers) {
+                    distance = Math.min(distance, classicProjectionConditionDistance(
+                        targetTrigger.conditions, sourceTrigger.conditions));
+                }
+            }
+            if (Number.isFinite(distance)) ranked.push({ ...candidate, condition_distance: distance });
+        }
+        ranked.sort((left, right) => left.condition_distance - right.condition_distance
+            || left.sourceId - right.sourceId);
+        return ranked;
+    };
+    const relationFor = (targetId, selected, candidates, evidenceType, reason, extra) => ({
+        target_action_id: Number(targetId),
+        source_action_id: selected.sourceId,
+        candidate_source_action_ids: [...new Set(candidates.map(candidate => candidate.sourceId))]
+            .sort((left, right) => left - right),
+        classic_display: selected.command.display,
+        evidence_type: evidenceType,
+        reason,
+        ...(extra || {})
+    });
+
+    const relations = [];
+    // Modern slots define only the completeness boundary: every Modern-capable
+    // Action must have a Classic projection. Their text is never consulted;
+    // the projected command always comes from the independently compiled
+    // Classic command graph (BCM norm/sprt and its verified AC relations).
+    const targetIds = [...separatedCommands.entries()]
+        .filter(([id, commands]) => (commands.simple || commands.motion) && !classicCommands.has(id))
+        .map(([id]) => id).sort((left, right) => Number(left) - Number(right));
+    const allClassicCandidates = [...classicCommands.keys()].map(commandCandidate).filter(Boolean);
+    for (const targetId of targetIds) {
+        const root = actions.get(Number(targetId));
+        const fingerprint = actionFullStructure(root, objects);
+        const peerIds = (fingerprint && fingerprintGroups.get(fingerprint) || [])
+            .filter(sourceId => Number(sourceId) !== Number(targetId));
+        const peers = peerIds.map(commandCandidate).filter(Boolean);
+        let selected = uniqueDisplay(peers);
+        let relation = selected && relationFor(targetId, selected, peers,
+            "full_structure_unique_display", CLASSIC_PROJECTION_STRUCTURE_REASON);
+
+        if (!relation && peers.length) {
+            const ranked = rankedByCondition(targetId, peers);
+            const minimum = ranked.length && ranked[0].condition_distance;
+            const best = ranked.filter(candidate => candidate.condition_distance === minimum);
+            selected = minimum <= 1 ? uniqueDisplay(best) : null;
+            if (selected) relation = relationFor(targetId, selected, best,
+                "full_structure_condition_match", CLASSIC_PROJECTION_CONDITION_REASON,
+                { condition_distance: minimum });
+        }
+
+        if (!relation && peers.length && entries[targetId]
+            && entries[targetId].ownership === "assist_combo") {
+            const strength = entries[targetId].routes.map(route => route.assist_strength)
+                .find(value => ["弱", "中", "强"].includes(value));
+            const matched = strength && peers.filter(candidate =>
+                classicProjectionStrengths(candidate.command).has(strength)) || [];
+            selected = uniqueDisplay(matched);
+            if (selected) relation = relationFor(targetId, selected, matched,
+                "full_structure_assist_strength_match", CLASSIC_PROJECTION_STRENGTH_REASON,
+                { assist_strength: strength });
+        }
+
+        if (!relation && peers.length === 0) {
+            const ranked = rankedByCondition(targetId, allClassicCandidates);
+            const exact = ranked.filter(candidate => candidate.condition_distance === 0);
+            selected = uniqueDisplay(exact);
+            if (selected) relation = relationFor(targetId, selected, exact,
+                "global_condition_unique_display", CLASSIC_PROJECTION_GLOBAL_REASON,
+                { condition_distance: 0 });
+        }
+
+        if (!relation) continue;
+        classicCommands.set(targetId, {
+            display: selected.command.display,
+            inputs: [...selected.command.inputs]
+        });
+        relations.push(relation);
+    }
+    return relations;
+}
+
 function branchKeys(root, objects) {
     const keys = fieldsOf(root).get("Keys");
     const pending = keys && keys.value && keys.value.kind === "ref" ? [keys.value.object_id] : [];
@@ -3033,6 +3171,10 @@ function buildModernDisplay(actionSource, bcmCatalog, runtime, supplement, optio
             }
         }
     }
+    const classicProjectionRelations = classicProjectionEvidence(
+        actionSource, bcmCatalog, actionSet, entries, separatedCommands, classicCommands);
+    const classicProjectionByTarget = new Map(classicProjectionRelations.map(relation =>
+        [String(relation.target_action_id), relation]));
     const outputActionIds = [...new Set([...Object.keys(entries), ...classicCommands.keys()])]
         .sort((left, right) => Number(left) - Number(right));
     const sharedCommandActionCount = outputActionIds.filter(id => {
@@ -3090,6 +3232,7 @@ function buildModernDisplay(actionSource, bcmCatalog, runtime, supplement, optio
             structural_twin_route_count: structuralTwinRouteCount,
             assist_combo_route_count: assistComboRouteCount,
             assist_combo_normalized_to_existing_count: assistComboNormalizedToExistingCount,
+            classic_projection_relation_count: classicProjectionRelations.length,
             paired_sprt_sp_route_count: pairedSprtSpRelations.length,
             paired_sprt_sp_relations: pairedSprtSpRelations,
             shadowed_supr_route_count: shadowedSuprRoutes.length,
@@ -3127,6 +3270,7 @@ function buildModernDisplay(actionSource, bcmCatalog, runtime, supplement, optio
             target_combo_repeat_relations: appliedTargetComboRelations,
             structural_twin_relations: appliedStructuralTwins,
             assist_combo_relations: appliedAssistComboRelations,
+            classic_projection_relations: classicProjectionRelations,
             unresolved_candidate_count: unresolvedCandidates.length,
             unresolved_candidates: unresolvedCandidates,
             unmapped_action_count: unmappedActionIds.length,
@@ -3186,6 +3330,7 @@ function buildModernDisplay(actionSource, bcmCatalog, runtime, supplement, optio
                 assist_combo_route_count: assistComboRouteCount,
                 assist_combo_duplicate_display_count: assistComboDuplicateDisplayCount,
                 assist_combo_normalized_to_existing_count: assistComboNormalizedToExistingCount,
+                classic_projection_relation_count: classicProjectionRelations.length,
                 paired_sprt_sp_relation_count: pairedSprtSpRelations.length,
                 paired_sprt_sp_route_count: pairedSprtSpRelations.length,
                 shadowed_supr_route_count: shadowedSuprRoutes.length,
@@ -3241,6 +3386,7 @@ function buildModernDisplay(actionSource, bcmCatalog, runtime, supplement, optio
             ownership: entry.ownership,
             simple_command: commands.simple,
             motion_command: commands.motion,
+            classic_projection: classicProjectionByTarget.get(id),
             relation: officialFollowupRelations.get(id) || undefined,
             routes: entry.routes
         };

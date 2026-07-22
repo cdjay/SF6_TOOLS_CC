@@ -3434,8 +3434,13 @@
   },
   "902": {
     "modern_display": "> 弱",
-    "classic_command": null,
-    "control_support": "unknown",
+    "classic_command": {
+      "display": "214+MP",
+      "inputs": [
+        "214+MP"
+      ]
+    },
+    "control_support": "classic_modern",
     "source": "ac_bcm+capcom_official_semantics",
     "ownership": "assist_combo",
     "simple_command": {
@@ -3445,6 +3450,16 @@
       ]
     },
     "motion_command": null,
+    "classic_projection": {
+      "target_action_id": 902,
+      "source_action_id": 901,
+      "candidate_source_action_ids": [
+        901
+      ],
+      "classic_display": "214+MP",
+      "evidence_type": "full_structure_unique_display",
+      "reason": "ac_full_structure_unique_classic_projection"
+    },
     "routes": [
       {
         "display": "> 弱",
@@ -3647,8 +3662,13 @@
   },
   "904": {
     "modern_display": "> 弱",
-    "classic_command": null,
-    "control_support": "unknown",
+    "classic_command": {
+      "display": "214+HP",
+      "inputs": [
+        "214+HP"
+      ]
+    },
+    "control_support": "classic_modern",
     "source": "ac_bcm+capcom_official_semantics",
     "ownership": "assist_combo",
     "simple_command": {
@@ -3658,6 +3678,16 @@
       ]
     },
     "motion_command": null,
+    "classic_projection": {
+      "target_action_id": 904,
+      "source_action_id": 903,
+      "candidate_source_action_ids": [
+        903
+      ],
+      "classic_display": "214+HP",
+      "evidence_type": "full_structure_unique_display",
+      "reason": "ac_full_structure_unique_classic_projection"
+    },
     "routes": [
       {
         "display": "> 弱",
@@ -7186,8 +7216,13 @@
   },
   "970": {
     "modern_display": "> 强",
-    "classic_command": null,
-    "control_support": "unknown",
+    "classic_command": {
+      "display": "623+HP",
+      "inputs": [
+        "623+HP"
+      ]
+    },
+    "control_support": "classic_modern",
     "source": "ac_bcm+capcom_official_semantics",
     "ownership": "assist_combo",
     "simple_command": {
@@ -7197,6 +7232,17 @@
       ]
     },
     "motion_command": null,
+    "classic_projection": {
+      "target_action_id": 970,
+      "source_action_id": 972,
+      "candidate_source_action_ids": [
+        972
+      ],
+      "classic_display": "623+HP",
+      "evidence_type": "full_structure_assist_strength_match",
+      "reason": "ac_full_structure_assist_strength_classic_projection",
+      "assist_strength": "强"
+    },
     "routes": [
       {
         "display": "> 强",
@@ -8079,8 +8125,13 @@
   },
   "1029": {
     "modern_display": "> 强",
-    "classic_command": null,
-    "control_support": "unknown",
+    "classic_command": {
+      "display": "528",
+      "inputs": [
+        "528"
+      ]
+    },
+    "control_support": "classic_modern",
     "source": "ac_bcm+capcom_official_semantics",
     "ownership": "assist_combo",
     "simple_command": {
@@ -8090,6 +8141,23 @@
       ]
     },
     "motion_command": null,
+    "classic_projection": {
+      "target_action_id": 1029,
+      "source_action_id": 1014,
+      "candidate_source_action_ids": [
+        1014,
+        1015,
+        1018,
+        1019,
+        1036,
+        1037,
+        1040,
+        1041
+      ],
+      "classic_display": "528",
+      "evidence_type": "full_structure_unique_display",
+      "reason": "ac_full_structure_unique_classic_projection"
+    },
     "routes": [
       {
         "display": "> 强",
@@ -8169,8 +8237,13 @@
   },
   "1030": {
     "modern_display": "> 强",
-    "classic_command": null,
-    "control_support": "unknown",
+    "classic_command": {
+      "display": "528",
+      "inputs": [
+        "528"
+      ]
+    },
+    "control_support": "classic_modern",
     "source": "ac_bcm+capcom_official_semantics",
     "ownership": "assist_combo",
     "simple_command": {
@@ -8180,6 +8253,24 @@
       ]
     },
     "motion_command": null,
+    "classic_projection": {
+      "target_action_id": 1030,
+      "source_action_id": 1014,
+      "candidate_source_action_ids": [
+        1014,
+        1015,
+        1018,
+        1019,
+        1029,
+        1036,
+        1037,
+        1040,
+        1041
+      ],
+      "classic_display": "528",
+      "evidence_type": "full_structure_unique_display",
+      "reason": "ac_full_structure_unique_classic_projection"
+    },
     "routes": [
       {
         "display": "> 强",
@@ -9453,6 +9544,7 @@
     "structural_twin_route_count": 0,
     "assist_combo_route_count": 6,
     "assist_combo_normalized_to_existing_count": 7,
+    "classic_projection_relation_count": 5,
     "paired_sprt_sp_route_count": 0,
     "paired_sprt_sp_relations": [],
     "shadowed_supr_route_count": 2,
@@ -9802,6 +9894,74 @@
             "wt_action_is_air": false
           }
         ]
+      }
+    ],
+    "classic_projection_relations": [
+      {
+        "target_action_id": 902,
+        "source_action_id": 901,
+        "candidate_source_action_ids": [
+          901
+        ],
+        "classic_display": "214+MP",
+        "evidence_type": "full_structure_unique_display",
+        "reason": "ac_full_structure_unique_classic_projection"
+      },
+      {
+        "target_action_id": 904,
+        "source_action_id": 903,
+        "candidate_source_action_ids": [
+          903
+        ],
+        "classic_display": "214+HP",
+        "evidence_type": "full_structure_unique_display",
+        "reason": "ac_full_structure_unique_classic_projection"
+      },
+      {
+        "target_action_id": 970,
+        "source_action_id": 972,
+        "candidate_source_action_ids": [
+          972
+        ],
+        "classic_display": "623+HP",
+        "evidence_type": "full_structure_assist_strength_match",
+        "reason": "ac_full_structure_assist_strength_classic_projection",
+        "assist_strength": "强"
+      },
+      {
+        "target_action_id": 1029,
+        "source_action_id": 1014,
+        "candidate_source_action_ids": [
+          1014,
+          1015,
+          1018,
+          1019,
+          1036,
+          1037,
+          1040,
+          1041
+        ],
+        "classic_display": "528",
+        "evidence_type": "full_structure_unique_display",
+        "reason": "ac_full_structure_unique_classic_projection"
+      },
+      {
+        "target_action_id": 1030,
+        "source_action_id": 1014,
+        "candidate_source_action_ids": [
+          1014,
+          1015,
+          1018,
+          1019,
+          1029,
+          1036,
+          1037,
+          1040,
+          1041
+        ],
+        "classic_display": "528",
+        "evidence_type": "full_structure_unique_display",
+        "reason": "ac_full_structure_unique_classic_projection"
       }
     ],
     "unresolved_candidate_count": 93,
@@ -15337,6 +15497,7 @@
       "assist_combo_route_count": 6,
       "assist_combo_duplicate_display_count": 2,
       "assist_combo_normalized_to_existing_count": 7,
+      "classic_projection_relation_count": 5,
       "paired_sprt_sp_relation_count": 0,
       "paired_sprt_sp_route_count": 0,
       "shadowed_supr_route_count": 2,
@@ -15349,9 +15510,9 @@
       "ac_type13_neutral_route_count": 0,
       "internal_transition_suppression_count": 3,
       "split_command_action_count": 84,
-      "classic_command_action_count": 96,
-      "shared_command_action_count": 79,
-      "classic_projection_pending_count": 5,
+      "classic_command_action_count": 101,
+      "shared_command_action_count": 84,
+      "classic_projection_pending_count": 0,
       "command_display_action_count": 101,
       "followup_relation_count": 0,
       "command_slot_overflow_count": 0,
