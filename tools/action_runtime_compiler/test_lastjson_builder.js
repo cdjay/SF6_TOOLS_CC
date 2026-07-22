@@ -21,9 +21,9 @@ const registry = JSON.parse(fs.readFileSync(path.resolve(
 assert.strictEqual(Object.keys(registry).length, 30);
 assert.strictEqual(new Set(Object.values(registry).map(entry => Number(entry.fighter_id))).size, 30);
 
-const formalRyu = JSON.parse(fs.readFileSync(path.resolve(
-    __dirname, "../../data/TrainingComboTrials_data/modern_display/Ryu.json"), "utf8"));
-assert.ok(builder.validateOutput(formalRyu, "Ryu", 1) > 0);
+const formalLuke = JSON.parse(fs.readFileSync(path.resolve(
+    __dirname, "../../data/TrainingComboTrials_data/modern_display/Luke.json"), "utf8"));
+assert.ok(builder.validateOutput(formalLuke, "Luke", 2) > 0);
 
 const temporary = fs.mkdtempSync(path.join(os.tmpdir(), "sf6cc-lastjson-test-"));
 try {

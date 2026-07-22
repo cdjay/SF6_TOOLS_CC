@@ -209,6 +209,7 @@ local modern_display_runtime = {
     seen_refs = setmetatable({}, { __mode = "k" }),
     seen_keys = {}
 }
+local build_slim_modern_display_map
 
 local function get_sequence_meta(sequence)
     if type(sequence) ~= "table" then return nil end
@@ -316,6 +317,8 @@ local function load_modern_display_map(character)
 
     local meta = ok and type(loaded) == "table" and loaded._meta or nil
     local audit = type(meta) == "table" and meta.audit or nil
+    local schema = type(meta) == "table" and tostring(meta.schema or ""):lower() or ""
+    local policy = type(meta) == "table" and tostring(meta.strict_policy or ""):lower() or ""
     local has_rebind_audit = type(audit) == "table"
         and (audit.ac_type17_relation_count ~= nil
             or audit.ac_command_entry_rebind_signature_count ~= nil
@@ -602,6 +605,35 @@ local function load_modern_display_map(character)
         and tonumber(meta.internal_transition_suppression_count) == internal_suppressions
         and type(meta.suppressed_internal_transitions) == "table"
         and #meta.suppressed_internal_transitions == internal_suppressions
+    local split_command_audit_ok = true
+    if schema == "xt.modern_display.v10" then
+        local split_actions = type(audit) == "table"
+            and tonumber(audit.split_command_action_count) or nil
+        local followup_count = type(audit) == "table"
+            and tonumber(audit.followup_relation_count) or nil
+        local overflow_count = type(audit) == "table"
+            and tonumber(audit.command_slot_overflow_count) or nil
+        split_command_audit_ok = split_actions ~= nil and followup_count ~= nil
+            and overflow_count == 0 and split_actions >= 0 and followup_count >= 0
+            and split_actions == math.floor(split_actions)
+            and followup_count == math.floor(followup_count)
+            and tonumber(meta.split_command_action_count) == split_actions
+            and tonumber(meta.followup_relation_count) == followup_count
+            and type(meta.followup_relations) == "table"
+            and #meta.followup_relations == followup_count
+        if split_command_audit_ok then
+            for _, relation in ipairs(meta.followup_relations) do
+                if type(relation) ~= "table" or relation.type ~= "followup"
+                    or tonumber(relation.source_action_id) == nil
+                    or tonumber(relation.target_action_id) == nil
+                    or tonumber(relation.source_action_id) == tonumber(relation.target_action_id)
+                    or relation.evidence ~= "capcom_official_followup_context_matches_source_move" then
+                    split_command_audit_ok = false
+                    break
+                end
+            end
+        end
+    end
     local strict_audit = type(audit) == "table" and audit.strict_route_ownership == true
         and tonumber(audit.owner_missing_count or -1) == 0
         and tonumber(audit.no_evidence_count or -1) == 0
@@ -632,18 +664,24 @@ local function load_modern_display_map(character)
         and hold_transition_audit_ok
         and charge_context_audit_ok
         and state_choice_audit_ok
+        and split_command_audit_ok
+    local supported_schema = (schema == "xt.modern_display.v9"
+            and policy == "verified_route_ownership_v9")
+        or (schema == "xt.modern_display.v10"
+            and policy == "verified_route_ownership_v10")
     if type(meta) == "table"
-        and tostring(meta.schema or ""):lower() == "xt.modern_display.v9"
-        and tostring(meta.strict_policy or ""):lower() == "verified_route_ownership_v9"
+        and supported_schema
         and (tostring(meta.generated_from or ""):lower() == "ac_bcm"
             or tostring(meta.generated_from or ""):lower() == "ac_bcm+capcom_official_semantics"
             or tostring(meta.generated_from or ""):lower() == "ac_bcm+community_verified_semantics"
             or tostring(meta.generated_from or ""):lower() == "ac_bcm+capcom_official_semantics+community_verified_semantics")
         and tostring(meta.character or "") == key
         and strict_audit then
-        modern_display_cache[key] = loaded
+        local slim = build_slim_modern_display_map(loaded)
+        loaded = nil
+        modern_display_cache[key] = slim
         modern_display_runtime.cache_status[key] = "loaded"
-        return loaded, "loaded"
+        return slim, "loaded"
     end
 
     modern_display_cache[key] = false
@@ -654,6 +692,11 @@ end
 local function get_modern_display_motion(modern_map, step)
     if type(modern_map) ~= "table" or type(step) ~= "table" then return nil, "map_unavailable" end
     local step_id = tonumber(step.id)
+    if modern_map._slim == true then
+        local resolved = modern_map[tostring(step.id or "")]
+        if type(resolved) ~= "table" then return nil, "action_id_missing" end
+        return resolved.commands or resolved.motion, resolved.status or "route_unverified"
+    end
     local entry = modern_map[tostring(step.id or "")]
     if type(entry) ~= "table" or type(entry.routes) ~= "table" then return nil, "action_id_missing" end
     if entry.suppress_display == true then
@@ -1251,6 +1294,103 @@ local function get_modern_display_motion(modern_map, step)
     return table.concat(displays, "/"), "strict_route"
 end
 
+-- v9 映射包含大量生成期审计与路由证据。加载时先用完整数据完成严格校验和
+-- 路由解析，随后只保留运行时实际需要的 action id、显示文本与解析状态，避免
+-- 多个约 490KB 的角色表长期驻留并触发周期性 GC 卡顿。
+build_slim_modern_display_map = function(loaded)
+    local schema = type(loaded._meta) == "table" and tostring(loaded._meta.schema or "") or ""
+    local structured = schema == "xt.modern_display.v10"
+    local slim = { _slim = true, _structured = structured }
+    for action_id, entry in pairs(loaded) do
+        if type(entry) == "table" and tostring(action_id):match("^%d+$") then
+            local motion, status = get_modern_display_motion(loaded, { id = action_id })
+            if not structured then
+                slim[tostring(action_id)] = { motion = motion, status = status }
+            else
+                if status == "suppress_transition" then
+                    slim[tostring(action_id)] = { motion = nil, status = status }
+                else
+                    local relation = type(entry.relation) == "table" and entry.relation or nil
+                    local strip_followup = relation and relation.type == "followup"
+                    local verified_inputs = {}
+                    for variant in tostring(motion or ""):gmatch("[^/|]+") do
+                        local value = trim_string(variant)
+                        if strip_followup then value = value:gsub("^>%s*", "") end
+                        if value ~= "" then verified_inputs[value] = true end
+                    end
+                    local function read_command(command)
+                        if type(command) ~= "table" or type(command.display) ~= "string"
+                            or trim_string(command.display) == "" or type(command.inputs) ~= "table"
+                            or #command.inputs == 0 then return nil end
+                        for _, input in ipairs(command.inputs) do
+                            if type(input) ~= "string" or not verified_inputs[trim_string(input)] then
+                                return nil
+                            end
+                        end
+                        return trim_string(command.display)
+                    end
+                    local simple = read_command(entry.simple_command)
+                    local manual = read_command(entry.motion_command)
+                    local relation_ok = relation == nil or (relation.type == "followup"
+                        and tonumber(relation.source_action_id) ~= nil
+                        and relation.evidence == "capcom_official_followup_context_matches_source_move")
+                    if (simple or manual) and relation_ok then
+                        slim[tostring(action_id)] = {
+                            simple = simple,
+                            motion = manual,
+                            relation = relation and {
+                                type = relation.type,
+                                source_action_id = tonumber(relation.source_action_id)
+                            } or nil,
+                            status = status
+                        }
+                    else
+                        slim[tostring(action_id)] = { motion = nil, status = "invalid_split_commands" }
+                    end
+                end
+            end
+        end
+    end
+    if structured then
+        local function resolve(action_id, slot, stack)
+            local key = tostring(action_id or "")
+            local item = slim[key]
+            if type(item) ~= "table" then return nil end
+            local local_motion = item[slot]
+                or (slot == "simple" and item.motion or item.simple)
+            if type(local_motion) ~= "string" or local_motion == "" then return nil end
+            if type(item.relation) ~= "table" then return local_motion end
+            if stack[key] then return nil end
+            stack[key] = true
+            local parent = resolve(item.relation.source_action_id, slot, stack)
+            stack[key] = nil
+            if not parent then return nil end
+            return parent .. " > " .. local_motion
+        end
+        for action_id, item in pairs(slim) do
+            if tostring(action_id):match("^%d+$") and type(item) == "table" then
+                local simple = resolve(action_id, "simple", {})
+                local manual = resolve(action_id, "motion", {})
+                if simple or manual then
+                    item.commands = {
+                        simple = simple or manual,
+                        motion = manual or simple
+                    }
+                    item.commands.all = item.commands.simple == item.commands.motion
+                        and item.commands.simple
+                        or (item.commands.simple .. "/" .. item.commands.motion)
+                else
+                    item.status = "invalid_followup_relation"
+                end
+                item.simple = nil
+                item.motion = nil
+                item.relation = nil
+            end
+        end
+    end
+    return slim
+end
+
 local function modern_unresolved_placeholder(step)
     if ctx and ctx.d2d_cfg and ctx.d2d_cfg.show_modern_unresolved_ids == true then
         return string.format("[ID %s 未识别]", tostring(step and step.id or "?"))
@@ -1423,6 +1563,24 @@ local function resolve_live_player_modern_display_context(player_idx)
     return true, modern_map, character, status
 end
 
+local function select_modern_display_motion(motion)
+    local mode = ctx and ctx.d2d_cfg and ctx.d2d_cfg.modern_display_mode or "simple"
+    if type(motion) == "table" then
+        return motion[mode] or motion.simple or motion.motion or motion.all
+    end
+    if type(motion) ~= "string" or motion == "" then return motion end
+    if mode == "all" then return motion end
+
+    local variants = {}
+    for variant in motion:gmatch("[^/|]+") do
+        local trimmed = trim_string(variant)
+        if trimmed ~= "" then table.insert(variants, trimmed) end
+    end
+    if #variants == 0 then return motion end
+    if mode == "motion" then return variants[2] or variants[1] end
+    return variants[1]
+end
+
 local function build_display_lines(sequence)
     local lines = {}
     local sequence_character = get_sequence_character(sequence)
@@ -1448,6 +1606,7 @@ local function build_display_lines(sequence)
                     modern_status ~= "loaded" and modern_status or route_status,
                     source_file, audit_context .. ":" .. tostring(i))
             end
+            modern_motion = select_modern_display_motion(modern_motion)
             step = clone_step_for_display(raw_step, modern_motion)
         else
             step = clone_step_for_display(raw_step, get_exception_display_motion(exception_map, raw_step))
@@ -1575,7 +1734,7 @@ end
 local function parse_motion_to_icons(log_entry, trial_mode, should_flip, reverse_layout)
     local d2d_cfg = ctx.d2d_cfg
     local motion_tokens = {}
-    local s = log_entry.motion or ""
+    local s = tostring(log_entry.motion or "")
 
     -- Convert to uppercase IMMEDIATELY so that j. becomes J.
     s = s:upper()
@@ -1808,12 +1967,19 @@ local function parse_motion_to_icons(log_entry, trial_mode, should_flip, reverse
     }
     local processed_tokens = {}
     local suppress_plus = false
-    for _, tok in ipairs(motion_tokens) do
+    for token_idx, tok in ipairs(motion_tokens) do
         if tok.type == "img" and tok.val == "seq" then
             suppress_plus = true
         else
+            local prev = processed_tokens[#processed_tokens]
+            local next_tok = motion_tokens[token_idx + 1]
+            local skip_button_separator = tok.type == "img" and tok.val == "plus"
+                and prev and prev.type == "img" and is_btn[prev.val]
+                and next_tok and next_tok.type == "img" and is_btn[next_tok.val]
+            if skip_button_separator then
+                suppress_plus = false
+            else
             if #processed_tokens > 0 then
-                local prev = processed_tokens[#processed_tokens]
                 if not suppress_plus and tok.type == "img" and is_btn[tok.val] then
                     if prev.type == "img" and not is_btn[prev.val] and prev.val ~= "plus" and prev.val ~= "followup" and prev.val ~= "validfollowup" then
                         table.insert(processed_tokens, { type = "img", val = "plus" })
@@ -1822,6 +1988,7 @@ local function parse_motion_to_icons(log_entry, trial_mode, should_flip, reverse
             end
             table.insert(processed_tokens, tok)
             suppress_plus = false
+            end
         end
     end
     motion_tokens = processed_tokens
@@ -2303,6 +2470,7 @@ local function d2d_draw_inner()
                         modern_status ~= "loaded" and modern_status or route_status,
                         nil, (audit_context or "live") .. ":" .. tostring(p_idx) .. ":" .. tostring(i))
                 end
+                modern_motion = select_modern_display_motion(modern_motion)
                 if not suppress_log then display_log = clone_step_for_display(log, modern_motion) end
             end
             if not suppress_log then

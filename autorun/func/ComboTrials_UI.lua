@@ -179,7 +179,6 @@ end
 
 local CONTROL_FILTER_VALUES = { "auto", "all", "classic", "modern" }
 local CONTROL_FILTER_LABELS = { "Auto", "All", "Classic", "Modern" }
-
 local function combo_control_filter_index()
     local current = "auto"
     if file_system then
@@ -1357,55 +1356,81 @@ end
 
 local function draw_combo_trials_menu_ui()
     if not _ctui_runtime_allowed() then return end
-    if imgui.tree_node("连段训练设置v0.9a") then
-        local ok, err = pcall(function()
+    local ok, err = pcall(function()
         local p_state = players[ui_state.viewed_player]
         imgui.spacing()
 
-        -- ==========================================
-        -- TAB 1: GLOBAL COMBO TRIAL (Shared P1/P2)
-        -- ==========================================
-        if styled_header("--- 连段训练（文件与播放）---", UI_THEME.hdr_info) then
-            local changed, new_val = imgui.checkbox("分离为浮动窗口", show_trial_overlay)
-            if changed then show_trial_overlay = new_val end
+        local changed, new_val = imgui.checkbox("分离为浮动窗口", show_trial_overlay)
+        if changed then show_trial_overlay = new_val end
 
-            if not show_trial_overlay then
-                imgui.separator()
-                imgui.spacing()
-                draw_combo_trials_content(false)
-            else
-                imgui.separator()
-                imgui.text_colored("当前已被分离为浮动窗口。", COLORS.DarkGrey)
-                imgui.spacing()
-            end
-            local auto_c, auto_v = imgui.checkbox("自动播放全部连段", ctx.demo_state and ctx.demo_state.auto_playlist_enabled == true)
-            if auto_c and ctx.demo_state then ctx.demo_state.auto_playlist_enabled = auto_v == true end
-            local asd_c, asd_v = imgui.checkbox("允许晕厥连段使用演示", _G._allow_stun_demo or false)
-            if asd_c then _G._allow_stun_demo = asd_v end
-            if d2d_cfg.show_trial_notes == nil then d2d_cfg.show_trial_notes = false end
-            local notes_c, notes_v = imgui.checkbox("显示备注", d2d_cfg.show_trial_notes)
-            if notes_c then
-                d2d_cfg.show_trial_notes = notes_v
-                if ctx.save_d2d_config then ctx.save_d2d_config() end
-            end
-            if d2d_cfg.auto_next_trial == nil then d2d_cfg.auto_next_trial = true end
-            local ant_c, ant_v = imgui.checkbox("成功后自动进入下一个连段", d2d_cfg.auto_next_trial)
-            if ant_c then
-                d2d_cfg.auto_next_trial = ant_v
-                if ctx.save_d2d_config then ctx.save_d2d_config() end
-            end
-            imgui.same_line()
-            if imgui.button("清除完成标记") and ctx.clear_completed_trials then
-                ctx.clear_completed_trials()
-            end
-            if d2d_cfg.auto_retry_on_fail == nil then d2d_cfg.auto_retry_on_fail = true end
-            local arf_c, arf_v = imgui.checkbox("失败后自动重试（无需手动重置）", d2d_cfg.auto_retry_on_fail)
-            if arf_c then
-                d2d_cfg.auto_retry_on_fail = arf_v
-                if ctx.save_d2d_config then ctx.save_d2d_config() end
-            end
+        local auto_c, auto_v = imgui.checkbox("自动播放全部连段", ctx.demo_state and ctx.demo_state.auto_playlist_enabled == true)
+        if auto_c and ctx.demo_state then ctx.demo_state.auto_playlist_enabled = auto_v == true end
+        local asd_c, asd_v = imgui.checkbox("允许晕厥连段使用演示", _G._allow_stun_demo or false)
+        if asd_c then _G._allow_stun_demo = asd_v end
+        if d2d_cfg.show_trial_notes == nil then d2d_cfg.show_trial_notes = false end
+        local notes_c, notes_v = imgui.checkbox("显示备注", d2d_cfg.show_trial_notes)
+        if notes_c then
+            d2d_cfg.show_trial_notes = notes_v
+            if ctx.save_d2d_config then ctx.save_d2d_config() end
+        end
+        if d2d_cfg.auto_next_trial == nil then d2d_cfg.auto_next_trial = true end
+        local ant_c, ant_v = imgui.checkbox("成功后自动进入下一个连段", d2d_cfg.auto_next_trial)
+        if ant_c then
+            d2d_cfg.auto_next_trial = ant_v
+            if ctx.save_d2d_config then ctx.save_d2d_config() end
+        end
+        imgui.same_line()
+        if imgui.button("清除完成标记") and ctx.clear_completed_trials then
+            ctx.clear_completed_trials()
+        end
+        if d2d_cfg.auto_retry_on_fail == nil then d2d_cfg.auto_retry_on_fail = true end
+        local arf_c, arf_v = imgui.checkbox("失败后自动重试（无需手动重置）", d2d_cfg.auto_retry_on_fail)
+        if arf_c then
+            d2d_cfg.auto_retry_on_fail = arf_v
+            if ctx.save_d2d_config then ctx.save_d2d_config() end
         end
 
+        imgui.spacing()
+        imgui.separator()
+        imgui.spacing()
+        imgui.text_colored("现代模式指令显示", COLORS.Orange)
+        imgui.text_colored("简化：优先显示 SP、AUTO 等现代快捷输入。", COLORS.DarkGrey)
+        imgui.text_colored("搓招：显示方向指令与攻击键输入。", COLORS.DarkGrey)
+        imgui.text_colored("可同时勾选；同时勾选即显示两套指令。“>”表示派生动作顺序。", COLORS.DarkGrey)
+        local modern_mode = tostring(d2d_cfg.modern_display_mode or "simple")
+        local show_simple = modern_mode == "simple" or modern_mode == "all"
+        local show_motion = modern_mode == "motion" or modern_mode == "all"
+        imgui.push_style_color(0, COLORS.Orange)
+        local simple_changed, simple_checked = imgui.checkbox("简化##ModernDisplaySimple", show_simple)
+        imgui.same_line()
+        local motion_changed, motion_checked = imgui.checkbox("搓招##ModernDisplayMotion", show_motion)
+        imgui.pop_style_color(1)
+        if simple_changed or motion_changed then
+            -- Never allow both choices to be disabled: the last active choice stays checked.
+            if not simple_checked and not motion_checked then
+                if simple_changed then simple_checked = true else motion_checked = true end
+            end
+            if simple_checked and motion_checked then
+                d2d_cfg.modern_display_mode = "all"
+            elseif motion_checked then
+                d2d_cfg.modern_display_mode = "motion"
+            else
+                d2d_cfg.modern_display_mode = "simple"
+            end
+            if ctx.save_d2d_config then ctx.save_d2d_config() end
+        end
+
+        if not show_trial_overlay then
+            imgui.separator()
+            imgui.spacing()
+            draw_combo_trials_content(false)
+        else
+            imgui.separator()
+            imgui.text_colored("当前已被分离为浮动窗口。", COLORS.DarkGrey)
+            imgui.spacing()
+        end
+
+        if styled_header("高级与调试", UI_THEME.hdr_rules) then
         -- ==========================================
         -- TAB 2: D2D VISUALIZER
         -- ==========================================
@@ -2169,21 +2194,19 @@ local function draw_combo_trials_menu_ui()
             ]]--
         end
 
-        end)
-        if not ok then
-            imgui.text_colored("连段训练 UI 绘制出错，已保护 ImGui 栈。", COLORS.Red)
-            imgui.text_colored(tostring(err), COLORS.Yellow)
-            print("[ComboTrials_UI] draw error: " .. tostring(err))
-        end
+        end -- 高级与调试
 
-        -- IMPORTANT : Closes the tree_node and the if block
-        imgui.tree_pop()
+    end)
+    if not ok then
+        imgui.text_colored("连段训练 UI 绘制出错，已保护 ImGui 栈。", COLORS.Red)
+        imgui.text_colored(tostring(err), COLORS.Yellow)
+        print("[ComboTrials_UI] draw error: " .. tostring(err))
     end
 end
 
 -- Register in floating window hub + keep standard menu entry
 if _G.FloatingScriptUI then
-_G.FloatingScriptUI.register("连段训练设置v0.9a", draw_combo_trials_menu_ui)
+_G.FloatingScriptUI.register("连段训练设置v0.99", draw_combo_trials_menu_ui)
 end
 re.on_draw_ui(draw_combo_trials_menu_ui)
 

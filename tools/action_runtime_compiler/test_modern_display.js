@@ -403,7 +403,7 @@ const officialSemantics = {
 const output = modern.buildModernDisplay(actionSource, catalog, runtime, {}, {
     generatedAt: "test", officialSemantics, officialSemanticsSha256: "official"
 });
-assert.strictEqual(output._meta.schema, "xt.modern_display.v9");
+assert.strictEqual(output._meta.schema, "xt.modern_display.v10");
 assert.strictEqual(output._meta.strict_policy, modern.STRICT_POLICY);
 assert.strictEqual(output._meta.generated_from, "ac_bcm+capcom_official_semantics");
 assert.strictEqual(output["1400"].modern_display, "中 + 强");
@@ -874,6 +874,49 @@ assert.strictEqual(specialOutput["2008"].modern_display, "> 空中 任意键");
 assert.strictEqual(specialOutput._meta.shadowed_supr_routes.some(item =>
     item.action_id === 2004 && item.reason === "direct_non_supr_route_owns_identical_shortcut"
     && item.shadowed_by_action_ids[0] === 2001), true);
+
+// Runtime command data has exactly two semantic slots. Equivalent simple
+// directions stay inside one slot, while follow-up ancestry remains structural.
+const splitCatalog = { source: { character: "SplitCommands" }, actions: {
+    "5000": { action_id: 5000, triggers: [
+        trigger(5000, profiles(
+            profile(true, "623+LP+LK+MK", 400, 82016), null,
+            profile(true, "6", 8192), profile(true, "623+PP", 112)),
+        { function_id: 2, focus_consume: 20000 }),
+        trigger(5001, profiles(null,
+            profile(true, "2+MP", 32, 16416, { dc_exc_flags: 512 }), null, null),
+        { function_id: 2, focus_consume: 20000 })
+    ] },
+    "5001": { action_id: 5001, triggers: [
+        trigger(5002, profiles(
+            profile(true, "Normal", 32), null, profile(true, "Normal", 8192),
+            profile(true, "PP", 112)), { function_id: 2 }),
+        trigger(5003, profiles(profile(true, "Normal", 400, 16480), null, null,
+            profile(true, "PP", 112)), { function_id: 2 })
+    ] }
+} };
+const splitRuntime = { character: "SplitCommands", fighter_id: 104,
+    action_ids: [5000, 5001], aliases: {}, sources: {}, validation: { rules: {} },
+    evidence: { ac_derived_commands: [], alias_relations: [] } };
+const splitOfficial = {
+    "5000": { classic_display: "623 + LPMPHP", modern_display: "6 or 2 + AUTO + SP/623 + 攻撃二つ",
+        move_name: "OD テスト", category: "SPECIAL" },
+    "5001": { classic_display: "（ODテスト後に）LPMPHP", modern_display: "（ODテスト後に）SP/攻撃二つ",
+        move_name: "追撃", category: "SPECIAL" }
+};
+const splitOutput = modern.buildModernDisplay({}, splitCatalog, splitRuntime, {},
+    { generatedAt: "split-commands", officialSemantics: splitOfficial });
+assert.deepStrictEqual(splitOutput["5000"].simple_command, {
+    display: "6 或 2 + AUTO + SP", inputs: ["6 + AUTO + SP", "2 + AUTO + SP"]
+});
+assert.strictEqual(splitOutput["5000"].motion_command.display, "623 + 任意键 + 任意键");
+assert.deepStrictEqual(splitOutput["5001"].relation, {
+    type: "followup", source_action_id: 5000,
+    evidence: "capcom_official_followup_context_matches_source_move", official_move_name: "追撃"
+});
+assert.strictEqual(splitOutput["5001"].simple_command.display, "SP");
+assert.strictEqual(splitOutput["5001"].motion_command.display, "任意键 + 任意键");
+assert.strictEqual(splitOutput["5001"].modern_display, "SP/任意键 + 任意键");
 
 function makeStrictHoldActionSource(sourceLoop, targetLoop) {
     let id = 1;

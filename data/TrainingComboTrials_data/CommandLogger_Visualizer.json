@@ -84,6 +84,7 @@
     "max_history": 13,
     "mirror_p1": false,
     "mirror_p2": false,
+    "modern_display_mode": "simple",
     "offset_x_arrow": -0.03099999949336052,
     "offset_y_arrow": 0.013000000268220901,
     "pos_combo_stats": {

@@ -196,7 +196,18 @@ acbcm/<版本>/lastjson/<Character>.json
 - 把官网 Action ID 当游戏 Action ID；
 - 在缺少角色时输出残缺的 `lastjson`。
 
-## 7. 测试
+## 7. Modern v10 指令分槽
+
+`xt.modern_display.v10` 在保留 `routes` 审计证据的同时，将运行时指令拆成两个固定槽：
+
+- `simple_command`：简化输入；同一招的等价方向保存在 `inputs` 中；
+- `motion_command`：搓招输入；
+- `relation`：派生动作通过 `type: followup` 和 `source_action_id` 引用前置动作。
+
+`modern_display` 仅作为兼容摘要。运行时优先读取两个指令槽，并根据派生关系生成 `>`；
+`/` 只用于分隔完整的简化路线与搓招路线，不再表示动作阶段。
+
+## 8. 测试
 
 ```powershell
 python tools/modern_display_builder/test_official_snapshot_tool.py

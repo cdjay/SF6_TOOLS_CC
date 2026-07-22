@@ -1,7 +1,7 @@
 "use strict";
 
-const SCHEMA = "xt.modern_display.v9";
-const STRICT_POLICY = "verified_route_ownership_v9";
+const SCHEMA = "xt.modern_display.v10";
+const STRICT_POLICY = "verified_route_ownership_v10";
 const MODERN_PROFILE_ORDER = ["easy", "supr", "sprt"];
 const CLASSIC_TOKEN = /(^|[\s+>/])(?:LP|MP|HP|LK|MK|HK|PPP|KKK|PP|KK|P|K)(?=$|[\s+>/])/i;
 const PROFILE_BUTTONS = new Set([
@@ -30,6 +30,7 @@ const BCM_ZERO_INPUT_TRANSITION_REASON = "bcm_function2_normal_has_no_player_vis
 const TARGET_COMBO_REPEAT_REASON = "bcm_turn_around_target_combo_repeats_parent_button";
 const STRUCTURAL_TWIN_REASON = "ac_bcm_unique_structural_twin_with_internal_use_super_delta";
 const ASSIST_COMBO_REASON = "bcm_assist_combo_recipe_direct_input_sequence";
+const OFFICIAL_FOLLOWUP_REASON = "capcom_official_followup_context_matches_source_move";
 const ANY_BUTTON = "任意键";
 const RUNTIME_COMMON_ACTIONS = Object.freeze({
     17: "66",
@@ -815,6 +816,99 @@ function normalizeClassicIdentity(value) {
     let text = String(value || "").replace(/強/g, "强").trim();
     text = text.replace(/^空中\s*/, "j.").replace(/\s+/g, "");
     return text;
+}
+
+function normalizeOfficialMoveName(value) {
+    return String(value || "").replace(/[\s（）()]/g, "").replace(/後に$/, "");
+}
+
+function officialFollowupContext(entry) {
+    for (const value of [entry && entry.classic_display, entry && entry.modern_display]) {
+        const match = String(value || "").match(/^[（(]\s*(.+?)\s*後に\s*[）)]/);
+        if (match) return normalizeOfficialMoveName(match[1]);
+    }
+    return null;
+}
+
+function inferOfficialFollowupRelations(officialSemantics, entries) {
+    const officialEntries = Object.entries(officialSemantics || {})
+        .filter(([id, entry]) => /^\d+$/.test(id) && entry && typeof entry === "object")
+        .map(([id, entry]) => ({ id: Number(id), entry }));
+    const moveIds = new Map();
+    for (const item of officialEntries) {
+        const name = normalizeOfficialMoveName(item.entry.move_name);
+        if (!name) continue;
+        if (!moveIds.has(name)) moveIds.set(name, []);
+        moveIds.get(name).push(item.id);
+    }
+
+    const relations = new Map();
+    for (const item of officialEntries) {
+        const context = officialFollowupContext(item.entry);
+        const targetId = String(item.id);
+        if (!context || !entries[targetId]) continue;
+        const sourceIds = (moveIds.get(context) || [])
+            .map(Number).filter(id => id !== item.id && entries[String(id)]);
+        if (sourceIds.length !== 1) continue;
+        relations.set(targetId, {
+            type: "followup",
+            source_action_id: sourceIds[0],
+            evidence: OFFICIAL_FOLLOWUP_REASON,
+            official_move_name: String(item.entry.move_name || "")
+        });
+    }
+    return relations;
+}
+
+function cleanCommandDisplay(value, stripFollowup) {
+    const display = normalizeDisplay(value);
+    return (stripFollowup ? display.replace(/^>\s*/, "") : display).trim();
+}
+
+function commandKind(route) {
+    const profile = String(route && route.profile || "");
+    const display = cleanCommandDisplay(route && route.display);
+    const button = String(route && route.visible_button || "");
+    if (profile === "easy" || profile === "supr" || profile === "assist_combo") return "simple";
+    if (/\bAUTO\b/.test(display) || /\bAUTO\b/.test(button)) return "simple";
+    if (button === "SP" && !/\d{2,}|\[[1246789]\]/.test(display)) return "simple";
+    return "motion";
+}
+
+function compactCommand(routes, stripFollowup) {
+    const unique = [];
+    const seen = new Set();
+    for (const route of routes) {
+        const display = cleanCommandDisplay(route.display, stripFollowup);
+        if (!display || seen.has(display)) continue;
+        seen.add(display);
+        unique.push({ route, display });
+    }
+    if (!unique.length) return null;
+
+    let display = unique[0].display;
+    const buttons = [...new Set(unique.map(item => String(item.route.visible_button || "")))];
+    const directions = [...new Set(unique.map(item => String(item.route.visible_direction || "")))];
+    const air = unique.every(item => item.display.startsWith("空中 "));
+    const mergeableDirections = unique.length > 1 && buttons.length === 1 && buttons[0]
+        && directions.length === unique.length && directions.every(direction => /^[1246789]$/.test(direction));
+    if (mergeableDirections) {
+        display = `${air ? "空中 " : ""}${directions.join(" 或 ")} + ${buttons[0]}`;
+    } else if (unique.length > 1) {
+        display = unique.map(item => item.display).join(" 或 ");
+    }
+    return { display, inputs: unique.map(item => item.display) };
+}
+
+function splitCommands(entry, relation) {
+    let routes = entry.routes || [];
+    if (relation && relation.type === "followup" && routes.some(route => route.profile !== "supr")) {
+        routes = routes.filter(route => route.profile !== "supr");
+    }
+    const stripFollowup = relation && relation.type === "followup";
+    const simple = compactCommand(routes.filter(route => commandKind(route) === "simple"), stripFollowup);
+    const motion = compactCommand(routes.filter(route => commandKind(route) === "motion"), stripFollowup);
+    return { simple, motion };
 }
 
 function canonicalClassicIdentity(value) {
@@ -2820,6 +2914,17 @@ function buildModernDisplay(actionSource, bcmCatalog, runtime, supplement, optio
         const key = String(route.ac_relation_type);
         relationCounts[key] = (relationCounts[key] || 0) + 1;
     }
+    const officialFollowupRelations = inferOfficialFollowupRelations(options.officialSemantics, entries);
+    const separatedCommands = new Map();
+    for (const [id, entry] of Object.entries(entries)) {
+        if (entry.suppress_display === true) continue;
+        separatedCommands.set(id, splitCommands(entry, officialFollowupRelations.get(id)));
+    }
+    const splitCommandActionCount = [...separatedCommands.values()]
+        .filter(commands => commands.simple || commands.motion).length;
+    const followupRelations = [...officialFollowupRelations.entries()]
+        .map(([targetId, relation]) => ({ target_action_id: Number(targetId), ...relation }))
+        .sort((left, right) => left.target_action_id - right.target_action_id);
 
     const generatedFrom = options.communitySemantics
         ? (options.officialSemantics
@@ -2881,6 +2986,9 @@ function buildModernDisplay(actionSource, bcmCatalog, runtime, supplement, optio
             ac_type13_neutral_relations: appliedType13NeutralRelations,
             internal_transition_suppression_count: suppressedInternalTransitions.length,
             suppressed_internal_transitions: suppressedInternalTransitions,
+            split_command_action_count: splitCommandActionCount,
+            followup_relation_count: followupRelations.length,
+            followup_relations: followupRelations,
             official_semantic_source_sha256: options.officialSemanticsSha256 || null,
             ac_relation_route_counts: relationCounts,
             ac_command_entry_rebinds: plannedRebinds.map(plan => ({
@@ -2970,6 +3078,9 @@ function buildModernDisplay(actionSource, bcmCatalog, runtime, supplement, optio
                 ac_type13_neutral_relation_count: appliedType13NeutralRelations.length,
                 ac_type13_neutral_route_count: type13NeutralRouteCount,
                 internal_transition_suppression_count: suppressedInternalTransitions.length,
+                split_command_action_count: splitCommandActionCount,
+                followup_relation_count: followupRelations.length,
+                command_slot_overflow_count: 0,
                 ac_automatic_transition_route_count: 0,
                 replaces_profile_route_count: 0
             },
@@ -2991,12 +3102,17 @@ function buildModernDisplay(actionSource, bcmCatalog, runtime, supplement, optio
             continue;
         }
         const routes = entries[id].routes;
-        const displays = [...new Set(routes.map(route => route.display))];
+        const commands = separatedCommands.get(id) || { simple: null, motion: null };
+        const displays = [commands.simple && commands.simple.display,
+            commands.motion && commands.motion.display].filter(Boolean);
         output[id] = {
             modern_display: displays.join("/"),
             control_support: "modern",
             source: generatedFrom,
             ownership: entries[id].ownership,
+            simple_command: commands.simple,
+            motion_command: commands.motion,
+            relation: officialFollowupRelations.get(id) || undefined,
             routes
         };
     }

@@ -893,6 +893,7 @@ local d2d_cfg = {
     mirror_p2 = false,
     show_combo_count = false,
     show_modern_unresolved_ids = false,
+    modern_display_mode = "simple",
     pos_p1 = { x = 0.050, y = 0.350 },
     pos_p2 = { x = 0.850, y = 0.350 },
     raw_pos_p1 = { x = 0.050, y = 0.350 },
@@ -999,6 +1000,11 @@ local function save_d2d_config()
 end
 load_d2d_config()
 d2d_cfg.show_combo_count = false
+if d2d_cfg.modern_display_mode ~= "simple"
+    and d2d_cfg.modern_display_mode ~= "motion"
+    and d2d_cfg.modern_display_mode ~= "all" then
+    d2d_cfg.modern_display_mode = "simple"
+end
 
 -- =========================================================
 -- COMPLETED TRIALS TRACKING (runtime file, not committed)
