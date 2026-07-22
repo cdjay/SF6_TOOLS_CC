@@ -408,7 +408,7 @@
       damage: "受伤恢复后的反击"
     };
 
-    const sampleFrames = [97, 77, 83, 97, 73, 0, 0, 0];
+    const sampleFrames = [4, 4, 4, 4, 4, 0, 0, 0];
     const sample = {
       schema: "sf6cc.training_setup.v2",
       title: "Ryu 训练配置",
@@ -519,6 +519,29 @@
         });
       });
       config.annotations = annotations;
+
+      let normalizedTimings = 0;
+      config.slots.forEach(slot => {
+        if (!slot || !Array.isArray(slot.input_buff)) return;
+        const bufferLength = slot.input_buff.length;
+        let frame = asInt(slot.frame ?? slot.fields?.Frame, bufferLength);
+        let inputNum = asInt(slot.input_num ?? slot.input_fields?.Num, frame);
+        if (frame < 0) frame = 0;
+        if (inputNum < 0) inputNum = 0;
+        if (frame > bufferLength) {
+          frame = bufferLength;
+          normalizedTimings += 1;
+        }
+        if (inputNum > bufferLength) {
+          inputNum = frame;
+          normalizedTimings += 1;
+        }
+        slot.frame = frame;
+        slot.input_num = inputNum;
+        if (slot.fields && typeof slot.fields === "object") slot.fields.Frame = frame;
+        if (slot.input_fields && typeof slot.input_fields === "object") slot.input_fields.Num = inputNum;
+      });
+      return normalizedTimings;
     }
 
     function recordValid(slot) {
@@ -881,10 +904,13 @@
         validateConfig(data);
         config = data;
         loadedFileName = file.name;
-        ensureShape();
+        const normalizedTimings = ensureShape();
         renderMetadata();
         renderNavigation();
-        setStatus(`已载入 ${file.name}。界面状态来自 JSON，可直接编辑。`, "success");
+        const timingNote = normalizedTimings > 0
+          ? `；已修正 ${normalizedTimings} 个越界的录像时序值`
+          : "";
+        setStatus(`已载入 ${file.name}${timingNote}。界面状态来自 JSON，可直接编辑。`, "success");
       } catch (error) {
         setStatus(`载入失败：${error.message}`, "error");
       } finally {

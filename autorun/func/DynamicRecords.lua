@@ -381,18 +381,33 @@ local function collect_slot(slot_obj, slot_number, include_buff)
         input_buff, capacity = read_buffer_values(buffer, frame)
     end
 
+    -- RecordSlots.Frame is the authoritative playback length. InputData.Num can
+    -- retain a stale value after a shorter recording replaces a longer one, so
+    -- exporting it verbatim can create a file that our own importer rejects.
+    local exported_frame = frame
+    if include_buff then
+        exported_frame = #input_buff
+        input_num = exported_frame
+    end
+    local fields = collect_scalar_fields(slot_obj)
+    local input_fields = collect_scalar_fields(input_data)
+    if include_buff then
+        fields.Frame = exported_frame
+        input_fields.Num = input_num
+    end
+
     return {
         slot = slot_number,
         name = "slot" .. tostring(slot_number),
         is_valid = get_bool_field(slot_obj, "IsValid"),
         is_active = get_bool_field(slot_obj, "IsActive"),
-        frame = frame,
+        frame = exported_frame,
         weight = weight,
-        input_num = input_num or frame,
+        input_num = input_num or exported_frame,
         input_buff = include_buff and input_buff or nil,
         capacity = capacity,
-        fields = collect_scalar_fields(slot_obj),
-        input_fields = collect_scalar_fields(input_data),
+        fields = fields,
+        input_fields = input_fields,
     }
 end
 
@@ -714,11 +729,59 @@ local function normalize_config_path(path)
     return normalized:gsub("^data/", "")
 end
 
+local function is_valid_utf8(value)
+    if type(value) ~= "string" then return false end
+    local index = 1
+    local length = #value
+    while index <= length do
+        local first = value:byte(index)
+        if first <= 0x7F then
+            index = index + 1
+        else
+            local continuation_count = nil
+            local second_min, second_max = 0x80, 0xBF
+            if first >= 0xC2 and first <= 0xDF then
+                continuation_count = 1
+            elseif first == 0xE0 then
+                continuation_count, second_min = 2, 0xA0
+            elseif first >= 0xE1 and first <= 0xEC then
+                continuation_count = 2
+            elseif first == 0xED then
+                continuation_count, second_max = 2, 0x9F
+            elseif first >= 0xEE and first <= 0xEF then
+                continuation_count = 2
+            elseif first == 0xF0 then
+                continuation_count, second_min = 3, 0x90
+            elseif first >= 0xF1 and first <= 0xF3 then
+                continuation_count = 3
+            elseif first == 0xF4 then
+                continuation_count, second_max = 3, 0x8F
+            else
+                return false
+            end
+
+            if index + continuation_count > length then return false end
+            local second = value:byte(index + 1)
+            if second < second_min or second > second_max then return false end
+            for offset = 2, continuation_count do
+                local byte = value:byte(index + offset)
+                if byte < 0x80 or byte > 0xBF then return false end
+            end
+            index = index + continuation_count + 1
+        end
+    end
+    return true
+end
+
 local function read_config_index_paths()
     if not fs or not fs.read then return {} end
     local ok, content = pcall(fs.read, M.CONFIG_INDEX_PATH)
     if not ok or type(content) ~= "string" or content == "" then return {} end
-    local parsed = json and json.load_string and json.load_string(content) or nil
+    local parsed = nil
+    if json and json.load_string then
+        local parsed_ok, parsed_value = pcall(json.load_string, content)
+        if parsed_ok then parsed = parsed_value end
+    end
     local source = type(parsed) == "table" and parsed.configs or nil
     local paths = {}
     if type(source) == "table" then
@@ -736,7 +799,10 @@ local function write_config_index_paths(paths)
     local out = {}
     for _, path in ipairs(paths or {}) do
         local normalized = normalize_config_path(path)
-        if normalized and not unique[normalized] then
+        -- fs.glob may expose Windows ANSI bytes for non-ASCII filenames. Such
+        -- paths remain usable for this process, but passing them to the JSON
+        -- serializer truncates config_index.json before throwing.
+        if normalized and is_valid_utf8(normalized) and not unique[normalized] then
             unique[normalized] = true
             out[#out + 1] = normalized
         end
@@ -955,8 +1021,14 @@ local function validate_slot_for_import(index, slot_data, slots, options, seen_s
         return nil, "slot " .. tostring(slot_number) .. " has negative frame/input_num"
     end
 
-    if frame > buff_len or input_num > buff_len then
-        return nil, "slot " .. tostring(slot_number) .. " frame/input_num exceeds input_buff length"
+    local timing_normalized = false
+    if frame > buff_len then
+        frame = buff_len
+        timing_normalized = true
+    end
+    if input_num > buff_len then
+        input_num = frame
+        timing_normalized = true
     end
 
     local input_data = slot_obj:get_field("InputData")
@@ -983,6 +1055,11 @@ local function validate_slot_for_import(index, slot_data, slots, options, seen_s
         normalized_buff[buff_index] = n
     end
 
+    local fields = normalize_scalar_field_map(slot_data.fields)
+    local input_fields = normalize_scalar_field_map(slot_data.input_fields)
+    if fields.Frame ~= nil then fields.Frame = frame end
+    if input_fields.Num ~= nil then input_fields.Num = input_num end
+
     return {
         kind = "write",
         slot = slot_number,
@@ -995,8 +1072,9 @@ local function validate_slot_for_import(index, slot_data, slots, options, seen_s
         weight = as_int(slot_data.weight, 0) or 0,
         input_num = input_num,
         input_buff = normalized_buff,
-        fields = normalize_scalar_field_map(slot_data.fields),
-        input_fields = normalize_scalar_field_map(slot_data.input_fields),
+        timing_normalized = timing_normalized,
+        fields = fields,
+        input_fields = input_fields,
     }, nil
 end
 
@@ -1037,6 +1115,11 @@ local function build_import_plan(data, slots, options)
     end
 
     if #errors > 0 then return nil, errors end
+    local normalized_timing_count = 0
+    for _, step in ipairs(plan) do
+        if step.timing_normalized then normalized_timing_count = normalized_timing_count + 1 end
+    end
+    plan.normalized_timing_count = normalized_timing_count
     return plan, nil
 end
 
@@ -1548,9 +1631,15 @@ function M.import_from_file(path, options)
         force_msg = force_ok and "ForceApply OK" or ("ForceApply failed: " .. tostring(force_err))
     end
     M._annotations = normalize_annotations(data.annotations)
+    local timing_msg = ""
+    if (plan.normalized_timing_count or 0) > 0 then
+        timing_msg = ", normalized timing for " .. tostring(plan.normalized_timing_count)
+            .. " slot(s)"
+    end
 
     return true,
         "Imported " .. tostring(written) .. " slot(s), cleared " .. tostring(cleared)
+            .. timing_msg
             .. ", restored " .. tostring(record_setting_count) .. " record setting field(s)"
             .. ", restored " .. tostring(reversal_count) .. " reversal setting(s)"
             .. ". Backup: data/" .. tostring(backup_path) .. ". " .. force_msg
