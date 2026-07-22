@@ -8,6 +8,7 @@ local GS = require("func/GameState")
 local ComboTrialsModules = {
     DebugTrace = require("func/ComboTrials/DebugTrace"),
     ActionMatcher = require("func/ComboTrials/ActionMatcher"),
+    ActionRestartDetector = require("func/ComboTrials/ActionRestartDetector"),
     CharacterRules = require("func/ComboTrials/CharacterRules"),
     Validator = require("func/ComboTrials/Validator"),
     PendingAbsorb = require("func/ComboTrials/PendingAbsorb"),
@@ -15,6 +16,7 @@ local ComboTrialsModules = {
 }
 local DebugTrace = ComboTrialsModules.DebugTrace
 local ActionMatcher = ComboTrialsModules.ActionMatcher
+local ActionRestartDetector = ComboTrialsModules.ActionRestartDetector
 local CharacterRules = ComboTrialsModules.CharacterRules
 local Validator = ComboTrialsModules.Validator
 
@@ -64,6 +66,18 @@ local DIR_MAP = {
     [6] = "1",
     [9] = "9",
     [10] = "3",
+    [15] = "*"
+}
+local INPUT_DIR_MAP = {
+    [0] = "5",
+    [1] = "8",
+    [2] = "2",
+    [4] = "6",
+    [8] = "4",
+    [5] = "9",
+    [6] = "3",
+    [9] = "7",
+    [10] = "1",
     [15] = "*"
 }
 local BTN_MASKS = { [16] = "LP", [32] = "MP", [64] = "HP", [128] = "LK", [256] = "MK", [512] = "HK" }
@@ -287,7 +301,8 @@ local players = {
         log = {}, prev_act_id = -1, prev_act_frame = -1, last_combo_count = 0,
         action_instance_counter = 0, current_action_instance = 0, buffer_action_instance = 0,
         trigger_mask_cache = {}, trigger_cache_built = false,
-        last_bcm_ptr = "", last_direct_input = 0, input_history_queue = {},
+        last_bcm_ptr = "", last_direct_input = 0, last_direction_input = 0,
+        input_history_queue = {}, dash_tap_state = {},
         profile_name = "Unknown", last_profile_name = "", exceptions = {},
         editing_id = -1, edit_ignore = false, edit_force = false,
 		edit_is_common = false, edit_holdable = false, edit_absorb_ids = "",
@@ -298,7 +313,8 @@ local players = {
         log = {}, prev_act_id = -1, prev_act_frame = -1, last_combo_count = 0,
         action_instance_counter = 0, current_action_instance = 0, buffer_action_instance = 0,
         trigger_mask_cache = {}, trigger_cache_built = false,
-        last_bcm_ptr = "", last_direct_input = 0, input_history_queue = {},
+        last_bcm_ptr = "", last_direct_input = 0, last_direction_input = 0,
+        input_history_queue = {}, dash_tap_state = {},
         profile_name = "Unknown", last_profile_name = "", exceptions = {},
         editing_id = -1, edit_ignore = false, edit_force = false,
 		edit_is_common = false, edit_holdable = false, edit_absorb_ids = "",
@@ -1495,13 +1511,18 @@ end
 
 -- Hoisted hot-path helper (no per-call closure). Scratch table preserves
 -- partial-write semantics if an SDK call errors mid-body.
-local _ct_action_scratch = { act_id = -1, frame = 0, state_flags = -1, action_code = 0, direct_input = 0, branch_type = 0 }
+local _ct_action_scratch = {
+    act_id = -1, frame = 0, state_flags = -1, action_code = 0,
+    direct_input = 0, direction_input = 0, branch_type = 0, facing_right = true
+}
 local function _ct_read_action_data(p_obj)
     local r = _ct_action_scratch
     local p_def = p_obj:get_type_definition()
     local d = (p_def:get_field("pl_input_new"):get_data(p_obj)) or 0
     local b = (p_def:get_field("pl_sw_new"):get_data(p_obj)) or 0
     r.direct_input = d | b
+    r.direction_input = d
+    r.facing_right = p_obj:get_field("rl_dir") ~= false
 
     local act_param = p_obj:get_field("mpActParam")
     if not act_param then return end
@@ -1535,11 +1556,13 @@ local function _ct_read_action_data(p_obj)
 end
 
 local function get_action_data(p_obj)
-    if not p_obj then return -1, 0, -1, 0, 0, 0 end
+    if not p_obj then return -1, 0, -1, 0, 0, 0, 0, true end
     local r = _ct_action_scratch
-    r.act_id, r.frame, r.state_flags, r.action_code, r.direct_input, r.branch_type = -1, 0, -1, 0, 0, 0
+    r.act_id, r.frame, r.state_flags, r.action_code = -1, 0, -1, 0
+    r.direct_input, r.direction_input, r.branch_type, r.facing_right = 0, 0, 0, true
     pcall(_ct_read_action_data, p_obj)
-    return r.act_id, r.frame, r.state_flags, r.action_code, r.direct_input, r.branch_type
+    return r.act_id, r.frame, r.state_flags, r.action_code, r.direct_input,
+        r.branch_type, r.direction_input, r.facing_right
 end
 
 local function get_damage_type_safe(p_char)
@@ -4472,9 +4495,11 @@ local function reset_player_action_buffers(p_state)
     local act_frame = _pf.act_frame or -1
     p_state.log = {}
     p_state.input_history_queue = {}
+    p_state.dash_tap_state = {}
     p_state.prev_act_id = -1
     p_state.prev_act_frame = -1
     p_state.last_direct_input = direct_input
+    p_state.last_direction_input = _pf.direction_input or direct_input
     p_state.last_combo_count = 0
     p_state.action_instance_counter = p_state.action_instance_counter or 0
     p_state.current_action_instance = p_state.action_instance_counter
@@ -4666,10 +4691,12 @@ local function start_recording(player_idx)
 
     players[player_idx].log = {}
     players[player_idx].input_history_queue = {}
+    players[player_idx].dash_tap_state = {}
     players[player_idx].prev_act_id = -1
     players[player_idx].prev_act_frame = -1
     players[player_idx].last_combo_count = 0
     players[player_idx].last_direct_input = 0
+    players[player_idx].last_direction_input = 0
     reset_combo_visual_runtime()
 
     -- LOGGER EXPORT RECORDING INIT
@@ -6473,6 +6500,7 @@ local function ct_player_init(p_idx, p_state)
         live_display_context.refresh(p_idx)
         p_state.log = {}
         p_state.input_history_queue = {}
+        p_state.dash_tap_state = {}
         p_state.action_instance_counter = 0
         p_state.current_action_instance = 0
         p_state.buffer_action_instance = 0
@@ -7089,18 +7117,29 @@ local function ct_player_input_buffer(p_state)
     end
 
     local newly_pressed = (_pf.direct_input ~ p_state.last_direct_input) & _pf.direct_input
-    local current_dir_val = _pf.direct_input & 0xF
-    local current_dir = DIR_MAP[current_dir_val] or "5"
+    local direction_input = tonumber(_pf.direction_input) or (_pf.direct_input & 0xF)
+    local previous_direction_input = tonumber(p_state.last_direction_input) or 0
+    local newly_pressed_dir = ((direction_input ~ previous_direction_input) & direction_input) & 0xF
+    local current_dir_val = ActionRestartDetector.normalize_input_direction_bits(
+        direction_input, _pf.facing_right)
+    local current_dir = INPUT_DIR_MAP[current_dir_val] or "5"
     if current_dir == "5" then current_dir = "" end
-    local newly_pressed_dir = newly_pressed & 0xF
     local detected_66_edge = current_dir == "6" and newly_pressed_dir ~= 0
     local detected_44_edge = current_dir == "4" and newly_pressed_dir ~= 0
+
+    p_state.dash_tap_state = p_state.dash_tap_state or {}
+    local dash_pair = nil
+    if detected_66_edge or detected_44_edge then
+        dash_pair = ActionRestartDetector.observe_dash_direction_edge(
+            p_state.dash_tap_state, current_dir, engine_frame_count)
+    end
 
     if newly_pressed > 0 then
         table.insert(p_state.input_history_queue,
             { frame_tick = engine_frame_count, mask = newly_pressed, dir = current_dir })
     end
     p_state.last_direct_input = _pf.direct_input
+    p_state.last_direction_input = direction_input
 
     while #p_state.input_history_queue > 0 and (engine_frame_count - p_state.input_history_queue[1].frame_tick) > 60 do
         table.remove(p_state.input_history_queue, 1)
@@ -7194,15 +7233,9 @@ local function ct_player_input_buffer(p_state)
             synthetic = true
         })
     end
-    local started_new_action = false
-    local started_new_action_reason = "no_new_action"
-    if _pf.act_id ~= p_state.buffer_act_id then
-        started_new_action = true
-        started_new_action_reason = "id_changed"
-    elseif _pf.act_frame < p_state.buffer_act_frame and _pf.act_frame < 2 then
-        started_new_action = true
-        started_new_action_reason = "act_frame_rewind"
-    end
+    local started_new_action, started_new_action_reason = ActionRestartDetector.detect(
+        _pf.act_id, _pf.act_frame, p_state.buffer_act_id, p_state.buffer_act_frame,
+        p_state.dash_tap_state, engine_frame_count)
     local action_input_edge = newly_pressed & 0xFFF0
     if started_new_action and action_input_edge == 0 then
         -- Some actions switch one or two frames after the button edge. Reuse the
@@ -7221,6 +7254,8 @@ local function ct_player_input_buffer(p_state)
         last_act_frame = p_state.prev_act_frame,
         started_new_action = started_new_action,
         started_new_action_reason = started_new_action_reason,
+        dash_pair_direction = dash_pair and dash_pair.direction or nil,
+        dash_pair_interval = dash_pair and dash_pair.interval or nil,
         skipped_due_to_duplicate = not started_new_action and _pf.act_id == p_state.buffer_act_id,
         skipped_due_to_same_action = not started_new_action and _pf.act_id == p_state.buffer_act_id,
         action_instance = p_state.buffer_action_instance,
@@ -9029,7 +9064,8 @@ re.on_frame(function()
         end
         if not p_state.trigger_cache_built then build_bcm_trigger_cache(p_idx) end
 
-        _pf.act_id, _pf.act_frame, _pf.flags, _pf.action_code, _pf.direct_input, _pf.b_type = get_action_data(_pf.p_char)
+        _pf.act_id, _pf.act_frame, _pf.flags, _pf.action_code, _pf.direct_input,
+            _pf.b_type, _pf.direction_input, _pf.facing_right = get_action_data(_pf.p_char)
         _pf.current_combo = get_combo_count(_pf.p_char)
         _pf.victim_idx = 1 - p_idx
         _pf.victim_obj = (_pf.victim_idx == 0) and GS.p1 or GS.p2
