@@ -961,23 +961,57 @@ local function hud_add_circle_filled(x, y, radius, color, segments)
     if not ok then hud_log_rate_limited("add_circle_failed", "ImDrawList:add_circle_filled 失败：" .. tostring(err)) end
 end
 
-local function hud_add_triangle_filled(x1, y1, x2, y2, x3, y3, color)
+local function hud_add_circle(x, y, radius, color, segments, thickness)
     if hud_draw_list == nil then return end
-    if not hud_valid_point(x1, y1) or not hud_valid_point(x2, y2)
-        or not hud_valid_point(x3, y3) then
-        hud_log_rate_limited("invalid_triangle", "检测到非法三角形坐标，已跳过。")
+    if not hud_valid_point(x, y) or not is_finite_number(radius) or radius <= 0 then
+        hud_log_rate_limited("invalid_circle_outline", "检测到非法圆形描边参数，已跳过。")
         return
     end
     if not is_finite_number(color) then color = 0xFFFFFFFF end
+    if not is_finite_number(segments) or segments < 3 then segments = 24 end
+    if not is_finite_number(thickness) or thickness <= 0 then thickness = 1.0 end
 
     local ok, err = pcall(function()
-        hud_draw_list:add_triangle_filled(
-            Vector2f.new(x1, y1), Vector2f.new(x2, y2),
-            Vector2f.new(x3, y3), color
+        hud_draw_list:add_circle(
+            Vector2f.new(x, y), radius, color,
+            math.floor(segments), thickness
         )
     end)
+    if not ok then hud_log_rate_limited("add_circle_outline_failed", "ImDrawList:add_circle 失败：" .. tostring(err)) end
+end
+
+local function hud_fill_normalized_path(points, cx, cy, scale, rot_c, rot_s, color, concave, offset_x, offset_y)
+    if hud_draw_list == nil or type(points) ~= "table" or #points < 6 then return end
+    if not hud_valid_point(cx, cy) or not is_finite_number(scale) or scale <= 0 then
+        hud_log_rate_limited("invalid_path", "检测到非法矢量路径参数，已跳过。")
+        return
+    end
+    rot_c = is_finite_number(rot_c) and rot_c or 1.0
+    rot_s = is_finite_number(rot_s) and rot_s or 0.0
+    offset_x = is_finite_number(offset_x) and offset_x or 0.0
+    offset_y = is_finite_number(offset_y) and offset_y or 0.0
+    if not is_finite_number(color) then color = 0xFFFFFFFF end
+
+    local ok, err = pcall(function()
+        hud_draw_list:path_clear()
+        for i = 1, #points, 2 do
+            local nx, ny = points[i], points[i + 1]
+            local rx = (nx * rot_c) - (ny * rot_s)
+            local ry = (nx * rot_s) + (ny * rot_c)
+            hud_draw_list:path_line_to(Vector2f.new(
+                cx + offset_x + (rx * scale),
+                cy + offset_y + (ry * scale)
+            ))
+        end
+        if concave then
+            hud_draw_list:path_fill_concave(color)
+        else
+            hud_draw_list:path_fill_convex(color)
+        end
+    end)
     if not ok then
-        hud_log_rate_limited("add_triangle_failed", "ImDrawList:add_triangle_filled 失败：" .. tostring(err))
+        pcall(function() hud_draw_list:path_clear() end)
+        hud_log_rate_limited("fill_path_failed", "ImDrawList 矢量路径绘制失败：" .. tostring(err))
     end
 end
 
@@ -1100,136 +1134,472 @@ local function parse_input_string(input_str, facing_right)
     return icons, strength, display_name
 end
 
-local input_icon_directions = {
-    ["1"] = { -0.70710678,  0.70710678 },
-    ["2"] = {  0.0,         1.0        },
-    ["3"] = {  0.70710678,  0.70710678 },
-    ["4"] = { -1.0,         0.0        },
-    ["6"] = {  1.0,         0.0        },
-    ["7"] = { -0.70710678, -0.70710678 },
-    ["8"] = {  0.0,        -1.0        },
-    ["9"] = {  0.70710678, -0.70710678 }
+-- ImGui colors are packed as ABGR (0xAABBGGRR). The button base/highlight
+-- pairs are sampled from the existing 80x80 buttonsAndArrows reference PNGs;
+-- the PNGs are never loaded at runtime.
+local ICON_STYLE = {
+    standard_size = 28.0,
+    compact_size = 24.0,
+    button_diameter = 26.0,
+    outline_width = 1.7,
+    inner_stroke_width = 1.2,
+    shadow_offset = 1.15,
+    symbol_scale = 0.72,
+    baseline_offset = 0.35,
+    icon_gap = 4.5,
+    text_gap = 6.0,
+    colors = {
+        arrow_fill = 0xFFF2F2F2,
+        arrow_outline = 0xFF202024,
+        icon_shadow = 0x66000000,
+        punch_light = 0xFF937E39,
+        punch_medium = 0xFF3B9797,
+        punch_heavy = 0xFF3839A9,
+        kick_light = 0xFF937E39,
+        kick_medium = 0xFF3B9797,
+        kick_heavy = 0xFF3839A9,
+        light_highlight = 0xFFDDD394,
+        medium_highlight = 0xFF6CEEF3,
+        heavy_highlight = 0xFF9393F0,
+        throw_color = 0xFF333232,
+        modern_color = 0xFF399296,
+        neutral_color = 0xFF454443,
+        highlight_color = 0xFFF2F2F2,
+        disabled_color = 0xFF696969,
+        cancel_color = 0xFF17D31E,
+        instant_color = 0xFF37B4F5,
+        drive_color = 0xFFC65C97,
+        plus_color = 0xFFF2F2F2,
+        ring_color = 0xFFD8D8D8,
+        symbol_shadow = 0x88000000
+    }
 }
 
-local function draw_direction_icon(icon_key, x, y, size)
-    local dir = input_icon_directions[icon_key]
-    if not dir then return false end
+-- A single upward arrow template. Every direction is produced by one of the
+-- precomputed rotation matrices below; no per-direction polygon is maintained.
+local ARROW_TEMPLATE = {
+    -0.123,  0.352,
+     0.123,  0.352,
+     0.123, -0.049,
+     0.314, -0.049,
+     0.000, -0.363,
+    -0.314, -0.049,
+    -0.123, -0.049
+}
 
-    local dx, dy = dir[1], dir[2]
-    local px, py = -dy, dx
-    local cx, cy = x + size * 0.5, y + size * 0.5
+local DIRECTION_ROTATIONS = {
+    ["8"] = {  1.00000000,  0.00000000 },
+    ["9"] = {  0.70710678,  0.70710678 },
+    ["6"] = {  0.00000000,  1.00000000 },
+    ["3"] = { -0.70710678,  0.70710678 },
+    ["2"] = { -1.00000000,  0.00000000 },
+    ["1"] = { -0.70710678, -0.70710678 },
+    ["4"] = {  0.00000000, -1.00000000 },
+    ["7"] = {  0.70710678, -0.70710678 }
+}
 
-    local start_x, start_y = cx - dx * size * 0.25, cy - dy * size * 0.25
-    local base_x, base_y = cx + dx * size * 0.08, cy + dy * size * 0.08
-    local tip_x, tip_y = cx + dx * size * 0.43, cy + dy * size * 0.43
+-- Cached normalized symbol outlines. These are transformed only by scale,
+-- rotation and translation at draw time.
+local PUNCH_TEMPLATE = {
+    -0.31,  0.07,
+    -0.36, -0.06,
+    -0.27, -0.16,
+    -0.20, -0.11,
+    -0.28, -0.26,
+    -0.18, -0.32,
+    -0.07, -0.16,
+    -0.09, -0.34,
+     0.02, -0.35,
+     0.08, -0.16,
+     0.09, -0.33,
+     0.20, -0.31,
+     0.20, -0.13,
+     0.28, -0.25,
+     0.36, -0.18,
+     0.31,  0.06,
+     0.16,  0.25,
+    -0.06,  0.31,
+    -0.23,  0.22
+}
 
-    hud_add_line(start_x, start_y, base_x, base_y, 0xFF111111, size * 0.32)
-    hud_add_triangle_filled(
-        tip_x, tip_y,
-        base_x + px * size * 0.28, base_y + py * size * 0.28,
-        base_x - px * size * 0.28, base_y - py * size * 0.28,
-        0xFF111111
+local KICK_TEMPLATE = {
+    -0.34, -0.19,
+    -0.20, -0.30,
+    -0.03, -0.07,
+     0.23, -0.29,
+     0.35, -0.13,
+     0.14,  0.18,
+    -0.02,  0.31,
+    -0.18,  0.17
+}
+
+local PLUS_TEMPLATE = {
+    -0.11, -0.34,
+     0.11, -0.34,
+     0.11, -0.11,
+     0.34, -0.11,
+     0.34,  0.11,
+     0.11,  0.11,
+     0.11,  0.34,
+    -0.11,  0.34,
+    -0.11,  0.11,
+    -0.34,  0.11,
+    -0.34, -0.11,
+    -0.11, -0.11
+}
+
+local SPARK_TEMPLATE = {
+     0.00, -0.38,
+     0.10, -0.10,
+     0.38,  0.00,
+     0.10,  0.10,
+     0.00,  0.38,
+    -0.10,  0.10,
+    -0.38,  0.00,
+    -0.10, -0.10
+}
+
+local DRIVE_TEMPLATE = {
+    -0.09, -0.37,
+     0.24, -0.37,
+     0.08, -0.06,
+     0.30, -0.06,
+    -0.22,  0.38,
+    -0.05,  0.08,
+    -0.28,  0.08
+}
+
+local TRIANGLE_TEMPLATE = {
+    -0.30, -0.32,
+     0.34,  0.00,
+    -0.30,  0.32
+}
+
+local icon_layout_cache = {}
+
+local function get_icon_kind(icon_key)
+    local upper = string.upper(tostring(icon_key or ""))
+    local lower = string.lower(upper)
+    if DIRECTION_ROTATIONS[upper] then return "direction", upper end
+    if upper == "5" or upper == "NEUTRAL" then return "neutral", "5" end
+    if string.match(lower, "^[lmh][pk]$") then return "attack", lower end
+    if upper == "PLUS" or upper == "+" then return "plus", "PLUS" end
+    if upper == "CANCEL" then return "cancel", upper end
+    if upper == "INSTANT" then return "instant", upper end
+    if upper == "THROW" then return "throw", upper end
+    if upper == "HOLD" then return "hold", upper end
+    if upper == "MODERN" or upper == "MODERN_M" then return "modern", "MODERN" end
+    if upper == "DRIVE" or upper == "DI" then return "drive", "DRIVE" end
+    return "unknown", tostring(icon_key or "")
+end
+
+local function get_icon_layout(size, compact, kind)
+    if not is_finite_number(size) or size <= 0 then size = ICON_STYLE.standard_size end
+    kind = kind or "standard"
+    local quantized = math.floor((size * 10.0) + 0.5)
+    local cache_key = tostring(quantized) .. "|" .. (compact and "1" or "0") .. "|" .. kind
+    local cached = icon_layout_cache[cache_key]
+    if cached then return cached end
+
+    local scale = size / ICON_STYLE.standard_size
+    local width = size
+    if kind == "plus" then
+        width = size * 0.58
+    elseif kind == "cancel" or kind == "instant" then
+        width = size * 0.62
+    end
+    local gap = ICON_STYLE.icon_gap * scale
+    if compact then gap = gap * 0.88 end
+
+    local layout = {
+        icon_size = size,
+        width = width,
+        height = size,
+        advance_x = width + gap,
+        icon_gap = gap,
+        text_gap = ICON_STYLE.text_gap * scale,
+        baseline_offset = ICON_STYLE.baseline_offset * scale,
+        outline_width = math.max(1.0, ICON_STYLE.outline_width * scale),
+        inner_stroke_width = math.max(1.0, ICON_STYLE.inner_stroke_width * scale),
+        shadow_offset = ICON_STYLE.shadow_offset * scale,
+        bbox_min_x = 0.0,
+        bbox_min_y = 0.0,
+        bbox_max_x = width,
+        bbox_max_y = size
+    }
+    icon_layout_cache[cache_key] = layout
+    return layout
+end
+
+local function get_scaled_command_icon_size(scale_factor, compact)
+    if not is_finite_number(scale_factor) or scale_factor <= 0 then scale_factor = 1.0 end
+    local logical_size = compact and ICON_STYLE.compact_size or ICON_STYLE.standard_size
+    local icon_scale = config.icon_scale or 1.0
+    if not is_finite_number(icon_scale) or icon_scale <= 0 then icon_scale = 1.0 end
+    return math.max(12.0, math.min(96.0, logical_size * scale_factor * icon_scale))
+end
+
+local function draw_layered_path(template, cx, cy, size, rot_c, rot_s, fill_color, concave, layout, symbol_scale)
+    local normalized_extent = 0.36
+    local fill_scale = size * (symbol_scale or 1.0)
+    local outline_scale = fill_scale + (layout.outline_width / normalized_extent)
+    hud_fill_normalized_path(
+        template, cx, cy, outline_scale, rot_c, rot_s,
+        ICON_STYLE.colors.icon_shadow, concave,
+        layout.shadow_offset, layout.shadow_offset
     )
+    hud_fill_normalized_path(
+        template, cx, cy, outline_scale, rot_c, rot_s,
+        ICON_STYLE.colors.arrow_outline, concave, 0.0, 0.0
+    )
+    hud_fill_normalized_path(
+        template, cx, cy, fill_scale, rot_c, rot_s,
+        fill_color, concave, 0.0, 0.0
+    )
+end
 
-    local inner_base_x, inner_base_y = cx + dx * size * 0.07, cy + dy * size * 0.07
-    hud_add_line(start_x, start_y, inner_base_x, inner_base_y, 0xFFFFFFFF, size * 0.18)
-    hud_add_triangle_filled(
-        cx + dx * size * 0.36, cy + dy * size * 0.36,
-        inner_base_x + px * size * 0.19, inner_base_y + py * size * 0.19,
-        inner_base_x - px * size * 0.19, inner_base_y - py * size * 0.19,
-        0xFFFFFFFF
+local function draw_direction_icon(icon_key, x, y, size, compact)
+    local rotation = DIRECTION_ROTATIONS[icon_key]
+    if not rotation then return false end
+
+    local layout = get_icon_layout(size, compact, "direction")
+    local cx, cy = x + layout.width * 0.5, y + layout.height * 0.5
+    draw_layered_path(
+        ARROW_TEMPLATE, cx, cy, size,
+        rotation[1], rotation[2],
+        ICON_STYLE.colors.arrow_fill, true, layout, 1.0
     )
     return true
 end
 
-local function get_attack_icon_color(icon_key)
-    local strength = string.sub(icon_key, 1, 1)
-    if strength == "l" then return COL_LIGHT end
-    if strength == "m" then return COL_MEDIUM end
-    return COL_HEAVY
+local function draw_neutral_icon(x, y, size, compact)
+    local layout = get_icon_layout(size, compact, "neutral")
+    local cx, cy = x + layout.width * 0.5, y + layout.height * 0.5
+    local radius = size * 0.42
+    hud_add_circle_filled(
+        cx + layout.shadow_offset, cy + layout.shadow_offset,
+        radius + layout.outline_width, ICON_STYLE.colors.icon_shadow, 28
+    )
+    hud_add_circle_filled(cx, cy, radius + layout.outline_width, ICON_STYLE.colors.arrow_outline, 28)
+    hud_add_circle_filled(cx, cy, radius, ICON_STYLE.colors.neutral_color, 28)
+    hud_add_circle(cx, cy, radius - layout.inner_stroke_width, ICON_STYLE.colors.ring_color, 28, layout.inner_stroke_width)
+
+    local half_h = size * 0.22
+    local half_w = size * 0.13
+    local stroke = layout.inner_stroke_width * 1.35
+    hud_add_line(cx - half_w, cy - half_h, cx - half_w, cy + half_h, ICON_STYLE.colors.highlight_color, stroke)
+    hud_add_line(cx - half_w, cy - half_h, cx + half_w, cy + half_h, ICON_STYLE.colors.highlight_color, stroke)
+    hud_add_line(cx + half_w, cy - half_h, cx + half_w, cy + half_h, ICON_STYLE.colors.highlight_color, stroke)
 end
 
-local function draw_attack_icon(icon_key, x, y, size)
+local function get_attack_palette(icon_key)
+    local strength = string.sub(icon_key, 1, 1)
+    local category = string.sub(icon_key, 2, 2) == "p" and "punch_" or "kick_"
+    if strength == "l" then return ICON_STYLE.colors[category .. "light"], ICON_STYLE.colors.light_highlight end
+    if strength == "m" then return ICON_STYLE.colors[category .. "medium"], ICON_STYLE.colors.medium_highlight end
+    return ICON_STYLE.colors[category .. "heavy"], ICON_STYLE.colors.heavy_highlight
+end
+
+local function draw_button_shell(cx, cy, size, layout, fill_color)
+    local diameter = size * (ICON_STYLE.button_diameter / ICON_STYLE.standard_size)
+    local radius = diameter * 0.5
+    hud_add_circle_filled(
+        cx + layout.shadow_offset, cy + layout.shadow_offset,
+        radius + layout.outline_width * 0.35,
+        ICON_STYLE.colors.icon_shadow, 28
+    )
+    hud_add_circle_filled(cx, cy, radius, ICON_STYLE.colors.arrow_outline, 28)
+    hud_add_circle_filled(cx, cy, radius - layout.outline_width, fill_color, 28)
+    hud_add_circle(
+        cx, cy, radius - layout.outline_width * 1.65,
+        ICON_STYLE.colors.ring_color, 28, layout.inner_stroke_width
+    )
+    return diameter
+end
+
+local function draw_strength_ticks(icon_key, cx, cy, diameter, layout, color)
+    local strength = string.sub(icon_key, 1, 1)
+    local count = strength == "l" and 1 or (strength == "m" and 2 or 3)
+    local spacing = diameter * 0.095
+    local start_x = cx - ((count - 1) * spacing * 0.5)
+    local tick_y = cy + diameter * 0.31
+    local radius = math.max(0.75, layout.inner_stroke_width * 0.62)
+    for i = 0, count - 1 do
+        hud_add_circle_filled(start_x + (i * spacing), tick_y, radius, color, 12)
+    end
+end
+
+local function draw_attack_icon(icon_key, x, y, size, compact)
     if not string.match(icon_key, "^[lmh][pk]$") then return false end
 
-    local cx, cy = x + size * 0.5, y + size * 0.5
-    local mark_color = 0xFFE6FFFF
-    hud_add_circle_filled(cx, cy, size * 0.48, 0xFF222222, 24)
-    hud_add_circle_filled(cx, cy, size * 0.41, 0xFFB8B8B8, 24)
-    hud_add_circle_filled(cx, cy, size * 0.34, get_attack_icon_color(icon_key), 24)
+    local layout = get_icon_layout(size, compact, "attack")
+    local cx, cy = x + layout.width * 0.5, y + layout.height * 0.5
+    local fill_color, symbol_color = get_attack_palette(icon_key)
+    local diameter = draw_button_shell(cx, cy, size, layout, fill_color)
+    local template = string.sub(icon_key, 2, 2) == "p" and PUNCH_TEMPLATE or KICK_TEMPLATE
+    local symbol_size = diameter * ICON_STYLE.symbol_scale
 
-    if string.sub(icon_key, 2, 2) == "k" then
-        -- Compact boot/check silhouette, matching the visual role of the old
-        -- kick PNG without loading a texture.
-        hud_add_line(
-            cx - size * 0.22, cy - size * 0.10,
-            cx - size * 0.04, cy + size * 0.12,
-            mark_color, size * 0.11
-        )
-        hud_add_line(
-            cx - size * 0.04, cy + size * 0.12,
-            cx + size * 0.24, cy - size * 0.14,
-            mark_color, size * 0.11
-        )
-    else
-        -- Small fist silhouette for punch buttons.
-        hud_add_quad_filled(
-            cx - size * 0.18, cy - size * 0.02,
-            cx + size * 0.15, cy - size * 0.08,
-            cx + size * 0.18, cy + size * 0.17,
-            cx - size * 0.10, cy + size * 0.21,
-            mark_color
-        )
-        hud_add_line(cx - size * 0.15, cy - size * 0.03, cx - size * 0.22, cy - size * 0.21, mark_color, size * 0.08)
-        hud_add_line(cx - size * 0.04, cy - size * 0.05, cx - size * 0.09, cy - size * 0.25, mark_color, size * 0.08)
-        hud_add_line(cx + size * 0.07, cy - size * 0.06, cx + size * 0.05, cy - size * 0.25, mark_color, size * 0.08)
-        hud_add_line(cx + size * 0.16, cy - size * 0.03, cx + size * 0.17, cy - size * 0.20, mark_color, size * 0.08)
-    end
+    hud_fill_normalized_path(
+        template, cx, cy, symbol_size, 1.0, 0.0,
+        ICON_STYLE.colors.symbol_shadow, true,
+        layout.inner_stroke_width * 0.55, layout.inner_stroke_width * 0.55
+    )
+    hud_fill_normalized_path(template, cx, cy, symbol_size, 1.0, 0.0, symbol_color, true, 0.0, 0.0)
+    draw_strength_ticks(icon_key, cx, cy, diameter, layout, symbol_color)
     return true
 end
 
-local function draw_special_input_icon(icon_key, x, y, size)
-    if icon_key ~= "HOLD" and icon_key ~= "THROW" then return false end
+local function draw_throw_icon(x, y, size, compact)
+    local layout = get_icon_layout(size, compact, "throw")
+    local cx, cy = x + layout.width * 0.5, y + layout.height * 0.5
+    local diameter = draw_button_shell(cx, cy, size, layout, ICON_STYLE.colors.throw_color)
+    local symbol_color = ICON_STYLE.colors.highlight_color
+    local hand_radius = diameter * 0.085
+    local stroke = layout.inner_stroke_width * 1.65
 
-    local cx, cy = x + size * 0.5, y + size * 0.5
-    hud_add_circle_filled(cx, cy, size * 0.48, 0xFF222222, 24)
-    hud_add_circle_filled(cx, cy, size * 0.39, 0xFF888888, 24)
-
-    if icon_key == "HOLD" then
-        hud_add_quad_filled(
-            cx - size * 0.18, cy - size * 0.23,
-            cx - size * 0.06, cy - size * 0.23,
-            cx - size * 0.06, cy + size * 0.23,
-            cx - size * 0.18, cy + size * 0.23,
-            0xFFFFFFFF
-        )
-        hud_add_quad_filled(
-            cx + size * 0.06, cy - size * 0.23,
-            cx + size * 0.18, cy - size * 0.23,
-            cx + size * 0.18, cy + size * 0.23,
-            cx + size * 0.06, cy + size * 0.23,
-            0xFFFFFFFF
-        )
-    else
-        hud_add_line(cx - size * 0.22, cy - size * 0.18, cx + size * 0.22, cy - size * 0.18, 0xFFFFFFFF, size * 0.10)
-        hud_add_line(cx, cy - size * 0.18, cx, cy + size * 0.24, 0xFFFFFFFF, size * 0.10)
-    end
-    return true
+    hud_add_circle_filled(cx - diameter * 0.13, cy - diameter * 0.10, hand_radius, symbol_color, 16)
+    hud_add_circle_filled(cx + diameter * 0.13, cy - diameter * 0.10, hand_radius, symbol_color, 16)
+    hud_add_line(
+        cx - diameter * 0.25, cy + diameter * 0.12,
+        cx - diameter * 0.07, cy - diameter * 0.02,
+        symbol_color, stroke
+    )
+    hud_add_line(
+        cx + diameter * 0.25, cy + diameter * 0.12,
+        cx + diameter * 0.07, cy - diameter * 0.02,
+        symbol_color, stroke
+    )
+    hud_add_line(
+        cx - diameter * 0.22, cy + diameter * 0.12,
+        cx + diameter * 0.22, cy + diameter * 0.12,
+        symbol_color, stroke
+    )
 end
 
-local function draw_input_icon(icon_key, x, y, size)
+local function draw_modern_icon(x, y, size, compact)
+    local layout = get_icon_layout(size, compact, "modern")
+    local cx, cy = x + layout.width * 0.5, y + layout.height * 0.5
+    local diameter = draw_button_shell(cx, cy, size, layout, ICON_STYLE.colors.modern_color)
+    local half_w, half_h = diameter * 0.23, diameter * 0.23
+    local stroke = layout.inner_stroke_width * 1.65
+    local color = ICON_STYLE.colors.medium_highlight
+    hud_add_line(cx - half_w, cy + half_h, cx - half_w, cy - half_h, color, stroke)
+    hud_add_line(cx - half_w, cy - half_h, cx, cy + diameter * 0.02, color, stroke)
+    hud_add_line(cx, cy + diameter * 0.02, cx + half_w, cy - half_h, color, stroke)
+    hud_add_line(cx + half_w, cy - half_h, cx + half_w, cy + half_h, color, stroke)
+end
+
+local function draw_hold_icon(x, y, size, compact)
+    local layout = get_icon_layout(size, compact, "hold")
+    local cx, cy = x + layout.width * 0.5, y + layout.height * 0.5
+    local diameter = draw_button_shell(cx, cy, size, layout, ICON_STYLE.colors.neutral_color)
+    local arrow_size = size * 0.48
+    local clock_x, clock_y = cx + diameter * 0.18, cy + diameter * 0.18
+    local clock_r = diameter * 0.17
+    local rotation = DIRECTION_ROTATIONS["2"]
+
+    draw_layered_path(
+        ARROW_TEMPLATE, cx - diameter * 0.08, cy - diameter * 0.10,
+        arrow_size, rotation[1], rotation[2],
+        ICON_STYLE.colors.highlight_color, true, layout, 1.0
+    )
+    hud_add_circle_filled(clock_x, clock_y, clock_r + layout.inner_stroke_width, ICON_STYLE.colors.arrow_outline, 18)
+    hud_add_circle_filled(clock_x, clock_y, clock_r, ICON_STYLE.colors.instant_color, 18)
+    hud_add_line(clock_x, clock_y, clock_x, clock_y - clock_r * 0.55, ICON_STYLE.colors.arrow_outline, layout.inner_stroke_width)
+    hud_add_line(clock_x, clock_y, clock_x + clock_r * 0.45, clock_y, ICON_STYLE.colors.arrow_outline, layout.inner_stroke_width)
+end
+
+local function draw_plus_icon(x, y, size, compact)
+    local layout = get_icon_layout(size, compact, "plus")
+    local cx, cy = x + layout.width * 0.5, y + layout.height * 0.5
+    draw_layered_path(
+        PLUS_TEMPLATE, cx, cy, size * 0.72,
+        1.0, 0.0, ICON_STYLE.colors.plus_color,
+        true, layout, 1.0
+    )
+end
+
+local function draw_cancel_icon(x, y, size, compact)
+    local layout = get_icon_layout(size, compact, "cancel")
+    local cx, cy = x + layout.width * 0.5, y + layout.height * 0.5
+    draw_layered_path(
+        TRIANGLE_TEMPLATE, cx, cy, size * 0.68,
+        1.0, 0.0, ICON_STYLE.colors.cancel_color,
+        false, layout, 1.0
+    )
+end
+
+local function draw_instant_icon(x, y, size, compact)
+    local layout = get_icon_layout(size, compact, "instant")
+    local cx, cy = x + layout.width * 0.5, y + layout.height * 0.5
+    draw_layered_path(
+        SPARK_TEMPLATE, cx, cy, size * 0.58,
+        1.0, 0.0, ICON_STYLE.colors.instant_color,
+        false, layout, 1.0
+    )
+    hud_add_circle_filled(cx, cy, layout.inner_stroke_width * 0.9, ICON_STYLE.colors.highlight_color, 12)
+end
+
+local function draw_drive_icon(x, y, size, compact)
+    local layout = get_icon_layout(size, compact, "drive")
+    local cx, cy = x + layout.width * 0.5, y + layout.height * 0.5
+    local diameter = draw_button_shell(cx, cy, size, layout, ICON_STYLE.colors.drive_color)
+    hud_fill_normalized_path(
+        DRIVE_TEMPLATE, cx, cy, diameter * 0.72,
+        1.0, 0.0, ICON_STYLE.colors.highlight_color,
+        true, 0.0, 0.0
+    )
+end
+
+local function draw_input_icon(icon_key, x, y, size, compact)
     if not hud_valid_point(x, y) or not is_finite_number(size) or size <= 0 then
         hud_log_rate_limited("invalid_input_icon", "检测到非法指令图标参数，已跳过。")
-        return
+        return get_icon_layout(ICON_STYLE.standard_size, false, "unknown")
     end
 
-    icon_key = tostring(icon_key)
-    if draw_direction_icon(icon_key, x, y, size) then return end
-    if draw_attack_icon(string.lower(icon_key), x, y, size) then return end
-    if draw_special_input_icon(string.upper(icon_key), x, y, size) then return end
+    local kind, normalized_key = get_icon_kind(icon_key)
+    local layout = get_icon_layout(size, compact, kind)
+    if kind == "direction" then draw_direction_icon(normalized_key, x, y, size, compact)
+    elseif kind == "neutral" then draw_neutral_icon(x, y, size, compact)
+    elseif kind == "attack" then draw_attack_icon(normalized_key, x, y, size, compact)
+    elseif kind == "throw" then draw_throw_icon(x, y, size, compact)
+    elseif kind == "modern" then draw_modern_icon(x, y, size, compact)
+    elseif kind == "hold" then draw_hold_icon(x, y, size, compact)
+    elseif kind == "plus" then draw_plus_icon(x, y, size, compact)
+    elseif kind == "cancel" then draw_cancel_icon(x, y, size, compact)
+    elseif kind == "instant" then draw_instant_icon(x, y, size, compact)
+    elseif kind == "drive" then draw_drive_icon(x, y, size, compact)
+    else
+        -- Unknown future token: retain a readable fallback instead of failing.
+        hud_add_text("[" .. normalized_key .. "]", x, y, ICON_STYLE.colors.highlight_color, true)
+    end
+    return layout
+end
 
-    -- Unknown future token: retain a readable fallback instead of failing.
-    hud_add_text("[" .. icon_key .. "]", x, y, 0xFFFFFFFF, true)
+local function measure_input_icon_run(icons, size, compact)
+    if not icons or #icons == 0 then return 0.0 end
+    local width = 0.0
+    for i, icon_key in ipairs(icons) do
+        local kind = get_icon_kind(icon_key)
+        local layout = get_icon_layout(size, compact, kind)
+        width = width + layout.width
+        if i < #icons then width = width + layout.icon_gap end
+    end
+    return width
+end
+
+local function draw_input_icon_run(icons, x, line_y, line_height, size, compact)
+    if not icons or #icons == 0 then return x end
+    local current_x = x
+    local standard_layout = get_icon_layout(size, compact, "standard")
+    local icon_y = line_y + ((line_height - size) * 0.5) + standard_layout.baseline_offset
+
+    for i, icon_key in ipairs(icons) do
+        local layout = draw_input_icon(icon_key, current_x, icon_y, size, compact)
+        current_x = current_x + layout.width
+        if i < #icons then current_x = current_x + layout.icon_gap end
+    end
+    return current_x
 end
 
 local debug_dist_status = "未加载"
@@ -1701,6 +2071,18 @@ local function evaluate_player_zone(pi, cache_data, opponent_data)
     return { name = ((pi == 0) and "P1" or "P2") .. " 绿色区域", color = colors.Green }
 end
 
+local function get_input_line_visual_height(line, scale_factor, facing_right)
+    local text_height = imgui.calc_text_size(line).y
+    local input_core = string.match(line, "^.-{(.-)}.*$")
+    if not input_core then return text_height end
+
+    local parsed_icons = parse_input_string(input_core, facing_right)
+    local compact = #parsed_icons >= 3
+    local icon_size = get_scaled_command_icon_size(scale_factor, compact)
+    local layout = get_icon_layout(icon_size, compact, "standard")
+    return math.max(text_height, icon_size + math.abs(layout.baseline_offset))
+end
+
 local function draw_text_above_head_independent(text, pos, color, offset_x, offset_y, scale_factor, align, facing_right)
     if text == "" or not pos or not hud_valid_point(pos.x, pos.y) then return end
     if not is_finite_number(offset_x) then offset_x = 0.0 end
@@ -1714,32 +2096,43 @@ local function draw_text_above_head_independent(text, pos, color, offset_x, offs
     for s in string.gmatch(text, "[^\r\n]+") do table.insert(lines, s) end
     
     local total_height = 0
-    for _, line in ipairs(lines) do total_height = total_height + imgui.calc_text_size(line).y end
+    for _, line in ipairs(lines) do
+        total_height = total_height + get_input_line_visual_height(line, scale_factor, facing_right)
+    end
     
     -- Absolute Y coordinate with nearest-pixel rounding
     local current_y = math.floor(pos.y - off_y - total_height + 0.5)
     
     for _, line in ipairs(lines) do
         local text_height = imgui.calc_text_size(line).y
-        local icon_size = math.max(8, math.floor(text_height * (config.icon_scale or 1.0) + 0.5))
-        
-        -- Calculate the width using the same square geometry used by the
-        -- vector direction/button icons.
         local true_width = 0
         local before_txt, input_core, after_txt = string.match(line, "^(.-){(.-)}(.*)$")
         local parsed_icons, parsed_strength
-        
         local display_name
+        local compact_icons = false
+        local icon_size = get_scaled_command_icon_size(scale_factor, false)
+        local standard_layout = get_icon_layout(icon_size, false, "standard")
+        local line_height = text_height
+
         if input_core then
             parsed_icons, parsed_strength, display_name = parse_input_string(input_core, facing_right)
-            local icon_letter_gap = 4 -- <<< CHANGE THIS VALUE FOR SPACING
+            compact_icons = #parsed_icons >= 3
+            icon_size = get_scaled_command_icon_size(scale_factor, compact_icons)
+            standard_layout = get_icon_layout(icon_size, compact_icons, "standard")
+            line_height = math.max(text_height, icon_size + math.abs(standard_layout.baseline_offset))
 
             if before_txt and before_txt ~= "" then true_width = true_width + imgui.calc_text_size(before_txt).x end
-            if display_name then true_width = true_width + imgui.calc_text_size(display_name).x + 4 end
-            true_width = true_width + (#parsed_icons * icon_size)
-            if #parsed_icons > 0 and parsed_strength ~= "" then true_width = true_width + icon_letter_gap end
-            if parsed_strength ~= "" then true_width = true_width + imgui.calc_text_size(parsed_strength).x + 5 end
-            if after_txt and after_txt ~= "" then true_width = true_width + imgui.calc_text_size(after_txt).x end
+            if display_name then
+                true_width = true_width + imgui.calc_text_size(display_name).x
+                if #parsed_icons > 0 then true_width = true_width + standard_layout.text_gap end
+            end
+            true_width = true_width + measure_input_icon_run(parsed_icons, icon_size, compact_icons)
+            if #parsed_icons > 0 and parsed_strength ~= "" then true_width = true_width + standard_layout.text_gap end
+            if parsed_strength ~= "" then true_width = true_width + imgui.calc_text_size(parsed_strength).x end
+            if after_txt and after_txt ~= "" then
+                if parsed_strength ~= "" or #parsed_icons > 0 then true_width = true_width + standard_layout.text_gap end
+                true_width = true_width + imgui.calc_text_size(after_txt).x
+            end
         else
             true_width = imgui.calc_text_size(line).x
         end
@@ -1752,40 +2145,41 @@ local function draw_text_above_head_independent(text, pos, color, offset_x, offs
         
         if input_core then
             local current_x = x_pos
+            local text_y = current_y + ((line_height - text_height) * 0.5)
             if before_txt and before_txt ~= "" then
                 local b_w = math.floor(imgui.calc_text_size(before_txt).x + 0.5)
-                hud_add_text(before_txt, current_x, current_y, color, true)
+                hud_add_text(before_txt, current_x, text_y, color, true)
                 current_x = current_x + b_w
             end
 
             if display_name then
                 local dn_w = math.floor(imgui.calc_text_size(display_name).x + 0.5)
-                hud_add_text(display_name, current_x, current_y, color, true)
-                current_x = current_x + dn_w + 4
+                hud_add_text(display_name, current_x, text_y, color, true)
+                current_x = current_x + dn_w
+                if #parsed_icons > 0 then current_x = current_x + standard_layout.text_gap end
             end
 
-            local icon_y = current_y + ((config.icon_offset_y or 0.0) * scale_factor)
-            for _, icon_key in ipairs(parsed_icons) do
-                draw_input_icon(icon_key, current_x, icon_y, icon_size)
-                current_x = current_x + icon_size
-            end
-            
-            local icon_letter_gap = 8 -- <<< SAME VALUE HERE
-            if #parsed_icons > 0 and parsed_strength ~= "" then current_x = current_x + icon_letter_gap end
+            current_x = draw_input_icon_run(
+                parsed_icons, current_x,
+                current_y + ((config.icon_offset_y or 0.0) * scale_factor),
+                line_height, icon_size, compact_icons
+            )
+            if #parsed_icons > 0 and parsed_strength ~= "" then current_x = current_x + standard_layout.text_gap end
             
             if parsed_strength ~= "" then
                 local s_w = math.floor(imgui.calc_text_size(parsed_strength).x + 0.5)
-                hud_add_text(parsed_strength, current_x, current_y, color, true)
-                current_x = current_x + s_w + 5
+                hud_add_text(parsed_strength, current_x, text_y, color, true)
+                current_x = current_x + s_w
             end
             
             if after_txt and after_txt ~= "" then
-                hud_add_text(after_txt, current_x, current_y, color, true)
+                if parsed_strength ~= "" or #parsed_icons > 0 then current_x = current_x + standard_layout.text_gap end
+                hud_add_text(after_txt, current_x, text_y, color, true)
             end
         else
             hud_add_text(line, x_pos, current_y, color, true)
         end
-        current_y = current_y + math.floor(text_height + 0.5)
+        current_y = current_y + math.floor(line_height + 0.5)
     end
 end
 
@@ -4034,44 +4428,53 @@ re.on_frame(function()
 
     -- The HUD uses the background DrawList directly and creates no ImGui
     -- window, so it cannot receive mouse focus, keyboard navigation, or input.
+    if custom_font.obj then imgui.push_font(custom_font.obj) end
     if #icons_to_draw > 0 then
         for _, item in ipairs(icons_to_draw) do
             local current_x = item.x
             local item_y = item.y
 
             if hud_valid_point(current_x, item_y) then
+                local text_height = imgui.calc_text_size(item.dist_text or "M").y
                 if item.tag and item.tag ~= "" then
                     hud_add_text(item.tag, current_x, item_y, item.color, true)
-                    current_x = current_x + imgui.calc_text_size(item.tag).x + 5
+                    current_x = current_x + imgui.calc_text_size(item.tag).x
                 end
 
                 if item.raw_input then
                     local icons, strength, disp_name = parse_input_string(item.raw_input, item.facing_right)
-                    local icon_size = math.max(8, math.floor(item.size * (config.icon_scale or 1.0) + 0.5))
-                    local icon_y = item_y + ((config.icon_offset_y or 0.0) * scale_factor)
+                    local compact_icons = #icons >= 3
+                    local icon_size = get_scaled_command_icon_size(scale_factor, compact_icons)
+                    local layout = get_icon_layout(icon_size, compact_icons, "standard")
+                    local line_height = math.max(text_height, icon_size + math.abs(layout.baseline_offset))
+
+                    if item.tag and item.tag ~= "" then current_x = current_x + layout.text_gap end
 
                     if disp_name then
                         local dn_w = imgui.calc_text_size(disp_name).x
-                        hud_add_text(disp_name, current_x, item_y, item.color, true)
-                        current_x = current_x + dn_w + 4
+                        local text_y = item_y + ((line_height - text_height) * 0.5)
+                        hud_add_text(disp_name, current_x, text_y, item.color, true)
+                        current_x = current_x + dn_w
+                        if #icons > 0 then current_x = current_x + layout.text_gap end
                     end
 
-                    for _, icon_key in ipairs(icons) do
-                        draw_input_icon(icon_key, current_x, icon_y, icon_size)
-                        current_x = current_x + icon_size
-                    end
-
-                    local icon_letter_gap = 4
-                    if #icons > 0 and strength ~= "" then current_x = current_x + icon_letter_gap end
+                    current_x = draw_input_icon_run(
+                        icons, current_x,
+                        item_y + ((config.icon_offset_y or 0.0) * scale_factor),
+                        line_height, icon_size, compact_icons
+                    )
+                    if #icons > 0 and strength ~= "" then current_x = current_x + layout.text_gap end
 
                     if strength ~= "" then
-                        hud_add_text(strength, current_x, item_y, item.color, true)
-                        current_x = current_x + imgui.calc_text_size(strength).x + 5
+                        local text_y = item_y + ((line_height - text_height) * 0.5)
+                        hud_add_text(strength, current_x, text_y, item.color, true)
+                        current_x = current_x + imgui.calc_text_size(strength).x
                     end
+                    if item.dist_text then current_x = current_x + layout.text_gap end
                 end
 
                 if item.dist_text then
-                    hud_add_text(item.dist_text, current_x + 5, item_y, item.color, true)
+                    hud_add_text(item.dist_text, current_x, item_y, item.color, true)
                 end
             else
                 hud_log_rate_limited("invalid_label", "检测到非法标签坐标，已跳过。")
@@ -4079,7 +4482,6 @@ re.on_frame(function()
         end
         icons_to_draw = {}
     end
-        if custom_font.obj then imgui.push_font(custom_font.obj) end
 
         if p1_cache.valid and p2_cache.valid then
             local base_size = custom_font.loaded_size
@@ -4409,6 +4811,127 @@ re.on_frame(function()
     -- collectgarbage("step", 1)
 end)
 
+local PREVIEW_DIRECTIONS = { "7", "8", "9", "4", "6", "1", "2", "3", "5" }
+local PREVIEW_ATTACKS = { "lp", "mp", "hp", "lk", "mk", "hk" }
+local PREVIEW_SPECIALS = { "THROW", "MODERN", "HOLD", "DRIVE", "CANCEL", "INSTANT" }
+local PREVIEW_DIRECTION_BUTTON = { "6", "PLUS", "mp", "@text:M" }
+local PREVIEW_FULL_COMMAND = {
+    "2", "3", "6", "PLUS", "mp", "@text:M",
+    "CANCEL", "@cancel:取消", "6",
+    "INSTANT", "@instant:即时"
+}
+local PREVIEW_SIZE_SAMPLE = { "6", "PLUS", "mk" }
+
+local function get_preview_text_token(token)
+    if type(token) ~= "string" then return nil, nil end
+    if string.sub(token, 1, 6) == "@text:" then
+        return string.sub(token, 7), ICON_STYLE.colors.highlight_color
+    end
+    if string.sub(token, 1, 8) == "@cancel:" then
+        return string.sub(token, 9), ICON_STYLE.colors.cancel_color
+    end
+    if string.sub(token, 1, 9) == "@instant:" then
+        return string.sub(token, 10), ICON_STYLE.colors.instant_color
+    end
+    return nil, nil
+end
+
+local function measure_preview_run(tokens, size, compact)
+    local width = 0.0
+    local standard_layout = get_icon_layout(size, compact, "standard")
+    for i, token in ipairs(tokens) do
+        local text_value = get_preview_text_token(token)
+        if text_value then
+            width = width + imgui.calc_text_size(text_value).x
+        else
+            local kind = get_icon_kind(token)
+            width = width + get_icon_layout(size, compact, kind).width
+        end
+        if i < #tokens then width = width + standard_layout.icon_gap end
+    end
+    return width
+end
+
+local function draw_preview_run(id, tokens, logical_size, preview_scale)
+    local size = logical_size * preview_scale
+    local compact = logical_size <= ICON_STYLE.compact_size
+    local text_height = imgui.calc_text_size("Ag").y
+    local standard_layout = get_icon_layout(size, compact, "standard")
+    local line_height = math.max(size + math.abs(standard_layout.baseline_offset), text_height)
+    local width = measure_preview_run(tokens, size, compact)
+    local origin = imgui.get_cursor_screen_pos()
+    imgui.invisible_button(
+        "##dv_icon_preview_" .. id,
+        Vector2f.new(math.max(width, 1.0), line_height + (4.0 * preview_scale)),
+        0
+    )
+
+    local current_x = origin.x
+    local icon_y = origin.y + ((line_height - size) * 0.5) + standard_layout.baseline_offset
+    local text_y = origin.y + ((line_height - text_height) * 0.5)
+
+    for i, token in ipairs(tokens) do
+        local text_value, text_color = get_preview_text_token(token)
+        if text_value then
+            hud_add_text(text_value, current_x, text_y, text_color, true)
+            current_x = current_x + imgui.calc_text_size(text_value).x
+        else
+            local layout = draw_input_icon(token, current_x, icon_y, size, compact)
+            current_x = current_x + layout.width
+        end
+        if i < #tokens then current_x = current_x + standard_layout.icon_gap end
+    end
+end
+
+local function draw_vector_icon_preview()
+    if not imgui.tree_node("矢量图标预览") then return end
+
+    local ok, window_draw_list = pcall(imgui.get_window_draw_list)
+    if not ok or window_draw_list == nil then
+        imgui.text_colored("当前 REFramework 无法取得窗口 DrawList。", COL_RED)
+        imgui.tree_pop()
+        return
+    end
+
+    local _, screen_h = get_dynamic_screen_size()
+    local preview_scale = screen_h / 1080.0
+    if not is_finite_number(preview_scale) or preview_scale <= 0 then preview_scale = 1.0 end
+
+    local previous_draw_list = hud_draw_list
+    hud_draw_list = window_draw_list
+
+    local preview_ok, preview_err = pcall(function()
+        imgui.text_colored("八方向与中立（24px）", COL_GREY)
+        draw_preview_run("directions", PREVIEW_DIRECTIONS, 24.0, preview_scale)
+
+        imgui.text_colored("拳脚（LP MP HP / LK MK HK）", COL_GREY)
+        draw_preview_run("attacks", PREVIEW_ATTACKS, 28.0, preview_scale)
+
+        imgui.text_colored("投技 / Modern / 蓄力 / Drive / 取消 / 即时", COL_GREY)
+        draw_preview_run("specials", PREVIEW_SPECIALS, 28.0, preview_scale)
+
+        imgui.text_colored("方向 + 按钮", COL_GREY)
+        draw_preview_run("direction_button", PREVIEW_DIRECTION_BUTTON, 28.0, preview_scale)
+
+        imgui.text_colored("完整示例指令", COL_GREY)
+        draw_preview_run("full_command", PREVIEW_FULL_COMMAND, 24.0, preview_scale)
+
+        imgui.text_colored("尺寸对比：24px", COL_GREY)
+        draw_preview_run("size_24", PREVIEW_SIZE_SAMPLE, 24.0, preview_scale)
+        imgui.text_colored("尺寸对比：28px", COL_GREY)
+        draw_preview_run("size_28", PREVIEW_SIZE_SAMPLE, 28.0, preview_scale)
+        imgui.text_colored("尺寸对比：32px", COL_GREY)
+        draw_preview_run("size_32", PREVIEW_SIZE_SAMPLE, 32.0, preview_scale)
+    end)
+
+    hud_draw_list = previous_draw_list
+    if not preview_ok then
+        hud_log_rate_limited("icon_preview_failed", "矢量图标预览绘制失败：" .. tostring(preview_err))
+        imgui.text_colored("矢量图标预览绘制失败，详情见日志。", COL_RED)
+    end
+    imgui.tree_pop()
+end
+
 local function draw_distance_viewer_menu_ui()
     if imgui.tree_node("SF6 距离查看器") then
         local enabled = _G.SF6_DistanceViewer_Enabled == true
@@ -4426,6 +4949,8 @@ local function draw_distance_viewer_menu_ui()
             save_settings()
             enabled = new_enabled
         end
+
+        draw_vector_icon_preview()
 
         if not enabled then
             imgui.text_colored("启用后显示纯 ImGui 距离 HUD。", COL_GREY)
