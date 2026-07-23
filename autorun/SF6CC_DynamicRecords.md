@@ -10,7 +10,7 @@
 - 动态记录槽的有效状态、启用状态、帧数、随机权重和输入缓冲。
 - 倒地反击、格挡反击、受伤恢复后的反击三组设置，每组 10 个槽位。
 - 训练记录的产品设置字段。
-- 配置名称、整体备注以及各槽位的 D2D 说明。
+- 配置名称、整体备注以及各槽位的 ImGui 覆盖说明。
 - 导入前自动备份、清空前自动备份和最近备份恢复。
 
 脚本不依赖网站、数据库或 SF6CM。网页与 Lua 只通过 JSON 文件交换数据。
@@ -19,7 +19,7 @@
 
 | 用途 | 路径 |
 | --- | --- |
-| REFramework 菜单与 D2D 绘制 | `autorun/SF6CC_DynamicRecords.lua` |
+| REFramework 菜单与 ImGui 绘制 | `autorun/SF6CC_DynamicRecords.lua` |
 | 数据采集、校验、导入和备份 | `autorun/func/DynamicRecords.lua` |
 | 单页面配置编辑器 | `data/SF6CC_TrainingConfigs/editor/SF6CC_TrainingConfigEditor.html` |
 | 用户配置目录 | `data/SF6CC_TrainingConfigs/configs/` |
@@ -76,7 +76,7 @@
 | `slots` | 8 个动态记录槽。 |
 | `reversals` | 三组反击设置。 |
 | `settings` | 训练记录相关产品设置字段。 |
-| `annotations` | D2D 说明及其动作绑定。 |
+| `annotations` | ImGui 覆盖说明及其动作绑定。 |
 
 网页中的“配置名称”写入 `title`，“配置说明”写入 `description`。修改整体备注不会改变 REFramework 列表名称。
 
@@ -120,7 +120,7 @@
 | `meaty_frame` | 压起身相关帧值。 |
 | `fields` | 游戏对象的原始标量字段。 |
 
-当 `type == 4` 时，`skill_index` 指向动态记录槽的零基索引。D2D 说明可以继承该录像槽的说明。
+当 `type == 4` 时，`skill_index` 指向动态记录槽的零基索引。ImGui 覆盖说明可以继承该录像槽的说明。
 
 ### 4.4 产品设置
 
@@ -131,7 +131,7 @@
 
 这些字段不是普通用户偏好，而是恢复训练配置所需的产品状态，因此不能仅因为它们看起来重复就删除。
 
-### 4.5 D2D 说明
+### 4.5 ImGui 覆盖说明
 
 `annotations` 包含：
 
@@ -187,11 +187,11 @@ reversal-v1:<type>:<skill_index>:<level>
 - 清空 8 个录像槽。
 - 将权重恢复为 1。
 - 清空三组共 30 个反击槽。
-- 清空当前 D2D 说明。
+- 清空当前 ImGui 覆盖说明。
 
 备份失败时，清空操作会取消。高级菜单可恢复最近一次备份。
 
-## 8. D2D 绘制规则
+## 8. ImGui 绘制规则
 
 - 只在原生训练暂停菜单打开时绘制。
 - 动态记录仅在“播放”分页绘制；“录制”分页不绘制。
@@ -235,7 +235,7 @@ reversal-v1:<type>:<skill_index>:<level>
 - 不改变反击 `skill_index` 的游戏原生索引含义。
 - 不把 P1 自动推断为录像来源；训练配置固定属于 P2。
 - 不提交运行时生成的配置、索引和备份文件。
-- 改动 JSON 格式时必须同步检查 Lua 导入、网页下载和 D2D 绑定。
+- 改动 JSON 格式时必须同步检查 Lua 导入、网页下载和 ImGui 绑定。
 
 ## 11. 修改后检查清单
 
@@ -247,5 +247,5 @@ reversal-v1:<type>:<skill_index>:<level>
 - 三组反击的开关、动作、数量和延迟可完整恢复。
 - 空槽不会被误判为有效槽。
 - 导入和清空前均生成备份。
-- 动态记录“录制”分页不绘制 D2D。
+- 动态记录“录制”分页不绘制 ImGui 覆盖说明。
 - 说明绑定失效时不绘制旧文字。
