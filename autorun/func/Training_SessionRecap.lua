@@ -1,9 +1,10 @@
 -- =========================================================
 -- Training_SessionRecap.lua
--- D2D overlay: bars (Reactions/PostGuard) or curves (HitConfirm)
+-- Pure ImGui overlay: bars (Reactions/PostGuard) or curves (HitConfirm)
 -- =========================================================
 
 local M = {}
+local Canvas = require("func/ImGuiCanvas")
 
 -- State
 local _visible = false
@@ -106,18 +107,10 @@ local function bar_color(pct)
 end
 
 -- =========================================================
--- D2D LINE DRAWING (pixel stepping)
+-- IMGUI LINE DRAWING
 -- =========================================================
 local function draw_line(x1, y1, x2, y2, thickness, color)
-    local dx = x2 - x1
-    local dy = y2 - y1
-    local steps = math.max(math.abs(dx), math.abs(dy), 1)
-    local sx = dx / steps
-    local sy = dy / steps
-    local t = thickness or 2
-    for i = 0, math.floor(steps) do
-        d2d.fill_rect(x1 + sx * i, y1 + sy * i, t, t, color)
-    end
+    Canvas.line(x1, y1, x2, y2, thickness or 2, color)
 end
 
 -- =========================================================
@@ -279,7 +272,7 @@ function M.is_visible()
 end
 
 -- =========================================================
--- D2D: SHARED HEADER + CLOSE BUTTON
+-- IMGUI: SHARED HEADER + CLOSE BUTTON
 -- =========================================================
 
 local function _rec_get_mouse_xy()
@@ -290,22 +283,22 @@ end
 
 local function draw_header(panel_x, panel_y, panel_w, header_h, fh, pad)
     -- Header background
-    d2d.fill_rect(panel_x, panel_y, panel_w, header_h, COL_HEADER_BG)
+    Canvas.fill_rect(panel_x, panel_y, panel_w, header_h, COL_HEADER_BG)
     -- Accent separator at bottom of header
-    d2d.fill_rect(panel_x, panel_y + header_h - 2, panel_w, 2, COL_ACCENT)
+    Canvas.fill_rect(panel_x, panel_y + header_h - 2, panel_w, 2, COL_ACCENT)
 
     -- Title — centered horizontally, adjustable vertical bias
     local title_font = _font_title or _font
     local fh_title = _last_font_h_title or fh
-    local sw_local, sh_local = d2d.surface_size()
+    local sw_local, sh_local = Canvas.surface_size()
     local title_w, title_h = measure_text(title_font, _title, fh_title, 0.72)
     local close_reserved = sh_local * (layout.btn_size or 0.016) + sw_local * (layout.btn_inset or 0.010) * 2
     local title_area_x = panel_x + close_reserved
     local title_area_w = panel_w - close_reserved * 2
     local tx = title_area_x + (title_area_w - title_w) * 0.5
     local ty = panel_y + (header_h - title_h) * 0.5
-    d2d.text(title_font, _title, tx + 1, ty + 1, COL_SHADOW)
-    d2d.text(title_font, _title, tx, ty, COL_HEADER)
+    Canvas.text(title_font, _title, tx + 1, ty + 1, COL_SHADOW)
+    Canvas.text(title_font, _title, tx, ty, COL_HEADER)
 
     -- Close button
     local btn_size = sh_local * (layout.btn_size or 0.016)
@@ -324,20 +317,20 @@ local function draw_header(panel_x, panel_y, panel_w, header_h, fh, pad)
                  and hmy >= btn_y and hmy <= btn_y + btn_size
     end
 
-    d2d.fill_rect(btn_x, btn_y, btn_size, btn_size, is_hovered and COL_CLOSE_HOV or COL_CLOSE_BG)
-    d2d.outline_rect(btn_x, btn_y, btn_size, btn_size, 1, COL_ACCENT)
+    Canvas.fill_rect(btn_x, btn_y, btn_size, btn_size, is_hovered and COL_CLOSE_HOV or COL_CLOSE_BG)
+    Canvas.outline_rect(btn_x, btn_y, btn_size, btn_size, 1, COL_ACCENT)
     local close_font = _font_small or _font
     local close_txt = "x"
     local x_w, x_h = measure_text(close_font, close_txt, _last_font_h_small or fh, 0.55)
     local x_tx = btn_x + (btn_size - x_w) * 0.5
     local x_ty = btn_y + (btn_size - x_h) * 0.5 - btn_size * 0.04
-    d2d.text(close_font, close_txt, x_tx + 1, x_ty + 1, COL_SHADOW)
-    d2d.text(close_font, close_txt, x_tx, x_ty, is_hovered and 0xFFFFFFFF or COL_CLOSE_TXT)
+    Canvas.text(close_font, close_txt, x_tx + 1, x_ty + 1, COL_SHADOW)
+    Canvas.text(close_font, close_txt, x_tx, x_ty, is_hovered and 0xFFFFFFFF or COL_CLOSE_TXT)
 end
 
 -- =========================================================
 -- =========================================================
--- D2D: LINE CHART (HitConfirm - hit% & block% curves)
+-- IMGUI: LINE CHART (HitConfirm - hit% & block% curves)
 -- =========================================================
 
 local COL_SINGLE    = 0xFF44DDFF  -- bright cyan for single-curve mode
@@ -353,7 +346,7 @@ local function _rec_fill_area_seg(i, c, sx, sy, cy, ch)
         local t = s / steps
         local lx = x1 + (x2 - x1) * t
         local ly = y1 + (y2 - y1) * t
-        d2d.fill_rect(lx, ly, 1, base - ly, c.fill)
+        Canvas.fill_rect(lx, ly, 1, base - ly, c.fill)
     end
 end
 
@@ -366,8 +359,8 @@ local function _rec_draw_point(i, c, sx, sy, mx, my, hover_r, dot_r, want_toolti
     local px, py = sx(i), sy(v)
     local is_hov = math.abs(mx - px) < hover_r and math.abs(my - py) < hover_r
     local size = is_hov and dot_r * 1.8 or dot_r
-    d2d.fill_rect(px - size - 1, py - size - 1, size * 2 + 2, size * 2 + 2, COL_CHART_BG)
-    d2d.fill_rect(px - size, py - size, size * 2, size * 2, c.color)
+    Canvas.fill_rect(px - size - 1, py - size - 1, size * 2 + 2, size * 2 + 2, COL_CHART_BG)
+    Canvas.fill_rect(px - size, py - size, size * 2, size * 2, c.color)
     if is_hov and want_tooltip then
         local s = _sessions[i]
         return { x = px, y = py, text = string.format("%s: %.1f%%", c.label, v), text2 = string.format("%d / %d", tonumber(s[c.ok_key]) or 0, tonumber(s[c.tot_key]) or 0), color = c.color }
@@ -383,13 +376,13 @@ local function _rec_draw_xlabel(i, sx, cy, ch, pad, xl_ox, xl_oy, cw_char, fh_s)
     local xi = sx(i) + xl_ox
 
     -- Tick mark
-    d2d.fill_rect(xi, cy + ch, 1, pad * 0.5, COL_ACCENT)
+    Canvas.fill_rect(xi, cy + ch, 1, pad * 0.5, COL_ACCENT)
 
     -- Date
-    d2d.text(_font_small, date_lbl, xi - text_len(date_lbl) * cw_char * 0.5, base_y, COL_TEXT_DIM)
+    Canvas.text(_font_small, date_lbl, xi - text_len(date_lbl) * cw_char * 0.5, base_y, COL_TEXT_DIM)
 
     -- Time
-    d2d.text(_font_small, time_lbl, xi - text_len(time_lbl) * cw_char * 0.5, base_y + fh_s * 1.15, COL_TEXT)
+    Canvas.text(_font_small, time_lbl, xi - text_len(time_lbl) * cw_char * 0.5, base_y + fh_s * 1.15, COL_TEXT)
 
     -- Mode tag
     local mode_raw = s.mode or ""
@@ -399,7 +392,7 @@ local function _rec_draw_xlabel(i, sx, cy, ch, pad, xl_ox, xl_oy, cw_char, fh_s)
     if t_count then mode_tag = t_count .. "次"
     elseif t_min then mode_tag = t_min:gsub("M", "分") end
     if mode_tag ~= "" then
-        d2d.text(_font_small, mode_tag, xi - text_len(mode_tag) * cw_char * 0.5, base_y + fh_s * 2.3, COL_TEXT_DIM)
+        Canvas.text(_font_small, mode_tag, xi - text_len(mode_tag) * cw_char * 0.5, base_y + fh_s * 2.3, COL_TEXT_DIM)
     end
 end
 
@@ -420,9 +413,9 @@ local function draw_chart(sw, sh, fh, fh_s)
     local panel_y  = sh * L.panel_cy - panel_h * 0.5
 
     -- Panel background with subtle inner shadow
-    d2d.fill_rect(panel_x - 1, panel_y - 1, panel_w + 2, panel_h + 2, COL_SHADOW)
-    d2d.fill_rect(panel_x, panel_y, panel_w, panel_h, COL_BG)
-    d2d.outline_rect(panel_x, panel_y, panel_w, panel_h, 1, COL_BORDER)
+    Canvas.fill_rect(panel_x - 1, panel_y - 1, panel_w + 2, panel_h + 2, COL_SHADOW)
+    Canvas.fill_rect(panel_x, panel_y, panel_w, panel_h, COL_BG)
+    Canvas.outline_rect(panel_x, panel_y, panel_w, panel_h, 1, COL_BORDER)
 
     draw_header(panel_x, panel_y, panel_w, header_h, fh, pad)
 
@@ -434,23 +427,23 @@ local function draw_chart(sw, sh, fh, fh_s)
     local cw = panel_w - margin_l - margin_r
     local ch = chart_h
 
-    d2d.fill_rect(cx, cy, cw, ch, COL_CHART_BG)
-    d2d.outline_rect(cx, cy, cw, ch, 1, COL_ACCENT)
+    Canvas.fill_rect(cx, cy, cw, ch, COL_CHART_BG)
+    Canvas.outline_rect(cx, cy, cw, ch, 1, COL_ACCENT)
 
     -- Y axis grid + labels (right-aligned to chart left edge)
     for _, pct in ipairs({0, 25, 50, 75, 100}) do
         local gy = cy + ch - (ch * pct / 100)
         if pct > 0 and pct < 100 then
             for gx = cx, cx + cw - 4, 8 do
-                d2d.fill_rect(gx, gy, 4, 1, COL_GRID)
+                Canvas.fill_rect(gx, gy, 4, 1, COL_GRID)
             end
         else
-            d2d.fill_rect(cx, gy, cw, 1, COL_ACCENT)
+            Canvas.fill_rect(cx, gy, cw, 1, COL_ACCENT)
         end
         local label = tostring(pct) .. "%"
         local lw = #label * fh_s * 0.55
         local lx = cx - lw - pad * 0.5 + sw * (L.ylabels_ox or 0)
-        d2d.text(_font_small, label, lx, gy - fh_s * 0.45 + sh * (L.ylabels_oy or 0), COL_TEXT_DIM)
+        Canvas.text(_font_small, label, lx, gy - fh_s * 0.45 + sh * (L.ylabels_oy or 0), COL_TEXT_DIM)
     end
 
     -- Helpers
@@ -466,7 +459,7 @@ local function draw_chart(sw, sh, fh, fh_s)
     for i = 1, n do
         local gx = sx(i)
         for gy = cy + 2, cy + ch - 2, 6 do
-            d2d.fill_rect(gx, gy, 1, 3, 0x18FFFFFF)
+            Canvas.fill_rect(gx, gy, 1, 3, 0x18FFFFFF)
         end
     end
 
@@ -516,14 +509,14 @@ local function draw_chart(sw, sh, fh, fh_s)
         if tt_x + tt_w > cx + cw then tt_x = cx + cw - tt_w end
         if tt_y < cy then tt_y = tt.y + dot_r * 3 end
         -- Shadow + bg
-        d2d.fill_rect(tt_x + 2, tt_y + 2, tt_w, tt_h, 0x88000000)
-        d2d.fill_rect(tt_x, tt_y, tt_w, tt_h, 0xF0141420)
-        d2d.outline_rect(tt_x, tt_y, tt_w, tt_h, 1, tt.color)
+        Canvas.fill_rect(tt_x + 2, tt_y + 2, tt_w, tt_h, 0x88000000)
+        Canvas.fill_rect(tt_x, tt_y, tt_w, tt_h, 0xF0141420)
+        Canvas.outline_rect(tt_x, tt_y, tt_w, tt_h, 1, tt.color)
         -- Accent line on top
-        d2d.fill_rect(tt_x, tt_y, tt_w, 2, tt.color)
-        d2d.text(_font_small, tt.text, tt_x + pad, tt_y + pad * 0.6, tt.color)
+        Canvas.fill_rect(tt_x, tt_y, tt_w, 2, tt.color)
+        Canvas.text(_font_small, tt.text, tt_x + pad, tt_y + pad * 0.6, tt.color)
         if tt.text2 then
-            d2d.text(_font_small, tt.text2, tt_x + pad, tt_y + pad * 0.6 + fh_s * 1.1, COL_TEXT)
+            Canvas.text(_font_small, tt.text2, tt_x + pad, tt_y + pad * 0.6 + fh_s * 1.1, COL_TEXT)
         end
     end
 
@@ -562,13 +555,13 @@ local function draw_chart(sw, sh, fh, fh_s)
     local leg_x = leg_cx - total_leg * 0.5
     for i, ll in ipairs(leg_labels) do
         local _, label_h = measure_text(_font_small, ll.text, fh_s, 0.55)
-        d2d.fill_rect(leg_x, leg_y + (label_h - dot_sz) * 0.5, dot_sz, dot_sz, ll.color)
-        d2d.text(_font_small, ll.text, leg_x + dot_sz + fh_s * 0.4, leg_y, ll.color)
+        Canvas.fill_rect(leg_x, leg_y + (label_h - dot_sz) * 0.5, dot_sz, dot_sz, ll.color)
+        Canvas.text(_font_small, ll.text, leg_x + dot_sz + fh_s * 0.4, leg_y, ll.color)
         leg_x = leg_x + leg_items_w[i] + leg_gap
     end
 
     -- Footer: averages with accent separator
-    d2d.fill_rect(panel_x + pad * 1.5, fy_sep, panel_w - pad * 3, 1, COL_ACCENT)
+    Canvas.fill_rect(panel_x + pad * 1.5, fy_sep, panel_w - pad * 3, 1, COL_ACCENT)
 
     if dual_mode then
         local sum_hit, sum_blk = 0, 0
@@ -583,16 +576,16 @@ local function draw_chart(sw, sh, fh, fh_s)
         local hit_w, hit_h = measure_text(_font, hit_str, fh, 0.66)
         local ha_x = panel_x + pad * 1.5
         local ha_y = fy_sep + (footer_h - hit_h) * 0.5
-        d2d.text(_font, hit_str, ha_x + 1, ha_y + 1, COL_SHADOW)
-        d2d.text(_font, hit_str, ha_x, ha_y, COL_HIT)
+        Canvas.text(_font, hit_str, ha_x + 1, ha_y + 1, COL_SHADOW)
+        Canvas.text(_font, hit_str, ha_x, ha_y, COL_HIT)
 
         local blk_str = string.format("被防收手平均：%d%%", math.floor(avg_blk))
         local blk_w, blk_h = measure_text(_font, blk_str, fh, 0.66)
         local ba_x = panel_x + panel_w - pad * 1.5 - blk_w
         if ba_x < ha_x + hit_w + pad then ba_x = ha_x + hit_w + pad end
         local ba_y = fy_sep + (footer_h - blk_h) * 0.5
-        d2d.text(_font, blk_str, ba_x + 1, ba_y + 1, COL_SHADOW)
-        d2d.text(_font, blk_str, ba_x, ba_y, COL_BLK)
+        Canvas.text(_font, blk_str, ba_x + 1, ba_y + 1, COL_SHADOW)
+        Canvas.text(_font, blk_str, ba_x, ba_y, COL_BLK)
     else
         -- Single mode: trend left, avg right
         local sum_pct = 0
@@ -607,20 +600,20 @@ local function draw_chart(sw, sh, fh, fh_s)
             local trend_col = trend >= 0 and COL_BAR_GRN or COL_BAR_RED
             local _, trend_h = measure_text(_font, trend_str, fh, 0.66)
             local trend_y = fy_sep + (footer_h - trend_h) * 0.5
-            d2d.text(_font, trend_str, panel_x + pad * 1.5 + 1, trend_y + 1, COL_SHADOW)
-            d2d.text(_font, trend_str, panel_x + pad * 1.5, trend_y, trend_col)
+            Canvas.text(_font, trend_str, panel_x + pad * 1.5 + 1, trend_y + 1, COL_SHADOW)
+            Canvas.text(_font, trend_str, panel_x + pad * 1.5, trend_y, trend_col)
         end
 
         local avg_str = string.format("平均：%d%%", math.floor(avg_pct))
         local avg_w, avg_h = measure_text(_font, avg_str, fh, 0.66)
         local avg_y = fy_sep + (footer_h - avg_h) * 0.5
-        d2d.text(_font, avg_str, panel_x + panel_w - pad * 1.5 - avg_w + 1, avg_y + 1, COL_SHADOW)
-        d2d.text(_font, avg_str, panel_x + panel_w - pad * 1.5 - avg_w, avg_y, COL_SINGLE)
+        Canvas.text(_font, avg_str, panel_x + panel_w - pad * 1.5 - avg_w + 1, avg_y + 1, COL_SHADOW)
+        Canvas.text(_font, avg_str, panel_x + panel_w - pad * 1.5 - avg_w, avg_y, COL_SINGLE)
     end
 end
 
 -- =========================================================
--- D2D MAIN DRAW
+-- IMGUI MAIN DRAW
 -- =========================================================
 
 local function _rec_check_pause_hide()
@@ -633,7 +626,7 @@ local function _rec_check_pause_hide()
     end
 end
 
-local function d2d_draw()
+local function imgui_draw()
     local active = _G._session_recap_queue
     _G._session_recap_queue = nil
 
@@ -648,21 +641,21 @@ local function d2d_draw()
 
     if not _G.SessionRecapVisible then return end
 
-    local sw, sh = d2d.surface_size()
+    local sw, sh = Canvas.surface_size()
 
     local fh   = math.floor(sh * 0.015)
     local fh_s = math.floor(sh * 0.012)
     local fh_t = math.floor(sh * 0.020)
     if fh ~= _last_font_h then
-        _font = d2d.Font.new("msyh.ttc", fh)
+        _font = Canvas.Font.new("msyh.ttc", fh)
         _last_font_h = fh
     end
     if fh_s ~= _last_font_h_small then
-        _font_small = d2d.Font.new("msyh.ttc", fh_s)
+        _font_small = Canvas.Font.new("msyh.ttc", fh_s)
         _last_font_h_small = fh_s
     end
     if fh_t ~= _last_font_h_title then
-        _font_title = d2d.Font.new("msyhbd.ttc", fh_t)
+        _font_title = Canvas.Font.new("msyhbd.ttc", fh_t)
         _last_font_h_title = fh_t
     end
 
@@ -670,10 +663,7 @@ local function d2d_draw()
 end
 
 -- Expose draw for external overlay (drawn last = on top of everything)
-M.d2d_draw = d2d_draw
-
--- No d2d.register here — drawing is handled by zzz_SessionRecapOverlay.lua
--- to ensure it renders on top of all other D2D (including SheldonsBoxes)
+M.imgui_draw = imgui_draw
 
 -- Click detection
 local function _rec_check_close_click()
