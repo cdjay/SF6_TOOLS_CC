@@ -322,15 +322,17 @@ local function _pop_bar_style()
     imgui.pop_style_color(4)
 end
 
-function UI.begin_floating_window(window_name)
+function UI.begin_floating_window(window_name, width_pct)
     local sw, sh = UI.get_screen_size()
     _load_float_fonts(sh)
     _push_bar_style(sw, sh)
 
-    -- Full width, same height as ComboTrials single-line bar, fixed at bottom
+    width_pct = math.max(0.35, math.min(1.0, tonumber(width_pct) or 1.0))
+    -- Same height as ComboTrials single-line bar, optionally compact and centered.
+    local target_w = sw * width_pct
     local target_h = sh * 0.0444
-    imgui.set_next_window_size(Vector2f.new(sw, target_h), 1)      -- Always
-    imgui.set_next_window_pos(Vector2f.new(0, sh - target_h), 1)   -- Always
+    imgui.set_next_window_size(Vector2f.new(target_w, target_h), 1)      -- Always
+    imgui.set_next_window_pos(Vector2f.new((sw - target_w) * 0.5, sh - target_h), 1)   -- Always
     -- 15 = NoTitleBar(1) + NoResize(2) + NoMove(4) + NoScrollbar(8)
     local visible = imgui.begin_window(window_name, true, 15)
     if not visible then _G.TrainingFloatingBar = nil end

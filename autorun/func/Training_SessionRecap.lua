@@ -483,7 +483,7 @@ local function draw_chart(sw, sh, fh, fh_s)
     local curves = {}
     if dual_mode then
         curves[#curves + 1] = { key = "hit_pct", ok_key = "hit_ok", tot_key = "hit_tot", label = "命中确认", color = COL_HIT, fill = 0x0CF5C832 }
-        curves[#curves + 1] = { key = "blk_pct", ok_key = "blk_ok", tot_key = "blk_tot", label = "被防确认", color = COL_BLK, fill = 0x0CEE6644 }
+        curves[#curves + 1] = { key = "blk_pct", ok_key = "blk_ok", tot_key = "blk_tot", label = "被防收手", color = COL_BLK, fill = 0x0CEE6644 }
     else
         curves[#curves + 1] = { key = "pct", ok_key = "score", tot_key = "total", label = "成功率", color = COL_SINGLE, fill = 0x0C44DDFF }
     end
@@ -586,7 +586,7 @@ local function draw_chart(sw, sh, fh, fh_s)
         d2d.text(_font, hit_str, ha_x + 1, ha_y + 1, COL_SHADOW)
         d2d.text(_font, hit_str, ha_x, ha_y, COL_HIT)
 
-        local blk_str = string.format("被防平均：%d%%", math.floor(avg_blk))
+        local blk_str = string.format("被防收手平均：%d%%", math.floor(avg_blk))
         local blk_w, blk_h = measure_text(_font, blk_str, fh, 0.66)
         local ba_x = panel_x + panel_w - pad * 1.5 - blk_w
         if ba_x < ha_x + hit_w + pad then ba_x = ha_x + hit_w + pad end
