@@ -206,7 +206,7 @@ local config = {
     p1_show_horizontal_lines = true, p1_line_height_1 = 0.45, p1_line_height_2 = 0.90, p1_line_height_3 = 0.10, p1_line_height_4 = 0.45,
     p1_end_marker_size = 100.0, p1_end_marker_offset_y = 0.0,
     p1_show_origin_dot = true, p1_origin_dot_size = 8.0,
-    p1_show_markers = true, p1_show_vertical_cursor = true, p1_show_numbers = true,
+    pp1_show_markers = true, p1_show_vertical_cursor = true, p1_show_numbers = true,
     p1_number_off_y_1 = -25.0, p1_number_off_y_2 = -25.0, p1_number_off_y_3 = 25.0, p1_number_off_y_4 = -25.0,
     p1_vertical_mode = VMODE_NONE, p1_fill_bg = true,
     p1_show_jump_arc = false,
@@ -351,12 +351,6 @@ local function load_settings()
             d.config.p2_opp_zone_cursor_off_y = nil
         end
 
-        -- Older builds accidentally persisted the P1 marker switch under
-        -- "pp1_show_markers". Keep that user's choice while restoring the
-        -- actual key consumed by the renderer.
-        if d.config.p1_show_markers == nil and d.config.pp1_show_markers ~= nil then
-            config.p1_show_markers = d.config.pp1_show_markers
-        end
     end 
 end
 load_settings()
@@ -967,6 +961,26 @@ local function hud_add_circle_filled(x, y, radius, color, segments)
     if not ok then hud_log_rate_limited("add_circle_failed", "ImDrawList:add_circle_filled 失败：" .. tostring(err)) end
 end
 
+local function hud_add_triangle_filled(x1, y1, x2, y2, x3, y3, color)
+    if hud_draw_list == nil then return end
+    if not hud_valid_point(x1, y1) or not hud_valid_point(x2, y2)
+        or not hud_valid_point(x3, y3) then
+        hud_log_rate_limited("invalid_triangle", "检测到非法三角形坐标，已跳过。")
+        return
+    end
+    if not is_finite_number(color) then color = 0xFFFFFFFF end
+
+    local ok, err = pcall(function()
+        hud_draw_list:add_triangle_filled(
+            Vector2f.new(x1, y1), Vector2f.new(x2, y2),
+            Vector2f.new(x3, y3), color
+        )
+    end)
+    if not ok then
+        hud_log_rate_limited("add_triangle_failed", "ImDrawList:add_triangle_filled 失败：" .. tostring(err))
+    end
+end
+
 local function hud_add_text(text, x, y, color, with_shadow)
     if hud_draw_list == nil or text == nil then return end
     text = tostring(text)
@@ -1024,10 +1038,11 @@ local function try_load_font()
 end
 
 -- =========================================================
--- [INPUT LABEL QUEUE]
+-- [INPUT ICON QUEUE]
 -- =========================================================
--- The pure-ImGui experiment intentionally does not load button PNGs or custom
--- textures. Parsed directions/buttons are rendered as numeric/English tokens.
+-- This REFramework build exposes ImDrawList geometry, but no Lua texture/image
+-- binding. Recreate the small direction and attack icons with DrawList
+-- primitives so the HUD remains pure ImGui and does not load PNG textures.
 local icons_to_draw = {}
 
 local function flip_numpad(dir_str, facing_right)
@@ -1085,13 +1100,136 @@ local function parse_input_string(input_str, facing_right)
     return icons, strength, display_name
 end
 
-local function format_input_tokens(icons)
-    if not icons or #icons == 0 then return "" end
-    local tokens = {}
-    for _, icon_key in ipairs(icons) do
-        tokens[#tokens + 1] = "[" .. tostring(icon_key) .. "]"
+local input_icon_directions = {
+    ["1"] = { -0.70710678,  0.70710678 },
+    ["2"] = {  0.0,         1.0        },
+    ["3"] = {  0.70710678,  0.70710678 },
+    ["4"] = { -1.0,         0.0        },
+    ["6"] = {  1.0,         0.0        },
+    ["7"] = { -0.70710678, -0.70710678 },
+    ["8"] = {  0.0,        -1.0        },
+    ["9"] = {  0.70710678, -0.70710678 }
+}
+
+local function draw_direction_icon(icon_key, x, y, size)
+    local dir = input_icon_directions[icon_key]
+    if not dir then return false end
+
+    local dx, dy = dir[1], dir[2]
+    local px, py = -dy, dx
+    local cx, cy = x + size * 0.5, y + size * 0.5
+
+    local start_x, start_y = cx - dx * size * 0.25, cy - dy * size * 0.25
+    local base_x, base_y = cx + dx * size * 0.08, cy + dy * size * 0.08
+    local tip_x, tip_y = cx + dx * size * 0.43, cy + dy * size * 0.43
+
+    hud_add_line(start_x, start_y, base_x, base_y, 0xFF111111, size * 0.32)
+    hud_add_triangle_filled(
+        tip_x, tip_y,
+        base_x + px * size * 0.28, base_y + py * size * 0.28,
+        base_x - px * size * 0.28, base_y - py * size * 0.28,
+        0xFF111111
+    )
+
+    local inner_base_x, inner_base_y = cx + dx * size * 0.07, cy + dy * size * 0.07
+    hud_add_line(start_x, start_y, inner_base_x, inner_base_y, 0xFFFFFFFF, size * 0.18)
+    hud_add_triangle_filled(
+        cx + dx * size * 0.36, cy + dy * size * 0.36,
+        inner_base_x + px * size * 0.19, inner_base_y + py * size * 0.19,
+        inner_base_x - px * size * 0.19, inner_base_y - py * size * 0.19,
+        0xFFFFFFFF
+    )
+    return true
+end
+
+local function get_attack_icon_color(icon_key)
+    local strength = string.sub(icon_key, 1, 1)
+    if strength == "l" then return COL_LIGHT end
+    if strength == "m" then return COL_MEDIUM end
+    return COL_HEAVY
+end
+
+local function draw_attack_icon(icon_key, x, y, size)
+    if not string.match(icon_key, "^[lmh][pk]$") then return false end
+
+    local cx, cy = x + size * 0.5, y + size * 0.5
+    local mark_color = 0xFFE6FFFF
+    hud_add_circle_filled(cx, cy, size * 0.48, 0xFF222222, 24)
+    hud_add_circle_filled(cx, cy, size * 0.41, 0xFFB8B8B8, 24)
+    hud_add_circle_filled(cx, cy, size * 0.34, get_attack_icon_color(icon_key), 24)
+
+    if string.sub(icon_key, 2, 2) == "k" then
+        -- Compact boot/check silhouette, matching the visual role of the old
+        -- kick PNG without loading a texture.
+        hud_add_line(
+            cx - size * 0.22, cy - size * 0.10,
+            cx - size * 0.04, cy + size * 0.12,
+            mark_color, size * 0.11
+        )
+        hud_add_line(
+            cx - size * 0.04, cy + size * 0.12,
+            cx + size * 0.24, cy - size * 0.14,
+            mark_color, size * 0.11
+        )
+    else
+        -- Small fist silhouette for punch buttons.
+        hud_add_quad_filled(
+            cx - size * 0.18, cy - size * 0.02,
+            cx + size * 0.15, cy - size * 0.08,
+            cx + size * 0.18, cy + size * 0.17,
+            cx - size * 0.10, cy + size * 0.21,
+            mark_color
+        )
+        hud_add_line(cx - size * 0.15, cy - size * 0.03, cx - size * 0.22, cy - size * 0.21, mark_color, size * 0.08)
+        hud_add_line(cx - size * 0.04, cy - size * 0.05, cx - size * 0.09, cy - size * 0.25, mark_color, size * 0.08)
+        hud_add_line(cx + size * 0.07, cy - size * 0.06, cx + size * 0.05, cy - size * 0.25, mark_color, size * 0.08)
+        hud_add_line(cx + size * 0.16, cy - size * 0.03, cx + size * 0.17, cy - size * 0.20, mark_color, size * 0.08)
     end
-    return table.concat(tokens, "")
+    return true
+end
+
+local function draw_special_input_icon(icon_key, x, y, size)
+    if icon_key ~= "HOLD" and icon_key ~= "THROW" then return false end
+
+    local cx, cy = x + size * 0.5, y + size * 0.5
+    hud_add_circle_filled(cx, cy, size * 0.48, 0xFF222222, 24)
+    hud_add_circle_filled(cx, cy, size * 0.39, 0xFF888888, 24)
+
+    if icon_key == "HOLD" then
+        hud_add_quad_filled(
+            cx - size * 0.18, cy - size * 0.23,
+            cx - size * 0.06, cy - size * 0.23,
+            cx - size * 0.06, cy + size * 0.23,
+            cx - size * 0.18, cy + size * 0.23,
+            0xFFFFFFFF
+        )
+        hud_add_quad_filled(
+            cx + size * 0.06, cy - size * 0.23,
+            cx + size * 0.18, cy - size * 0.23,
+            cx + size * 0.18, cy + size * 0.23,
+            cx + size * 0.06, cy + size * 0.23,
+            0xFFFFFFFF
+        )
+    else
+        hud_add_line(cx - size * 0.22, cy - size * 0.18, cx + size * 0.22, cy - size * 0.18, 0xFFFFFFFF, size * 0.10)
+        hud_add_line(cx, cy - size * 0.18, cx, cy + size * 0.24, 0xFFFFFFFF, size * 0.10)
+    end
+    return true
+end
+
+local function draw_input_icon(icon_key, x, y, size)
+    if not hud_valid_point(x, y) or not is_finite_number(size) or size <= 0 then
+        hud_log_rate_limited("invalid_input_icon", "检测到非法指令图标参数，已跳过。")
+        return
+    end
+
+    icon_key = tostring(icon_key)
+    if draw_direction_icon(icon_key, x, y, size) then return end
+    if draw_attack_icon(string.lower(icon_key), x, y, size) then return end
+    if draw_special_input_icon(string.upper(icon_key), x, y, size) then return end
+
+    -- Unknown future token: retain a readable fallback instead of failing.
+    hud_add_text("[" .. icon_key .. "]", x, y, 0xFFFFFFFF, true)
 end
 
 local debug_dist_status = "未加载"
@@ -1583,22 +1721,23 @@ local function draw_text_above_head_independent(text, pos, color, offset_x, offs
     
     for _, line in ipairs(lines) do
         local text_height = imgui.calc_text_size(line).y
+        local icon_size = math.max(8, math.floor(text_height * (config.icon_scale or 1.0) + 0.5))
         
-        -- Calculate the width of the numeric/English input-token fallback.
+        -- Calculate the width using the same square geometry used by the
+        -- vector direction/button icons.
         local true_width = 0
         local before_txt, input_core, after_txt = string.match(line, "^(.-){(.-)}(.*)$")
-        local parsed_icons, parsed_strength, input_tokens
+        local parsed_icons, parsed_strength
         
         local display_name
         if input_core then
             parsed_icons, parsed_strength, display_name = parse_input_string(input_core, facing_right)
-            input_tokens = format_input_tokens(parsed_icons)
             local icon_letter_gap = 4 -- <<< CHANGE THIS VALUE FOR SPACING
 
             if before_txt and before_txt ~= "" then true_width = true_width + imgui.calc_text_size(before_txt).x end
             if display_name then true_width = true_width + imgui.calc_text_size(display_name).x + 4 end
-            if input_tokens ~= "" then true_width = true_width + imgui.calc_text_size(input_tokens).x end
-            if input_tokens ~= "" and parsed_strength ~= "" then true_width = true_width + icon_letter_gap end
+            true_width = true_width + (#parsed_icons * icon_size)
+            if #parsed_icons > 0 and parsed_strength ~= "" then true_width = true_width + icon_letter_gap end
             if parsed_strength ~= "" then true_width = true_width + imgui.calc_text_size(parsed_strength).x + 5 end
             if after_txt and after_txt ~= "" then true_width = true_width + imgui.calc_text_size(after_txt).x end
         else
@@ -1625,14 +1764,14 @@ local function draw_text_above_head_independent(text, pos, color, offset_x, offs
                 current_x = current_x + dn_w + 4
             end
 
-            if input_tokens ~= "" then
-                local token_y = current_y + ((config.icon_offset_y or 0.0) * scale_factor)
-                hud_add_text(input_tokens, current_x, token_y, color, true)
-                current_x = current_x + math.floor(imgui.calc_text_size(input_tokens).x + 0.5)
+            local icon_y = current_y + ((config.icon_offset_y or 0.0) * scale_factor)
+            for _, icon_key in ipairs(parsed_icons) do
+                draw_input_icon(icon_key, current_x, icon_y, icon_size)
+                current_x = current_x + icon_size
             end
             
             local icon_letter_gap = 8 -- <<< SAME VALUE HERE
-            if input_tokens ~= "" and parsed_strength ~= "" then current_x = current_x + icon_letter_gap end
+            if #parsed_icons > 0 and parsed_strength ~= "" then current_x = current_x + icon_letter_gap end
             
             if parsed_strength ~= "" then
                 local s_w = math.floor(imgui.calc_text_size(parsed_strength).x + 0.5)
@@ -2691,9 +2830,6 @@ local function draw_config_ui()
         local c_ioy, v_ioy = imgui.drag_float("图标 Y 偏移", config.icon_offset_y or 0.0, 1.0, -100.0, 100.0)
         if c_ioy then config.icon_offset_y = v_ioy; save_settings() end
 
-        local c_labels, v_labels = imgui.checkbox("绘制标线招式指令", config.adv_show_line_labels)
-        if c_labels then config.adv_show_line_labels = v_labels; save_settings() end
-        imgui.text_colored("需要同时启用对应玩家的“标线”。", COL_GREY)
     end
 
 	
@@ -3911,8 +4047,8 @@ re.on_frame(function()
 
                 if item.raw_input then
                     local icons, strength, disp_name = parse_input_string(item.raw_input, item.facing_right)
-                    local input_tokens = format_input_tokens(icons)
-                    local token_y = item_y + ((config.icon_offset_y or 0.0) * scale_factor)
+                    local icon_size = math.max(8, math.floor(item.size * (config.icon_scale or 1.0) + 0.5))
+                    local icon_y = item_y + ((config.icon_offset_y or 0.0) * scale_factor)
 
                     if disp_name then
                         local dn_w = imgui.calc_text_size(disp_name).x
@@ -3920,13 +4056,13 @@ re.on_frame(function()
                         current_x = current_x + dn_w + 4
                     end
 
-                    if input_tokens ~= "" then
-                        hud_add_text(input_tokens, current_x, token_y, item.color, true)
-                        current_x = current_x + imgui.calc_text_size(input_tokens).x
+                    for _, icon_key in ipairs(icons) do
+                        draw_input_icon(icon_key, current_x, icon_y, icon_size)
+                        current_x = current_x + icon_size
                     end
 
                     local icon_letter_gap = 4
-                    if input_tokens ~= "" and strength ~= "" then current_x = current_x + icon_letter_gap end
+                    if #icons > 0 and strength ~= "" then current_x = current_x + icon_letter_gap end
 
                     if strength ~= "" then
                         hud_add_text(strength, current_x, item_y, item.color, true)
