@@ -167,8 +167,8 @@ function Copy-TrackedReframeworkFiles {
     }
 
     $releaseExcludedTrackedFiles = @(
-        "autorun/SF6CC_DynamicRecords.lua",
-        "autorun/func/DynamicRecords.lua"
+        "data/reframework-d2d.json",
+        "plugins/reframework-d2d.dll"
     )
     $releaseExcludedSet = @{}
     foreach ($excludedPath in $releaseExcludedTrackedFiles) {

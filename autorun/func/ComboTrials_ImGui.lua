@@ -1,34 +1,23 @@
 -- =========================================================
--- ComboTrials_D2D.lua -- D2D overlay rendering (icons, trial box)
+-- ComboTrials_ImGui.lua -- pure ImGui overlay rendering (icons, trial box)
 -- Receives shared context (ctx) from the main file.
 -- =========================================================
 
-local d2d = d2d
 local sdk = sdk
 local imgui = imgui
 
 local M = {}
 local RuntimeSafety = require("func/RuntimeSafety")
+local Canvas = require("func/ImGuiCanvas")
 
 -- Shared context (set by init)
 local ctx -- { d2d_cfg, trial_state, players, sf6_menu_state }
 
 local assets = { font = nil, last_pixel_size = -1, title_font = nil, last_title_pixel_size = -1, imgs = {} }
-local d2d_anim = { active_y = nil }
-local d2d_last_runtime_allowed = nil
-local d2d_last_content_visible = nil
-local d2d_last_error = nil
-
--- Keep the D2D command list non-empty while the overlay is disabled. Some
--- reframework-d2d builds retain the previous render target across a D3D12
--- swap-chain reset when every Lua draw callback returns without submitting a
--- command. A fully transparent pixel makes the plugin execute its normal
--- begin/clear/end pass without adding anything visible to the game.
-local function submit_transparent_clear_pulse()
-    if d2d and d2d.fill_rect then
-        d2d.fill_rect(0, 0, 1, 1, 0x00000000)
-    end
-end
+local imgui_anim = { active_y = nil }
+local imgui_last_runtime_allowed = nil
+local imgui_last_content_visible = nil
+local imgui_last_error = nil
 
 local function is_combo_trials_runtime_allowed()
     if not ctx then return false end
@@ -82,7 +71,6 @@ local image_files = {
     ["arrow_fail"] = "arrow_red.png",
     ["followup"] = "FollowUp.png",
     ["validfollowup"] = "validfollowup.png",
-    ["cartouche"] = "cartouche.png",
     ["hold"] = "hold.png",
     ["plus"] = "PLUS.png",
     ["parry"] = "parry.png",
@@ -2313,9 +2301,9 @@ local function parse_motion_to_icons(log_entry, trial_mode, should_flip, reverse
 end
 
 -- =========================================================
--- get_d2d_logs
+-- get_render_logs
 -- =========================================================
-local function get_d2d_logs(p_log, max_count)
+local function get_render_logs(p_log, max_count)
     local limit = max_count or ctx.d2d_cfg.max_history
     local draw_logs = {}
     for _, log in ipairs(p_log) do
@@ -2369,14 +2357,14 @@ local function draw_parsed_line(tokens, base_x, y, icon_w, icon_h, spacing_x, fi
             if img then
                 local current_h = icon_h * elem.scale
                 local offset_y = (current_h - icon_h) / 2
-                d2d.image(img, cur_x, y - offset_y, elem.w, current_h)
+                Canvas.image(img, cur_x, y - offset_y, elem.w, current_h)
             end
             cur_x = cur_x + elem.w + spacing_x
         elseif elem.type == "text" then
             if assets.font then
                 local text_color = color_override or elem.col or 0xFFFFFFFF
-                d2d.text(assets.font, elem.val, cur_x + 2, y + final_text_y_offset + 2, 0xFF000000)
-                d2d.text(assets.font, elem.val, cur_x, y + final_text_y_offset, text_color)
+                Canvas.text(assets.font, elem.val, cur_x + 2, y + final_text_y_offset + 2, 0xFF000000)
+                Canvas.text(assets.font, elem.val, cur_x, y + final_text_y_offset, text_color)
             end
             cur_x = cur_x + elem.w + spacing_x
         end
@@ -2436,8 +2424,8 @@ local function append_wrapped_text(lines, text, max_w)
 end
 
 local function draw_text_with_shadow(font, text, x, y, color)
-    d2d.text(font, text, x + 2, y + 2, 0xFF000000)
-    d2d.text(font, text, x, y, color)
+    Canvas.text(font, text, x + 2, y + 2, 0xFF000000)
+    Canvas.text(font, text, x, y, color)
 end
 
 local function draw_step_note(note, x, y, final_text_y_offset)
@@ -2487,23 +2475,23 @@ local function draw_trial_meta_note(sw, sh, spacing_y)
 end
 
 -- =========================================================
--- d2d_init & d2d_draw
+-- imgui_init & imgui_draw
 -- =========================================================
 local _img_arrow_down = nil
 local _img_arrow_up = nil
 
-local function d2d_init()
+local function imgui_init()
     local folder = "buttonsAndArrows/"
     for k, filename in pairs(image_files) do
-        assets.imgs[k] = d2d.Image.new(folder .. filename)
+        assets.imgs[k] = Canvas.Image.new(folder .. filename)
     end
-    _img_arrow_down = d2d.Image.new("ui_icons/chevron_down_ios.png")
-    _img_arrow_up = d2d.Image.new("ui_icons/chevron_up_ios.png")
+    _img_arrow_down = Canvas.Image.new("ui_icons/chevron_down_ios.png")
+    _img_arrow_up = Canvas.Image.new("ui_icons/chevron_up_ios.png")
     -- Cartouche bar images (with built-in arrow + gradient)
-    assets.imgs["done_bar"] = d2d.Image.new("done-bar.png")
-    assets.imgs["active_bar"] = d2d.Image.new("active-bar.png")
-    assets.imgs["fail_bar"] = d2d.Image.new("fail-bar.png")
-    assets.imgs["success_bar"] = d2d.Image.new("success-bar.png")
+    assets.imgs["done_bar"] = Canvas.Image.new("done-bar.png")
+    assets.imgs["active_bar"] = Canvas.Image.new("active-bar.png")
+    assets.imgs["fail_bar"] = Canvas.Image.new("fail-bar.png")
+    assets.imgs["success_bar"] = Canvas.Image.new("success-bar.png")
 end
 
 local function draw_bar_toggle_arrows()
@@ -2516,7 +2504,7 @@ local function draw_bar_toggle_arrows()
     local geo = _G._ct_bar_geometry
     if not geo then return end
 
-    local sw, sh = d2d.surface_size()
+    local sw, sh = Canvas.surface_size()
     local collapsed = (_G._ct_bar_collapsed == true)
     local icon_sz = math.floor(sh * 0.022)
     local margin_x = math.floor(sw * 0.008)
@@ -2527,8 +2515,8 @@ local function draw_bar_toggle_arrows()
 
     local img = collapsed and _img_arrow_up or _img_arrow_down
     if img then
-        d2d.image(img, lx, arrow_y, icon_sz, icon_sz)
-        d2d.image(img, rx, arrow_y, icon_sz, icon_sz)
+        Canvas.image(img, lx, arrow_y, icon_sz, icon_sz)
+        Canvas.image(img, rx, arrow_y, icon_sz, icon_sz)
     end
 
     -- Click detection
@@ -2544,22 +2532,21 @@ local function draw_bar_toggle_arrows()
     end
 end
 
-local function d2d_draw_inner()
+local function imgui_draw_inner()
     local runtime_allowed = is_combo_trials_runtime_allowed()
-    if runtime_allowed ~= d2d_last_runtime_allowed then
-        d2d_last_runtime_allowed = runtime_allowed
+    if runtime_allowed ~= imgui_last_runtime_allowed then
+        imgui_last_runtime_allowed = runtime_allowed
         local rs = _G.SF6CC_RuntimeSafety or {}
         RuntimeSafety.trace("runtime_allowed=" .. tostring(runtime_allowed)
             .. " reason=" .. tostring(rs.reason)
             .. " battle_input=" .. tostring(rs.battle_input_type)
             .. " online=" .. tostring(rs.in_online_battle)
             .. " mode=" .. tostring(_G.CurrentTrainerMode)
-            .. " d2d=" .. tostring(_G.ComboTrialsD2DEnabled), "ComboTrialsD2D")
+            .. " renderer=" .. tostring(_G.ComboTrialsD2DEnabled), "ComboTrialsImGui")
     end
 
     if not runtime_allowed then
         _G._ct_bar_geometry = nil
-        submit_transparent_clear_pulse()
         return
     end
 
@@ -2574,27 +2561,26 @@ local function d2d_draw_inner()
         and has_training_context
         and _G.TrainingBarsDrawn == true
         and _G.CurrentTrainerMode == 4
-    if content_visible ~= d2d_last_content_visible then
-        d2d_last_content_visible = content_visible
+    if content_visible ~= imgui_last_content_visible then
+        imgui_last_content_visible = content_visible
         RuntimeSafety.trace("content_visible=" .. tostring(content_visible)
             .. " enabled=" .. tostring(_G.ComboTrialsD2DEnabled)
             .. " bars=" .. tostring(_G.TrainingBarsDrawn)
             .. " manager=" .. tostring(_G.TrainingScriptManagerActiveThisFrame)
-            .. " mode=" .. tostring(_G.CurrentTrainerMode), "ComboTrialsD2D")
+            .. " mode=" .. tostring(_G.CurrentTrainerMode), "ComboTrialsImGui")
     end
 
-    -- The matchmaking confirmation/pause UI disables ComboTrialsD2DEnabled
-    -- before FlowMap leaves training. Clear at that earlier signal so the
-    -- transparent frame is presented before the imminent swap-chain reset.
+    -- The matchmaking confirmation/pause UI disables the renderer before
+    -- FlowMap leaves training. Background DrawList data is frame-local, so an
+    -- early return clears the overlay without an explicit render-target pass.
     if not content_visible then
         _G._ct_bar_geometry = nil
-        submit_transparent_clear_pulse()
         return
     end
 
-    local sw, sh = d2d.surface_size()
+    local sw, sh = Canvas.surface_size()
 
-    -- content_visible is the final gate for every ComboTrials D2D command.
+    -- content_visible is the final gate for every ComboTrials ImGui command.
     if content_visible then
 
     ctx.cached_sw, ctx.cached_sh = sw, sh
@@ -2604,10 +2590,10 @@ local function d2d_draw_inner()
 
     local pixel_font_h = d2d_cfg.font_size * sh
     if math.abs(assets.last_pixel_size - pixel_font_h) > 1.0 or assets.font == nil then
-        assets.font = d2d.Font.new("msyhbd.ttc", math.floor(pixel_font_h))
+        assets.font = Canvas.Font.new("msyhbd.ttc", math.floor(pixel_font_h))
         assets.last_pixel_size = pixel_font_h
         -- Measure the real rendered box height for font-independent vertical centering.
-        -- d2d.text draws from the top-left of this box, and msyh's box is taller than
+        -- Canvas.text draws from the top-left of this box, and msyh's box is taller than
         -- its nominal em size, so centering on pixel_font_h would mis-align the glyphs.
         local _, mh = assets.font:measure("Combo: 8")
         assets.text_h = (mh and mh > 0) and mh or pixel_font_h
@@ -2623,7 +2609,7 @@ local function d2d_draw_inner()
 
     local function draw_player_icons(p_idx, base_x, base_y, align_right, max_count, reverse_layout,
         is_modern, modern_map, modern_character, modern_status, audit_context)
-        local logs_to_draw = get_d2d_logs(players[p_idx].log, max_count)
+        local logs_to_draw = get_render_logs(players[p_idx].log, max_count)
         local draw_row = 0
         for i, log in ipairs(logs_to_draw) do
             local should_flip = log.facing_left or false
@@ -2691,8 +2677,8 @@ local function d2d_draw_inner()
                     local off_x = slots[1] * sh * mirror
                     local anchor_x = base_x + off_x
                     local fx = is_right_side and (anchor_x + (ref_w - w)) or (anchor_x - w)
-                    d2d.text(r_font, txt, fx + 2, y + r_text_y + 2, 0xFF000000)
-                    d2d.text(r_font, txt, fx, y + r_text_y, 0xFFFFFFFF)
+                    Canvas.text(r_font, txt, fx + 2, y + r_text_y + 2, 0xFF000000)
+                    Canvas.text(r_font, txt, fx, y + r_text_y, 0xFFFFFFFF)
                 end
 
                 local dir_str = raw_get_numpad(entry.dir)
@@ -2701,7 +2687,7 @@ local function d2d_draw_inner()
                     local off_x = slots[2] * sh * mirror
                     local fx = base_x + off_x
                     if is_right_side then fx = fx - r_icon end
-                    d2d.image(img_dir, fx, y, r_icon, r_icon)
+                    Canvas.image(img_dir, fx, y, r_icon, r_icon)
                 end
 
                 if entry.btn >= 16 then
@@ -2712,7 +2698,7 @@ local function d2d_draw_inner()
                             local off_x = slots[idx + 2] * sh * mirror
                             local fx = base_x + off_x
                             if is_right_side then fx = fx - r_icon end
-                            d2d.image(img_btn, fx, y, r_icon, r_icon)
+                            Canvas.image(img_btn, fx, y, r_icon, r_icon)
                         end
                     end
                 end
@@ -2815,7 +2801,7 @@ local function d2d_draw_inner()
         local title_px = math.floor((d2d_cfg.trial_title_font_size or 0.030) * sh)
         if title_px < 10 then title_px = 10 end
         if math.abs((assets.last_title_pixel_size or -1) - title_px) > 1.0 or assets.title_font == nil then
-            assets.title_font = d2d.Font.new("msyhbd.ttc", title_px)
+            assets.title_font = Canvas.Font.new("msyhbd.ttc", title_px)
             assets.last_title_pixel_size = title_px
         end
         if not assets.title_font then return end
@@ -2825,8 +2811,8 @@ local function d2d_draw_inner()
         local x = (pos.x * sw) - ((tw or 0) * 0.5)
         local y = (pos.y * sh) - ((th or title_px) * 0.5)
 
-        d2d.text(assets.title_font, title, x + 2, y + 2, 0xFF000000)
-        d2d.text(assets.title_font, title, x, y, 0xFFFFFFFF)
+        Canvas.text(assets.title_font, title, x + 2, y + 2, 0xFF000000)
+        Canvas.text(assets.title_font, title, x, y, 0xFFFFFFFF)
     end
 
     draw_trial_title()
@@ -2940,11 +2926,11 @@ local function d2d_draw_inner()
                 if is_succ or (dl_idx < visual_dl) then
                     local sy = cur_y_pos - padding_y + c_off_y
                     if assets.imgs["done_bar"] then
-                        d2d.image(assets.imgs["done_bar"], final_rect_x + b_off_x, sy + b_off_y, cartouche_w, active_bg_h)
+                        Canvas.image(assets.imgs["done_bar"], final_rect_x + b_off_x, sy + b_off_y, cartouche_w, active_bg_h)
                     else
-                        d2d.fill_rect(final_rect_x, sy, cartouche_w, active_bg_h, d2d_cfg.colors.bg_success)
-                        d2d.fill_rect(final_rect_x, sy, cartouche_w, 1, d2d_cfg.colors.bg_success_line)
-                        d2d.fill_rect(final_rect_x, sy + active_bg_h - 1, cartouche_w, 1, d2d_cfg.colors.bg_success_line)
+                        Canvas.fill_rect(final_rect_x, sy, cartouche_w, active_bg_h, d2d_cfg.colors.bg_success)
+                        Canvas.fill_rect(final_rect_x, sy, cartouche_w, 1, d2d_cfg.colors.bg_success_line)
+                        Canvas.fill_rect(final_rect_x, sy + active_bg_h - 1, cartouche_w, 1, d2d_cfg.colors.bg_success_line)
                     end
                 end
             end
@@ -2952,10 +2938,10 @@ local function d2d_draw_inner()
 
         -- Animated cursor
         if target_anim_y then
-            if not d2d_anim.active_y or math.abs(d2d_anim.active_y - target_anim_y) > (spacing_y * 3) then
-                d2d_anim.active_y = target_anim_y
+            if not imgui_anim.active_y or math.abs(imgui_anim.active_y - target_anim_y) > (spacing_y * 3) then
+                imgui_anim.active_y = target_anim_y
             end
-            d2d_anim.active_y = d2d_anim.active_y + (target_anim_y - d2d_anim.active_y) * 0.15
+            imgui_anim.active_y = imgui_anim.active_y + (target_anim_y - imgui_anim.active_y) * 0.15
 
             local is_fail_state = (trial_state.fail_timer and trial_state.fail_timer > 0) or trial_state.manual_reset_pending
             local bar_img = nil
@@ -2969,9 +2955,9 @@ local function d2d_draw_inner()
                 bar_img = assets.imgs["active_bar"]
             end
 
-            local sy = d2d_anim.active_y - padding_y + c_off_y
+            local sy = imgui_anim.active_y - padding_y + c_off_y
             if bar_img then
-                d2d.image(bar_img, final_rect_x + b_off_x, sy + b_off_y, cartouche_w, active_bg_h)
+                Canvas.image(bar_img, final_rect_x + b_off_x, sy + b_off_y, cartouche_w, active_bg_h)
             else
                 local bg_c, li_c
                 if mode == "recording" then
@@ -2979,12 +2965,12 @@ local function d2d_draw_inner()
                 else
                     bg_c = d2d_cfg.colors.bg_active; li_c = d2d_cfg.colors.bg_active_line
                 end
-                d2d.fill_rect(final_rect_x, sy, cartouche_w, active_bg_h, bg_c)
-                d2d.fill_rect(final_rect_x, sy, cartouche_w, 3, li_c)
-                d2d.fill_rect(final_rect_x, sy + active_bg_h - 3, cartouche_w, 3, li_c)
+                Canvas.fill_rect(final_rect_x, sy, cartouche_w, active_bg_h, bg_c)
+                Canvas.fill_rect(final_rect_x, sy, cartouche_w, 3, li_c)
+                Canvas.fill_rect(final_rect_x, sy + active_bg_h - 3, cartouche_w, 3, li_c)
             end
         else
-            d2d_anim.active_y = nil
+            imgui_anim.active_y = nil
         end
 
         -- Static compatibility marker only: it does not mutate trial failure
@@ -2996,14 +2982,14 @@ local function d2d_draw_inner()
                     local cur_y_pos = trial_y + (dl_idx - start_idx) * spacing_y
                     local sy = cur_y_pos - padding_y + c_off_y
                     if assets.imgs["fail_bar"] then
-                        d2d.image(assets.imgs["fail_bar"], final_rect_x + b_off_x,
+                        Canvas.image(assets.imgs["fail_bar"], final_rect_x + b_off_x,
                             sy + b_off_y, cartouche_w, active_bg_h)
                     else
-                        d2d.fill_rect(final_rect_x, sy, cartouche_w, active_bg_h,
+                        Canvas.fill_rect(final_rect_x, sy, cartouche_w, active_bg_h,
                             d2d_cfg.colors.bg_fail)
-                        d2d.fill_rect(final_rect_x, sy, cartouche_w, 3,
+                        Canvas.fill_rect(final_rect_x, sy, cartouche_w, 3,
                             d2d_cfg.colors.bg_fail_line)
-                        d2d.fill_rect(final_rect_x, sy + active_bg_h - 3, cartouche_w, 3,
+                        Canvas.fill_rect(final_rect_x, sy + active_bg_h - 3, cartouche_w, 3,
                             d2d_cfg.colors.bg_fail_line)
                     end
                 end
@@ -3047,8 +3033,8 @@ local function d2d_draw_inner()
             if assets.font and log_item.ui_result_text and log_item.ui_result_text ~= "" then
                 local result_text = tostring(log_item.ui_result_text)
                 local result_color = result_colors[log_item.ui_result_kind or ""] or 0xFFFFFFFF
-                d2d.text(assets.font, result_text, result_x + 2, y + final_text_y_offset + 2, 0xFF000000)
-                d2d.text(assets.font, result_text, result_x, y + final_text_y_offset, result_color)
+                Canvas.text(assets.font, result_text, result_x + 2, y + final_text_y_offset + 2, 0xFF000000)
+                Canvas.text(assets.font, result_text, result_x, y + final_text_y_offset, result_color)
             end
 
             local tokens = parse_motion_to_icons(log_item, mode, current_should_flip, true)
@@ -3064,7 +3050,7 @@ local function d2d_draw_inner()
         end
 
         -- Arrow on top (bar images have arrow built-in)
-        if trial_state.is_playing and d2d_anim.active_y then
+        if trial_state.is_playing and imgui_anim.active_y then
             -- Bar images (recording/success/fail/active) all have arrows built-in.
             -- Only draw standalone arrow when bar images are unavailable.
             if not assets.imgs["active_bar"] and not assets.imgs["fail_bar"] and not assets.imgs["success_bar"] then
@@ -3080,14 +3066,14 @@ local function d2d_draw_inner()
                     local arr_w = d2d_cfg.arrow_size * sh
                     local arr_x = is_aligned_right and (trial_x - (d2d_cfg.offset_x_arrow * sw)) or
                         (trial_x + (d2d_cfg.offset_x_arrow * sw))
-                    local arr_y = d2d_anim.active_y + (spacing_y - arr_w) / 2 + (d2d_cfg.offset_y_arrow * sh)
-                    d2d.image(assets.imgs[arrow_tex], arr_x, arr_y, arr_w, arr_w)
+                    local arr_y = imgui_anim.active_y + (spacing_y - arr_w) / 2 + (d2d_cfg.offset_y_arrow * sh)
+                    Canvas.image(assets.imgs[arrow_tex], arr_x, arr_y, arr_w, arr_w)
                 end
             end
         end
     end
 
-    -- Mouse clicks use ImGui coordinates. Do not draw a D2D software cursor here:
+    -- Mouse clicks use ImGui coordinates. Do not draw a software cursor here:
     -- the game/system cursor is already visible and drawing another one creates double cursors.
 
     end -- close "if should_draw and not is_paused and CurrentTrainerMode == 4"
@@ -3102,13 +3088,13 @@ end
 -- =========================================================
 -- Public API
 -- =========================================================
-local function d2d_draw()
-    local ok, err = pcall(d2d_draw_inner)
+local function imgui_draw()
+    local ok, err = pcall(imgui_draw_inner)
     if ok then
-        d2d_last_error = nil
-    elseif tostring(err) ~= d2d_last_error then
-        d2d_last_error = tostring(err)
-        RuntimeSafety.trace("draw_error=" .. d2d_last_error, "ComboTrialsD2D")
+        imgui_last_error = nil
+    elseif tostring(err) ~= imgui_last_error then
+        imgui_last_error = tostring(err)
+        RuntimeSafety.trace("draw_error=" .. imgui_last_error, "ComboTrialsImGui")
     end
 end
 
@@ -3122,7 +3108,7 @@ function M.init(shared_ctx)
         end
         return localize_motion_text(tostring(motion or ""):upper())
     end
-    d2d.register(d2d_init, d2d_draw)
+    Canvas.register(imgui_init, imgui_draw)
 end
 
 function M.clear_unresolved_action_audit()
@@ -3140,7 +3126,7 @@ function M.get_command_display(character, action_id, mode)
 end
 
 function M.reset_anim()
-    d2d_anim.active_y = nil
+    imgui_anim.active_y = nil
 end
 
 function M.reset_raw()

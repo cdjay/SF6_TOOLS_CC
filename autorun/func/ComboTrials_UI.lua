@@ -941,8 +941,8 @@ local ui_dirty = false
 local ui_save_timer = 0
 local ui_dirty_age = 0
 local ui_save_retry_timer = 0
-local D2D_SAVE_DEBOUNCE_FRAMES = 60
-local D2D_SAVE_MAX_DIRTY_FRAMES = 60
+local RENDER_SAVE_DEBOUNCE_FRAMES = 60
+local RENDER_SAVE_MAX_DIRTY_FRAMES = 60
 local last_sw, last_sh = 0, 0
 local res_cooldown = 0
 local force_float_resize = 0
@@ -967,7 +967,7 @@ local function _ctui_flush_d2d_config()
     end
     ui_save_timer = 0
     ui_dirty_age = 0
-    ui_save_retry_timer = D2D_SAVE_DEBOUNCE_FRAMES
+    ui_save_retry_timer = RENDER_SAVE_DEBOUNCE_FRAMES
     return false
 end
 
@@ -994,7 +994,7 @@ local function _ctui_tick_d2d_save()
     end
     ui_save_timer = ui_save_timer + 1
     ui_dirty_age = ui_dirty_age + 1
-    if ui_save_timer >= D2D_SAVE_DEBOUNCE_FRAMES or ui_dirty_age >= D2D_SAVE_MAX_DIRTY_FRAMES then
+    if ui_save_timer >= RENDER_SAVE_DEBOUNCE_FRAMES or ui_dirty_age >= RENDER_SAVE_MAX_DIRTY_FRAMES then
         _ctui_flush_d2d_config()
     end
 end
@@ -1190,7 +1190,7 @@ re.on_frame(function()
         local target_h = sh * 0.0444
         local target_x = (sw - target_w) * 0.5
 
-        -- Publish geometry for D2D arrows (replay only)
+        -- Publish geometry for ImGui collapse arrows (replay only)
         if is_replay_ctx then
             _G._ct_bar_geometry = { x = target_x, y = sh - target_h, w = target_w, h = target_h }
         else
@@ -1444,13 +1444,13 @@ local function draw_combo_trials_menu_ui()
         imgui.indent(18)
         local advanced_ok, advanced_err = pcall(function()
         -- ==========================================
-        -- TAB 2: D2D VISUALIZER
+        -- TAB 2: IMGUI VISUALIZER
         -- ==========================================
-        if plain_header("D2D 可视化设置（覆盖层）") then
+        if plain_header("ImGui 可视化设置（覆盖层）") then
             local changed = false
             local c, v
 
-            c, v = imgui.checkbox("启用 D2D 覆盖层", d2d_cfg.enabled); if c then
+            c, v = imgui.checkbox("启用 ImGui 覆盖层", d2d_cfg.enabled); if c then
                 d2d_cfg.enabled = v; changed = true
             end
             c, v = imgui.checkbox("忽略自动动作（灰色）", d2d_cfg.ignore_auto); if c then

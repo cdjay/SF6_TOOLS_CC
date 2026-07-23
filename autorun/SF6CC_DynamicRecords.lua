@@ -3,9 +3,10 @@
 
 local imgui = imgui
 local re = re
-local d2d = d2d
 
 local DynamicRecords = require("func/DynamicRecords")
+local ImGuiCanvas = require("func/ImGuiCanvas")
+local RuntimeSafety = require("func/RuntimeSafety")
 local TrainingMenuRegistry = require("func/Training_MenuRegistry")
 
 local options = {
@@ -381,6 +382,12 @@ local function is_native_training_menu_open()
 end
 
 local function detect_native_training_page()
+    -- The property getter throws inside the game while TrainingManager exists
+    -- but its current menu data has not been created yet. pcall catches the Lua
+    -- failure, but REFramework still logs the managed exception. Only query it
+    -- after the shared safety gate has verified a complete offline training
+    -- context.
+    if not RuntimeSafety.is_training_allowed() then return nil end
     if not is_native_training_menu_open() then return nil end
     local manager = sdk.get_managed_singleton("app.training.TrainingManager")
     if not manager then return nil end
@@ -414,20 +421,20 @@ re.on_frame(function()
     overlay_state = state_ok and state or nil
 end)
 
-if d2d and d2d.register then
+do
     local overlay_font = nil
     local overlay_font_px = 0
     local shrink_fonts = {}
 
-    local function d2d_init()
-        overlay_font = d2d.Font.new("msyhbd.ttc", 22)
+    local function imgui_init()
+        overlay_font = ImGuiCanvas.Font.new("msyhbd.ttc", 22)
         overlay_font_px = 22
     end
 
     local function get_font(pixel_size)
         if pixel_size < 10 then pixel_size = 10 end
         if not overlay_font or math.abs(pixel_size - overlay_font_px) > 1 then
-            overlay_font = d2d.Font.new("msyhbd.ttc", pixel_size)
+            overlay_font = ImGuiCanvas.Font.new("msyhbd.ttc", pixel_size)
             overlay_font_px = pixel_size
             shrink_fonts = {}
         end
@@ -436,7 +443,7 @@ if d2d and d2d.register then
 
     local function draw_annotation_rows(config, labels, count)
         if type(labels) ~= "table" then return end
-        local screen_w, screen_h = d2d.surface_size()
+        local screen_w, screen_h = ImGuiCanvas.surface_size()
         if not screen_w or screen_w <= 0 or not screen_h or screen_h <= 0 then return end
 
         local pixel_size = math.floor(screen_h * 0.020)
@@ -456,7 +463,7 @@ if d2d and d2d.register then
                 if text_w > box_w - 8 then
                     local smaller = math.max(10, math.floor(pixel_size * (box_w - 8) / text_w))
                     if not shrink_fonts[smaller] then
-                        shrink_fonts[smaller] = d2d.Font.new("msyhbd.ttc", smaller)
+                        shrink_fonts[smaller] = ImGuiCanvas.Font.new("msyhbd.ttc", smaller)
                     end
                     font = shrink_fonts[smaller]
                     _, text_h = font:measure(label)
@@ -466,12 +473,12 @@ if d2d and d2d.register then
                 -- other resolutions instead of hardcoding a pixel offset.
                 local y = y0 + (index - 1) * step + (box_h - text_h) / 2
                     - screen_h * 0.005 + screen_h * (5 / 1080)
-                d2d.text(font, label, x + 4, y, 0xFFC9C7C7)
+                ImGuiCanvas.text(font, label, x + 4, y, 0xFFC9C7C7)
             end
         end
     end
 
-    local function d2d_draw()
+    local function imgui_draw()
         if not overlay_mode or type(overlay_state) ~= "table" then return end
         if overlay_mode == "record" then
             draw_annotation_rows(RECORD_OVERLAY, overlay_state.record_slots, 8)
@@ -488,5 +495,5 @@ if d2d and d2d.register then
         end
     end
 
-    d2d.register(d2d_init, d2d_draw)
+    ImGuiCanvas.register(imgui_init, imgui_draw)
 end

@@ -270,6 +270,16 @@ function M.allow_training()
     publish()
 end
 
+-- Standalone visual experiments may render in verified offline training mode,
+-- but they must never acquire permission to inject game input.
+function M.allow_training_visuals()
+    local allowed = cached_native_training_context()
+    state.allowed = allowed
+    state.input_allowed = false
+    state.reason = allowed and "training" or "unsafe_training_context"
+    publish()
+end
+
 function M.set_battle_input_type(input_type)
     local value = tonumber(tostring(input_type))
     if value == nil then return false end

@@ -9,6 +9,7 @@ require("func/SharedHooks") -- error registry (_G.safe_load_json) + shared hooks
 local RuntimeSafety = require("func/RuntimeSafety")
 local GS = require("func/GameState")
 local UIKit = require("func/UIKit")
+local ImGuiCanvas = require("func/ImGuiCanvas")
 local TrainingHotkeys = require("func/Training_Hotkeys")
 local TrainingMenuRegistry = require("func/Training_MenuRegistry")
 
@@ -853,7 +854,7 @@ re.on_frame(function()
         _G.CurrentTrainerMode = 0
     end
 
-    -- Clear D2D floating bar when no training mode is active
+    -- Clear the floating training bar when no training mode is active
     if _G.CurrentTrainerMode == 0 then
         _G.TrainingFloatingBar = nil
         if _G._tsm_last_mode and _G._tsm_last_mode ~= 0 then
@@ -1016,7 +1017,7 @@ re.on_draw_ui(function()
     end
 end)
 
--- Session Recap D2D overlay (draws on top of everything)
+-- Session recap pure ImGui overlay (drawn after the training modules)
 local SessionRecap = require("func/Training_SessionRecap")
 
 local function _tsm_draw_hide_flash()
@@ -1026,18 +1027,16 @@ local function _tsm_draw_hide_flash()
     if flash > 0 then
         _G._tsm_hide_flash = flash - 1
         local c = _G._tsm_hide_ui and 0x99FF4444 or 0x9944FF88
-        d2d.fill_rect(r.x, r.y, r.w, r.h, c)
-        d2d.outline_rect(r.x, r.y, r.w, r.h, 2, 0xFFFFFFFF)
+        ImGuiCanvas.fill_rect(r.x, r.y, r.w, r.h, c)
+        ImGuiCanvas.outline_rect(r.x, r.y, r.w, r.h, 2, 0xFFFFFFFF)
     end
 end
 
-if d2d and d2d.register then
-    d2d.register(function() end, function()
-        if RuntimeSafety.is_training_allowed() and SessionRecap and SessionRecap.d2d_draw then
-            SessionRecap.d2d_draw()
-        end
-        if RuntimeSafety.is_training_allowed() then
-            pcall(_tsm_draw_hide_flash)
-        end
-    end)
-end
+re.on_frame(function()
+    if not RuntimeSafety.is_training_allowed() then return end
+    if not ImGuiCanvas.begin_frame() then return end
+    if SessionRecap and SessionRecap.imgui_draw then
+        pcall(SessionRecap.imgui_draw)
+    end
+    pcall(_tsm_draw_hide_flash)
+end)

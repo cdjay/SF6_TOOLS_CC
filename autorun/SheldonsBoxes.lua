@@ -15,6 +15,7 @@ local json = json
 require("func/SharedHooks")
 local RuntimeSafety = require("func/RuntimeSafety")
 local GS = require("func/GameState")
+local ImGuiCanvas = require("func/ImGuiCanvas")
 local UIKit = require("func/UIKit")
 local Vector3f = Vector3f
 
@@ -871,7 +872,7 @@ re.on_frame(function()
         end
     end
 
-    -- Push ruler data (D2D reads it — clears when stale)
+    -- Push ruler data (the ImGui overlay consumes it and clears stale data)
     if vr_get_active().enabled and vr_visible then
         local p1_max = vr_get_vital_max(0)
         local p2_max = vr_get_vital_max(1)
@@ -974,22 +975,13 @@ re.on_frame(function()
 end)
 
 -- =========================================================
--- [VITAL RULER - D2D OVERLAY]
+-- [VITAL RULER - IMGUI OVERLAY]
 -- =========================================================
 local vr_font = nil
 local vr_font_px = 0
 
 local function vr_draw_line(x1, y1, x2, y2, thickness, color)
-    local dx = x2 - x1
-    local dy = y2 - y1
-    local steps = math.max(math.abs(dx), math.abs(dy), 1)
-    local sx = dx / steps
-    local sy = dy / steps
-    local t = thickness or 2
-    local half = t * 0.5
-    for i = 0, math.floor(steps) do
-        d2d.fill_rect(x1 + sx * i - half, y1 + sy * i - half, t, t, color)
-    end
+    ImGuiCanvas.line(x1, y1, x2, y2, thickness, color)
 end
 
 
@@ -1066,20 +1058,20 @@ local function vr_draw_ruler(sw, sh, vital_max, x_start, line_w, mirror, y_off)
             local x2 = x_start + s3 * line_w
             local x3 = x_start + (s3 + s2) * line_w
             local x4 = x_start + line_w
-            d2d.fill_rect(x1, y_line + seg2_dy - ht, x2 - x1, vr.line_thick, vr.col_line)
+            ImGuiCanvas.fill_rect(x1, y_line + seg2_dy - ht, x2 - x1, vr.line_thick, vr.col_line)
             vr_draw_line(x2, y_line + seg2_dy, x3, y_line, vr.line_thick, vr.col_line)
-            d2d.fill_rect(x3, y_line - ht, x4 - x3, vr.line_thick, vr.col_line)
+            ImGuiCanvas.fill_rect(x3, y_line - ht, x4 - x3, vr.line_thick, vr.col_line)
         else
             local x1 = x_start
             local x2 = x_start + s1 * line_w
             local x3 = x_start + (s1 + s2) * line_w
             local x4 = x_start + line_w
-            d2d.fill_rect(x1, y_line - ht, x2 - x1, vr.line_thick, vr.col_line)
+            ImGuiCanvas.fill_rect(x1, y_line - ht, x2 - x1, vr.line_thick, vr.col_line)
             vr_draw_line(x2, y_line, x3, y_line + seg2_dy, vr.line_thick, vr.col_line)
-            d2d.fill_rect(x3, y_line + seg2_dy - ht, x4 - x3, vr.line_thick, vr.col_line)
+            ImGuiCanvas.fill_rect(x3, y_line + seg2_dy - ht, x4 - x3, vr.line_thick, vr.col_line)
         end
     else
-        d2d.fill_rect(x_start, y_line - vr.line_thick * 0.5, line_w, vr.line_thick, vr.col_line)
+        ImGuiCanvas.fill_rect(x_start, y_line - vr.line_thick * 0.5, line_w, vr.line_thick, vr.col_line)
     end
 
     local function draw_tick_at(hp, len)
@@ -1109,8 +1101,8 @@ local function vr_draw_ruler(sw, sh, vital_max, x_start, line_w, mirror, y_off)
             local lw, lh = vr_font:measure(label)
             local lx = tx - lw * 0.5 + off_x_px
             local ly = ty + off_y_px
-            d2d.text(vr_font, label, lx + 1, ly + 1, 0xFF000000)
-            d2d.text(vr_font, label, lx, ly, vr.col_label)
+            ImGuiCanvas.text(vr_font, label, lx + 1, ly + 1, 0xFF000000)
+            ImGuiCanvas.text(vr_font, label, lx, ly, vr.col_label)
         end
     end
 
@@ -1121,14 +1113,14 @@ local function vr_draw_ruler(sw, sh, vital_max, x_start, line_w, mirror, y_off)
             local lw, lh = vr_font:measure(label)
             local lx = tx - lw * 0.5 + off_x_px
             local ly = ty + off_y_px
-            d2d.text(vr_font, label, lx + 1, ly + 1, 0xFF000000)
-            d2d.text(vr_font, label, lx, ly, vr.col_label)
+            ImGuiCanvas.text(vr_font, label, lx + 1, ly + 1, 0xFF000000)
+            ImGuiCanvas.text(vr_font, label, lx, ly, vr.col_label)
         end
     end
 end
 
-if d2d and d2d.register then
-    d2d.register(function() end, function()
+do
+    ImGuiCanvas.register(function() end, function()
         if _G.SheldonsBoxes_Enabled ~= true then
             _G._vr_queue = nil
             return
@@ -1146,8 +1138,8 @@ if d2d and d2d.register then
         if show_zones then
             local function draw_zone(r, fill_col, outline_col)
                 if r.w > 0 then
-                    d2d.fill_rect(r.x, r.y, r.w, r.h, fill_col)
-                    d2d.outline_rect(r.x, r.y, r.w, r.h, 2, outline_col)
+                    ImGuiCanvas.fill_rect(r.x, r.y, r.w, r.h, fill_col)
+                    ImGuiCanvas.outline_rect(r.x, r.y, r.w, r.h, 2, outline_col)
                 end
             end
             draw_zone(vr_p1_rect, 0x80FF0000, 0xFFFF0000)
@@ -1162,26 +1154,26 @@ if d2d and d2d.register then
 
         if not vr_data then return end
 
-        local sw, real_sh = d2d.surface_size()
+        local sw, real_sh = ImGuiCanvas.surface_size()
         local sh = sw * 9 / 16
-        local d2d_y_offset = (real_sh - sh) / 2
+        local imgui_y_offset = (real_sh - sh) / 2
         local vr = vr_get_active()
         local line_w = vr.width * sw
 
         local font_px = math.floor(vr.font_size * sh)
         if font_px < 8 then font_px = 8 end
         if not vr_font or math.abs(vr_font_px - font_px) > 1 then
-            vr_font = d2d.Font.new("capcom_goji-udkakugoc80pro-db.ttf", font_px)
+            vr_font = ImGuiCanvas.Font.new("capcom_goji-udkakugoc80pro-db.ttf", font_px)
             vr_font_px = font_px
         end
 
         local p1_x = vr.pos_x * sw
         local p2_x = sw - vr.pos_x * sw - line_w
         if vr_data.p1_max then
-            vr_draw_ruler(sw, sh, vr_data.p1_max, p1_x, line_w, false, d2d_y_offset)
+            vr_draw_ruler(sw, sh, vr_data.p1_max, p1_x, line_w, false, imgui_y_offset)
         end
         if vr_data.p2_max then
-            vr_draw_ruler(sw, sh, vr_data.p2_max, p2_x, line_w, true, d2d_y_offset)
+            vr_draw_ruler(sw, sh, vr_data.p2_max, p2_x, line_w, true, imgui_y_offset)
         end
     end)
 end

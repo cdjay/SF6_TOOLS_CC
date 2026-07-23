@@ -291,6 +291,7 @@ local config = {
     -- Global
     marker_thickness = 5.0, marker_origin_shift = 0.0,
     -- Window State
+    standalone_enabled = false,
     show_debug_window = false,
 	expert_mode_enabled = false,
     window_pos_x = 20.0, window_pos_y = 20.0,
@@ -349,9 +350,13 @@ local function load_settings()
             for i=1,4 do config["p2_opp_zone_cursor_h_"..i] = 0.5 end
             d.config.p2_opp_zone_cursor_off_y = nil
         end
+
     end 
 end
 load_settings()
+if config.standalone_enabled == true then
+    _G.SF6_DistanceViewer_Enabled = true
+end
 auto_activate.delay_min = config.aa_delay_min or config.aa_delay_frames or 0
 auto_activate.delay_max = config.aa_delay_max or config.aa_delay_frames or 0
 auto_activate.neutral_buffer = config.aa_neutral_buffer or 12
@@ -783,8 +788,6 @@ local function get_dynamic_color(base_color_abgr)
     return (base_color_abgr & 0x00FFFFFF) | (alpha << 24)
 end
 
-local shadow_color = 0x80000000
-
 -- =========================================================
 -- [THEMED UI - Same style as Distance Logger]
 -- =========================================================
@@ -844,6 +847,14 @@ local function get_sorted_thresholds(limits, show_title, show_name, prefix)
 end
 
 local function _dv_get_disp_xy(r) return r.x, r.y end
+
+local function is_finite_number(value)
+    return type(value) == "number"
+        and value == value
+        and value > -math.huge
+        and value < math.huge
+end
+
 local function get_dynamic_screen_size()
     local w, h = 1920, 1080
     if imgui.get_display_size then
@@ -857,9 +868,136 @@ local function get_dynamic_screen_size()
             w, h = w_val, h_val
         end
     end
-    if w == nil or w <= 0 then w = 1920 end
-    if h == nil or h <= 0 then h = 1080 end
+    if not is_finite_number(w) or w <= 0 then w = 1920 end
+    if not is_finite_number(h) or h <= 0 then h = 1080 end
     return w, h
+end
+
+-- REFramework's built-in ImGui DrawList is the only HUD renderer used here.
+-- Geometry is validated before crossing the Lua/C++ boundary, and failures are
+-- rate-limited so a bad runtime coordinate cannot flood the log every frame.
+local hud_draw_list = nil
+local hud_frame = 0
+local hud_last_log_frame = {}
+local HUD_LOG_INTERVAL_FRAMES = 600
+
+local function hud_log_rate_limited(key, message)
+    local last_frame = hud_last_log_frame[key]
+    if last_frame ~= nil and (hud_frame - last_frame) < HUD_LOG_INTERVAL_FRAMES then return end
+    hud_last_log_frame[key] = hud_frame
+    if log and log.warn then
+        pcall(log.warn, "[SF6_DistanceViewer/ImGui] " .. tostring(message))
+    end
+end
+
+local function hud_valid_point(x, y)
+    return is_finite_number(x) and is_finite_number(y)
+end
+
+local function hud_begin_frame()
+    hud_frame = hud_frame + 1
+    hud_draw_list = nil
+
+    if not imgui or type(imgui.get_background_draw_list) ~= "function" then
+        hud_log_rate_limited("missing_draw_list", "imgui.get_background_draw_list 不可用，跳过本帧 HUD。")
+        return false
+    end
+
+    local ok, result = pcall(imgui.get_background_draw_list)
+    if not ok or result == nil then
+        hud_log_rate_limited("draw_list_failed", "无法取得 ImGui Background DrawList：" .. tostring(result))
+        return false
+    end
+
+    hud_draw_list = result
+    return true
+end
+
+local function hud_add_line(x1, y1, x2, y2, color, thickness)
+    if hud_draw_list == nil then return end
+    if not hud_valid_point(x1, y1) or not hud_valid_point(x2, y2) then
+        hud_log_rate_limited("invalid_line", "检测到非法线段坐标，已跳过。")
+        return
+    end
+    if not is_finite_number(thickness) or thickness <= 0 then thickness = 1.0 end
+    if not is_finite_number(color) then color = 0xFFFFFFFF end
+
+    local ok, err = pcall(function()
+        hud_draw_list:add_line(Vector2f.new(x1, y1), Vector2f.new(x2, y2), color, thickness)
+    end)
+    if not ok then hud_log_rate_limited("add_line_failed", "ImDrawList:add_line 失败：" .. tostring(err)) end
+end
+
+local function hud_add_quad_filled(x1, y1, x2, y2, x3, y3, x4, y4, color)
+    if hud_draw_list == nil then return end
+    if not hud_valid_point(x1, y1) or not hud_valid_point(x2, y2)
+        or not hud_valid_point(x3, y3) or not hud_valid_point(x4, y4) then
+        hud_log_rate_limited("invalid_quad", "检测到非法四边形坐标，已跳过。")
+        return
+    end
+    if not is_finite_number(color) then color = 0xFFFFFFFF end
+
+    local ok, err = pcall(function()
+        hud_draw_list:add_quad_filled(
+            Vector2f.new(x1, y1), Vector2f.new(x2, y2),
+            Vector2f.new(x3, y3), Vector2f.new(x4, y4), color
+        )
+    end)
+    if not ok then hud_log_rate_limited("add_quad_failed", "ImDrawList:add_quad_filled 失败：" .. tostring(err)) end
+end
+
+local function hud_add_circle_filled(x, y, radius, color, segments)
+    if hud_draw_list == nil then return end
+    if not hud_valid_point(x, y) or not is_finite_number(radius) or radius <= 0 then
+        hud_log_rate_limited("invalid_circle", "检测到非法圆形参数，已跳过。")
+        return
+    end
+    if not is_finite_number(color) then color = 0xFFFFFFFF end
+    if not is_finite_number(segments) or segments < 3 then segments = 16 end
+
+    local ok, err = pcall(function()
+        hud_draw_list:add_circle_filled(Vector2f.new(x, y), radius, color, math.floor(segments))
+    end)
+    if not ok then hud_log_rate_limited("add_circle_failed", "ImDrawList:add_circle_filled 失败：" .. tostring(err)) end
+end
+
+local function hud_add_triangle_filled(x1, y1, x2, y2, x3, y3, color)
+    if hud_draw_list == nil then return end
+    if not hud_valid_point(x1, y1) or not hud_valid_point(x2, y2)
+        or not hud_valid_point(x3, y3) then
+        hud_log_rate_limited("invalid_triangle", "检测到非法三角形坐标，已跳过。")
+        return
+    end
+    if not is_finite_number(color) then color = 0xFFFFFFFF end
+
+    local ok, err = pcall(function()
+        hud_draw_list:add_triangle_filled(
+            Vector2f.new(x1, y1), Vector2f.new(x2, y2),
+            Vector2f.new(x3, y3), color
+        )
+    end)
+    if not ok then
+        hud_log_rate_limited("add_triangle_failed", "ImDrawList:add_triangle_filled 失败：" .. tostring(err))
+    end
+end
+
+local function hud_add_text(text, x, y, color, with_shadow)
+    if hud_draw_list == nil or text == nil then return end
+    text = tostring(text)
+    if text == "" then return end
+    if not hud_valid_point(x, y) then
+        hud_log_rate_limited("invalid_text", "检测到非法文字坐标，已跳过。")
+        return
+    end
+    if not is_finite_number(color) then color = 0xFFFFFFFF end
+
+    local ok, err = pcall(function()
+        if with_shadow ~= false then
+            hud_draw_list:add_text(Vector2f.new(x + 2, y + 2), 0xFF000000, text)
+        end
+        hud_draw_list:add_text(Vector2f.new(x, y), color, text)
+    end)
+    if not ok then hud_log_rate_limited("add_text_failed", "ImDrawList:add_text 失败：" .. tostring(err)) end
 end
 
 local custom_font = { obj = nil, filename = "msyh.ttc", loaded_size = 0, status = "初始化..." }
@@ -900,35 +1038,13 @@ local function try_load_font()
 end
 
 -- =========================================================
--- [INPUT ICONS CACHE & D2D QUEUE]
+-- [INPUT ICON QUEUE]
 -- =========================================================
-local d2d_icons = {}
-local d2d_queue = {}
-local icons_to_draw = {} -- Declared as global here!
-local d2d_initialized = false
-
-
-
-local function init_d2d_icons()
-    local folder = "buttonsAndArrows/"
-    local keys = {"1","2","3","4","5","6","7","8","9","lp","mp","hp","lk","mk","hk","HOLD","THROW"}
-    for _, k in ipairs(keys) do d2d_icons[k] = d2d.Image.new(folder .. k .. ".png") end
-    d2d_initialized = true
-end
-
-local function draw_d2d_icons()
-    if _G.SF6_DistanceViewer_Enabled ~= true or not RuntimeSafety.is_training_allowed() then
-        d2d_queue = {}
-        return
-    end
-    if not d2d_initialized then init_d2d_icons() end
-    for _, item in ipairs(d2d_queue) do
-        local img = d2d_icons[item.key]
-        if img then d2d.image(img, item.x, item.y, item.size, item.size) end
-    end
-    d2d_queue = {} -- CRITICAL: Clear queue ONLY after drawing to sync D2D/ImGui
-end
-d2d.register(init_d2d_icons, draw_d2d_icons)
+-- Input icons use the original transparent PNG resources through the
+-- reframework-imgui-texture bridge. The bridge draws into REFramework's
+-- existing ImGui background DrawList; no D2D renderer or second Present hook
+-- participates in this path.
+local icons_to_draw = {}
 
 local function flip_numpad(dir_str, facing_right)
     -- In SF6, the "facing_right" boolean based on BitValue 128 is actually true when facing LEFT.
@@ -983,6 +1099,100 @@ local function parse_input_string(input_str, facing_right)
     end
 
     return icons, strength, display_name
+end
+
+local input_icon_state = {
+    files = {
+        ["1"] = "1.png",
+        ["2"] = "2.png",
+        ["3"] = "3.png",
+        ["4"] = "4.png",
+        ["5"] = "5.png",
+        ["6"] = "6.png",
+        ["7"] = "7.png",
+        ["8"] = "8.png",
+        ["9"] = "9.png",
+        ["lp"] = "lp.png",
+        ["mp"] = "mp.png",
+        ["hp"] = "hp.png",
+        ["lk"] = "lk.png",
+        ["mk"] = "mk.png",
+        ["hk"] = "hk.png",
+        ["HOLD"] = "hold.png",
+        ["THROW"] = "THROW.png"
+    },
+    handles = {},
+    failed = {}
+}
+
+local function get_input_icon_handle(icon_key)
+    local filename = input_icon_state.files[icon_key]
+    if not filename then return nil, "未知指令图标" end
+
+    local handle = input_icon_state.handles[icon_key]
+    if handle then return handle end
+    if input_icon_state.failed[icon_key] then return nil, "图标此前加载失败" end
+
+    if type(texture) ~= "table" or type(texture.load) ~= "function" then
+        return nil, "reframework-imgui-texture API 未加载"
+    end
+
+    local ok, loaded_handle, load_error = pcall(
+        texture.load,
+        "buttonsAndArrows/" .. filename
+    )
+    if ok and loaded_handle then
+        input_icon_state.handles[icon_key] = loaded_handle
+        return loaded_handle
+    end
+
+    input_icon_state.failed[icon_key] = true
+    return nil, ok and load_error or loaded_handle
+end
+
+local function draw_input_icon(icon_key, x, y, size)
+    if not hud_valid_point(x, y) or not is_finite_number(size) or size <= 0 then
+        hud_log_rate_limited("invalid_input_icon", "检测到非法指令图标参数，已跳过。")
+        return
+    end
+
+    icon_key = tostring(icon_key)
+    local lower_key = string.lower(icon_key)
+    local normalized_key = string.match(lower_key, "^[lmh][pk]$")
+        and lower_key
+        or string.upper(icon_key)
+    local handle, load_error = get_input_icon_handle(normalized_key)
+    if not handle then
+        hud_log_rate_limited(
+            "input_icon_load_" .. normalized_key,
+            "无法加载指令图标 " .. normalized_key .. "：" .. tostring(load_error)
+        )
+        hud_add_text("[" .. normalized_key .. "]", x, y, 0xFFFFFFFF, true)
+        return
+    end
+
+    if type(texture.draw) ~= "function" then
+        hud_log_rate_limited(
+            "input_icon_draw_api",
+            "reframework-imgui-texture 的 texture.draw API 不可用。"
+        )
+        hud_add_text("[" .. normalized_key .. "]", x, y, 0xFFFFFFFF, true)
+        return
+    end
+
+    local ok, drawn = pcall(texture.draw, handle, x, y, size, size)
+    if ok and drawn then return end
+
+    -- The native bridge renders its own visible [texture pending]/[PNG
+    -- missing] fallback and logs permanent resource failures once. Only a Lua
+    -- call exception needs a second, rate-limited diagnostic here.
+    if not ok then
+        hud_log_rate_limited(
+            "input_icon_draw_" .. normalized_key,
+            "调用指令图标绘制失败：" .. tostring(drawn)
+        )
+        hud_add_text("[" .. normalized_key .. "]", x, y, 0xFFFFFFFF, true)
+    end
 end
 
 local debug_dist_status = "未加载"
@@ -1265,11 +1475,14 @@ local function safe_input_int(label, val)
 end
 
 local function draw_thick_line(x1, y1, x2, y2, th, col) 
-    local dx=x2-x1; local dy=y2-y1; 
-    if (dx*dx + dy*dy) < 0.1 then return end 
-    local len=math.sqrt(dx*dx+dy*dy)
-    local nx=-dy/len; local ny=dx/len; local half=th/2.0; 
-    draw.filled_quad(x1+nx*half, y1+ny*half, x2+nx*half, y2+ny*half, x2-nx*half, y2-ny*half, x1-nx*half, y1-ny*half, col) 
+    if not hud_valid_point(x1, y1) or not hud_valid_point(x2, y2) then
+        hud_log_rate_limited("invalid_thick_line", "检测到非法粗线坐标，已跳过。")
+        return
+    end
+    local dx = x2 - x1
+    local dy = y2 - y1
+    if (dx * dx + dy * dy) < 0.1 then return end
+    hud_add_line(x1, y1, x2, y2, col, th)
 end
 
 local function world_to_screen_optimized(wx, wy, wz)
@@ -1451,13 +1664,11 @@ local function evaluate_player_zone(pi, cache_data, opponent_data)
     return { name = ((pi == 0) and "P1" or "P2") .. " 绿色区域", color = colors.Green }
 end
 
-local function draw_text_safe(text, x, y, color, size) 
-    draw.text(text, x + 2, y + 2, shadow_color, size)
-    draw.text(text, x, y, color, size) 
-end
-
 local function draw_text_above_head_independent(text, pos, color, offset_x, offset_y, scale_factor, align, facing_right)
-    if text == "" or not pos then return end
+    if text == "" or not pos or not hud_valid_point(pos.x, pos.y) then return end
+    if not is_finite_number(offset_x) then offset_x = 0.0 end
+    if not is_finite_number(offset_y) then offset_y = 0.0 end
+    if not is_finite_number(scale_factor) or scale_factor <= 0 then scale_factor = 1.0 end
     
     local off_x = offset_x * scale_factor
     local off_y = offset_y * scale_factor
@@ -1473,13 +1684,14 @@ local function draw_text_above_head_independent(text, pos, color, offset_x, offs
     
     for _, line in ipairs(lines) do
         local text_height = imgui.calc_text_size(line).y
-        local icon_size = math.floor(text_height * (config.icon_scale or 1.0) + 0.5)
-        
-        -- CALCULATE TRUE WIDTH ACCOUNTING FOR ICON SIZE
+        local icon_size = math.max(8, math.floor(text_height * (config.icon_scale or 1.0) + 0.5))
+
+        -- PNG input icons are aspect-fitted into the same square layout cells
+        -- used by the original DistanceViewer.
         local true_width = 0
         local before_txt, input_core, after_txt = string.match(line, "^(.-){(.-)}(.*)$")
         local parsed_icons, parsed_strength
-        
+
         local display_name
         if input_core then
             parsed_icons, parsed_strength, display_name = parse_input_string(input_core, facing_right)
@@ -1505,42 +1717,36 @@ local function draw_text_above_head_independent(text, pos, color, offset_x, offs
             local current_x = x_pos
             if before_txt and before_txt ~= "" then
                 local b_w = math.floor(imgui.calc_text_size(before_txt).x + 0.5)
-                imgui.set_cursor_pos(Vector2f.new(current_x + 2, current_y + 2)); imgui.text_colored(before_txt, 0xFF000000)
-                imgui.set_cursor_pos(Vector2f.new(current_x, current_y)); imgui.text_colored(before_txt, color)
+                hud_add_text(before_txt, current_x, current_y, color, true)
                 current_x = current_x + b_w
             end
 
             if display_name then
                 local dn_w = math.floor(imgui.calc_text_size(display_name).x + 0.5)
-                imgui.set_cursor_pos(Vector2f.new(current_x + 2, current_y + 2)); imgui.text_colored(display_name, 0xFF000000)
-                imgui.set_cursor_pos(Vector2f.new(current_x, current_y)); imgui.text_colored(display_name, color)
+                hud_add_text(display_name, current_x, current_y, color, true)
                 current_x = current_x + dn_w + 4
             end
 
-            local y_with_offset = math.floor(current_y + ((config.icon_offset_y or 0.0) * scale_factor) + 0.5)
-
+            local icon_y = current_y + ((config.icon_offset_y or 0.0) * scale_factor)
             for _, icon_key in ipairs(parsed_icons) do
-                table.insert(d2d_queue, { key = icon_key, x = current_x, y = y_with_offset, size = icon_size })
+                draw_input_icon(icon_key, current_x, icon_y, icon_size)
                 current_x = current_x + icon_size
             end
-            
+
             local icon_letter_gap = 8 -- <<< SAME VALUE HERE
             if #parsed_icons > 0 and parsed_strength ~= "" then current_x = current_x + icon_letter_gap end
             
             if parsed_strength ~= "" then
                 local s_w = math.floor(imgui.calc_text_size(parsed_strength).x + 0.5)
-                imgui.set_cursor_pos(Vector2f.new(current_x + 2, current_y + 2)); imgui.text_colored(parsed_strength, 0xFF000000)
-                imgui.set_cursor_pos(Vector2f.new(current_x, current_y)); imgui.text_colored(parsed_strength, color)
+                hud_add_text(parsed_strength, current_x, current_y, color, true)
                 current_x = current_x + s_w + 5
             end
             
             if after_txt and after_txt ~= "" then
-                imgui.set_cursor_pos(Vector2f.new(current_x + 2, current_y + 2)); imgui.text_colored(after_txt, 0xFF000000)
-                imgui.set_cursor_pos(Vector2f.new(current_x, current_y)); imgui.text_colored(after_txt, color)
+                hud_add_text(after_txt, current_x, current_y, color, true)
             end
         else
-            imgui.set_cursor_pos(Vector2f.new(x_pos + 2, current_y + 2)); imgui.text_colored(line, 0xFF000000)
-            imgui.set_cursor_pos(Vector2f.new(x_pos, current_y)); imgui.text_colored(line, color)
+            hud_add_text(line, x_pos, current_y, color, true)
         end
         current_y = current_y + math.floor(text_height + 0.5)
     end
@@ -1765,7 +1971,7 @@ local function draw_spacing_horizontal(owner_data, target_data, settings, scale_
             end
 
             if settings.show_origin_dot and x_origin then 
-                draw.filled_circle(x_origin, y, scaled_dot_size, colors.White, 16) 
+                hud_add_circle_filled(x_origin, y, scaled_dot_size, colors.White, 16)
             end
 
             local x_end = get_x(dist_target)
@@ -1814,7 +2020,7 @@ local function draw_spacing_horizontal(owner_data, target_data, settings, scale_
         end
         
         local x_origin = get_x(0)
-        if settings.show_origin_dot and x_origin then draw.filled_circle(x_origin, y, scaled_dot_size, colors.White, 16) end
+        if settings.show_origin_dot and x_origin then hud_add_circle_filled(x_origin, y, scaled_dot_size, colors.White, 16) end
         
         local x_final = get_x(dist_target)
         if x_final and x_origin then
@@ -1881,7 +2087,7 @@ local function draw_vertical_overlay(owner_data, target_data, settings, scale_fa
                     local fill_col = get_dynamic_color(col)
                     local x_cur = get_screen_x(get_effective_ar(mv, owner_data.id))
                     if x_prev and x_cur then
-                        draw.filled_quad(x_prev, y_min, x_cur, y_min, x_cur, y_max, x_prev, y_max, fill_col)
+                        hud_add_quad_filled(x_prev, y_min, x_cur, y_min, x_cur, y_max, x_prev, y_max, fill_col)
                     end
                     x_prev = x_cur
                 end
@@ -1893,7 +2099,7 @@ local function draw_vertical_overlay(owner_data, target_data, settings, scale_fa
                 local lx = get_screen_x(get_effective_ar(mv, owner_data.id))
                 if lx then
                     if settings.show_markers then
-                        draw.line(lx, y_min, lx, y_max, col, scaled_thickness)
+                        hud_add_line(lx, y_min, lx, y_max, col, scaled_thickness)
                         if config.adv_show_line_labels then
                             local prefs = get_char_prefs(owner_data.id, char_name)
                             local tag = ""
@@ -1960,17 +2166,17 @@ local function draw_vertical_overlay(owner_data, target_data, settings, scale_fa
         local prev_x = get_screen_x(0)
         for _, zone in ipairs(sorted) do
             local cur_x = get_screen_x(zone.dist)
-            if prev_x and cur_x then draw.filled_quad(prev_x, y_min, cur_x, y_min, cur_x, y_max, prev_x, y_max, zone.fill) end
+            if prev_x and cur_x then hud_add_quad_filled(prev_x, y_min, cur_x, y_min, cur_x, y_max, prev_x, y_max, zone.fill) end
             prev_x = cur_x
         end
         local xEnd = get_screen_x(sorted[#sorted].dist + 50.0)
-        if prev_x and xEnd then draw.filled_quad(prev_x, y_min, xEnd, y_min, xEnd, y_max, prev_x, y_max, get_dynamic_color(colors.Green)) end
+        if prev_x and xEnd then hud_add_quad_filled(prev_x, y_min, xEnd, y_min, xEnd, y_max, prev_x, y_max, get_dynamic_color(colors.Green)) end
     end
     
     if settings.show_markers then
         for _, zone in ipairs(sorted) do
             local x = get_screen_x(zone.dist)
-            if x then draw.line(x, y_min, x, y_max, zone.color, scaled_thickness) end
+            if x then hud_add_line(x, y_min, x, y_max, zone.color, scaled_thickness) end
         end
     end
     
@@ -2178,8 +2384,20 @@ local function draw_advanced_moves_menu(pi, rname, cdata)
         imgui.tree_pop()
     end
 end
+local standalone_runtime_owned = false
 
+local function refresh_standalone_runtime_safety()
+    if config.standalone_enabled ~= true then return end
+    if _G.TrainingScriptManagerActiveThisFrame == true then return end
+    if type(RuntimeSafety.begin_frame) ~= "function"
+        or type(RuntimeSafety.allow_training_visuals) ~= "function" then
+        return
+    end
 
+    RuntimeSafety.begin_frame(nil, false, false, false)
+    RuntimeSafety.allow_training_visuals()
+    standalone_runtime_owned = true
+end
 
 -- Store last mouse click coordinates
 local debug_mouse_x, debug_mouse_y = 0.0, 0.0
@@ -2574,6 +2792,7 @@ local function draw_config_ui()
 
         local c_ioy, v_ioy = imgui.drag_float("图标 Y 偏移", config.icon_offset_y or 0.0, 1.0, -100.0, 100.0)
         if c_ioy then config.icon_offset_y = v_ioy; save_settings() end
+
     end
 
 	
@@ -3018,7 +3237,8 @@ _dv_update_aa_input_state = function()
 end
 
 local function _dv_disable_runtime_effects()
-    d2d_queue = {}
+    hud_draw_list = nil
+    icons_to_draw = {}
     _dv_last_window_rect = nil
     _dv_mark_aa_release(12)
     _G._dv_aa_pending_input = nil
@@ -3482,6 +3702,12 @@ end
    
 
 re.on_frame(function()
+    -- Frame-local render queues must never survive an early return or a prior
+    -- frame error.
+    icons_to_draw = {}
+    hud_draw_list = nil
+    refresh_standalone_runtime_safety()
+
     if _G.SF6_DistanceViewer_Enabled ~= true or not RuntimeSafety.is_training_allowed() then
         _dv_disable_runtime_effects()
         return
@@ -3596,6 +3822,7 @@ re.on_frame(function()
     end
 
     local sw, sh = get_dynamic_screen_size()
+    hud_begin_frame()
     if res_watcher.last_w == 0 then res_watcher.last_w = sw; res_watcher.last_h = sh; try_load_font() end
     if sw ~= res_watcher.last_w or sh ~= res_watcher.last_h then 
         res_watcher.cooldown = 30; res_watcher.last_w = sw; res_watcher.last_h = sh 
@@ -3768,66 +3995,53 @@ re.on_frame(function()
         end
     end
 
-    imgui.push_style_var(4, 0.0); imgui.push_style_var(2, Vector2f.new(0, 0)); imgui.push_style_color(2, 0)
-    imgui.set_next_window_pos(Vector2f.new(0, 0)); imgui.set_next_window_size(Vector2f.new(sw, sh))
-    
-    local win_flags = 1 | 2 | 4 | 8 | 512 | 786432 | 128
+    -- The HUD uses the background DrawList directly and creates no ImGui
+    -- window, so it cannot receive mouse focus, keyboard navigation, or input.
+    if #icons_to_draw > 0 then
+        for _, item in ipairs(icons_to_draw) do
+            local current_x = item.x
+            local item_y = item.y
 
-    if imgui.begin_window("逆向覆盖层", true, win_flags) then
-	-- Render vertically stored labels/icons
-        if #icons_to_draw > 0 then
-            for _, item in ipairs(icons_to_draw) do
-                local current_x = item.x
-                
+            if hud_valid_point(current_x, item_y) then
                 if item.tag and item.tag ~= "" then
-                    imgui.set_cursor_pos(Vector2f.new(current_x + 2, item.y + 2))
-                    imgui.text_colored(item.tag, 0xFF000000)
-                    imgui.set_cursor_pos(Vector2f.new(current_x, item.y))
-                    imgui.text_colored(item.tag, item.color)
+                    hud_add_text(item.tag, current_x, item_y, item.color, true)
                     current_x = current_x + imgui.calc_text_size(item.tag).x + 5
                 end
-                
+
                 if item.raw_input then
                     local icons, strength, disp_name = parse_input_string(item.raw_input, item.facing_right)
-
-                    local icon_size = math.floor(item.size * (config.icon_scale or 1.0) + 0.5)
-                    local y_with_offset = math.floor(item.y + ((config.icon_offset_y or 0.0) * scale_factor) + 0.5)
-                    local current_x = math.floor(current_x + 0.5)
+                    local icon_size = math.max(8, math.floor(item.size * (config.icon_scale or 1.0) + 0.5))
+                    local icon_y = item_y + ((config.icon_offset_y or 0.0) * scale_factor)
 
                     if disp_name then
-                        local dn_w = math.floor(imgui.calc_text_size(disp_name).x + 0.5)
-                        imgui.set_cursor_pos(Vector2f.new(current_x + 2, item.y + 2)); imgui.text_colored(disp_name, 0xFF000000)
-                        imgui.set_cursor_pos(Vector2f.new(current_x, item.y)); imgui.text_colored(disp_name, item.color)
+                        local dn_w = imgui.calc_text_size(disp_name).x
+                        hud_add_text(disp_name, current_x, item_y, item.color, true)
                         current_x = current_x + dn_w + 4
                     end
 
                     for _, icon_key in ipairs(icons) do
-                        table.insert(d2d_queue, { key = icon_key, x = current_x, y = y_with_offset, size = icon_size })
+                        draw_input_icon(icon_key, current_x, icon_y, icon_size)
                         current_x = current_x + icon_size
                     end
-                    
-                    local icon_letter_gap = 4 -- <<< CHANGE THIS VALUE FOR SPACING (Vertical mode)
+
+                    local icon_letter_gap = 4
                     if #icons > 0 and strength ~= "" then current_x = current_x + icon_letter_gap end
-                    
+
                     if strength ~= "" then
-                        local final_y = math.floor(item.y + 0.5)
-                        imgui.set_cursor_pos(Vector2f.new(current_x + 2, final_y + 2))
-                        imgui.text_colored(strength, 0xFF000000)
-                        imgui.set_cursor_pos(Vector2f.new(current_x, final_y))
-                        imgui.text_colored(strength, item.color)
-                        current_x = current_x + math.floor(imgui.calc_text_size(strength).x + 0.5) + 5
+                        hud_add_text(strength, current_x, item_y, item.color, true)
+                        current_x = current_x + imgui.calc_text_size(strength).x + 5
                     end
                 end
-                
+
                 if item.dist_text then
-                    imgui.set_cursor_pos(Vector2f.new(current_x + 5, item.y + 2))
-                    imgui.text_colored(item.dist_text, 0xFF000000)
-                    imgui.set_cursor_pos(Vector2f.new(current_x + 5, item.y))
-                    imgui.text_colored(item.dist_text, item.color)
+                    hud_add_text(item.dist_text, current_x + 5, item_y, item.color, true)
                 end
+            else
+                hud_log_rate_limited("invalid_label", "检测到非法标签坐标，已跳过。")
             end
-            icons_to_draw = {}
         end
+        icons_to_draw = {}
+    end
         if custom_font.obj then imgui.push_font(custom_font.obj) end
 
         if p1_cache.valid and p2_cache.valid then
@@ -3868,8 +4082,7 @@ re.on_frame(function()
                                 elseif align == "right" then x_pos = (sw * fix_x) - text_width
                                 else x_pos = (sw * fix_x) - (text_width / 2) end
                                 
-                                imgui.set_cursor_pos(Vector2f.new(x_pos + 2, current_y + 2)); imgui.text_colored(line, 0xFF000000)
-                                imgui.set_cursor_pos(Vector2f.new(x_pos, current_y)); imgui.text_colored(line, col)
+                                hud_add_text(line, x_pos, current_y, col, true)
                                 current_y = current_y + imgui.calc_text_size(line).y
                             end
                         elseif active_pos_mode == 4 then
@@ -4069,15 +4282,10 @@ re.on_frame(function()
                 local txt_sz = imgui.calc_text_size(nd.txt)
                 local txt_x = nd.x - (txt_sz.x / 2.0)
                 local txt_y = nd.y - ((nd.off_y or 25.0) * scale_factor) - (txt_sz.y / 2.0)
-                imgui.set_cursor_pos(Vector2f.new(txt_x + 2, txt_y + 2)); imgui.text_colored(nd.txt, 0xFF000000)
-                imgui.set_cursor_pos(Vector2f.new(txt_x, txt_y)); imgui.text_colored(nd.txt, nd.col)
+                hud_add_text(nd.txt, txt_x, txt_y, nd.col, true)
             end
             if custom_font_num.obj then imgui.pop_font() end
         end
-
-        imgui.end_window()
-    end
-    imgui.pop_style_color(1); imgui.pop_style_var(2)
 
     if not config.show_debug_window or _G.SessionRecapVisible then _dv_last_window_rect = nil end
     if config.show_debug_window and not _G.SessionRecapVisible then
@@ -4166,12 +4374,33 @@ end)
 
 local function draw_distance_viewer_menu_ui()
     if imgui.tree_node("SF6 距离查看器") then
-        if _G.SF6_DistanceViewer_Enabled ~= true then
-            imgui.text_colored("当前已由顶部菜单关闭。", COL_GREY)
-            imgui.text_colored("勾选顶部栏“距离显示”后生效。", COL_GREY)
+        local enabled = _G.SF6_DistanceViewer_Enabled == true
+        local changed_enabled, new_enabled = imgui.checkbox("启用纯 ImGui 距离显示", enabled)
+        if changed_enabled then
+            config.standalone_enabled = new_enabled
+            _G.SF6_DistanceViewer_Enabled = new_enabled
+            if not new_enabled then
+                _dv_disable_runtime_effects()
+                if standalone_runtime_owned and type(RuntimeSafety.disable) == "function" then
+                    RuntimeSafety.disable("standalone_visuals_disabled")
+                    standalone_runtime_owned = false
+                end
+            end
+            save_settings()
+            enabled = new_enabled
+        end
+
+        if not enabled then
+            imgui.text_colored("启用后显示纯 ImGui 距离 HUD。", COL_GREY)
+            imgui.text_colored("该开关保存在 DistanceViewer 配置中。", COL_GREY)
             imgui.tree_pop()
             return
         end
+
+        if not RuntimeSafety.is_training_allowed() then
+            imgui.text_colored("HUD 仅在离线训练场显示；菜单设置仍可使用。", COL_YELLOW)
+        end
+
         local changed_ov, new_ov = imgui.checkbox("浮动窗口", config.show_debug_window)
         if changed_ov then
             config.show_debug_window = new_ov
@@ -4228,6 +4457,5 @@ local function draw_distance_viewer_menu_ui()
 end
 
 re.on_draw_ui(function()
-    if not RuntimeSafety.is_training_allowed() then return end
     draw_distance_viewer_menu_ui()
 end)

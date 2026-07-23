@@ -5,15 +5,16 @@ local function read_all(path)
     return value:gsub("\r\n", "\n")
 end
 
--- Load only the two pure resolver functions; do not boot REFramework globals.
-local d2d_source = read_all("autorun/func/ComboTrials_D2D.lua")
-local classic_block = assert(d2d_source:match(
+-- Load only the pure resolver functions from the active ImGui renderer; do not
+-- boot REFramework globals or exercise backend-specific drawing code.
+local renderer_source = read_all("autorun/func/ComboTrials_ImGui.lua")
+local classic_block = assert(renderer_source:match(
     "(local function get_player_visible_transition_motion.-)\nlocal function get_command_display"))
 trim_string = function(value)
     return tostring(value or ""):match("^%s*(.-)%s*$")
 end
 
-local semantic_block = assert(d2d_source:match(
+local semantic_block = assert(renderer_source:match(
     "(local function resolve_classic_common_semantic.-)\nbuild_slim_command_display_map = function"))
 assert(load(semantic_block .. "\n_G.resolve_classic_common_semantic = resolve_classic_common_semantic",
     "classic-common-semantic", "t", _G))()
@@ -61,7 +62,7 @@ assert(motion == nil and status == "action_id_missing", "missing classic IDs mus
 local main_source = read_all("autorun/TrainingComboTrials_v1.0.lua")
 local resolver_block = assert(main_source:match(
     "(local function decode_transition_button_mask.-\nend)\n\nlocal esf_names_map"))
-ComboTrials_D2D = {
+ComboTrials_Renderer = {
     get_command_display = function(_, action_id)
         if action_id == 906 then return nil, "suppress_transition" end
         if action_id == 901 then return "214+MP", "strict_route" end
@@ -69,7 +70,7 @@ ComboTrials_D2D = {
     end
 }
 resolver_block = resolver_block:gsub(
-    "local ComboTrials_D2D", "local ComboTrials_D2D = _G.ComboTrials_D2D", 1)
+    "local ComboTrials_Renderer", "local ComboTrials_Renderer = _G.ComboTrials_Renderer", 1)
 assert(load(resolver_block
     .. "\n_G.resolve_unified_command_action = resolve_unified_command_action"
     .. "\n_G.find_recent_action_button_edge = find_recent_action_button_edge",

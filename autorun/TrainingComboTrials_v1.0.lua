@@ -120,13 +120,13 @@ end
 -- BCM base table or its curated exception aliases.  Some stance normals use
 -- flags=16/action_code=0 even when the player pressed an attack button, so the
 -- generic intentionality heuristic alone incorrectly discards them.
-local ComboTrials_D2D
+local ComboTrials_Renderer
 local function resolve_unified_command_action(character, action_id, direct_input, newly_pressed)
     local buttons = (tonumber(direct_input) or 0) & 0xFFF0
-    if not ComboTrials_D2D or not ComboTrials_D2D.get_command_display then
+    if not ComboTrials_Renderer or not ComboTrials_Renderer.get_command_display then
         return false, "resolver_unavailable", nil
     end
-    local ok, display, status = pcall(ComboTrials_D2D.get_command_display, character, action_id, "classic")
+    local ok, display, status = pcall(ComboTrials_Renderer.get_command_display, character, action_id, "classic")
     if not ok then return false, "resolver_error", nil end
     if status == "suppress_transition" then
         local transition_button = decode_transition_button_mask(newly_pressed)
@@ -945,9 +945,9 @@ local function clear_pending_position_injection()
 end
 
 -- =========================================================
--- D2D VISUALIZER CONFIGURATION
+-- IMGUI VISUALIZER CONFIGURATION
 -- =========================================================
-local D2D_CONFIG_FILE = "TrainingComboTrials_data/CommandLogger_Visualizer.json"
+local RENDER_CONFIG_FILE = "TrainingComboTrials_data/CommandLogger_Visualizer.json"
 local d2d_cfg = {
     enabled = true,
     auto_load = true,
@@ -1051,7 +1051,7 @@ local d2d_cfg = {
 }
 
 local function load_d2d_config()
-    local loaded = _G.safe_load_json(D2D_CONFIG_FILE)
+    local loaded = _G.safe_load_json(RENDER_CONFIG_FILE)
     if loaded then
         for k, v in pairs(loaded) do
             if type(v) == "table" and type(d2d_cfg[k]) == "table" then
@@ -1070,7 +1070,7 @@ local function load_d2d_config()
 end
 
 local function save_d2d_config()
-    return json.dump_file(D2D_CONFIG_FILE, d2d_cfg)
+    return json.dump_file(RENDER_CONFIG_FILE, d2d_cfg)
 end
 load_d2d_config()
 d2d_cfg.show_combo_count = false
@@ -1125,7 +1125,7 @@ end)
 
 
 -- =========================================================
--- SHARED CONTEXT & D2D MODULE
+-- SHARED CONTEXT & IMGUI RENDERER
 -- =========================================================
 local ctx = {
     d2d_cfg = d2d_cfg,
@@ -1224,10 +1224,10 @@ ctx.on_combo_file_change = function(info)
     ctx.stop_demo_playback(reason, old_file, new_file, true)
 end
 
-ComboTrials_D2D = require("func/ComboTrials_D2D")
-ComboTrials_D2D.init(ctx)
+ComboTrials_Renderer = require("func/ComboTrials_ImGui")
+ComboTrials_Renderer.init(ctx)
 
--- (D2D rendering code is now in ComboTrials_D2D.lua)
+-- Pure ImGui rendering is implemented by ComboTrials_ImGui.lua.
 
 -- =========================================================
 -- ORIGINAL COMMAND LOGGER (CONTINUED)
@@ -4423,8 +4423,8 @@ local function normalize_sequence_counter_types(sequence)
     if type(sequence) ~= "table" or type(sequence[1]) ~= "table" then return end
     local character = type(sequence[1]._xt_meta) == "table" and sequence[1]._xt_meta.character or nil
     local function resolve_classic_motion(step)
-        if not character or not ComboTrials_D2D or not ComboTrials_D2D.get_command_display then return nil end
-        local ok, motion = pcall(ComboTrials_D2D.get_command_display, character, step and step.id, "classic")
+        if not character or not ComboTrials_Renderer or not ComboTrials_Renderer.get_command_display then return nil end
+        local ok, motion = pcall(ComboTrials_Renderer.get_command_display, character, step and step.id, "classic")
         if ok then return motion end
         return nil
     end
@@ -4661,9 +4661,9 @@ local function clear_trial_attempt_state(player_idx, phase)
 end
 
 reset_combo_visual_runtime = function()
-    if not ComboTrials_D2D then return end
-    pcall(function() ComboTrials_D2D.reset_anim() end)
-    pcall(function() ComboTrials_D2D.reset_raw() end)
+    if not ComboTrials_Renderer then return end
+    pcall(function() ComboTrials_Renderer.reset_anim() end)
+    pcall(function() ComboTrials_Renderer.reset_raw() end)
 end
 
 step_combo_reset_gc = function()
@@ -4766,7 +4766,7 @@ local function start_trial(player_idx)
 
     trial_state.live_start_pos_p1, trial_state.live_start_pos_p2, trial_state.live_start_pos_p1_raw, trial_state.live_start_pos_p2_raw = capture_current_positions()
 
-    -- Full display reset (Text log + D2D Raw and Animated)
+    -- Full display reset (text log + ImGui raw and animated views)
     reset_combo_visual_runtime()
 
     save_dummy_counter_type()
@@ -6190,7 +6190,7 @@ local function cleanup_combo_trials_runtime_on_scene_exit(reason)
     publish_combo_trials_inactive_state()
     invalidate_recording_display_context()
     live_display_context.invalidate()
-    ComboTrials_D2D.clear_unresolved_action_audit()
+    ComboTrials_Renderer.clear_unresolved_action_audit()
 
     if trial_state.is_recording then
         cancel_recording()
@@ -6264,7 +6264,7 @@ local function ct_handle_mode_exit()
         invalidate_recording_display_context()
         live_display_context.invalidate()
         if trial_state._vital_initialized ~= false then
-            ComboTrials_D2D.clear_unresolved_action_audit()
+            ComboTrials_Renderer.clear_unresolved_action_audit()
         end
         _G.ComboTrialsD2DEnabled = false
         _G.ComboTrials_HideNativeHUD = false
@@ -6304,7 +6304,7 @@ local function ct_handle_first_frame_init()
     if not trial_state._vital_initialized then
         invalidate_recording_display_context()
         live_display_context.ensure()
-        ComboTrials_D2D.clear_unresolved_action_audit()
+        ComboTrials_Renderer.clear_unresolved_action_audit()
         trial_state._vital_initialized = true
 
         -- Force stop everything lingering from a previous session
@@ -7320,8 +7320,8 @@ local function ct_player_input_buffer(p_state)
             if is_ghost then
                 local g_name = act_id_reverse_enum[p_state.buffer_act_id] or "Unknown"
                 local ghost_motion = nil
-                if ComboTrials_D2D and ComboTrials_D2D.get_command_display then
-                    local ok, value = pcall(ComboTrials_D2D.get_command_display,
+                if ComboTrials_Renderer and ComboTrials_Renderer.get_command_display then
+                    local ok, value = pcall(ComboTrials_Renderer.get_command_display,
                         p_state.profile_name, p_state.buffer_act_id, "classic")
                     if ok then ghost_motion = value end
                 end
@@ -8939,7 +8939,7 @@ re.on_frame(function()
             .. " reason=" .. tostring(rs.reason)
             .. " battle_input=" .. tostring(rs.battle_input_type)
             .. " online=" .. tostring(rs.in_online_battle)
-            .. " d2d=" .. tostring(_G.ComboTrialsD2DEnabled)
+            .. " renderer=" .. tostring(_G.ComboTrialsD2DEnabled)
         RuntimeSafety.trace(gate_message, "ComboTrialsGate")
         file_system.diag_log(gate_message)
     end

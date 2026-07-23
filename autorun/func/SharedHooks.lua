@@ -33,11 +33,23 @@ end
 -- silently resetting to defaults. Only for one-shot config loads — do NOT
 -- use on per-frame bridge polling (the miss probe opens the file).
 _G.safe_load_json = function(path)
+    -- REFramework logs an error before returning nil for an empty JSON file.
+    -- Treat blank runtime files like first-run state without invoking its
+    -- parser; non-empty malformed files still follow the corruption path below.
+    local file_exists = false
+    local open_ok, f = pcall(io.open, path, "r")
+    if open_ok and f then
+        file_exists = true
+        local read_ok, raw = pcall(f.read, f, "*a")
+        pcall(f.close, f)
+        if read_ok and type(raw) == "string" and raw:match("^%s*$") then
+            return nil
+        end
+    end
+
     local data = json.load_file(path)
     if data then return data end
-    local ok, f = pcall(io.open, path, "r")
-    if ok and f then
-        f:close()
+    if file_exists then
         local e = _G._mod_errors
         if not e.config_failures[path] then
             e.config_failures[path] = true
