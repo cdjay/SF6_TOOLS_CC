@@ -1137,6 +1137,7 @@ end
 -- ImGui colors are packed as ABGR (0xAABBGGRR). The button base/highlight
 -- pairs are sampled from the existing 80x80 buttonsAndArrows reference PNGs;
 -- the PNGs are never loaded at runtime.
+local IconRenderer = (function()
 local ICON_STYLE = {
     standard_size = 28.0,
     compact_size = 24.0,
@@ -1601,6 +1602,17 @@ local function draw_input_icon_run(icons, x, line_y, line_height, size, compact)
     end
     return current_x
 end
+
+return {
+    style = ICON_STYLE,
+    get_kind = get_icon_kind,
+    get_layout = get_icon_layout,
+    get_scaled_command_icon_size = get_scaled_command_icon_size,
+    measure_run = measure_input_icon_run,
+    draw_icon = draw_input_icon,
+    draw_run = draw_input_icon_run
+}
+end)()
 
 local debug_dist_status = "未加载"
 local debug_jump_status = "未加载"
@@ -2078,8 +2090,8 @@ local function get_input_line_visual_height(line, scale_factor, facing_right)
 
     local parsed_icons = parse_input_string(input_core, facing_right)
     local compact = #parsed_icons >= 3
-    local icon_size = get_scaled_command_icon_size(scale_factor, compact)
-    local layout = get_icon_layout(icon_size, compact, "standard")
+    local icon_size = IconRenderer.get_scaled_command_icon_size(scale_factor, compact)
+    local layout = IconRenderer.get_layout(icon_size, compact, "standard")
     return math.max(text_height, icon_size + math.abs(layout.baseline_offset))
 end
 
@@ -2110,15 +2122,15 @@ local function draw_text_above_head_independent(text, pos, color, offset_x, offs
         local parsed_icons, parsed_strength
         local display_name
         local compact_icons = false
-        local icon_size = get_scaled_command_icon_size(scale_factor, false)
-        local standard_layout = get_icon_layout(icon_size, false, "standard")
+        local icon_size = IconRenderer.get_scaled_command_icon_size(scale_factor, false)
+        local standard_layout = IconRenderer.get_layout(icon_size, false, "standard")
         local line_height = text_height
 
         if input_core then
             parsed_icons, parsed_strength, display_name = parse_input_string(input_core, facing_right)
             compact_icons = #parsed_icons >= 3
-            icon_size = get_scaled_command_icon_size(scale_factor, compact_icons)
-            standard_layout = get_icon_layout(icon_size, compact_icons, "standard")
+            icon_size = IconRenderer.get_scaled_command_icon_size(scale_factor, compact_icons)
+            standard_layout = IconRenderer.get_layout(icon_size, compact_icons, "standard")
             line_height = math.max(text_height, icon_size + math.abs(standard_layout.baseline_offset))
 
             if before_txt and before_txt ~= "" then true_width = true_width + imgui.calc_text_size(before_txt).x end
@@ -2126,7 +2138,7 @@ local function draw_text_above_head_independent(text, pos, color, offset_x, offs
                 true_width = true_width + imgui.calc_text_size(display_name).x
                 if #parsed_icons > 0 then true_width = true_width + standard_layout.text_gap end
             end
-            true_width = true_width + measure_input_icon_run(parsed_icons, icon_size, compact_icons)
+            true_width = true_width + IconRenderer.measure_run(parsed_icons, icon_size, compact_icons)
             if #parsed_icons > 0 and parsed_strength ~= "" then true_width = true_width + standard_layout.text_gap end
             if parsed_strength ~= "" then true_width = true_width + imgui.calc_text_size(parsed_strength).x end
             if after_txt and after_txt ~= "" then
@@ -2159,7 +2171,7 @@ local function draw_text_above_head_independent(text, pos, color, offset_x, offs
                 if #parsed_icons > 0 then current_x = current_x + standard_layout.text_gap end
             end
 
-            current_x = draw_input_icon_run(
+            current_x = IconRenderer.draw_run(
                 parsed_icons, current_x,
                 current_y + ((config.icon_offset_y or 0.0) * scale_factor),
                 line_height, icon_size, compact_icons
@@ -4444,8 +4456,8 @@ re.on_frame(function()
                 if item.raw_input then
                     local icons, strength, disp_name = parse_input_string(item.raw_input, item.facing_right)
                     local compact_icons = #icons >= 3
-                    local icon_size = get_scaled_command_icon_size(scale_factor, compact_icons)
-                    local layout = get_icon_layout(icon_size, compact_icons, "standard")
+                    local icon_size = IconRenderer.get_scaled_command_icon_size(scale_factor, compact_icons)
+                    local layout = IconRenderer.get_layout(icon_size, compact_icons, "standard")
                     local line_height = math.max(text_height, icon_size + math.abs(layout.baseline_offset))
 
                     if item.tag and item.tag ~= "" then current_x = current_x + layout.text_gap end
@@ -4458,7 +4470,7 @@ re.on_frame(function()
                         if #icons > 0 then current_x = current_x + layout.text_gap end
                     end
 
-                    current_x = draw_input_icon_run(
+                    current_x = IconRenderer.draw_run(
                         icons, current_x,
                         item_y + ((config.icon_offset_y or 0.0) * scale_factor),
                         line_height, icon_size, compact_icons
@@ -4811,6 +4823,12 @@ re.on_frame(function()
     -- collectgarbage("step", 1)
 end)
 
+local draw_vector_icon_preview = (function(IconRenderer)
+local ICON_STYLE = IconRenderer.style
+local get_icon_kind = IconRenderer.get_kind
+local get_icon_layout = IconRenderer.get_layout
+local draw_input_icon = IconRenderer.draw_icon
+
 local PREVIEW_DIRECTIONS = { "7", "8", "9", "4", "6", "1", "2", "3", "5" }
 local PREVIEW_ATTACKS = { "lp", "mp", "hp", "lk", "mk", "hk" }
 local PREVIEW_SPECIALS = { "THROW", "MODERN", "HOLD", "DRIVE", "CANCEL", "INSTANT" }
@@ -4883,7 +4901,7 @@ local function draw_preview_run(id, tokens, logical_size, preview_scale)
     end
 end
 
-local function draw_vector_icon_preview()
+local function draw_preview()
     if not imgui.tree_node("矢量图标预览") then return end
 
     local ok, window_draw_list = pcall(imgui.get_window_draw_list)
@@ -4931,6 +4949,9 @@ local function draw_vector_icon_preview()
     end
     imgui.tree_pop()
 end
+
+return draw_preview
+end)(IconRenderer)
 
 local function draw_distance_viewer_menu_ui()
     if imgui.tree_node("SF6 距离查看器") then
