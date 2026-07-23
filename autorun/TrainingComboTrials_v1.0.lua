@@ -338,6 +338,7 @@ local trial_state = {
     sequence = {},
     current_step = 1,
     success_timer = 0,
+    _success_latched = false,
     fail_timer = 0,
     fail_reason = nil,
     manual_reset_pending = false,
@@ -4615,9 +4616,9 @@ local function clear_trial_attempt_state(player_idx, phase)
     trial_state.fail_reason = nil
     trial_state.manual_reset_pending = false
     -- Auto-flow state, owned by ctx.handle_trial_auto_flow:
-    -- _success_latched      = this attempt's success was already processed once
-    --                         (completion mark + auto-advance); survives the
-    --                         self-re-arming success banner
+    -- _success_latched      = this attempt reached its terminal success state.
+    --                         It freezes further validation after the banner
+    --                         and also prevents duplicate completion/advance.
     -- _auto_next_countdown  = frames left before auto-loading the next combo
     -- _attempt_had_demo     = demo playback drove (part of) this attempt, so a
     --                         resulting success must not count as completed
@@ -5392,7 +5393,8 @@ setup_hook("app.battle.bBattleFlow", "updateKO", nil, function(retval)
     if trial_state.is_playing or trial_state.is_recording or (demo_state and demo_state.is_playing) then
         -- Skip KO animation, but do not mark a trial as complete until the
         -- sequence validation has actually reached the final step.
-        if trial_state.is_playing and not (demo_state and demo_state.is_playing) and trial_state.success_timer == 0 then
+        if trial_state.is_playing and not (demo_state and demo_state.is_playing)
+            and trial_state.success_timer == 0 and trial_state._success_latched ~= true then
             local seq = trial_state.sequence or {}
             local last_step = seq[#seq]
             local attacker = (trial_state.playing_player == 1) and GS.p2 or GS.p1
@@ -8889,6 +8891,15 @@ ctx.handle_trial_auto_flow = function()
     -- auto-advance - only manual play counts.
     if (trial_state.success_timer or 0) > 0 and not trial_state._success_latched then
         trial_state._success_latched = true
+        -- Success is terminal until an explicit reset, restart or trial switch.
+        -- Discard delayed validators so post-success inputs cannot overwrite
+        -- the completed final line with a failure.
+        trial_state._step1_wrong_pending = false
+        trial_state.active_universal_hold = nil
+        trial_state._pending_hit_cc = nil
+        trial_state._pending_hit_delay = nil
+        trial_state._hit_grace = 0
+        ComboTrialsModules.PendingAbsorb.clear(trial_state, "trial_success_locked")
         if not trial_state._attempt_had_demo then
             local path = trial_state.current_file_path or trial_state.current_file
             if file_system.mark_trial_completed(path) then
@@ -8900,10 +8911,9 @@ ctx.handle_trial_auto_flow = function()
         end
     end
 
-    -- The success banner re-arms itself, so advance on our own countdown.
-    -- Keep _success_latched set: if advancing fails (last file in the list),
-    -- the still-armed banner must not restart the countdown. A successful
-    -- advance resets the latch via clear_trial_attempt_state.
+    -- Advance on our own countdown while validation remains terminally locked.
+    -- Keep _success_latched set if advancing fails (last file in the list);
+    -- a successful advance resets it via clear_trial_attempt_state.
     if trial_state._auto_next_countdown then
         trial_state._auto_next_countdown = trial_state._auto_next_countdown - 1
         if trial_state._auto_next_countdown <= 0 then
@@ -9070,6 +9080,18 @@ re.on_frame(function()
         _pf.victim_idx = 1 - p_idx
         _pf.victim_obj = (_pf.victim_idx == 0) and GS.p1 or GS.p2
 
+        -- Once manual play reaches success, freeze the validation pipeline.
+        -- The banner timer may expire, but _success_latched remains true until
+        -- clear_trial_attempt_state starts a fresh attempt.
+        local trial_success_locked = trial_state.is_playing
+            and p_idx == trial_state.playing_player
+            and not (demo_state and demo_state.is_playing)
+            and ((trial_state.success_timer or 0) > 0 or trial_state._success_latched == true)
+        if trial_success_locked then
+            p_state.last_combo_count = _pf.current_combo
+            goto ct_next_player
+        end
+
         ct_player_tracking(p_idx, p_state)
         ct_player_validation(p_idx, p_state)
         ct_player_hold_charge(p_state)
@@ -9080,7 +9102,9 @@ re.on_frame(function()
         p_state.last_combo_count = _pf.current_combo
         ::ct_next_player::
     end
-    ComboTrialsModules.PendingAbsorb.sync_failure_ui_result(trial_state)
+    if (trial_state.success_timer or 0) <= 0 and trial_state._success_latched ~= true then
+        ComboTrialsModules.PendingAbsorb.sync_failure_ui_result(trial_state)
+    end
 end)
 
 
@@ -9777,6 +9801,8 @@ ctx.apply_restore = function()
     if not trial_state.is_playing then return end
     trial_state.current_step      = ctx.save_state.trial_snapshot.step or 1
     trial_state.success_timer     = 0
+    trial_state._success_latched  = false
+    trial_state._auto_next_countdown = nil
     trial_state.fail_timer        = 0
     trial_state.fail_reason       = nil
     local frames_since            = ctx.save_state.trial_snapshot.frames_since_step or 0
