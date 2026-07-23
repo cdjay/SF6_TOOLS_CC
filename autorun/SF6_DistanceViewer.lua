@@ -1040,9 +1040,10 @@ end
 -- =========================================================
 -- [INPUT ICON QUEUE]
 -- =========================================================
--- This REFramework build exposes ImDrawList geometry, but no Lua texture/image
--- binding. Recreate the small direction and attack icons with DrawList
--- primitives so the HUD remains pure ImGui and does not load PNG textures.
+-- Input icons use the original transparent PNG resources through the
+-- reframework-imgui-texture bridge. The bridge draws into REFramework's
+-- existing ImGui background DrawList; no D2D renderer or second Present hook
+-- participates in this path.
 local icons_to_draw = {}
 
 local function flip_numpad(dir_str, facing_right)
@@ -1100,121 +1101,53 @@ local function parse_input_string(input_str, facing_right)
     return icons, strength, display_name
 end
 
-local input_icon_directions = {
-    ["1"] = { -0.70710678,  0.70710678 },
-    ["2"] = {  0.0,         1.0        },
-    ["3"] = {  0.70710678,  0.70710678 },
-    ["4"] = { -1.0,         0.0        },
-    ["6"] = {  1.0,         0.0        },
-    ["7"] = { -0.70710678, -0.70710678 },
-    ["8"] = {  0.0,        -1.0        },
-    ["9"] = {  0.70710678, -0.70710678 }
+local input_icon_state = {
+    files = {
+        ["1"] = "1.png",
+        ["2"] = "2.png",
+        ["3"] = "3.png",
+        ["4"] = "4.png",
+        ["5"] = "5.png",
+        ["6"] = "6.png",
+        ["7"] = "7.png",
+        ["8"] = "8.png",
+        ["9"] = "9.png",
+        ["lp"] = "lp.png",
+        ["mp"] = "mp.png",
+        ["hp"] = "hp.png",
+        ["lk"] = "lk.png",
+        ["mk"] = "mk.png",
+        ["hk"] = "hk.png",
+        ["HOLD"] = "hold.png",
+        ["THROW"] = "THROW.png"
+    },
+    handles = {},
+    failed = {}
 }
 
-local function draw_direction_icon(icon_key, x, y, size)
-    local dir = input_icon_directions[icon_key]
-    if not dir then return false end
+local function get_input_icon_handle(icon_key)
+    local filename = input_icon_state.files[icon_key]
+    if not filename then return nil, "未知指令图标" end
 
-    local dx, dy = dir[1], dir[2]
-    local px, py = -dy, dx
-    local cx, cy = x + size * 0.5, y + size * 0.5
+    local handle = input_icon_state.handles[icon_key]
+    if handle then return handle end
+    if input_icon_state.failed[icon_key] then return nil, "图标此前加载失败" end
 
-    local start_x, start_y = cx - dx * size * 0.25, cy - dy * size * 0.25
-    local base_x, base_y = cx + dx * size * 0.08, cy + dy * size * 0.08
-    local tip_x, tip_y = cx + dx * size * 0.43, cy + dy * size * 0.43
-
-    hud_add_line(start_x, start_y, base_x, base_y, 0xFF111111, size * 0.32)
-    hud_add_triangle_filled(
-        tip_x, tip_y,
-        base_x + px * size * 0.28, base_y + py * size * 0.28,
-        base_x - px * size * 0.28, base_y - py * size * 0.28,
-        0xFF111111
-    )
-
-    local inner_base_x, inner_base_y = cx + dx * size * 0.07, cy + dy * size * 0.07
-    hud_add_line(start_x, start_y, inner_base_x, inner_base_y, 0xFFFFFFFF, size * 0.18)
-    hud_add_triangle_filled(
-        cx + dx * size * 0.36, cy + dy * size * 0.36,
-        inner_base_x + px * size * 0.19, inner_base_y + py * size * 0.19,
-        inner_base_x - px * size * 0.19, inner_base_y - py * size * 0.19,
-        0xFFFFFFFF
-    )
-    return true
-end
-
-local function get_attack_icon_color(icon_key)
-    local strength = string.sub(icon_key, 1, 1)
-    if strength == "l" then return COL_LIGHT end
-    if strength == "m" then return COL_MEDIUM end
-    return COL_HEAVY
-end
-
-local function draw_attack_icon(icon_key, x, y, size)
-    if not string.match(icon_key, "^[lmh][pk]$") then return false end
-
-    local cx, cy = x + size * 0.5, y + size * 0.5
-    local mark_color = 0xFFE6FFFF
-    hud_add_circle_filled(cx, cy, size * 0.48, 0xFF222222, 24)
-    hud_add_circle_filled(cx, cy, size * 0.41, 0xFFB8B8B8, 24)
-    hud_add_circle_filled(cx, cy, size * 0.34, get_attack_icon_color(icon_key), 24)
-
-    if string.sub(icon_key, 2, 2) == "k" then
-        -- Compact boot/check silhouette, matching the visual role of the old
-        -- kick PNG without loading a texture.
-        hud_add_line(
-            cx - size * 0.22, cy - size * 0.10,
-            cx - size * 0.04, cy + size * 0.12,
-            mark_color, size * 0.11
-        )
-        hud_add_line(
-            cx - size * 0.04, cy + size * 0.12,
-            cx + size * 0.24, cy - size * 0.14,
-            mark_color, size * 0.11
-        )
-    else
-        -- Small fist silhouette for punch buttons.
-        hud_add_quad_filled(
-            cx - size * 0.18, cy - size * 0.02,
-            cx + size * 0.15, cy - size * 0.08,
-            cx + size * 0.18, cy + size * 0.17,
-            cx - size * 0.10, cy + size * 0.21,
-            mark_color
-        )
-        hud_add_line(cx - size * 0.15, cy - size * 0.03, cx - size * 0.22, cy - size * 0.21, mark_color, size * 0.08)
-        hud_add_line(cx - size * 0.04, cy - size * 0.05, cx - size * 0.09, cy - size * 0.25, mark_color, size * 0.08)
-        hud_add_line(cx + size * 0.07, cy - size * 0.06, cx + size * 0.05, cy - size * 0.25, mark_color, size * 0.08)
-        hud_add_line(cx + size * 0.16, cy - size * 0.03, cx + size * 0.17, cy - size * 0.20, mark_color, size * 0.08)
+    if type(texture) ~= "table" or type(texture.load) ~= "function" then
+        return nil, "reframework-imgui-texture API 未加载"
     end
-    return true
-end
 
-local function draw_special_input_icon(icon_key, x, y, size)
-    if icon_key ~= "HOLD" and icon_key ~= "THROW" then return false end
-
-    local cx, cy = x + size * 0.5, y + size * 0.5
-    hud_add_circle_filled(cx, cy, size * 0.48, 0xFF222222, 24)
-    hud_add_circle_filled(cx, cy, size * 0.39, 0xFF888888, 24)
-
-    if icon_key == "HOLD" then
-        hud_add_quad_filled(
-            cx - size * 0.18, cy - size * 0.23,
-            cx - size * 0.06, cy - size * 0.23,
-            cx - size * 0.06, cy + size * 0.23,
-            cx - size * 0.18, cy + size * 0.23,
-            0xFFFFFFFF
-        )
-        hud_add_quad_filled(
-            cx + size * 0.06, cy - size * 0.23,
-            cx + size * 0.18, cy - size * 0.23,
-            cx + size * 0.18, cy + size * 0.23,
-            cx + size * 0.06, cy + size * 0.23,
-            0xFFFFFFFF
-        )
-    else
-        hud_add_line(cx - size * 0.22, cy - size * 0.18, cx + size * 0.22, cy - size * 0.18, 0xFFFFFFFF, size * 0.10)
-        hud_add_line(cx, cy - size * 0.18, cx, cy + size * 0.24, 0xFFFFFFFF, size * 0.10)
+    local ok, loaded_handle, load_error = pcall(
+        texture.load,
+        "buttonsAndArrows/" .. filename
+    )
+    if ok and loaded_handle then
+        input_icon_state.handles[icon_key] = loaded_handle
+        return loaded_handle
     end
-    return true
+
+    input_icon_state.failed[icon_key] = true
+    return nil, ok and load_error or loaded_handle
 end
 
 local function draw_input_icon(icon_key, x, y, size)
@@ -1224,12 +1157,42 @@ local function draw_input_icon(icon_key, x, y, size)
     end
 
     icon_key = tostring(icon_key)
-    if draw_direction_icon(icon_key, x, y, size) then return end
-    if draw_attack_icon(string.lower(icon_key), x, y, size) then return end
-    if draw_special_input_icon(string.upper(icon_key), x, y, size) then return end
+    local lower_key = string.lower(icon_key)
+    local normalized_key = string.match(lower_key, "^[lmh][pk]$")
+        and lower_key
+        or string.upper(icon_key)
+    local handle, load_error = get_input_icon_handle(normalized_key)
+    if not handle then
+        hud_log_rate_limited(
+            "input_icon_load_" .. normalized_key,
+            "无法加载指令图标 " .. normalized_key .. "：" .. tostring(load_error)
+        )
+        hud_add_text("[" .. normalized_key .. "]", x, y, 0xFFFFFFFF, true)
+        return
+    end
 
-    -- Unknown future token: retain a readable fallback instead of failing.
-    hud_add_text("[" .. icon_key .. "]", x, y, 0xFFFFFFFF, true)
+    if type(texture.draw) ~= "function" then
+        hud_log_rate_limited(
+            "input_icon_draw_api",
+            "reframework-imgui-texture 的 texture.draw API 不可用。"
+        )
+        hud_add_text("[" .. normalized_key .. "]", x, y, 0xFFFFFFFF, true)
+        return
+    end
+
+    local ok, drawn = pcall(texture.draw, handle, x, y, size, size)
+    if ok and drawn then return end
+
+    -- The native bridge renders its own visible [texture pending]/[PNG
+    -- missing] fallback and logs permanent resource failures once. Only a Lua
+    -- call exception needs a second, rate-limited diagnostic here.
+    if not ok then
+        hud_log_rate_limited(
+            "input_icon_draw_" .. normalized_key,
+            "调用指令图标绘制失败：" .. tostring(drawn)
+        )
+        hud_add_text("[" .. normalized_key .. "]", x, y, 0xFFFFFFFF, true)
+    end
 end
 
 local debug_dist_status = "未加载"
@@ -1723,8 +1686,8 @@ local function draw_text_above_head_independent(text, pos, color, offset_x, offs
         local text_height = imgui.calc_text_size(line).y
         local icon_size = math.max(8, math.floor(text_height * (config.icon_scale or 1.0) + 0.5))
 
-        -- Calculate the width using the same square geometry used by the
-        -- vector direction/button icons.
+        -- PNG input icons are aspect-fitted into the same square layout cells
+        -- used by the original DistanceViewer.
         local true_width = 0
         local before_txt, input_core, after_txt = string.match(line, "^(.-){(.-)}(.*)$")
         local parsed_icons, parsed_strength
