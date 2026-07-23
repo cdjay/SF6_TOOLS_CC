@@ -206,7 +206,7 @@ local config = {
     p1_show_horizontal_lines = true, p1_line_height_1 = 0.45, p1_line_height_2 = 0.90, p1_line_height_3 = 0.10, p1_line_height_4 = 0.45,
     p1_end_marker_size = 100.0, p1_end_marker_offset_y = 0.0,
     p1_show_origin_dot = true, p1_origin_dot_size = 8.0,
-    pp1_show_markers = true, p1_show_vertical_cursor = true, p1_show_numbers = true,
+    p1_show_markers = true, p1_show_vertical_cursor = true, p1_show_numbers = true,
     p1_number_off_y_1 = -25.0, p1_number_off_y_2 = -25.0, p1_number_off_y_3 = 25.0, p1_number_off_y_4 = -25.0,
     p1_vertical_mode = VMODE_NONE, p1_fill_bg = true,
     p1_show_jump_arc = false,
@@ -349,6 +349,13 @@ local function load_settings()
         if d.config.p2_opp_zone_cursor_off_y ~= nil then
             for i=1,4 do config["p2_opp_zone_cursor_h_"..i] = 0.5 end
             d.config.p2_opp_zone_cursor_off_y = nil
+        end
+
+        -- Older builds accidentally persisted the P1 marker switch under
+        -- "pp1_show_markers". Keep that user's choice while restoring the
+        -- actual key consumed by the renderer.
+        if d.config.p1_show_markers == nil and d.config.pp1_show_markers ~= nil then
+            config.p1_show_markers = d.config.pp1_show_markers
         end
     end 
 end
@@ -2683,6 +2690,10 @@ local function draw_config_ui()
 
         local c_ioy, v_ioy = imgui.drag_float("图标 Y 偏移", config.icon_offset_y or 0.0, 1.0, -100.0, 100.0)
         if c_ioy then config.icon_offset_y = v_ioy; save_settings() end
+
+        local c_labels, v_labels = imgui.checkbox("绘制标线招式指令", config.adv_show_line_labels)
+        if c_labels then config.adv_show_line_labels = v_labels; save_settings() end
+        imgui.text_colored("需要同时启用对应玩家的“标线”。", COL_GREY)
     end
 
 	
