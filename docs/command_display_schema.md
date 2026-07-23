@@ -9,6 +9,9 @@ AC 提供动作及派生关系，BCM 的 `norm/easy/sprt/supr` 只负责提供�
 data/TrainingComboTrials_data/command_display/<Character>.json
 ```
 
+AC/BCM 批量导出还会从同一指令结果与同版本 OFF 快照生成网页角色资料，格式见
+`docs/web_character_schema.md`。
+
 ## 条目
 
 ```json

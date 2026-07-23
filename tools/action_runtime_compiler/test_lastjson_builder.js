@@ -95,4 +95,45 @@ try {
     fs.rmSync(replaceRoot, { recursive: true, force: true });
 }
 
+const replaceSetRoot = fs.mkdtempSync(path.join(os.tmpdir(), "sf6cc-lastjson-set-test-"));
+try {
+    const gameStage = path.join(replaceSetRoot, ".game-stage");
+    const webStage = path.join(replaceSetRoot, ".web-stage");
+    const gameTarget = path.join(replaceSetRoot, "lastjson");
+    const webTarget = path.join(replaceSetRoot, "lastjson_web");
+    for (const directory of [gameStage, webStage, gameTarget, webTarget]) fs.mkdirSync(directory);
+    fs.writeFileSync(path.join(gameStage, "Ryu.json"), "new-game");
+    fs.writeFileSync(path.join(webStage, "Ryu.json"), "new-web");
+    fs.writeFileSync(path.join(gameTarget, "Ryu.json"), "old-game");
+    fs.writeFileSync(path.join(webTarget, "Ryu.json"), "old-web");
+    builder.replaceDirectorySet([
+        { stage: gameStage, target: gameTarget },
+        { stage: webStage, target: webTarget }
+    ]);
+    assert.strictEqual(fs.readFileSync(path.join(gameTarget, "Ryu.json"), "utf8"), "new-game");
+    assert.strictEqual(fs.readFileSync(path.join(webTarget, "Ryu.json"), "utf8"), "new-web");
+} finally {
+    fs.rmSync(replaceSetRoot, { recursive: true, force: true });
+}
+
+const rollbackSetRoot = fs.mkdtempSync(path.join(os.tmpdir(), "sf6cc-lastjson-rollback-test-"));
+try {
+    const gameStage = path.join(rollbackSetRoot, ".game-stage");
+    const missingWebStage = path.join(rollbackSetRoot, ".missing-web-stage");
+    const gameTarget = path.join(rollbackSetRoot, "lastjson");
+    const webTarget = path.join(rollbackSetRoot, "lastjson_web");
+    for (const directory of [gameStage, gameTarget, webTarget]) fs.mkdirSync(directory);
+    fs.writeFileSync(path.join(gameStage, "Ryu.json"), "new-game");
+    fs.writeFileSync(path.join(gameTarget, "Ryu.json"), "old-game");
+    fs.writeFileSync(path.join(webTarget, "Ryu.json"), "old-web");
+    assert.throws(() => builder.replaceDirectorySet([
+        { stage: gameStage, target: gameTarget },
+        { stage: missingWebStage, target: webTarget }
+    ]));
+    assert.strictEqual(fs.readFileSync(path.join(gameTarget, "Ryu.json"), "utf8"), "old-game");
+    assert.strictEqual(fs.readFileSync(path.join(webTarget, "Ryu.json"), "utf8"), "old-web");
+} finally {
+    fs.rmSync(rollbackSetRoot, { recursive: true, force: true });
+}
+
 console.log("lastjson builder tests passed");

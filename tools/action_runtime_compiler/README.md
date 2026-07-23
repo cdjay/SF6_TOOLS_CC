@@ -24,6 +24,10 @@ tools/action_runtime_compiler/
 │  │  │  ├─ Ryu.json
 │  │  │  ├─ Luke.json
 │  │  │  └─ ...正好30个角色JSON...
+│  │  ├─ lastjson_web/
+│  │  │  ├─ Ryu.json
+│  │  │  ├─ Luke.json
+│  │  │  └─ ...正好30个网页角色资料JSON...
 │  │  └─ lastjson-manifest.json
 │  └─ <下一个日期>/
 ├─ off/
@@ -151,9 +155,17 @@ tools\action_runtime_compiler\2_build_lastjson.bat 2026-05-28
 5. 每个角色 AC+BCM 编译必须有效；
 6. 统一指令输出 hard audit 必须通过；
 7. 所有现代指令必须拥有经典投影，`classic_projection_pending_count` 必须为零；
-8. 暂存目录必须正好得到30个角色 JSON。
+8. 游戏与网页暂存目录都必须正好得到30个角色 JSON。
 
-全部通过后才原子替换旧 `lastjson`。若中途失败，原 `lastjson` 保持不变。
+全部通过后才同时替换旧 `lastjson` 与 `lastjson_web`；若中途失败，两套旧结果都保持不变。
+
+同一次生成还会更新 `acbcm/<版本>/lastjson_web/*.json`。网页文件使用
+`xt.character.web.v1`，保留按 Action ID 查询的 `actions`，并从同版本 OFF 快照增加按招式记录查询的
+`moves`、`move_order`、帧数、伤害、取消属性和量表字段。连段起手与角色资料页共享同一个 Action
+指令投影，不需要网站再次解析指令文本。
+
+`lastjson` 与 `lastjson_web` 必须同时正好生成30个角色；任一生成、校验或目录替换失败时，两套旧
+结果都会保留。
 
 `lastjson-manifest.json` 放在版本目录根部，不混入 `lastjson`，因此 `lastjson` 内始终正好30个可全选复制的角色文件。manifest 记录每个角色的输入文件、输出哈希、Action 数和相对覆盖前结果的新增/删除/变化 ID。
 
@@ -224,6 +236,7 @@ node tools/action_runtime_compiler/test_official_semantics.js
 node tools/action_runtime_compiler/test_compiler.js
 node tools/action_runtime_compiler/test_archive_builder.js
 node tools/action_runtime_compiler/test_command_display.js
+node tools/action_runtime_compiler/test_web_character.js
 node tools/bcm_catalog_builder/test_bcm_catalog.js
 ```
 

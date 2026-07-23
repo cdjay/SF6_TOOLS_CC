@@ -7,6 +7,7 @@ const crypto = require("crypto");
 const bcmCore = require("../bcm_catalog_builder/bcm_catalog_core.js");
 const compiler = require("./compiler_core.js");
 const commandDisplay = require("./command_display_core.js");
+const webCharacter = require("./web_character_core.js");
 
 function argsOf(argv) {
     const args = {};
@@ -28,7 +29,7 @@ if (Object.prototype.hasOwnProperty.call(args, "--supplement")) {
     process.exit(2);
 }
 if (!args["--ac"] || !args["--bcm"] || !args["--output"]) {
-    console.error("用法: node build_command_display.js --ac <完整AC.json> --bcm <完整BCM.json> --output <统一三槽表.json> [--character <规范角色名>] [--official-semantics <官网语义候选.json>] [--community-semantics <实机验证语义.json>]");
+    console.error("用法: node build_command_display.js --ac <完整AC.json> --bcm <完整BCM.json> --output <统一三槽表.json> [--web-output <网页角色资料.json>] [--character <规范角色名>] [--official-semantics <官网语义候选.json>] [--community-semantics <实机验证语义.json>]");
     process.exit(2);
 }
 
@@ -39,6 +40,7 @@ const options = {
     bcmSourceSha256: bcm.sha256,
     characterName: args["--character"] || undefined
 };
+let officialSource = null;
 if (args["--official-semantics"]) {
     const official = readSource(path.resolve(args["--official-semantics"]));
     const meta = official.value && official.value._meta || {};
@@ -48,6 +50,7 @@ if (args["--official-semantics"]) {
     }
     options.officialSemantics = official.value;
     options.officialSemanticsSha256 = official.sha256;
+    officialSource = official;
 }
 if (args["--community-semantics"]) {
     const community = readSource(path.resolve(args["--community-semantics"]));
@@ -72,11 +75,26 @@ if (result.report.status === "invalid") {
 const output = commandDisplay.buildCommandDisplay(
     ac.value, bcmCatalog, result.runtime, {}, options);
 const filename = path.resolve(args["--output"]);
+const outputBytes = Buffer.from(`${JSON.stringify(output, null, 2)}\n`, "utf8");
+const parsedOutput = path.parse(filename);
+const webFilename = path.resolve(args["--web-output"]
+    || path.join(parsedOutput.dir, `${parsedOutput.name}.web${parsedOutput.ext || ".json"}`));
+const webOutput = webCharacter.buildWebCharacter(output, {
+    commandSourceSha256: crypto.createHash("sha256").update(outputBytes).digest("hex"),
+    officialSnapshot: officialSource && officialSource.value,
+    officialSha256: officialSource && officialSource.sha256
+});
+webCharacter.validateWebCharacter(webOutput, output);
 fs.mkdirSync(path.dirname(filename), { recursive: true });
-fs.writeFileSync(filename, `${JSON.stringify(output, null, 2)}\n`, "utf8");
+fs.writeFileSync(filename, outputBytes);
+fs.mkdirSync(path.dirname(webFilename), { recursive: true });
+fs.writeFileSync(webFilename, `${JSON.stringify(webOutput, null, 2)}\n`, "utf8");
 console.log(JSON.stringify({
     output: filename,
+    web_output: webFilename,
     character: result.runtime.character,
     action_count: Object.keys(output).filter(key => /^\d+$/.test(key)).length,
-    schema: commandDisplay.SCHEMA
+    schema: commandDisplay.SCHEMA,
+    web_schema: webCharacter.SCHEMA,
+    web_move_count: webOutput._meta.move_count
 }, null, 2));

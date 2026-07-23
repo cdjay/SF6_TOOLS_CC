@@ -2,7 +2,7 @@ local function read_all(path)
     local file = assert(io.open(path, "rb"))
     local value = assert(file:read("*a"))
     file:close()
-    return value
+    return value:gsub("\r\n", "\n")
 end
 
 -- Load only the two pure resolver functions; do not boot REFramework globals.
@@ -12,6 +12,12 @@ local classic_block = assert(d2d_source:match(
 trim_string = function(value)
     return tostring(value or ""):match("^%s*(.-)%s*$")
 end
+
+local semantic_block = assert(d2d_source:match(
+    "(local function resolve_classic_common_semantic.-)\nbuild_slim_command_display_map = function"))
+assert(load(semantic_block .. "\n_G.resolve_classic_common_semantic = resolve_classic_common_semantic",
+    "classic-common-semantic", "t", _G))()
+
 assert(load(classic_block .. "\n_G.get_classic_display_motion = get_classic_display_motion",
     "classic-command-resolution", "t", _G))()
 
@@ -21,6 +27,18 @@ local command_map = {
     ["906"] = { classic = "Normal", status = "suppress_transition" },
     ["1037"] = { classic = "528", status = "strict_route" }
 }
+
+local parry_entry = {
+    routes = { { source = "bcm_common_semantic", display = "DP" } }
+}
+assert(resolve_classic_common_semantic(parry_entry, "Normal", "DP", "strict_route") == "PARRY",
+    "audited common Drive Parry semantics must replace a stale classic Normal projection")
+assert(resolve_classic_common_semantic({ routes = {} }, "Normal", "DP", "strict_route") == "Normal",
+    "an unverified Normal action must not be rewritten")
+assert(resolve_classic_common_semantic(parry_entry, "Normal", "DP", "suppress_transition") == "Normal",
+    "an internal transition must retain its suppression semantics")
+assert(resolve_classic_common_semantic(parry_entry, "MP+MK", "DP", "strict_route") == "MP+MK",
+    "an explicit classic command must take precedence over semantic recovery")
 
 local motion, status = get_classic_display_motion(command_map, { id = 901, motion = "Unknown" })
 assert(motion == "214+MP" and status == "strict_route", "classic mode must use the unified command table")
@@ -42,7 +60,7 @@ assert(motion == nil and status == "action_id_missing", "missing classic IDs mus
 
 local main_source = read_all("autorun/TrainingComboTrials_v1.0.lua")
 local resolver_block = assert(main_source:match(
-    "(local function decode_transition_button_mask.-)\nend\n\nlocal esf_names_map"))
+    "(local function decode_transition_button_mask.-\nend)\n\nlocal esf_names_map"))
 ComboTrials_D2D = {
     get_command_display = function(_, action_id)
         if action_id == 906 then return nil, "suppress_transition" end
@@ -50,6 +68,8 @@ ComboTrials_D2D = {
         return nil, "action_id_missing"
     end
 }
+resolver_block = resolver_block:gsub(
+    "local ComboTrials_D2D", "local ComboTrials_D2D = _G.ComboTrials_D2D", 1)
 assert(load(resolver_block
     .. "\n_G.resolve_unified_command_action = resolve_unified_command_action"
     .. "\n_G.find_recent_action_button_edge = find_recent_action_button_edge",

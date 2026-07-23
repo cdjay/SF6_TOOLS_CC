@@ -1375,6 +1375,26 @@ local function get_modern_display_motion(modern_map, step)
     return table.concat(displays, "/"), "strict_route"
 end
 
+local function resolve_classic_common_semantic(entry, classic, motion, status)
+    if status == "suppress_transition" or type(entry) ~= "table" then return classic end
+    if trim_string(classic):upper() ~= "NORMAL" then return classic end
+
+    local has_drive_parry_route = false
+    for _, route in ipairs(type(entry.routes) == "table" and entry.routes or {}) do
+        if type(route) == "table" and route.source == "bcm_common_semantic"
+            and trim_string(route.display):upper() == "DP" then
+            has_drive_parry_route = true
+            break
+        end
+    end
+    if not has_drive_parry_route then return classic end
+
+    for variant in tostring(motion or ""):gmatch("[^/|]+") do
+        if trim_string(variant):upper() == "DP" then return "PARRY" end
+    end
+    return classic
+end
+
 -- 指令映射包含大量生成期审计与路由证据。加载时先用完整数据完成严格校验和
 -- 路由解析，随后只保留运行时实际需要的 action id、显示文本与解析状态，避免
 -- 多个约 490KB 的角色表长期驻留并触发周期性 GC 卡顿。
@@ -1394,6 +1414,7 @@ build_slim_command_display_map = function(loaded)
                     return trim_string(command.display)
                 end
                 local classic = read_classic(entry.classic_command)
+                classic = resolve_classic_common_semantic(entry, classic, motion, status)
                 if status == "suppress_transition" then
                     slim[tostring(action_id)] = { classic = classic, motion = nil, status = status }
                 else

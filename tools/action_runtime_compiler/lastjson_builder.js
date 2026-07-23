@@ -8,6 +8,7 @@ const archive = require("./archive_builder.js");
 const bcmCore = require("../bcm_catalog_builder/bcm_catalog_core.js");
 const compiler = require("./compiler_core.js");
 const commandDisplay = require("./command_display_core.js");
+const webCharacter = require("./web_character_core.js");
 
 const TOOL_ROOT = __dirname;
 const DEFAULT_ACBCM_ROOT = path.join(TOOL_ROOT, "acbcm");
@@ -283,6 +284,49 @@ function replaceDirectory(stage, target) {
     }
 }
 
+function replaceDirectorySet(items) {
+    const stamp = `${process.pid}-${Date.now()}`;
+    const prepared = items.map((item, index) => ({
+        stage: path.resolve(item.stage),
+        target: path.resolve(item.target),
+        existed: fs.existsSync(item.target),
+        backup: path.join(path.dirname(path.resolve(item.target)), `.lastjson-set-backup-${stamp}-${index}`)
+    }));
+    let replacementStarted = false;
+    try {
+        for (const item of prepared) {
+            if (item.existed) fs.cpSync(item.target, item.backup, { recursive: true });
+        }
+        replacementStarted = true;
+        for (const item of prepared) replaceDirectory(item.stage, item.target);
+    } catch (error) {
+        const restoreErrors = [];
+        if (replacementStarted) for (const item of prepared) {
+            try {
+                if (item.existed && fs.existsSync(item.backup)) {
+                    const restoreStage = `${item.backup}-restore`;
+                    fs.cpSync(item.backup, restoreStage, { recursive: true });
+                    replaceDirectory(restoreStage, item.target);
+                } else if (!item.existed && fs.existsSync(item.target)) {
+                    fs.rmSync(item.target, { recursive: true, force: true });
+                }
+            } catch (restoreError) {
+                restoreErrors.push(`${item.target}: ${restoreError.message}`);
+            }
+        }
+        if (restoreErrors.length) {
+            throw new Error(`${error.message}；游戏/网页目录回滚失败：${restoreErrors.join("；")}`);
+        }
+        throw error;
+    } finally {
+        for (const item of prepared) {
+            if (fs.existsSync(item.backup)) fs.rmSync(item.backup, { recursive: true, force: true });
+            const restoreStage = `${item.backup}-restore`;
+            if (fs.existsSync(restoreStage)) fs.rmSync(restoreStage, { recursive: true, force: true });
+        }
+    }
+}
+
 function buildVersion(options) {
     const versionDirectory = path.resolve(options.versionDirectory);
     const versionName = path.basename(versionDirectory);
@@ -319,13 +363,17 @@ function buildVersion(options) {
     }
 
     const target = path.join(versionDirectory, "lastjson");
+    const webTarget = path.join(versionDirectory, "lastjson_web");
     const previous = new Map();
     if (fs.existsSync(target)) for (const character of expected.values()) {
         const filename = path.join(target, `${character}.json`);
         if (fs.existsSync(filename)) previous.set(character, readJson(filename));
     }
-    const stage = path.join(versionDirectory, `.lastjson-stage-${process.pid}-${Date.now()}`);
+    const stageStamp = `${process.pid}-${Date.now()}`;
+    const stage = path.join(versionDirectory, `.lastjson-stage-${stageStamp}`);
+    const webStage = path.join(versionDirectory, `.lastjson-web-stage-${stageStamp}`);
     fs.mkdirSync(stage, { recursive: true });
+    fs.mkdirSync(webStage, { recursive: true });
     const results = [];
     try {
         for (const fighterId of [...expected.keys()].sort((a, b) => a - b)) {
@@ -351,23 +399,44 @@ function buildVersion(options) {
             if (compiled.report.status === "invalid") throw new Error(`${character} AC+BCM 编译为 invalid。`);
             const output = commandDisplay.buildCommandDisplay(ac.value, catalog, compiled.runtime, {}, options);
             const actionCount = validateOutput(output, character, fighterId);
+            const outputBytes = Buffer.from(`${JSON.stringify(output, null, 2)}\n`, "utf8");
+            const webOutput = webCharacter.buildWebCharacter(output, {
+                generatedAt: options.generatedAt,
+                commandSourceSha256: sha256(outputBytes),
+                officialSnapshot: official.value,
+                officialSha256: official.sha256
+            });
+            const webCounts = webCharacter.validateWebCharacter(webOutput, output);
+            const webOutputBytes = Buffer.from(`${JSON.stringify(webOutput, null, 2)}\n`, "utf8");
             writeJson(path.join(stage, `${character}.json`), output);
+            writeJson(path.join(webStage, `${character}.json`), webOutput);
             const difference = mapDiff(previous.get(character), output);
             results.push({
                 character, fighter_id: fighterId, stem: pair.stem,
                 ac_file: pair.ac, bcm_file: pair.bcm,
                 official_file: path.basename(path.join(offDirectory, `${character}.official.generated.json`)),
                 output_file: `${character}.json`, action_count: actionCount,
-                output_sha256: sha256(Buffer.from(`${JSON.stringify(output, null, 2)}\n`, "utf8")),
+                output_sha256: sha256(outputBytes),
+                web_output_file: `${character}.json`,
+                web_action_count: webCounts.action_count,
+                web_move_count: webCounts.move_count,
+                web_output_sha256: sha256(webOutputBytes),
                 difference
             });
         }
         if (fs.readdirSync(stage).filter(name => name.endsWith(".json")).length !== 30) {
             throw new Error("暂存输出不是正好30个角色 JSON。")
         }
-        replaceDirectory(stage, target);
+        if (fs.readdirSync(webStage).filter(name => name.endsWith(".json")).length !== 30) {
+            throw new Error("网页暂存输出不是正好30个角色 JSON。")
+        }
+        replaceDirectorySet([
+            { stage, target },
+            { stage: webStage, target: webTarget }
+        ]);
     } finally {
         if (fs.existsSync(stage)) fs.rmSync(stage, { recursive: true, force: true });
+        if (fs.existsSync(webStage)) fs.rmSync(webStage, { recursive: true, force: true });
     }
     const manifest = {
         schema: "sf6cc.command-lastjson-manifest.v1",
@@ -376,10 +445,13 @@ function buildVersion(options) {
         official_directory: offDirectory,
         character_count: results.length,
         command_schema: commandDisplay.SCHEMA,
+        web_character_schema: webCharacter.SCHEMA,
+        web_output_directory: webTarget,
         characters: results
     };
     writeJson(path.join(versionDirectory, "lastjson-manifest.json"), manifest);
-    return { version: normalizedVersion, directory: versionDirectory, output: target, results };
+    return { version: normalizedVersion, directory: versionDirectory, output: target,
+        web_output: webTarget, results };
 }
 
 function run(argv) {
@@ -402,7 +474,7 @@ function run(argv) {
         outputs.push(result);
         const changed = result.results.filter(item => item.difference.added.length
             || item.difference.removed.length || item.difference.changed.length).length;
-        console.log(`[${version.name}] 完成：30/30，变化角色 ${changed}，输出 ${result.output}`);
+        console.log(`[${version.name}] 完成：30/30，变化角色 ${changed}，游戏输出 ${result.output}，网页输出 ${result.web_output}`);
     }
     console.log(`\n全部完成：${outputs.length} 个版本。`);
 }
@@ -418,5 +490,5 @@ if (require.main === module) {
 
 module.exports = {
     normalizeVersion, versionDirectories, filenameFighterId, mapDiff,
-    resolveOffDirectory, validateOutput, replaceDirectory, buildVersion
+    resolveOffDirectory, validateOutput, replaceDirectory, replaceDirectorySet, buildVersion
 };
