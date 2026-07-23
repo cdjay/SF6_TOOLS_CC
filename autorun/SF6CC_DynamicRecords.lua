@@ -6,6 +6,7 @@ local re = re
 local d2d = d2d
 
 local DynamicRecords = require("func/DynamicRecords")
+local TrainingMenuRegistry = require("func/Training_MenuRegistry")
 
 local options = {
     only_import_valid = false,
@@ -348,12 +349,7 @@ local function draw_panel()
     imgui.text_colored("提醒：具体配置请在网站上配置和保存", 0xFF888888)
 end
 
-re.on_draw_ui(function()
-    if imgui.tree_node("小吞MOD: 训练配置管理") then
-        draw_panel()
-        imgui.tree_pop()
-    end
-end)
+TrainingMenuRegistry.register("training_config", draw_panel)
 
 -- Native training menu annotations. Text is loaded from the imported JSON and
 -- is hidden automatically when its recorded input/action binding goes stale.

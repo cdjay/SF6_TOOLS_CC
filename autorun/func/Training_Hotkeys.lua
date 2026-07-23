@@ -531,9 +531,10 @@ function M.draw_menu()
     end
     for _, scope_id in ipairs(scope_order) do
         local scope = registry[scope_id]
-        if scope and imgui.tree_node(scope.title .. "##hotkeys_" .. scope_id) then
+        if scope then
+            imgui.spacing()
+            imgui.text_colored(scope.title, 0xFF00FF00)
             draw_scope(scope)
-            imgui.tree_pop()
         end
     end
 end

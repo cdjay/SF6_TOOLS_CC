@@ -8,6 +8,7 @@ local GS = require("func/GameState") -- per-frame snapshot (players, act_st, pau
 local UIKit = require("func/UIKit")
 local SharedUI = require("func/Training_SharedUI")
 local SessionRecap = require("func/Training_SessionRecap")
+local TrainingMenuRegistry = require("func/Training_MenuRegistry")
 
 -- =========================================================
 -- TrainingHitConfirm_v7.3 (Heavy DR Cancel Fail Logic)
@@ -122,16 +123,7 @@ local CONFIG_FILENAME = "TrainingHitConfirm_data/TrainingHitConfirm_Config.json"
 local COLORS = UIKit.COLORS
 
 local UI_THEME = {
-    hdr_info    = UIKit.THEME.hdr_gold,
-    hdr_session = UIKit.THEME.hdr_purple,
-    hdr_rules   = UIKit.THEME.hdr_blue,
-    hdr_matrix  = UIKit.THEME.hdr_green,
     btn_neutral = UIKit.THEME.btn_neutral,
-    btn_green   = UIKit.THEME.btn_green,
-    btn_red     = UIKit.THEME.btn_red,
-    btn_easy    = UIKit.THEME.btn_easy,
-    btn_medium  = UIKit.THEME.btn_medium,
-    btn_hard    = UIKit.THEME.btn_hard,
 }
 
 local user_config = {
@@ -224,7 +216,7 @@ end
 -- =========================================================
 
 local styled_button = UIKit.styled_button
-local styled_header = UIKit.styled_header
+local plain_header = UIKit.plain_header
 
 local function parse_list(str)
     local t = {}
@@ -1219,52 +1211,52 @@ re.on_frame(function()
     end
 end)
 
+local function draw_hit_confirm_config()
+    if plain_header("--- 训练配置 ---") then
+        local c_fl, v_fl = imgui.checkbox("显示浮动控制栏", user_config.show_floating)
+        if c_fl then user_config.show_floating = v_fl; save_conf() end
+
+        if user_config.show_floating then
+            imgui.text_colored("训练控制已显示在浮动控制栏中。", COLORS.DarkGrey)
+        else
+            imgui.separator(); imgui.spacing()
+            draw_session_buttons_docked()
+        end
+    end
+
+    imgui.separator()
+    if plain_header("--- 检测规则 ---") then
+        local chg1, v1 = imgui.input_text("触发动作（ID）", user_config.str_trigger_list); if chg1 then user_config.str_trigger_list = v1; refresh_tables(); save_conf() end
+        local chg2, v2 = imgui.input_text("确认动作（ID）", user_config.str_success_list); if chg2 then user_config.str_success_list = v2; refresh_tables(); save_conf() end
+        local chgBrk, vBrk = imgui.input_text("中断列表（重置）", user_config.str_break_list); if chgBrk then user_config.str_break_list = vBrk; refresh_tables(); save_conf() end
+        local chg3, v3 = imgui.input_text("命中伤害类型列表", user_config.str_dmg_hit_list); if chg3 then user_config.str_dmg_hit_list = v3; refresh_tables(); save_conf() end
+
+        -- [NEW] Light Button Config Input
+        local chgBtn, vBtn = imgui.input_text("轻攻击按键（位掩码）", user_config.str_light_btn_list);
+        if chgBtn then user_config.str_light_btn_list = vBtn; refresh_tables(); save_conf() end
+        if imgui.is_item_hovered() then imgui.set_tooltip("16=LP (X/方块), 128=LK (A/叉)") end
+
+        local chg4, v4 = imgui.input_text("被防伤害类型列表", user_config.str_dmg_block_list); if chg4 then user_config.str_dmg_block_list = v4; refresh_tables(); save_conf() end
+    end
+
+    imgui.separator()
+    if plain_header("--- 矩阵列配置 ---") then
+        if styled_button(session.is_logging and "停止并导出历史（V3）" or "开始记录矩阵", UI_THEME.btn_neutral) then
+            if session.is_logging then export_detailed_history(); session.is_logging = false else session.is_logging = true; session.history_list = {}; session.history_map = {} end
+        end
+        if session.export_msg ~= "" then imgui.same_line(); imgui.text(session.export_msg) end
+
+        imgui.separator()
+        local cd, vd = imgui.checkbox("显示矩阵调试", user_config.show_matrix_debug); if cd then user_config.show_matrix_debug = vd; save_conf() end
+    end
+end
+
+TrainingMenuRegistry.register("confirm_config", draw_hit_confirm_config)
+
 re.on_draw_ui(function()
     if not RuntimeSafety.is_training_allowed() then return end
     if DEPENDANT_ON_MANAGER and _G.CurrentTrainerMode ~= 2 then return end
 
-    if imgui.tree_node("确认训练设置v0.99") then
-
-        if styled_header("--- 训练配置 ---", UI_THEME.hdr_session) then
-            local c_fl, v_fl = imgui.checkbox("显示浮动控制栏", user_config.show_floating)
-            if c_fl then user_config.show_floating = v_fl; save_conf() end
-
-            if user_config.show_floating then
-                imgui.text_colored("训练控制已显示在浮动控制栏中。", COLORS.DarkGrey)
-            else
-                imgui.separator(); imgui.spacing()
-                draw_session_buttons_docked()
-            end
-        end
-
-        imgui.separator()
-        if styled_header("--- 检测规则 ---", UI_THEME.hdr_rules) then
-            local chg1, v1 = imgui.input_text("触发动作（ID）", user_config.str_trigger_list); if chg1 then user_config.str_trigger_list = v1; refresh_tables(); save_conf() end
-            local chg2, v2 = imgui.input_text("确认动作（ID）", user_config.str_success_list); if chg2 then user_config.str_success_list = v2; refresh_tables(); save_conf() end
-            local chgBrk, vBrk = imgui.input_text("中断列表（重置）", user_config.str_break_list); if chgBrk then user_config.str_break_list = vBrk; refresh_tables(); save_conf() end
-            local chg3, v3 = imgui.input_text("命中伤害类型列表", user_config.str_dmg_hit_list); if chg3 then user_config.str_dmg_hit_list = v3; refresh_tables(); save_conf() end
-            
-            -- [NEW] Light Button Config Input
-            local chgBtn, vBtn = imgui.input_text("轻攻击按键（位掩码）", user_config.str_light_btn_list);
-            if chgBtn then user_config.str_light_btn_list = vBtn; refresh_tables(); save_conf() end
-            if imgui.is_item_hovered() then imgui.set_tooltip("16=LP (X/方块), 128=LK (A/叉)") end
-            
-            local chg4, v4 = imgui.input_text("被防伤害类型列表", user_config.str_dmg_block_list); if chg4 then user_config.str_dmg_block_list = v4; refresh_tables(); save_conf() end
-        end
-        
-        imgui.separator()
-        if styled_header("--- 矩阵列配置 ---", UI_THEME.hdr_matrix) then
-            if styled_button(session.is_logging and "停止并导出历史（V3）" or "开始记录矩阵", UI_THEME.btn_neutral) then
-                if session.is_logging then export_detailed_history(); session.is_logging = false else session.is_logging = true; session.history_list = {}; session.history_map = {} end
-            end
-            if session.export_msg ~= "" then imgui.same_line(); imgui.text(session.export_msg) end
-
-            imgui.separator()
-            local cd, vd = imgui.checkbox("显示矩阵调试", user_config.show_matrix_debug); if cd then user_config.show_matrix_debug = vd; save_conf() end
-        end
-        imgui.tree_pop()
-    end
-    
     if user_config.show_matrix_debug then
         imgui.set_next_window_size(Vector2f.new(1000, 600), 1 << 2)
         if imgui.begin_window("诊断矩阵（V3）", true, 0) then

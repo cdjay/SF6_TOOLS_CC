@@ -1,6 +1,6 @@
 -- =========================================================
 -- ComboTrials_UI.lua - All ImGui UI code
--- Received shared context via init(). Registers re.on_frame and re.on_draw_ui.
+-- Received shared context via init(). Registers frame hooks and hosted menu content.
 -- =========================================================
 
 
@@ -10,6 +10,7 @@ local imgui = imgui
 local re = re
 local json = json
 local UIKit = require("func/UIKit")
+local TrainingMenuRegistry = require("func/Training_MenuRegistry")
 
 local M = {}
 local ctx
@@ -40,10 +41,6 @@ local RuntimeSafety = require("func/RuntimeSafety")
 local COLORS = UIKit.COLORS
 
 local UI_THEME = {
-    hdr_info    = UIKit.THEME.hdr_gold,
-    hdr_session = UIKit.THEME.hdr_purple,
-    hdr_rules   = UIKit.THEME.hdr_blue,
-    hdr_matrix  = UIKit.THEME.hdr_green,
     btn_neutral = UIKit.THEME.btn_neutral,
     btn_green   = UIKit.THEME.btn_green,
     btn_red     = UIKit.THEME.btn_red,
@@ -383,7 +380,7 @@ local function replay_status_label(player_idx, width, now)
 end
 
 local styled_button = UIKit.styled_button
-local styled_header = UIKit.styled_header
+local plain_header = UIKit.plain_header
 
 -- Alphanumeric sort function for exceptions
 local function sort_ids(dict)
@@ -1443,11 +1440,13 @@ local function draw_combo_trials_menu_ui()
             imgui.spacing()
         end
 
-        if styled_header("高级与调试", UI_THEME.hdr_rules) then
+        if plain_header("高级与调试") then
+        imgui.indent(18)
+        local advanced_ok, advanced_err = pcall(function()
         -- ==========================================
         -- TAB 2: D2D VISUALIZER
         -- ==========================================
-        if styled_header("--- D2D 可视化设置（覆盖层）---", UI_THEME.hdr_matrix) then
+        if plain_header("D2D 可视化设置（覆盖层）") then
             local changed = false
             local c, v
 
@@ -1691,7 +1690,7 @@ local function draw_combo_trials_menu_ui()
         -- ==========================================
         -- TAB 3: EXCEPTION EDITOR MENU
         -- ==========================================
-        if styled_header("--- 例外管理 ---", UI_THEME.hdr_session) then
+        if plain_header("例外管理") then
             -- THE EDITOR ONLY APPEARS WHEN "MANAGE" IS CLICKED
             if p_state.editing_id ~= -1 then
                 imgui.text_colored("=== 例外设置：ID " .. p_state.editing_id .. " ===", COLORS.Cyan)
@@ -1976,7 +1975,7 @@ local function draw_combo_trials_menu_ui()
         -- ==========================================
         -- TAB 4: LIVE LOG
         -- ==========================================
-        if styled_header("--- 实时日志：玩家 " .. tostring(ui_state.viewed_player + 1) .. " ---", UI_THEME.hdr_rules) then
+        if plain_header("实时日志：玩家 " .. tostring(ui_state.viewed_player + 1)) then
             -- PLAYER SELECTOR (Forces refresh on change)
             if styled_button(ui_state.viewed_player == 0 and "正在记录 P1 (" .. players[0].profile_name .. ")" or "查看 P1 日志 (" .. players[0].profile_name .. ")", ui_state.viewed_player == 0 and UI_THEME.btn_green or UI_THEME.btn_neutral) then
                 if ui_state.viewed_player ~= 0 then
@@ -2121,7 +2120,7 @@ local function draw_combo_trials_menu_ui()
         -- ==========================================
         -- TAB 5: DEBUG & SYSTEM INFO
         -- ==========================================
-        if styled_header("--- 调试与系统信息 ---", UI_THEME.hdr_rules) then
+        if plain_header("调试与系统信息") then
             local show_ids_changed, show_ids = imgui.checkbox(
                 "显示所有未识别 Action ID",
                 d2d_cfg.show_unresolved_action_ids == true
@@ -2181,6 +2180,9 @@ local function draw_combo_trials_menu_ui()
             ]]--
         end
 
+        end)
+        imgui.unindent(18)
+        if not advanced_ok then error(advanced_err) end
         end -- 高级与调试
 
     end)
@@ -2191,11 +2193,7 @@ local function draw_combo_trials_menu_ui()
     end
 end
 
--- Register in floating window hub + keep standard menu entry
-if _G.FloatingScriptUI then
-_G.FloatingScriptUI.register("连段训练设置v0.99", draw_combo_trials_menu_ui)
-end
-re.on_draw_ui(draw_combo_trials_menu_ui)
+TrainingMenuRegistry.register("combo_config", draw_combo_trials_menu_ui)
 
 -- =========================================================
 -- Public API

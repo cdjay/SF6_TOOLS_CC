@@ -6,6 +6,7 @@
 -- Usage: local UIKit = require("func/UIKit")
 --   UIKit.styled_button(label, style, text_col)
 --   UIKit.styled_header(label, style)
+--   UIKit.plain_header(label)
 --   UIKit.COLORS.Green, .Red, .White, etc.
 --   UIKit.THEME.btn_neutral, .btn_green, .btn_red, .hdr_gold, .hdr_purple, .hdr_blue, .hdr_green
 --   UIKit.argb_to_abgr(argb_color)
@@ -46,6 +47,7 @@ M.THEME = {
     btn_hard    = { base = 0xFF0000FF, hover = 0xFF4444FF, active = 0xFF0000AA },
 
     -- Reusable header palettes (named by color, not by section)
+    hdr_dark_purple = { base = 0xFF5C314C, hover = 0xFF774262, active = 0xFF432238 },
     hdr_gold    = { base = 0xFFDB9834, hover = 0xFFE6A94D, active = 0xFFC78320 },
     hdr_purple  = { base = 0xFFB6599B, hover = 0xFFC770AC, active = 0xFFA04885 },
     hdr_blue    = { base = 0xFF5D6DDA, hover = 0xFF7382E6, active = 0xFF4555C9 },
@@ -71,6 +73,15 @@ function M.styled_header(label, style)
     imgui.push_style_color(24, style.base)
     imgui.push_style_color(25, style.hover)
     imgui.push_style_color(26, style.active)
+    local is_open = imgui.collapsing_header(label)
+    imgui.pop_style_color(3)
+    return is_open
+end
+
+function M.plain_header(label)
+    imgui.push_style_color(24, 0x00000000)
+    imgui.push_style_color(25, 0x00000000)
+    imgui.push_style_color(26, 0x00000000)
     local is_open = imgui.collapsing_header(label)
     imgui.pop_style_color(3)
     return is_open
