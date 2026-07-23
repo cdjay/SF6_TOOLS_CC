@@ -2275,8 +2275,20 @@ local function draw_advanced_moves_menu(pi, rname, cdata)
         imgui.tree_pop()
     end
 end
+local standalone_runtime_owned = false
 
+local function refresh_standalone_runtime_safety()
+    if config.standalone_enabled ~= true then return end
+    if _G.TrainingScriptManagerActiveThisFrame == true then return end
+    if type(RuntimeSafety.begin_frame) ~= "function"
+        or type(RuntimeSafety.allow_training_visuals) ~= "function" then
+        return
+    end
 
+    RuntimeSafety.begin_frame(nil, false, false, false)
+    RuntimeSafety.allow_training_visuals()
+    standalone_runtime_owned = true
+end
 
 -- Store last mouse click coordinates
 local debug_mouse_x, debug_mouse_y = 0.0, 0.0
@@ -3584,6 +3596,7 @@ re.on_frame(function()
     -- frame error.
     icons_to_draw = {}
     hud_draw_list = nil
+    refresh_standalone_runtime_safety()
 
     if _G.SF6_DistanceViewer_Enabled ~= true or not RuntimeSafety.is_training_allowed() then
         _dv_disable_runtime_effects()
@@ -4256,7 +4269,13 @@ local function draw_distance_viewer_menu_ui()
         if changed_enabled then
             config.standalone_enabled = new_enabled
             _G.SF6_DistanceViewer_Enabled = new_enabled
-            if not new_enabled then _dv_disable_runtime_effects() end
+            if not new_enabled then
+                _dv_disable_runtime_effects()
+                if standalone_runtime_owned and type(RuntimeSafety.disable) == "function" then
+                    RuntimeSafety.disable("standalone_visuals_disabled")
+                    standalone_runtime_owned = false
+                end
+            end
             save_settings()
             enabled = new_enabled
         end
@@ -4266,6 +4285,10 @@ local function draw_distance_viewer_menu_ui()
             imgui.text_colored("该开关保存在 DistanceViewer 配置中。", COL_GREY)
             imgui.tree_pop()
             return
+        end
+
+        if not RuntimeSafety.is_training_allowed() then
+            imgui.text_colored("HUD 仅在离线训练场显示；菜单设置仍可使用。", COL_YELLOW)
         end
 
         local changed_ov, new_ov = imgui.checkbox("浮动窗口", config.show_debug_window)
@@ -4324,6 +4347,5 @@ local function draw_distance_viewer_menu_ui()
 end
 
 re.on_draw_ui(function()
-    if not RuntimeSafety.is_training_allowed() then return end
     draw_distance_viewer_menu_ui()
 end)
