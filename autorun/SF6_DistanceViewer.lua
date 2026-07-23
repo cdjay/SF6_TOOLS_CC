@@ -291,6 +291,7 @@ local config = {
     -- Global
     marker_thickness = 5.0, marker_origin_shift = 0.0,
     -- Window State
+    standalone_enabled = false,
     show_debug_window = false,
 	expert_mode_enabled = false,
     window_pos_x = 20.0, window_pos_y = 20.0,
@@ -352,6 +353,9 @@ local function load_settings()
     end 
 end
 load_settings()
+if config.standalone_enabled == true then
+    _G.SF6_DistanceViewer_Enabled = true
+end
 auto_activate.delay_min = config.aa_delay_min or config.aa_delay_frames or 0
 auto_activate.delay_max = config.aa_delay_max or config.aa_delay_frames or 0
 auto_activate.neutral_buffer = config.aa_neutral_buffer or 12
@@ -4247,12 +4251,23 @@ end)
 
 local function draw_distance_viewer_menu_ui()
     if imgui.tree_node("SF6 距离查看器") then
-        if _G.SF6_DistanceViewer_Enabled ~= true then
-            imgui.text_colored("当前已由顶部菜单关闭。", COL_GREY)
-            imgui.text_colored("勾选顶部栏“距离显示”后生效。", COL_GREY)
+        local enabled = _G.SF6_DistanceViewer_Enabled == true
+        local changed_enabled, new_enabled = imgui.checkbox("启用纯 ImGui 距离显示", enabled)
+        if changed_enabled then
+            config.standalone_enabled = new_enabled
+            _G.SF6_DistanceViewer_Enabled = new_enabled
+            if not new_enabled then _dv_disable_runtime_effects() end
+            save_settings()
+            enabled = new_enabled
+        end
+
+        if not enabled then
+            imgui.text_colored("启用后显示纯 ImGui 距离 HUD。", COL_GREY)
+            imgui.text_colored("该开关保存在 DistanceViewer 配置中。", COL_GREY)
             imgui.tree_pop()
             return
         end
+
         local changed_ov, new_ov = imgui.checkbox("浮动窗口", config.show_debug_window)
         if changed_ov then
             config.show_debug_window = new_ov
