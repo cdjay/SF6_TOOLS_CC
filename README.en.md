@@ -119,6 +119,7 @@ Future releases will provide:
 - [Architecture](ARCHITECTURE.md)
 - [AI Development Guide](AGENTS.md)
 - [Contributing](CONTRIBUTING.md)
+- [WTT Merge Assessment (EN/中文)](docs/WAEL_MERGE_ASSESSMENT.md)
 
 Chinese entry: [README.md](README.md)
 
@@ -209,7 +210,7 @@ please read [CONTRIBUTING.md](CONTRIBUTING.md) before opening a Pull Request.
 
 # Acknowledgements
 
-SF6CC is built upon the excellent foundation provided by **WTT (Wael Training Tools)**.
+SF6CC is built upon the excellent foundation provided by **[WTT (Wael Training Tools / SF6_Tools)](https://github.com/Wael3rd/SF6_Tools)** and preserves the original MIT copyright notice and license terms.
 
 Special thanks to **Wael3rd** for creating and maintaining the project.
 
@@ -221,9 +222,9 @@ Our goal is to contribute general improvements back to WTT whenever practical wh
 
 Please refer to:
 
-* LICENSE
-* LICENSE_NOTES.md
-* CREDITS.md
+* [LICENSE](LICENSE)
+* [LICENSE_NOTES.md](LICENSE_NOTES.md)
+* [CREDITS.md](CREDITS.md)
 
 ---
 

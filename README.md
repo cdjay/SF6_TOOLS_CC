@@ -118,6 +118,7 @@ SF6CC 将永久免费。
 - [架构设计](ARCHITECTURE.zh-CN.md)
 - [AI 开发规范](AGENTS.zh-CN.md)
 - [贡献指南](CONTRIBUTING.zh-CN.md)
+- [与 WTT 合并评估（中英双语）](docs/WAEL_MERGE_ASSESSMENT.md)
 
 English entry: [README.en.md](README.en.md)
 
@@ -211,7 +212,7 @@ SF6CC 与 SF6CM 仅通过 JSON 数据交换，不直接依赖彼此。
 
 # 致谢
 
-SF6CC 基于 **WTT（Wael Training Tools）** 持续发展。
+SF6CC 基于 **[WTT（Wael Training Tools / SF6_Tools）](https://github.com/Wael3rd/SF6_Tools)** 持续发展，并保留原始项目的 MIT 版权声明与许可条款。
 
 感谢 **Wael3rd** 为 Street Fighter 6 社区打造优秀的训练框架。
 
@@ -227,9 +228,9 @@ SF6CC 基于 **WTT（Wael Training Tools）** 持续发展。
 
 请参阅：
 
-* LICENSE
-* LICENSE_NOTES.md
-* CREDITS.md
+* [LICENSE](LICENSE)
+* [LICENSE_NOTES.md](LICENSE_NOTES.md)
+* [CREDITS.md](CREDITS.md)
 
 ---
 
