@@ -301,6 +301,7 @@ local players = {
     [0] = {
         log = {}, prev_act_id = -1, prev_act_frame = -1, last_combo_count = 0,
         action_instance_counter = 0, current_action_instance = 0, buffer_action_instance = 0,
+        buffer_combo_count = 0,
         trigger_mask_cache = {}, trigger_cache_built = false,
         last_bcm_ptr = "", last_direct_input = 0, last_direction_input = 0,
         input_history_queue = {}, dash_tap_state = {},
@@ -313,6 +314,7 @@ local players = {
     [1] = {
         log = {}, prev_act_id = -1, prev_act_frame = -1, last_combo_count = 0,
         action_instance_counter = 0, current_action_instance = 0, buffer_action_instance = 0,
+        buffer_combo_count = 0,
         trigger_mask_cache = {}, trigger_cache_built = false,
         last_bcm_ptr = "", last_direct_input = 0, last_direction_input = 0,
         input_history_queue = {}, dash_tap_state = {},
@@ -4515,6 +4517,7 @@ local function reset_player_action_buffers(p_state)
     p_state.buffer_act_id = act_id
     p_state.buffer_act_frame = act_frame
     p_state.buffer_action_instance = p_state.current_action_instance
+    p_state.buffer_combo_count = _pf.current_combo or 0
     p_state.buffer_start_frame = engine_frame_count
     p_state.buffer_flags = _pf.flags or 0
     p_state.buffer_action_code = _pf.action_code or 0
@@ -4659,6 +4662,7 @@ local function clear_trial_attempt_state(player_idx, phase)
     reset_player_action_buffers(players[player_idx or trial_state.playing_player])
     for _, item in ipairs(trial_state.sequence) do
         item.actual_combo = 0
+        item.actual_hp = nil
         item.has_hit = false
         item.last_frame_diff = nil
         item.ui_result_text = nil
@@ -4704,6 +4708,7 @@ local function start_recording(player_idx)
     players[player_idx].prev_act_id = -1
     players[player_idx].prev_act_frame = -1
     players[player_idx].last_combo_count = 0
+    players[player_idx].buffer_combo_count = 0
     players[player_idx].last_direct_input = 0
     players[player_idx].last_direction_input = 0
     reset_combo_visual_runtime()
@@ -6591,6 +6596,7 @@ local function ct_player_init(p_idx, p_state)
         p_state.action_instance_counter = 0
         p_state.current_action_instance = 0
         p_state.buffer_action_instance = 0
+        p_state.buffer_combo_count = 0
         p_state.trigger_mask_cache = {}
         p_state.trigger_cache_built = false
         p_state._trigger_cache_build = nil
@@ -7299,6 +7305,7 @@ local function ct_player_input_buffer(p_state)
     p_state.buffer_newly_pressed = p_state.buffer_newly_pressed or 0
     p_state.buffer_b_type = p_state.buffer_b_type or 0
     p_state.buffer_hold_frames = p_state.buffer_hold_frames or 0
+    p_state.buffer_combo_count = p_state.buffer_combo_count or 0
     p_state.action_instance_counter = p_state.action_instance_counter or 0
     p_state.current_action_instance = p_state.current_action_instance or p_state.action_instance_counter
     p_state.buffer_action_instance = p_state.buffer_action_instance or p_state.current_action_instance
@@ -7349,10 +7356,26 @@ local function ct_player_input_buffer(p_state)
         expected_delay = repeat_expected and repeat_expected.delay_from_prev or 0,
         action_button_edge = action_input_edge
     })
+    local recording_last_step = trial_state.is_recording
+        and p_state == players[trial_state.recording_player]
+        and trial_state.sequence
+        and trial_state.sequence[#trial_state.sequence] or nil
+    local recording_repeat_input = ActionRestartDetector.evaluate_recording_repeat_input({
+        last_recorded_id = recording_last_step and recording_last_step.id or nil,
+        current_id = _pf.act_id,
+        buffered_id = p_state.buffer_act_id,
+        current_combo = _pf.current_combo or 0,
+        buffered_combo = p_state.buffer_combo_count,
+        action_button_edge = action_input_edge
+    })
+    local confirmed_repeat_input = expected_repeat_input.accepted
+    if recording_repeat_input.accepted then
+        confirmed_repeat_input = "recording_hit_confirmed_repeat_input"
+    end
     local started_new_action, started_new_action_reason = ActionRestartDetector.detect(
         _pf.act_id, _pf.act_frame, p_state.buffer_act_id, p_state.buffer_act_frame,
         p_state.dash_tap_state, engine_frame_count, restart_input_edge,
-        expected_repeat_input.accepted)
+        confirmed_repeat_input)
     if started_new_action and action_input_edge == 0 then
         -- Some actions switch one or two frames after the button edge. Reuse the
         -- newest post-parent physical edge instead of treating a held button as
@@ -7369,6 +7392,7 @@ local function ct_player_input_buffer(p_state)
         started_new_action = started_new_action,
         started_new_action_reason = started_new_action_reason,
         expected_repeat_input = expected_repeat_input,
+        recording_repeat_input = recording_repeat_input,
         dash_pair_direction = dash_pair and dash_pair.direction or nil,
         dash_pair_interval = dash_pair and dash_pair.interval or nil,
         skipped_due_to_duplicate = not started_new_action and _pf.act_id == p_state.buffer_act_id,
@@ -7487,6 +7511,7 @@ local function ct_player_input_buffer(p_state)
         p_state.buffer_act_id = _pf.act_id
         p_state.buffer_start_frame = engine_frame_count
         p_state.buffer_action_instance = p_state.current_action_instance
+        p_state.buffer_combo_count = _pf.current_combo or 0
         p_state.buffer_is_committed = false
         p_state.buffer_flags = _pf.flags
         p_state.buffer_action_code = _pf.action_code
@@ -8258,7 +8283,11 @@ local function ct_player_process_actions(p_idx, p_state, actions_to_process)
                                 expected.expected_hp,
                                 process_act.current_hp,
                                 is_post_hit_setup_step((trial_state.current_step or 1) - 1),
-                                expected
+                                expected,
+                                Validator.build_hp_context(
+                                    trial_state.sequence,
+                                    trial_state.current_step or 1
+                                )
                             ) or nil
                             match_probe.action_match = {
                                 matched = action_match.matched,
@@ -8422,7 +8451,11 @@ local function ct_player_process_actions(p_idx, p_state, actions_to_process)
                                                 chain_expected.expected_hp,
                                                 process_act.current_hp,
                                                 is_post_hit_setup_step(chain_step - 1),
-                                                chain_expected
+                                                chain_expected,
+                                                Validator.build_hp_context(
+                                                    trial_state.sequence,
+                                                    chain_step
+                                                )
                                             )
                                             chain_record.chain_combo_ok = chain_combo_ok
                                             chain_record.chain_hp_ok = chain_hp_ok

@@ -51,6 +51,36 @@ started, reason = detector.detect(904, 61, 904, 60, nil, nil, 32 | 64, repeat_ev
 assert(started == true and reason == "expected_repeat_action_input",
     "an expected same-ID command must create a new instance even when ActionFrame keeps advancing")
 
+local recording_repeat_eval = detector.evaluate_recording_repeat_input({
+    last_recorded_id = 621,
+    current_id = 621,
+    buffered_id = 621,
+    current_combo = 1,
+    buffered_combo = 0,
+    action_button_edge = 32
+})
+assert(recording_repeat_eval.accepted == true
+        and recording_repeat_eval.reason == "recording_repeat_input_ready",
+    "Dee Jay's linked second 2MP must be admitted after the first 2MP raises the combo count")
+
+started, reason = detector.detect(
+    621, 24, 621, 23, nil, nil, 32,
+    recording_repeat_eval.accepted and "recording_hit_confirmed_repeat_input")
+assert(started == true and reason == "recording_hit_confirmed_repeat_input",
+    "a hit-confirmed recording repeat must create a new instance while ActionFrame advances")
+
+recording_repeat_eval = detector.evaluate_recording_repeat_input({
+    last_recorded_id = 621,
+    current_id = 621,
+    buffered_id = 621,
+    current_combo = 1,
+    buffered_combo = 1,
+    action_button_edge = 32
+})
+assert(recording_repeat_eval.accepted == false
+        and recording_repeat_eval.reason == "recorded_action_hit_not_advanced",
+    "extra 2MP presses before another hit must not duplicate the recorded step")
+
 repeat_eval = detector.evaluate_expected_repeat_input({
     expected_id = 904,
     previous_id = 904,
