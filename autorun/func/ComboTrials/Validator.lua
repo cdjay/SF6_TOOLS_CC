@@ -11,6 +11,22 @@ function Validator.is_pressure_tail_step(step)
     return step.validation_role == "pressure_tail"
 end
 
+function Validator.is_non_damage_transition(expected, prev_step)
+    if type(expected) ~= "table" or type(prev_step) ~= "table" then return false end
+
+    local expected_combo = tonumber(expected.expected_combo)
+    local previous_combo = tonumber(prev_step.expected_combo)
+    local expected_damage = tonumber(expected.damage_at_step)
+    local previous_damage = tonumber(prev_step.damage_at_step)
+
+    return expected_combo ~= nil
+        and previous_combo ~= nil
+        and expected_combo == previous_combo
+        and expected_damage ~= nil
+        and previous_damage ~= nil
+        and expected_damage == previous_damage
+end
+
 function Validator.check_combo(params)
     local combo_ok = true
     local expected = params.expected
@@ -28,8 +44,13 @@ function Validator.check_combo(params)
                 (expected.expected_combo or 0) > prev_step.expected_combo
                 and current_combo > prev_step.expected_combo
                 and current_combo <= expected.expected_combo
-            if current_hit_already_counted then
+            local previous_hit_counted_on_transition =
+                Validator.is_non_damage_transition(expected, prev_step)
+                and current_combo == (tonumber(prev_step.expected_combo) or 0) + 1
+            if current_hit_already_counted or previous_hit_counted_on_transition then
                 -- The current move can update combo_cnt on the same frame as its action.
+                -- A non-damaging transition (drive rush, stance switch, etc.) may
+                -- likewise be the first frame where the previous hit becomes visible.
                 combo_ok = true
             elseif params.opponent_knocked_down and current_combo == 0 and prev_step.expected_combo == 0 then
                 combo_ok = true

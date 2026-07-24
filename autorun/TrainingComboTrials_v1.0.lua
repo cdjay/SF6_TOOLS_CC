@@ -11,6 +11,7 @@ local ComboTrialsModules = {
     ActionRestartDetector = require("func/ComboTrials/ActionRestartDetector"),
     CharacterRules = require("func/ComboTrials/CharacterRules"),
     Validator = require("func/ComboTrials/Validator"),
+    TrainingEnvironment = require("func/ComboTrials/TrainingEnvironment"),
     PendingAbsorb = require("func/ComboTrials/PendingAbsorb"),
     Telemetry = require("func/ComboTrials/Telemetry")
 }
@@ -3296,6 +3297,7 @@ local function capture_trial_environment()
         dummy_action_type = action_type,
         dummy_jump_type = jump_type,
         dummy_stance = stance,
+        dummy_guard_type = read_dummy_guard_type(),
     }
     local players_state = unique_resources.capture_by_side()
     if players_state then
@@ -3364,6 +3366,7 @@ local function apply_recording_environment_to_meta(meta)
     meta.environment = env
     meta.dummy_stance = env.dummy_stance
     meta.dummy_action_type = env.dummy_action_type
+    meta.dummy_guard_type = env.dummy_guard_type
 
     if environment_requests_dummy_crouch(env) then
         meta.requires_dummy_crouch = true
@@ -3528,33 +3531,10 @@ end
 
 function ct_trial_dummy_guard_type()
     local first_step = trial_state.sequence and trial_state.sequence[1]
-    if type(first_step) ~= "table" then return 2 end
-
-    local meta = type(first_step._xt_meta) == "table" and first_step._xt_meta or nil
-    local env = meta and type(meta.environment) == "table" and meta.environment or nil
-    local guard_type = tonumber(first_step.dummy_guard_type)
-        or (meta and tonumber(meta.dummy_guard_type) or nil)
-        or (env and tonumber(env.dummy_guard_type) or nil)
-
-    if guard_type == nil then
-        local guard_name = first_step.dummy_guard
-            or (meta and meta.dummy_guard or nil)
-            or (env and env.dummy_guard or nil)
-        if type(guard_name) == "string" then
-            local guard_text = guard_name:lower()
-            if guard_text == "none" or guard_text == "no" or guard_text == "off" then
-                guard_type = 0
-            elseif guard_text == "after_first_hit" or guard_text == "after-first-hit" or guard_text == "after first hit" then
-                guard_type = 2
-            elseif guard_text == "all" or guard_text == "guard_all" or guard_text == "full" then
-                guard_type = 3
-            elseif guard_text == "random" then
-                guard_type = 4
-            end
-        end
-    end
-
-    if guard_type == nil or guard_type < 0 or guard_type > 4 then guard_type = 2 end
+    local fallback = trial_state._saved_guard_type
+    if fallback == nil then fallback = read_dummy_guard_type() end
+    local guard_type, source = ComboTrialsModules.TrainingEnvironment.resolve_dummy_guard_type(first_step, fallback)
+    trial_state._dummy_guard_type_source = source
     return guard_type
 end
 
@@ -6495,9 +6475,8 @@ local function ct_handle_playing_transition()
         trial_state._pending_reinject_settings = false
         restore_dummy_action_type()
         set_dummy_counter_type(0)
-        set_dummy_guard_type(0)
+        restore_dummy_guard_type()
         trial_state._saved_counter_type = nil
-        trial_state._saved_guard_type = nil
         trial_state._saved_dummy_action_type = nil
         reset_positions_to_default()
     end
@@ -9357,6 +9336,7 @@ function save_trial_sequence(meta)
         if type(environment) == "table" then
             trial_state.sequence[1].dummy_action_type = environment.dummy_action_type
             trial_state.sequence[1].dummy_jump_type = environment.dummy_jump_type
+            trial_state.sequence[1].dummy_guard_type = environment.dummy_guard_type
         end
         trial_state.sequence[1]._xt_meta = apply_recording_environment_to_meta(meta)
         if type(trial_state._raw_rec_buffer) == "table" and #trial_state._raw_rec_buffer > 0 then
