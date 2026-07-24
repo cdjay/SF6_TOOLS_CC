@@ -127,8 +127,106 @@ function M.evaluate_expected_repeat_input(params)
     return result
 end
 
+-- Recording has no future sequence step to prove that an advancing same-ID
+-- action is a repeat. A prior hit or block contact admits a new attack edge as
+-- a candidate. The candidate is not an action yet; a later, distinct contact
+-- confirms that the repeated move really came out.
+function M.evaluate_recording_repeat_input(params)
+    params = type(params) == "table" and params or {}
+    local result = {
+        accepted = false,
+        reason = nil,
+        last_recorded_id = tonumber(params.last_recorded_id),
+        current_id = tonumber(params.current_id),
+        buffered_id = tonumber(params.buffered_id),
+        contact_serial = tonumber(params.contact_serial) or 0,
+        action_button_edge = (tonumber(params.action_button_edge) or 0) & 0xFFF0
+    }
+
+    if result.action_button_edge == 0 then
+        result.reason = "missing_attack_edge"
+    elseif result.last_recorded_id == nil then
+        result.reason = "missing_recorded_action"
+    elseif result.current_id ~= result.last_recorded_id
+        or result.buffered_id ~= result.last_recorded_id then
+        result.reason = "runtime_action_id_mismatch"
+    elseif result.contact_serial <= 0 then
+        result.reason = "recorded_action_has_no_prior_contact"
+    else
+        result.accepted = true
+        result.reason = "recording_repeat_candidate_ready"
+    end
+    return result
+end
+
+function M.evaluate_recording_repeat_contact(params)
+    params = type(params) == "table" and params or {}
+    local result = {
+        accepted = false,
+        reason = nil,
+        candidate_id = tonumber(params.candidate_id),
+        current_id = tonumber(params.current_id),
+        contact_serial_at_input = tonumber(params.contact_serial_at_input) or 0,
+        current_contact_serial = tonumber(params.current_contact_serial) or 0
+    }
+
+    if result.candidate_id == nil then
+        result.reason = "missing_recording_repeat_candidate"
+    elseif result.current_id ~= result.candidate_id then
+        result.reason = "recording_repeat_action_id_mismatch"
+    elseif result.current_contact_serial <= result.contact_serial_at_input then
+        result.reason = "recording_repeat_contact_not_advanced"
+    else
+        result.accepted = true
+        result.reason = "recording_repeat_contact_confirmed"
+    end
+    return result
+end
+
+-- Separate normal hits can both expose combo_cnt == 1 when the polling sample
+-- misses the brief reset between them. A real victim HP decrease is an
+-- independent contact edge for recording, while an unchanged/refilling HP
+-- value cannot confirm a repeated action that never came out.
+function M.evaluate_recording_hit_contact(params)
+    params = type(params) == "table" and params or {}
+    local result = {
+        accepted = false,
+        reason = nil,
+        current_combo = tonumber(params.current_combo) or 0,
+        previous_combo = tonumber(params.previous_combo) or 0,
+        current_hp = tonumber(params.current_hp),
+        previous_hp = tonumber(params.previous_hp),
+        blocked = params.blocked == true
+    }
+    result.combo_increased = result.current_combo > result.previous_combo
+    result.hp_decreased = result.current_hp ~= nil
+        and result.previous_hp ~= nil
+        and result.current_hp < result.previous_hp
+
+    if result.combo_increased then
+        result.accepted = true
+        result.reason = "combo_increased"
+    elseif result.hp_decreased and not result.blocked then
+        result.accepted = true
+        result.reason = "victim_hp_decreased"
+    elseif result.hp_decreased then
+        result.reason = "blocked_hp_decrease"
+    else
+        result.reason = "no_new_hit_contact"
+    end
+    return result
+end
+
+function M.evaluate_block_contact(damage_type, was_active)
+    local active = tonumber(damage_type) == 30
+    return {
+        active = active,
+        started = active and was_active ~= true
+    }
+end
+
 function M.detect(current_id, current_frame, buffered_id, buffered_frame, state, current_tick,
-        action_button_edge, expected_repeat_input)
+        action_button_edge, confirmed_repeat_input)
     current_id = tonumber(current_id) or -1
     buffered_id = tonumber(buffered_id) or -1
     current_frame = tonumber(current_frame) or -1
@@ -155,13 +253,14 @@ function M.detect(current_id, current_frame, buffered_id, buffered_frame, state,
     end
 
     -- Some commands can be entered again while the engine keeps both the same
-    -- Action ID and a monotonically advancing ActionFrame. Only admit a fresh
-    -- attack edge when the trial context independently proves that the next
-    -- expected step is the same action and its timing gate is ready. Do not
-    -- require the previous move's full hit count here: projectile follow-ups
-    -- can be entered before all hits from the first command have resolved.
-    if expected_repeat_input == true and action_button_edge ~= 0 then
-        return true, "expected_repeat_action_input"
+    -- Action ID and a monotonically advancing ActionFrame. Playback may admit a
+    -- fresh edge when the recorded sequence independently proves that the next
+    -- expected step is the same action. Recording deliberately does not use
+    -- this immediate path: it waits for a real hit before committing a repeat.
+    if confirmed_repeat_input and action_button_edge ~= 0 then
+        local confirmation_reason = type(confirmed_repeat_input) == "string"
+            and confirmed_repeat_input or "expected_repeat_action_input"
+        return true, confirmation_reason
     end
 
     if current_frame >= buffered_frame then

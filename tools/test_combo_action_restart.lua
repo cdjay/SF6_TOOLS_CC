@@ -51,6 +51,108 @@ started, reason = detector.detect(904, 61, 904, 60, nil, nil, 32 | 64, repeat_ev
 assert(started == true and reason == "expected_repeat_action_input",
     "an expected same-ID command must create a new instance even when ActionFrame keeps advancing")
 
+local recording_repeat_eval = detector.evaluate_recording_repeat_input({
+    last_recorded_id = 621,
+    current_id = 621,
+    buffered_id = 621,
+    contact_serial = 1,
+    action_button_edge = 32
+})
+assert(recording_repeat_eval.accepted == true
+        and recording_repeat_eval.reason == "recording_repeat_candidate_ready",
+    "Dee Jay's second 2MP edge must become a candidate after the first hit or block contact")
+
+started, reason = detector.detect(621, 24, 621, 23, nil, nil, 32, false)
+assert(started == false and reason == "no_new_action",
+    "a recording candidate must not create a step before the repeated action really hits")
+
+local recording_repeat_contact = detector.evaluate_recording_repeat_contact({
+    candidate_id = 621,
+    current_id = 621,
+    contact_serial_at_input = 1,
+    current_contact_serial = 1
+})
+assert(recording_repeat_contact.accepted == false
+        and recording_repeat_contact.reason == "recording_repeat_contact_not_advanced",
+    "a too-fast second 2MP that never comes out must remain an uncommitted candidate")
+
+recording_repeat_contact = detector.evaluate_recording_repeat_contact({
+    candidate_id = 621,
+    current_id = 621,
+    contact_serial_at_input = 1,
+    current_contact_serial = 2
+})
+assert(recording_repeat_contact.accepted == true
+        and recording_repeat_contact.reason == "recording_repeat_contact_confirmed",
+    "the second 2MP must be confirmed only when it produces a later hit or block contact")
+
+recording_repeat_eval = detector.evaluate_recording_repeat_input({
+    last_recorded_id = 621,
+    current_id = 621,
+    buffered_id = 621,
+    contact_serial = 0,
+    action_button_edge = 32
+})
+assert(recording_repeat_eval.accepted == false
+        and recording_repeat_eval.reason == "recorded_action_has_no_prior_contact",
+    "a repeat edge before the first 2MP has contacted must not become a candidate")
+
+local block_contact = detector.evaluate_block_contact(30, false)
+assert(block_contact.active == true and block_contact.started == true,
+    "damage_type 30 must create one recording contact when block starts")
+block_contact = detector.evaluate_block_contact(30, true)
+assert(block_contact.active == true and block_contact.started == false,
+    "continued blockstun frames must not create duplicate contacts")
+block_contact = detector.evaluate_block_contact(0, true)
+assert(block_contact.active == false and block_contact.started == false,
+    "leaving blockstun must re-arm the next block contact")
+
+local hit_contact = detector.evaluate_recording_hit_contact({
+    current_combo = 1,
+    previous_combo = 1,
+    current_hp = 8400,
+    previous_hp = 9000
+})
+assert(hit_contact.accepted == true and hit_contact.reason == "victim_hp_decreased",
+    "a second normal hit must create a contact even when combo_cnt remains 1")
+
+hit_contact = detector.evaluate_recording_hit_contact({
+    current_combo = 1,
+    previous_combo = 1,
+    current_hp = 9000,
+    previous_hp = 9000
+})
+assert(hit_contact.accepted == false and hit_contact.reason == "no_new_hit_contact",
+    "an unchanged HP value must not confirm a repeated move that never came out")
+
+hit_contact = detector.evaluate_recording_hit_contact({
+    current_combo = 1,
+    previous_combo = 0,
+    current_hp = 9000,
+    previous_hp = 9000
+})
+assert(hit_contact.accepted == true and hit_contact.reason == "combo_increased",
+    "the existing combo counter hit edge must remain valid")
+
+hit_contact = detector.evaluate_recording_hit_contact({
+    current_combo = 1,
+    previous_combo = 1,
+    current_hp = 10000,
+    previous_hp = 9000
+})
+assert(hit_contact.accepted == false and hit_contact.reason == "no_new_hit_contact",
+    "training-mode HP refill must not look like a hit")
+
+hit_contact = detector.evaluate_recording_hit_contact({
+    current_combo = 1,
+    previous_combo = 1,
+    current_hp = 8900,
+    previous_hp = 9000,
+    blocked = true
+})
+assert(hit_contact.accepted == false and hit_contact.reason == "blocked_hp_decrease",
+    "chip damage on block must stay a single block contact")
+
 repeat_eval = detector.evaluate_expected_repeat_input({
     expected_id = 904,
     previous_id = 904,
