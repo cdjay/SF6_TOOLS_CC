@@ -1094,14 +1094,17 @@ d2d_cfg.allow_classic_trials_in_modern = d2d_cfg.allow_classic_trials_in_modern 
 -- Keep state on file_system to avoid adding main-chunk locals.
 -- =========================================================
 file_system.completed_trials = file_system.completed_trials or {}
+file_system.completed_trials_store = require("func/RecoverableJsonFile").new(
+    "TrainingComboTrials_data/CompletedTrials.json",
+    "TrainingComboTrials_data/CompletedTrials.recovery.json"
+)
 
 file_system.completed_trial_key = function(path)
     return (tostring(path or ""):gsub("\\", "/")):lower()
 end
 
 file_system.save_completed_trials = function()
-    if fs and fs.create_dir then pcall(fs.create_dir, "TrainingComboTrials_data") end
-    json.dump_file("TrainingComboTrials_data/CompletedTrials.json", file_system.completed_trials)
+    return file_system.completed_trials_store:save(file_system.completed_trials)
 end
 
 file_system.is_trial_completed = function(path)
@@ -1123,8 +1126,7 @@ file_system.clear_completed_trials = function()
 end
 
 pcall(function()
-    if type(_G.safe_load_json) ~= "function" then return end
-    local loaded = _G.safe_load_json("TrainingComboTrials_data/CompletedTrials.json")
+    local loaded = file_system.completed_trials_store:load({})
     if type(loaded) ~= "table" then return end
     for key, value in pairs(loaded) do
         if type(key) == "string" and value then file_system.completed_trials[key] = true end
