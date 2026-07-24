@@ -652,13 +652,21 @@ local function counter_type_from_hit_type(hit_type)
     return 0
 end
 
-local function read_live_counter_type(victim_obj)
+_G.CTRecordingRepeat = _G.CTRecordingRepeat or {}
+
+function _G.CTRecordingRepeat.read_live_counter_type(victim_obj)
     if not victim_obj then return 0 end
     local pc = victim_obj:get_type_definition():get_field("counter_fw_flag"):get_data(victim_obj)
     local ch = victim_obj:get_type_definition():get_field("counter_dm_flag"):get_data(victim_obj)
     if pc == true then return 2 end
     if ch == true then return 1 end
     return 0
+end
+
+function _G.CTRecordingRepeat.read_live_damage_type(player_obj)
+    if not player_obj then return 0 end
+    local raw_value = player_obj:get_field("damage_type")
+    return tonumber(raw_value) or tonumber(tostring(raw_value)) or 0
 end
 
 -- =========================================================
@@ -4530,6 +4538,8 @@ local function reset_player_action_buffers(p_state)
     p_state.buffer_action_instance = p_state.current_action_instance
     p_state.buffer_combo_count = _pf.current_combo or 0
     p_state.recording_repeat_candidate = nil
+    p_state.recording_contact_serial = 0
+    p_state.recording_block_contact_active = false
     p_state.buffer_start_frame = engine_frame_count
     p_state.buffer_flags = _pf.flags or 0
     p_state.buffer_action_code = _pf.action_code or 0
@@ -4722,6 +4732,8 @@ local function start_recording(player_idx)
     players[player_idx].last_combo_count = 0
     players[player_idx].buffer_combo_count = 0
     players[player_idx].recording_repeat_candidate = nil
+    players[player_idx].recording_contact_serial = 0
+    players[player_idx].recording_block_contact_active = false
     players[player_idx].last_direct_input = 0
     players[player_idx].last_direction_input = 0
     reset_combo_visual_runtime()
@@ -4779,6 +4791,8 @@ local function start_trial(player_idx)
     end
     trial_state.is_recording = false
     players[trial_state.recording_player].recording_repeat_candidate = nil
+    players[trial_state.recording_player].recording_contact_serial = 0
+    players[trial_state.recording_player].recording_block_contact_active = false
     invalidate_recording_display_context()
     trial_state._raw_rec_active = false
     trial_state._rec_gauges = nil
@@ -4828,6 +4842,8 @@ local function cancel_recording()
     local canceled_player = trial_state.recording_player
     trial_state.is_recording = false
     players[canceled_player].recording_repeat_candidate = nil
+    players[canceled_player].recording_contact_serial = 0
+    players[canceled_player].recording_block_contact_active = false
     trial_state.is_playing = false
     invalidate_recording_display_context()
     trial_state.sequence = {}
@@ -4892,6 +4908,8 @@ local function stop_recording_and_save()
     local saved_player = trial_state.recording_player
     trial_state.is_recording = false
     players[saved_player].recording_repeat_candidate = nil
+    players[saved_player].recording_contact_serial = 0
+    players[saved_player].recording_block_contact_active = false
     trial_state._raw_rec_active = false
 
     -- MERGE LOGGER TIMELINE IN MEMORY (no intermediate file)
@@ -5556,7 +5574,7 @@ local function _ct_track_rec_gauges(victim, p_char, p_idx)
 end
 
 local function _ct_capture_rec_hit_type(victim_obj)
-    local counter_type = read_live_counter_type(victim_obj)
+    local counter_type = _G.CTRecordingRepeat.read_live_counter_type(victim_obj)
     if counter_type == 2 then
         trial_state._rec_hit_type = "PC"
     elseif counter_type == 1 and trial_state._rec_hit_type ~= "PC" then
@@ -6314,6 +6332,10 @@ local function cleanup_combo_trials_runtime_on_scene_exit(reason)
     trial_state.is_recording = false
     players[0].recording_repeat_candidate = nil
     players[1].recording_repeat_candidate = nil
+    players[0].recording_contact_serial = 0
+    players[1].recording_contact_serial = 0
+    players[0].recording_block_contact_active = false
+    players[1].recording_block_contact_active = false
     trial_state._raw_rec_active = false
     trial_state._raw_rec_buffer = {}
     trial_state._was_playing = false
@@ -6614,6 +6636,8 @@ local function ct_player_init(p_idx, p_state)
         p_state.buffer_action_instance = 0
         p_state.buffer_combo_count = 0
         p_state.recording_repeat_candidate = nil
+        p_state.recording_contact_serial = 0
+        p_state.recording_block_contact_active = false
         p_state.trigger_mask_cache = {}
         p_state.trigger_cache_built = false
         p_state._trigger_cache_build = nil
@@ -6665,6 +6689,25 @@ local function ct_player_init(p_idx, p_state)
 
 end
 
+function _G.CTRecordingRepeat.record_contact(p_state, event)
+    p_state.recording_contact_serial = (p_state.recording_contact_serial or 0) + 1
+    local repeat_candidate = p_state.recording_repeat_candidate
+    local repeat_contact = ActionRestartDetector.evaluate_recording_repeat_contact({
+        candidate_id = repeat_candidate and repeat_candidate.id or nil,
+        current_id = event.action_id,
+        contact_serial_at_input = repeat_candidate and repeat_candidate.contact_serial_at_input or nil,
+        current_contact_serial = p_state.recording_contact_serial
+    })
+    if not (repeat_candidate and repeat_contact.accepted) then return false end
+
+    repeat_candidate.contact_confirmed = true
+    repeat_candidate.confirmed_combo = event.combo_count or 0
+    repeat_candidate.counter_type = event.counter_type or 0
+    repeat_candidate.contact_kind = event.kind
+    repeat_candidate.is_projectile_hit = event.is_projectile_hit == true
+    return true
+end
+
 local function ct_player_tracking(p_idx, p_state)
     -- LILY STRICT: Track physical button held on controller
     if p_state.profile_name == "Lily" and #p_state.log > 0 and p_state.log[1].trigger_mask then
@@ -6707,6 +6750,31 @@ local function ct_player_tracking(p_idx, p_state)
         pcall(_ct_track_rec_gauges, _pf.victim_obj, _pf.p_char, p_idx)
     end
 
+    if trial_state.is_recording and p_idx == trial_state.recording_player then
+        local victim_damage_type = 0
+        local damage_ok, captured_damage_type =
+            pcall(_G.CTRecordingRepeat.read_live_damage_type, _pf.victim_obj)
+        if damage_ok then victim_damage_type = captured_damage_type or 0 end
+        local block_contact = ActionRestartDetector.evaluate_block_contact(
+            victim_damage_type, p_state.recording_block_contact_active)
+        if block_contact.started then
+            local claimed_by_repeat = _G.CTRecordingRepeat.record_contact(p_state, {
+                action_id = _pf.act_id,
+                combo_count = _pf.current_combo or 0,
+                counter_type = 0,
+                kind = "block"
+            })
+            if not claimed_by_repeat and #trial_state.sequence > 0 then
+                local step = trial_state.sequence[#trial_state.sequence]
+                step.has_contact = true
+                step.was_blocked = true
+            end
+        end
+        p_state.recording_block_contact_active = block_contact.active
+    else
+        p_state.recording_block_contact_active = false
+    end
+
     -- Hit detection for visual display (has_hit + actual_combo + projectile)
     if (_pf.current_combo or 0) > (p_state.last_combo_count or 0) then
         -- Verify hit source: projectile or direct player hit
@@ -6717,7 +6785,8 @@ local function ct_player_tracking(p_idx, p_state)
 
         if trial_state.is_recording and p_idx == trial_state.recording_player then
             local hit_counter_type = 0
-            local counter_ok, captured_counter = pcall(read_live_counter_type, _pf.victim_obj)
+            local counter_ok, captured_counter =
+                pcall(_G.CTRecordingRepeat.read_live_counter_type, _pf.victim_obj)
             if counter_ok then hit_counter_type = captured_counter or 0 end
             if trial_state._rec_first_hit_counter_type == nil then
                 trial_state._rec_first_hit_counter_type = hit_counter_type
@@ -6728,21 +6797,16 @@ local function ct_player_tracking(p_idx, p_state)
                 end
             end
 
-            local repeat_candidate = p_state.recording_repeat_candidate
-            local repeat_hit = ActionRestartDetector.evaluate_recording_repeat_hit({
-                candidate_id = repeat_candidate and repeat_candidate.id or nil,
-                current_id = _pf.act_id,
-                combo_at_input = repeat_candidate and repeat_candidate.combo_at_input or nil,
-                current_combo = _pf.current_combo or 0
+            local hit_claimed_by_repeat = _G.CTRecordingRepeat.record_contact(p_state, {
+                action_id = _pf.act_id,
+                combo_count = _pf.current_combo or 0,
+                counter_type = hit_counter_type,
+                kind = "hit",
+                is_projectile_hit = hit_is_projectile
             })
-            local hit_claimed_by_repeat = repeat_candidate and repeat_hit.accepted
-            if hit_claimed_by_repeat then
-                repeat_candidate.hit_confirmed = true
-                repeat_candidate.confirmed_combo = _pf.current_combo or 0
-                repeat_candidate.counter_type = hit_counter_type
-                repeat_candidate.is_projectile_hit = hit_is_projectile
-            elseif #trial_state.sequence > 0 then
+            if not hit_claimed_by_repeat and #trial_state.sequence > 0 then
                 local step = trial_state.sequence[#trial_state.sequence]
+                step.has_contact = true
                 -- has_hit is now handled by on_frame delayed combo tracking
                 -- Track if there was AT LEAST one projectile hit during the action
                 step.is_projectile_hit = step.is_projectile_hit or hit_is_projectile
@@ -7348,13 +7412,13 @@ local function ct_player_input_buffer(p_state)
 
     local actions_to_process = {}
     local confirmed_recording_repeat = p_state.recording_repeat_candidate
-    if confirmed_recording_repeat and confirmed_recording_repeat.hit_confirmed then
+    if confirmed_recording_repeat and confirmed_recording_repeat.contact_confirmed then
         p_state.recording_repeat_candidate = nil
         p_state.action_instance_counter = (p_state.action_instance_counter or 0) + 1
         p_state.current_action_instance = p_state.action_instance_counter
         confirmed_recording_repeat.action_instance = p_state.current_action_instance
-        confirmed_recording_repeat.recording_repeat_hit_confirmed = true
-        confirmed_recording_repeat.previous_combo = confirmed_recording_repeat.combo_at_input
+        confirmed_recording_repeat.recording_repeat_contact_confirmed = true
+        confirmed_recording_repeat.previous_combo = confirmed_recording_repeat.previous_step_combo
         table.insert(actions_to_process, confirmed_recording_repeat)
 
         p_state.buffer_act_id = confirmed_recording_repeat.id
@@ -7374,9 +7438,6 @@ local function ct_player_input_buffer(p_state)
         p_state.buffer_p2 = confirmed_recording_repeat.p2
         p_state.buffer_r1 = confirmed_recording_repeat.r1
         p_state.buffer_r2 = confirmed_recording_repeat.r2
-    elseif confirmed_recording_repeat
-        and (_pf.current_combo or 0) < (confirmed_recording_repeat.combo_at_input or 0) then
-        p_state.recording_repeat_candidate = nil
     end
 
     if p_state._same_dash_fallback_eval_step ~= trial_state.current_step then
@@ -7431,8 +7492,7 @@ local function ct_player_input_buffer(p_state)
         last_recorded_id = recording_last_step and recording_last_step.id or nil,
         current_id = _pf.act_id,
         buffered_id = p_state.buffer_act_id,
-        current_combo = _pf.current_combo or 0,
-        buffered_combo = p_state.buffer_combo_count,
+        contact_serial = p_state.recording_contact_serial,
         action_button_edge = action_input_edge
     })
     local confirmed_repeat_input = expected_repeat_input.accepted
@@ -7469,6 +7529,11 @@ local function ct_player_input_buffer(p_state)
             r1 = r1, r2 = r2,
             current_hp = _pf.p_char.vital_new,
             combo_at_input = _pf.current_combo or 0,
+            previous_step_combo = math.max(
+                recording_last_step and (recording_last_step.expected_combo or 0) or 0,
+                p_state.last_combo_count or 0,
+                _pf.current_combo or 0),
+            contact_serial_at_input = p_state.recording_contact_serial or 0,
             previous_damage_at_input = previous_damage_at_input,
             source = "recording_repeat_candidate"
         }
@@ -8206,7 +8271,10 @@ local function ct_player_process_actions(p_idx, p_state, actions_to_process)
                         hold_partial_check = ActionMatcher.hold_partial_check_enabled(exc),
                         expected_combo = process_act.confirmed_combo or 0,
                         actual_combo = process_act.confirmed_combo or 0,
-                        has_hit = process_act.recording_repeat_hit_confirmed == true,
+                        has_hit = process_act.recording_repeat_contact_confirmed == true
+                            and process_act.contact_kind == "hit",
+                        has_contact = process_act.recording_repeat_contact_confirmed == true,
+                        was_blocked = process_act.contact_kind == "block",
                         is_projectile_hit = process_act.is_projectile_hit == true,
                         delay_from_prev = delay,
                         facing_left = is_facing_left,
@@ -9365,7 +9433,8 @@ function save_trial_sequence(meta)
 
                 -- FINAL WHIFF DETECTION: Apply the tag on the very last recorded hit
                 -- Also consider expected_combo > 0 as proof of hit (cancel/last hit)
-                if not last_step.has_hit and (last_step.expected_combo or 0) == 0 then
+                if not last_step.has_hit and not last_step.has_contact
+                    and (last_step.expected_combo or 0) == 0 then
                     local p_id = last_step.id or 0
                     local is_mov = (p_id == 17 or p_id == 18 or p_id == 36 or p_id == 37 or p_id == 38) or is_drive_rush_id(p_id)
                     local is_ingrid_charge_stock = ct_is_ingrid_charge_stock_action(char_name, p_id)

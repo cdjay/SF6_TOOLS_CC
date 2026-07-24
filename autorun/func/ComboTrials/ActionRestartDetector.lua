@@ -128,9 +128,9 @@ function M.evaluate_expected_repeat_input(params)
 end
 
 -- Recording has no future sequence step to prove that an advancing same-ID
--- action is a repeat. The previous action must already have connected before a
--- new attack edge is admitted as a candidate. The candidate is not an action
--- yet; evaluate_recording_repeat_hit confirms it only after another real hit.
+-- action is a repeat. A prior hit or block contact admits a new attack edge as
+-- a candidate. The candidate is not an action yet; a later, distinct contact
+-- confirms that the repeated move really came out.
 function M.evaluate_recording_repeat_input(params)
     params = type(params) == "table" and params or {}
     local result = {
@@ -139,8 +139,7 @@ function M.evaluate_recording_repeat_input(params)
         last_recorded_id = tonumber(params.last_recorded_id),
         current_id = tonumber(params.current_id),
         buffered_id = tonumber(params.buffered_id),
-        current_combo = tonumber(params.current_combo) or 0,
-        buffered_combo = tonumber(params.buffered_combo) or 0,
+        contact_serial = tonumber(params.contact_serial) or 0,
         action_button_edge = (tonumber(params.action_button_edge) or 0) & 0xFFF0
     }
 
@@ -151,8 +150,8 @@ function M.evaluate_recording_repeat_input(params)
     elseif result.current_id ~= result.last_recorded_id
         or result.buffered_id ~= result.last_recorded_id then
         result.reason = "runtime_action_id_mismatch"
-    elseif result.current_combo <= result.buffered_combo then
-        result.reason = "recorded_action_hit_not_advanced"
+    elseif result.contact_serial <= 0 then
+        result.reason = "recorded_action_has_no_prior_contact"
     else
         result.accepted = true
         result.reason = "recording_repeat_candidate_ready"
@@ -160,28 +159,36 @@ function M.evaluate_recording_repeat_input(params)
     return result
 end
 
-function M.evaluate_recording_repeat_hit(params)
+function M.evaluate_recording_repeat_contact(params)
     params = type(params) == "table" and params or {}
     local result = {
         accepted = false,
         reason = nil,
         candidate_id = tonumber(params.candidate_id),
         current_id = tonumber(params.current_id),
-        combo_at_input = tonumber(params.combo_at_input) or 0,
-        current_combo = tonumber(params.current_combo) or 0
+        contact_serial_at_input = tonumber(params.contact_serial_at_input) or 0,
+        current_contact_serial = tonumber(params.current_contact_serial) or 0
     }
 
     if result.candidate_id == nil then
         result.reason = "missing_recording_repeat_candidate"
     elseif result.current_id ~= result.candidate_id then
         result.reason = "recording_repeat_action_id_mismatch"
-    elseif result.current_combo <= result.combo_at_input then
-        result.reason = "recording_repeat_hit_not_advanced"
+    elseif result.current_contact_serial <= result.contact_serial_at_input then
+        result.reason = "recording_repeat_contact_not_advanced"
     else
         result.accepted = true
-        result.reason = "recording_repeat_hit_confirmed"
+        result.reason = "recording_repeat_contact_confirmed"
     end
     return result
+end
+
+function M.evaluate_block_contact(damage_type, was_active)
+    local active = tonumber(damage_type) == 30
+    return {
+        active = active,
+        started = active and was_active ~= true
+    }
 end
 
 function M.detect(current_id, current_frame, buffered_id, buffered_frame, state, current_tick,
