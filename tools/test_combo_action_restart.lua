@@ -62,8 +62,8 @@ repeat_eval = detector.evaluate_expected_repeat_input({
     expected_delay = 48,
     action_button_edge = 32 | 64
 })
-assert(repeat_eval.accepted == false and repeat_eval.reason == "previous_combo_not_reached",
-    "buffer noise before the previous move reaches its recorded hits must not create a repeat")
+assert(repeat_eval.accepted == true and repeat_eval.reason == "expected_repeat_input_ready",
+    "a timed projectile repeat must not wait for every hit from the previous command")
 
 repeat_eval = detector.evaluate_expected_repeat_input({
     expected_id = 904,

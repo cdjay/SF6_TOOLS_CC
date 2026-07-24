@@ -114,8 +114,6 @@ function M.evaluate_expected_repeat_input(params)
         result.reason = "sequence_not_same_action"
     elseif result.current_id ~= result.expected_id or result.buffered_id ~= result.expected_id then
         result.reason = "runtime_action_id_mismatch"
-    elseif result.current_combo < result.previous_expected_combo then
-        result.reason = "previous_combo_not_reached"
     elseif result.frames_since_previous < result.earliest_frame then
         result.reason = "before_expected_repeat_window"
     else
@@ -155,7 +153,9 @@ function M.detect(current_id, current_frame, buffered_id, buffered_frame, state,
     -- Some commands can be entered again while the engine keeps both the same
     -- Action ID and a monotonically advancing ActionFrame. Only admit a fresh
     -- attack edge when the trial context independently proves that the next
-    -- expected step is the same action and its hit/timing gates are ready.
+    -- expected step is the same action and its timing gate is ready. Do not
+    -- require the previous move's full hit count here: projectile follow-ups
+    -- can be entered before all hits from the first command have resolved.
     if expected_repeat_input == true and action_button_edge ~= 0 then
         return true, "expected_repeat_action_input"
     end
