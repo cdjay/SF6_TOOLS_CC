@@ -58,6 +58,20 @@ repeat_eval = detector.evaluate_expected_repeat_input({
     buffered_id = 904,
     current_combo = 1,
     previous_expected_combo = 4,
+    frames_since_previous = 43,
+    expected_delay = 48,
+    action_button_edge = 32 | 64
+})
+assert(repeat_eval.accepted == true and repeat_eval.reason == "expected_repeat_input_ready",
+    "a recorded same-ID command buffered 5f before its action point must create the next instance")
+
+repeat_eval = detector.evaluate_expected_repeat_input({
+    expected_id = 904,
+    previous_id = 904,
+    current_id = 904,
+    buffered_id = 904,
+    current_combo = 1,
+    previous_expected_combo = 4,
     frames_since_previous = 48,
     expected_delay = 48,
     action_button_edge = 32 | 64

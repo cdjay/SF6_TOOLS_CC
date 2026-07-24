@@ -10,7 +10,11 @@ local REPEATABLE_COMMON_ACTIONS = {
 
 local DEFAULT_DASH_TAP_WINDOW = 12
 local DASH_ACTION_BIND_WINDOW = 12
-local DEFAULT_EXPECTED_REPEAT_EARLY_WINDOW = 4
+-- Match the player-action transition lookup window. A repeated command can be
+-- buffered several frames before the engine would expose its next action start;
+-- Sagat's recorded consecutive OD projectile reaches the physical edge 5f
+-- before that point.
+local DEFAULT_EXPECTED_REPEAT_EARLY_WINDOW = 12
 
 -- pl_input_new uses physical direction bits (right=4, left=8). Normalize them
 -- to facing-relative notation before dash pairing; BCM command directions use
