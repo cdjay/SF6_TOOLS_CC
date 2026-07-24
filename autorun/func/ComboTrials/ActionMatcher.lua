@@ -58,6 +58,13 @@ function ActionMatcher.match_expected_action(expected, actual_action_id, actual_
     }
 end
 
+function ActionMatcher.is_exact_expected_action(expected, actual_action_id)
+    if type(expected) ~= "table" then return false end
+    local expected_id = tonumber(expected.id)
+    local actual_id = tonumber(actual_action_id)
+    return expected_id ~= nil and actual_id ~= nil and expected_id == actual_id
+end
+
 local function list_contains_token(value, token, normalizer)
     if value == nil or token == nil then return false end
     token = normalizer and normalizer(token) or tostring(token)

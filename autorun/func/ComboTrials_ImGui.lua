@@ -752,12 +752,23 @@ local function get_player_visible_transition_motion(step)
     return nil
 end
 
+local function get_recorded_universal_motion(step)
+    if type(step) ~= "table" then return nil end
+    local motion = trim_string(step.motion):upper():gsub("%s+", "")
+    if motion == "DI" or motion == "HP+HK" then return "DI" end
+    return nil
+end
+
 local function get_modern_display_motion(modern_map, step)
     if type(modern_map) ~= "table" or type(step) ~= "table" then return nil, "map_unavailable" end
     local step_id = tonumber(step.id)
     if modern_map._slim == true then
         local resolved = modern_map[tostring(step.id or "")]
-        if type(resolved) ~= "table" then return nil, "action_id_missing" end
+        if type(resolved) ~= "table" then
+            local universal_motion = get_recorded_universal_motion(step)
+            if universal_motion then return universal_motion, "recorded_universal_command" end
+            return nil, "action_id_missing"
+        end
         if resolved.status == "suppress_transition" then
             local player_transition = get_player_visible_transition_motion(step)
             if player_transition then return player_transition, "player_input_transition" end
@@ -1493,7 +1504,11 @@ local function get_classic_display_motion(command_map, step)
         return nil, "map_unavailable"
     end
     local resolved = command_map[tostring(step.id or "")]
-    if type(resolved) ~= "table" then return nil, "action_id_missing" end
+    if type(resolved) ~= "table" then
+        local universal_motion = get_recorded_universal_motion(step)
+        if universal_motion then return universal_motion, "recorded_universal_command" end
+        return nil, "action_id_missing"
+    end
     if resolved.status == "suppress_transition" then
         local player_transition = get_player_visible_transition_motion(step)
         if player_transition then return player_transition, "player_input_transition" end

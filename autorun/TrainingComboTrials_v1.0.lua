@@ -7728,8 +7728,7 @@ local function ct_player_process_actions(p_idx, p_state, actions_to_process)
                     expected_for_ignore = trial_state.sequence[trial_state.current_step]
                 end
                 local expected_action_matches_current = expected_for_ignore
-                    and expected_for_ignore.id ~= nil
-                    and expected_for_ignore.id == act_id
+                    and ActionMatcher.is_exact_expected_action(expected_for_ignore, act_id)
 
                 if not is_ignored and not expected_action_matches_current then
                     local ignore_prev = ActionMatcher.evaluate_ignore_prev(exc, p_state.log, engine_frame_count)
@@ -7755,6 +7754,15 @@ local function ct_player_process_actions(p_idx, p_state, actions_to_process)
                 -- attack button is physically present, even if the engine marks
                 -- their transition as flags=16 with no action/branch code.
                 if not is_intentional and unified_command_action then
+                    is_intentional = true
+                end
+
+                -- A recorded step is runtime evidence that this Action ID can be
+                -- player-relevant even when the generated command table cannot
+                -- classify a character-specific hit/branch phase. Admit only an
+                -- exact match for the active player's current expected step; all
+                -- other unmapped automatic/system actions remain filtered.
+                if not is_intentional and expected_action_matches_current then
                     is_intentional = true
                 end
 

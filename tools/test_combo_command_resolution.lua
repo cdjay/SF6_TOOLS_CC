@@ -59,6 +59,22 @@ assert(motion == ">29 (cancel)" and status == "recorded_context",
 motion, status = get_classic_display_motion(command_map, { id = 9999, motion = "Unknown" })
 assert(motion == nil and status == "action_id_missing", "missing classic IDs must reach the common audit path")
 
+motion, status = get_classic_display_motion(command_map, { id = 854, motion = "DI" })
+assert(motion == "DI" and status == "recorded_universal_command",
+    "an unmapped character-specific Drive Impact phase must retain the universal DI command")
+
+motion, status = get_classic_display_motion(command_map, { id = 9998, motion = "214+HP" })
+assert(motion == nil and status == "action_id_missing",
+    "arbitrary recorded motion must not bypass the audited command table")
+
+local action_matcher = dofile("autorun/func/ComboTrials/ActionMatcher.lua")
+assert(action_matcher.is_exact_expected_action({ id = 854 }, 854) == true,
+    "an unmapped runtime action must be admitted when it exactly matches the active expected step")
+assert(action_matcher.is_exact_expected_action({ id = 854 }, 855) == false,
+    "a different runtime action must not be admitted by the exact expected-step fallback")
+assert(action_matcher.is_exact_expected_action(nil, 854) == false,
+    "the expected-step fallback must remain disabled outside active playback")
+
 local main_source = read_all("autorun/TrainingComboTrials_v1.0.lua")
 local resolver_block = assert(main_source:match(
     "(local function decode_transition_button_mask.-\nend)\n\nlocal esf_names_map"))
