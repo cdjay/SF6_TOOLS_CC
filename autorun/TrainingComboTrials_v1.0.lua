@@ -8926,7 +8926,9 @@ ctx.handle_trial_auto_flow = function()
         if not trial_state._attempt_had_demo then
             local path = trial_state.current_file_path or trial_state.current_file
             if file_system.mark_trial_completed(path) then
-                refresh_combo_list_preserve_selection(false)
+                if file_system.mark_combo_display_completed then
+                    file_system.mark_combo_display_completed(path)
+                end
             end
             if d2d_cfg.auto_next_trial ~= false then
                 trial_state._auto_next_countdown = d2d_cfg.fail_display_frames or 120

@@ -349,6 +349,58 @@ local function build_combo_display_list(info_list)
     return display_list
 end
 
+local function completion_path_key(path)
+    if file_system and file_system.completed_trial_key then
+        return file_system.completed_trial_key(path)
+    end
+    return (tostring(path or ""):gsub("\\", "/")):lower()
+end
+
+local function mark_display_list_completed(display_list, path_list, completed_path)
+    if type(display_list) ~= "table" or type(path_list) ~= "table" then return 0 end
+    local target_key = completion_path_key(completed_path)
+    if target_key == "" then return 0 end
+
+    local updated = 0
+    for idx, path in ipairs(path_list) do
+        if completion_path_key(path) == target_key then
+            local display = tostring(display_list[idx] or "")
+            if display ~= "" and not display:find("^【完】") then
+                display_list[idx] = "【完】" .. display
+                updated = updated + 1
+            end
+        end
+    end
+    return updated
+end
+
+function M.mark_combo_display_completed(path)
+    if not file_system then return 0 end
+
+    local updated = 0
+    updated = updated + mark_display_list_completed(
+        file_system.saved_combos_display_p1,
+        file_system.saved_combos_paths_p1,
+        path
+    )
+    updated = updated + mark_display_list_completed(
+        file_system.saved_combos_display_p2,
+        file_system.saved_combos_paths_p2,
+        path
+    )
+    updated = updated + mark_display_list_completed(
+        file_system.saved_combos_all_display_p1,
+        file_system.saved_combos_all_paths_p1,
+        path
+    )
+    updated = updated + mark_display_list_completed(
+        file_system.saved_combos_all_display_p2,
+        file_system.saved_combos_all_paths_p2,
+        path
+    )
+    return updated
+end
+
 local function combo_display_name_from_file(filepath)
     local info, display_error = combo_info_from_file(filepath)
     if not info then return nil, display_error end
@@ -638,6 +690,7 @@ function M.init(context, opts)
     file_system.scan_combo_files = scan_combo_files
     file_system.update_combo_file_list = update_combo_file_list
     file_system.refresh_combo_list_preserve_selection = M.refresh_combo_list_preserve_selection
+    file_system.mark_combo_display_completed = M.mark_combo_display_completed
 
     return M
 end
