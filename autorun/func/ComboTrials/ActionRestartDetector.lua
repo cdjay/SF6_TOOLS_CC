@@ -10,6 +10,7 @@ local REPEATABLE_COMMON_ACTIONS = {
 
 local DEFAULT_DASH_TAP_WINDOW = 12
 local DASH_ACTION_BIND_WINDOW = 12
+local DEFAULT_EXPECTED_REPEAT_EARLY_WINDOW = 4
 
 -- pl_input_new uses physical direction bits (right=4, left=8). Normalize them
 -- to facing-relative notation before dash pairing; BCM command directions use
@@ -87,7 +88,45 @@ local function consume_pair(state, pair)
     end
 end
 
-function M.detect(current_id, current_frame, buffered_id, buffered_frame, state, current_tick, action_button_edge)
+function M.evaluate_expected_repeat_input(params)
+    params = type(params) == "table" and params or {}
+    local result = {
+        accepted = false,
+        reason = nil,
+        expected_id = tonumber(params.expected_id),
+        previous_id = tonumber(params.previous_id),
+        current_id = tonumber(params.current_id),
+        buffered_id = tonumber(params.buffered_id),
+        current_combo = tonumber(params.current_combo) or 0,
+        previous_expected_combo = tonumber(params.previous_expected_combo) or 0,
+        frames_since_previous = tonumber(params.frames_since_previous) or 0,
+        expected_delay = tonumber(params.expected_delay) or 0,
+        early_window = tonumber(params.early_window) or DEFAULT_EXPECTED_REPEAT_EARLY_WINDOW,
+        action_button_edge = (tonumber(params.action_button_edge) or 0) & 0xFFF0
+    }
+    result.earliest_frame = math.max(0, result.expected_delay - result.early_window)
+
+    if result.action_button_edge == 0 then
+        result.reason = "missing_attack_edge"
+    elseif result.expected_id == nil or result.previous_id == nil then
+        result.reason = "missing_expected_id"
+    elseif result.expected_id ~= result.previous_id then
+        result.reason = "sequence_not_same_action"
+    elseif result.current_id ~= result.expected_id or result.buffered_id ~= result.expected_id then
+        result.reason = "runtime_action_id_mismatch"
+    elseif result.current_combo < result.previous_expected_combo then
+        result.reason = "previous_combo_not_reached"
+    elseif result.frames_since_previous < result.earliest_frame then
+        result.reason = "before_expected_repeat_window"
+    else
+        result.accepted = true
+        result.reason = "expected_repeat_input_ready"
+    end
+    return result
+end
+
+function M.detect(current_id, current_frame, buffered_id, buffered_frame, state, current_tick,
+        action_button_edge, expected_repeat_input)
     current_id = tonumber(current_id) or -1
     buffered_id = tonumber(buffered_id) or -1
     current_frame = tonumber(current_frame) or -1
@@ -111,6 +150,14 @@ function M.detect(current_id, current_frame, buffered_id, buffered_frame, state,
             consume_pair(state, pair)
             return true, "repeatable_common_action_input"
         end
+    end
+
+    -- Some commands can be entered again while the engine keeps both the same
+    -- Action ID and a monotonically advancing ActionFrame. Only admit a fresh
+    -- attack edge when the trial context independently proves that the next
+    -- expected step is the same action and its hit/timing gates are ready.
+    if expected_repeat_input == true and action_button_edge ~= 0 then
+        return true, "expected_repeat_action_input"
     end
 
     if current_frame >= buffered_frame then

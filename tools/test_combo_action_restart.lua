@@ -31,7 +31,53 @@ assert(started == true and reason == "input_confirmed_act_frame_rewind",
 
 started, reason = detector.detect(900, 19, 900, 18, nil, nil, 32)
 assert(started == false and reason == "no_new_action",
-    "a physical attack edge without an ActionFrame rewind must not duplicate an advancing action")
+    "an attack edge without sequence evidence must not duplicate an advancing action")
+
+local repeat_eval = detector.evaluate_expected_repeat_input({
+    expected_id = 904,
+    previous_id = 904,
+    current_id = 904,
+    buffered_id = 904,
+    current_combo = 4,
+    previous_expected_combo = 4,
+    frames_since_previous = 48,
+    expected_delay = 48,
+    action_button_edge = 32 | 64
+})
+assert(repeat_eval.accepted == true and repeat_eval.reason == "expected_repeat_input_ready",
+    "a gated physical edge must admit the next explicitly expected same-ID action")
+
+started, reason = detector.detect(904, 61, 904, 60, nil, nil, 32 | 64, repeat_eval.accepted)
+assert(started == true and reason == "expected_repeat_action_input",
+    "an expected same-ID command must create a new instance even when ActionFrame keeps advancing")
+
+repeat_eval = detector.evaluate_expected_repeat_input({
+    expected_id = 904,
+    previous_id = 904,
+    current_id = 904,
+    buffered_id = 904,
+    current_combo = 1,
+    previous_expected_combo = 4,
+    frames_since_previous = 48,
+    expected_delay = 48,
+    action_button_edge = 32 | 64
+})
+assert(repeat_eval.accepted == false and repeat_eval.reason == "previous_combo_not_reached",
+    "buffer noise before the previous move reaches its recorded hits must not create a repeat")
+
+repeat_eval = detector.evaluate_expected_repeat_input({
+    expected_id = 904,
+    previous_id = 904,
+    current_id = 904,
+    buffered_id = 904,
+    current_combo = 4,
+    previous_expected_combo = 4,
+    frames_since_previous = 9,
+    expected_delay = 48,
+    action_button_edge = 32 | 64
+})
+assert(repeat_eval.accepted == false and repeat_eval.reason == "before_expected_repeat_window",
+    "an early repeated edge inside the first command buffer must not create the next trial step")
 
 started, reason = detector.detect(900, 3, 900, 18, nil, nil, 4)
 assert(started == false and reason == "no_new_action",

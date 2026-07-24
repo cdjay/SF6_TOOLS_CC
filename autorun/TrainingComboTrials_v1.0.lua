@@ -7242,9 +7242,27 @@ local function ct_player_input_buffer(p_state)
             p_state.input_history_queue, p_state.buffer_start_frame,
             engine_frame_count, PLAYER_TRANSITION_INPUT_WINDOW)
     end
+    local repeat_expected = trial_state.is_playing
+        and p_state == players[trial_state.playing_player]
+        and trial_state.sequence
+        and trial_state.sequence[trial_state.current_step] or nil
+    local repeat_previous = repeat_expected and trial_state.current_step > 1
+        and trial_state.sequence[trial_state.current_step - 1] or nil
+    local expected_repeat_input = ActionRestartDetector.evaluate_expected_repeat_input({
+        expected_id = repeat_expected and repeat_expected.id or nil,
+        previous_id = repeat_previous and repeat_previous.id or nil,
+        current_id = _pf.act_id,
+        buffered_id = p_state.buffer_act_id,
+        current_combo = _pf.current_combo or 0,
+        previous_expected_combo = repeat_previous and repeat_previous.expected_combo or 0,
+        frames_since_previous = engine_frame_count - (trial_state.last_played_frame or engine_frame_count),
+        expected_delay = repeat_expected and repeat_expected.delay_from_prev or 0,
+        action_button_edge = action_input_edge
+    })
     local started_new_action, started_new_action_reason = ActionRestartDetector.detect(
         _pf.act_id, _pf.act_frame, p_state.buffer_act_id, p_state.buffer_act_frame,
-        p_state.dash_tap_state, engine_frame_count, restart_input_edge)
+        p_state.dash_tap_state, engine_frame_count, restart_input_edge,
+        expected_repeat_input.accepted)
     if started_new_action and action_input_edge == 0 then
         -- Some actions switch one or two frames after the button edge. Reuse the
         -- newest post-parent physical edge instead of treating a held button as
@@ -7260,6 +7278,7 @@ local function ct_player_input_buffer(p_state)
         last_act_frame = p_state.prev_act_frame,
         started_new_action = started_new_action,
         started_new_action_reason = started_new_action_reason,
+        expected_repeat_input = expected_repeat_input,
         dash_pair_direction = dash_pair and dash_pair.direction or nil,
         dash_pair_interval = dash_pair and dash_pair.interval or nil,
         skipped_due_to_duplicate = not started_new_action and _pf.act_id == p_state.buffer_act_id,
