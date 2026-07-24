@@ -557,7 +557,7 @@ local function draw_single_line_content()
     local actual_btn_w = absolute_btn_w
     local return_gap = 0
     local is_demo_active_early = (ctx.demo_state and ctx.demo_state.is_playing)
-    local is_replay_mode = (_G.IsInReplay == true) or (_G.FlowMapID == 10) or (_G.IsInBattleHub == true)
+    local is_replay_mode = RuntimeSafety.is_replay_allowed()
     local visible_button_count = 2
     if trial_state.is_recording or is_demo_active_early or is_replay_mode then
         visible_button_count = 2
@@ -739,6 +739,39 @@ local function draw_combo_trials_content(is_floating)
 
     local rec_btn_w = absolute_btn_w
     local play_btn_w = absolute_btn_w
+
+    if RuntimeSafety.is_replay_allowed() then
+        local now = update_replay_recording_status(true)
+        local replay_status_w = math.max(150, w_width * 0.35)
+        replay_status_label(0, replay_status_w, now)
+        imgui.spacing()
+        if trial_state.is_recording then
+            if styled_sf6_button("保存连段", true, rec_btn_w, is_floating, false, TRIAL_COLORS) then
+                _replay_save_player = trial_state.recording_player
+                stop_recording_and_save()
+            end
+            imgui.spacing()
+            if styled_sf6_button("取消并返回", false, rec_btn_w, is_floating, false, P1_COLORS) then
+                local cp = trial_state.recording_player
+                cancel_recording()
+                if cp == 0 then _replay_status_p1 = "canceled" else _replay_status_p2 = "canceled" end
+                _replay_saved_clock = os.clock()
+            end
+        else
+            if styled_sf6_button("录制 P1", false, rec_btn_w, is_floating, false, P1_COLORS) then
+                _replay_save_player = 0
+                start_recording(0)
+            end
+            imgui.spacing()
+            if styled_sf6_button("录制 P2", false, rec_btn_w, is_floating, false, P2_COLORS) then
+                _replay_save_player = 1
+                start_recording(1)
+            end
+        end
+        imgui.spacing()
+        replay_status_label(1, replay_status_w, now)
+        return
+    end
 
     local col3_x, col2_x, col1_w
 
@@ -1120,7 +1153,7 @@ re.on_frame(function()
         _ctui_cancel_recording_for_menu("pause_menu")
     end
 
-    local is_replay_context = (_G.FlowMapID == 10) or (_G.IsInReplay == true) or (_G.IsInBattleHub == true)
+    local is_replay_context = RuntimeSafety.is_replay_allowed()
     if not is_replay_context and _G.CurrentTrainerMode ~= 4 then
         if _ctui_cancel_recording_for_menu("mode_exit") then
             _ctui_flush_d2d_config_for_exit()
@@ -1192,7 +1225,7 @@ re.on_frame(function()
         sf6_menu_state.active = true
 
         -- Collapse toggle (replay only)
-        local is_replay_ctx = (_G.IsInReplay == true) or (_G.IsInBattleHub == true)
+        local is_replay_ctx = RuntimeSafety.is_replay_allowed()
         if _G._ct_bar_collapsed == nil then _G._ct_bar_collapsed = false end
         if not is_replay_ctx then _G._ct_bar_collapsed = false end
 

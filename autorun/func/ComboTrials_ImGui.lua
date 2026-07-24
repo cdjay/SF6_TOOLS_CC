@@ -2360,7 +2360,7 @@ local function draw_parsed_line(tokens, base_x, y, icon_w, icon_h, spacing_x, fi
                 text_to_draw = tok.val:gsub("{hold}%s*", "")
             end
             local w = 0
-            if assets.font then w, _ = assets.font:measure(text_to_draw) end
+            if assets.font then w = select(1, assets.font:measure(text_to_draw)) end
             table.insert(line_elements, { type = "text", val = text_to_draw, w = w, col = tok.col })
             total_w = total_w + w + spacing_x
         end
@@ -2600,10 +2600,11 @@ local function imgui_draw_inner()
     local players = ctx and ctx.players
 
     local should_draw = d2d_cfg and d2d_cfg.enabled and (_G.ComboTrialsD2DEnabled == true)
-    local has_training_context = _G.TrainingScriptManagerActiveThisFrame == true
+    local has_ui_context = _G.TrainingScriptManagerActiveThisFrame == true
+        or RuntimeSafety.is_replay_allowed()
 
     local content_visible = should_draw
-        and has_training_context
+        and has_ui_context
         and _G.TrainingBarsDrawn == true
         and _G.CurrentTrainerMode == 4
     if content_visible ~= imgui_last_content_visible then

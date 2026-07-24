@@ -4699,6 +4699,12 @@ end
 
 
 local function start_recording(player_idx)
+    if _G.CurrentTrainerMode ~= 4
+        or not (RuntimeSafety.is_training_allowed() or RuntimeSafety.is_replay_allowed()) then
+        return false
+    end
+    if player_idx ~= 0 and player_idx ~= 1 then return false end
+
     trial_state.recording_player = player_idx
     trial_state.sequence = {}
     begin_recording_display_context(player_idx)
@@ -4764,6 +4770,7 @@ local function start_recording(player_idx)
     trial_state._rec_frame_count = 0
     trial_state._raw_rec_buffer = {}
     trial_state._raw_rec_active = true
+    return true
 end
 
 local function start_trial(player_idx)
@@ -5907,7 +5914,23 @@ local _replay_cleaned = false
 local function ct_handle_web_commands()
     if _G.CurrentTrainerMode == 4 and _G._tsm_web_cmd then
         local cmd = _G._tsm_web_cmd; _G._tsm_web_cmd = nil
-        if cmd == "record" then start_recording(0); ct_ticker("录制中") end
+        if cmd == "record" then
+            if start_recording(0) then ct_ticker("录制中") end
+            return
+        end
+        if cmd == "cancel_record" then
+            _G.ComboTrials_ReplayCancelPlayer = trial_state.recording_player or 0
+            cancel_recording(); ct_ticker("录制已取消")
+            return
+        end
+        if cmd == "stop_record" then
+            stop_recording_and_save(); ct_ticker("录制已保存")
+            return
+        end
+
+        -- Replay is read-only apart from observing and saving recorded data.
+        if not RuntimeSafety.can_inject_input() then return end
+
         if cmd == "start_trial" then load_and_start_trial(0); ct_ticker("连段训练已启动") end
         if cmd == "stop_trial" then
             if ctx.stop_demo_playback then
@@ -5927,11 +5950,6 @@ local function ct_handle_web_commands()
             apply_forced_position()
             ct_ticker("位置模式：" .. (POS_TICKER_NAMES[d2d_cfg.forced_position_idx] or ""))
         end
-        if cmd == "cancel_record" then
-            _G.ComboTrials_ReplayCancelPlayer = trial_state.recording_player or 0
-            cancel_recording(); ct_ticker("录制已取消")
-        end
-        if cmd == "stop_record" then stop_recording_and_save(); ct_ticker("录制已保存") end
         if cmd == "reset_trial" then
             local ok, err = pcall(function()
                 if not trial_state.is_playing then return end
@@ -6266,11 +6284,18 @@ local function ct_handle_replay_cleanup(_in_replay)
 end
 
 local function is_combo_trials_scene_allowed()
+    if _G.CurrentTrainerMode ~= 4
+        or _G.TrainingModeActive ~= true
+        or _G.IsInBattleHub == true then
+        return false
+    end
+
+    if RuntimeSafety.is_replay_allowed() then
+        return _G.IsInReplay == true or _G.FlowMapID == 10
+    end
+
     return RuntimeSafety.is_training_allowed()
-        and _G.CurrentTrainerMode == 4
-        and _G.TrainingModeActive == true
         and _G.TrainingScriptManagerActiveThisFrame == true
-        and _G.IsInBattleHub ~= true
         and _G.IsInReplay ~= true
         and _G.FlowMapID ~= 9
         and _G.FlowMapID ~= 10
@@ -6438,7 +6463,7 @@ local function ct_handle_mode_exit()
     end
 end
 
-local function ct_handle_first_frame_init()
+local function ct_handle_first_frame_init(_in_replay)
     if not trial_state._vital_initialized then
         invalidate_recording_display_context()
         live_display_context.ensure()
@@ -6456,8 +6481,10 @@ local function ct_handle_first_frame_init()
         trial_state.floating_info = nil
         _G.ComboTrials_HideNativeHUD = false
 
-        restore_trial_vital()
-        unique_resources.restore()
+        if not _in_replay then
+            restore_trial_vital()
+            unique_resources.restore()
+        end
     end
 
 end
@@ -6515,7 +6542,12 @@ local function ct_handle_pause_positions(is_game_paused, _in_replay)
 
 end
 
-local function ct_handle_playing_transition()
+local function ct_handle_playing_transition(_in_replay)
+    if _in_replay then
+        trial_state._was_playing = false
+        return
+    end
+
     -- Detect is_playing transitions for trial environment setup
     local now_playing = trial_state.is_playing
     if now_playing and not trial_state._was_playing then
@@ -9333,6 +9365,7 @@ re.on_frame(function()
     if not ct_handle_runtime_scene_gate() then
         return
     end
+    local _in_replay = RuntimeSafety.is_replay_allowed()
     pcall(_ct_track_live_combo)
     ct_handle_web_commands()
 
@@ -9370,7 +9403,6 @@ re.on_frame(function()
 
     if _G.IsInBattleHub then return end
 
-    local _in_replay = (_G.FlowMapID == 10 or _G.IsInReplay)
     ct_handle_replay_cleanup(_in_replay)
 
     -- Live update of flip_inputs (only before the first hit of the sequence)
@@ -9403,13 +9435,13 @@ re.on_frame(function()
         pcall(_ct_replay_bridge_poll)
     end
 
-    ct_dev_hp_restore_test_tick()
+    if not _in_replay then ct_dev_hp_restore_test_tick() end
 
     if _G.CurrentTrainerMode ~= 4 then ct_auto_refresh_combo_list(); ct_handle_mode_exit(); return end
 
     ct_auto_refresh_combo_list()
     ct_poll_trialhub_sync_signal()
-    ct_handle_first_frame_init()
+    ct_handle_first_frame_init(_in_replay)
     _G.ComboTrials_HideNativeHUD = false
 
     local is_game_paused = GS.in_pause_menu
@@ -9420,7 +9452,7 @@ re.on_frame(function()
     trial_state._engine_frame_count = engine_frame_count
     trial_state._demo_timing_ui_baseline = (demo_state and demo_state.is_playing == true) or false
     logger_process_game_state()
-    if ctx.handle_trial_auto_flow then ctx.handle_trial_auto_flow() end
+    if not _in_replay and ctx.handle_trial_auto_flow then ctx.handle_trial_auto_flow() end
 
     if trial_state.is_recording then
         if not trial_state._rec_frame_count then trial_state._rec_frame_count = 0 end
@@ -9431,7 +9463,7 @@ re.on_frame(function()
     end
 
 
-    ct_handle_playing_transition()
+    ct_handle_playing_transition(_in_replay)
     ct_handle_position_correction(_in_replay)
 
     local gBattle = _td_gBattle
@@ -9440,7 +9472,7 @@ re.on_frame(function()
     if not _pf.cmd_obj then return end
     if not GS.sP then return end
 
-    ct_handle_hp_injection()
+    if not _in_replay then ct_handle_hp_injection() end
 
     for p_idx = 0, 1 do
         local p_state = players[p_idx]

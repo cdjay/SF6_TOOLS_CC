@@ -938,6 +938,42 @@ local UI_THEME = {
 
 local styled_header = UIKit.styled_header
 
+local function draw_replay_analysis_menu()
+    imgui.text_colored("录像回放分析模式：仅开放视觉显示与连段录制。", 0xFF00A5FF)
+    imgui.text_colored("传送、自动操作和训练输入保持关闭。", 0xFF888888)
+    imgui.spacing()
+
+    local changed_distance, distance_enabled = imgui.checkbox(
+        "启用距离显示##replay_distance_viewer",
+        config.distance_viewer_enabled == true
+    )
+    if changed_distance then
+        config.distance_viewer_enabled = distance_enabled
+        save_config()
+    end
+
+    local changed_boxes, boxes_enabled = imgui.checkbox(
+        "启用碰撞显示##replay_sheldons_boxes",
+        config.sheldons_boxes_enabled == true
+    )
+    if changed_boxes then
+        config.sheldons_boxes_enabled = boxes_enabled
+        save_config()
+    end
+
+    imgui.separator()
+    if styled_header("距离查看器", UI_THEME.hdr_distance_viewer) then
+        TrainingMenuRegistry.draw("distance_viewer")
+    end
+
+    if styled_header("碰撞框查看器(by Sheldon)", UI_THEME.hdr_collision_boxes) then
+        TrainingMenuRegistry.draw("sheldons_boxes")
+    end
+
+    imgui.separator()
+    imgui.text_colored("连段录制可通过画面底部的“录制 P1 / 录制 P2”操作。", 0xFF88FF88)
+end
+
 re.on_draw_ui(function()
     -- Publish REFramework menu window rect for overlap detection
     pcall(function()
@@ -976,8 +1012,17 @@ re.on_draw_ui(function()
     if _tsm_open then
         imgui.indent(12)
 
-        -- If not in training, show a waiting message and block the UI
-        if not RuntimeSafety.is_training_allowed() then
+        local training_allowed = RuntimeSafety.is_training_allowed()
+        local replay_allowed = RuntimeSafety.is_replay_allowed()
+
+        if replay_allowed then
+            draw_replay_analysis_menu()
+            imgui.unindent(12)
+            return
+        end
+
+        -- Outside an allowed training/replay context, show a waiting message and block the UI.
+        if not training_allowed then
             imgui.text_colored("[!] 未激活：仅训练模式可用。", 0xFF00A5FF)
             imgui.unindent(12)
             return
