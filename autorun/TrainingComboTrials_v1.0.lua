@@ -4540,6 +4540,7 @@ local function reset_player_action_buffers(p_state)
     p_state.recording_repeat_candidate = nil
     p_state.recording_contact_serial = 0
     p_state.recording_block_contact_active = false
+    p_state.recording_last_victim_hp = nil
     p_state.buffer_start_frame = engine_frame_count
     p_state.buffer_flags = _pf.flags or 0
     p_state.buffer_action_code = _pf.action_code or 0
@@ -4734,6 +4735,7 @@ local function start_recording(player_idx)
     players[player_idx].recording_repeat_candidate = nil
     players[player_idx].recording_contact_serial = 0
     players[player_idx].recording_block_contact_active = false
+    players[player_idx].recording_last_victim_hp = nil
     players[player_idx].last_direct_input = 0
     players[player_idx].last_direction_input = 0
     reset_combo_visual_runtime()
@@ -4793,6 +4795,7 @@ local function start_trial(player_idx)
     players[trial_state.recording_player].recording_repeat_candidate = nil
     players[trial_state.recording_player].recording_contact_serial = 0
     players[trial_state.recording_player].recording_block_contact_active = false
+    players[trial_state.recording_player].recording_last_victim_hp = nil
     invalidate_recording_display_context()
     trial_state._raw_rec_active = false
     trial_state._rec_gauges = nil
@@ -4844,6 +4847,7 @@ local function cancel_recording()
     players[canceled_player].recording_repeat_candidate = nil
     players[canceled_player].recording_contact_serial = 0
     players[canceled_player].recording_block_contact_active = false
+    players[canceled_player].recording_last_victim_hp = nil
     trial_state.is_playing = false
     invalidate_recording_display_context()
     trial_state.sequence = {}
@@ -4910,6 +4914,7 @@ local function stop_recording_and_save()
     players[saved_player].recording_repeat_candidate = nil
     players[saved_player].recording_contact_serial = 0
     players[saved_player].recording_block_contact_active = false
+    players[saved_player].recording_last_victim_hp = nil
     trial_state._raw_rec_active = false
 
     -- MERGE LOGGER TIMELINE IN MEMORY (no intermediate file)
@@ -6336,6 +6341,8 @@ local function cleanup_combo_trials_runtime_on_scene_exit(reason)
     players[1].recording_contact_serial = 0
     players[0].recording_block_contact_active = false
     players[1].recording_block_contact_active = false
+    players[0].recording_last_victim_hp = nil
+    players[1].recording_last_victim_hp = nil
     trial_state._raw_rec_active = false
     trial_state._raw_rec_buffer = {}
     trial_state._was_playing = false
@@ -6638,6 +6645,7 @@ local function ct_player_init(p_idx, p_state)
         p_state.recording_repeat_candidate = nil
         p_state.recording_contact_serial = 0
         p_state.recording_block_contact_active = false
+        p_state.recording_last_victim_hp = nil
         p_state.trigger_mask_cache = {}
         p_state.trigger_cache_built = false
         p_state._trigger_cache_build = nil
@@ -6750,6 +6758,7 @@ local function ct_player_tracking(p_idx, p_state)
         pcall(_ct_track_rec_gauges, _pf.victim_obj, _pf.p_char, p_idx)
     end
 
+    local recording_hit_contact = { accepted = false }
     if trial_state.is_recording and p_idx == trial_state.recording_player then
         local victim_damage_type = 0
         local damage_ok, captured_damage_type =
@@ -6771,12 +6780,27 @@ local function ct_player_tracking(p_idx, p_state)
             end
         end
         p_state.recording_block_contact_active = block_contact.active
+
+        local current_victim_hp = nil
+        pcall(function()
+            current_victim_hp = tonumber(_pf.victim_obj and _pf.victim_obj.vital_new)
+        end)
+        recording_hit_contact = ActionRestartDetector.evaluate_recording_hit_contact({
+            current_combo = _pf.current_combo or 0,
+            previous_combo = p_state.last_combo_count or 0,
+            current_hp = current_victim_hp,
+            previous_hp = p_state.recording_last_victim_hp,
+            blocked = block_contact.active
+        })
+        p_state.recording_last_victim_hp = current_victim_hp
     else
         p_state.recording_block_contact_active = false
+        p_state.recording_last_victim_hp = nil
     end
 
     -- Hit detection for visual display (has_hit + actual_combo + projectile)
-    if (_pf.current_combo or 0) > (p_state.last_combo_count or 0) then
+    if (_pf.current_combo or 0) > (p_state.last_combo_count or 0)
+        or recording_hit_contact.accepted then
         -- Verify hit source: projectile or direct player hit
         local hit_is_projectile = false
         pcall(function()

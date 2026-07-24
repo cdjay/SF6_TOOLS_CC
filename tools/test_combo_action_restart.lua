@@ -107,6 +107,52 @@ block_contact = detector.evaluate_block_contact(0, true)
 assert(block_contact.active == false and block_contact.started == false,
     "leaving blockstun must re-arm the next block contact")
 
+local hit_contact = detector.evaluate_recording_hit_contact({
+    current_combo = 1,
+    previous_combo = 1,
+    current_hp = 8400,
+    previous_hp = 9000
+})
+assert(hit_contact.accepted == true and hit_contact.reason == "victim_hp_decreased",
+    "a second normal hit must create a contact even when combo_cnt remains 1")
+
+hit_contact = detector.evaluate_recording_hit_contact({
+    current_combo = 1,
+    previous_combo = 1,
+    current_hp = 9000,
+    previous_hp = 9000
+})
+assert(hit_contact.accepted == false and hit_contact.reason == "no_new_hit_contact",
+    "an unchanged HP value must not confirm a repeated move that never came out")
+
+hit_contact = detector.evaluate_recording_hit_contact({
+    current_combo = 1,
+    previous_combo = 0,
+    current_hp = 9000,
+    previous_hp = 9000
+})
+assert(hit_contact.accepted == true and hit_contact.reason == "combo_increased",
+    "the existing combo counter hit edge must remain valid")
+
+hit_contact = detector.evaluate_recording_hit_contact({
+    current_combo = 1,
+    previous_combo = 1,
+    current_hp = 10000,
+    previous_hp = 9000
+})
+assert(hit_contact.accepted == false and hit_contact.reason == "no_new_hit_contact",
+    "training-mode HP refill must not look like a hit")
+
+hit_contact = detector.evaluate_recording_hit_contact({
+    current_combo = 1,
+    previous_combo = 1,
+    current_hp = 8900,
+    previous_hp = 9000,
+    blocked = true
+})
+assert(hit_contact.accepted == false and hit_contact.reason == "blocked_hp_decrease",
+    "chip damage on block must stay a single block contact")
+
 repeat_eval = detector.evaluate_expected_repeat_input({
     expected_id = 904,
     previous_id = 904,

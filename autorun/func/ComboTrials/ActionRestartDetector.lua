@@ -183,6 +183,40 @@ function M.evaluate_recording_repeat_contact(params)
     return result
 end
 
+-- Separate normal hits can both expose combo_cnt == 1 when the polling sample
+-- misses the brief reset between them. A real victim HP decrease is an
+-- independent contact edge for recording, while an unchanged/refilling HP
+-- value cannot confirm a repeated action that never came out.
+function M.evaluate_recording_hit_contact(params)
+    params = type(params) == "table" and params or {}
+    local result = {
+        accepted = false,
+        reason = nil,
+        current_combo = tonumber(params.current_combo) or 0,
+        previous_combo = tonumber(params.previous_combo) or 0,
+        current_hp = tonumber(params.current_hp),
+        previous_hp = tonumber(params.previous_hp),
+        blocked = params.blocked == true
+    }
+    result.combo_increased = result.current_combo > result.previous_combo
+    result.hp_decreased = result.current_hp ~= nil
+        and result.previous_hp ~= nil
+        and result.current_hp < result.previous_hp
+
+    if result.combo_increased then
+        result.accepted = true
+        result.reason = "combo_increased"
+    elseif result.hp_decreased and not result.blocked then
+        result.accepted = true
+        result.reason = "victim_hp_decreased"
+    elseif result.hp_decreased then
+        result.reason = "blocked_hp_decrease"
+    else
+        result.reason = "no_new_hit_contact"
+    end
+    return result
+end
+
 function M.evaluate_block_contact(damage_type, was_active)
     local active = tonumber(damage_type) == 30
     return {
