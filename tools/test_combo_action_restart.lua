@@ -60,14 +60,32 @@ local recording_repeat_eval = detector.evaluate_recording_repeat_input({
     action_button_edge = 32
 })
 assert(recording_repeat_eval.accepted == true
-        and recording_repeat_eval.reason == "recording_repeat_input_ready",
-    "Dee Jay's linked second 2MP must be admitted after the first 2MP raises the combo count")
+        and recording_repeat_eval.reason == "recording_repeat_candidate_ready",
+    "Dee Jay's second 2MP edge must become a candidate after the first 2MP connects")
 
-started, reason = detector.detect(
-    621, 24, 621, 23, nil, nil, 32,
-    recording_repeat_eval.accepted and "recording_hit_confirmed_repeat_input")
-assert(started == true and reason == "recording_hit_confirmed_repeat_input",
-    "a hit-confirmed recording repeat must create a new instance while ActionFrame advances")
+started, reason = detector.detect(621, 24, 621, 23, nil, nil, 32, false)
+assert(started == false and reason == "no_new_action",
+    "a recording candidate must not create a step before the repeated action really hits")
+
+local recording_repeat_hit = detector.evaluate_recording_repeat_hit({
+    candidate_id = 621,
+    current_id = 621,
+    combo_at_input = 1,
+    current_combo = 1
+})
+assert(recording_repeat_hit.accepted == false
+        and recording_repeat_hit.reason == "recording_repeat_hit_not_advanced",
+    "a too-fast second 2MP that never comes out must remain an uncommitted candidate")
+
+recording_repeat_hit = detector.evaluate_recording_repeat_hit({
+    candidate_id = 621,
+    current_id = 621,
+    combo_at_input = 1,
+    current_combo = 2
+})
+assert(recording_repeat_hit.accepted == true
+        and recording_repeat_hit.reason == "recording_repeat_hit_confirmed",
+    "the second 2MP must be confirmed only when it produces the next combo hit")
 
 recording_repeat_eval = detector.evaluate_recording_repeat_input({
     last_recorded_id = 621,

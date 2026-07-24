@@ -128,9 +128,9 @@ function M.evaluate_expected_repeat_input(params)
 end
 
 -- Recording has no future sequence step to prove that an advancing same-ID
--- action is a repeat. Use the combo increase since the buffered action began as
--- equivalent runtime evidence: the previous recorded action has connected, and
--- a fresh attack edge can now describe the next linked use of that action.
+-- action is a repeat. The previous action must already have connected before a
+-- new attack edge is admitted as a candidate. The candidate is not an action
+-- yet; evaluate_recording_repeat_hit confirms it only after another real hit.
 function M.evaluate_recording_repeat_input(params)
     params = type(params) == "table" and params or {}
     local result = {
@@ -155,7 +155,31 @@ function M.evaluate_recording_repeat_input(params)
         result.reason = "recorded_action_hit_not_advanced"
     else
         result.accepted = true
-        result.reason = "recording_repeat_input_ready"
+        result.reason = "recording_repeat_candidate_ready"
+    end
+    return result
+end
+
+function M.evaluate_recording_repeat_hit(params)
+    params = type(params) == "table" and params or {}
+    local result = {
+        accepted = false,
+        reason = nil,
+        candidate_id = tonumber(params.candidate_id),
+        current_id = tonumber(params.current_id),
+        combo_at_input = tonumber(params.combo_at_input) or 0,
+        current_combo = tonumber(params.current_combo) or 0
+    }
+
+    if result.candidate_id == nil then
+        result.reason = "missing_recording_repeat_candidate"
+    elseif result.current_id ~= result.candidate_id then
+        result.reason = "recording_repeat_action_id_mismatch"
+    elseif result.current_combo <= result.combo_at_input then
+        result.reason = "recording_repeat_hit_not_advanced"
+    else
+        result.accepted = true
+        result.reason = "recording_repeat_hit_confirmed"
     end
     return result
 end
@@ -188,11 +212,10 @@ function M.detect(current_id, current_frame, buffered_id, buffered_frame, state,
     end
 
     -- Some commands can be entered again while the engine keeps both the same
-    -- Action ID and a monotonically advancing ActionFrame. Only admit a fresh
-    -- attack edge when playback expectations or recording hit progress
-    -- independently prove that this is a second action. Playback does not
-    -- require the previous move's full hit count here: projectile follow-ups
-    -- can be entered before all hits from the first command have resolved.
+    -- Action ID and a monotonically advancing ActionFrame. Playback may admit a
+    -- fresh edge when the recorded sequence independently proves that the next
+    -- expected step is the same action. Recording deliberately does not use
+    -- this immediate path: it waits for a real hit before committing a repeat.
     if confirmed_repeat_input and action_button_edge ~= 0 then
         local confirmation_reason = type(confirmed_repeat_input) == "string"
             and confirmed_repeat_input or "expected_repeat_action_input"

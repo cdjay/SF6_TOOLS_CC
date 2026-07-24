@@ -67,6 +67,35 @@ local guarded = {
 CTTimelineSequenceNormalizer.expand(guarded, function(step) return step.motion end)
 assert(#guarded == 3, "unbracketed leading/trailing movement must not become trial steps")
 
+local normalize_block = assert(source:match(
+    "(local function normalize_sequence_counter_types.-)%s+function ct_is_ingrid_charge_stock_action"))
+normalize_block = normalize_block:gsub(
+    "^local function normalize_sequence_counter_types",
+    "normalize_sequence_counter_types = function",
+    1)
+counter_type_from_hit_type = function(hit_type)
+    if hit_type == "PC" then return 2 end
+    if hit_type == "CH" then return 1 end
+    return 0
+end
+assert(load(normalize_block, "counter-type-normalizer", "t", _G))()
+
+local fresh_counter_sequence = {
+    { id = 621, motion = "2+MP", counter_type = 0, combo_stats = { hit_type = "CH" } },
+    { id = 621, motion = "2+MP", counter_type = 1 }
+}
+normalize_sequence_counter_types(fresh_counter_sequence, false)
+assert(fresh_counter_sequence[1].counter_type == 0
+        and fresh_counter_sequence[2].counter_type == 1,
+    "a later counter hit in a fresh recording must stay on the second step")
+
+local legacy_counter_sequence = {
+    { id = 621, motion = "2+MP", counter_type = 0, combo_stats = { hit_type = "CH" } }
+}
+normalize_sequence_counter_types(legacy_counter_sequence)
+assert(legacy_counter_sequence[1].counter_type == 1,
+    "legacy files must retain first-step counter inference from combo_stats")
+
 local mixed_facing = {
     { index = 1, start_frame = 0, duration = 1, dir = "6" },
     { index = 2, start_frame = 1, duration = 1, dir = "5" },
