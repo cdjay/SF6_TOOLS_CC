@@ -7235,17 +7235,21 @@ local function ct_player_input_buffer(p_state)
             synthetic = true
         })
     end
+    local action_input_edge = newly_pressed & 0xFFF0
+    local restart_input_edge = action_input_edge
+    if restart_input_edge == 0 then
+        restart_input_edge = find_recent_action_button_edge(
+            p_state.input_history_queue, p_state.buffer_start_frame,
+            engine_frame_count, PLAYER_TRANSITION_INPUT_WINDOW)
+    end
     local started_new_action, started_new_action_reason = ActionRestartDetector.detect(
         _pf.act_id, _pf.act_frame, p_state.buffer_act_id, p_state.buffer_act_frame,
-        p_state.dash_tap_state, engine_frame_count)
-    local action_input_edge = newly_pressed & 0xFFF0
+        p_state.dash_tap_state, engine_frame_count, restart_input_edge)
     if started_new_action and action_input_edge == 0 then
         -- Some actions switch one or two frames after the button edge. Reuse the
         -- newest post-parent physical edge instead of treating a held button as
         -- new. Character cancel transitions can arrive later than ghost_wait.
-        action_input_edge = find_recent_action_button_edge(
-            p_state.input_history_queue, p_state.buffer_start_frame,
-            engine_frame_count, PLAYER_TRANSITION_INPUT_WINDOW)
+        action_input_edge = restart_input_edge
     end
     _G.CTSameActionTrace.trace("action_sample", p_state, {
         current_action_id = _pf.act_id,

@@ -87,11 +87,12 @@ local function consume_pair(state, pair)
     end
 end
 
-function M.detect(current_id, current_frame, buffered_id, buffered_frame, state, current_tick)
+function M.detect(current_id, current_frame, buffered_id, buffered_frame, state, current_tick, action_button_edge)
     current_id = tonumber(current_id) or -1
     buffered_id = tonumber(buffered_id) or -1
     current_frame = tonumber(current_frame) or -1
     buffered_frame = tonumber(buffered_frame) or -1
+    action_button_edge = (tonumber(action_button_edge) or 0) & 0xFFF0
     local common_motion = REPEATABLE_COMMON_ACTIONS[current_id]
     local pair = recent_pair(state, current_tick)
 
@@ -114,6 +115,15 @@ function M.detect(current_id, current_frame, buffered_id, buffered_frame, state,
 
     if current_frame >= buffered_frame then
         return false, "no_new_action"
+    end
+
+    -- Consecutive uses of the same move can keep the same Action ID. If the
+    -- polling sample misses frames 0/1, the ActionFrame still rewinds but the
+    -- old near-zero rule cannot see the restart. A fresh/recent physical attack
+    -- edge confirms that this rewind is a second player command, rather than an
+    -- internal frame correction.
+    if action_button_edge ~= 0 then
+        return true, "input_confirmed_act_frame_rewind"
     end
 
     if REPEATABLE_COMMON_ACTIONS[current_id] then

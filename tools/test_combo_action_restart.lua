@@ -25,6 +25,18 @@ started, reason = detector.detect(900, 3, 900, 18)
 assert(started == false and reason == "no_new_action",
     "an unrelated same-ID frame adjustment above frame 1 must retain the conservative rule")
 
+started, reason = detector.detect(900, 3, 900, 18, nil, nil, 32)
+assert(started == true and reason == "input_confirmed_act_frame_rewind",
+    "a same-ID ActionFrame rewind with a physical attack edge must create a new action instance")
+
+started, reason = detector.detect(900, 19, 900, 18, nil, nil, 32)
+assert(started == false and reason == "no_new_action",
+    "a physical attack edge without an ActionFrame rewind must not duplicate an advancing action")
+
+started, reason = detector.detect(900, 3, 900, 18, nil, nil, 4)
+assert(started == false and reason == "no_new_action",
+    "a direction-only edge must not confirm a same-ID attack restart")
+
 started, reason = detector.detect(900, 1, 900, 18)
 assert(started == true and reason == "act_frame_rewind",
     "the existing near-zero same-ID restart behavior must remain intact")
