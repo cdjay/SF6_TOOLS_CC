@@ -302,6 +302,12 @@ local function _load_float_fonts(sh)
     end
 end
 
+function UI.get_floating_fonts(sh)
+    sh = tonumber(sh) or select(2, UI.get_screen_size())
+    _load_float_fonts(sh)
+    return float_ui_font, float_btn_font
+end
+
 local function _push_bar_style(sw, sh)
     local colors = UI.neon_colors
     imgui.push_style_color(2,  colors.bg)    -- WindowBg

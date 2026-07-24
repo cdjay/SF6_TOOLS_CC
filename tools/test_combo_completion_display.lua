@@ -3,12 +3,16 @@ package.path = package.path
     .. ";./autorun/?/init.lua"
 
 json = json or {}
+json.load_file = function()
+    return { {} }
+end
 fs = fs or {}
 log = log or {}
 sdk = sdk or {}
 
 local ComboTrialsFiles = require("func/ComboTrials_Files")
 
+local trial_state = {}
 local file_system = {
     saved_combos_display_p1 = {
         "[C] [连段一] - One",
@@ -45,9 +49,10 @@ file_system.completed_trial_key = function(path)
 end
 
 ComboTrialsFiles.init({
-    trial_state = {},
+    trial_state = trial_state,
     players = {},
     file_system = file_system,
+    ui_state = { viewed_player = 0 },
 }, {
     normalize_sequence_counter_types = function() end,
     assign_groups = function() end,
@@ -66,5 +71,9 @@ assert(not file_system.saved_combos_all_display_p2[1]:find("^【完】"), "unrel
 local repeated = ComboTrialsFiles.mark_combo_display_completed(completed_path)
 assert(repeated == 0, "repeated completion should not duplicate the marker")
 assert(not file_system.saved_combos_display_p1[1]:find("^【完】【完】"), "completion marker was duplicated")
+
+file_system.reload_selected_combo_if_idle()
+assert(trial_state.current_file_path == file_system.saved_combos_paths_p1[1],
+    "cached combo list must reload only the selected trial on mode entry")
 
 print("combo completion display tests passed")

@@ -2494,6 +2494,32 @@ local function imgui_init()
     assets.imgs["success_bar"] = Canvas.Image.new("success-bar.png")
 end
 
+local function ensure_main_font(sh)
+    local cfg = ctx and ctx.d2d_cfg
+    if not cfg then return false end
+    local pixel_font_h = cfg.font_size * sh
+    if math.abs(assets.last_pixel_size - pixel_font_h) > 1.0 or assets.font == nil then
+        assets.font = Canvas.Font.new("msyhbd.ttc", math.floor(pixel_font_h))
+        assets.last_pixel_size = pixel_font_h
+        if assets.font then
+            local _, measured_height = assets.font:measure("Combo: 8")
+            assets.text_h = (measured_height and measured_height > 0) and measured_height or pixel_font_h
+        end
+    end
+    return assets.font ~= nil
+end
+
+local function ensure_title_font(sh)
+    local cfg = ctx and ctx.d2d_cfg
+    if not cfg then return false end
+    local title_px = math.max(10, math.floor((cfg.trial_title_font_size or 0.030) * sh))
+    if math.abs((assets.last_title_pixel_size or -1) - title_px) > 1.0 or assets.title_font == nil then
+        assets.title_font = Canvas.Font.new("msyhbd.ttc", title_px)
+        assets.last_title_pixel_size = title_px
+    end
+    return assets.title_font ~= nil
+end
+
 local function draw_bar_toggle_arrows()
     if not is_combo_trials_runtime_allowed() then return end
     local pm = sdk.get_managed_singleton("app.PauseManager")
@@ -2589,15 +2615,7 @@ local function imgui_draw_inner()
 
 
     local pixel_font_h = d2d_cfg.font_size * sh
-    if math.abs(assets.last_pixel_size - pixel_font_h) > 1.0 or assets.font == nil then
-        assets.font = Canvas.Font.new("msyhbd.ttc", math.floor(pixel_font_h))
-        assets.last_pixel_size = pixel_font_h
-        -- Measure the real rendered box height for font-independent vertical centering.
-        -- Canvas.text draws from the top-left of this box, and msyh's box is taller than
-        -- its nominal em size, so centering on pixel_font_h would mis-align the glyphs.
-        local _, mh = assets.font:measure("Combo: 8")
-        assets.text_h = (mh and mh > 0) and mh or pixel_font_h
-    end
+    if not ensure_main_font(sh) then return end
 
     local icon_h = d2d_cfg.icon_size * sh
     local icon_w = icon_h
@@ -2798,13 +2816,8 @@ local function imgui_draw_inner()
         local title = first.display_name or first.title
         if type(title) ~= "string" or title == "" then return end
 
-        local title_px = math.floor((d2d_cfg.trial_title_font_size or 0.030) * sh)
-        if title_px < 10 then title_px = 10 end
-        if math.abs((assets.last_title_pixel_size or -1) - title_px) > 1.0 or assets.title_font == nil then
-            assets.title_font = Canvas.Font.new("msyhbd.ttc", title_px)
-            assets.last_title_pixel_size = title_px
-        end
-        if not assets.title_font then return end
+        local title_px = math.max(10, math.floor((d2d_cfg.trial_title_font_size or 0.030) * sh))
+        if not ensure_title_font(sh) then return end
 
         local pos = d2d_cfg.pos_trial_header or { x = 0.5, y = 0.05 }
         local tw, th = assets.title_font:measure(title)
@@ -3109,6 +3122,24 @@ function M.init(shared_ctx)
         return localize_motion_text(tostring(motion or ""):upper())
     end
     Canvas.register(imgui_init, imgui_draw)
+end
+
+function M.preload_next_font()
+    if not ctx or not ctx.d2d_cfg then return true end
+    local _, sh = Canvas.surface_size()
+    local main_px = ctx.d2d_cfg.font_size * sh
+    if assets.font == nil or math.abs(assets.last_pixel_size - main_px) > 1.0 then
+        ensure_main_font(sh)
+        return false
+    end
+
+    local title_px = math.max(10, math.floor((ctx.d2d_cfg.trial_title_font_size or 0.030) * sh))
+    if assets.title_font == nil
+        or math.abs((assets.last_title_pixel_size or -1) - title_px) > 1.0 then
+        ensure_title_font(sh)
+        return false
+    end
+    return true
 end
 
 function M.clear_unresolved_action_audit()

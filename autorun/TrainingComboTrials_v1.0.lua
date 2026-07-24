@@ -904,6 +904,10 @@ local file_system = {
     combo_list_auto_refresh_frames = 600,
     combo_list_auto_refresh_counter = 0,
     combo_list_was_active = false,
+    combo_list_character_p1 = nil,
+    combo_list_character_p2 = nil,
+    combo_list_cached_filter = nil,
+    combo_list_cached_effective_filter = nil,
     combo_list_pending_save_refreshed = false,
     combo_list_refresh_pending = false,
     combo_list_refresh_pending_reload = false,
@@ -911,6 +915,9 @@ local file_system = {
     combo_list_refresh_deferred_logged = false,
     combo_list_last_signature = nil,
     combo_list_signature_warn_counter = 0,
+    combo_idle_prewarm_key = nil,
+    combo_idle_prewarm_stage = 0,
+    combo_idle_prewarm_delay = 0,
     trialhub_sync_poll_frames = 90,
     trialhub_sync_counter = 0,
     trialhub_last_marker = nil,
@@ -1276,12 +1283,28 @@ local function build_bcm_trigger_cache(player_idx)
     local cmd_obj = gBattle:get_field("Command"):get_data(nil)
     if not cmd_obj then return false end
 
-    local mask_cache = {}
-    local trigger_count = 0
-    pcall(function()
-        local trigs = cmd_obj:call("get_mUserEngine")[player_idx]:call("GetTrigger()"):get_elements()
-        for i = 1, #trigs do
-            local t = trigs[i]
+    local player = players[player_idx]
+    local build = player._trigger_cache_build
+    if not build then
+        local ok, trigs = pcall(function()
+            return cmd_obj:call("get_mUserEngine")[player_idx]:call("GetTrigger()"):get_elements()
+        end)
+        if not ok or type(trigs) ~= "table" then return false end
+        build = {
+            triggers = trigs,
+            index = 1,
+            mask_cache = {},
+            trigger_count = 0,
+        }
+        player._trigger_cache_build = build
+    end
+
+    -- Managed trigger inspection is expensive. Process a bounded slice per
+    -- frame so entering Combo Trials never stalls on a full character scan.
+    local slice_end = math.min(#build.triggers, build.index + 63)
+    while build.index <= slice_end do
+        local t = build.triggers[build.index]
+        pcall(function()
             if t then
                 local aid = t.action_id
                 if aid > 0 then
@@ -1300,17 +1323,20 @@ local function build_bcm_trigger_cache(player_idx)
 
                     if cmd_src then
                         local ok_key = cmd_src:get_field("ok_key_flags") or 0
-                        mask_cache[aid] = (mask_cache[aid] or 0) | ok_key
-                        trigger_count = trigger_count + 1
+                        build.mask_cache[aid] = (build.mask_cache[aid] or 0) | ok_key
+                        build.trigger_count = build.trigger_count + 1
                     end
                 end
             end
-        end
-    end)
+        end)
+        build.index = build.index + 1
+    end
 
-    if trigger_count < 10 then return false end
-    players[player_idx].trigger_mask_cache = mask_cache
-    players[player_idx].trigger_cache_built = true
+    if build.index <= #build.triggers then return false end
+    player._trigger_cache_build = nil
+    if build.trigger_count < 10 then return false end
+    player.trigger_mask_cache = build.mask_cache
+    player.trigger_cache_built = true
     return true
 end
 
@@ -5934,8 +5960,6 @@ local function ct_auto_refresh_combo_list()
     if _G.CurrentTrainerMode ~= 4 then
         file_system.combo_list_pending_save_refreshed = false
         file_system.combo_list_auto_refresh_counter = 0
-        file_system.combo_list_was_active = false
-        file_system.combo_list_last_signature = nil
         return
     end
 
@@ -5954,12 +5978,24 @@ local function ct_auto_refresh_combo_list()
             .. " p1=" .. tostring(players[0] and players[0].profile_name)
             .. " p2=" .. tostring(players[1] and players[1].profile_name))
         if not busy and not trial_state._xt_pending_save then
-            refresh_combo_list_preserve_selection(true)
-            local signature, signature_error = file_system.build_combo_file_signature()
-            if signature then
-                file_system.combo_list_last_signature = signature
-            elseif signature_error then
-                file_system.warn_combo_signature_failure(signature_error)
+            local current_filter = file_system.normalize_combo_control_filter(file_system.combo_control_filter)
+            local current_effective = file_system.effective_combo_control_filter(current_filter)
+            local cache_matches = file_system.combo_list_character_p1 == (players[0] and players[0].profile_name)
+                and file_system.combo_list_character_p2 == (players[1] and players[1].profile_name)
+                and file_system.combo_list_cached_filter == current_filter
+                and file_system.combo_list_cached_effective_filter == current_effective
+
+            -- Switching modules must only reveal the already prepared list.
+            -- File changes are handled by the sync signal / periodic refresh;
+            -- re-reading the selected JSON here stalls every mode transition.
+            if not cache_matches then
+                refresh_combo_list_preserve_selection(true)
+                local refreshed_signature, refreshed_error = file_system.build_combo_file_signature()
+                if refreshed_signature then
+                    file_system.combo_list_last_signature = refreshed_signature
+                elseif refreshed_error then
+                    file_system.warn_combo_signature_failure(refreshed_error)
+                end
             end
         end
     end
@@ -5994,6 +6030,74 @@ local function ct_auto_refresh_combo_list()
             file_system.log_combo_refresh("external file signature changed")
             file_system.request_combo_list_refresh("external file signature changed", true)
             file_system.run_pending_combo_list_refresh()
+        end
+    end
+end
+
+function file_system.combo_idle_prewarm_allowed()
+    return _G.CurrentTrainerMode ~= 4
+        and RuntimeSafety.is_training_allowed()
+        and _G.TrainingModeActive == true
+        and _G.TrainingScriptManagerActiveThisFrame == true
+        and _G.IsInBattleHub ~= true
+        and _G.IsInReplay ~= true
+        and _G.FlowMapID ~= 9
+        and _G.FlowMapID ~= 10
+        and GS
+        and GS.valid == true
+end
+
+function file_system.idle_prewarm_combo_mode()
+    if not file_system.combo_idle_prewarm_allowed() then return end
+
+    local p1_character = players[0] and players[0].profile_name or "Unknown"
+    local p2_character = players[1] and players[1].profile_name or "Unknown"
+    if p1_character == "Unknown" or p2_character == "Unknown" then return end
+
+    local current_filter = file_system.normalize_combo_control_filter(file_system.combo_control_filter)
+    local current_effective = file_system.effective_combo_control_filter(current_filter)
+    local key = table.concat({ p1_character, p2_character, current_filter, current_effective }, "|")
+    if file_system.combo_idle_prewarm_key ~= key then
+        file_system.combo_idle_prewarm_key = key
+        file_system.combo_idle_prewarm_stage = 1
+        file_system.combo_idle_prewarm_delay = 0
+        file_system.combo_list_was_active = false
+    end
+
+    if (file_system.combo_idle_prewarm_delay or 0) > 0 then
+        file_system.combo_idle_prewarm_delay = file_system.combo_idle_prewarm_delay - 1
+        return
+    end
+
+    local stage = file_system.combo_idle_prewarm_stage or 0
+    if stage == 1 then
+        if file_system.update_combo_file_list(0) then
+            file_system.selected_file_idx_p1 = 1
+            file_system.combo_idle_prewarm_stage = 2
+        end
+        return
+    end
+    if stage == 2 then
+        if file_system.update_combo_file_list(1) then
+            file_system.selected_file_idx_p2 = 1
+            local signature = file_system.build_combo_file_signature()
+            if signature then file_system.combo_list_last_signature = signature end
+            file_system.combo_idle_prewarm_stage = 3
+        end
+        return
+    end
+    if stage == 3 then
+        if ComboTrials_Renderer.preload_next_font() then
+            file_system.combo_idle_prewarm_stage = 4
+        end
+        return
+    end
+    if stage == 4 then
+        if not ctx.preload_combo_ui_fonts or ctx.preload_combo_ui_fonts() then
+            file_system.combo_idle_prewarm_stage = 5
+            -- The list and fonts are ready. Entering Combo Trials should be a
+            -- pure visibility switch, with no JSON or font work on that frame.
+            file_system.combo_list_was_active = true
         end
     end
 end
@@ -6508,6 +6612,7 @@ local function ct_player_init(p_idx, p_state)
         p_state.buffer_action_instance = 0
         p_state.trigger_mask_cache = {}
         p_state.trigger_cache_built = false
+        p_state._trigger_cache_build = nil
         p_state.last_bcm_ptr = ""
 
         -- RESET TRIAL on character change
@@ -6543,7 +6648,11 @@ local function ct_player_init(p_idx, p_state)
 
         -- Refresh the list only if it's the character we are currently viewing
         if p_idx == ui_state.viewed_player and not trial_state._xt_pending_save then
-            refresh_combo_list()
+            local cached_character = file_system.combo_list_character_p2
+            if p_idx == 0 then cached_character = file_system.combo_list_character_p1 end
+            if cached_character ~= p_state.profile_name then
+                refresh_combo_list()
+            end
         end
         if p_state.profile_name ~= "Unknown" then
             p_state.exceptions = CharacterRules.load_for_character(p_state.profile_name)
@@ -8969,6 +9078,7 @@ re.on_frame(function()
         file_system.diag_log(gate_message)
     end
 
+    file_system.idle_prewarm_combo_mode()
     if not ct_handle_runtime_scene_gate() then
         return
     end
@@ -9095,6 +9205,7 @@ re.on_frame(function()
             if current_bcm_ptr ~= p_state.last_bcm_ptr then
                 p_state.last_bcm_ptr = current_bcm_ptr
                 p_state.trigger_cache_built = false
+                p_state._trigger_cache_build = nil
             end
         end
         if not p_state.trigger_cache_built then build_bcm_trigger_cache(p_idx) end

@@ -1,6 +1,7 @@
 local captured = {
     colors = {},
     pop_color_count = 0,
+    font_loads = 0,
 }
 
 Vector2f = {
@@ -14,6 +15,7 @@ imgui = {
         return 1920, 1080
     end,
     load_font = function(filename, size)
+        captured.font_loads = captured.font_loads + 1
         return { filename = filename, size = size }
     end,
     push_font = function() end,
@@ -54,8 +56,11 @@ local SharedUI = assert(loadfile("autorun/func/Training_SharedUI.lua"))()
 assert(SharedUI.set_floating_width_pct(0.57) == 0.57,
     "shared floating width must accept the ComboTrials bar width")
 local visible, sw, sh = SharedUI.begin_floating_window("test")
+local shared_ui_font, shared_button_font = SharedUI.get_floating_fonts(sh)
 
 assert(visible and sw == 1920 and sh == 1080, "floating bar must use the display dimensions")
+assert(shared_ui_font and shared_button_font and captured.font_loads == 2,
+    "shared floating fonts must be reusable without duplicate loading")
 assert(math.abs(captured.window_size.x - 1094.4) < 0.001,
     "floating bar must use the published ComboTrials width")
 assert(math.abs(captured.window_size.y - 47.952) < 0.001, "floating bar height must remain 4.44%")

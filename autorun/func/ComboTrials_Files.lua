@@ -576,6 +576,7 @@ local function update_combo_file_list(player_idx)
     local display_all, path_all, control_all, scan_ok, skipped_count = scan_combo_files(player_idx)
     if not scan_ok then return false end
     local display_list, path_list, control_list = filter_combo_lists(display_all, path_all, control_all)
+    local character = players[player_idx] and players[player_idx].profile_name or "Unknown"
 
     if player_idx == 0 then
         file_system.saved_combos_all_display_p1 = build_combo_display_list(display_all)
@@ -585,6 +586,7 @@ local function update_combo_file_list(player_idx)
         file_system.saved_combos_paths_p1 = path_list
         file_system.saved_combos_control_p1 = control_list
         file_system.skipped_combos_p1 = skipped_count
+        file_system.combo_list_character_p1 = character
     else
         file_system.saved_combos_all_display_p2 = build_combo_display_list(display_all)
         file_system.saved_combos_all_paths_p2 = path_all
@@ -593,7 +595,10 @@ local function update_combo_file_list(player_idx)
         file_system.saved_combos_paths_p2 = path_list
         file_system.saved_combos_control_p2 = control_list
         file_system.skipped_combos_p2 = skipped_count
+        file_system.combo_list_character_p2 = character
     end
+    file_system.combo_list_cached_filter = normalize_combo_control_filter(file_system.combo_control_filter)
+    file_system.combo_list_cached_effective_filter = file_system.combo_control_effective_filter
     return true
 end
 
@@ -622,6 +627,10 @@ local function reload_selected_combo_if_idle()
     else
         M.clear_combo_state()
     end
+end
+
+function M.reload_selected_combo_if_idle()
+    return reload_selected_combo_if_idle()
 end
 
 function M.refresh_combo_list_preserve_selection(reload_current_file)
@@ -690,6 +699,7 @@ function M.init(context, opts)
     file_system.scan_combo_files = scan_combo_files
     file_system.update_combo_file_list = update_combo_file_list
     file_system.refresh_combo_list_preserve_selection = M.refresh_combo_list_preserve_selection
+    file_system.reload_selected_combo_if_idle = M.reload_selected_combo_if_idle
     file_system.mark_combo_display_completed = M.mark_combo_display_completed
 
     return M

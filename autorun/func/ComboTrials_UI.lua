@@ -938,6 +938,18 @@ local function get_imgui_screen_size()
     return w, h
 end
 
+local function ensure_combo_fonts(sh, force_reload)
+    if font_attempted and not force_reload then return true end
+    if type(sh) ~= "number" or sh <= 0 then return false end
+
+    custom_ui_font, sf6_btn_font = SharedUI.get_floating_fonts(sh)
+    local font_scale = sh / 1080.0
+    local hud_size = math.max(10, math.floor((d2d_cfg.hud_font_size or 20) * font_scale))
+    pcall(function() hud_overlay_font = imgui.load_font("msyhbd.ttc", hud_size) end)
+    font_attempted = true
+    return true
+end
+
 local ui_dirty = false
 local ui_save_timer = 0
 local ui_dirty_age = 0
@@ -1164,18 +1176,9 @@ re.on_frame(function()
     d2d_cfg.float_pos.x = 0.0
     d2d_cfg.float_size.w = 1.0
 
-    -- FONT RELOAD (Only on the exact frame of change)
-    if not font_attempted or res_changed then
-        local font_scale = sh / 1080.0
-        pcall(function()
-            custom_ui_font = imgui.load_font("msyh.ttc",
-                math.max(10, math.floor(20 * font_scale)))
-        end)
-        pcall(function() sf6_btn_font = imgui.load_font("msyhbd.ttc", math.max(10, math.floor(22 * font_scale))) end)
-        local hud_size = math.max(10, math.floor((d2d_cfg.hud_font_size or 20) * font_scale))
-        pcall(function() hud_overlay_font = imgui.load_font("msyhbd.ttc", hud_size) end)
-        font_attempted = true
-    end
+    -- Reuse the fonts already loaded by the shared top bar. Only the
+    -- combo-specific HUD face needs its own font handle.
+    ensure_combo_fonts(sh, res_changed)
 
     -- ComboTrials no longer uses the center HUD overlay; native training info stays visible.
     _G.ComboTrials_HideNativeHUD = false
@@ -2220,6 +2223,12 @@ function M.init(shared_ctx)
     save_d2d_config = ctx.save_d2d_config
     get_exc_filename = ctx.get_exc_filename
     ui_state = ctx.ui_state
+    ctx.preload_combo_ui_fonts = M.preload_fonts
+end
+
+function M.preload_fonts()
+    local _, sh = get_imgui_screen_size()
+    return ensure_combo_fonts(sh, false)
 end
 
 return M
