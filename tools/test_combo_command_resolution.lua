@@ -75,7 +75,111 @@ assert(action_matcher.is_exact_expected_action({ id = 854 }, 855) == false,
 assert(action_matcher.is_exact_expected_action(nil, 854) == false,
     "the expected-step fallback must remain disabled outside active playback")
 
+local character_rules = dofile("autorun/func/ComboTrials/CharacterRules.lua")
+local deejay_sa3_exception = character_rules.get_match_rule({}, {}, "DeeJay", 1268)
+assert(deejay_sa3_exception ~= nil,
+    "Dee Jay SA3/CA compatibility must live in character rules, not legacy combo JSON")
+assert(action_matcher.matches_expected_action_id({ id = 1268 }, 1272, deejay_sa3_exception) == true,
+    "a legacy Dee Jay SA3 step must admit the low-health CA runtime action")
+local ca_match = action_matcher.match_expected_action(
+    { id = 1268, motion = "214214+P" },
+    1272,
+    "Unknown",
+    "None",
+    deejay_sa3_exception
+)
+assert(ca_match.matched == true and ca_match.match_reason == "action_alias_id",
+    "the health-selected CA action must validate as the recorded SA3 command")
+local legacy_sa3_step = {
+    id = 1268,
+    expected_combo = 46,
+    _runtime_action_id = 1272,
+    _runtime_combo_on_match = 14
+}
+local effective_combo, combo_source = action_matcher.effective_expected_combo(
+    legacy_sa3_step,
+    { expected_combo = 14 },
+    deejay_sa3_exception
+)
+assert(effective_combo == 37 and combo_source == "action_alias_combo_delta",
+    "a CA runtime variant must replace the old SA3 hit-count target with 14 + 23")
+local completion_satisfied, completion_target, completion_source =
+    action_matcher.is_completion_satisfied(
+        legacy_sa3_step,
+        { expected_combo = 14 },
+        deejay_sa3_exception,
+        15
+    )
+assert(completion_satisfied == true and completion_target == 37
+        and completion_source == "connected_after_action_match",
+    "a connected Dee Jay CA must finish after its first hit without waiting for the cinematic hit count")
+legacy_sa3_step._runtime_action_id = 1268
+effective_combo, combo_source = action_matcher.effective_expected_combo(
+    legacy_sa3_step,
+    { expected_combo = 14 },
+    deejay_sa3_exception
+)
+assert(effective_combo == 46 and combo_source == "recorded_expected_combo",
+    "the normal SA3 runtime variant must retain the old file's recorded target")
+local deejay_ca_exception = character_rules.get_match_rule({}, {}, "DeeJay", 1272)
+local legacy_ca_step = {
+    id = 1272,
+    expected_combo = 37,
+    _runtime_action_id = 1268,
+    _runtime_combo_on_match = 14,
+    _runtime_connected_on_match = true
+}
+effective_combo, combo_source = action_matcher.effective_expected_combo(
+    legacy_ca_step,
+    { expected_combo = 14 },
+    deejay_ca_exception
+)
+assert(effective_combo == 46 and combo_source == "action_alias_combo_delta",
+    "an old CA recording must likewise accept the normal-health SA3 variant")
+completion_satisfied, completion_target, completion_source =
+    action_matcher.is_completion_satisfied(
+        legacy_ca_step,
+        { expected_combo = 14 },
+        deejay_ca_exception,
+        14
+    )
+assert(completion_satisfied == true and completion_target == 46
+        and completion_source == "connected_on_action_match",
+    "a first hit already counted on the action frame must finish the Dee Jay super")
+assert(action_matcher.matches_expected_action_id({ id = 1268 }, 1200, deejay_sa3_exception) == false,
+    "a different super art must not inherit the SA3/CA compatibility rule")
+assert(action_matcher.matches_expected_action_id({ id = 1268 }, 1220, deejay_sa3_exception) == false,
+    "an unrelated Dee Jay action ID must not be accepted as the super variant")
+
 local main_source = read_all("autorun/TrainingComboTrials_v1.0.lua")
+assert(main_source:find("ActionMatcher.matches_expected_action_id", 1, true),
+    "playback intentionality must admit configured action aliases before filtering")
+assert(main_source:find("expected_exception", 1, true),
+    "playback action matching must receive the expected step's character rule")
+local completion_calls = 0
+for _ in main_source:gmatch("ActionMatcher%.is_completion_satisfied") do
+    completion_calls = completion_calls + 1
+end
+assert(completion_calls >= 2,
+    "normal completion and KO completion must both support connected super completion")
+local validation_source = assert(main_source:match(
+    "(local function ct_player_validation.-\nend)\n\nlocal function ct_player_hold_charge"
+))
+assert(not validation_source:find(
+        "and not is_demo_playing and not trial_state.manual_reset_pending",
+        1,
+        true
+    ),
+    "demo playback must not be excluded from terminal completion checks")
+assert(validation_source:find("if is_demo_playing then return end", 1, true),
+    "demo playback must still skip manual drop and timeout failures after checking completion")
+assert(main_source:find("if not trial_state._attempt_had_demo then", 1, true),
+    "demo-visible success must remain excluded from persistent player completion records")
+local pending_source = read_all("autorun/func/ComboTrials/PendingAbsorb.lua")
+assert(pending_source:find("._runtime_action_id = actual_id", 1, true),
+    "matched steps must retain the runtime SA3/CA variant for final completion")
+assert(pending_source:find("._runtime_combo_on_match = combo_count", 1, true),
+    "matched steps must retain the combo baseline used to confirm the first super hit")
 local resolver_block = assert(main_source:match(
     "(local function decode_transition_button_mask.-\nend)\n\nlocal esf_names_map"))
 ComboTrials_Renderer = {

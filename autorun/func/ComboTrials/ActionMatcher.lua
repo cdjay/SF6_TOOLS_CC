@@ -6,6 +6,30 @@ local function trim(value)
     return tostring(value or ""):match("^%s*(.-)%s*$")
 end
 
+local function list_contains_number(value, target)
+    local target_number = tonumber(target)
+    if value == nil or target_number == nil then return false end
+
+    if type(value) == "table" then
+        for _, item in ipairs(value) do
+            if tonumber(item) == target_number then return true end
+        end
+        return false
+    end
+
+    for item in tostring(value):gmatch("[^,]+") do
+        if tonumber(item:match("^%s*(.-)%s*$")) == target_number then
+            return true
+        end
+    end
+    return false
+end
+
+local function map_number_for_id(value, action_id)
+    if type(value) ~= "table" or action_id == nil then return nil end
+    return tonumber(value[tostring(action_id)] or value[tonumber(action_id)])
+end
+
 function ActionMatcher.normalize_motion_token(value)
     local s = tostring(value or ""):upper():gsub("%s+", "")
     -- Recorded combo JSON can contain equivalent historical spellings.
@@ -41,12 +65,67 @@ function ActionMatcher.motion_matches_expected(actual_motion, actual_input, expe
     return false
 end
 
-function ActionMatcher.match_expected_action(expected, actual_action_id, actual_motion, actual_input)
-    local id_matched = expected and actual_action_id == expected.id
+function ActionMatcher.matches_expected_action_id(expected, actual_action_id, expected_exception)
+    if type(expected) ~= "table" then return false end
+    local expected_id = tonumber(expected.id)
+    local actual_id = tonumber(actual_action_id)
+    if expected_id == nil or actual_id == nil then return false end
+    if expected_id == actual_id then return true end
+    return list_contains_number(expected_exception and expected_exception.action_alias_ids, actual_id)
+end
+
+function ActionMatcher.effective_expected_combo(expected, previous_step, expected_exception)
+    if type(expected) ~= "table" then return nil, "missing_expected" end
+    local recorded_combo = tonumber(expected.expected_combo)
+    local runtime_action_id = tonumber(expected._runtime_action_id)
+    local variant_delta = map_number_for_id(
+        expected_exception and expected_exception.action_alias_combo_deltas,
+        runtime_action_id
+    )
+    local previous_combo = type(previous_step) == "table"
+        and tonumber(previous_step.expected_combo) or nil
+
+    if variant_delta ~= nil and previous_combo ~= nil then
+        return previous_combo + variant_delta, "action_alias_combo_delta"
+    end
+    return recorded_combo, "recorded_expected_combo"
+end
+
+function ActionMatcher.is_completion_satisfied(expected, previous_step, expected_exception, observed_combo)
+    local required_combo, combo_source = ActionMatcher.effective_expected_combo(
+        expected,
+        previous_step,
+        expected_exception
+    )
+    local observed = tonumber(observed_combo) or 0
+
+    if expected_exception and expected_exception.finish_on_first_hit == true then
+        if expected and expected._runtime_connected_on_match == true then
+            return true, required_combo, "connected_on_action_match"
+        end
+
+        local match_combo = expected and tonumber(expected._runtime_combo_on_match) or nil
+        if match_combo ~= nil and observed > match_combo then
+            return true, required_combo, "connected_after_action_match"
+        end
+    end
+
+    local satisfied = required_combo == nil or required_combo == 0 or observed >= required_combo
+    return satisfied, required_combo, combo_source
+end
+
+function ActionMatcher.match_expected_action(expected, actual_action_id, actual_motion, actual_input, expected_exception)
+    local exact_id_matched = expected
+        and tonumber(actual_action_id) ~= nil
+        and tonumber(actual_action_id) == tonumber(expected.id)
+    local alias_id_matched = not exact_id_matched
+        and ActionMatcher.matches_expected_action_id(expected, actual_action_id, expected_exception)
     local motion_matched = expected and ActionMatcher.motion_matches_expected(actual_motion, actual_input, expected)
     return {
-        matched = id_matched or motion_matched or false,
-        match_reason = id_matched and "id" or (motion_matched and "motion" or "none"),
+        matched = exact_id_matched or alias_id_matched or motion_matched or false,
+        match_reason = exact_id_matched and "id"
+            or (alias_id_matched and "action_alias_id")
+            or (motion_matched and "motion" or "none"),
         expected_id = expected and expected.id or nil,
         actual_action_id = actual_action_id,
         expected_entry = expected,
