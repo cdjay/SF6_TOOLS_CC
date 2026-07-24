@@ -356,7 +356,7 @@ local function draw_text_safe(text, x, y, color, size) for offset = 1, shadow_la
 local detected_infos = { [0] = { name = "Waiting...", id = -1 }, [1] = { name = "Waiting...", id = -1 } }
 -- Player info from shared hook (0_SharedHooks.lua)
 re.on_frame(function()
-    if not RuntimeSafety.is_training_allowed() then return end
+    if not RuntimeSafety.is_allowed() then return end
     if _G._shared_player_info then
         for i = 0, 1 do
             local info = _G._shared_player_info[i]
@@ -624,7 +624,7 @@ end
 -- [6. MAIN LOOP]
 -- =========================================================
 re.on_frame(function()
-    if _G.SheldonsBoxes_Enabled ~= true or not RuntimeSafety.is_training_allowed() then
+    if _G.SheldonsBoxes_Enabled ~= true or not RuntimeSafety.is_allowed() then
         _G._vr_queue = nil
         click_flash_frames = 0
         return
@@ -1127,7 +1127,7 @@ do
             _G._vr_queue = nil
             return
         end
-        if not RuntimeSafety.is_training_allowed() then
+        if not RuntimeSafety.is_allowed() then
             _G._vr_queue = nil
             return
         end
@@ -1228,7 +1228,7 @@ local function save_display_config()
 end
 
 local function draw_sheldons_boxes_menu_ui()
-    if not RuntimeSafety.is_training_allowed() then return end
+    if not RuntimeSafety.is_allowed() then return end
     if _G.SheldonsBoxes_Enabled ~= true then
         imgui.text_colored("当前已由顶部菜单关闭。", COL_GREY)
         imgui.text_colored("勾选顶部栏“碰撞显示”后生效。", COL_GREY)

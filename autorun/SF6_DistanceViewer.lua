@@ -509,15 +509,17 @@ local pending_tp = { active = false, attacker_id = 0, distance = 0.0, attempts =
 local shared_combat = { p1_front_offset = 0.0, p2_front_offset = 0.0, p1_edge_x = nil, p1_dist = nil, p2_edge_x = nil, p2_dist = nil, p1_throw_offset = 0.0, p2_throw_offset = 0.0 }
 
 local function apply_teleport_exact(attacker_id, distance, is_retry, is_throw)
+    if not RuntimeSafety.can_inject_input() then return false end
+
     local gb = sdk.find_type_definition("gBattle")
-    if not gb then return end
+    if not gb then return false end
 
     local sP = gb:get_field("Player"):get_data(nil)
-    if not sP or not sP.mcPlayer then return end
+    if not sP or not sP.mcPlayer then return false end
 
     local p1 = sP.mcPlayer[0]
     local p2 = sP.mcPlayer[1]
-    if not p1 or not p2 then return end
+    if not p1 or not p2 then return false end
 
     local px1_raw = p1.pos.x.v
     local px2_raw = p2.pos.x.v
@@ -581,6 +583,7 @@ local function apply_teleport_exact(attacker_id, distance, is_retry, is_throw)
         pending_tp.attempts = 0
         pending_tp.is_throw = is_throw or false
     end
+    return true
 end
 
 local first_draw = true
@@ -3237,10 +3240,8 @@ _dv_update_aa_input_state = function()
     _G._dv_aa_frame = rs and rs.frame or 0
 end
 
-local function _dv_disable_runtime_effects()
-    hud_draw_list = nil
-    icons_to_draw = {}
-    _dv_last_window_rect = nil
+local function _dv_disable_input_effects()
+    pending_tp.active = false
     _dv_mark_aa_release(12)
     _G._dv_aa_pending_input = nil
     _G._dv_aa_pending_sub = nil
@@ -3265,6 +3266,13 @@ local function _dv_disable_runtime_effects()
     end
 end
 
+local function _dv_disable_runtime_effects()
+    hud_draw_list = nil
+    icons_to_draw = {}
+    _dv_last_window_rect = nil
+    _dv_disable_input_effects()
+end
+
 local function _dv_read_p1_input_new()
     local p1 = GS.p1
     if p1 then
@@ -3286,8 +3294,8 @@ local function _dv_read_p1_act_st()
 end
 
 local function aa_tick()
-    if _G.SF6_DistanceViewer_Enabled ~= true or not RuntimeSafety.is_training_allowed() then
-        _dv_disable_runtime_effects()
+    if _G.SF6_DistanceViewer_Enabled ~= true or not RuntimeSafety.can_inject_input() then
+        _dv_disable_input_effects()
         return
     end
 
@@ -3709,9 +3717,13 @@ re.on_frame(function()
     hud_draw_list = nil
     refresh_standalone_runtime_safety()
 
-    if _G.SF6_DistanceViewer_Enabled ~= true or not RuntimeSafety.is_training_allowed() then
+    if _G.SF6_DistanceViewer_Enabled ~= true or not RuntimeSafety.is_allowed() then
         _dv_disable_runtime_effects()
         return
+    end
+    local training_actions_allowed = RuntimeSafety.can_inject_input()
+    if not training_actions_allowed then
+        _dv_disable_input_effects()
     end
     if p2_cache and p2_cache.valid and p2_cache.real_name then
         local p2_name = p2_cache.real_name
@@ -3845,10 +3857,12 @@ re.on_frame(function()
             p2_cache.active_zone = evaluate_player_zone(1, p2_cache, p1_cache)
         end
 
-        aa_tick()
+        if training_actions_allowed then
+            aa_tick()
+        end
 
         -- [TELEPORT RETRY LOGIC] Ensures strict adherence to target distance
-        if pending_tp.active and p1_cache.valid and p2_cache.valid then
+        if training_actions_allowed and pending_tp.active and p1_cache.valid and p2_cache.valid then
             local current_c2c = math.abs(p1_cache.world_x - p2_cache.world_x) * 100.0
             if math.abs(current_c2c - pending_tp.expected_c2c) > 0.5 then -- > 0.5 cm error tolerance
                 pending_tp.attempts = pending_tp.attempts + 1
@@ -4396,8 +4410,10 @@ local function draw_distance_viewer_menu_ui()
         return
     end
 
-    if not RuntimeSafety.is_training_allowed() then
-        imgui.text_colored("HUD 仅在离线训练场显示；菜单设置仍可使用。", COL_YELLOW)
+    if not RuntimeSafety.is_allowed() then
+        imgui.text_colored("HUD 仅在离线训练场或录像回放中显示；菜单设置仍可使用。", COL_YELLOW)
+    elseif RuntimeSafety.is_replay_allowed() then
+        imgui.text_colored("录像回放中仅启用视觉显示；传送和自动操作保持关闭。", COL_YELLOW)
     end
 
     local changed_ov, new_ov = imgui.checkbox("浮动窗口", config.show_debug_window)
