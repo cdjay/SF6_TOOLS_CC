@@ -187,6 +187,12 @@ function PendingAbsorb.apply_matched_step(ctx, params)
         state.sequence[matched_step].actual_combo = combo_count
         state.sequence[matched_step].actual_hp = actual_hp
         state.sequence[matched_step].action_instance = action_instance
+        state.sequence[matched_step]._runtime_action_id = actual_id
+        state.sequence[matched_step]._runtime_match_reason = params.match_reason
+        state.sequence[matched_step]._runtime_combo_on_match = combo_count
+        state.sequence[matched_step]._runtime_connected_on_match = prev_step ~= nil
+            and tonumber(prev_step.expected_combo) ~= nil
+            and combo_count > tonumber(prev_step.expected_combo)
         if action_instance ~= nil then
             state._consumed_action_instances = state._consumed_action_instances or {}
             state._consumed_action_instances[action_instance] = matched_step

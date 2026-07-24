@@ -7,6 +7,24 @@ local CharacterRules = {
 local EXCEPTION_DIR = "TrainingComboTrials_data/exceptions"
 local COMMON_EXCEPTIONS_FILE = EXCEPTION_DIR .. "/Common.json"
 
+-- Some supers select a different runtime action and internal hit counter from
+-- the same player command according to health. Keep this compatibility outside
+-- recorded combo JSON so legacy files remain portable and immutable.
+local ACTION_VARIANT_RULES = {
+    DeeJay = {
+        ["1268"] = {
+            action_alias_ids = "1272",
+            action_alias_combo_deltas = { ["1272"] = 23 },
+            finish_on_first_hit = true
+        },
+        ["1272"] = {
+            action_alias_ids = "1268",
+            action_alias_combo_deltas = { ["1268"] = 32 },
+            finish_on_first_hit = true
+        }
+    }
+}
+
 function CharacterRules.get_exception_filename(character_name)
     return EXCEPTION_DIR .. "/" .. tostring(character_name or ""):gsub("[^%w_]", "") .. ".json"
 end
@@ -31,6 +49,19 @@ function CharacterRules.get_exception(character_rules, common_rules, action_id)
     local character_exception = character_rules and character_rules[id] or nil
     local common_exception = common_rules and common_rules[id] or nil
     return character_exception or common_exception, character_exception, common_exception
+end
+
+function CharacterRules.get_match_rule(character_rules, common_rules, character_name, action_id)
+    local exception = CharacterRules.get_exception(character_rules, common_rules, action_id)
+    local character_variants = ACTION_VARIANT_RULES[tostring(character_name or "")]
+    local variant = character_variants and character_variants[tostring(action_id)] or nil
+    if not variant then return exception end
+    if not exception then return variant end
+
+    local merged = {}
+    for key, value in pairs(exception) do merged[key] = value end
+    for key, value in pairs(variant) do merged[key] = value end
+    return merged
 end
 
 function CharacterRules.has_character_exception(character_rules, action_id)

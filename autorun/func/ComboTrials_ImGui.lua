@@ -9,6 +9,7 @@ local imgui = imgui
 local M = {}
 local RuntimeSafety = require("func/RuntimeSafety")
 local Canvas = require("func/ImGuiCanvas")
+local SequenceGrouping = require("func/ComboTrials/SequenceGrouping")
 
 -- Shared context (set by init)
 local ctx -- { d2d_cfg, trial_state, players, sf6_menu_state }
@@ -1803,11 +1804,14 @@ local function merge_group_log_item(steps)
     end
 
     local first_holdable_done = false
-    for _, s in ipairs(steps) do
+    for step_index, s in ipairs(steps) do
         local m = s.motion or ""
         -- For follow-ups: ensure > is BEFORE [AIR]/J. (not reversed)
         m = m:gsub("^(%[AIR%])%s*(>)", "%2%1")
         m = m:gsub("^(J%.)%s*(>)", "%2%1")
+        if step_index > 1 then
+            m = SequenceGrouping.ensure_followup_prefix(m)
+        end
         if s.is_holdable then
             if holdable_count > 3 then
                 -- Only display the first holdable with "(xN)", ignore the rest

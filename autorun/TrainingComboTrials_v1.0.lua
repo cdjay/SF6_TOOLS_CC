@@ -10,6 +10,7 @@ local ComboTrialsModules = {
     ActionMatcher = require("func/ComboTrials/ActionMatcher"),
     ActionRestartDetector = require("func/ComboTrials/ActionRestartDetector"),
     CharacterRules = require("func/ComboTrials/CharacterRules"),
+    SequenceGrouping = require("func/ComboTrials/SequenceGrouping"),
     Validator = require("func/ComboTrials/Validator"),
     TrainingEnvironment = require("func/ComboTrials/TrainingEnvironment"),
     PendingAbsorb = require("func/ComboTrials/PendingAbsorb"),
@@ -19,6 +20,7 @@ local DebugTrace = ComboTrialsModules.DebugTrace
 local ActionMatcher = ComboTrialsModules.ActionMatcher
 local ActionRestartDetector = ComboTrialsModules.ActionRestartDetector
 local CharacterRules = ComboTrialsModules.CharacterRules
+local SequenceGrouping = ComboTrialsModules.SequenceGrouping
 local Validator = ComboTrialsModules.Validator
 
 -- DEV ONLY / DO NOT COMMIT ENABLED.
@@ -3820,25 +3822,8 @@ local function apply_current_position_refresh()
 end
 
 
-local function assign_groups(sequence)
-    local gid = 0
-    for i, step in ipairs(sequence) do
-        local motion = (step.motion or ""):match("^%s*(.-)%s*$") or ""
-        local is_followup = motion:sub(1, 1) == ">"
-
-        -- Juri: the hit after 1218 is not a real follow-up, break the group
-        if is_followup and i > 1 and sequence[i - 1].id == 1218 then
-            is_followup = false
-            step.motion = motion:gsub("^>%s*", "")
-        end
-
-        if is_followup and i > 1 then
-            step.group_id = sequence[i - 1].group_id
-        else
-            gid = gid + 1
-            step.group_id = gid
-        end
-    end
+local function assign_groups(sequence, character_name)
+    return SequenceGrouping.assign_groups(sequence, character_name)
 end
 
 CTTimelineSequenceNormalizer = CTTimelineSequenceNormalizer or {}
@@ -4645,7 +4630,6 @@ local function clear_trial_attempt_state(player_idx, phase)
     trial_state._pending_hit_cc = nil
     trial_state._hit_grace = 0
     trial_state._reset_grace = 15
-    trial_state._final_finish_max_observed_combo = nil
     trial_state._pending_current_absorb = nil
     trial_state._pending_block_outcome = nil
     trial_state._consumed_action_instances = nil
@@ -4662,6 +4646,10 @@ local function clear_trial_attempt_state(player_idx, phase)
         item.actual_hp = nil
         item.has_hit = false
         item.last_frame_diff = nil
+        item._runtime_action_id = nil
+        item._runtime_match_reason = nil
+        item._runtime_combo_on_match = nil
+        item._runtime_connected_on_match = nil
         item.ui_result_text = nil
         item.ui_result_kind = nil
     end
@@ -5402,14 +5390,28 @@ setup_hook("app.battle.bBattleFlow", "updateKO", nil, function(retval)
     if trial_state.is_playing or trial_state.is_recording or (demo_state and demo_state.is_playing) then
         -- Skip KO animation, but do not mark a trial as complete until the
         -- sequence validation has actually reached the final step.
-        if trial_state.is_playing and not (demo_state and demo_state.is_playing)
+        if trial_state.is_playing
             and trial_state.success_timer == 0 and trial_state._success_latched ~= true then
             local seq = trial_state.sequence or {}
             local last_step = seq[#seq]
+            local previous_step = seq[#seq - 1]
+            local player_state = players[trial_state.playing_player or 0]
+            local last_exception = CharacterRules.get_match_rule(
+                player_state and player_state.exceptions or nil,
+                common_exceptions,
+                player_state and player_state.profile_name or nil,
+                last_step and last_step.id
+            )
             local attacker = (trial_state.playing_player == 1) and GS.p2 or GS.p1
             local combo_count = math.max(get_combo_count(attacker) or 0, last_step and (last_step.actual_combo or 0) or 0)
+            local completion_satisfied = ActionMatcher.is_completion_satisfied(
+                last_step,
+                previous_step,
+                last_exception,
+                combo_count
+            )
             if #seq > 0 and trial_state.current_step > #seq and last_step
-                and (not last_step.expected_combo or last_step.expected_combo == 0 or combo_count >= last_step.expected_combo) then
+                and completion_satisfied then
                 trial_state.success_timer = d2d_cfg.fail_display_frames or 120
             end
         end
@@ -6787,18 +6789,36 @@ local function ct_player_validation(p_idx, p_state)
             act_id_reverse_enum = act_id_reverse_enum
         }, "pending_current_absorb_validation")
     end
-    if trial_state.is_playing and p_idx == trial_state.playing_player and not is_demo_playing and not trial_state.manual_reset_pending then
+    if trial_state.is_playing and p_idx == trial_state.playing_player and not trial_state.manual_reset_pending then
         local is_hold_pending = (trial_state.active_universal_hold ~= nil)
 
         if #trial_state.sequence > 0 and trial_state.current_step > #trial_state.sequence then
             local last_step = trial_state.sequence[#trial_state.sequence]
+            local previous_step = trial_state.sequence[#trial_state.sequence - 1]
+            local last_exception = CharacterRules.get_match_rule(
+                p_state.exceptions,
+                common_exceptions,
+                p_state.profile_name,
+                last_step and last_step.id
+            )
             local observed_combo = math.max(_pf.current_combo or 0, p_state.last_combo_count or 0, last_step.actual_combo or 0)
+            local completion_satisfied = ActionMatcher.is_completion_satisfied(
+                last_step,
+                previous_step,
+                last_exception,
+                observed_combo
+            )
             local should_finish_success = trial_state.success_timer == 0 and not is_hold_pending and not (trial_state.fail_timer and trial_state.fail_timer > 0)
-                and (is_pressure_tail_step(last_step) or not last_step.expected_combo or last_step.expected_combo == 0 or observed_combo >= last_step.expected_combo)
+                and (is_pressure_tail_step(last_step) or completion_satisfied)
             if should_finish_success then
                 trial_state.success_timer = d2d_cfg.fail_display_frames or 120
             end
         end
+
+        -- Demo playback must show the same terminal success state as manual
+        -- play, while its completion remains excluded from persistent records
+        -- by _attempt_had_demo in handle_trial_auto_flow.
+        if is_demo_playing then return end
 
         -- CONTINUOUS COMBO DROP DETECTION:
         if (_pf.current_combo or 0) == 0 and (p_state.last_combo_count or 0) > 0 and not trial_state._pending_hit_cc and not (trial_state._hit_grace and trial_state._hit_grace > 0) then
@@ -6855,12 +6875,6 @@ local function ct_player_validation(p_idx, p_state)
                                     trial_state.fail_reason = "COMBO DROPPED"
                                     combo_drop_reason = "combo_dropped_after_final_step"
                                 end
-                            end
-                            if trial_state.current_step > #trial_state.sequence then
-                                DebugTrace.record_match_probe(trial_state, build_final_finish_debug({
-                                    combo_drop_detected = true,
-                                    combo_drop_reason = combo_drop_reason
-                                }))
                             end
                         end
                     end
@@ -7727,8 +7741,19 @@ local function ct_player_process_actions(p_idx, p_state, actions_to_process)
                     and trial_state.sequence and trial_state.current_step then
                     expected_for_ignore = trial_state.sequence[trial_state.current_step]
                 end
+                local expected_exception = expected_for_ignore
+                    and CharacterRules.get_match_rule(
+                        p_state.exceptions,
+                        common_exceptions,
+                        p_state.profile_name,
+                        expected_for_ignore.id
+                    ) or nil
                 local expected_action_matches_current = expected_for_ignore
-                    and ActionMatcher.is_exact_expected_action(expected_for_ignore, act_id)
+                    and ActionMatcher.matches_expected_action_id(
+                        expected_for_ignore,
+                        act_id,
+                        expected_exception
+                    )
 
                 if not is_ignored and not expected_action_matches_current then
                     local ignore_prev = ActionMatcher.evaluate_ignore_prev(exc, p_state.log, engine_frame_count)
@@ -8109,6 +8134,7 @@ local function ct_player_process_actions(p_idx, p_state, actions_to_process)
                         counter_type = 0, -- will be updated on hit (CH/PC detected via flags)
                         next_auto_id = nil -- Will be filled if the next action is automatic
                     })
+                    assign_groups(trial_state.sequence, p_state.profile_name)
                     trial_step_idx = #trial_state.sequence
                 elseif trial_state.is_playing and p_idx == trial_state.playing_player and #trial_state.sequence > 0 then
 
@@ -8245,7 +8271,19 @@ local function ct_player_process_actions(p_idx, p_state, actions_to_process)
                         end
 
                         if allow_input then
-                            local action_match = ActionMatcher.match_expected_action(expected, act_id, motion_str, real_input_str)
+                            local expected_exception = CharacterRules.get_match_rule(
+                                p_state.exceptions,
+                                common_exceptions,
+                                p_state.profile_name,
+                                expected.id
+                            )
+                            local action_match = ActionMatcher.match_expected_action(
+                                expected,
+                                act_id,
+                                motion_str,
+                                real_input_str,
+                                expected_exception
+                            )
                             if process_act.synthetic then
                                 action_match.source = process_act.fallback_source or process_act.source
                                 action_match.edge_type = process_act.edge_type
@@ -8500,7 +8538,19 @@ local function ct_player_process_actions(p_idx, p_state, actions_to_process)
 
                                         expected = trial_state.sequence[trial_state.current_step]
                                         if expected then
-                                            action_match = ActionMatcher.match_expected_action(expected, act_id, motion_str, real_input_str)
+                                            local chain_expected_exception = CharacterRules.get_match_rule(
+                                                p_state.exceptions,
+                                                common_exceptions,
+                                                p_state.profile_name,
+                                                expected.id
+                                            )
+                                            action_match = ActionMatcher.match_expected_action(
+                                                expected,
+                                                act_id,
+                                                motion_str,
+                                                real_input_str,
+                                                chain_expected_exception
+                                            )
                                             match_probe.post_absorb_step = trial_state.current_step
                                             match_probe.post_absorb_action_match = {
                                                 matched = action_match.matched,
@@ -9415,7 +9465,7 @@ function save_trial_sequence(meta)
 
     file_system.log_combo_save("output filename=" .. tostring(fname))
 
-    assign_groups(trial_state.sequence)
+    assign_groups(trial_state.sequence, char_name)
     json.dump_file(path, trial_state.sequence)
     trial_state._raw_rec_buffer = {}
     trial_state._rec_environment = nil
