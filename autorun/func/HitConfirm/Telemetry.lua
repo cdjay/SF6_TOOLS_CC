@@ -7,7 +7,7 @@ Telemetry.ATTEMPT_SCHEMA = "sf6cc.hit_confirm_attempt.v1"
 Telemetry.SESSION_SCHEMA = "sf6cc.hit_confirm_session.v1"
 Telemetry.OUTPUT_DIR = "SF6_TrainingRemoteControl_data/HitConfirmTelemetry"
 Telemetry.OUTPUT_FILE = Telemetry.OUTPUT_DIR .. "/events.jsonl"
-Telemetry.MOD_VERSION = "0.99"
+Telemetry.MOD_VERSION = "1.0.2"
 
 local function case_identity(case)
     local followups = {}

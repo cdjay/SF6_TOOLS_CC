@@ -6,7 +6,7 @@ local Telemetry = {
     IDENTITY_SCHEMA = "sf6cc.combo_identity.v1",
     OUTPUT_DIR = "SF6_TrainingRemoteControl_data/ComboTrialTelemetry",
     OUTPUT_FILE = "SF6_TrainingRemoteControl_data/ComboTrialTelemetry/events.jsonl",
-    MOD_VERSION = "0.99"
+    MOD_VERSION = "1.0.2"
 }
 
 local UINT32 = 0xffffffff
