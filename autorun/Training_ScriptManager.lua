@@ -337,19 +337,26 @@ if _G.CurrentTrainerMode == nil then
 end
 
 local _tsm_last_mode = _G.CurrentTrainerMode
-local TSM_MODE_NAMES = {
-    [0] = "已关闭",
-    [2] = "确认训练",
-    [4] = "连段训练",
+-- This list owns both the top-bar order and hotkey cycle order. New training
+-- modules belong here; the close button is rendered separately after the list.
+local TRAINING_MODE_MODULES = {
+    { id = 4, label = "连段训练" },
+    { id = 2, label = "确认训练" },
 }
 
-local ENABLED_TRAINER_MODES = { [0] = true, [2] = true, [4] = true }
+local TSM_MODE_NAMES = { [0] = "已关闭" }
+local ENABLED_TRAINER_MODES = { [0] = true }
+local MODE_CYCLE = { 0 }
+for _, module in ipairs(TRAINING_MODE_MODULES) do
+    TSM_MODE_NAMES[module.id] = module.label
+    ENABLED_TRAINER_MODES[module.id] = true
+    MODE_CYCLE[#MODE_CYCLE + 1] = module.id
+end
+
 local function is_enabled_trainer_mode(mode)
     return ENABLED_TRAINER_MODES[mode or 0] == true
 end
 
--- Cycling order: DISABLED → HIT CONFIRM → CUSTOM COMBO TRIALS → DISABLED
-local MODE_CYCLE = { 0, 2, 4 }
 local MODE_CYCLE_INDEX = {} -- reverse lookup: mode_id → position in cycle
 for i, m in ipairs(MODE_CYCLE) do MODE_CYCLE_INDEX[m] = i end
 
@@ -518,18 +525,11 @@ end)
 local SharedUI = require("func/Training_SharedUI")
 
 -- Top bar button colors (rebuilt from config)
-local SWITCH_COLOR  = build_sc_color(config.top_colors.switch, config.top_alphas.switch)
 local MODE_ACTIVE   = build_sc_color(config.top_colors.active, config.top_alphas.active)
 local MODE_INACTIVE = build_sc_color(config.top_colors.inactive, config.top_alphas.inactive)
 
 local top_bar_width = 1.0
 local top_bar_height = 0.0444
-
-local MODE_BUTTONS = {
-    { id = 0, label = "关闭训练" },
-    { id = 2, label = "确认训练" },
-    { id = 4, label = "连段训练" },
-}
 
 local function draw_top_floating_bar()
     local visible, sw, sh = SharedUI.begin_floating_window_top("TrainingModeSwitch##top", top_bar_width, top_bar_height)
@@ -541,33 +541,34 @@ local function draw_top_floating_bar()
     local scale = sh / 1080.0
     local sp = 4 * scale
 
-    local train_count = 1 + #MODE_BUTTONS
     local train_x = sw * 0.125
-    local train_group_w = sw * 0.345
-    local btn_w = (train_group_w - sp * (train_count - 1)) / train_count
-    if btn_w < 145 * scale then btn_w = 145 * scale end
+    local mode_btn_w = math.max(145 * scale, sw * 0.085)
+    local control_h = math.max(1, sh * (top_bar_height - 0.02))
+    local close_size = control_h
 
     local passive_w = math.max(112 * scale, sw * 0.06)
     local feature_start_x = sw * 0.665
     local top_y = sh * 0.01
 
     imgui.set_cursor_pos(Vector2f.new(train_x, top_y))
-    if SharedUI.sf6_button("切换训练模式##sw_top", SWITCH_COLOR, btn_w) then
-        cycle_next_mode()
-    end
-
-    for _, btn in ipairs(MODE_BUTTONS) do
-        imgui.same_line(0, sp)
+    for index, btn in ipairs(TRAINING_MODE_MODULES) do
+        if index > 1 then imgui.same_line(0, sp) end
         local is_active = (_G.CurrentTrainerMode == btn.id)
         local colors = is_active and MODE_ACTIVE or MODE_INACTIVE
-        if SharedUI.sf6_button(btn.label .. "##top_" .. btn.id, colors, btn_w) then
+        if SharedUI.sf6_button(btn.label .. "##top_" .. btn.id, colors, mode_btn_w, control_h) then
             _G.CurrentTrainerMode = btn.id
         end
     end
 
+    imgui.same_line(0, sp)
+    local close_colors = (_G.CurrentTrainerMode == 0) and MODE_ACTIVE or MODE_INACTIVE
+    if SharedUI.sf6_button("X##top_close_all_modes", close_colors, close_size, close_size) then
+        _G.CurrentTrainerMode = 0
+    end
+
     imgui.set_cursor_pos(Vector2f.new(feature_start_x, top_y))
     local dv_colors = (config.distance_viewer_enabled == true) and MODE_ACTIVE or MODE_INACTIVE
-    if SharedUI.sf6_button("距离显示##top_distance_viewer", dv_colors, passive_w) then
+    if SharedUI.sf6_button("距离显示##top_distance_viewer", dv_colors, passive_w, control_h) then
         config.distance_viewer_enabled = not config.distance_viewer_enabled
         save_config()
         if _G.show_custom_ticker then _G.show_custom_ticker(config.distance_viewer_enabled and "距离显示已开启" or "距离显示已关闭", 0.3) end
@@ -575,7 +576,7 @@ local function draw_top_floating_bar()
 
     imgui.same_line(0, sp)
     local sb_colors = (config.sheldons_boxes_enabled == true) and MODE_ACTIVE or MODE_INACTIVE
-    if SharedUI.sf6_button("碰撞显示##top_sheldons_boxes", sb_colors, passive_w) then
+    if SharedUI.sf6_button("碰撞显示##top_sheldons_boxes", sb_colors, passive_w, control_h) then
         config.sheldons_boxes_enabled = not config.sheldons_boxes_enabled
         save_config()
         if _G.show_custom_ticker then _G.show_custom_ticker(config.sheldons_boxes_enabled and "碰撞显示已开启" or "碰撞显示已关闭", 0.3) end
@@ -919,10 +920,12 @@ end)
 -- Styled headers
 local UI_THEME = {
     hdr_root = UIKit.THEME.hdr_dark_purple,
-    hdr_training_config = UIKit.THEME.hdr_gold,
-    hdr_combo_config = UIKit.THEME.hdr_purple,
-    hdr_confirm_config = UIKit.THEME.hdr_blue,
-    hdr_hotkeys = UIKit.THEME.hdr_green,
+    hdr_combo_config = UIKit.THEME.hdr_rainbow_red,
+    hdr_confirm_config = UIKit.THEME.hdr_rainbow_orange,
+    hdr_training_config = UIKit.THEME.hdr_rainbow_yellow,
+    hdr_distance_viewer = UIKit.THEME.hdr_rainbow_green,
+    hdr_collision_boxes = UIKit.THEME.hdr_rainbow_blue,
+    hdr_hotkeys = UIKit.THEME.hdr_rainbow_violet,
 }
 
 local styled_header = UIKit.styled_header
@@ -958,7 +961,7 @@ re.on_draw_ui(function()
     local _has_errors = _errs and _errs.count > 0
     if _has_errors then imgui.push_style_color(0, 0xFF0000FF) end
     local _tsm_open = styled_header(
-        "小吞街霸6全能训练MOD包 v0.99" .. (_has_errors and " [!]" or ""),
+        "小吞街霸6全能训练MOD包 v1.0.0" .. (_has_errors and " [!]" or ""),
         UI_THEME.hdr_root
     )
     if _has_errors then imgui.pop_style_color(1) end
@@ -985,16 +988,34 @@ re.on_draw_ui(function()
         if c4 and v4 then _G.CurrentTrainerMode = 4 end
 
         imgui.separator()
-        if styled_header("连段训练配置（需先激活连段训练）", UI_THEME.hdr_combo_config) then
-            TrainingMenuRegistry.draw("combo_config")
+        if styled_header("连段训练配置", UI_THEME.hdr_combo_config) then
+            if _G.CurrentTrainerMode ~= 4 then
+                imgui.text_colored("当前未启用连段训练。", 0xFF888888)
+                imgui.text_colored("勾选顶部栏“连段训练”后显示配置。", 0xFF888888)
+            else
+                TrainingMenuRegistry.draw("combo_config")
+            end
         end
 
         if styled_header("确认训练配置", UI_THEME.hdr_confirm_config) then
-            TrainingMenuRegistry.draw("confirm_config")
+            if _G.CurrentTrainerMode ~= 2 then
+                imgui.text_colored("当前未启用确认训练。", 0xFF888888)
+                imgui.text_colored("勾选顶部栏“确认训练”后显示配置。", 0xFF888888)
+            else
+                TrainingMenuRegistry.draw("confirm_config")
+            end
         end
 
         if styled_header("木人库配置管理", UI_THEME.hdr_training_config) then
             TrainingMenuRegistry.draw("training_config")
+        end
+
+        if styled_header("距离查看器", UI_THEME.hdr_distance_viewer) then
+            TrainingMenuRegistry.draw("distance_viewer")
+        end
+
+        if styled_header("碰撞框查看器(by Sheldon)", UI_THEME.hdr_collision_boxes) then
+            TrainingMenuRegistry.draw("sheldons_boxes")
         end
 
         if styled_header("快捷键设置", UI_THEME.hdr_hotkeys) then
@@ -1002,17 +1023,18 @@ re.on_draw_ui(function()
         end
 
         imgui.separator()
-        imgui.text_colored("其他说明", 0xFF00FFFF)
-        imgui.text_colored("确认训练", 0xFF00FF00)
-        imgui.text("  练习命中确认接连段。")
-        imgui.text("  木人随机防御；命中就继续连段。")
-        imgui.text("  被防则停止保持安全，并统计准确率。")
-        imgui.spacing()
+        imgui.text_colored("https://sf6cm.sctrip.asia", 0xFFFFFF00)
+        imgui.text_colored("可在此网站下载、管理连段和木人库配置。", 0xFF888888)
 
-        imgui.text_colored("连段训练", 0xFF00FF00)
-        imgui.text("  录制并练习自己的连段。")
-        imgui.text("  保存连段的伤害、斗气、SA 统计。")
-        imgui.text("  支持原始位置、镜像位置或任意位置回放。")
+        imgui.spacing()
+        imgui.separator()
+        if imgui.tree_node("高级/调试") then
+            if imgui.tree_node("动作 ID 探针") then
+                TrainingMenuRegistry.draw("action_id_probe")
+                imgui.tree_pop()
+            end
+            imgui.tree_pop()
+        end
         imgui.unindent(12)
     end
 end)

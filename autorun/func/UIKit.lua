@@ -8,7 +8,7 @@
 --   UIKit.styled_header(label, style)
 --   UIKit.plain_header(label)
 --   UIKit.COLORS.Green, .Red, .White, etc.
---   UIKit.THEME.btn_neutral, .btn_green, .btn_red, .hdr_gold, .hdr_purple, .hdr_blue, .hdr_green
+--   UIKit.THEME.btn_neutral, .btn_green, .btn_red, .hdr_rainbow_red, etc.
 --   UIKit.argb_to_abgr(argb_color)
 
 local imgui = imgui
@@ -53,6 +53,16 @@ M.THEME = {
     hdr_blue    = { base = 0xFF5D6DDA, hover = 0xFF7382E6, active = 0xFF4555C9 },
     hdr_green   = { base = 0xFF9CBC1A, hover = 0xFFAED12B, active = 0xFF8AA814 },
     hdr_skyblue = { base = 0xFF4DA6FF, hover = 0xFF80BFFF, active = 0xFF0073E6 },
+
+    -- Seven-step rainbow for same-level menu sections, ordered top to bottom.
+    -- Values use ImGui's ABGR layout.
+    hdr_rainbow_red    = { base = 0xFF4C4CC9, hover = 0xFF6464D8, active = 0xFF3A3AA9 },
+    hdr_rainbow_orange = { base = 0xFF327CD4, hover = 0xFF4D94E2, active = 0xFF2662AF },
+    hdr_rainbow_yellow = { base = 0xFF2496B5, hover = 0xFF3DAAC7, active = 0xFF1A7892 },
+    hdr_rainbow_green  = { base = 0xFF5A9639, hover = 0xFF70AB51, active = 0xFF44752B },
+    hdr_rainbow_cyan   = { base = 0xFF9D9731, hover = 0xFFB1AB49, active = 0xFF7B7626 },
+    hdr_rainbow_blue   = { base = 0xFFB87547, hover = 0xFFCB8A5E, active = 0xFF915A35 },
+    hdr_rainbow_violet = { base = 0xFFAE567D, hover = 0xFFC16D94, active = 0xFF874060 },
 }
 
 -- =========================================================
@@ -67,6 +77,18 @@ function M.styled_button(label, style, text_col)
     if text_col then imgui.pop_style_color(1) end
     imgui.pop_style_color(3)
     return clicked
+end
+
+function M.translucent_header(style, base_alpha, hover_alpha, active_alpha)
+    style = style or M.THEME.hdr_dark_purple
+    local function with_alpha(color, alpha)
+        return ((alpha & 0xFF) << 24) | ((tonumber(color) or 0) & 0x00FFFFFF)
+    end
+    return {
+        base = with_alpha(style.base, base_alpha or 0x38),
+        hover = with_alpha(style.hover, hover_alpha or 0x58),
+        active = with_alpha(style.active, active_alpha or 0x78),
+    }
 end
 
 function M.styled_header(label, style)

@@ -17,6 +17,7 @@ local RuntimeSafety = require("func/RuntimeSafety")
 local GS = require("func/GameState")
 local ImGuiCanvas = require("func/ImGuiCanvas")
 local UIKit = require("func/UIKit")
+local TrainingMenuRegistry = require("func/Training_MenuRegistry")
 local Vector3f = Vector3f
 
 if _G.SheldonsBoxes_Enabled == nil then _G.SheldonsBoxes_Enabled = false end
@@ -220,10 +221,11 @@ local COL_CYAN   = 0xFFFFFF00
 local COL_GREY   = 0xFF888888
 local COL_GOLD   = 0xFF00D5FF
 
+local COLLISION_INNER_HEADER = UIKit.translucent_header(UIKit.THEME.hdr_rainbow_blue)
 local UI_THEME = {
-    hdr_info    = UIKit.THEME.hdr_gold,
-    hdr_session = UIKit.THEME.hdr_purple,
-    hdr_rules   = UIKit.THEME.hdr_blue,
+    hdr_info    = COLLISION_INNER_HEADER,
+    hdr_session = COLLISION_INNER_HEADER,
+    hdr_rules   = COLLISION_INNER_HEADER,
 }
 
 local styled_header = UIKit.styled_header
@@ -1225,24 +1227,22 @@ local function save_display_config()
     save_config()
 end
 
-re.on_draw_ui(function()
+local function draw_sheldons_boxes_menu_ui()
     if not RuntimeSafety.is_training_allowed() then return end
-    if imgui.tree_node("Sheldon's 碰撞框") then
-        if _G.SheldonsBoxes_Enabled ~= true then
-            imgui.text_colored("当前已由顶部菜单关闭。", COL_GREY)
-            imgui.text_colored("勾选顶部栏“碰撞显示”后生效。", COL_GREY)
-            imgui.tree_pop()
-            return
-        end
+    if _G.SheldonsBoxes_Enabled ~= true then
+        imgui.text_colored("当前已由顶部菜单关闭。", COL_GREY)
+        imgui.text_colored("勾选顶部栏“碰撞显示”后生效。", COL_GREY)
+        return
+    end
 
-        imgui.push_style_color(21, 0xFF005500)
-        imgui.push_style_color(22, 0xFF007700)
-        imgui.push_style_color(23, 0xFF009900)
-        if imgui.button("保存显示配置") then
-            save_display_config()
-        end
-        imgui.pop_style_color(3)
-        imgui.separator()
+    imgui.push_style_color(21, 0xFF005500)
+    imgui.push_style_color(22, 0xFF007700)
+    imgui.push_style_color(23, 0xFF009900)
+    if imgui.button("保存显示配置") then
+        save_display_config()
+    end
+    imgui.pop_style_color(3)
+    imgui.separator()
 
         -- ==========================================
         -- 1. GLOBAL : HUD & FONT
@@ -1442,6 +1442,6 @@ re.on_draw_ui(function()
             _, hide_p2_boxes = imgui.checkbox("隐藏所有 P2 框", hide_p2_boxes)
         end
 
-        imgui.tree_pop()
-    end
-end)
+end
+
+TrainingMenuRegistry.register("sheldons_boxes", draw_sheldons_boxes_menu_ui)

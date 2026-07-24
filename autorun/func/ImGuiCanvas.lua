@@ -13,6 +13,7 @@ local state = {
 }
 
 local LOG_INTERVAL = 600
+local D2D_FONT_TO_IMGUI_SCALE = 4 / 3
 
 local function is_finite(value)
     return type(value) == "number"
@@ -38,6 +39,18 @@ local function valid_rect(x, y, width, height)
         and width > 0
         and height > 0
 end
+
+-- reframework-d2d colors are ARGB, while ImGui DrawList colors are ABGR.
+-- Keep the public canvas API D2D-compatible so migrated renderers can retain
+-- their existing product colors without converting every call site.
+local function d2d_argb_to_imgui_abgr(color)
+    local value = math.floor(tonumber(color) or 0xFFFFFFFF) & 0xFFFFFFFF
+    return (value & 0xFF00FF00)
+        | ((value & 0x00FF0000) >> 16)
+        | ((value & 0x000000FF) << 16)
+end
+
+M.argb_to_abgr = d2d_argb_to_imgui_abgr
 
 local function vector_xy(value)
     if value == nil then return nil, nil end
@@ -88,6 +101,7 @@ end
 function M.fill_rect(x, y, width, height, color)
     if state.draw_list == nil or not valid_rect(x, y, width, height) then return false end
     if not is_finite(color) then color = 0xFFFFFFFF end
+    color = d2d_argb_to_imgui_abgr(color)
 
     local ok, err = pcall(function()
         state.draw_list:add_rect_filled(
@@ -108,6 +122,7 @@ function M.outline_rect(x, y, width, height, thickness, color)
     if state.draw_list == nil or not valid_rect(x, y, width, height) then return false end
     if not is_finite(thickness) or thickness <= 0 then thickness = 1.0 end
     if not is_finite(color) then color = 0xFFFFFFFF end
+    color = d2d_argb_to_imgui_abgr(color)
 
     local ok, err = pcall(function()
         state.draw_list:add_rect(
@@ -133,6 +148,7 @@ function M.line(x1, y1, x2, y2, thickness, color)
     end
     if not is_finite(thickness) or thickness <= 0 then thickness = 1.0 end
     if not is_finite(color) then color = 0xFFFFFFFF end
+    color = d2d_argb_to_imgui_abgr(color)
 
     local ok, err = pcall(function()
         state.draw_list:add_line(
@@ -177,10 +193,16 @@ end
 
 M.Font = {}
 
+function M.Font.d2d_pixel_size(size)
+    local requested_size = math.max(1, tonumber(size) or 1)
+    return math.max(1, math.floor(requested_size * D2D_FONT_TO_IMGUI_SCALE + 0.5))
+end
+
 function M.Font.new(filename, size)
     filename = tostring(filename or "")
-    size = math.max(1, math.floor(tonumber(size) or 1))
-    local key = filename .. ":" .. tostring(size)
+    local requested_size = math.max(1, math.floor(tonumber(size) or 1))
+    local pixel_size = M.Font.d2d_pixel_size(requested_size)
+    local key = filename .. ":" .. tostring(pixel_size)
     if state.fonts[key] then return state.fonts[key] end
 
     if not imgui or type(imgui.load_font) ~= "function" then
@@ -188,7 +210,7 @@ function M.Font.new(filename, size)
         return nil
     end
 
-    local ok, object = pcall(imgui.load_font, filename, size)
+    local ok, object = pcall(imgui.load_font, filename, pixel_size)
     if not ok or object == nil then
         log_rate_limited("font_" .. key, "字体加载失败：" .. filename .. " " .. tostring(object))
         return nil
@@ -197,7 +219,8 @@ function M.Font.new(filename, size)
     local font = setmetatable({
         object = object,
         filename = filename,
-        size = size
+        requested_size = requested_size,
+        size = pixel_size
     }, Font)
     state.fonts[key] = font
     return font
@@ -209,6 +232,7 @@ function M.text(font, text, x, y, color)
         return false
     end
     if not is_finite(color) then color = 0xFFFFFFFF end
+    color = d2d_argb_to_imgui_abgr(color)
 
     local value = tostring(text)
     local pushed = push_font(font)

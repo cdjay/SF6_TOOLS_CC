@@ -279,10 +279,17 @@ local float_ui_font = nil    -- Window font (same as ComboTrials custom_ui_font)
 local float_btn_font = nil   -- Button font (same as ComboTrials sf6_btn_font)
 local float_font_attempted = false
 local float_last_sh = 0
+local floating_width_pct = 1.0
 
 UI.neon_colors = {
     bg = 0xFC800024,
     border = 0xFFEF51EF,
+}
+
+local FLOAT_SELECTOR_COLORS = {
+    base = 0xFF363433,
+    hover = 0xFF4C4845,
+    active = 0xFF2E2B29,
 }
 
 local function _load_float_fonts(sh)
@@ -299,8 +306,9 @@ local function _push_bar_style(sw, sh)
     local colors = UI.neon_colors
     imgui.push_style_color(2,  colors.bg)    -- WindowBg
     imgui.push_style_color(5,  colors.border) -- Border
-    imgui.push_style_color(7,  0x00000000)   -- FrameBg transparent
-    imgui.push_style_color(8,  0x00000000)   -- TitleBg transparent
+    imgui.push_style_color(7,  FLOAT_SELECTOR_COLORS.base)   -- FrameBg
+    imgui.push_style_color(8,  FLOAT_SELECTOR_COLORS.hover)  -- FrameBgHovered
+    imgui.push_style_color(9,  FLOAT_SELECTOR_COLORS.active) -- FrameBgActive
     imgui.push_style_var(4, 1.0)             -- WindowBorderSize
     imgui.push_style_var(2, Vector2f.new(sw * 0.01, sh * 0.02))  -- WindowPadding
     if float_ui_font then imgui.push_font(float_ui_font) end
@@ -310,7 +318,8 @@ local function _push_top_bar_style(sw, sh)
     imgui.push_style_color(2,  0x00000000)   -- WindowBg transparent
     imgui.push_style_color(5,  0x00000000)   -- Border transparent
     imgui.push_style_color(7,  0x00000000)   -- FrameBg transparent
-    imgui.push_style_color(8,  0x00000000)   -- TitleBg transparent
+    imgui.push_style_color(8,  0x00000000)   -- FrameBgHovered transparent
+    imgui.push_style_color(9,  0x00000000)   -- FrameBgActive transparent
     imgui.push_style_var(4, 0.0)             -- WindowBorderSize = 0
     imgui.push_style_var(2, Vector2f.new(sw * 0.01, sh * 0.02))  -- WindowPadding
     if float_ui_font then imgui.push_font(float_ui_font) end
@@ -319,7 +328,16 @@ end
 local function _pop_bar_style()
     if float_ui_font then imgui.pop_font() end
     imgui.pop_style_var(2)   -- WindowPadding + WindowBorderSize
-    imgui.pop_style_color(4)
+    imgui.pop_style_color(5)
+end
+
+function UI.set_floating_width_pct(value)
+    floating_width_pct = math.max(0.3, math.min(1.0, tonumber(value) or 1.0))
+    return floating_width_pct
+end
+
+function UI.get_floating_width_pct()
+    return floating_width_pct
 end
 
 function UI.begin_floating_window(window_name, width_pct)
@@ -327,7 +345,7 @@ function UI.begin_floating_window(window_name, width_pct)
     _load_float_fonts(sh)
     _push_bar_style(sw, sh)
 
-    width_pct = math.max(0.35, math.min(1.0, tonumber(width_pct) or 1.0))
+    width_pct = math.max(0.3, math.min(1.0, tonumber(width_pct) or floating_width_pct))
     -- Same height as ComboTrials single-line bar, optionally compact and centered.
     local target_w = sw * width_pct
     local target_h = sh * 0.0444
@@ -335,6 +353,11 @@ function UI.begin_floating_window(window_name, width_pct)
     imgui.set_next_window_pos(Vector2f.new((sw - target_w) * 0.5, sh - target_h), 1)   -- Always
     -- 15 = NoTitleBar(1) + NoResize(2) + NoMove(4) + NoScrollbar(8)
     local visible = imgui.begin_window(window_name, true, 15)
+    if visible then
+        -- Match ComboTrials' single-line baseline instead of inheriting the
+        -- larger window padding, which places controls too low in the bar.
+        imgui.set_cursor_pos(Vector2f.new(sw * 0.01, sh * 0.01))
+    end
     if not visible then _G.TrainingFloatingBar = nil end
     return visible, sw, sh
 end
@@ -389,14 +412,14 @@ function UI.draw_floating_bg()
 end
 
 -- SF6 neon button (identical to styled_sf6_button in floating mode with sf6_btn_font)
-function UI.sf6_button(label, colors, width)
+function UI.sf6_button(label, colors, width, height)
     if float_btn_font then imgui.push_font(float_btn_font) end
     imgui.push_style_color(5,  0x00000000)     -- Border transparent (no outline)
     imgui.push_style_color(21, colors.base)    -- Button
     imgui.push_style_color(22, colors.hover)   -- ButtonHovered
     imgui.push_style_color(23, colors.active)  -- ButtonActive
     imgui.push_style_color(0,  colors.border)  -- Text
-    local clicked = imgui.button(label, Vector2f.new(width or 0, 0))
+    local clicked = imgui.button(label, Vector2f.new(width or 0, height or 0))
     imgui.pop_style_color(5)
     if float_btn_font then imgui.pop_font() end
     return clicked

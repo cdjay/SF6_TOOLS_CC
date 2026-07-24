@@ -10,6 +10,7 @@ require("func/SharedHooks")
 local RuntimeSafety = require("func/RuntimeSafety")
 local GS = require("func/GameState")
 local UIKit = require("func/UIKit")
+local TrainingMenuRegistry = require("func/Training_MenuRegistry")
 
 if _G.SF6_DistanceViewer_Enabled == nil then _G.SF6_DistanceViewer_Enabled = false end
 
@@ -799,12 +800,13 @@ local COL_CYAN   = 0xFFFFFF00
 local COL_GREY   = 0xFF888888
 local COL_GOLD   = 0xFF00D5FF
 
+local DISTANCE_INNER_HEADER = UIKit.translucent_header(UIKit.THEME.hdr_rainbow_green)
 local UI_THEME = {
-    hdr_info      = { base = 0xFF32C8F5, hover = 0xFF50D7FF, active = 0xFF1EAAEE }, -- Bold yellow
-    hdr_rules     = { base = 0xFF2882F0, hover = 0xFF3C96FF, active = 0xFF1464D2 }, -- Vibrant orange
-    hdr_session_1 = { base = 0xFF4B4BE1, hover = 0xFF5F5FF5, active = 0xFF3232C3 }, -- Soft bold red
-    hdr_session_2 = { base = 0xFFE69646, hover = 0xFFFAAA5A, active = 0xFFC87832 }, -- Ocean blue
-    hdr_debug     = { base = 0xFF5AC850, hover = 0xFF6EDC64, active = 0xFF46AA3C }, -- Meadow green
+    hdr_info      = DISTANCE_INNER_HEADER,
+    hdr_rules     = DISTANCE_INNER_HEADER,
+    hdr_session_1 = DISTANCE_INNER_HEADER,
+    hdr_session_2 = DISTANCE_INNER_HEADER,
+    hdr_debug     = DISTANCE_INNER_HEADER,
 }
 
 local styled_header = UIKit.styled_header
@@ -2934,8 +2936,7 @@ local function draw_config_ui()
     -- ==========================================
     -- AUTO ACTIVATE MOVE (P2 dummy)
     -- ==========================================
-    local aa_hdr_style = { base = 0xFF2864DC, hover = 0xFF3C78F0, active = 0xFF1450C8 }
-    if styled_header("--- 自动激活招式 ---", aa_hdr_style) then
+    if styled_header("--- 自动激活招式 ---", UI_THEME.hdr_rules) then
         local p2_rname = p2_cache.valid and p2_cache.adv_name or get_real_name(detected_infos[1] and detected_infos[1].name or "?")
         local p2_base = p2_cache.valid and (esf_names_map[p2_cache.real_name] or p2_cache.real_name) or p2_rname
 
@@ -4300,7 +4301,7 @@ re.on_frame(function()
             window_flags = 64
         end
 
-        if imgui.begin_window("SF6 距离查看器", true, window_flags) then
+        if imgui.begin_window("距离查看器##SF6DistanceViewer", true, window_flags) then
             -- Save rect for next frame's click detection (on_draw_ui runs after on_frame)
             pcall(_dv_save_window_rect)
             if ui_font.obj then imgui.push_font(ui_font.obj) end
@@ -4373,89 +4374,82 @@ re.on_frame(function()
 end)
 
 local function draw_distance_viewer_menu_ui()
-    if imgui.tree_node("SF6 距离查看器") then
-        local enabled = _G.SF6_DistanceViewer_Enabled == true
-        local changed_enabled, new_enabled = imgui.checkbox("启用纯 ImGui 距离显示", enabled)
-        if changed_enabled then
-            config.standalone_enabled = new_enabled
-            _G.SF6_DistanceViewer_Enabled = new_enabled
-            if not new_enabled then
-                _dv_disable_runtime_effects()
-                if standalone_runtime_owned and type(RuntimeSafety.disable) == "function" then
-                    RuntimeSafety.disable("standalone_visuals_disabled")
-                    standalone_runtime_owned = false
-                end
+    local enabled = _G.SF6_DistanceViewer_Enabled == true
+    local changed_enabled, new_enabled = imgui.checkbox("启用纯 ImGui 距离显示", enabled)
+    if changed_enabled then
+        config.standalone_enabled = new_enabled
+        _G.SF6_DistanceViewer_Enabled = new_enabled
+        if not new_enabled then
+            _dv_disable_runtime_effects()
+            if standalone_runtime_owned and type(RuntimeSafety.disable) == "function" then
+                RuntimeSafety.disable("standalone_visuals_disabled")
+                standalone_runtime_owned = false
             end
-            save_settings()
-            enabled = new_enabled
         end
+        save_settings()
+        enabled = new_enabled
+    end
 
-        if not enabled then
-            imgui.text_colored("启用后显示纯 ImGui 距离 HUD。", COL_GREY)
-            imgui.text_colored("该开关保存在 DistanceViewer 配置中。", COL_GREY)
-            imgui.tree_pop()
-            return
-        end
+    if not enabled then
+        imgui.text_colored("启用后显示纯 ImGui 距离 HUD。", COL_GREY)
+        imgui.text_colored("该开关保存在 DistanceViewer 配置中。", COL_GREY)
+        return
+    end
 
-        if not RuntimeSafety.is_training_allowed() then
-            imgui.text_colored("HUD 仅在离线训练场显示；菜单设置仍可使用。", COL_YELLOW)
-        end
+    if not RuntimeSafety.is_training_allowed() then
+        imgui.text_colored("HUD 仅在离线训练场显示；菜单设置仍可使用。", COL_YELLOW)
+    end
 
-        local changed_ov, new_ov = imgui.checkbox("浮动窗口", config.show_debug_window)
-        if changed_ov then
-            config.show_debug_window = new_ov
-            first_draw = true
-            save_settings()
-        end
-        imgui.same_line()
-        if imgui.button("重新加载数据") then load_advanced_data() end
-        imgui.same_line()
-        local chg_em, new_em = imgui.checkbox("专家模式 ", config.expert_mode_enabled)
-        if chg_em then
-            config.expert_mode_enabled = new_em
-            for _, p in ipairs({"p1", "p2"}) do
-                if not new_em then
-                    config[p.."_expert_fill_bg"] = config[p.."_fill_bg"]
-                    config[p.."_expert_markers"] = config[p.."_show_markers"]
-                    config[p.."_expert_cursor"] = config[p.."_show_vertical_cursor"]
-                    config[p.."_expert_hlines"] = config[p.."_show_horizontal_lines"]
-                    config[p.."_expert_numbers"] = config[p.."_show_numbers"]
-                    config[p.."_expert_zone"] = config[p.."_opp_zone_show"]
-                    config[p.."_expert_crossup"] = config[p.."_crossup_show"]
-                    config[p.."_expert_color_text"] = config[p.."_opp_zone_color_text"]
-                    config[p.."_expert_crossup_color"] = config[p.."_crossup_color_text"]
-                    config[p.."_expert_jump_arc"] = config[p.."_show_jump_arc"]
-                    config[p.."_vertical_mode"] = 1; config[p.."_advanced_mode"] = false
-                    apply_mode_flags(p, 1)
-                else
-                    config[p.."_vertical_mode"] = 1
-                    config[p.."_advanced_mode"] = true
-                    apply_mode_flags(p, 1)
-                    config[p.."_fill_bg"] = config[p.."_expert_fill_bg"] or false
-                    config[p.."_show_markers"] = config[p.."_expert_markers"] or false
-                    config[p.."_show_vertical_cursor"] = config[p.."_expert_cursor"] ~= false and true or false
-                    config[p.."_show_horizontal_lines"] = config[p.."_expert_hlines"] ~= false and true or false
-                    config[p.."_show_numbers"] = config[p.."_expert_numbers"] ~= false and true or false
-                    config[p.."_opp_zone_show"] = config[p.."_expert_zone"] ~= false and true or false
-                    config[p.."_crossup_show"] = config[p.."_expert_crossup"] ~= false and true or false
-                    if config[p.."_expert_color_text"] ~= nil then config[p.."_opp_zone_color_text"] = config[p.."_expert_color_text"] end
-                    if config[p.."_expert_crossup_color"] ~= nil then config[p.."_crossup_color_text"] = config[p.."_expert_crossup_color"] end
-                    if config[p.."_expert_jump_arc"] ~= nil then config[p.."_show_jump_arc"] = config[p.."_expert_jump_arc"] end
-                end
+    local changed_ov, new_ov = imgui.checkbox("浮动窗口", config.show_debug_window)
+    if changed_ov then
+        config.show_debug_window = new_ov
+        first_draw = true
+        save_settings()
+    end
+    imgui.same_line()
+    if imgui.button("重新加载数据") then load_advanced_data() end
+    imgui.same_line()
+    local chg_em, new_em = imgui.checkbox("专家模式 ", config.expert_mode_enabled)
+    if chg_em then
+        config.expert_mode_enabled = new_em
+        for _, p in ipairs({"p1", "p2"}) do
+            if not new_em then
+                config[p.."_expert_fill_bg"] = config[p.."_fill_bg"]
+                config[p.."_expert_markers"] = config[p.."_show_markers"]
+                config[p.."_expert_cursor"] = config[p.."_show_vertical_cursor"]
+                config[p.."_expert_hlines"] = config[p.."_show_horizontal_lines"]
+                config[p.."_expert_numbers"] = config[p.."_show_numbers"]
+                config[p.."_expert_zone"] = config[p.."_opp_zone_show"]
+                config[p.."_expert_crossup"] = config[p.."_crossup_show"]
+                config[p.."_expert_color_text"] = config[p.."_opp_zone_color_text"]
+                config[p.."_expert_crossup_color"] = config[p.."_crossup_color_text"]
+                config[p.."_expert_jump_arc"] = config[p.."_show_jump_arc"]
+                config[p.."_vertical_mode"] = 1; config[p.."_advanced_mode"] = false
+                apply_mode_flags(p, 1)
+            else
+                config[p.."_vertical_mode"] = 1
+                config[p.."_advanced_mode"] = true
+                apply_mode_flags(p, 1)
+                config[p.."_fill_bg"] = config[p.."_expert_fill_bg"] or false
+                config[p.."_show_markers"] = config[p.."_expert_markers"] or false
+                config[p.."_show_vertical_cursor"] = config[p.."_expert_cursor"] ~= false and true or false
+                config[p.."_show_horizontal_lines"] = config[p.."_expert_hlines"] ~= false and true or false
+                config[p.."_show_numbers"] = config[p.."_expert_numbers"] ~= false and true or false
+                config[p.."_opp_zone_show"] = config[p.."_expert_zone"] ~= false and true or false
+                config[p.."_crossup_show"] = config[p.."_expert_crossup"] ~= false and true or false
+                if config[p.."_expert_color_text"] ~= nil then config[p.."_opp_zone_color_text"] = config[p.."_expert_color_text"] end
+                if config[p.."_expert_crossup_color"] ~= nil then config[p.."_crossup_color_text"] = config[p.."_expert_crossup_color"] end
+                if config[p.."_expert_jump_arc"] ~= nil then config[p.."_show_jump_arc"] = config[p.."_expert_jump_arc"] end
             end
-            save_settings()
         end
+        save_settings()
+    end
 
-        if not config.show_debug_window then
-            imgui.separator()
-            imgui.text_colored("REFRAMEWORK 菜单模式（窗口已隐藏）", COL_CYAN)
-            draw_config_ui()
-        end
-
-        imgui.tree_pop()
+    if not config.show_debug_window then
+        imgui.separator()
+        imgui.text_colored("REFRAMEWORK 菜单模式（窗口已隐藏）", COL_CYAN)
+        draw_config_ui()
     end
 end
 
-re.on_draw_ui(function()
-    draw_distance_viewer_menu_ui()
-end)
+TrainingMenuRegistry.register("distance_viewer", draw_distance_viewer_menu_ui)

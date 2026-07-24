@@ -466,7 +466,7 @@ local function draw_move_combo(kind, id_suffix, width, prefixed)
 end
 
 local function draw_floating_controls()
-    local visible, screen_width, screen_height = SharedUI.begin_floating_window("确认训练##float", 0.72)
+    local visible, screen_width, screen_height = SharedUI.begin_floating_window("确认训练##float")
     if not visible then
         user_config.show_floating = false
         save_config()

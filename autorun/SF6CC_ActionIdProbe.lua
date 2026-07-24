@@ -4,6 +4,7 @@
 local imgui = imgui
 local re = re
 local GameState = require("func/GameState")
+local TrainingMenuRegistry = require("func/Training_MenuRegistry")
 
 local state = {
     p1 = { current_id = -1, last_id = -1, frame = 0, input = 0, state_flags = -1 },
@@ -52,8 +53,7 @@ local function draw_player(label, value)
         .. "  state_flags: " .. tostring(value.state_flags))
 end
 
-re.on_draw_ui(function()
-    if not imgui.tree_node("SF6CC 动作 ID 探针") then return end
+local function draw_action_id_probe_menu_ui()
     imgui.text_colored("在目标状态按一次 MK / 2MK，记录“最近非待机 Action ID”。", 0xFF00FFFF)
     draw_player("P1", state.p1)
     draw_player("P2", state.p2)
@@ -61,5 +61,6 @@ re.on_draw_ui(function()
         state.p1.last_id = -1
         state.p2.last_id = -1
     end
-    imgui.tree_pop()
-end)
+end
+
+TrainingMenuRegistry.register("action_id_probe", draw_action_id_probe_menu_ui)

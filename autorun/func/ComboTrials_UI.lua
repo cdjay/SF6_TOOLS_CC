@@ -11,6 +11,7 @@ local re = re
 local json = json
 local UIKit = require("func/UIKit")
 local TrainingMenuRegistry = require("func/Training_MenuRegistry")
+local SharedUI = require("func/Training_SharedUI")
 
 local M = {}
 local ctx
@@ -1069,6 +1070,9 @@ local function _ctui_runtime_allowed()
 end
 
 re.on_frame(function()
+    if d2d_cfg then
+        SharedUI.set_floating_width_pct(d2d_cfg.bar_width_pct)
+    end
     if not _ctui_scene_allowed() then
         _ctui_flush_d2d_config_for_exit()
         _ctui_clear_visual_state()
@@ -1186,7 +1190,7 @@ re.on_frame(function()
         if not is_replay_ctx then _G._ct_bar_collapsed = false end
 
         if not d2d_cfg.bar_width_pct then d2d_cfg.bar_width_pct = 1.0 end
-        local target_w = sw * d2d_cfg.bar_width_pct
+        local target_w = sw * SharedUI.set_floating_width_pct(d2d_cfg.bar_width_pct)
         local target_h = sh * 0.0444
         local target_x = (sw - target_w) * 0.5
 
@@ -1204,7 +1208,6 @@ re.on_frame(function()
             return
         end
 
-        local SharedUI = require("func/Training_SharedUI")
         local bar_colors = SharedUI.neon_colors
         imgui.push_style_color(2, bar_colors.bg)      -- WindowBg
         imgui.push_style_color(5, bar_colors.border)  -- Border
@@ -2201,6 +2204,7 @@ TrainingMenuRegistry.register("combo_config", draw_combo_trials_menu_ui)
 function M.init(shared_ctx)
     ctx = shared_ctx
     d2d_cfg = ctx.d2d_cfg
+    SharedUI.set_floating_width_pct(d2d_cfg and d2d_cfg.bar_width_pct)
     trial_state = ctx.trial_state
     players = ctx.players
     file_system = ctx.file_system
