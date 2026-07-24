@@ -4659,6 +4659,7 @@ local function clear_trial_attempt_state(player_idx, phase)
     reset_player_action_buffers(players[player_idx or trial_state.playing_player])
     for _, item in ipairs(trial_state.sequence) do
         item.actual_combo = 0
+        item.actual_hp = nil
         item.has_hit = false
         item.last_frame_diff = nil
         item.ui_result_text = nil
@@ -8258,7 +8259,11 @@ local function ct_player_process_actions(p_idx, p_state, actions_to_process)
                                 expected.expected_hp,
                                 process_act.current_hp,
                                 is_post_hit_setup_step((trial_state.current_step or 1) - 1),
-                                expected
+                                expected,
+                                Validator.build_hp_context(
+                                    trial_state.sequence,
+                                    trial_state.current_step or 1
+                                )
                             ) or nil
                             match_probe.action_match = {
                                 matched = action_match.matched,
@@ -8422,7 +8427,11 @@ local function ct_player_process_actions(p_idx, p_state, actions_to_process)
                                                 chain_expected.expected_hp,
                                                 process_act.current_hp,
                                                 is_post_hit_setup_step(chain_step - 1),
-                                                chain_expected
+                                                chain_expected,
+                                                Validator.build_hp_context(
+                                                    trial_state.sequence,
+                                                    chain_step
+                                                )
                                             )
                                             chain_record.chain_combo_ok = chain_combo_ok
                                             chain_record.chain_hp_ok = chain_hp_ok

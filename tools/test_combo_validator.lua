@@ -45,4 +45,49 @@ assert(Validator.check_combo({
     current_combo = 3,
 }) == true, "the existing same-frame current-hit tolerance must remain")
 
+local legacy_deejay_double_dash = {
+    {
+        expected_hp = 10000,
+    },
+    {
+        expected_hp = 10000,
+        actual_hp = 1,
+    },
+    {
+        expected_hp = 10000,
+    },
+}
+local legacy_hp_context = Validator.build_hp_context(legacy_deejay_double_dash, 3)
+assert(legacy_hp_context and legacy_hp_context.legacy_relative_hp == true,
+    "legacy trials without an HP snapshot must use a relative HP baseline")
+assert(Validator.check_hp(10000, 1, true, legacy_deejay_double_dash[3], legacy_hp_context) == true,
+    "a legacy setup must accept unchanged runtime HP even when it differs from recorded HP")
+assert(Validator.check_hp(10000, 900, true, legacy_deejay_double_dash[3], {
+    legacy_relative_hp = true,
+    previous_expected_hp = 10000,
+    previous_actual_hp = 1000,
+}) == false, "a legacy setup must still reject unexpected HP loss")
+
+local snapshot_trial = {
+    {
+        snapshot_gauges = {
+            attacker = {
+                current_hp = 10000,
+            },
+        },
+    },
+    {
+        expected_hp = 10000,
+        actual_hp = 1,
+    },
+    {
+        expected_hp = 10000,
+    },
+}
+assert(Validator.build_hp_context(snapshot_trial, 3) == nil,
+    "trials with an explicit attacker HP snapshot must keep absolute validation")
+assert(Validator.check_hp(10000, 1, true, snapshot_trial[3],
+    Validator.build_hp_context(snapshot_trial, 3)) == false,
+    "explicit HP snapshot trials must reject the wrong absolute HP")
+
 print("combo validator tests passed")
