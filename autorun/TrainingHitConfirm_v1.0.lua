@@ -475,33 +475,34 @@ local function draw_floating_controls()
     end
     SharedUI.draw_floating_bg()
     local size = imgui.get_window_size()
-    local spacing = 5 * (screen_height / 1080)
+    local spacing = 0
     local combo_width = size.x * 0.255
-    local button_width = size.x * 0.105
+    local button_width = size.x * 0.09
 
     draw_move_combo("starter", "Float", combo_width, true)
     imgui.same_line(0, spacing)
     draw_move_combo("followup", "Float", combo_width, true)
     imgui.same_line(0, spacing)
-    if SharedUI.sf6_button(session.is_running and "停止训练##hc_float" or "开始训练##hc_float",
-            session.is_running and SharedUI.SC_COLORS.c3 or SharedUI.SC_COLORS.c4, button_width) then
+    if SharedUI.sf6_rect_button(
+            session.is_running and "停止训练##hc_float" or "开始训练##hc_float",
+            session.is_running,
+            button_width
+        ) then
         if session.is_running then finish_session("stopped", "训练已停止", COLORS.Red) else start_training() end
     end
     imgui.same_line(0, spacing)
-    if SharedUI.sf6_button(session.is_paused and "继续##hc_float" or "暂停##hc_float",
-            SharedUI.SC_COLORS.c2, button_width) and session.is_running then
+    if SharedUI.sf6_rect_button(
+            session.is_paused and "继续##hc_float" or "暂停训练##hc_float",
+            session.is_paused,
+            button_width
+        ) and session.is_running then
         pause_or_start()
     end
     imgui.same_line(0, spacing)
-    if SharedUI.sf6_button("重置##hc_float", SharedUI.SC_COLORS.c1, button_width) then
+    if SharedUI.sf6_rect_button("重置训练##hc_float", false, button_width) then
         if session.is_running then finish_session("reset", nil, nil) end
         reset_session()
     end
-    imgui.same_line(0, spacing)
-    local amount = user_config.session_mode == "timer"
-        and (tostring(user_config.timer_minutes) .. " 分钟")
-        or (tostring(user_config.trial_count) .. " 次")
-    imgui.text(amount)
     SharedUI.end_floating_window()
 end
 
@@ -541,9 +542,14 @@ local function draw_hit_confirm_config()
     if UIKit.plain_header("--- 出招选择 ---") then
         local character_name = active_catalog.character and active_catalog.character.display_name or "等待识别"
         imgui.text("当前 P1：" .. tostring(character_name) .. "（经典与现代共用完整出招表）")
-        imgui.text("前置")
+        local selector_x = imgui.get_cursor_pos().x
+            + imgui.calc_text_size("前置招式").x
+            + 8
+        imgui.text("前置招式")
+        imgui.same_line(selector_x)
         draw_move_combo("starter", "Config", -1, false)
-        imgui.text("命中后的后续")
+        imgui.text("命中后续")
+        imgui.same_line(selector_x)
         draw_move_combo("followup", "Config", -1, false)
         local followup = selected_followup()
         if followup and followup.is_derived then

@@ -460,6 +460,10 @@ local function styled_sf6_button(label, is_active, width, is_floating, is_disabl
     end
 
     -- FLOATING MODE (SF6 Neon)
+    if SharedUI.sf6_rect_button then
+        return SharedUI.sf6_rect_button(label, is_active == true, width)
+    end
+
     if sf6_btn_font then imgui.push_font(sf6_btn_font) end
 
     if co then
@@ -534,45 +538,45 @@ local function draw_single_line_content()
     local sw, sh = ctx.cached_sw, ctx.cached_sh
     local w_width = imgui.get_window_size().x
     local win_h = imgui.get_window_size().y
-    local sp = 4 * (sh / 1080.0)
+    local sp = 0
     local pad_x = sw * 0.01
     local pad_y = sh * 0.01
 
     -- Widths excluding P2 buttons
-    local rec_btn_w_base = get_max_text_width({ "停止并保存", "取消", "录制 P1", "录制 P2", "重置连段", "自动演示连段" }, true)
+    local rec_btn_w_base = get_max_text_width({ "保存连段", "取消并返回", "录制 P1", "录制 P2", "重置连段", "自动演示" }, true)
     local play_btn_w_base = get_max_text_width({ "开始训练", "返回", "镜像位置" }, true)
 
     local absolute_btn_w = math.max(rec_btn_w_base, play_btn_w_base)
 
     local arrow_margin = 0
 
-    -- Dynamic layout: buttons = fixed text size, dropdown = remaining space
-    local usable_w = w_width - (pad_x * 2) - (sp * 5)
-
-    -- 1. Buttons take their natural text width (all same size, based on longest label)
+    -- Fixed-width buttons stay identical across idle, playing, recording and
+    -- replay states. The combo list is deliberately capped because its title
+    -- is ellipsized anyway; do not stretch controls to the right window edge.
+    local usable_w = w_width - (pad_x * 2)
     local actual_btn_w = absolute_btn_w
-
-    -- 2. Dropdown keeps same size, idle buttons expand to fill the button area
-    local return_gap = math.max(actual_btn_w / 3, sp * 5)
-    local dd_w = usable_w - (actual_btn_w * 4) - return_gap
-    if trial_state.is_playing then
-        dd_w = dd_w - actual_btn_w - sp
-    end
-    if dd_w < 80 then dd_w = 80 end
-    local idle_btn_w = (usable_w - dd_w) / 2
-
-    local dynamic_rec_w = actual_btn_w
+    local return_gap = 0
     local is_demo_active_early = (ctx.demo_state and ctx.demo_state.is_playing)
     local is_replay_mode = (_G.IsInReplay == true) or (_G.FlowMapID == 10) or (_G.IsInBattleHub == true)
+    local visible_button_count = 2
     if trial_state.is_recording or is_demo_active_early or is_replay_mode then
-        -- In record/demo/replay/spectate mode, distribute the massive 4-button space into 2
-        dynamic_rec_w = (actual_btn_w * 4 + sp * 2) / 2
+        visible_button_count = 2
+    elseif trial_state.is_playing then
+        visible_button_count = 5
+    elseif _replay_status_p1 ~= "waiting" then
+        visible_button_count = 0
     end
-    -- Fixed width for replay: always based on idle layout
-    -- dd_P1 + sp + btn + sp + btn + sp + dd_P2 = usable_w
+    local dd_w = math.max(80, math.min(
+        w_width * 0.43,
+        usable_w - (actual_btn_w * visible_button_count)
+    ))
+    local idle_btn_w = actual_btn_w
+    local dynamic_rec_w = actual_btn_w
     local replay_btn_w = actual_btn_w
-    local replay_dd_w = (usable_w - (replay_btn_w * 2) - (sp * 3)) / 2
-    if replay_dd_w < 50 then replay_dd_w = 50 end
+    local replay_dd_w = math.max(50, math.min(
+        dd_w * 0.5,
+        (usable_w - (replay_btn_w * 2)) / 2
+    ))
 
     -- No progress_bar background (causes ghost in ranked mode)
 
@@ -590,9 +594,9 @@ local function draw_single_line_content()
         replay_status_label(0, replay_dd_w, now)
         imgui.same_line(0, sp)
         if trial_state.is_recording then
-            if styled_sf6_button("停止并保存", true, replay_btn_w, true, false, TRIAL_COLORS) then _replay_save_player = trial_state.recording_player; stop_recording_and_save() end
+            if styled_sf6_button("保存连段", true, replay_btn_w, true, false, TRIAL_COLORS) then _replay_save_player = trial_state.recording_player; stop_recording_and_save() end
             imgui.same_line(0, sp)
-            if styled_sf6_button("取消", false, replay_btn_w, true, false, P1_COLORS) then
+            if styled_sf6_button("取消并返回", false, replay_btn_w, true, false, P1_COLORS) then
                 local cp = trial_state.recording_player
                 cancel_recording()
                 if cp == 0 then _replay_status_p1 = "canceled" else _replay_status_p2 = "canceled" end
@@ -615,9 +619,9 @@ local function draw_single_line_content()
         replay_status_label(0, dd_w, now)
         imgui.same_line(0, sp)
         if trial_state.is_recording then
-            if styled_sf6_button("停止并保存", true, dynamic_rec_w, true, false, TRIAL_COLORS) then _replay_save_player = trial_state.recording_player; stop_recording_and_save() end
+            if styled_sf6_button("保存连段", true, dynamic_rec_w, true, false, TRIAL_COLORS) then _replay_save_player = trial_state.recording_player; stop_recording_and_save() end
             imgui.same_line(0, sp)
-            if styled_sf6_button("取消", false, dynamic_rec_w, true, false, P1_COLORS) then
+            if styled_sf6_button("取消并返回", false, dynamic_rec_w, true, false, P1_COLORS) then
                 local cp = trial_state.recording_player
                 cancel_recording()
                 if cp == 0 then _replay_status_p1 = "canceled" else _replay_status_p2 = "canceled" end
@@ -643,7 +647,7 @@ local function draw_single_line_content()
         imgui.same_line(0, sp)
         local btn_w = trial_state.is_playing and actual_btn_w or idle_btn_w
         if trial_state.is_playing then
-            local note_label = (d2d_cfg.show_trial_notes == true) and "备注开" or "备注关"
+            local note_label = (d2d_cfg.show_trial_notes == true) and "备注开启" or "备注关闭"
             local note_colors = (d2d_cfg.show_trial_notes == true) and NOTE_ON_COLORS or NOTE_OFF_COLORS
             if styled_sf6_button(note_label, d2d_cfg.show_trial_notes == true, btn_w, true, false, note_colors) then
                 d2d_cfg.show_trial_notes = not (d2d_cfg.show_trial_notes == true)
@@ -661,7 +665,7 @@ local function draw_single_line_content()
             imgui.same_line(0, sp)
             local is_p1_active = (trial_state.is_playing and trial_state.playing_player == 0)
             local auto_enabled = ctx.demo_state and ctx.demo_state.auto_playlist_enabled == true
-            local start_label = auto_enabled and "自动演示连段" or "开始训练"
+            local start_label = auto_enabled and "自动演示" or "开始训练"
             local start_btn_w = auto_enabled and math.max(btn_w, actual_btn_w) or btn_w
             if styled_sf6_button(is_p1_active and "停止训练" or start_label, is_p1_active, start_btn_w, true, false, TRIAL_COLORS) then
                 if is_p1_active then trial_state.is_playing = false
@@ -697,7 +701,7 @@ local function draw_single_line_content()
                 styled_sf6_button("演示(晕厥)", false, btn_w, true, false, { base = 0x78444444, hover = 0x78444444, active = 0x78444444, text = 0xFF888888, border = 0xFF666666 })
                 imgui.pop_style_color(3)
             else
-                if styled_sf6_button("自动演示连段", false, btn_w, true, false, P2_COLORS) then
+                if styled_sf6_button("自动演示", false, btn_w, true, false, P2_COLORS) then
                     if ctx.demo_state and ctx.demo_state.auto_playlist_enabled == true and ctx.start_demo then
                         ctx.start_demo({ playlist_start = true })
                     elseif ctx.start_demo then
@@ -721,7 +725,7 @@ local function draw_combo_trials_content(is_floating)
     local size = imgui.get_window_size()
     local w_width = (size.x > 50) and size.x or (sw * 0.44)
 
-    local rec_btn_w_base = get_max_text_width({ "停止并保存", "取消", "录制 P1", "录制 P2", "重置连段", "自动演示连段" }, is_floating)
+    local rec_btn_w_base = get_max_text_width({ "保存连段", "取消并返回", "录制 P1", "录制 P2", "重置连段", "自动演示" }, is_floating)
     local play_btn_w_base = get_max_text_width({ "开始训练", "返回", "镜像位置" }, is_floating)
 
     local absolute_btn_w = math.max(rec_btn_w_base, play_btn_w_base)
@@ -825,7 +829,7 @@ local function draw_combo_trials_content(is_floating)
             imgui.push_style_color(23, 0xFF444444)
             styled_sf6_button("演示(晕厥)", false, rec_btn_w, is_floating, false, { base = 0x78444444, hover = 0x78444444, active = 0x78444444, text = 0xFF888888, border = 0xFF666666 })
             imgui.pop_style_color(3)
-        elseif styled_sf6_button("自动演示连段", is_demo_active, rec_btn_w, is_floating, false, P2_COLORS) then
+        elseif styled_sf6_button("自动演示", is_demo_active, rec_btn_w, is_floating, false, P2_COLORS) then
             if is_demo_active then
                 if ctx.stop_demo then ctx.stop_demo() end
             else
@@ -837,14 +841,14 @@ local function draw_combo_trials_content(is_floating)
             end
         end
     elseif trial_state.is_recording then
-        if styled_sf6_button("停止并保存", true, rec_btn_w, is_floating, false, TRIAL_COLORS) then
+        if styled_sf6_button("保存连段", true, rec_btn_w, is_floating, false, TRIAL_COLORS) then
             stop_recording_and_save()
         end
 
         -- Always force stacking with spacing in windowed mode
         imgui.spacing()
 
-        if styled_sf6_button("取消", false, rec_btn_w, is_floating, false, P1_COLORS) then
+        if styled_sf6_button("取消并返回", false, rec_btn_w, is_floating, false, P1_COLORS) then
             cancel_recording()
         end
     else
@@ -881,7 +885,7 @@ local function draw_combo_trials_content(is_floating)
         end
         if ctx.demo_state and ctx.demo_state.auto_playlist_enabled == true then
             imgui.spacing()
-            if styled_sf6_button("自动演示连段", false, play_btn_w, is_floating, false, P2_COLORS) then
+            if styled_sf6_button("自动演示", false, play_btn_w, is_floating, false, P2_COLORS) then
                 if ctx.start_demo then ctx.start_demo({ playlist_start = true }) end
             end
         end
@@ -1258,7 +1262,7 @@ re.on_frame(function()
             local w_width = size.x
 
             -- Calculate single-line threshold
-            local rec_btn_w_check = get_max_text_width({ "停止并保存", "取消", "录制 P1", "录制 P2" }, true)
+            local rec_btn_w_check = get_max_text_width({ "保存连段", "取消并返回", "录制 P1", "录制 P2" }, true)
             local play_btn_w_check = get_max_text_width({ "开始训练", "返回" }, true)
             local min_single_line_w = 200 + (rec_btn_w_check + play_btn_w_check) * 2 + 150 * (sh / 1080.0)
 
@@ -1268,7 +1272,7 @@ re.on_frame(function()
             else
                 -- NORMAL MODE: Header + standard content
                 -- Calculate exact actual width to synchronize header transition with UI layout
-                local rec_btn_w_base = get_max_text_width({ "停止并保存", "取消", "录制 P1", "录制 P2", "重置连段", "自动演示连段" }, true)
+                local rec_btn_w_base = get_max_text_width({ "保存连段", "取消并返回", "录制 P1", "录制 P2", "重置连段", "自动演示" }, true)
                 local play_btn_w_base = get_max_text_width({ "开始训练", "返回", "镜像位置" }, true)
                 local absolute_btn_w = math.max(rec_btn_w_base, play_btn_w_base)
                 local spacing_cols = 20 * (sh / 1080.0)

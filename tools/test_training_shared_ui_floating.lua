@@ -2,6 +2,11 @@ local captured = {
     colors = {},
     pop_color_count = 0,
     font_loads = 0,
+    quad_draws = {},
+    line_draws = {},
+    text_draws = {},
+    hovered = false,
+    active = false,
 }
 
 Vector2f = {
@@ -50,6 +55,46 @@ imgui = {
         captured.button_size = size
         return false
     end,
+    get_cursor_screen_pos = function()
+        return { x = 100, y = 200 }
+    end,
+    is_item_hovered = function()
+        return captured.hovered
+    end,
+    is_item_active = function()
+        return captured.active
+    end,
+    calc_text_size = function(text)
+        return { x = #text * 8, y = 16 }
+    end,
+    get_window_draw_list = function()
+        return {
+            add_quad_filled = function(_, p1, p2, p3, p4, color)
+                captured.quad_draws[#captured.quad_draws + 1] = {
+                    p1 = p1,
+                    p2 = p2,
+                    p3 = p3,
+                    p4 = p4,
+                    color = color,
+                }
+            end,
+            add_line = function(_, p1, p2, color, thickness)
+                captured.line_draws[#captured.line_draws + 1] = {
+                    p1 = p1,
+                    p2 = p2,
+                    color = color,
+                    thickness = thickness,
+                }
+            end,
+            add_text = function(_, pos, color, text)
+                captured.text_draws[#captured.text_draws + 1] = {
+                    pos = pos,
+                    color = color,
+                    text = text,
+                }
+            end,
+        }
+    end,
 }
 
 local SharedUI = assert(loadfile("autorun/func/Training_SharedUI.lua"))()
@@ -87,5 +132,45 @@ SharedUI.sf6_button("X##test", {
 }, 32, 32)
 assert(captured.button_size.x == 32 and captured.button_size.y == 32,
     "top-bar close control must support an explicit square size")
+
+SharedUI.sf6_rect_button("连段训练##normal", false, 218, 35)
+local normal_fill = captured.quad_draws[#captured.quad_draws]
+assert(normal_fill.p1.x == 100
+    and normal_fill.p4.x == 100
+    and normal_fill.p2.x == 318
+    and normal_fill.p3.x == 318,
+    "main button must use rectangular geometry")
+assert(normal_fill.color == SharedUI.rect_button_colors.normal.fill,
+    "unselected button must use the medium-saturation normal palette")
+assert(captured.text_draws[#captured.text_draws].text == "连段训练",
+    "main button must draw only the visible label")
+
+captured.hovered = true
+SharedUI.sf6_rect_button("确认训练##hovered", false, 218, 35)
+local hovered_fill = captured.quad_draws[#captured.quad_draws]
+assert(hovered_fill.color == SharedUI.rect_button_colors.hover.fill,
+    "hovered button must use its medium-saturation hover palette")
+
+captured.active = true
+SharedUI.sf6_rect_button("确认训练##pressed", false, 218, 35)
+local pressed_fill = captured.quad_draws[#captured.quad_draws]
+assert(pressed_fill.p1.x == 101 and pressed_fill.p1.y == 201,
+    "pressed button must move right and down in code")
+assert(pressed_fill.color == SharedUI.rect_button_colors.pressed.fill,
+    "pressed button must use its pressed palette")
+
+local text_count_before_close = #captured.text_draws
+captured.hovered = false
+captured.active = false
+local line_count_before_close = #captured.line_draws
+SharedUI.sf6_rect_button("X##close", true, 35, 35, "close")
+local close_fill = captured.quad_draws[#captured.quad_draws]
+assert(close_fill.p1.x == 100 and close_fill.p2.x == 135
+    and close_fill.p3.x == 135 and close_fill.p4.x == 100,
+    "close button must remain square")
+assert(#captured.line_draws == line_count_before_close + 6,
+    "close button must draw four borders and a two-line X")
+assert(#captured.text_draws == text_count_before_close,
+    "close button must not draw text over the procedural X")
 
 print("training shared UI floating tests passed")

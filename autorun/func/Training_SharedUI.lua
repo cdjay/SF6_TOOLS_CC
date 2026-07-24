@@ -431,5 +431,122 @@ function UI.sf6_button(label, colors, width, height)
     return clicked
 end
 
+local function _visible_button_label(label)
+    local text = tostring(label or "")
+    return text:match("^(.-)##") or text
+end
+
+UI.rect_button_colors = {
+    normal =          { fill = 0xF0423832, border = 0xFF988C82 },
+    hover =           { fill = 0xF0996746, border = 0xFFE7C3A9 },
+    selected =        { fill = 0xF0AF6A2D, border = 0xFFF4CD9E },
+    selected_hover =  { fill = 0xF0C47E3A, border = 0xFFFFFFFF },
+    pressed =         { fill = 0xF07A4C2C, border = 0xFFD8B18D },
+    selected_pressed ={ fill = 0xF0975B26, border = 0xFFEBCB91 },
+    text = 0xFFFFFFFF,
+    text_shadow = 0xA0000000,
+    body_shadow = 0x80000000,
+    highlight = 0x70FFFFFF,
+}
+
+-- SF6-style procedural rectangular button. Adjacent controls can share their
+-- borders without texture seams; the close control contains only an X.
+function UI.sf6_rect_button(label, is_selected, width, height, shape_kind)
+    local _, sh = UI.get_screen_size()
+    local scale = sh / 1440.0
+    width = tonumber(width) or (187 * scale)
+    height = tonumber(height)
+    if height == nil or height <= 0 then height = 35 * scale end
+
+    local cursor = imgui.get_cursor_screen_pos()
+    local x, y = cursor.x, cursor.y
+    local is_close = shape_kind == "close"
+
+    if float_btn_font then imgui.push_font(float_btn_font) end
+    imgui.push_style_color(5,  0x00000000)
+    imgui.push_style_color(21, 0x00000000)
+    imgui.push_style_color(22, 0x00000000)
+    imgui.push_style_color(23, 0x00000000)
+    imgui.push_style_color(0,  0x00000000)
+
+    local clicked = imgui.button("##sf6_rect_" .. tostring(label), Vector2f.new(width, height))
+    local hovered = imgui.is_item_hovered()
+    local pressed = imgui.is_item_active()
+    local press_offset = pressed and math.max(1, math.floor(1.5 * scale + 0.5)) or 0
+    local palette
+    if pressed then
+        palette = is_selected
+            and UI.rect_button_colors.selected_pressed
+            or UI.rect_button_colors.pressed
+    elseif hovered then
+        palette = is_selected
+            and UI.rect_button_colors.selected_hover
+            or UI.rect_button_colors.hover
+    else
+        palette = is_selected
+            and UI.rect_button_colors.selected
+            or UI.rect_button_colors.normal
+    end
+
+    local draw_list = imgui.get_window_draw_list()
+    if draw_list then
+        local ox = press_offset
+        local oy = press_offset
+        local shadow_y = math.max(1, 2 * scale)
+        local p1 = Vector2f.new(x + ox, y + oy)
+        local p2 = Vector2f.new(x + width + ox, y + oy)
+        local p3 = Vector2f.new(x + width + ox, y + height + oy)
+        local p4 = Vector2f.new(x + ox, y + height + oy)
+        local s1 = Vector2f.new(p1.x, p1.y + shadow_y)
+        local s2 = Vector2f.new(p2.x, p2.y + shadow_y)
+        local s3 = Vector2f.new(p3.x, p3.y + shadow_y)
+        local s4 = Vector2f.new(p4.x, p4.y + shadow_y)
+        local border_width = math.max(1, 1.35 * scale)
+
+        draw_list:add_quad_filled(s1, s2, s3, s4, UI.rect_button_colors.body_shadow)
+        draw_list:add_quad_filled(p1, p2, p3, p4, palette.fill)
+        draw_list:add_line(p1, p2, UI.rect_button_colors.highlight, border_width)
+        draw_list:add_line(p2, p3, palette.border, border_width)
+        draw_list:add_line(p3, p4, palette.border, border_width)
+        draw_list:add_line(p4, p1, palette.border, border_width)
+
+        if is_close then
+            local inset = math.max(4 * scale, height * 0.27)
+            local x_width = math.max(1.5, 2.2 * scale)
+            draw_list:add_line(
+                Vector2f.new(x + inset + ox, y + inset + oy),
+                Vector2f.new(x + width - inset + ox, y + height - inset + oy),
+                UI.rect_button_colors.text,
+                x_width
+            )
+            draw_list:add_line(
+                Vector2f.new(x + width - inset + ox, y + inset + oy),
+                Vector2f.new(x + inset + ox, y + height - inset + oy),
+                UI.rect_button_colors.text,
+                x_width
+            )
+        else
+            local text = _visible_button_label(label)
+            local text_size = imgui.calc_text_size(text)
+            local text_x = x + (width - text_size.x) * 0.5 + ox
+            local text_y = y + (height - text_size.y) * 0.5 + oy
+            draw_list:add_text(
+                Vector2f.new(text_x + scale, text_y + scale),
+                UI.rect_button_colors.text_shadow,
+                text
+            )
+            draw_list:add_text(
+                Vector2f.new(text_x, text_y),
+                UI.rect_button_colors.text,
+                text
+            )
+        end
+    end
+
+    imgui.pop_style_color(5)
+    if float_btn_font then imgui.pop_font() end
+    return clicked
+end
+
 
 return UI

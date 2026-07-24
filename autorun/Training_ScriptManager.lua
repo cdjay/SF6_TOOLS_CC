@@ -524,10 +524,6 @@ end)
 -- ==========================================
 local SharedUI = require("func/Training_SharedUI")
 
--- Top bar button colors (rebuilt from config)
-local MODE_ACTIVE   = build_sc_color(config.top_colors.active, config.top_alphas.active)
-local MODE_INACTIVE = build_sc_color(config.top_colors.inactive, config.top_alphas.inactive)
-
 local top_bar_width = 1.0
 local top_bar_height = 0.0444
 
@@ -539,14 +535,14 @@ local function draw_top_floating_bar()
     SharedUI.draw_floating_bg_top()
 
     local scale = sh / 1080.0
-    local sp = 4 * scale
+    local sp = 0
 
     local train_x = sw * 0.125
-    local mode_btn_w = math.max(145 * scale, sw * 0.085)
+    local mode_btn_w = math.max(124 * scale, sw * 0.073)
     local control_h = math.max(1, sh * (top_bar_height - 0.02))
     local close_size = control_h
 
-    local passive_w = math.max(112 * scale, sw * 0.06)
+    local passive_w = mode_btn_w
     local feature_start_x = sw * 0.665
     local top_y = sh * 0.01
 
@@ -554,29 +550,41 @@ local function draw_top_floating_bar()
     for index, btn in ipairs(TRAINING_MODE_MODULES) do
         if index > 1 then imgui.same_line(0, sp) end
         local is_active = (_G.CurrentTrainerMode == btn.id)
-        local colors = is_active and MODE_ACTIVE or MODE_INACTIVE
-        if SharedUI.sf6_button(btn.label .. "##top_" .. btn.id, colors, mode_btn_w, control_h) then
+        if SharedUI.sf6_rect_button(btn.label .. "##top_" .. btn.id, is_active, mode_btn_w, control_h) then
             _G.CurrentTrainerMode = btn.id
         end
     end
 
     imgui.same_line(0, sp)
-    local close_colors = (_G.CurrentTrainerMode == 0) and MODE_ACTIVE or MODE_INACTIVE
-    if SharedUI.sf6_button("X##top_close_all_modes", close_colors, close_size, close_size) then
+    if SharedUI.sf6_rect_button(
+            "X##top_close_all_modes",
+            _G.CurrentTrainerMode == 0,
+            close_size,
+            close_size,
+            "close"
+        ) then
         _G.CurrentTrainerMode = 0
     end
 
     imgui.set_cursor_pos(Vector2f.new(feature_start_x, top_y))
-    local dv_colors = (config.distance_viewer_enabled == true) and MODE_ACTIVE or MODE_INACTIVE
-    if SharedUI.sf6_button("距离显示##top_distance_viewer", dv_colors, passive_w, control_h) then
+    if SharedUI.sf6_rect_button(
+            "距离显示##top_distance_viewer",
+            config.distance_viewer_enabled == true,
+            passive_w,
+            control_h
+        ) then
         config.distance_viewer_enabled = not config.distance_viewer_enabled
         save_config()
         if _G.show_custom_ticker then _G.show_custom_ticker(config.distance_viewer_enabled and "距离显示已开启" or "距离显示已关闭", 0.3) end
     end
 
     imgui.same_line(0, sp)
-    local sb_colors = (config.sheldons_boxes_enabled == true) and MODE_ACTIVE or MODE_INACTIVE
-    if SharedUI.sf6_button("碰撞显示##top_sheldons_boxes", sb_colors, passive_w, control_h) then
+    if SharedUI.sf6_rect_button(
+            "碰撞显示##top_sheldons_boxes",
+            config.sheldons_boxes_enabled == true,
+            passive_w,
+            control_h
+        ) then
         config.sheldons_boxes_enabled = not config.sheldons_boxes_enabled
         save_config()
         if _G.show_custom_ticker then _G.show_custom_ticker(config.sheldons_boxes_enabled and "碰撞显示已开启" or "碰撞显示已关闭", 0.3) end
