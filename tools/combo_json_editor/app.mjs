@@ -33,6 +33,55 @@ const state = {
 };
 let toastTimer = null;
 
+/* 训练菜单的默认状态以游戏“陪练设置”页面为准。
+   空字符串不属于默认值，而是明确标记为“未记录”。 */
+const DUMMY_MENU_SELECT_IDS = Object.freeze([
+    "dummyControl",
+    "dummyAction",
+    "dummyJumpKind",
+    "dummyCpuLevel",
+    "dummyCounterType",
+    "dummyCounterWeightNormal",
+    "dummyCounterWeightCounter",
+    "dummyCounterWeightPunish",
+    "dummyGuardType",
+    "dummyGuardCount",
+    "dummyGuardSwitching",
+    "dummyGuardOnlyType",
+    "dummyDriveParryType",
+    "dummyDriveReversalType",
+    "dummyDriveReversalDelay",
+    "dummyDriveReversalCount",
+    "dummyDriveReversalWeightNone",
+    "dummyDriveReversalWeightGuard",
+    "dummyDriveReversalWeightWakeup",
+    "dummyThrowEscapeType",
+    "dummyWakeupType"
+]);
+const DUMMY_MENU_DEFAULTS = Object.freeze({
+    dummyControl: "dummy",
+    dummyAction: "0",
+    dummyJumpKind: "0",
+    dummyCpuLevel: "1",
+    dummyCounterType: "0",
+    dummyCounterWeightNormal: "1",
+    dummyCounterWeightCounter: "1",
+    dummyCounterWeightPunish: "1",
+    dummyGuardType: "0",
+    dummyGuardCount: "10",
+    dummyGuardSwitching: "true",
+    dummyGuardOnlyType: "0",
+    dummyDriveParryType: "0",
+    dummyDriveReversalType: "0",
+    dummyDriveReversalDelay: "0",
+    dummyDriveReversalCount: "1",
+    dummyDriveReversalWeightNone: "1",
+    dummyDriveReversalWeightGuard: "1",
+    dummyDriveReversalWeightWakeup: "1",
+    dummyThrowEscapeType: "0",
+    dummyWakeupType: "0"
+});
+
 function toast(message, isError = false) {
     const node = $("toast");
     node.textContent = message;
@@ -564,6 +613,40 @@ function setControlDisabled(id, disabled) {
     }
 }
 
+function dummyMenuVisualState(select) {
+    if (select.value === "") return "unrecorded";
+    return select.value === DUMMY_MENU_DEFAULTS[select.id] ? "default" : "modified";
+}
+
+function setVisualState(element, visualState) {
+    if (!element) return;
+    for (const stateName of ["default", "modified", "unrecorded"]) {
+        element.classList.toggle(`is-${stateName}`, visualState === stateName);
+    }
+}
+
+function updateDummyMenuVisualState() {
+    for (const id of DUMMY_MENU_SELECT_IDS) {
+        const select = $(id);
+        if (!select) continue;
+        const visualState = dummyMenuVisualState(select);
+        const field = select.closest(".dummy-menu-row") || select.closest("label");
+        field?.classList.add("dummy-setting");
+        setVisualState(field, visualState);
+        setVisualState(select.closest(".select-stepper"), visualState);
+    }
+
+    for (const details of document.querySelectorAll(".dummy-detail")) {
+        const states = [...details.querySelectorAll("select")].map(dummyMenuVisualState);
+        const visualState = states.includes("modified")
+            ? "modified"
+            : states.length && states.every(value => value === "unrecorded")
+                ? "unrecorded"
+                : "default";
+        setVisualState(details, visualState);
+    }
+}
+
 function syncDummyMenuState(fillDefaults = false) {
     const control = $("dummyControl").value;
     if (fillDefaults && control === "dummy" && $("dummyAction").value === "") {
@@ -611,6 +694,7 @@ function syncDummyMenuState(fillDefaults = false) {
             if ($(id).value === "") $(id).value = "1";
         }
     }
+    updateDummyMenuVisualState();
 }
 
 /* recorded_by: 0 = P1 录制 / 1 = P2 录制；录制方即连段角色（攻击方），另一方为木人。 */
@@ -1236,30 +1320,9 @@ for (const [id, variant] of [
     if (variant === "stars") enhanceStarRating($(id));
     else enhanceChoiceSelect($(id), variant);
 }
-for (const id of [
-    "dummyControl",
-    "dummyAction",
-    "dummyJumpKind",
-    "dummyCpuLevel",
-    "dummyCounterType",
-    "dummyCounterWeightNormal",
-    "dummyCounterWeightCounter",
-    "dummyCounterWeightPunish",
-    "dummyGuardType",
-    "dummyGuardCount",
-    "dummyGuardSwitching",
-    "dummyGuardOnlyType",
-    "dummyDriveParryType",
-    "dummyDriveReversalType",
-    "dummyDriveReversalDelay",
-    "dummyDriveReversalCount",
-    "dummyDriveReversalWeightNone",
-    "dummyDriveReversalWeightGuard",
-    "dummyDriveReversalWeightWakeup",
-    "dummyThrowEscapeType",
-    "dummyWakeupType"
-]) {
+for (const id of DUMMY_MENU_SELECT_IDS) {
     enhanceStepperSelect($(id));
+    $(id).addEventListener("change", updateDummyMenuVisualState);
 }
 $("p1FighterId").addEventListener("change", () => changeFighter("p1"));
 $("p2FighterId").addEventListener("change", () => changeFighter("p2"));

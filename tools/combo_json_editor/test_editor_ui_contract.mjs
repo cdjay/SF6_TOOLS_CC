@@ -3,6 +3,7 @@ import fs from "node:fs";
 
 const html = fs.readFileSync(new URL("./index.html", import.meta.url), "utf8");
 const app = fs.readFileSync(new URL("./app.mjs", import.meta.url), "utf8");
+const styles = fs.readFileSync(new URL("./styles.css", import.meta.url), "utf8");
 
 const ids = [...html.matchAll(/\bid="([^"]+)"/g)].map(match => match[1]);
 assert.equal(new Set(ids).size, ids.length, "HTML ids must be unique");
@@ -94,6 +95,7 @@ assert.doesNotMatch(html, /value="1">(?:首击后防御|第2段后格挡)/);
 assert.match(html, /value="5">计数格挡 \(5 · count\)/);
 assert.match(html, /id="dummyGuardCountRow" class="dummy-menu-row"/);
 assert.match(html, /id="dummyGuardCount"/);
+assert.match(html, /id="dummyGuardSwitching"[\s\S]*value="true">随机 \(random\)/);
 assert.match(app, /populateNumericSelect\("dummyGuardCount", 1, 30/);
 assert.match(app, /enabled && fillDefaults && \$\("dummyGuardCount"\)/, "count guard must default to one count when first enabled");
 assert.doesNotMatch(app, /\bfillDefault\b/, "dummy menu state must consistently use the fillDefaults flag");
@@ -130,5 +132,21 @@ for (const id of ["resultDamage", "resultDriveUsed", "resultSuperUsed", "resultH
     assert.match(html, new RegExp(`id="${id}"`), `${id} must be visible in metadata`);
 }
 assert.match(app, /comboStats\.damage/);
+
+// 视觉状态：P1 / P2 / 菜单分色，非默认高亮，未记录置灰。
+assert.match(app, /const DUMMY_MENU_DEFAULTS = Object\.freeze/);
+assert.match(app, /dummyGuardCount:\s*"10"/, "guard count 10 must be treated as the game default");
+assert.match(app, /dummyDriveReversalDelay:\s*"0"/, "drive reversal delay 0 must be the default");
+assert.match(app, /dummyDriveReversalCount:\s*"1"/, "drive reversal count 1 must be the default");
+assert.match(app, /function updateDummyMenuVisualState/);
+assert.match(app, /return "unrecorded"/);
+assert.match(app, /\? "default" : "modified"/);
+assert.match(html, /class="dummy-state-legend"/);
+for (const selector of ["#p1ScenePanel", "#p2ScenePanel", "#dummyMenuPanel"]) {
+    assert.match(styles, new RegExp(selector.replace("#", "\\#")), `${selector} must have a visual theme`);
+}
+assert.match(styles, /--sf6-setting-modified:\s*#ff9f2f/);
+assert.match(styles, /\.select-stepper\.is-modified select/);
+assert.match(styles, /\.select-stepper\.is-unrecorded select/);
 
 console.log("editor UI contract tests passed");

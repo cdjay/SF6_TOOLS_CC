@@ -44,6 +44,11 @@
     --sf6-selected-border: color-mix(in srgb, var(--sf6-primary) 72%, var(--sf6-base-content));
     --sf6-text-muted: color-mix(in srgb, var(--sf6-base-content) 62%, transparent);
     --sf6-text-faint: color-mix(in srgb, var(--sf6-base-content) 42%, transparent);
+    --sf6-p1: #7dd3fc;
+    --sf6-p2: #86efac;
+    --sf6-menu: #c4b5fd;
+    --sf6-setting-modified: #ff9f2f;
+    --sf6-setting-unrecorded: #7f899a;
 
     /* ---- 字号 / 字重 ---- */
     --sf6-text-micro: 0.6875rem;
@@ -679,6 +684,28 @@ main {
     font-weight: var(--sf6-font-heavy);
     letter-spacing: 0.08em;
 }
+#p1ScenePanel,
+#p2ScenePanel,
+#dummyMenuPanel {
+    --scene-accent: var(--sf6-modern);
+    border-color: color-mix(in srgb, var(--scene-accent) 56%, var(--sf6-border-subtle));
+    border-left: 4px solid var(--scene-accent);
+    background:
+        linear-gradient(
+            135deg,
+            color-mix(in srgb, var(--scene-accent) 9%, transparent),
+            color-mix(in srgb, var(--sf6-base-200) 68%, transparent) 38%
+        );
+    box-shadow: inset 0 0 28px color-mix(in srgb, var(--scene-accent) 4%, transparent);
+}
+#p1ScenePanel { --scene-accent: var(--sf6-p1); }
+#p2ScenePanel { --scene-accent: var(--sf6-p2); }
+#dummyMenuPanel { --scene-accent: var(--sf6-menu); }
+#p1ScenePanel h3,
+#p2ScenePanel h3 {
+    border-bottom-color: color-mix(in srgb, var(--scene-accent) 28%, transparent);
+    color: var(--scene-accent);
+}
 .mini-grid { display: grid; grid-template-columns: 1fr; gap: 10px; }
 .mini-grid.three { grid-template-columns: repeat(3, 1fr); }
 .mini-grid .wide { grid-column: 1 / -1; }
@@ -691,14 +718,40 @@ main {
     border-radius: var(--sf6-radius-sm);
     background: color-mix(in srgb, var(--sf6-brand) 4%, transparent);
 }
-/* 右侧独立木人菜单，青色描边呼应木人标签色 */
+/* 右侧独立木人菜单使用淡紫色，与 P1 / P2 场景卡明确分区。 */
 .dummy-menu-panel { min-width: 0; }
 .dummy-env {
     padding: 10px 12px;
-    border: 1px solid color-mix(in srgb, var(--sf6-modern) 35%, transparent);
-    border-left: 3px solid var(--sf6-modern);
+    border: 1px solid color-mix(in srgb, var(--sf6-menu) 38%, transparent);
+    border-left: 3px solid var(--sf6-menu);
     border-radius: var(--sf6-radius-sm);
-    background: color-mix(in srgb, var(--sf6-modern) 4%, transparent);
+    background: color-mix(in srgb, var(--sf6-menu) 5%, transparent);
+}
+.dummy-env > span:first-child {
+    color: var(--sf6-menu);
+    font-weight: var(--sf6-font-heavy);
+}
+.dummy-state-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 7px;
+    margin: 2px 0 6px;
+}
+.dummy-state-legend span {
+    padding: 3px 8px;
+    border: 1px solid var(--sf6-border-subtle);
+    color: var(--sf6-text-muted);
+    background: color-mix(in srgb, var(--sf6-base-100) 70%, transparent);
+    font-size: var(--sf6-text-micro);
+    font-weight: var(--sf6-font-bold);
+}
+.dummy-state-legend .is-modified {
+    border-color: color-mix(in srgb, var(--sf6-setting-modified) 58%, transparent);
+    color: var(--sf6-setting-modified);
+}
+.dummy-state-legend .is-unrecorded {
+    border-color: color-mix(in srgb, var(--sf6-setting-unrecorded) 52%, transparent);
+    color: var(--sf6-setting-unrecorded);
 }
 .dummy-menu-list {
     display: grid;
@@ -715,7 +768,11 @@ main {
     border-bottom: 1px solid color-mix(in srgb, var(--sf6-border-subtle) 65%, transparent);
     color: var(--sf6-text-muted);
     font-size: var(--sf6-text-xs);
-    font-weight: var(--sf6-font-medium);
+    font-weight: var(--sf6-font-bold);
+    transition:
+        color var(--sf6-motion-fast),
+        border-color var(--sf6-motion-fast),
+        background-color var(--sf6-motion-fast);
 }
 .dummy-menu-row.dynamic-row { padding-left: 14px; }
 .dummy-menu-row.is-disabled { opacity: 0.48; }
@@ -732,11 +789,32 @@ main {
     padding: 0;
     border-radius: 0;
     clip-path: none;
-    color: var(--sf6-modern);
+    color: var(--sf6-menu);
     font-size: 20px;
     line-height: 1;
 }
 .select-stepper button:disabled { opacity: 0.3; }
+.dummy-setting.is-modified {
+    color: var(--sf6-setting-modified);
+    font-weight: var(--sf6-font-heavy);
+}
+.select-stepper.is-modified select,
+.select-stepper.is-modified button {
+    border-color: color-mix(in srgb, var(--sf6-setting-modified) 72%, var(--sf6-field-border));
+    color: var(--sf6-setting-modified);
+    background: color-mix(in srgb, var(--sf6-setting-modified) 9%, var(--sf6-field-bg));
+    font-weight: var(--sf6-font-heavy);
+    box-shadow: inset 0 -2px 0 color-mix(in srgb, var(--sf6-setting-modified) 52%, transparent);
+}
+.dummy-setting.is-unrecorded {
+    color: var(--sf6-setting-unrecorded);
+}
+.select-stepper.is-unrecorded select,
+.select-stepper.is-unrecorded button {
+    border-color: color-mix(in srgb, var(--sf6-setting-unrecorded) 54%, transparent);
+    color: var(--sf6-setting-unrecorded);
+    background: color-mix(in srgb, var(--sf6-setting-unrecorded) 7%, var(--sf6-field-bg));
+}
 .dummy-detail {
     margin: 0 0 4px min(202px, 30%);
     padding: 7px 9px;
@@ -750,6 +828,19 @@ main {
     font-size: var(--sf6-text-xs);
     font-weight: var(--sf6-font-bold);
 }
+.dummy-detail.is-modified {
+    border-color: color-mix(in srgb, var(--sf6-setting-modified) 48%, transparent);
+    border-left-color: var(--sf6-setting-modified);
+}
+.dummy-detail.is-modified summary {
+    color: var(--sf6-setting-modified);
+    font-weight: var(--sf6-font-heavy);
+}
+.dummy-detail.is-unrecorded {
+    border-color: color-mix(in srgb, var(--sf6-setting-unrecorded) 34%, transparent);
+    border-left-color: var(--sf6-setting-unrecorded);
+}
+.dummy-detail.is-unrecorded summary { color: var(--sf6-setting-unrecorded); }
 .dummy-detail-grid {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -762,6 +853,7 @@ main {
     gap: 5px;
     color: var(--sf6-text-muted);
     font-size: var(--sf6-text-micro);
+    font-weight: var(--sf6-font-bold);
 }
 
 .resource-field { display: grid; gap: 8px; color: var(--sf6-text-muted); font-size: var(--sf6-text-xs); font-weight: var(--sf6-font-medium); }
