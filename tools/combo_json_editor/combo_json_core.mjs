@@ -27,9 +27,36 @@ const CANONICAL_META_KEYS = [
 const DUMMY_FIELDS = [
     "dummy_action_type",
     "dummy_jump_type",
+    "dummy_jump_weight_front",
+    "dummy_jump_weight_vertical",
+    "dummy_jump_weight_back",
+    "dummy_cpu_level",
+    "dummy_counter_type",
+    "dummy_counter_weight_normal",
+    "dummy_counter_weight_counter",
+    "dummy_counter_weight_punish",
     "dummy_guard_type",
+    "dummy_guard_count",
+    "dummy_guard_switching",
+    "dummy_guard_weight",
+    "dummy_guard_only_type",
+    "dummy_drive_parry_type",
+    "dummy_drive_reversal_type",
+    "dummy_drive_reversal_delay",
+    "dummy_drive_reversal_count",
+    "dummy_drive_reversal_weight_none",
+    "dummy_drive_reversal_weight_guard",
+    "dummy_drive_reversal_weight_wakeup",
+    "dummy_throw_escape_type",
+    "dummy_throw_escape_weight",
+    "dummy_wakeup_type",
+    "dummy_wakeup_weight",
     "dummy_stance"
 ];
+
+const DUMMY_NUMERIC_FIELDS = new Set(DUMMY_FIELDS.filter(field => (
+    field !== "dummy_stance" && field !== "dummy_guard_switching"
+)));
 
 function isObject(value) {
     return value !== null && typeof value === "object" && !Array.isArray(value);
@@ -452,7 +479,12 @@ function updateEnvironmentInPlace(document, values) {
     for (const field of DUMMY_FIELDS) {
         if (!(field in normalizedValues)) continue;
         let value = normalizedValues[field];
-        if (field.endsWith("_type")) value = normalizeOptionalNumber(value);
+        if (DUMMY_NUMERIC_FIELDS.has(field)) {
+            value = normalizeOptionalNumber(value);
+        }
+        if (field === "dummy_guard_switching" && value !== null && value !== "") {
+            value = value === true || value === "true" || value === 1 || value === "1";
+        }
         if (field === "dummy_guard_type") value = normalizeDummyGuardType(value);
         assignOptional(environment, field, value);
         assignOptional(meta, field, value);

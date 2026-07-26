@@ -15,9 +15,27 @@ for (const id of new Set(staticAppReferences)) {
 const selectIds = [
     "statusFilter",
     "rating",
+    "dummyControl",
     "dummyAction",
     "dummyJumpKind",
+    "dummyCpuLevel",
+    "dummyCounterType",
+    "dummyCounterWeightNormal",
+    "dummyCounterWeightCounter",
+    "dummyCounterWeightPunish",
     "dummyGuardType",
+    "dummyGuardCount",
+    "dummyGuardSwitching",
+    "dummyGuardOnlyType",
+    "dummyDriveParryType",
+    "dummyDriveReversalType",
+    "dummyDriveReversalDelay",
+    "dummyDriveReversalCount",
+    "dummyDriveReversalWeightNone",
+    "dummyDriveReversalWeightGuard",
+    "dummyDriveReversalWeightWakeup",
+    "dummyThrowEscapeType",
+    "dummyWakeupType",
     "p1FighterId",
     "p2FighterId",
     "p1Burnout",
@@ -30,7 +48,7 @@ for (const id of selectIds) {
 for (const id of ["p1FighterId", "p2FighterId"]) {
     assert.doesNotMatch(app, new RegExp(`\\["${id}",`), `${id} must stay a native select`);
 }
-// 木人四字段由“木人动作”自动派生，不再提供独立控件
+// 原始字段由陪练菜单镜像自动派生，不再提供重复的裸字段控件
 for (const id of ["dummyStance", "dummyActionType", "dummyJumpType", "requiresDummyCrouch"]) {
     assert.doesNotMatch(html, new RegExp(`id="${id}"`), `${id} must be derived, not a standalone control`);
 }
@@ -39,13 +57,18 @@ assert.doesNotMatch(html, /id="dummyGuard"/, "legacy dummy_guard alias must not 
 for (const id of ["p1Stunned", "p2Stunned", "p1Stance", "p2Stance"]) {
     assert.doesNotMatch(html, new RegExp(`id="${id}"`), `${id} must be hidden from the form`);
 }
-for (const id of selectIds.filter(id => !/^p[12]FighterId$/.test(id))) {
+for (const id of ["statusFilter", "rating", "p1Burnout", "p2Burnout"]) {
     assert.match(app, new RegExp(`\\["${id}",\\s*"`), `${id} must be enhanced into choice boxes`);
 }
-// 无“清空”选项的控件：未记录时取默认值（否 / 站立 / 不防御）
-for (const id of ["p1Burnout", "p2Burnout", "dummyAction", "dummyGuardType"]) {
+// 陪练菜单保留原生下拉框并提供左右箭头；未记录选项保持旧 JSON 可选字段语义
+for (const id of selectIds.filter(id => id.startsWith("dummy"))) {
+    assert.match(app, new RegExp(`"${id}"`), `${id} must be wired`);
+}
+assert.match(app, /enhanceStepperSelect/);
+assert.match(app, /className = "select-stepper"/);
+for (const id of ["dummyControl", "dummyAction", "dummyGuardType"]) {
     const block = html.match(new RegExp(`<select id="${id}">([\\s\\S]*?)</select>`))[1];
-    assert.doesNotMatch(block, /<option value=""/, `${id} must not offer a clear/empty option`);
+    assert.match(block, /<option value="">未记录/, `${id} must preserve an unrecorded option`);
 }
 assert.doesNotMatch(app, /\["dummyGuard",/, "dead dummyGuard enhancement entry must be removed");
 assert.match(app, /Burnout`\)\.addEventListener\("change"/, "burnout must update the drive gauge");
@@ -58,16 +81,26 @@ assert.match(app, /FighterId`\)\.disabled = side === attacker/, "attacker fighte
 assert.match(app, /state-row/, "state resources must render as a single row");
 
 assert.match(html, /虚损 \(burnout\)/);
-assert.match(html, /木人动作 \(dummy action\)/);
+assert.match(html, /陪练的动作 \(dummy action\)/);
 assert.match(html, /站立 \(stand\)/);
 assert.match(html, /蹲下 \(crouch\)/);
 assert.match(html, /跳跃 \(jump\)/);
 assert.match(html, /原地 \(vertical\)/);
-assert.match(html, /前跳 \(front\)/);
+assert.match(html, /前跳 \(forward\)/);
 assert.match(html, /后跳 \(back\)/);
 assert.match(html, /随机 \(random\)/);
 assert.match(html, /value="2">第2段后格挡 \(2 · after_first_hit\)/);
 assert.doesNotMatch(html, /value="1">(?:首击后防御|第2段后格挡)/);
+assert.match(html, /value="5">计数格挡 \(5 · count\)/);
+assert.match(html, /id="dummyGuardCountRow" class="dummy-menu-row"/);
+assert.match(html, /id="dummyGuardCount"/);
+assert.match(app, /populateNumericSelect\("dummyGuardCount", 1, 30/);
+assert.match(app, /enabled && fillDefaults && \$\("dummyGuardCount"\)/, "count guard must default to one count when first enabled");
+assert.doesNotMatch(app, /\bfillDefault\b/, "dummy menu state must consistently use the fillDefaults flag");
+assert.match(html, /T 详细设置：随机打康权重/);
+assert.match(html, /T 详细设置：斗气招架/);
+assert.match(html, /T 详细设置：斗气反攻随机权重/);
+assert.match(app, /populateNumericSelect\(id, 0, 10/);
 assert.match(html, /id="p1Unique" class="unique-resource-list"/);
 assert.match(html, /id="p2Unique" class="unique-resource-list"/);
 // 环境页为左右分列：特殊资源在各自栏目内重点展示，木人设置挂在木人侧栏目

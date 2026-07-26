@@ -97,4 +97,80 @@ assert(guard_type == 4 and source == "training_room",
 guard_type, source = TrainingEnvironment.resolve_dummy_guard_type({}, 99)
 assert(guard_type == 2 and source == "legacy_default", "invalid legacy fallback must use the safe default")
 
+guard_type, source = TrainingEnvironment.resolve_dummy_guard_type({
+    dummy_guard_type = 5,
+}, 0)
+assert(guard_type == 5 and source == "recorded", "count guard type must remain supported")
+
+local guard_count
+guard_count, source = TrainingEnvironment.resolve_dummy_guard_count({
+    _xt_meta = { environment = { dummy_guard_count = 2 } },
+}, 10)
+assert(guard_count == 2 and source == "recorded", "recorded guard count must override the room")
+
+guard_count, source = TrainingEnvironment.resolve_dummy_guard_count({}, 10)
+assert(guard_count == 10 and source == "training_room", "missing guard count must preserve the room")
+
+guard_count, source = TrainingEnvironment.resolve_dummy_guard_count({}, 0)
+assert(guard_count == nil and source == "unrecorded", "invalid missing guard count must stay unrecorded")
+
+assert(TrainingEnvironment.guard_count_to_runtime(3) == 2,
+    "user-visible guard count must encode to the zero-based game value")
+assert(TrainingEnvironment.guard_count_from_runtime(2) == 3,
+    "zero-based game guard count must decode to the user-visible value")
+assert(TrainingEnvironment.guard_count_to_runtime(31) == nil,
+    "out-of-range user-visible guard count must be rejected")
+
+local advanced = TrainingEnvironment.resolve_recorded_settings({
+    _xt_meta = {
+        environment = {
+            dummy_action_type = 5,
+            dummy_cpu_level = 8,
+            dummy_counter_type = 3,
+            dummy_counter_weight_normal = 10,
+            dummy_guard_switching = false,
+            dummy_guard_only_type = 3,
+            dummy_drive_parry_type = 2,
+            dummy_drive_reversal_type = 3,
+            dummy_drive_reversal_delay = 5,
+            dummy_drive_reversal_count = 6,
+            dummy_drive_reversal_weight_none = 10,
+            dummy_drive_reversal_weight_guard = 9,
+            dummy_drive_reversal_weight_wakeup = 8,
+            dummy_throw_escape_type = 2,
+            dummy_wakeup_type = 1,
+        },
+    },
+})
+assert(advanced.dummy_action_type == 5 and advanced.dummy_cpu_level == 8,
+    "CPU dummy settings must remain portable")
+assert(advanced.dummy_counter_type == 3 and advanced.dummy_counter_weight_normal == 10,
+    "random counter and T/detail weights must be preserved")
+assert(advanced.dummy_guard_switching == false and advanced.dummy_guard_only_type == 3,
+    "false guard switching and random guard-only type must not be dropped")
+assert(advanced.dummy_drive_parry_type == 2
+        and advanced.dummy_drive_reversal_type == 3
+        and advanced.dummy_drive_reversal_delay == 5,
+    "drive defense settings must be restored as native menu values")
+assert(advanced.dummy_throw_escape_type == 2 and advanced.dummy_wakeup_type == 1,
+    "throw escape and wakeup settings must remain portable")
+assert(TrainingEnvironment.has_recorded_defense_settings({
+    dummy_wakeup_type = 0,
+}) == true, "explicit zero-valued defense settings must count as recorded")
+assert(TrainingEnvironment.has_recorded_defense_settings({}) == false,
+    "legacy JSON without defense fields must retain the legacy cleanup path")
+
+assert(TrainingEnvironment.counter_type_from_runtime(2, 2) == 3,
+    "native random counter pair must decode to the portable random value")
+assert(TrainingEnvironment.counter_type_from_runtime(0, 1) == 2,
+    "native punish counter must decode correctly")
+assert(TrainingEnvironment.drive_reversal_count_to_runtime(6) == 5,
+    "drive reversal count must encode to the zero-based native value")
+assert(TrainingEnvironment.drive_reversal_count_from_runtime(5) == 6,
+    "drive reversal count must decode to the user-visible value")
+assert(TrainingEnvironment.cpu_level_to_runtime(8) == 7,
+    "CPU level must encode to the zero-based native value")
+assert(TrainingEnvironment.cpu_level_from_runtime(0) == 1,
+    "CPU level must decode to the user-visible value")
+
 print("combo training environment tests passed")

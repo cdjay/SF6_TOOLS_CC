@@ -97,7 +97,24 @@ const edited = applyMetadataEdits(result.document, {
         dummy_stance: "crouch",
         dummy_action_type: 1,
         dummy_jump_type: 0,
-        dummy_guard_type: 3,
+        dummy_cpu_level: 8,
+        dummy_counter_type: 3,
+        dummy_counter_weight_normal: 10,
+        dummy_counter_weight_counter: 9,
+        dummy_counter_weight_punish: 8,
+        dummy_guard_type: 5,
+        dummy_guard_count: 2,
+        dummy_guard_switching: false,
+        dummy_guard_only_type: 3,
+        dummy_drive_parry_type: 2,
+        dummy_drive_reversal_type: 3,
+        dummy_drive_reversal_delay: 5,
+        dummy_drive_reversal_count: 6,
+        dummy_drive_reversal_weight_none: 10,
+        dummy_drive_reversal_weight_guard: 9,
+        dummy_drive_reversal_weight_wakeup: 8,
+        dummy_throw_escape_type: 2,
+        dummy_wakeup_type: 1,
         requires_dummy_crouch: true
     },
     scene: {
@@ -118,7 +135,18 @@ assert.equal(edited[0]._xt_meta.environment.dummy_stance, "crouch");
 assert.equal(edited[0]._xt_meta.environment.dummy_jump_type, 0);
 assert.equal(edited[0]._xt_meta.dummy_jump_type, 0);
 assert.equal(edited[0].dummy_jump_type, 0);
-assert.equal(edited[0].dummy_guard_type, 3);
+assert.equal(edited[0].dummy_guard_type, 5);
+assert.equal(edited[0]._xt_meta.environment.dummy_guard_count, 2);
+assert.equal(edited[0]._xt_meta.dummy_guard_count, 2);
+assert.equal(edited[0].dummy_guard_count, 2);
+assert.equal(edited[0]._xt_meta.environment.dummy_counter_type, 3);
+assert.equal(edited[0].dummy_counter_weight_normal, 10);
+assert.equal(edited[0]._xt_meta.environment.dummy_guard_switching, false);
+assert.equal(edited[0].dummy_guard_switching, false);
+assert.equal(edited[0]._xt_meta.environment.dummy_drive_reversal_count, 6);
+assert.equal(edited[0].dummy_drive_reversal_weight_wakeup, 8);
+assert.equal(edited[0]._xt_meta.environment.dummy_throw_escape_type, 2);
+assert.equal(edited[0].dummy_wakeup_type, 1);
 assert.equal(edited[0]._xt_meta.environment.dummy_guard, undefined);
 assert.equal(edited[0]._xt_meta.dummy_guard, undefined);
 assert.equal(edited[0].dummy_guard, undefined);

@@ -17,13 +17,203 @@ local TrainingEnvironment = {
         AFTER_FIRST_HIT = 2,
         ALL = 3,
         RANDOM = 4,
+        COUNT = 5,
     },
+    DUMMY_COUNTER = {
+        NORMAL = 0,
+        COUNTER = 1,
+        PUNISH_COUNTER = 2,
+        RANDOM = 3,
+    },
+    DUMMY_GUARD_ONLY = {
+        NONE = 0,
+        STAND = 1,
+        CROUCH = 2,
+        RANDOM = 3,
+    },
+    DUMMY_DRIVE_PARRY = {
+        NONE = 0,
+        NORMAL = 1,
+        PERFECT = 2,
+        RANDOM = 3,
+    },
+    DUMMY_DRIVE_REVERSAL = {
+        NONE = 0,
+        GUARD = 1,
+        WAKEUP = 2,
+        RANDOM = 3,
+    },
+    DUMMY_THROW_ESCAPE = {
+        NONE = 0,
+        EXECUTE = 1,
+        RANDOM = 2,
+    },
+    DUMMY_WAKEUP = {
+        STAY = 0,
+        BACK = 1,
+        RANDOM = 2,
+    },
+}
+
+TrainingEnvironment.OPTIONAL_FIELDS = {
+    "dummy_action_type",
+    "dummy_jump_type",
+    "dummy_jump_weight_front",
+    "dummy_jump_weight_vertical",
+    "dummy_jump_weight_back",
+    "dummy_cpu_level",
+    "dummy_counter_type",
+    "dummy_counter_weight_normal",
+    "dummy_counter_weight_counter",
+    "dummy_counter_weight_punish",
+    "dummy_guard_type",
+    "dummy_guard_count",
+    "dummy_guard_switching",
+    "dummy_guard_weight",
+    "dummy_guard_only_type",
+    "dummy_drive_parry_type",
+    "dummy_drive_reversal_type",
+    "dummy_drive_reversal_delay",
+    "dummy_drive_reversal_count",
+    "dummy_drive_reversal_weight_none",
+    "dummy_drive_reversal_weight_guard",
+    "dummy_drive_reversal_weight_wakeup",
+    "dummy_throw_escape_type",
+    "dummy_throw_escape_weight",
+    "dummy_wakeup_type",
+    "dummy_wakeup_weight",
+}
+
+TrainingEnvironment.DEFENSE_FIELDS = {
+    "dummy_drive_parry_type",
+    "dummy_drive_reversal_type",
+    "dummy_drive_reversal_delay",
+    "dummy_drive_reversal_count",
+    "dummy_drive_reversal_weight_none",
+    "dummy_drive_reversal_weight_guard",
+    "dummy_drive_reversal_weight_wakeup",
+    "dummy_throw_escape_type",
+    "dummy_throw_escape_weight",
+    "dummy_wakeup_type",
+    "dummy_wakeup_weight",
 }
 
 local function optional_int(value)
     local number = tonumber(value)
     if number == nil then return nil end
     return math.floor(number)
+end
+
+local function optional_bool(value)
+    if type(value) == "boolean" then return value end
+    if value == 1 or value == "1" or value == "true" then return true end
+    if value == 0 or value == "0" or value == "false" then return false end
+    return nil
+end
+
+local function bounded_int(value, minimum, maximum)
+    local number = optional_int(value)
+    if number == nil or number < minimum or (maximum ~= nil and number > maximum) then
+        return nil
+    end
+    return number
+end
+
+local function recorded_value(first_step, field_name)
+    first_step = type(first_step) == "table" and first_step or {}
+    local meta = type(first_step._xt_meta) == "table" and first_step._xt_meta or nil
+    local env = meta and type(meta.environment) == "table" and meta.environment or nil
+    if first_step[field_name] ~= nil then return first_step[field_name], "step" end
+    if meta and meta[field_name] ~= nil then return meta[field_name], "meta" end
+    if env and env[field_name] ~= nil then return env[field_name], "environment" end
+    return nil, "unrecorded"
+end
+
+function TrainingEnvironment.recorded_value(first_step, field_name)
+    return recorded_value(first_step, field_name)
+end
+
+function TrainingEnvironment.resolve_recorded_settings(first_step)
+    local out = {}
+    for _, field_name in ipairs(TrainingEnvironment.OPTIONAL_FIELDS) do
+        local value = recorded_value(first_step, field_name)
+        if value ~= nil then out[field_name] = value end
+    end
+
+    out.dummy_action_type = bounded_int(out.dummy_action_type, 0, 5)
+    out.dummy_jump_type = bounded_int(out.dummy_jump_type, 0, 3)
+    out.dummy_cpu_level = bounded_int(out.dummy_cpu_level, 1, 8)
+    out.dummy_counter_type = bounded_int(out.dummy_counter_type, 0, 3)
+    out.dummy_guard_type = bounded_int(out.dummy_guard_type, 0, 5)
+    if out.dummy_guard_type == TrainingEnvironment.DUMMY_GUARD.INTERIM_INVALID then
+        out.dummy_guard_type = TrainingEnvironment.DUMMY_GUARD.AFTER_FIRST_HIT
+    end
+    out.dummy_guard_count = bounded_int(out.dummy_guard_count, 1, 30)
+    out.dummy_guard_switching = optional_bool(out.dummy_guard_switching)
+    out.dummy_guard_only_type = bounded_int(out.dummy_guard_only_type, 0, 3)
+    out.dummy_drive_parry_type = bounded_int(out.dummy_drive_parry_type, 0, 3)
+    out.dummy_drive_reversal_type = bounded_int(out.dummy_drive_reversal_type, 0, 3)
+    out.dummy_drive_reversal_delay = bounded_int(out.dummy_drive_reversal_delay, 0, nil)
+    out.dummy_drive_reversal_count = bounded_int(out.dummy_drive_reversal_count, 1, nil)
+    out.dummy_throw_escape_type = bounded_int(out.dummy_throw_escape_type, 0, 2)
+    out.dummy_wakeup_type = bounded_int(out.dummy_wakeup_type, 0, 2)
+
+    for _, field_name in ipairs({
+        "dummy_jump_weight_front",
+        "dummy_jump_weight_vertical",
+        "dummy_jump_weight_back",
+        "dummy_counter_weight_normal",
+        "dummy_counter_weight_counter",
+        "dummy_counter_weight_punish",
+        "dummy_guard_weight",
+        "dummy_drive_reversal_weight_none",
+        "dummy_drive_reversal_weight_guard",
+        "dummy_drive_reversal_weight_wakeup",
+        "dummy_throw_escape_weight",
+        "dummy_wakeup_weight",
+    }) do
+        out[field_name] = bounded_int(out[field_name], 0, nil)
+    end
+    return out
+end
+
+function TrainingEnvironment.has_recorded_defense_settings(first_step)
+    local settings = TrainingEnvironment.resolve_recorded_settings(first_step)
+    for _, field_name in ipairs(TrainingEnvironment.DEFENSE_FIELDS) do
+        if settings[field_name] ~= nil then return true end
+    end
+    return false
+end
+
+function TrainingEnvironment.counter_type_from_runtime(nc_type, pc_type)
+    nc_type = optional_int(nc_type) or 0
+    pc_type = optional_int(pc_type) or 0
+    if nc_type == 2 and pc_type == 2 then
+        return TrainingEnvironment.DUMMY_COUNTER.RANDOM
+    end
+    if pc_type == 1 then return TrainingEnvironment.DUMMY_COUNTER.PUNISH_COUNTER end
+    if nc_type == 1 then return TrainingEnvironment.DUMMY_COUNTER.COUNTER end
+    return TrainingEnvironment.DUMMY_COUNTER.NORMAL
+end
+
+function TrainingEnvironment.drive_reversal_count_to_runtime(value)
+    local count = bounded_int(value, 1, nil)
+    return count and (count - 1) or nil
+end
+
+function TrainingEnvironment.drive_reversal_count_from_runtime(value)
+    local runtime_count = bounded_int(value, 0, nil)
+    return runtime_count and (runtime_count + 1) or nil
+end
+
+function TrainingEnvironment.cpu_level_to_runtime(value)
+    local level = bounded_int(value, 1, 8)
+    return level and (level - 1) or nil
+end
+
+function TrainingEnvironment.cpu_level_from_runtime(value)
+    local runtime_level = bounded_int(value, 0, 7)
+    return runtime_level and (runtime_level + 1) or nil
 end
 
 function TrainingEnvironment.resolve_runtime_jump_type(configured_value, random_value)
@@ -111,7 +301,7 @@ end
 
 local function valid_guard_type(value)
     local guard_type = tonumber(value)
-    if guard_type == nil or guard_type < 0 or guard_type > 4 then return nil end
+    if guard_type == nil or guard_type < 0 or guard_type > 5 then return nil end
     guard_type = math.floor(guard_type)
     -- A short-lived editor build emitted 1, but the training menu and upstream
     -- WTT use 2 for "guard after first hit". Keep those local files readable.
@@ -119,6 +309,27 @@ local function valid_guard_type(value)
         return TrainingEnvironment.DUMMY_GUARD.AFTER_FIRST_HIT
     end
     return guard_type
+end
+
+local function valid_guard_count(value)
+    local guard_count = tonumber(value)
+    if guard_count == nil then return nil end
+    guard_count = math.floor(guard_count)
+    if guard_count < 1 or guard_count > 30 then return nil end
+    return guard_count
+end
+
+function TrainingEnvironment.guard_count_to_runtime(value)
+    local guard_count = valid_guard_count(value)
+    return guard_count and (guard_count - 1) or nil
+end
+
+function TrainingEnvironment.guard_count_from_runtime(value)
+    local runtime_count = tonumber(value)
+    if runtime_count == nil then return nil end
+    runtime_count = math.floor(runtime_count)
+    if runtime_count < 0 or runtime_count > 29 then return nil end
+    return runtime_count + 1
 end
 
 local function named_guard_type(value)
@@ -162,6 +373,21 @@ function TrainingEnvironment.resolve_dummy_guard_type(first_step, fallback)
     guard_type = valid_guard_type(fallback)
     if guard_type ~= nil then return guard_type, "training_room" end
     return TrainingEnvironment.DUMMY_GUARD.AFTER_FIRST_HIT, "legacy_default"
+end
+
+function TrainingEnvironment.resolve_dummy_guard_count(first_step, fallback)
+    first_step = type(first_step) == "table" and first_step or {}
+    local meta = type(first_step._xt_meta) == "table" and first_step._xt_meta or nil
+    local env = meta and type(meta.environment) == "table" and meta.environment or nil
+
+    local guard_count = valid_guard_count(first_step.dummy_guard_count)
+        or (meta and valid_guard_count(meta.dummy_guard_count) or nil)
+        or (env and valid_guard_count(env.dummy_guard_count) or nil)
+    if guard_count ~= nil then return guard_count, "recorded" end
+
+    guard_count = valid_guard_count(fallback)
+    if guard_count ~= nil then return guard_count, "training_room" end
+    return nil, "unrecorded"
 end
 
 return TrainingEnvironment

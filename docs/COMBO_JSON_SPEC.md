@@ -36,12 +36,45 @@ file-level payloads:
 | `delay_from_prev` | int | Frames between this step and the previous one |
 | `counter_type` | int | 0 normal / 1 CH / 2 PC required on this step |
 | `victim_pose` | int? | 0 stand / 1 crouch (live pose at recording) |
-| `dummy_action_type`, `dummy_jump_type` | int? | Configured dummy behavior (step 1). Action: 0 stand / 1 crouch / 2 jump. Jump: 0 vertical / 1 front / 2 back / 3 random |
-| `dummy_guard_type` | int? | Configured dummy guard (step 1): 0 none / 2 guard after first hit / 3 all / 4 random. A short-lived local editor build emitted 1 incorrectly; readers SHOULD normalize 1 to 2. `dummy_guard` is a legacy reader alias and MUST NOT be written by v2 writers |
+| `dummy_action_type`, `dummy_jump_type` | int? | Configured dummy behavior (step 1). Action: 0 stand / 1 crouch / 2 jump / 3 play native recording / 4 human control / 5 CPU. Jump: 0 vertical / 1 front / 2 back / 3 random |
+| `dummy_guard_type` | int? | Configured dummy guard (step 1): 0 none / 2 guard after first hit / 3 all / 4 random / 5 count guard. A short-lived local editor build emitted 1 incorrectly; readers SHOULD normalize 1 to 2. `dummy_guard` is a legacy reader alias and MUST NOT be written by v2 writers |
+| `dummy_guard_count` | int? | User-visible guard count (1–30), meaningful when `dummy_guard_type` is 5. Game runtime stores this value minus one. Optional; missing readers MUST preserve the room value |
 | `is_holdable`, `hold_frames`, `hold_partial_check` | — | Hold system |
 | `dual_threshold`, `is_projectile_hit`, `group_id`, `facing_left` | — | Matching helpers |
 | `validation_role` | string? | e.g. `"pressure_tail"` (CC) |
 | `actual_combo`, `has_hit`, `damage_at_step` | — | Runtime; writers SHOULD reset, readers MUST ignore |
+
+#### Optional native dummy-menu environment (step 1)
+
+These fields mirror the game Dummy Settings menu. New recordings SHOULD write
+the complete current set. They are additive v2 fields: an old JSON that omits
+them keeps the reader's established legacy behavior and MUST NOT be bulk-filled
+with guessed values.
+
+Canonical storage is `_xt_meta.environment`; SF6CC also writes the same scalar
+aliases on step 1 and `_xt_meta` for existing WTT-style readers.
+
+| Field | Type / native mapping |
+|---|---|
+| `dummy_cpu_level` | int?; user-visible CPU level 1–8 (native value is minus one) |
+| `dummy_counter_type` | int?; 0 normal / 1 counter / 2 punish counter / 3 random |
+| `dummy_counter_weight_normal`, `dummy_counter_weight_counter`, `dummy_counter_weight_punish` | int? 0–10; native `T` detail-menu weights |
+| `dummy_guard_switching` | bool?; native guard switching |
+| `dummy_guard_weight` | int?; native raw guard weight |
+| `dummy_guard_only_type` | int?; 0 normal / 1 standing guard only / 2 crouching guard only / 3 random |
+| `dummy_drive_parry_type` | int?; 0 inactive / 1 active / 2 perfect parry / 3 random |
+| `dummy_drive_reversal_type` | int?; 0 inactive / 1 after guard / 2 on wakeup / 3 random |
+| `dummy_drive_reversal_delay` | int?; user-visible delay frames |
+| `dummy_drive_reversal_count` | int?; user-visible activation count (native value is minus one) |
+| `dummy_drive_reversal_weight_none`, `dummy_drive_reversal_weight_guard`, `dummy_drive_reversal_weight_wakeup` | int? 0–10; native `T` detail-menu weights |
+| `dummy_throw_escape_type` | int?; 0 inactive / 1 active / 2 random |
+| `dummy_throw_escape_weight` | int?; native raw random weight |
+| `dummy_wakeup_type` | int?; 0 in-place recovery / 1 back recovery / 2 random |
+| `dummy_wakeup_weight` | int?; native raw random weight |
+| `dummy_jump_weight_front`, `dummy_jump_weight_vertical`, `dummy_jump_weight_back` | int?; native raw random-jump weights |
+
+Raw weight fields are deliberately not normalized to percentages: the game
+uses different internal units in different detail menus.
 
 ### File-level payloads (step 1)
 
@@ -208,4 +241,4 @@ able to declare equivalences explicitly:
 | 1 | 2026-06 | `_xt_meta` introduced (author/title/tags/created_at) |
 | 2 rev 1 | 2026-07-13 | `versions` block, `language`, `control_mode`, `environment`, `raw_inputs`, `scene_state`, `motion_aliases`, explicit-preconditions principle, compat rules |
 | 2 rev 2 | 2026-07-14 | Review pass 1: `resources`/`status` in scene_state (start state ≠ consumption), `step_notes`, ISO 8601 + `updated_at`, structured `versions` objects, raw_inputs optionality + timeline status + no-batch-conversion rules |
-| 2.0.0 errata | 2026-07-26 | Freeze status; clarify actual `expected_hp` actor semantics; document optional REFramework host version and numeric `dummy_guard_type` as the canonical guard field (`dummy_guard` remains a legacy reader alias). No JSON layout change. |
+| 2.0.0 errata | 2026-07-26 | Freeze status; clarify actual `expected_hp` actor semantics; document optional REFramework host version, numeric `dummy_guard_type`, count guard, and the additive native Dummy Settings environment fields (including `T` detail weights). No JSON layout change. |

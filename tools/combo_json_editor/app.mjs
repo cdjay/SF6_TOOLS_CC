@@ -233,6 +233,43 @@ function enhanceChoiceSelect(select, variant = "compact") {
     renderChoiceBoxes(select);
 }
 
+function populateNumericSelect(id, minimum, maximum, format = value => String(value)) {
+    const select = $(id);
+    const options = [new Option("未记录 (Not recorded)", "")];
+    for (let value = minimum; value <= maximum; value += 1) {
+        options.push(new Option(format(value), String(value)));
+    }
+    select.replaceChildren(...options);
+}
+
+function enhanceStepperSelect(select) {
+    if (!select || select._stepperButtons) return;
+    const wrapper = document.createElement("div");
+    wrapper.className = "select-stepper";
+    const previous = document.createElement("button");
+    const next = document.createElement("button");
+    previous.type = next.type = "button";
+    previous.textContent = "‹";
+    next.textContent = "›";
+    previous.title = "上一个选项 (Previous option)";
+    next.title = "下一个选项 (Next option)";
+    select.insertAdjacentElement("beforebegin", wrapper);
+    wrapper.append(previous, select, next);
+    select._stepperButtons = [previous, next];
+
+    const move = direction => {
+        const options = [...select.options].filter(option => !option.disabled);
+        if (!options.length || select.disabled) return;
+        let index = options.findIndex(option => option.value === select.value);
+        if (index < 0) index = 0;
+        index = (index + direction + options.length) % options.length;
+        select.value = options[index].value;
+        select.dispatchEvent(new Event("change", { bubbles: true }));
+    };
+    previous.onclick = event => { event.preventDefault(); move(-1); };
+    next.onclick = event => { event.preventDefault(); move(1); };
+}
+
 /* 评分星级控件：0-5 星，再次点击当前星数清零，支持清除回“未记录”。
    数据仍读写隐藏的 #rating select，业务回填/保存路径不变。 */
 function renderRatingStars(select, group) {
@@ -517,11 +554,63 @@ function changeFighter(prefix) {
     }
 }
 
-/* 木人动作是唯一编辑入口：跳跃方向行仅在选择“跳跃”时显示。
-   dummy_stance / dummy_action_type / dummy_jump_type / requires_dummy_crouch
-   在 collectDummyEnvironment() 中自动派生，用户不重复编辑。 */
-function syncDummyJumpRow() {
-    $("dummyJumpRow").hidden = $("dummyAction").value !== "jump";
+function setControlDisabled(id, disabled) {
+    const select = $(id);
+    if (!select) return;
+    select.disabled = disabled;
+    select.closest(".dummy-menu-row")?.classList.toggle("is-disabled", disabled);
+    if (select._stepperButtons) {
+        for (const button of select._stepperButtons) button.disabled = disabled;
+    }
+}
+
+function syncDummyMenuState(fillDefaults = false) {
+    const control = $("dummyControl").value;
+    if (fillDefaults && control === "dummy" && $("dummyAction").value === "") {
+        $("dummyAction").value = "0";
+    }
+    if (fillDefaults && control === "cpu" && $("dummyCpuLevel").value === "") {
+        $("dummyCpuLevel").value = "1";
+    }
+    const action = $("dummyAction").value;
+    setControlDisabled("dummyAction", control !== "dummy");
+    setControlDisabled("dummyJumpKind", control !== "dummy" || action !== "2");
+    setControlDisabled("dummyCpuLevel", control !== "cpu");
+
+    const enabled = $("dummyGuardType").value === "5";
+    setControlDisabled("dummyGuardCount", !enabled);
+    if (enabled && fillDefaults && $("dummyGuardCount").value.trim() === "") {
+        $("dummyGuardCount").value = "1";
+    }
+
+    const driveReversalEnabled = !["", "0"].includes($("dummyDriveReversalType").value);
+    setControlDisabled("dummyDriveReversalDelay", !driveReversalEnabled);
+    setControlDisabled("dummyDriveReversalCount", !driveReversalEnabled);
+    if (fillDefaults && driveReversalEnabled) {
+        if ($("dummyDriveReversalDelay").value === "") $("dummyDriveReversalDelay").value = "0";
+        if ($("dummyDriveReversalCount").value === "") $("dummyDriveReversalCount").value = "1";
+    }
+
+    $("dummyCounterDetails").hidden = $("dummyCounterType").value !== "3";
+    $("dummyDriveReversalDetails").hidden = $("dummyDriveReversalType").value !== "3";
+    if (fillDefaults && $("dummyCounterType").value === "3") {
+        for (const id of [
+            "dummyCounterWeightNormal",
+            "dummyCounterWeightCounter",
+            "dummyCounterWeightPunish"
+        ]) {
+            if ($(id).value === "") $(id).value = "1";
+        }
+    }
+    if (fillDefaults && $("dummyDriveReversalType").value === "3") {
+        for (const id of [
+            "dummyDriveReversalWeightNone",
+            "dummyDriveReversalWeightGuard",
+            "dummyDriveReversalWeightWakeup"
+        ]) {
+            if ($(id).value === "") $(id).value = "1";
+        }
+    }
 }
 
 /* recorded_by: 0 = P1 录制 / 1 = P2 录制；录制方即连段角色（攻击方），另一方为木人。 */
@@ -587,23 +676,49 @@ function renderSelected() {
     const env = model.environment || {};
     const envActionType = env.dummy_action_type ?? meta.dummy_action_type;
     const envStance = env.dummy_stance ?? meta.dummy_stance;
+    let dummyControl = "";
     let dummyAction = "";
     if (envActionType !== undefined && envActionType !== null && envActionType !== "") {
         const actionNumber = Number(envActionType);
-        dummyAction = actionNumber === 1 ? "crouch" : actionNumber >= 2 ? "jump" : "stand";
+        if (actionNumber === 4) {
+            dummyControl = "human";
+        } else if (actionNumber === 5) {
+            dummyControl = "cpu";
+        } else {
+            dummyControl = "dummy";
+            dummyAction = String(Math.max(0, Math.min(3, actionNumber)));
+        }
     } else {
         const stanceText = String(envStance || "").toLowerCase();
         dummyAction = {
-            stand: "stand", standing: "stand",
-            crouch: "crouch", crouching: "crouch",
-            jump: "jump", jumping: "jump", airborne: "jump"
+            stand: "0", standing: "0",
+            crouch: "1", crouching: "1",
+            jump: "2", jumping: "2", airborne: "2"
         }[stanceText] || "";
+        if (dummyAction !== "") dummyControl = "dummy";
     }
-    setSelectValue("dummyAction", dummyAction, "stand");
-    syncDummyJumpRow();
-    setSelectValue("dummyJumpKind", env.dummy_jump_type ?? meta.dummy_jump_type ?? "0", "0");
-    // 防御动作没有“清空”：JSON 未记录时默认不防御 (none)
-    setSelectValue("dummyGuardType", env.dummy_guard_type ?? meta.dummy_guard_type, "0");
+    setSelectValue("dummyControl", dummyControl, "");
+    setSelectValue("dummyAction", dummyAction, "");
+    setSelectValue("dummyJumpKind", env.dummy_jump_type ?? meta.dummy_jump_type, "");
+    setSelectValue("dummyCpuLevel", env.dummy_cpu_level ?? meta.dummy_cpu_level, "");
+    setSelectValue("dummyCounterType", env.dummy_counter_type ?? meta.dummy_counter_type, "");
+    setSelectValue("dummyCounterWeightNormal", env.dummy_counter_weight_normal ?? meta.dummy_counter_weight_normal, "");
+    setSelectValue("dummyCounterWeightCounter", env.dummy_counter_weight_counter ?? meta.dummy_counter_weight_counter, "");
+    setSelectValue("dummyCounterWeightPunish", env.dummy_counter_weight_punish ?? meta.dummy_counter_weight_punish, "");
+    setSelectValue("dummyGuardType", env.dummy_guard_type ?? meta.dummy_guard_type, "");
+    setSelectValue("dummyGuardCount", env.dummy_guard_count ?? meta.dummy_guard_count, "");
+    setSelectValue("dummyGuardSwitching", env.dummy_guard_switching ?? meta.dummy_guard_switching, "");
+    setSelectValue("dummyGuardOnlyType", env.dummy_guard_only_type ?? meta.dummy_guard_only_type, "");
+    setSelectValue("dummyDriveParryType", env.dummy_drive_parry_type ?? meta.dummy_drive_parry_type, "");
+    setSelectValue("dummyDriveReversalType", env.dummy_drive_reversal_type ?? meta.dummy_drive_reversal_type, "");
+    setSelectValue("dummyDriveReversalDelay", env.dummy_drive_reversal_delay ?? meta.dummy_drive_reversal_delay, "");
+    setSelectValue("dummyDriveReversalCount", env.dummy_drive_reversal_count ?? meta.dummy_drive_reversal_count, "");
+    setSelectValue("dummyDriveReversalWeightNone", env.dummy_drive_reversal_weight_none ?? meta.dummy_drive_reversal_weight_none, "");
+    setSelectValue("dummyDriveReversalWeightGuard", env.dummy_drive_reversal_weight_guard ?? meta.dummy_drive_reversal_weight_guard, "");
+    setSelectValue("dummyDriveReversalWeightWakeup", env.dummy_drive_reversal_weight_wakeup ?? meta.dummy_drive_reversal_weight_wakeup, "");
+    setSelectValue("dummyThrowEscapeType", env.dummy_throw_escape_type ?? meta.dummy_throw_escape_type, "");
+    setSelectValue("dummyWakeupType", env.dummy_wakeup_type ?? meta.dummy_wakeup_type, "");
+    syncDummyMenuState();
 
     $("p1SideLabel").textContent = `${sideLabel("p1")} (P1)`;
     $("p2SideLabel").textContent = `${sideLabel("p2")} (P2)`;
@@ -733,8 +848,10 @@ function collectSide(prefix) {
     };
 }
 
-/* 木人动作 → 自动生成 dummy_stance / dummy_action_type / dummy_jump_type / requires_dummy_crouch */
+/* 陪练操作 + 陪练动作共同映射原生 DummyActionType：
+   0/1/2/3 = 站/蹲/跳/播放录制，4 = 玩家控制，5 = CPU。 */
 function collectDummyEnvironment() {
+    const control = $("dummyControl").value;
     const action = $("dummyAction").value;
     const values = {
         dummy_stance: "",
@@ -742,23 +859,53 @@ function collectDummyEnvironment() {
         dummy_jump_type: "",
         requires_dummy_crouch: ""
     };
-    if (action === "stand") {
+    if (control === "human") {
+        values.dummy_action_type = 4;
+        values.requires_dummy_crouch = false;
+    } else if (control === "cpu") {
+        values.dummy_action_type = 5;
+        values.dummy_cpu_level = parseOptionalNumber("dummyCpuLevel");
+        values.requires_dummy_crouch = false;
+    } else if (control === "dummy" && action === "0") {
         values.dummy_stance = "stand";
         values.dummy_action_type = 0;
         values.dummy_jump_type = 0;
         values.requires_dummy_crouch = false;
-    } else if (action === "crouch") {
+    } else if (control === "dummy" && action === "1") {
         values.dummy_stance = "crouch";
         values.dummy_action_type = 1;
         values.dummy_jump_type = 0;
         values.requires_dummy_crouch = true;
-    } else if (action === "jump") {
+    } else if (control === "dummy" && action === "2") {
         values.dummy_stance = "jump";
         values.dummy_action_type = 2;
-        values.dummy_jump_type = Number($("dummyJumpKind").value) || 0;
+        values.dummy_jump_type = parseOptionalNumber("dummyJumpKind");
+        values.requires_dummy_crouch = false;
+    } else if (control === "dummy" && action === "3") {
+        values.dummy_action_type = 3;
         values.requires_dummy_crouch = false;
     }
+
+    values.dummy_counter_type = parseOptionalNumber("dummyCounterType");
+    values.dummy_counter_weight_normal = parseOptionalNumber("dummyCounterWeightNormal");
+    values.dummy_counter_weight_counter = parseOptionalNumber("dummyCounterWeightCounter");
+    values.dummy_counter_weight_punish = parseOptionalNumber("dummyCounterWeightPunish");
     values.dummy_guard_type = parseOptionalNumber("dummyGuardType");
+    values.dummy_guard_count = values.dummy_guard_type === 5
+        ? parseOptionalNumber("dummyGuardCount")
+        : "";
+    const switching = $("dummyGuardSwitching").value;
+    values.dummy_guard_switching = switching === "" ? "" : switching === "true";
+    values.dummy_guard_only_type = parseOptionalNumber("dummyGuardOnlyType");
+    values.dummy_drive_parry_type = parseOptionalNumber("dummyDriveParryType");
+    values.dummy_drive_reversal_type = parseOptionalNumber("dummyDriveReversalType");
+    values.dummy_drive_reversal_delay = parseOptionalNumber("dummyDriveReversalDelay");
+    values.dummy_drive_reversal_count = parseOptionalNumber("dummyDriveReversalCount");
+    values.dummy_drive_reversal_weight_none = parseOptionalNumber("dummyDriveReversalWeightNone");
+    values.dummy_drive_reversal_weight_guard = parseOptionalNumber("dummyDriveReversalWeightGuard");
+    values.dummy_drive_reversal_weight_wakeup = parseOptionalNumber("dummyDriveReversalWeightWakeup");
+    values.dummy_throw_escape_type = parseOptionalNumber("dummyThrowEscapeType");
+    values.dummy_wakeup_type = parseOptionalNumber("dummyWakeupType");
     return values;
 }
 
@@ -927,6 +1074,12 @@ function preflightCheck() {
             issues.push(`${label} 必杀技量表 ${sa} 格超出 0–3 格范围（数值单位错误）`);
         }
     }
+    if ($("dummyGuardType").value === "5") {
+        const guardCount = parseOptionalNumber("dummyGuardCount");
+        if (guardCount === "" || guardCount < 1 || guardCount > 30) {
+            issues.push("计数格挡需要 1–30 的格挡计数 (dummy_guard_count)");
+        }
+    }
     const model = metadataModel(state.selected.document);
     for (const side of ["p1", "p2"]) {
         const player = model.scene_state?.players?.[side];
@@ -1053,12 +1206,23 @@ $("copyJson").onclick = async () => {
 
 populateFighterSelect("p1FighterId");
 populateFighterSelect("p2FighterId");
+populateNumericSelect("dummyCpuLevel", 1, 8, value => `等级 ${value} (Level ${value})`);
+populateNumericSelect("dummyGuardCount", 1, 30, value => `${value} 次 (${value} times)`);
+populateNumericSelect("dummyDriveReversalDelay", 0, 99, value => `${value} 帧 (${value} frames)`);
+populateNumericSelect("dummyDriveReversalCount", 1, 30, value => `${value} 次 (${value} times)`);
+for (const id of [
+    "dummyCounterWeightNormal",
+    "dummyCounterWeightCounter",
+    "dummyCounterWeightPunish",
+    "dummyDriveReversalWeightNone",
+    "dummyDriveReversalWeightGuard",
+    "dummyDriveReversalWeightWakeup"
+]) {
+    populateNumericSelect(id, 0, 10, value => `${value} (weight)`);
+}
 for (const [id, variant] of [
     ["statusFilter", "compact"],
     ["rating", "stars"],
-    ["dummyAction", "compact"],
-    ["dummyJumpKind", "compact"],
-    ["dummyGuardType", "compact"],
     ["p1Burnout", "compact"],
     ["p2Burnout", "compact"],
     ["batchScope", "compact"],
@@ -1068,9 +1232,42 @@ for (const [id, variant] of [
     if (variant === "stars") enhanceStarRating($(id));
     else enhanceChoiceSelect($(id), variant);
 }
+for (const id of [
+    "dummyControl",
+    "dummyAction",
+    "dummyJumpKind",
+    "dummyCpuLevel",
+    "dummyCounterType",
+    "dummyCounterWeightNormal",
+    "dummyCounterWeightCounter",
+    "dummyCounterWeightPunish",
+    "dummyGuardType",
+    "dummyGuardCount",
+    "dummyGuardSwitching",
+    "dummyGuardOnlyType",
+    "dummyDriveParryType",
+    "dummyDriveReversalType",
+    "dummyDriveReversalDelay",
+    "dummyDriveReversalCount",
+    "dummyDriveReversalWeightNone",
+    "dummyDriveReversalWeightGuard",
+    "dummyDriveReversalWeightWakeup",
+    "dummyThrowEscapeType",
+    "dummyWakeupType"
+]) {
+    enhanceStepperSelect($(id));
+}
 $("p1FighterId").addEventListener("change", () => changeFighter("p1"));
 $("p2FighterId").addEventListener("change", () => changeFighter("p2"));
-$("dummyAction").addEventListener("change", syncDummyJumpRow);
+for (const id of [
+    "dummyControl",
+    "dummyAction",
+    "dummyCounterType",
+    "dummyGuardType",
+    "dummyDriveReversalType"
+]) {
+    $(id).addEventListener("change", () => syncDummyMenuState(true));
+}
 /* 虚损与斗气双向联动：是 = 0 格，否 = 6 格。 */
 for (const side of ["p1", "p2"]) {
     $(`${side}Burnout`).addEventListener("change", () => {
