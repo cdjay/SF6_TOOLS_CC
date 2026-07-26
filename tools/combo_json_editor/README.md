@@ -19,10 +19,9 @@ node tools\combo_json_editor\server.mjs
 - `_xt_meta`：标题、作者、说明、标签、步骤备注、语言、控制模式、分类、评分和时间。
 - `_xt_meta.environment`：木人姿态、动作、跳跃和防御设置。
 - `scene_state`：双方角色、HP、Drive、Super、状态和角色特殊资源。
-- `snapshot_gauges`：攻击方/受击方的 `current_hp`、`max_hp`、`heal_hp` 兼容快照。
 - 角色菜单：以文件夹为筛选边界，通过 Fighter ID 显示中英文角色名，避免把场景中的对手 ID 误当成连段角色。
 - 字段和固定选项：中文名称在前，括号中显示对应的英文字段或枚举值；角色、姿态、控制模式、状态等固定值直接显示为单选框体，无需展开下拉菜单。
-- 角色特殊资源：按 Fighter ID 显示语义化控件，例如“电刃炼气 (Denjin Charge)”开/关、“刃焰 (Flame Stock)”库存；布兰卡、韩蛛俐和杰米会同时显示两项资源。未知扩展资源保留在单独的 JSON 区域。
+- 角色特殊资源：按 Fighter ID 显示语义化控件，例如“电刃炼气 (Denjin Charge)”开/关、“刃焰 (Flame Stock)”库存；布兰卡、韩蛛俐和杰米会同时显示两项资源。双方为同一角色时，训练模式共享同一个 `UniqueData` 资源键，两侧控件会自动同步。未知扩展资源保留在单独的 JSON 区域。
 - 安全批量编辑：可统一写入游戏、MOD/录制器、REFramework、JSON 格式版本，以及明确确认过的语言和控制模式。
 
 动作 ID、指令、延迟、连击数、`timeline`、`raw_inputs` 等机制字段只读。

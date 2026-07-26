@@ -20,8 +20,10 @@ const legacy = [
             step_notes: [""],
             tags: null,
             character: "Ryu",
-            version: 1
+            version: 1,
+            dummy_guard: "all"
         },
+        dummy_guard: "all",
         id: 100,
         motion: "5HP",
         expected_combo: 1,
@@ -58,6 +60,9 @@ assert.equal(result.document[0]._xt_meta.versions.json.id, "xt.combo_trial");
 assert.equal(result.document[0]._xt_meta.versions.json.version, "2.0.0");
 assert.equal(result.document[0]._xt_meta.versions.recorder.id, "unknown");
 assert.equal(result.document[0]._xt_meta.version, 1);
+assert.equal(result.document[0]._xt_meta.environment.dummy_guard_type, 3);
+assert.equal(result.document[0]._xt_meta.environment.dummy_guard, undefined);
+assert.equal(result.document[0]._xt_meta.dummy_guard, undefined);
 assert.deepEqual(result.document[0].scene_state, legacy[0].scene_state);
 assert.deepEqual(mechanismProjection(result.document), beforeMechanism);
 
@@ -67,6 +72,24 @@ const secondPass = migrateComboDocument(result.document, {
 });
 assert.deepEqual(secondPass.document, result.document);
 
+const earlyV2Guard = migrateComboDocument([{
+    _xt_meta: {
+        schema: 2,
+        environment: { dummy_guard_type: 1 },
+        dummy_guard_type: 1
+    },
+    dummy_guard_type: 1,
+    id: 100,
+    motion: "5LP",
+    delay_from_prev: 0
+}], {
+    relativePath: "Ryu/early-v2-guard.json",
+    timestamp: "2026-07-26T12:00:00+08:00"
+}).document;
+assert.equal(earlyV2Guard[0]._xt_meta.environment.dummy_guard_type, 2);
+assert.equal(earlyV2Guard[0]._xt_meta.dummy_guard_type, 2);
+assert.equal(earlyV2Guard[0].dummy_guard_type, 2);
+
 const edited = applyMetadataEdits(result.document, {
     title: "已审核",
     tags: "实战, 确反",
@@ -75,7 +98,6 @@ const edited = applyMetadataEdits(result.document, {
         dummy_action_type: 1,
         dummy_jump_type: 0,
         dummy_guard_type: 3,
-        dummy_guard: "all",
         requires_dummy_crouch: true
     },
     scene: {
@@ -97,6 +119,9 @@ assert.equal(edited[0]._xt_meta.environment.dummy_jump_type, 0);
 assert.equal(edited[0]._xt_meta.dummy_jump_type, 0);
 assert.equal(edited[0].dummy_jump_type, 0);
 assert.equal(edited[0].dummy_guard_type, 3);
+assert.equal(edited[0]._xt_meta.environment.dummy_guard, undefined);
+assert.equal(edited[0]._xt_meta.dummy_guard, undefined);
+assert.equal(edited[0].dummy_guard, undefined);
 assert.equal(edited[0].scene_state.schema, COMBO_JSON_EDITOR.sceneV2);
 assert.equal(edited[0].scene_state.players.p2.resources.hp, 8000);
 assert.equal(edited[0].snapshot_gauges.victim.heal_hp, 9000);

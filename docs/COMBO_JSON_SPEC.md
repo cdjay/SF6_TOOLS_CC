@@ -37,6 +37,7 @@ file-level payloads:
 | `counter_type` | int | 0 normal / 1 CH / 2 PC required on this step |
 | `victim_pose` | int? | 0 stand / 1 crouch (live pose at recording) |
 | `dummy_action_type`, `dummy_jump_type` | int? | Configured dummy behavior (step 1). Action: 0 stand / 1 crouch / 2 jump. Jump: 0 vertical / 1 front / 2 back / 3 random |
+| `dummy_guard_type` | int? | Configured dummy guard (step 1): 0 none / 2 guard after first hit / 3 all / 4 random. A short-lived local editor build emitted 1 incorrectly; readers SHOULD normalize 1 to 2. `dummy_guard` is a legacy reader alias and MUST NOT be written by v2 writers |
 | `is_holdable`, `hold_frames`, `hold_partial_check` | — | Hold system |
 | `dual_threshold`, `is_projectile_hit`, `group_id`, `facing_left` | — | Matching helpers |
 | `validation_role` | string? | e.g. `"pressure_tail"` (CC) |
@@ -105,7 +106,7 @@ never inferred from titles, notes or filenames. The complete precondition set:
 | Precondition | Where |
 |---|---|
 | Positions | `start_pos_p1/p2` (+`_raw`) |
-| Dummy behavior (stance/jump config) | `dummy_action_type` + `dummy_jump_type` (step 1), `victim_pose` per step as live fallback |
+| Dummy behavior (stance/jump/guard config) | `dummy_action_type` + `dummy_jump_type` + `dummy_guard_type` (step 1), `victim_pose` per step as live fallback |
 | Starting resources (HP/drive/super) | `scene_state.players.*.resources` (§3c) |
 | Unique resources (installs, stocks, drinks) | `scene_state.players.*.unique` |
 | Character status (stun, burnout, stance) | `scene_state.players.*.status` (§3c) |
@@ -141,6 +142,10 @@ in different places:
 - `status`: `burnout` (bool), `stunned`/piyo (bool), `stance`
   (`"standing" | "crouching" | "airborne"`).
 - `unique`: per-fighter unique resource map (unchanged from scene.v1).
+- SF6 training settings expose one shared `ParameterSetting.UniqueData` map.
+  When both sides use the same fighter, writers MUST emit the same value for
+  the same unique-resource key on both sides. Readers resolve a conflict in
+  favor of the recorded combo actor.
 - `combo_stats` keeps ONLY result analytics: `{ damage, drive_used,
   super_used }`.
 - scene.v1 files (unique only) remain valid; readers fall back to legacy
@@ -203,4 +208,4 @@ able to declare equivalences explicitly:
 | 1 | 2026-06 | `_xt_meta` introduced (author/title/tags/created_at) |
 | 2 rev 1 | 2026-07-13 | `versions` block, `language`, `control_mode`, `environment`, `raw_inputs`, `scene_state`, `motion_aliases`, explicit-preconditions principle, compat rules |
 | 2 rev 2 | 2026-07-14 | Review pass 1: `resources`/`status` in scene_state (start state ≠ consumption), `step_notes`, ISO 8601 + `updated_at`, structured `versions` objects, raw_inputs optionality + timeline status + no-batch-conversion rules |
-| 2.0.0 errata | 2026-07-26 | Freeze status; clarify actual `expected_hp` actor semantics; document optional REFramework host version. No JSON layout change. |
+| 2.0.0 errata | 2026-07-26 | Freeze status; clarify actual `expected_hp` actor semantics; document optional REFramework host version and numeric `dummy_guard_type` as the canonical guard field (`dummy_guard` remains a legacy reader alias). No JSON layout change. |

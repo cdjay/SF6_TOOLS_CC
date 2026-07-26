@@ -11,7 +11,7 @@
     <div>
         <div class="eyebrow">SF6CC 维护工具 (MAINTAINER TOOL)</div>
         <h1>连段 JSON <span>元数据编辑器 (Metadata Editor)</span></h1>
-        <p>可编辑元数据、训练环境与资源快照 (metadata/environment/snapshots)；机制字段保持只读。</p>
+        <p>可编辑元数据、训练环境与场景资源 (metadata/environment/scene_state)；机制字段保持只读。</p>
     </div>
     <div class="header-actions">
         <button id="openDirectory" class="primary">打开目录 (Open directory)</button>
@@ -115,6 +115,12 @@
                     <label class="wide">标签 (tags；逗号或换行分隔)<textarea id="tags" rows="2"></textarea></label>
                     <label class="wide">说明 (note)<textarea id="note" rows="5"></textarea></label>
                 </div>
+                <div class="schema-card four" aria-label="连段结果 (Combo results, read-only)">
+                    <div><span>总伤害 (combo_stats.damage，只读)</span><strong id="resultDamage"></strong></div>
+                    <div><span>斗气消耗 (drive_used，格，只读)</span><strong id="resultDriveUsed"></strong></div>
+                    <div><span>SA 消耗 (super_used，格，只读)</span><strong id="resultSuperUsed"></strong></div>
+                    <div><span>命中类型 (hit_type，只读)</span><strong id="resultHitType"></strong></div>
+                </div>
                 <div class="schema-card four">
                     <div><span>元数据规范 (schema)</span><strong id="metaSchema"></strong></div>
                     <div><span>JSON 格式 (json version)</span><strong id="jsonVersion"></strong></div>
@@ -124,47 +130,9 @@
             </section>
 
             <section class="panel tab-panel" data-panel="environment">
-                <h2>木人与训练环境 (Dummy &amp; training environment)</h2>
-                <p class="hint">木人动作是唯一入口：选择后自动生成 dummy_stance / dummy_action_type / dummy_jump_type / requires_dummy_crouch，无需重复编辑。</p>
-                <div class="env-rows">
-                    <label>木人动作 (dummy action)
-                        <select id="dummyAction">
-                            <option value="">未记录 (Not recorded)</option>
-                            <option value="stand">站立 (stand)</option>
-                            <option value="crouch">蹲下 (crouch)</option>
-                            <option value="jump">跳跃 (jump)</option>
-                        </select>
-                    </label>
-                    <label id="dummyJumpRow" hidden>跳跃方向 (jump type)
-                        <select id="dummyJumpKind">
-                            <option value="0">原地 (vertical)</option>
-                            <option value="1">前跳 (front)</option>
-                            <option value="2">后跳 (back)</option>
-                            <option value="3">随机 (random)</option>
-                        </select>
-                    </label>
-                    <label>防御类型 (dummy_guard_type)
-                        <select id="dummyGuardType">
-                            <option value="">未记录 (Not recorded)</option>
-                            <option value="0">不防御 (0 · none)</option>
-                            <option value="2">首击后防御 (2 · after_first_hit)</option>
-                            <option value="3">全部防御 (3 · all)</option>
-                            <option value="4">随机防御 (4 · random)</option>
-                        </select>
-                    </label>
-                    <label>防御名称 (dummy_guard)
-                        <select id="dummyGuard">
-                            <option value="">未记录 (Not recorded)</option>
-                            <option value="none">不防御 (none)</option>
-                            <option value="after_first_hit">首击后防御 (after_first_hit)</option>
-                            <option value="all">全部防御 (all)</option>
-                            <option value="random">随机防御 (random)</option>
-                        </select>
-                    </label>
-                </div>
-
                 <h2>双方初始场景 (Initial scene state)</h2>
                 <p class="hint">在旧 scene.v1 上录入资源或状态时会提升为 scene.v2，原有特殊资源不会丢失 (Editing resources/status upgrades scene.v1 to scene.v2 without losing unique resources)。</p>
+                <p class="hint">双方为同一角色时，训练模式的角色特殊资源为共享设置，两侧控件会自动同步 (Unique resources are shared when both sides use the same fighter)。</p>
                 <div class="player-grid">
                     <div class="subpanel" data-side="p1">
                         <h3 id="p1SideLabel">玩家一 (P1)</h3>
@@ -185,8 +153,8 @@
                                 <input id="p1Super" type="number" min="0" max="3">
                                 <div id="p1SuperQuick" class="quick-sets"></div>
                             </div>
-                            <label class="wide row-field">虚损 (burnout)<select id="p1Burnout"><option value="">未记录 (Not recorded)</option><option value="true">是 (true)</option><option value="false">否 (false)</option></select></label>
-                            <div class="wide resource-field">
+                            <label class="wide row-field">虚损 (burnout)<select id="p1Burnout"><option value="false">否 (false)</option><option value="true">是 (true)</option></select></label>
+                            <div class="wide resource-field unique-focus">
                                 <span>角色特殊资源 (unique)</span>
                                 <div id="p1Unique" class="unique-resource-list"></div>
                                 <details id="p1UniqueUnknownWrap" class="unknown-resource">
@@ -194,6 +162,7 @@
                                     <textarea id="p1UniqueUnknown" rows="4" spellcheck="false"></textarea>
                                 </details>
                             </div>
+                            <div class="wide dummy-slot" id="p1DummySlot"></div>
                         </div>
                     </div>
                     <div class="subpanel" data-side="p2">
@@ -215,8 +184,8 @@
                                 <input id="p2Super" type="number" min="0" max="3">
                                 <div id="p2SuperQuick" class="quick-sets"></div>
                             </div>
-                            <label class="wide row-field">虚损 (burnout)<select id="p2Burnout"><option value="">未记录 (Not recorded)</option><option value="true">是 (true)</option><option value="false">否 (false)</option></select></label>
-                            <div class="wide resource-field">
+                            <label class="wide row-field">虚损 (burnout)<select id="p2Burnout"><option value="false">否 (false)</option><option value="true">是 (true)</option></select></label>
+                            <div class="wide resource-field unique-focus">
                                 <span>角色特殊资源 (unique)</span>
                                 <div id="p2Unique" class="unique-resource-list"></div>
                                 <details id="p2UniqueUnknownWrap" class="unknown-resource">
@@ -224,27 +193,37 @@
                                     <textarea id="p2UniqueUnknown" rows="4" spellcheck="false"></textarea>
                                 </details>
                             </div>
-                        </div>
-                    </div>
-                </div>
-
-                <h2>兼容生命快照 (snapshot_gauges)</h2>
-                <p class="hint">生命 (hp) 会同步写入 scene_state.resources.hp 与此快照；冲突时以 scene_state 为准。攻击方/受击方由 recorded_by 推导。</p>
-                <div class="player-grid">
-                    <div class="subpanel">
-                        <h3>攻击方 (attacker)</h3>
-                        <div class="mini-grid three">
-                            <label>当前生命 (current_hp)<input id="attackerCurrentHp" type="number"></label>
-                            <label>最大生命 (max_hp)<input id="attackerMaxHp" type="number"></label>
-                            <label>恢复生命 (heal_hp)<input id="attackerHealHp" type="number"></label>
-                        </div>
-                    </div>
-                    <div class="subpanel">
-                        <h3>受击方 (victim)</h3>
-                        <div class="mini-grid three">
-                            <label>当前生命 (current_hp)<input id="victimCurrentHp" type="number"></label>
-                            <label>最大生命 (max_hp)<input id="victimMaxHp" type="number"></label>
-                            <label>恢复生命 (heal_hp)<input id="victimHealHp" type="number"></label>
+                            <div class="wide dummy-slot" id="p2DummySlot">
+                                <div id="dummyEnvBlock" class="resource-field dummy-env">
+                                    <span>木人设置 (Dummy settings)</span>
+                                    <p class="hint">木人动作是唯一入口：选择后自动生成 dummy_stance / dummy_action_type / dummy_jump_type / requires_dummy_crouch，无需重复编辑。</p>
+                                    <div class="env-rows">
+                                        <label>木人动作 (dummy action)
+                                            <select id="dummyAction">
+                                                <option value="stand">站立 (stand)</option>
+                                                <option value="crouch">蹲下 (crouch)</option>
+                                                <option value="jump">跳跃 (jump)</option>
+                                            </select>
+                                        </label>
+                                        <label id="dummyJumpRow" hidden>跳跃方向 (jump type)
+                                            <select id="dummyJumpKind">
+                                                <option value="0">原地 (vertical)</option>
+                                                <option value="1">前跳 (front)</option>
+                                                <option value="2">后跳 (back)</option>
+                                                <option value="3">随机 (random)</option>
+                                            </select>
+                                        </label>
+                                        <label>防御类型 (dummy_guard_type)
+                                            <select id="dummyGuardType">
+                                                <option value="0">不防御 (0 · none)</option>
+                                                <option value="2">第2段后格挡 (2 · after_first_hit)</option>
+                                                <option value="3">全部防御 (3 · all)</option>
+                                                <option value="4">随机防御 (4 · random)</option>
+                                            </select>
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -261,10 +240,11 @@
             <section class="panel tab-panel" data-panel="mechanism">
                 <div class="section-heading">
                     <div><h2>机制字段 (Mechanism fields)</h2><p class="hint">仅用于审核，不可编辑 (read-only)。</p></div>
+                    <strong id="mechanismSummary"></strong>
                 </div>
                 <div class="table-wrap">
                     <table>
-                        <thead><tr><th>#</th><th>动作 ID (id)</th><th>指令 (motion)</th><th>延迟 (delay_from_prev)</th><th>连击数 (expected_combo)</th><th>生命 (expected_hp)</th><th>反击 (counter_type)</th><th>分组 (group_id)</th></tr></thead>
+                        <thead><tr><th>#</th><th>动作 ID (id)</th><th>指令 (motion)</th><th>延迟 (delay_from_prev)</th><th>连击数 (expected_combo)</th><th>累计伤害 (damage_at_step)</th><th>生命 (expected_hp)</th><th>反击 (counter_type)</th><th>分组 (group_id)</th></tr></thead>
                         <tbody id="mechanismRows"></tbody>
                     </table>
                 </div>

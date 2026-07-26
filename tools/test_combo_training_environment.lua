@@ -28,6 +28,15 @@ action_type, jump_type, action_source = TrainingEnvironment.resolve_dummy_action
 assert(action_type == 2 and jump_type == 3 and action_source == "environment",
     "v2 environment action/jump pair must be restored")
 
+local runtime_jump, was_random = TrainingEnvironment.resolve_runtime_jump_type(3, 0)
+assert(runtime_jump == 0 and was_random == true, "random jump must resolve to vertical when rolled")
+runtime_jump, was_random = TrainingEnvironment.resolve_runtime_jump_type(3, 1)
+assert(runtime_jump == 1 and was_random == true, "random jump must resolve to front when rolled")
+runtime_jump, was_random = TrainingEnvironment.resolve_runtime_jump_type(3, 2)
+assert(runtime_jump == 2 and was_random == true, "random jump must resolve to back when rolled")
+runtime_jump, was_random = TrainingEnvironment.resolve_runtime_jump_type(1, 2)
+assert(runtime_jump == 1 and was_random == false, "fixed jump type must not be randomized")
+
 action_type, jump_type, action_source = TrainingEnvironment.resolve_dummy_action({
     _xt_meta = {
         environment = {
@@ -67,6 +76,12 @@ guard_type, source = TrainingEnvironment.resolve_dummy_guard_type({
     dummy_guard = "after_first_hit",
 }, 3)
 assert(guard_type == 2 and source == "recorded_name", "legacy named guard type must remain supported")
+
+guard_type, source = TrainingEnvironment.resolve_dummy_guard_type({
+    dummy_guard_type = 1,
+}, 3)
+assert(guard_type == 2 and source == "recorded",
+    "short-lived invalid value 1 must normalize to guard-after-first-hit value 2")
 
 guard_type, source = TrainingEnvironment.resolve_dummy_guard_type({
     has_piyo = true,

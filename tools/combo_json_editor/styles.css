@@ -300,6 +300,20 @@ label { display: grid; gap: var(--sf6-space-2); color: var(--sf6-text-muted); fo
 .env-rows .choice-boxes.compact .choice-box,
 .row-field .choice-boxes.compact .choice-box { flex: 1 1 0; min-width: 0; }
 
+/* ✕ 清空按钮：固定正方形、不参与等分拉伸，所有行尺寸统一 */
+.choice-boxes .choice-box.clear,
+.choice-boxes.resource .choice-box.clear,
+.env-rows .choice-boxes.compact .choice-box.clear,
+.row-field .choice-boxes.compact .choice-box.clear {
+    flex: 0 0 auto;
+    width: 2.25rem;
+    height: 2.25rem;
+    min-width: 0;
+    padding: 0;
+}
+/* ✕ 选中态：黄底配深色文字（.clear 弱化色定义在 .selected 之后，需显式压回） */
+.choice-boxes .choice-box.clear.selected { color: var(--sf6-brand-ink); }
+
 /* ==========================================================================
    环境与资源页 — 行式布局
    ========================================================================== */
@@ -657,10 +671,42 @@ main {
 .mini-grid.three { grid-template-columns: repeat(3, 1fr); }
 .mini-grid .wide { grid-column: 1 / -1; }
 
+/* 角色特殊资源：栏内重点模块，品牌黄描边 */
+.unique-focus {
+    padding: 10px 12px;
+    border: 1px solid color-mix(in srgb, var(--sf6-brand) 38%, transparent);
+    border-left: 3px solid var(--sf6-brand);
+    border-radius: var(--sf6-radius-sm);
+    background: color-mix(in srgb, var(--sf6-brand) 4%, transparent);
+}
+/* 木人设置块：挂在木人侧栏目内，青色描边呼应木人标签色 */
+.dummy-env {
+    padding: 10px 12px;
+    border: 1px solid color-mix(in srgb, var(--sf6-modern) 35%, transparent);
+    border-left: 3px solid var(--sf6-modern);
+    border-radius: var(--sf6-radius-sm);
+    background: color-mix(in srgb, var(--sf6-modern) 4%, transparent);
+}
+.dummy-slot:empty { display: none; }
+/* 栏内空间减半，环境控件标签改为上单行下控件 */
+.subpanel .env-rows > label { grid-template-columns: 1fr; gap: 8px; }
+
 .resource-field { display: grid; gap: 8px; color: var(--sf6-text-muted); font-size: var(--sf6-text-xs); font-weight: var(--sf6-font-medium); }
 .unique-resource-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
 .resource-control { min-width: 0; }
 .resource-control span { overflow-wrap: anywhere; }
+/* 开关类资源（电刃炼气等）：占满整行，名称在左、开/关在右且不换行 */
+.resource-control.state-row {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: minmax(120px, 170px) 1fr;
+    align-items: center;
+    gap: 10px;
+}
+.resource-control.state-row .choice-boxes { flex-wrap: nowrap; }
+.resource-control.state-row .choice-boxes .choice-box { flex: 1 1 0; min-width: 0; }
+/* 连段角色（录制方）的 fighter_id 固定：禁用态原生下拉 */
+select:disabled { opacity: 0.5; cursor: not-allowed; }
 .resource-empty {
     grid-column: 1 / -1;
     padding: 11px;

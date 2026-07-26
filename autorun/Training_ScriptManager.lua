@@ -250,7 +250,6 @@ local is_guard_overridden = false
 
 -- Guard IDs
 local GUARD_NO = 0
-local GUARD_AFTER_FIRST_HIT = 2
 local GUARD_ALL = 3
 local GUARD_RANDOM = 4
 
@@ -311,12 +310,9 @@ local function update_guard_logic()
         set_guard_type(GUARD_ALL)
 
     elseif current_mode == 4 then
-        -- >>> COMBO TRIALS >>> use the guard type selected by the active trial
-        local combo_guard_type = tonumber(_G.CT_COMBO_TRIALS_DUMMY_GUARD_TYPE)
-        if combo_guard_type == nil or combo_guard_type < 0 or combo_guard_type > 4 then
-            combo_guard_type = GUARD_AFTER_FIRST_HIT
-        end
-        set_guard_type(combo_guard_type)
+        -- >>> COMBO TRIALS >>> TrainingComboTrials is the sole owner.
+        -- Do not call ChangeGuardType here: mode 2 (guard after first hit)
+        -- is reset to no guard by that API, while direct GuardSetting+bApply works.
 
 
     elseif current_mode == 0 then

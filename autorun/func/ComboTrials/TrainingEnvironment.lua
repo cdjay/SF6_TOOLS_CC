@@ -11,12 +11,39 @@ local TrainingEnvironment = {
         BACK = 2,
         RANDOM = 3,
     },
+    DUMMY_GUARD = {
+        NONE = 0,
+        INTERIM_INVALID = 1,
+        AFTER_FIRST_HIT = 2,
+        ALL = 3,
+        RANDOM = 4,
+    },
 }
 
 local function optional_int(value)
     local number = tonumber(value)
     if number == nil then return nil end
     return math.floor(number)
+end
+
+function TrainingEnvironment.resolve_runtime_jump_type(configured_value, random_value)
+    local jump_type = optional_int(configured_value)
+    if jump_type ~= TrainingEnvironment.DUMMY_JUMP.RANDOM then
+        return jump_type, false
+    end
+
+    local resolved = optional_int(random_value)
+    if resolved == nil then
+        resolved = math.random(
+            TrainingEnvironment.DUMMY_JUMP.VERTICAL,
+            TrainingEnvironment.DUMMY_JUMP.BACK
+        )
+    end
+    if resolved < TrainingEnvironment.DUMMY_JUMP.VERTICAL
+        or resolved > TrainingEnvironment.DUMMY_JUMP.BACK then
+        return TrainingEnvironment.DUMMY_JUMP.VERTICAL, true
+    end
+    return resolved, true
 end
 
 local function action_from_stance(value)
@@ -85,16 +112,28 @@ end
 local function valid_guard_type(value)
     local guard_type = tonumber(value)
     if guard_type == nil or guard_type < 0 or guard_type > 4 then return nil end
-    return math.floor(guard_type)
+    guard_type = math.floor(guard_type)
+    -- A short-lived editor build emitted 1, but the training menu and upstream
+    -- WTT use 2 for "guard after first hit". Keep those local files readable.
+    if guard_type == TrainingEnvironment.DUMMY_GUARD.INTERIM_INVALID then
+        return TrainingEnvironment.DUMMY_GUARD.AFTER_FIRST_HIT
+    end
+    return guard_type
 end
 
 local function named_guard_type(value)
     if type(value) ~= "string" then return nil end
     local text = value:lower()
-    if text == "none" or text == "no" or text == "off" then return 0 end
-    if text == "after_first_hit" or text == "after-first-hit" or text == "after first hit" then return 2 end
-    if text == "all" or text == "guard_all" or text == "full" then return 3 end
-    if text == "random" then return 4 end
+    if text == "none" or text == "no" or text == "off" then
+        return TrainingEnvironment.DUMMY_GUARD.NONE
+    end
+    if text == "after_first_hit" or text == "after-first-hit" or text == "after first hit" then
+        return TrainingEnvironment.DUMMY_GUARD.AFTER_FIRST_HIT
+    end
+    if text == "all" or text == "guard_all" or text == "full" then
+        return TrainingEnvironment.DUMMY_GUARD.ALL
+    end
+    if text == "random" then return TrainingEnvironment.DUMMY_GUARD.RANDOM end
     return nil
 end
 
@@ -122,7 +161,7 @@ function TrainingEnvironment.resolve_dummy_guard_type(first_step, fallback)
 
     guard_type = valid_guard_type(fallback)
     if guard_type ~= nil then return guard_type, "training_room" end
-    return 2, "legacy_default"
+    return TrainingEnvironment.DUMMY_GUARD.AFTER_FIRST_HIT, "legacy_default"
 end
 
 return TrainingEnvironment

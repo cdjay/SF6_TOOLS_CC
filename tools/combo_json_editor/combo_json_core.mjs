@@ -28,7 +28,6 @@ const DUMMY_FIELDS = [
     "dummy_action_type",
     "dummy_jump_type",
     "dummy_guard_type",
-    "dummy_guard",
     "dummy_stance"
 ];
 
@@ -228,12 +227,38 @@ function inferCharacterFromPath(relativePath) {
     return first || "";
 }
 
-function collectEnvironment(meta) {
+function namedDummyGuardType(value) {
+    const text = String(value ?? "").trim().toLowerCase();
+    if (["none", "no", "off"].includes(text)) return 0;
+    if (["after_first_hit", "after-first-hit", "after first hit"].includes(text)) return 2;
+    if (["all", "guard_all", "full"].includes(text)) return 3;
+    if (text === "random") return 4;
+    return null;
+}
+
+function normalizeDummyGuardType(value) {
+    const number = Number(value);
+    return Number.isFinite(number) && Math.floor(number) === 1 ? 2 : value;
+}
+
+function collectEnvironment(meta, first = null) {
     let environment = isObject(meta.environment) ? deepClone(meta.environment) : null;
     for (const field of DUMMY_FIELDS) {
-        if (meta[field] === undefined) continue;
+        const value = meta[field] !== undefined ? meta[field] : first?.[field];
+        if (value === undefined) continue;
         if (!environment) environment = {};
-        if (environment[field] === undefined) environment[field] = meta[field];
+        if (environment[field] === undefined) environment[field] = value;
+    }
+    const legacyGuard = environment?.dummy_guard ?? meta.dummy_guard ?? first?.dummy_guard;
+    if (!environment && legacyGuard !== undefined) environment = {};
+    if (environment) {
+        if (environment.dummy_guard_type === undefined) {
+            const guardType = namedDummyGuardType(legacyGuard);
+            if (guardType !== null) environment.dummy_guard_type = guardType;
+        } else {
+            environment.dummy_guard_type = normalizeDummyGuardType(environment.dummy_guard_type);
+        }
+        delete environment.dummy_guard;
     }
     return environment;
 }
@@ -289,12 +314,18 @@ export function migrateComboDocument(document, options = {}) {
     canonical.updated_at = updatedAt;
     canonical.versions = normalizeVersions(oldMeta.versions, options.versionProfile);
 
-    const environment = collectEnvironment(oldMeta);
+    const environment = collectEnvironment(oldMeta, first);
     if (environment) canonical.environment = environment;
 
     for (const [key, value] of Object.entries(oldMeta)) {
-        if (CANONICAL_META_KEYS.includes(key)) continue;
+        if (CANONICAL_META_KEYS.includes(key) || key === "dummy_guard") continue;
         canonical[key] = deepClone(value);
+    }
+    if (canonical.dummy_guard_type !== undefined) {
+        canonical.dummy_guard_type = normalizeDummyGuardType(canonical.dummy_guard_type);
+    }
+    if (first.dummy_guard_type !== undefined) {
+        first.dummy_guard_type = normalizeDummyGuardType(first.dummy_guard_type);
     }
 
     if (!normalizeText(canonical.character).trim()) {
@@ -328,6 +359,7 @@ export function mechanismProjection(document) {
 export function metadataModel(document) {
     const first = document[0];
     const meta = isObject(first._xt_meta) ? first._xt_meta : {};
+    const environment = collectEnvironment(meta, first) || {};
     return {
         schema: meta.schema,
         title: normalizeText(meta.title),
@@ -342,7 +374,7 @@ export function metadataModel(document) {
         rating: meta.rating ?? "",
         created_at: normalizeText(meta.created_at),
         updated_at: normalizeText(meta.updated_at),
-        environment: isObject(meta.environment) ? deepClone(meta.environment) : {},
+        environment,
         scene_state: isObject(first.scene_state) ? deepClone(first.scene_state) : null,
         snapshot_gauges: isObject(first.snapshot_gauges) ? deepClone(first.snapshot_gauges) : null
     };
@@ -407,12 +439,21 @@ function updateEnvironmentInPlace(document, values) {
     const first = document[0];
     const meta = first._xt_meta;
     const environment = isObject(meta.environment) ? meta.environment : {};
+    delete environment.dummy_guard;
+    delete meta.dummy_guard;
+    delete first.dummy_guard;
+
+    const normalizedValues = { ...values };
+    if (!("dummy_guard_type" in normalizedValues) && "dummy_guard" in normalizedValues) {
+        normalizedValues.dummy_guard_type = namedDummyGuardType(normalizedValues.dummy_guard);
+    }
     let hasValue = Object.keys(environment).length > 0;
 
     for (const field of DUMMY_FIELDS) {
-        if (!(field in values)) continue;
-        let value = values[field];
+        if (!(field in normalizedValues)) continue;
+        let value = normalizedValues[field];
         if (field.endsWith("_type")) value = normalizeOptionalNumber(value);
+        if (field === "dummy_guard_type") value = normalizeDummyGuardType(value);
         assignOptional(environment, field, value);
         assignOptional(meta, field, value);
         assignOptional(first, field, value);

@@ -2620,8 +2620,6 @@ local function set_dummy_guard_type(guard_val)
     pcall(function()
         local tm = sdk.get_managed_singleton("app.training.TrainingManager")
         if not tm then return end
-        local guard_func = tm:call("get_GuardFunc")
-        if guard_func then pcall(function() guard_func:call("ChangeGuardType", 1, guard_val) end) end
         local tData = tm:get_field("_tData")
         local gs = tData:get_field("GuardSetting")
         local dd = gs:get_field("DummyData")
@@ -2686,7 +2684,15 @@ local function get_tf_dummy_status()
     return _tf_dummy_status_cache
 end
 
-local function set_dummy_action_type(action_type, jump_type)
+local function set_dummy_action_type(action_type, jump_type, resolve_random)
+    local applied_jump_type = jump_type
+    local was_random = false
+    if resolve_random == true then
+        applied_jump_type, was_random =
+            ComboTrialsModules.TrainingEnvironment.resolve_runtime_jump_type(jump_type)
+    end
+    trial_state._resolved_dummy_jump_type = was_random and applied_jump_type or nil
+
     pcall(function()
         local tm = sdk.get_managed_singleton("app.training.TrainingManager")
         if not tm then return end
@@ -2697,15 +2703,17 @@ local function set_dummy_action_type(action_type, jump_type)
         local dd = ds:get_field("DummyData")
         if not dd then return end
         dd.DummyActionType = action_type
-        if jump_type ~= nil then
-            dd.JumpType = jump_type
+        if applied_jump_type ~= nil then
+            dd.JumpType = applied_jump_type
         elseif action_type ~= DUMMY_ACTION_STAND then
             dd.JumpType = 0
         end
     end)
 
     local td = get_tf_dummy_status()
-    if td then pcall(function() td:call("bApply") end) end
+    if td then
+        pcall(function() td:call("bApply") end)
+    end
 end
 
 local function read_dummy_action_state()
@@ -3115,6 +3123,33 @@ function unique_resources.trace_missing_mai_stock(side_key, side)
     })
 end
 
+function unique_resources.dedupe_shared_entries(entries)
+    local out = {}
+    local index_by_resource = {}
+    local priority_by_resource = {}
+
+    for _, entry in ipairs(type(entries) == "table" and entries or {}) do
+        local resource_id = entry.resource_id
+        if resource_id ~= nil then
+            local priority = entry.source == "scene_state" and 2 or 1
+            local index = index_by_resource[resource_id]
+            if index == nil then
+                out[#out + 1] = entry
+                index_by_resource[resource_id] = #out
+                priority_by_resource[resource_id] = priority
+            elseif priority >= (priority_by_resource[resource_id] or 0) then
+                -- UniqueData is shared. Within the same source, entries are
+                -- ordered defender first and recorded actor last, so the
+                -- actor wins a legacy same-character conflict.
+                out[index] = entry
+                priority_by_resource[resource_id] = priority
+            end
+        end
+    end
+
+    return out
+end
+
 function unique_resources.collect_recorded_entries()
     local first = trial_state.sequence and trial_state.sequence[1]
     if type(first) ~= "table" then return nil end
@@ -3166,7 +3201,7 @@ function unique_resources.collect_recorded_entries()
     end
 
     if #entries == 0 then return nil end
-    return entries
+    return unique_resources.dedupe_shared_entries(entries)
 end
 
 function unique_resources.side_to_player_idx(side_key)
@@ -3576,7 +3611,7 @@ local function apply_trial_training_environment(skip_refresh_settings)
         ComboTrialsModules.TrainingEnvironment.resolve_dummy_action(first_step)
     trial_state._dummy_action_source = dummy_action_source
     if dummy_action_type ~= nil then
-        set_dummy_action_type(dummy_action_type, dummy_jump_type)
+        set_dummy_action_type(dummy_action_type, dummy_jump_type, true)
     elseif trial_requires_dummy_crouch() then
         set_dummy_action_type(DUMMY_ACTION_CROUCH)
     else
@@ -3588,8 +3623,10 @@ local function apply_trial_training_environment(skip_refresh_settings)
     set_dummy_counter_type(first_ct or 0)
     local dummy_guard_type = ct_trial_dummy_guard_type()
     _G.CT_COMBO_TRIALS_DUMMY_GUARD_TYPE = dummy_guard_type
-    set_dummy_guard_type(dummy_guard_type)
     apply_trial_defense_cleanup()
+    -- Guard must be the final training-setting write. Defense cleanup applies
+    -- its own function and could otherwise restore the previous guard mode.
+    set_dummy_guard_type(dummy_guard_type)
 end
 
 local function capture_current_positions()
@@ -6902,13 +6939,9 @@ local function ct_player_tracking(p_idx, p_state)
     _pf.opponent_knocked_down = false
     local _ok_kd, _kd = pcall(_ct_check_knockdown, _pf.victim_obj)
     if _ok_kd and _kd then _pf.opponent_knocked_down = true end
-    -- Guard off as soon as the opponent falls (for okis)
-    if trial_state.is_playing and _pf.opponent_knocked_down and not trial_state._guard_off_on_kd then
-        set_dummy_guard_type(0)
-        trial_state._guard_off_on_kd = true
-    elseif trial_state.is_playing and not _pf.opponent_knocked_down and trial_state._guard_off_on_kd then
-        trial_state._guard_off_on_kd = false
-    end
+    -- Preserve the trial's configured guard mode through knockdown. Pressure
+    -- routes may continue after the damaging combo ends and must still be able
+    -- to demonstrate a guarded meaty/string on wake-up.
 
     -- ========================================================
 end
@@ -9735,18 +9768,15 @@ ctx.reset_visuals = function()
     step_combo_reset_gc()
 end
 ctx.reset_trial_steps_and_load = function(player_idx)
-    if #trial_state.sequence > 0 then
+    local paths = (player_idx == 0) and file_system.saved_combos_paths_p1 or file_system.saved_combos_paths_p2
+    local idx = (player_idx == 0) and (file_system.selected_file_idx_p1 or 1) or (file_system.selected_file_idx_p2 or 1)
+    local path = paths and paths[idx] or nil
+    if path and load_combo_from_file(path, true) then
+        start_trial(player_idx)
+    elseif #trial_state.sequence > 0 then
         trial_state.is_playing = true
         trial_state.playing_player = player_idx
         reset_trial_steps()
-        return
-    end
-
-    local paths = (player_idx == 0) and file_system.saved_combos_paths_p1 or file_system.saved_combos_paths_p2
-    local idx = (player_idx == 0) and (file_system.selected_file_idx_p1 or 1) or (file_system.selected_file_idx_p2 or 1)
-    if #paths > 0 then
-        load_combo_from_file(paths[idx], true)
-        start_trial(player_idx)
     end
 end
 -- =========================================================

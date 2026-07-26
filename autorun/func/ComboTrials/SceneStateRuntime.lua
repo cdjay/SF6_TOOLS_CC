@@ -119,12 +119,29 @@ local function write_live_resources(player_index, values)
     end
 end
 
+local function write_live_status(player_index, status)
+    if type(status) ~= "table" or status.burnout ~= false then return end
+    local player = player_object(player_index)
+    if not player then return end
+
+    -- Is_DG_Break controls the next training refresh, but it does not always
+    -- cancel an already-running burnout state on the live battle object.
+    -- Recover first, then write the exact scene drive value afterwards.
+    pcall(function()
+        local type_definition = player:get_type_definition()
+        if type_definition and type_definition:get_method("focus_full_recover") then
+            player:call("focus_full_recover")
+        end
+    end)
+    pcall(function() player.focus_wait = 0 end)
+end
+
 local function apply_training_settings(role, values, status, trial_state)
     local get_objects = rawget(_G, "get_training_parameter_probe_objects")
-    if type(get_objects) ~= "function" then return false end
+    if type(get_objects) ~= "function" then return false, nil end
     local objects = get_objects(role.player_index)
     local params = type(objects) == "table" and objects.player_params or nil
-    if not params then return false end
+    if not params then return false, objects end
 
     local changed = false
     local player = player_object(role.player_index)
@@ -166,6 +183,10 @@ local function apply_training_settings(role, values, status, trial_state)
         end
         if type(status.burnout) == "boolean" then
             pcall(function() params.Is_DG_Break = status.burnout end)
+            if status.burnout == false then
+                pcall(function() params.Is_DG_Recovery_Timer = false end)
+                pcall(function() params.DG_Timer = 0 end)
+            end
         end
         changed = true
     end
@@ -183,9 +204,7 @@ local function apply_training_settings(role, values, status, trial_state)
         changed = true
     end
 
-    local tm = objects.tm or sdk.get_managed_singleton("app.training.TrainingManager")
-    if changed and tm then pcall(function() tm._IsReqRefresh = true end) end
-    return changed
+    return changed, objects
 end
 
 function SceneStateRuntime.apply(first_step, playing_player, trial_state, apply_refresh_settings)
@@ -193,7 +212,7 @@ function SceneStateRuntime.apply(first_step, playing_player, trial_state, apply_
     local roles = SceneState.resolve_roles(first_step, playing_player)
     if not roles then return false end
     local changed = false
-
+    local prepared = {}
     for _, entry in ipairs({
         { role = roles.actor },
         { role = roles.defender },
@@ -202,17 +221,53 @@ function SceneStateRuntime.apply(first_step, playing_player, trial_state, apply_
         local status = status_values(entry.role)
         local has_resources = values.hp ~= nil or values.drive ~= nil or values.super ~= nil
         local has_drive_status = type(status.burnout) == "boolean"
-
         if has_resources or has_drive_status then
             save_live_resources_once(trial_state, entry.role.player_index)
-            if apply_refresh_settings == true then
-                apply_training_settings(entry.role, values, status, trial_state)
+        end
+        prepared[#prepared + 1] = {
+            role = entry.role,
+            values = values,
+            status = status,
+            has_resources = has_resources,
+            has_drive_status = has_drive_status,
+        }
+    end
+
+    -- Populate both players' parameter records before applying them. Calling
+    -- bApply once per player can latch the first refresh and discard P2.
+    local settings_changed = false
+    local refresh_objects = nil
+    if apply_refresh_settings == true then
+        for _, entry in ipairs(prepared) do
+            if entry.has_resources or entry.has_drive_status then
+                local entry_changed, objects = apply_training_settings(
+                    entry.role,
+                    entry.values,
+                    entry.status,
+                    trial_state
+                )
+                settings_changed = settings_changed or entry_changed
+                refresh_objects = objects or refresh_objects
             end
-            write_live_resources(entry.role.player_index, values)
+        end
+        if settings_changed then
+            if refresh_objects and refresh_objects.tf_ps then
+                pcall(function() refresh_objects.tf_ps:call("bApply") end)
+            end
+            local tm = refresh_objects and refresh_objects.tm
+                or sdk.get_managed_singleton("app.training.TrainingManager")
+            if tm then pcall(function() tm._IsReqRefresh = true end) end
+        end
+    end
+
+    for _, entry in ipairs(prepared) do
+        if entry.has_resources or entry.has_drive_status then
+            write_live_status(entry.role.player_index, entry.status)
+            write_live_resources(entry.role.player_index, entry.values)
             changed = true
         end
 
-        if status.stunned == true then
+        if entry.status.stunned == true then
             trial_state._scene_status_unapplied = trial_state._scene_status_unapplied or {}
             trial_state._scene_status_unapplied[entry.role.player_index] = {
                 stunned = true,

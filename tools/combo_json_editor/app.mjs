@@ -442,7 +442,9 @@ function renderUniqueResourceEditor(prefix, fighterId, unique) {
         title.textContent = `${resource.zh} (${resource.en})`;
         const select = document.createElement("select");
         select.dataset.resourceId = resource.id;
-        select.append(new Option("未记录 (Not recorded)", ""));
+        /* 开关类资源（如电刃炼气）没有“清空”：未记录时默认关闭 (Off) */
+        const isState = resource.kind === "state";
+        if (!isState) select.append(new Option("未记录 (Not recorded)", ""));
         for (const option of resourceOptions(resource)) {
             const node = new Option(resourceOptionLabel(option), String(option.value));
             node.disabled = option.disabled === true;
@@ -452,8 +454,10 @@ function renderUniqueResourceEditor(prefix, fighterId, unique) {
         if (current !== undefined && ![...select.options].some(option => option.value === String(current))) {
             select.add(new Option(`未知值 ${current} (Unknown value)`, String(current)));
         }
-        select.value = current === undefined || current === null ? "" : String(current);
+        select.value = current === undefined || current === null ? (isState ? "0" : "") : String(current);
+        select.addEventListener("change", () => syncSharedUniqueResources(prefix, resource.id));
         label.append(title, select);
+        if (isState) label.classList.add("state-row");
         enhanceChoiceSelect(select, "resource");
         fragment.append(label);
     }
@@ -462,6 +466,25 @@ function renderUniqueResourceEditor(prefix, fighterId, unique) {
     const unknownText = displayJson(unknown);
     unknownInput.value = unknownText;
     unknownWrap.hidden = !unknownText;
+}
+
+function findUniqueResourceSelect(prefix, resourceId) {
+    return [...$(`${prefix}Unique`).querySelectorAll("[data-resource-id]")]
+        .find(select => select.dataset.resourceId === resourceId) || null;
+}
+
+function syncSharedUniqueResources(sourcePrefix, resourceId = null) {
+    const targetPrefix = sourcePrefix === "p1" ? "p2" : "p1";
+    if ($(`${sourcePrefix}FighterId`).value !== $(`${targetPrefix}FighterId`).value) return;
+
+    const sourceSelects = [...$(`${sourcePrefix}Unique`).querySelectorAll("[data-resource-id]")];
+    for (const source of sourceSelects) {
+        if (resourceId !== null && source.dataset.resourceId !== resourceId) continue;
+        const target = findUniqueResourceSelect(targetPrefix, source.dataset.resourceId);
+        if (!target) continue;
+        target.value = source.value;
+        renderChoiceBoxes(target);
+    }
 }
 
 function parseJsonObject(id) {
@@ -488,6 +511,7 @@ function changeFighter(prefix) {
     try {
         const unique = collectUnique(prefix);
         renderUniqueResourceEditor(prefix, $(`${prefix}FighterId`).value, unique);
+        syncSharedUniqueResources(attackerSide());
     } catch (error) {
         toast(`无法切换角色 (Cannot change fighter): ${error.message}`, true);
     }
@@ -542,6 +566,13 @@ function renderSelected() {
     $("updatedAt").value = model.updated_at;
     $("tags").value = model.tags.join(", ");
     $("note").value = model.note;
+    const comboStats = record.document[0]?.combo_stats || {};
+    $("resultDamage").textContent = comboStats.damage ?? "未记录 (Not recorded)";
+    $("resultDriveUsed").textContent = gaugeToBars(comboStats.drive_used)
+        || "未记录 (Not recorded)";
+    $("resultSuperUsed").textContent = gaugeToBars(comboStats.super_used)
+        || (comboStats.super_used === 0 ? "0" : "未记录 (Not recorded)");
+    $("resultHitType").textContent = comboStats.hit_type ?? "未记录 (Not recorded)";
     $("metaSchema").textContent = String(meta.schema ?? "缺失 (missing)");
     $("jsonVersion").textContent = meta.versions?.json?.version || "缺失 (missing)";
     $("recorderVersion").textContent = [
@@ -568,14 +599,17 @@ function renderSelected() {
             jump: "jump", jumping: "jump", airborne: "jump"
         }[stanceText] || "";
     }
-    setSelectValue("dummyAction", dummyAction, "");
+    setSelectValue("dummyAction", dummyAction, "stand");
     syncDummyJumpRow();
     setSelectValue("dummyJumpKind", env.dummy_jump_type ?? meta.dummy_jump_type ?? "0", "0");
-    setSelectValue("dummyGuardType", env.dummy_guard_type ?? meta.dummy_guard_type, "");
-    setSelectValue("dummyGuard", env.dummy_guard ?? meta.dummy_guard, "");
+    // 防御动作没有“清空”：JSON 未记录时默认不防御 (none)
+    setSelectValue("dummyGuardType", env.dummy_guard_type ?? meta.dummy_guard_type, "0");
 
     $("p1SideLabel").textContent = `${sideLabel("p1")} (P1)`;
     $("p2SideLabel").textContent = `${sideLabel("p2")} (P2)`;
+    /* 木人设置归属于木人一侧（通常 P2）：按 recorded_by 把设置块挂到对应栏 */
+    const dummySide = attackerSide() === "p1" ? "p2" : "p1";
+    $(`${dummySide}DummySlot`).append($("dummyEnvBlock"));
 
     for (const side of ["p1", "p2"]) {
         const prefix = side;
@@ -584,18 +618,19 @@ function renderSelected() {
         setValue(`${prefix}Hp`, player.resources?.hp);
         setValue(`${prefix}Drive`, gaugeToBars(player.resources?.drive));
         setValue(`${prefix}Super`, gaugeToBars(player.resources?.super));
-        // 虚损双侧均可编辑（1P 虚损运行时有效）；眩晕 / 姿态仅记录，已从表单隐藏并保留 JSON 原值
-        setSelectValue(`${prefix}Burnout`, triState(player.status?.burnout), "");
+        // 虚损双侧均可编辑（1P 虚损运行时有效），无“清空”：未记录时默认“否”；
+        // 眩晕 / 姿态仅记录，已从表单隐藏并保留 JSON 原值
+        setSelectValue(`${prefix}Burnout`, triState(player.status?.burnout), "false");
         renderUniqueResourceEditor(prefix, player.fighter_id, player.unique);
     }
-
-    const snapshot = model.snapshot_gauges || {};
-    for (const [role, prefix] of [["attacker", "attacker"], ["victim", "victim"]]) {
-        setValue(`${prefix}CurrentHp`, snapshot[role]?.current_hp);
-        setValue(`${prefix}MaxHp`, snapshot[role]?.max_hp);
-        setValue(`${prefix}HealHp`, snapshot[role]?.heal_hp);
+    // UniqueData is shared when both sides use the same fighter. Prefer the
+    // recorded combo actor when a legacy file contains conflicting values.
+    syncSharedUniqueResources(attackerSide());
+    /* 连段角色（录制方）的角色由 JSON 固定，不允许在编辑器中更改；木人侧可换角色 */
+    const attacker = attackerSide();
+    for (const side of ["p1", "p2"]) {
+        $(`${side}FighterId`).disabled = side === attacker;
     }
-
     renderStepNotes(model.step_notes);
     renderMechanism(record.document);
     $("rawJson").textContent = serializeComboJson(record.document);
@@ -604,7 +639,8 @@ function renderSelected() {
 
 function setSelectValue(id, value, fallback) {
     const select = $(id);
-    const text = value === undefined || value === null ? fallback : String(value);
+    /* 空串同样视为未记录：无“清空”选项的控件（木人动作/防御/虚损/开关资源）会落到默认值 */
+    const text = value === undefined || value === null || value === "" ? fallback : String(value);
     if (![...select.options].some(option => option.value === text) && text !== "") {
         const option = new Option(text, text);
         select.add(option);
@@ -645,6 +681,10 @@ function renderStepNotes(notes) {
 }
 
 function renderMechanism(document) {
+    const totalDamage = document[0]?.combo_stats?.damage;
+    $("mechanismSummary").textContent = totalDamage === undefined || totalDamage === null
+        ? "总伤害 (Total damage)：未记录"
+        : `总伤害 (Total damage)：${totalDamage}`;
     $("mechanismRows").innerHTML = document.map((step, index) => `
         <tr>
             <td>${index + 1}</td>
@@ -652,6 +692,7 @@ function renderMechanism(document) {
             <td>${escapeHtml(step.motion ?? "")}</td>
             <td>${escapeHtml(step.delay_from_prev ?? "")}</td>
             <td>${escapeHtml(step.expected_combo ?? "")}</td>
+            <td>${escapeHtml(step.damage_at_step ?? "")}</td>
             <td>${escapeHtml(step.expected_hp ?? "")}</td>
             <td>${escapeHtml(step.counter_type ?? "")}</td>
             <td>${escapeHtml(step.group_id ?? "")}</td>
@@ -718,32 +759,7 @@ function collectDummyEnvironment() {
         values.requires_dummy_crouch = false;
     }
     values.dummy_guard_type = parseOptionalNumber("dummyGuardType");
-    values.dummy_guard = $("dummyGuard").value;
     return values;
-}
-
-/* HP 同步：scene_state.resources.hp 优先写入兼容快照 snapshot_gauges */
-function collectSnapshot() {
-    const snapshot = {
-        attacker: {
-            current_hp: parseOptionalNumber("attackerCurrentHp"),
-            max_hp: parseOptionalNumber("attackerMaxHp"),
-            heal_hp: parseOptionalNumber("attackerHealHp")
-        },
-        victim: {
-            current_hp: parseOptionalNumber("victimCurrentHp"),
-            max_hp: parseOptionalNumber("victimMaxHp"),
-            heal_hp: parseOptionalNumber("victimHealHp")
-        }
-    };
-    for (const side of ["p1", "p2"]) {
-        const hp = parseOptionalNumber(`${side}Hp`);
-        if (hp === "") continue;
-        const role = side === attackerSide() ? "attacker" : "victim";
-        snapshot[role].current_hp = hp;
-        if (snapshot[role].max_hp === "") snapshot[role].max_hp = 10000;
-    }
-    return snapshot;
 }
 
 function hasSceneValues(side) {
@@ -768,8 +784,7 @@ function collectEdits() {
         tags: $("tags").value,
         note: $("note").value,
         step_notes: [...document.querySelectorAll("[data-step-note]")].map(input => input.value),
-        environment: collectDummyEnvironment(),
-        snapshot: collectSnapshot()
+        environment: collectDummyEnvironment()
     };
     if (state.selected.document[0].scene_state || hasSceneValues(p1) || hasSceneValues(p2)) {
         edits.scene = {
@@ -890,7 +905,7 @@ async function writeRecord(record) {
     record.changed = false;
 }
 
-/* 保存前检查：数值单位错误 / 重复字段冲突 / 不受支持的状态 */
+/* 保存前检查：数值单位错误 / 不受支持的状态 */
 function preflightCheck() {
     const issues = [];
     for (const side of ["p1", "p2"]) {
@@ -903,14 +918,13 @@ function preflightCheck() {
         if (drive !== "" && (drive < 0 || drive > 6)) {
             issues.push(`${label} 斗气 ${drive} 格超出 0–6 格范围（数值单位错误）`);
         }
+        const burnout = $(`${side}Burnout`).value;
+        if (drive === 0 && burnout === "false") {
+            issues.push(`${label} 斗气为 0 格但虚损为否，这是游戏中无法保持的矛盾状态；斗气写入后会立即重新虚损`);
+        }
         const sa = parseOptionalNumber(`${side}Super`);
         if (sa !== "" && (sa < 0 || sa > 3)) {
             issues.push(`${label} 必杀技量表 ${sa} 格超出 0–3 格范围（数值单位错误）`);
-        }
-        const role = side === attackerSide() ? "attacker" : "victim";
-        const manualHp = parseOptionalNumber(`${role}CurrentHp`);
-        if (hp !== "" && manualHp !== "" && manualHp !== hp) {
-            issues.push(`snapshot_gauges.${role}.current_hp（${manualHp}）与${label} 生命（${hp}）重复字段冲突，将以 scene_state.resources.hp 为准`);
         }
     }
     const model = metadataModel(state.selected.document);
@@ -1045,7 +1059,6 @@ for (const [id, variant] of [
     ["dummyAction", "compact"],
     ["dummyJumpKind", "compact"],
     ["dummyGuardType", "compact"],
-    ["dummyGuard", "compact"],
     ["p1Burnout", "compact"],
     ["p2Burnout", "compact"],
     ["batchScope", "compact"],
@@ -1058,6 +1071,12 @@ for (const [id, variant] of [
 $("p1FighterId").addEventListener("change", () => changeFighter("p1"));
 $("p2FighterId").addEventListener("change", () => changeFighter("p2"));
 $("dummyAction").addEventListener("change", syncDummyJumpRow);
+/* 虚损与斗气双向联动：是 = 0 格，否 = 6 格。 */
+for (const side of ["p1", "p2"]) {
+    $(`${side}Burnout`).addEventListener("change", () => {
+        $(`${side}Drive`).value = $(`${side}Burnout`).value === "true" ? "0" : "6";
+    });
+}
 
 /* 数值快捷按钮：点击直接写入对应数值输入框（仍走既有表单应用/保存路径）。
    生命按 SF6 满血 10000 计算百分比档位。 */
