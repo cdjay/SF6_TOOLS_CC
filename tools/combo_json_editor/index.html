@@ -199,7 +199,7 @@
                     <div id="dummyMenuPanel" class="subpanel dummy-menu-panel">
                         <div id="dummyEnvBlock" class="resource-field dummy-env">
                                     <span>木人与训练菜单 (Dummy &amp; training menu)</span>
-                                    <p class="hint">顺序与游戏“陪练设置”一致；下拉框可直接定位，左右箭头循环选择。旧 JSON 未记录的可选项保持原有运行行为。</p>
+                                    <p class="hint">顺序与游戏“陪练设置”一致；枚举可下拉或用左右箭头选择，随机权重可直接输入。旧 JSON 未记录的可选项保持原有运行行为。</p>
                                     <div class="dummy-state-legend" aria-label="设置状态图例 (Setting status legend)">
                                         <span class="is-default">默认 (Default)</span>
                                         <span class="is-modified">非默认 (Changed)</span>
@@ -208,37 +208,19 @@
                                     <div class="dummy-menu-list">
                                         <label class="dummy-menu-row">
                                             <span>陪练操作 (dummy control)</span>
-                                            <select id="dummyControl">
-                                                <option value="">未记录 (Not recorded)</option>
-                                                <option value="dummy">陪练 (dummy)</option>
-                                                <option value="human">玩家控制 (player control)</option>
-                                                <option value="cpu">CPU (CPU)</option>
+                                            <select id="dummyControl" disabled>
+                                                <option value="dummy" selected>陪练 (dummy)</option>
                                             </select>
                                         </label>
                                         <label class="dummy-menu-row">
                                             <span>陪练的动作 (dummy action)</span>
                                             <select id="dummyAction">
-                                                <option value="">未记录 (Not recorded)</option>
                                                 <option value="0">站立 (stand)</option>
                                                 <option value="1">蹲下 (crouch)</option>
                                                 <option value="2">跳跃 (jump)</option>
-                                                <option value="3">播放录制 (play recording)</option>
                                             </select>
                                         </label>
-                                        <label id="dummyJumpRow" class="dummy-menu-row dynamic-row">
-                                            <span>跳跃方向 (jump type)</span>
-                                            <select id="dummyJumpKind">
-                                                <option value="">未记录 (Not recorded)</option>
-                                                <option value="0">原地 (vertical)</option>
-                                                <option value="1">前跳 (forward)</option>
-                                                <option value="2">后跳 (back)</option>
-                                                <option value="3">随机 (random)</option>
-                                            </select>
-                                        </label>
-                                        <label id="dummyCpuLevelRow" class="dummy-menu-row dynamic-row">
-                                            <span>CPU 等级 (CPU level)</span>
-                                            <select id="dummyCpuLevel"></select>
-                                        </label>
+                                        <input id="dummyJumpKind" type="hidden" value="0">
                                         <label class="dummy-menu-row">
                                             <span>打康 (counter)</span>
                                             <select id="dummyCounterType">
@@ -249,12 +231,12 @@
                                                 <option value="3">随机 (random)</option>
                                             </select>
                                         </label>
-                                        <details id="dummyCounterDetails" class="dummy-detail">
+                                        <details id="dummyCounterDetails" class="dummy-detail numeric-detail">
                                             <summary>T 详细设置：随机打康权重 (Random counter weights)</summary>
                                             <div class="dummy-detail-grid">
-                                                <label>标准权重 (normal)<select id="dummyCounterWeightNormal"></select></label>
-                                                <label>打康权重 (counter)<select id="dummyCounterWeightCounter"></select></label>
-                                                <label>确反康权重 (punish)<select id="dummyCounterWeightPunish"></select></label>
+                                                <label>标准权重 (normal)<input id="dummyCounterWeightNormal" type="number" min="0" step="1"></label>
+                                                <label>打康权重 (counter)<input id="dummyCounterWeightCounter" type="number" min="0" step="1"></label>
+                                                <label>确反康权重 (punish)<input id="dummyCounterWeightPunish" type="number" min="0" step="1"></label>
                                             </div>
                                         </details>
                                         <label class="dummy-menu-row">
@@ -272,38 +254,26 @@
                                             <span>格挡计数 (guard count)</span>
                                             <select id="dummyGuardCount"></select>
                                         </label>
-                                        <label class="dummy-menu-row">
+                                        <label id="dummyGuardSwitchModeRow" class="dummy-menu-row">
                                             <span>格挡切换 (guard switching)</span>
-                                            <select id="dummyGuardSwitching">
+                                            <select id="dummyGuardSwitchMode">
                                                 <option value="">未记录 (Not recorded)</option>
-                                                <option value="false">不执行 (inactive)</option>
-                                                <option value="true">随机 (random)</option>
-                                            </select>
-                                        </label>
-                                        <label class="dummy-menu-row">
-                                            <span>格挡种类 (guard type)</span>
-                                            <select id="dummyGuardOnlyType">
-                                                <option value="">未记录 (Not recorded)</option>
-                                                <option value="0">标准 (normal)</option>
-                                                <option value="1">仅站立格挡 (stand only)</option>
-                                                <option value="2">仅蹲下格挡 (crouch only)</option>
+                                                <option value="0">执行 (execute)</option>
+                                                <option value="1">仅站立格挡 (standing guard only)</option>
+                                                <option value="2">仅蹲下格挡 (crouching guard only)</option>
                                                 <option value="3">随机 (random)</option>
                                             </select>
                                         </label>
-                                        <details id="dummyDriveParryDetails" class="dummy-detail">
-                                            <summary>T 详细设置：斗气招架 (Drive parry)</summary>
-                                            <div class="dummy-detail-grid single">
-                                                <label>斗气招架类型 (drive parry type)
-                                                    <select id="dummyDriveParryType">
-                                                        <option value="">未记录 (Not recorded)</option>
-                                                        <option value="0">不执行 (inactive)</option>
-                                                        <option value="1">执行 (active)</option>
-                                                        <option value="2">精准招架 (perfect parry)</option>
-                                                        <option value="3">随机 (random)</option>
-                                                    </select>
-                                                </label>
-                                            </div>
-                                        </details>
+                                        <label id="dummyGuardKindRow" class="dummy-menu-row">
+                                            <span>格挡种类 (guard type)</span>
+                                            <select id="dummyGuardKind">
+                                                <option value="">未记录 (Not recorded)</option>
+                                                <option value="0">格挡 (guard)</option>
+                                                <option value="1">斗气招架 (drive parry)</option>
+                                                <option value="2">完美招架 (perfect parry)</option>
+                                                <option value="3">随机 (random)</option>
+                                            </select>
+                                        </label>
                                         <label class="dummy-menu-row">
                                             <span>斗气反攻 (drive reversal)</span>
                                             <select id="dummyDriveReversalType">
@@ -322,12 +292,12 @@
                                             <span>斗气反攻发动计数 (drive reversal count)</span>
                                             <select id="dummyDriveReversalCount"></select>
                                         </label>
-                                        <details id="dummyDriveReversalDetails" class="dummy-detail">
+                                        <details id="dummyDriveReversalDetails" class="dummy-detail numeric-detail">
                                             <summary>T 详细设置：斗气反攻随机权重 (Drive reversal weights)</summary>
                                             <div class="dummy-detail-grid">
-                                                <label>不执行权重 (none)<select id="dummyDriveReversalWeightNone"></select></label>
-                                                <label>格挡后权重 (guard)<select id="dummyDriveReversalWeightGuard"></select></label>
-                                                <label>起身时权重 (wakeup)<select id="dummyDriveReversalWeightWakeup"></select></label>
+                                                <label>不执行权重 (none)<input id="dummyDriveReversalWeightNone" type="number" min="0" step="1"></label>
+                                                <label>格挡后权重 (guard)<input id="dummyDriveReversalWeightGuard" type="number" min="0" step="1"></label>
+                                                <label>起身时权重 (wakeup)<input id="dummyDriveReversalWeightWakeup" type="number" min="0" step="1"></label>
                                             </div>
                                         </details>
                                         <label class="dummy-menu-row">

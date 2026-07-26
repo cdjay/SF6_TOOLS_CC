@@ -38,40 +38,40 @@ let toastTimer = null;
 const DUMMY_MENU_SELECT_IDS = Object.freeze([
     "dummyControl",
     "dummyAction",
-    "dummyJumpKind",
-    "dummyCpuLevel",
     "dummyCounterType",
-    "dummyCounterWeightNormal",
-    "dummyCounterWeightCounter",
-    "dummyCounterWeightPunish",
     "dummyGuardType",
     "dummyGuardCount",
-    "dummyGuardSwitching",
-    "dummyGuardOnlyType",
-    "dummyDriveParryType",
+    "dummyGuardSwitchMode",
+    "dummyGuardKind",
     "dummyDriveReversalType",
     "dummyDriveReversalDelay",
     "dummyDriveReversalCount",
-    "dummyDriveReversalWeightNone",
-    "dummyDriveReversalWeightGuard",
-    "dummyDriveReversalWeightWakeup",
     "dummyThrowEscapeType",
     "dummyWakeupType"
+]);
+const DUMMY_MENU_NUMBER_IDS = Object.freeze([
+    "dummyCounterWeightNormal",
+    "dummyCounterWeightCounter",
+    "dummyCounterWeightPunish",
+    "dummyDriveReversalWeightNone",
+    "dummyDriveReversalWeightGuard",
+    "dummyDriveReversalWeightWakeup"
+]);
+const DUMMY_MENU_VISUAL_IDS = Object.freeze([
+    ...DUMMY_MENU_SELECT_IDS,
+    ...DUMMY_MENU_NUMBER_IDS
 ]);
 const DUMMY_MENU_DEFAULTS = Object.freeze({
     dummyControl: "dummy",
     dummyAction: "0",
-    dummyJumpKind: "0",
-    dummyCpuLevel: "1",
     dummyCounterType: "0",
     dummyCounterWeightNormal: "1",
     dummyCounterWeightCounter: "1",
     dummyCounterWeightPunish: "1",
     dummyGuardType: "0",
     dummyGuardCount: "10",
-    dummyGuardSwitching: "true",
-    dummyGuardOnlyType: "0",
-    dummyDriveParryType: "0",
+    dummyGuardSwitchMode: "0",
+    dummyGuardKind: "0",
     dummyDriveReversalType: "0",
     dummyDriveReversalDelay: "0",
     dummyDriveReversalCount: "1",
@@ -291,21 +291,26 @@ function populateNumericSelect(id, minimum, maximum, format = value => String(va
     select.replaceChildren(...options);
 }
 
-function enhanceStepperSelect(select) {
-    if (!select || select._stepperButtons) return;
+function enhanceStepperControl(control, move, numeric = false) {
+    if (!control || control._stepperButtons) return;
     const wrapper = document.createElement("div");
-    wrapper.className = "select-stepper";
+    wrapper.className = `select-stepper${numeric ? " numeric-stepper" : ""}`;
     const previous = document.createElement("button");
     const next = document.createElement("button");
     previous.type = next.type = "button";
     previous.textContent = "‹";
     next.textContent = "›";
-    previous.title = "上一个选项 (Previous option)";
-    next.title = "下一个选项 (Next option)";
-    select.insertAdjacentElement("beforebegin", wrapper);
-    wrapper.append(previous, select, next);
-    select._stepperButtons = [previous, next];
+    previous.title = numeric ? "减少数值 (Decrease value)" : "上一个选项 (Previous option)";
+    next.title = numeric ? "增加数值 (Increase value)" : "下一个选项 (Next option)";
+    control.insertAdjacentElement("beforebegin", wrapper);
+    wrapper.append(previous, control, next);
+    control._stepperButtons = [previous, next];
+    previous.onclick = event => { event.preventDefault(); move(-1); };
+    next.onclick = event => { event.preventDefault(); move(1); };
+}
 
+function enhanceStepperSelect(select) {
+    if (!select || select._stepperButtons) return;
     const move = direction => {
         const options = [...select.options].filter(option => !option.disabled);
         if (!options.length || select.disabled) return;
@@ -315,8 +320,25 @@ function enhanceStepperSelect(select) {
         select.value = options[index].value;
         select.dispatchEvent(new Event("change", { bubbles: true }));
     };
-    previous.onclick = event => { event.preventDefault(); move(-1); };
-    next.onclick = event => { event.preventDefault(); move(1); };
+    enhanceStepperControl(select, move);
+}
+
+function enhanceNumericStepper(input) {
+    if (!input || input._stepperButtons) return;
+    const move = direction => {
+        if (input.disabled) return;
+        const minimum = input.min === "" ? Number.NEGATIVE_INFINITY : Number(input.min);
+        const maximum = input.max === "" ? Number.POSITIVE_INFINITY : Number(input.max);
+        const step = input.step === "" || input.step === "any" ? 1 : Number(input.step);
+        let value = input.value.trim() === "" ? minimum : Number(input.value);
+        if (!Number.isFinite(value)) value = 0;
+        if (value === Number.NEGATIVE_INFINITY) value = 0;
+        value = Math.min(maximum, Math.max(minimum, value + direction * step));
+        input.value = String(value);
+        input.dispatchEvent(new Event("input", { bubbles: true }));
+        input.dispatchEvent(new Event("change", { bubbles: true }));
+    };
+    enhanceStepperControl(input, move, true);
 }
 
 /* 评分星级控件：0-5 星，再次点击当前星数清零，支持清除回“未记录”。
@@ -604,18 +626,18 @@ function changeFighter(prefix) {
 }
 
 function setControlDisabled(id, disabled) {
-    const select = $(id);
-    if (!select) return;
-    select.disabled = disabled;
-    select.closest(".dummy-menu-row")?.classList.toggle("is-disabled", disabled);
-    if (select._stepperButtons) {
-        for (const button of select._stepperButtons) button.disabled = disabled;
+    const control = $(id);
+    if (!control) return;
+    control.disabled = disabled;
+    control.closest(".dummy-menu-row")?.classList.toggle("is-disabled", disabled);
+    if (control._stepperButtons) {
+        for (const button of control._stepperButtons) button.disabled = disabled;
     }
 }
 
-function dummyMenuVisualState(select) {
-    if (select.value === "") return "unrecorded";
-    return select.value === DUMMY_MENU_DEFAULTS[select.id] ? "default" : "modified";
+function dummyMenuVisualState(control) {
+    if (control.value === "") return "unrecorded";
+    return control.value === DUMMY_MENU_DEFAULTS[control.id] ? "default" : "modified";
 }
 
 function setVisualState(element, visualState) {
@@ -626,18 +648,18 @@ function setVisualState(element, visualState) {
 }
 
 function updateDummyMenuVisualState() {
-    for (const id of DUMMY_MENU_SELECT_IDS) {
-        const select = $(id);
-        if (!select) continue;
-        const visualState = dummyMenuVisualState(select);
-        const field = select.closest(".dummy-menu-row") || select.closest("label");
+    for (const id of DUMMY_MENU_VISUAL_IDS) {
+        const control = $(id);
+        if (!control) continue;
+        const visualState = dummyMenuVisualState(control);
+        const field = control.closest(".dummy-menu-row") || control.closest("label");
         field?.classList.add("dummy-setting");
         setVisualState(field, visualState);
-        setVisualState(select.closest(".select-stepper"), visualState);
+        setVisualState(control.closest(".select-stepper"), visualState);
     }
 
     for (const details of document.querySelectorAll(".dummy-detail")) {
-        const states = [...details.querySelectorAll("select")].map(dummyMenuVisualState);
+        const states = [...details.querySelectorAll("select, input")].map(dummyMenuVisualState);
         const visualState = states.includes("modified")
             ? "modified"
             : states.length && states.every(value => value === "unrecorded")
@@ -648,22 +670,29 @@ function updateDummyMenuVisualState() {
 }
 
 function syncDummyMenuState(fillDefaults = false) {
-    const control = $("dummyControl").value;
-    if (fillDefaults && control === "dummy" && $("dummyAction").value === "") {
-        $("dummyAction").value = "0";
-    }
-    if (fillDefaults && control === "cpu" && $("dummyCpuLevel").value === "") {
-        $("dummyCpuLevel").value = "1";
-    }
+    $("dummyControl").value = "dummy";
+    setControlDisabled("dummyControl", true);
+    if (fillDefaults && $("dummyAction").value === "") $("dummyAction").value = "0";
     const action = $("dummyAction").value;
-    setControlDisabled("dummyAction", control !== "dummy");
-    setControlDisabled("dummyJumpKind", control !== "dummy" || action !== "2");
-    setControlDisabled("dummyCpuLevel", control !== "cpu");
+    if (fillDefaults && action === "2" && $("dummyJumpKind").value === "") {
+        $("dummyJumpKind").value = "0";
+    }
 
-    const enabled = $("dummyGuardType").value === "5";
-    setControlDisabled("dummyGuardCount", !enabled);
-    if (enabled && fillDefaults && $("dummyGuardCount").value.trim() === "") {
+    const guardType = $("dummyGuardType").value;
+    const countGuardEnabled = guardType === "5";
+    const guardOptionsEnabled = ["2", "3", "4", "5"].includes(guardType);
+    $("dummyGuardCountRow").hidden = !countGuardEnabled;
+    $("dummyGuardSwitchModeRow").hidden = !guardOptionsEnabled;
+    $("dummyGuardKindRow").hidden = !guardOptionsEnabled;
+    setControlDisabled("dummyGuardCount", !countGuardEnabled);
+    setControlDisabled("dummyGuardSwitchMode", !guardOptionsEnabled);
+    setControlDisabled("dummyGuardKind", !guardOptionsEnabled);
+    if (countGuardEnabled && fillDefaults && $("dummyGuardCount").value.trim() === "") {
         $("dummyGuardCount").value = "1";
+    }
+    if (guardOptionsEnabled && fillDefaults) {
+        if ($("dummyGuardSwitchMode").value === "") $("dummyGuardSwitchMode").value = "0";
+        if ($("dummyGuardKind").value === "") $("dummyGuardKind").value = "0";
     }
 
     const driveReversalEnabled = !["", "0"].includes($("dummyDriveReversalType").value);
@@ -760,46 +789,35 @@ function renderSelected() {
     const env = model.environment || {};
     const envActionType = env.dummy_action_type ?? meta.dummy_action_type;
     const envStance = env.dummy_stance ?? meta.dummy_stance;
-    let dummyControl = "";
-    let dummyAction = "";
+    let dummyAction = "0";
     if (envActionType !== undefined && envActionType !== null && envActionType !== "") {
         const actionNumber = Number(envActionType);
-        if (actionNumber === 4) {
-            dummyControl = "human";
-        } else if (actionNumber === 5) {
-            dummyControl = "cpu";
-        } else {
-            dummyControl = "dummy";
-            dummyAction = String(Math.max(0, Math.min(3, actionNumber)));
-        }
+        if ([0, 1, 2].includes(actionNumber)) dummyAction = String(actionNumber);
     } else {
         const stanceText = String(envStance || "").toLowerCase();
         dummyAction = {
             stand: "0", standing: "0",
             crouch: "1", crouching: "1",
             jump: "2", jumping: "2", airborne: "2"
-        }[stanceText] || "";
-        if (dummyAction !== "") dummyControl = "dummy";
+        }[stanceText] || "0";
     }
-    setSelectValue("dummyControl", dummyControl, "");
-    setSelectValue("dummyAction", dummyAction, "");
-    setSelectValue("dummyJumpKind", env.dummy_jump_type ?? meta.dummy_jump_type, "");
-    setSelectValue("dummyCpuLevel", env.dummy_cpu_level ?? meta.dummy_cpu_level, "");
+    setSelectValue("dummyControl", "dummy", "dummy");
+    setSelectValue("dummyAction", dummyAction, "0");
+    setValue("dummyJumpKind", env.dummy_jump_type ?? meta.dummy_jump_type ?? 0);
     setSelectValue("dummyCounterType", env.dummy_counter_type ?? meta.dummy_counter_type, "");
-    setSelectValue("dummyCounterWeightNormal", env.dummy_counter_weight_normal ?? meta.dummy_counter_weight_normal, "");
-    setSelectValue("dummyCounterWeightCounter", env.dummy_counter_weight_counter ?? meta.dummy_counter_weight_counter, "");
-    setSelectValue("dummyCounterWeightPunish", env.dummy_counter_weight_punish ?? meta.dummy_counter_weight_punish, "");
+    setValue("dummyCounterWeightNormal", env.dummy_counter_weight_normal ?? meta.dummy_counter_weight_normal);
+    setValue("dummyCounterWeightCounter", env.dummy_counter_weight_counter ?? meta.dummy_counter_weight_counter);
+    setValue("dummyCounterWeightPunish", env.dummy_counter_weight_punish ?? meta.dummy_counter_weight_punish);
     setSelectValue("dummyGuardType", env.dummy_guard_type ?? meta.dummy_guard_type, "");
     setSelectValue("dummyGuardCount", env.dummy_guard_count ?? meta.dummy_guard_count, "");
-    setSelectValue("dummyGuardSwitching", env.dummy_guard_switching ?? meta.dummy_guard_switching, "");
-    setSelectValue("dummyGuardOnlyType", env.dummy_guard_only_type ?? meta.dummy_guard_only_type, "");
-    setSelectValue("dummyDriveParryType", env.dummy_drive_parry_type ?? meta.dummy_drive_parry_type, "");
+    setSelectValue("dummyGuardSwitchMode", env.dummy_guard_only_type ?? meta.dummy_guard_only_type, "");
+    setSelectValue("dummyGuardKind", env.dummy_drive_parry_type ?? meta.dummy_drive_parry_type, "");
     setSelectValue("dummyDriveReversalType", env.dummy_drive_reversal_type ?? meta.dummy_drive_reversal_type, "");
     setSelectValue("dummyDriveReversalDelay", env.dummy_drive_reversal_delay ?? meta.dummy_drive_reversal_delay, "");
     setSelectValue("dummyDriveReversalCount", env.dummy_drive_reversal_count ?? meta.dummy_drive_reversal_count, "");
-    setSelectValue("dummyDriveReversalWeightNone", env.dummy_drive_reversal_weight_none ?? meta.dummy_drive_reversal_weight_none, "");
-    setSelectValue("dummyDriveReversalWeightGuard", env.dummy_drive_reversal_weight_guard ?? meta.dummy_drive_reversal_weight_guard, "");
-    setSelectValue("dummyDriveReversalWeightWakeup", env.dummy_drive_reversal_weight_wakeup ?? meta.dummy_drive_reversal_weight_wakeup, "");
+    setValue("dummyDriveReversalWeightNone", env.dummy_drive_reversal_weight_none ?? meta.dummy_drive_reversal_weight_none);
+    setValue("dummyDriveReversalWeightGuard", env.dummy_drive_reversal_weight_guard ?? meta.dummy_drive_reversal_weight_guard);
+    setValue("dummyDriveReversalWeightWakeup", env.dummy_drive_reversal_weight_wakeup ?? meta.dummy_drive_reversal_weight_wakeup);
     setSelectValue("dummyThrowEscapeType", env.dummy_throw_escape_type ?? meta.dummy_throw_escape_type, "");
     setSelectValue("dummyWakeupType", env.dummy_wakeup_type ?? meta.dummy_wakeup_type, "");
     syncDummyMenuState();
@@ -936,10 +954,8 @@ function collectSide(prefix) {
     };
 }
 
-/* 陪练操作 + 陪练动作共同映射原生 DummyActionType：
-   0/1/2/3 = 站/蹲/跳/播放录制，4 = 玩家控制，5 = CPU。 */
+/* 编辑器只公开原生陪练的站 / 蹲 / 跳；玩家控制、CPU、播放录制均不属于连段环境编辑范围。 */
 function collectDummyEnvironment() {
-    const control = $("dummyControl").value;
     const action = $("dummyAction").value;
     const values = {
         dummy_stance: "",
@@ -947,30 +963,20 @@ function collectDummyEnvironment() {
         dummy_jump_type: "",
         requires_dummy_crouch: ""
     };
-    if (control === "human") {
-        values.dummy_action_type = 4;
-        values.requires_dummy_crouch = false;
-    } else if (control === "cpu") {
-        values.dummy_action_type = 5;
-        values.dummy_cpu_level = parseOptionalNumber("dummyCpuLevel");
-        values.requires_dummy_crouch = false;
-    } else if (control === "dummy" && action === "0") {
+    if (action === "0") {
         values.dummy_stance = "stand";
         values.dummy_action_type = 0;
         values.dummy_jump_type = 0;
         values.requires_dummy_crouch = false;
-    } else if (control === "dummy" && action === "1") {
+    } else if (action === "1") {
         values.dummy_stance = "crouch";
         values.dummy_action_type = 1;
         values.dummy_jump_type = 0;
         values.requires_dummy_crouch = true;
-    } else if (control === "dummy" && action === "2") {
+    } else if (action === "2") {
         values.dummy_stance = "jump";
         values.dummy_action_type = 2;
         values.dummy_jump_type = parseOptionalNumber("dummyJumpKind");
-        values.requires_dummy_crouch = false;
-    } else if (control === "dummy" && action === "3") {
-        values.dummy_action_type = 3;
         values.requires_dummy_crouch = false;
     }
 
@@ -982,10 +988,10 @@ function collectDummyEnvironment() {
     values.dummy_guard_count = values.dummy_guard_type === 5
         ? parseOptionalNumber("dummyGuardCount")
         : "";
-    const switching = $("dummyGuardSwitching").value;
-    values.dummy_guard_switching = switching === "" ? "" : switching === "true";
-    values.dummy_guard_only_type = parseOptionalNumber("dummyGuardOnlyType");
-    values.dummy_drive_parry_type = parseOptionalNumber("dummyDriveParryType");
+    /* 游戏菜单“格挡切换”对应 GuardOnlyType；“格挡种类”对应 DefenseSystem.DP_Type。
+       IsGuardSwitching 是录制得到的底层布尔状态，编辑器不再误作枚举覆盖。 */
+    values.dummy_guard_only_type = parseOptionalNumber("dummyGuardSwitchMode");
+    values.dummy_drive_parry_type = parseOptionalNumber("dummyGuardKind");
     values.dummy_drive_reversal_type = parseOptionalNumber("dummyDriveReversalType");
     values.dummy_drive_reversal_delay = parseOptionalNumber("dummyDriveReversalDelay");
     values.dummy_drive_reversal_count = parseOptionalNumber("dummyDriveReversalCount");
@@ -1294,20 +1300,9 @@ $("copyJson").onclick = async () => {
 
 populateFighterSelect("p1FighterId");
 populateFighterSelect("p2FighterId");
-populateNumericSelect("dummyCpuLevel", 1, 8, value => `等级 ${value} (Level ${value})`);
 populateNumericSelect("dummyGuardCount", 1, 30, value => `${value} 次 (${value} times)`);
 populateNumericSelect("dummyDriveReversalDelay", 0, 99, value => `${value} 帧 (${value} frames)`);
 populateNumericSelect("dummyDriveReversalCount", 1, 30, value => `${value} 次 (${value} times)`);
-for (const id of [
-    "dummyCounterWeightNormal",
-    "dummyCounterWeightCounter",
-    "dummyCounterWeightPunish",
-    "dummyDriveReversalWeightNone",
-    "dummyDriveReversalWeightGuard",
-    "dummyDriveReversalWeightWakeup"
-]) {
-    populateNumericSelect(id, 0, 10, value => `${value} (weight)`);
-}
 for (const [id, variant] of [
     ["statusFilter", "compact"],
     ["rating", "stars"],
@@ -1324,10 +1319,14 @@ for (const id of DUMMY_MENU_SELECT_IDS) {
     enhanceStepperSelect($(id));
     $(id).addEventListener("change", updateDummyMenuVisualState);
 }
+for (const id of DUMMY_MENU_NUMBER_IDS) {
+    enhanceNumericStepper($(id));
+    $(id).addEventListener("input", updateDummyMenuVisualState);
+    $(id).addEventListener("change", updateDummyMenuVisualState);
+}
 $("p1FighterId").addEventListener("change", () => changeFighter("p1"));
 $("p2FighterId").addEventListener("change", () => changeFighter("p2"));
 for (const id of [
-    "dummyControl",
     "dummyAction",
     "dummyCounterType",
     "dummyGuardType",

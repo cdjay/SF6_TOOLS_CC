@@ -783,7 +783,25 @@ main {
     gap: 5px;
     min-width: 0;
 }
-.select-stepper select { min-width: 0; width: 100%; }
+.select-stepper select,
+.select-stepper input {
+    min-width: 0;
+    width: 100%;
+}
+.numeric-stepper input {
+    appearance: textfield;
+    text-align: center;
+    font-family: var(--sf6-font-mono);
+}
+.numeric-stepper {
+    grid-template-columns: 28px minmax(38px, 1fr) 28px;
+    gap: 4px;
+}
+.numeric-stepper input::-webkit-inner-spin-button,
+.numeric-stepper input::-webkit-outer-spin-button {
+    margin: 0;
+    appearance: none;
+}
 .select-stepper button {
     min-width: 0;
     padding: 0;
@@ -799,6 +817,7 @@ main {
     font-weight: var(--sf6-font-heavy);
 }
 .select-stepper.is-modified select,
+.select-stepper.is-modified input,
 .select-stepper.is-modified button {
     border-color: color-mix(in srgb, var(--sf6-setting-modified) 72%, var(--sf6-field-border));
     color: var(--sf6-setting-modified);
@@ -810,6 +829,7 @@ main {
     color: var(--sf6-setting-unrecorded);
 }
 .select-stepper.is-unrecorded select,
+.select-stepper.is-unrecorded input,
 .select-stepper.is-unrecorded button {
     border-color: color-mix(in srgb, var(--sf6-setting-unrecorded) 54%, transparent);
     color: var(--sf6-setting-unrecorded);
@@ -822,6 +842,7 @@ main {
     border-left: 3px solid var(--sf6-modern);
     background: color-mix(in srgb, var(--sf6-modern) 4%, transparent);
 }
+.dummy-detail.numeric-detail { margin-left: 0; }
 .dummy-detail summary {
     cursor: pointer;
     color: var(--sf6-modern);

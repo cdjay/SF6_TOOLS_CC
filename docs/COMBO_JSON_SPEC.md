@@ -59,10 +59,10 @@ aliases on step 1 and `_xt_meta` for existing WTT-style readers.
 | `dummy_cpu_level` | int?; user-visible CPU level 1–8 (native value is minus one) |
 | `dummy_counter_type` | int?; 0 normal / 1 counter / 2 punish counter / 3 random |
 | `dummy_counter_weight_normal`, `dummy_counter_weight_counter`, `dummy_counter_weight_punish` | int? 0–10; native `T` detail-menu weights |
-| `dummy_guard_switching` | bool?; native guard switching |
+| `dummy_guard_switching` | bool?; native internal guard-switching state (recorded and preserved; not the visible guard-switching enum) |
 | `dummy_guard_weight` | int?; native raw guard weight |
-| `dummy_guard_only_type` | int?; 0 normal / 1 standing guard only / 2 crouching guard only / 3 random |
-| `dummy_drive_parry_type` | int?; 0 inactive / 1 active / 2 perfect parry / 3 random |
+| `dummy_guard_only_type` | int?; visible “Guard Switching” menu: 0 execute / 1 standing guard only / 2 crouching guard only / 3 random |
+| `dummy_drive_parry_type` | int?; visible “Guard Type” menu: 0 guard / 1 drive parry / 2 perfect parry / 3 random |
 | `dummy_drive_reversal_type` | int?; 0 inactive / 1 after guard / 2 on wakeup / 3 random |
 | `dummy_drive_reversal_delay` | int?; user-visible delay frames |
 | `dummy_drive_reversal_count` | int?; user-visible activation count (native value is minus one) |

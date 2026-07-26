@@ -18,23 +18,14 @@ const selectIds = [
     "rating",
     "dummyControl",
     "dummyAction",
-    "dummyJumpKind",
-    "dummyCpuLevel",
     "dummyCounterType",
-    "dummyCounterWeightNormal",
-    "dummyCounterWeightCounter",
-    "dummyCounterWeightPunish",
     "dummyGuardType",
     "dummyGuardCount",
-    "dummyGuardSwitching",
-    "dummyGuardOnlyType",
-    "dummyDriveParryType",
+    "dummyGuardSwitchMode",
+    "dummyGuardKind",
     "dummyDriveReversalType",
     "dummyDriveReversalDelay",
     "dummyDriveReversalCount",
-    "dummyDriveReversalWeightNone",
-    "dummyDriveReversalWeightGuard",
-    "dummyDriveReversalWeightWakeup",
     "dummyThrowEscapeType",
     "dummyWakeupType",
     "p1FighterId",
@@ -44,6 +35,22 @@ const selectIds = [
 ];
 for (const id of selectIds) {
     assert.match(html, new RegExp(`<select id="${id}"`), `${id} must be a single-choice select`);
+}
+const numericWeightIds = [
+    "dummyCounterWeightNormal",
+    "dummyCounterWeightCounter",
+    "dummyCounterWeightPunish",
+    "dummyDriveReversalWeightNone",
+    "dummyDriveReversalWeightGuard",
+    "dummyDriveReversalWeightWakeup"
+];
+for (const id of numericWeightIds) {
+    assert.match(
+        html,
+        new RegExp(`<input id="${id}" type="number"`),
+        `${id} must support direct numeric entry`
+    );
+    assert.doesNotMatch(html, new RegExp(`<select id="${id}"`), `${id} must not be a dropdown`);
 }
 // fighter_id 必须是原生下拉框，不得再增强为选项块
 for (const id of ["p1FighterId", "p2FighterId"]) {
@@ -61,16 +68,26 @@ for (const id of ["p1Stunned", "p2Stunned", "p1Stance", "p2Stance"]) {
 for (const id of ["statusFilter", "rating", "p1Burnout", "p2Burnout"]) {
     assert.match(app, new RegExp(`\\["${id}",\\s*"`), `${id} must be enhanced into choice boxes`);
 }
-// 陪练菜单保留原生下拉框并提供左右箭头；未记录选项保持旧 JSON 可选字段语义
+// 枚举保留原生下拉框并提供左右箭头，随机权重改为可直接输入的数值步进器。
 for (const id of selectIds.filter(id => id.startsWith("dummy"))) {
     assert.match(app, new RegExp(`"${id}"`), `${id} must be wired`);
 }
-assert.match(app, /enhanceStepperSelect/);
-assert.match(app, /className = "select-stepper"/);
-for (const id of ["dummyControl", "dummyAction", "dummyGuardType"]) {
-    const block = html.match(new RegExp(`<select id="${id}">([\\s\\S]*?)</select>`))[1];
-    assert.match(block, /<option value="">未记录/, `${id} must preserve an unrecorded option`);
+for (const id of numericWeightIds) {
+    assert.match(app, new RegExp(`"${id}"`), `${id} must be wired`);
 }
+assert.match(app, /enhanceStepperSelect/);
+assert.match(app, /enhanceNumericStepper/);
+assert.match(app, /numeric-stepper/);
+assert.match(styles, /\.numeric-stepper input/);
+assert.match(html, /id="dummyCounterDetails" class="dummy-detail numeric-detail"/);
+assert.match(html, /id="dummyDriveReversalDetails" class="dummy-detail numeric-detail"/);
+assert.match(styles, /\.dummy-detail\.numeric-detail \{ margin-left: 0; \}/);
+assert.match(html, /<select id="dummyControl" disabled>[\s\S]*?<option value="dummy" selected>陪练/);
+assert.doesNotMatch(html, /玩家控制 \(player control\)|CPU \(CPU\)|播放录制 \(play recording\)/);
+assert.doesNotMatch(html, /跳跃方向 \(jump type\)|CPU 等级 \(CPU level\)/);
+assert.match(html, /<input id="dummyJumpKind" type="hidden" value="0">/);
+const guardBlock = html.match(/<select id="dummyGuardType">([\s\S]*?)<\/select>/)[1];
+assert.match(guardBlock, /<option value="">未记录/);
 assert.doesNotMatch(app, /\["dummyGuard",/, "dead dummyGuard enhancement entry must be removed");
 assert.match(app, /Burnout`\)\.addEventListener\("change"/, "burnout must update the drive gauge");
 assert.match(
@@ -86,23 +103,30 @@ assert.match(html, /陪练的动作 \(dummy action\)/);
 assert.match(html, /站立 \(stand\)/);
 assert.match(html, /蹲下 \(crouch\)/);
 assert.match(html, /跳跃 \(jump\)/);
-assert.match(html, /原地 \(vertical\)/);
-assert.match(html, /前跳 \(forward\)/);
-assert.match(html, /后跳 \(back\)/);
 assert.match(html, /随机 \(random\)/);
 assert.match(html, /value="2">第2段后格挡 \(2 · after_first_hit\)/);
 assert.doesNotMatch(html, /value="1">(?:首击后防御|第2段后格挡)/);
 assert.match(html, /value="5">计数格挡 \(5 · count\)/);
 assert.match(html, /id="dummyGuardCountRow" class="dummy-menu-row"/);
 assert.match(html, /id="dummyGuardCount"/);
-assert.match(html, /id="dummyGuardSwitching"[\s\S]*value="true">随机 \(random\)/);
+assert.match(html, /id="dummyGuardSwitchMode"[\s\S]*value="0">执行 \(execute\)/);
+assert.match(html, /value="1">仅站立格挡 \(standing guard only\)/);
+assert.match(html, /value="2">仅蹲下格挡 \(crouching guard only\)/);
+assert.match(html, /id="dummyGuardKind"[\s\S]*value="0">格挡 \(guard\)/);
+assert.match(html, /value="1">斗气招架 \(drive parry\)/);
+assert.match(html, /value="2">完美招架 \(perfect parry\)/);
 assert.match(app, /populateNumericSelect\("dummyGuardCount", 1, 30/);
-assert.match(app, /enabled && fillDefaults && \$\("dummyGuardCount"\)/, "count guard must default to one count when first enabled");
+assert.match(app, /countGuardEnabled && fillDefaults && \$\("dummyGuardCount"\)/, "count guard must default to one count when first enabled");
+assert.match(app, /dummyGuardCountRow"\)\.hidden = !countGuardEnabled/);
+assert.match(app, /dummyGuardSwitchModeRow"\)\.hidden = !guardOptionsEnabled/);
+assert.match(app, /dummyGuardKindRow"\)\.hidden = !guardOptionsEnabled/);
+assert.match(app, /values\.dummy_guard_only_type = parseOptionalNumber\("dummyGuardSwitchMode"\)/);
+assert.match(app, /values\.dummy_drive_parry_type = parseOptionalNumber\("dummyGuardKind"\)/);
+assert.doesNotMatch(app, /values\.dummy_guard_switching\s*=/, "the internal guard bool must be preserved");
 assert.doesNotMatch(app, /\bfillDefault\b/, "dummy menu state must consistently use the fillDefaults flag");
 assert.match(html, /T 详细设置：随机打康权重/);
-assert.match(html, /T 详细设置：斗气招架/);
+assert.doesNotMatch(html, /T 详细设置：斗气招架/);
 assert.match(html, /T 详细设置：斗气反攻随机权重/);
-assert.match(app, /populateNumericSelect\(id, 0, 10/);
 assert.match(html, /id="p1Unique" class="unique-resource-list"/);
 assert.match(html, /id="p2Unique" class="unique-resource-list"/);
 // 环境页左栏按“连段角色 → 木人”堆叠，右栏独立展示木人训练菜单
