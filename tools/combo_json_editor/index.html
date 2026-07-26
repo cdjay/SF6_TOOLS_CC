@@ -133,8 +133,9 @@
                 <h2>双方初始场景 (Initial scene state)</h2>
                 <p class="hint">在旧 scene.v1 上录入资源或状态时会提升为 scene.v2，原有特殊资源不会丢失 (Editing resources/status upgrades scene.v1 to scene.v2 without losing unique resources)。</p>
                 <p class="hint">双方为同一角色时，训练模式的角色特殊资源为共享设置，两侧控件会自动同步 (Unique resources are shared when both sides use the same fighter)。</p>
-                <div class="player-grid">
-                    <div class="subpanel" data-side="p1">
+                <div class="scene-columns">
+                    <div id="scenePlayerStack" class="scene-player-stack">
+                    <div id="p1ScenePanel" class="subpanel" data-side="p1">
                         <h3 id="p1SideLabel">玩家一 (P1)</h3>
                         <div class="mini-grid">
                             <label class="wide">角色 (fighter_id)<select id="p1FighterId"></select></label>
@@ -162,10 +163,9 @@
                                     <textarea id="p1UniqueUnknown" rows="4" spellcheck="false"></textarea>
                                 </details>
                             </div>
-                            <div class="wide dummy-slot" id="p1DummySlot"></div>
                         </div>
                     </div>
-                    <div class="subpanel" data-side="p2">
+                    <div id="p2ScenePanel" class="subpanel" data-side="p2">
                         <h3 id="p2SideLabel">玩家二 (P2)</h3>
                         <div class="mini-grid">
                             <label class="wide">角色 (fighter_id)<select id="p2FighterId"></select></label>
@@ -193,8 +193,11 @@
                                     <textarea id="p2UniqueUnknown" rows="4" spellcheck="false"></textarea>
                                 </details>
                             </div>
-                            <div class="wide dummy-slot" id="p2DummySlot">
-                                <div id="dummyEnvBlock" class="resource-field dummy-env">
+                        </div>
+                    </div>
+                    </div>
+                    <div id="dummyMenuPanel" class="subpanel dummy-menu-panel">
+                        <div id="dummyEnvBlock" class="resource-field dummy-env">
                                     <span>木人与训练菜单 (Dummy &amp; training menu)</span>
                                     <p class="hint">顺序与游戏“陪练设置”一致；下拉框可直接定位，左右箭头循环选择。旧 JSON 未记录的可选项保持原有运行行为。</p>
                                     <div class="dummy-menu-list">
@@ -341,8 +344,6 @@
                                             </select>
                                         </label>
                                     </div>
-                                </div>
-                            </div>
                         </div>
                     </div>
                 </div>

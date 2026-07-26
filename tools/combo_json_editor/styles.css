@@ -651,8 +651,20 @@ main {
 
 .hint { color: var(--sf6-text-muted); font-size: var(--sf6-text-sm); }
 
-/* ---- 双方面板 / 资源 ---- */
-.player-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 12px 0 26px; }
+/* ---- 场景资源与木人菜单：左侧角色上下排列，右侧菜单独立展示 ---- */
+.scene-columns {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    align-items: start;
+    gap: 12px;
+    margin: 12px 0 26px;
+}
+.scene-player-stack {
+    display: grid;
+    align-content: start;
+    gap: 12px;
+    min-width: 0;
+}
 .subpanel {
     padding: 16px;
     border: 1px solid var(--sf6-border-subtle);
@@ -679,7 +691,8 @@ main {
     border-radius: var(--sf6-radius-sm);
     background: color-mix(in srgb, var(--sf6-brand) 4%, transparent);
 }
-/* 木人设置块：挂在木人侧栏目内，青色描边呼应木人标签色 */
+/* 右侧独立木人菜单，青色描边呼应木人标签色 */
+.dummy-menu-panel { min-width: 0; }
 .dummy-env {
     padding: 10px 12px;
     border: 1px solid color-mix(in srgb, var(--sf6-modern) 35%, transparent);
@@ -687,7 +700,6 @@ main {
     border-radius: var(--sf6-radius-sm);
     background: color-mix(in srgb, var(--sf6-modern) 4%, transparent);
 }
-.dummy-slot:empty { display: none; }
 .dummy-menu-list {
     display: grid;
     gap: 6px;
@@ -911,14 +923,11 @@ dialog::backdrop { background: rgb(5 10 18 / 66%); backdrop-filter: blur(5px); }
 /* ==========================================================================
    响应式
    ========================================================================== */
-@media (max-width: 1500px) {
-    /* 面板宽度不足时 P1/P2 上下堆叠，保证快捷按钮单行排开 */
-    .player-grid { grid-template-columns: 1fr; }
-}
 @media (max-width: 1100px) {
     header { align-items: start; flex-direction: column; }
     .header-actions { justify-content: start; }
     main { grid-template-columns: 280px minmax(0, 1fr); }
+    .scene-columns { grid-template-columns: 1fr; }
     .form-grid { grid-template-columns: repeat(2, 1fr); }
     .form-grid.compact { grid-template-columns: repeat(2, 1fr); }
 }
@@ -928,7 +937,7 @@ dialog::backdrop { background: rgb(5 10 18 / 66%); backdrop-filter: blur(5px); }
     .summary-bar .path { display: none; }
     main { display: block; }
     .sidebar { position: relative; top: 0; height: 310px; margin-bottom: 14px; }
-    .player-grid { grid-template-columns: 1fr; }
+    .scene-columns { grid-template-columns: 1fr; }
     .file-header { align-items: start; flex-direction: column; }
     .actions { justify-content: start; }
     .step-note { grid-template-columns: 35px 80px minmax(0, 1fr); }

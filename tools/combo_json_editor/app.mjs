@@ -722,9 +722,13 @@ function renderSelected() {
 
     $("p1SideLabel").textContent = `${sideLabel("p1")} (P1)`;
     $("p2SideLabel").textContent = `${sideLabel("p2")} (P2)`;
-    /* 木人设置归属于木人一侧（通常 P2）：按 recorded_by 把设置块挂到对应栏 */
-    const dummySide = attackerSide() === "p1" ? "p2" : "p1";
-    $(`${dummySide}DummySlot`).append($("dummyEnvBlock"));
+    /* 左栏固定按“连段角色 → 木人”排列；右栏独立展示训练菜单。 */
+    const comboSide = attackerSide();
+    const dummySide = comboSide === "p1" ? "p2" : "p1";
+    $("scenePlayerStack").append(
+        $(`${comboSide}ScenePanel`),
+        $(`${dummySide}ScenePanel`)
+    );
 
     for (const side of ["p1", "p2"]) {
         const prefix = side;

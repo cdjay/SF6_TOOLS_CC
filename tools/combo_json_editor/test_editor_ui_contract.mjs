@@ -103,12 +103,18 @@ assert.match(html, /T 详细设置：斗气反攻随机权重/);
 assert.match(app, /populateNumericSelect\(id, 0, 10/);
 assert.match(html, /id="p1Unique" class="unique-resource-list"/);
 assert.match(html, /id="p2Unique" class="unique-resource-list"/);
-// 环境页为左右分列：特殊资源在各自栏目内重点展示，木人设置挂在木人侧栏目
+// 环境页左栏按“连段角色 → 木人”堆叠，右栏独立展示木人训练菜单
 assert.match(html, /resource-field unique-focus/);
 assert.match(html, /id="dummyEnvBlock"/);
-assert.match(html, /id="p1DummySlot"/);
-assert.match(html, /id="p2DummySlot"/);
-assert.match(app, /DummySlot`\)\.append/, "dummy settings block must be mounted into the dummy-side column");
+for (const id of ["scenePlayerStack", "p1ScenePanel", "p2ScenePanel", "dummyMenuPanel"]) {
+    assert.match(html, new RegExp(`id="${id}"`), `${id} must support the split environment layout`);
+}
+assert.doesNotMatch(html, /id="p[12]DummySlot"/, "dummy menu must not remain nested in a player panel");
+assert.match(
+    app,
+    /scenePlayerStack"\)\.append\([\s\S]*ScenePanel/,
+    "player panels must be ordered as combo character then dummy"
+);
 assert.match(html, /角色特殊资源为共享设置/);
 assert.doesNotMatch(html, /特殊资源 JSON/);
 assert.match(app, /enhanceChoiceSelect\(select, "resource"\)/);
