@@ -122,8 +122,17 @@ SF6CM：
 手动打包命令：
 
 ```powershell
-tools\package_release.bat -Version <版本号> -Force
+tools\bump_version.bat -Part Patch
+tools\package_release.bat -Force
 ```
+
+版本规则：
+
+* `data/SF6CC/version.json` 是 Lua 运行时代码与 Release 打包器唯一的产品版本来源。
+* 未来版本必须通过 `tools\bump_version.bat -Part Major|Minor|Patch` 或 `-Version <语义化版本>` 明确选择；检查并提交版本文件后再打包。
+* 打包器读取统一产品版本。可选的 `-Version` 参数只用于一致性断言，必须与统一版本相同。
+* 不要从 `sf6cm_manifest.json`、Lua 菜单文本、目录名、ZIP 名、Git Tag 或旧产物推断版本。
+* 在线稳定版 `0.9a` 不可变；普通打包不得重建或覆盖 `0.9a`。
 
 默认行为：
 
@@ -131,6 +140,7 @@ tools\package_release.bat -Version <版本号> -Force
 * 游戏区 Release 目录只是显式可选目标，例如 `-OutputDir "D:\Program Files (x86)\Steam\steamapps\common\Street Fighter 6\reframework\release"`。
 * 不要把游戏区 Release 目录当作默认发布目录。
 * 脚本生成 `XiaoTun_SF6_TrainingMOD_v<版本号>.zip`、`XiaoTun_SF6_TrainingMOD_v<版本号>_runtime.zip`、两份解压目录，以及 `sf6cm_manifest_v<版本号>.json`。
+* 统一产品版本、可选的命令行 `-Version` 断言、输出目录、ZIP 文件名和生成的 Manifest 版本必须一致。
 * 普通包包含 `dinput8.dll` 和 `reframework\`。
 * runtime 包额外包含 `re2_fw_config.txt`。
 * `dinput8.dll` 和 `re2_fw_config.txt` 从本机《Street Fighter 6》游戏根目录复制。

@@ -53,7 +53,7 @@ values.
     "position_mode": "original",
     "position_side": "p1",
     "projection": "none",
-    "sf6cc_version": "0.99",
+    "sf6cc_version": "1.2.3",
     "source": "manual"
   },
   "schema": "sf6cc.combo_attempt.v1",
@@ -63,6 +63,10 @@ values.
 
 Fields whose values are unavailable are omitted rather than written as JSON
 `null`.
+
+`runtime.sf6cc_version` is read from the canonical
+`data/SF6CC/version.json` product version; it is not maintained separately by
+the telemetry modules.
 
 ## Combo identity
 

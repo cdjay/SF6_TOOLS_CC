@@ -86,6 +86,40 @@ function Get-SourceManifestVersion {
     return [string]$repoManifest.version
 }
 
+function Get-ProductVersion {
+    param([Parameter(Mandatory = $true)][string]$WorkspacePath)
+
+    $versionPath = Join-Path $WorkspacePath "data\SF6CC\version.json"
+    if (-not (Test-Path -LiteralPath $versionPath -PathType Leaf)) {
+        throw "Product version file not found: $versionPath"
+    }
+
+    $document = Get-Content -Raw -LiteralPath $versionPath | ConvertFrom-Json
+    $comboFormat = $document.formats.combo_trial
+    $invalidDocument = $document.schema -ne "sf6cc.product_version.v1" -or
+        $null -eq $document.product -or
+        $document.product.id -ne "sf6cc" -or
+        [string]::IsNullOrWhiteSpace([string]$document.product.version) -or
+        $null -eq $comboFormat -or
+        $comboFormat.id -ne "xt.combo_trial" -or
+        [string]::IsNullOrWhiteSpace([string]$comboFormat.version) -or
+        $null -eq $comboFormat.schema -or
+        [int]$comboFormat.schema -lt 1
+    if ($invalidDocument) {
+        throw "Product version file is invalid: $versionPath"
+    }
+
+    $productVersion = [string]$document.product.version
+    if ($productVersion -notmatch '^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$') {
+        throw "Product version must use semantic versioning: $productVersion"
+    }
+
+    return [pscustomobject]@{
+        Version = $productVersion
+        Path = $versionPath
+    }
+}
+
 function Assert-ValidReleaseVersion {
     param([Parameter(Mandatory = $true)][string]$ReleaseVersion)
 
@@ -338,6 +372,7 @@ function Assert-ManifestVersionConsistency {
 function Write-PlanSummary {
     param(
         [Parameter(Mandatory = $true)][string]$ReleaseVersion,
+        [Parameter(Mandatory = $true)][string]$VersionSource,
         [Parameter(Mandatory = $true)][string]$Branch,
         [Parameter(Mandatory = $true)][string]$HeadCommit,
         [Parameter(Mandatory = $true)][string]$OutputPath,
@@ -350,6 +385,7 @@ function Write-PlanSummary {
 
     Write-Host "Release package plan:"
     Write-Host "  Version:                 $ReleaseVersion"
+    Write-Host "  Version source:          $VersionSource"
     Write-Host "  Branch:                  $Branch"
     Write-Host "  HEAD commit:             $HeadCommit"
     Write-Host "  Output dir:              $OutputPath"
@@ -373,19 +409,6 @@ function Write-PlanSummary {
     }
 }
 
-if ([string]::IsNullOrWhiteSpace($Version)) {
-    throw "Version is required. Pass an explicit target version, for example: tools\package_release.bat -Version 0.99"
-}
-
-$releaseVersion = $Version.Trim()
-if ($releaseVersion.StartsWith("v", [System.StringComparison]::OrdinalIgnoreCase)) {
-    $releaseVersion = $releaseVersion.Substring(1)
-}
-if ([string]::IsNullOrWhiteSpace($releaseVersion)) {
-    throw "Release version cannot be empty."
-}
-Assert-ValidReleaseVersion -ReleaseVersion $releaseVersion
-
 $scriptDirectory = if ($PSScriptRoot) {
     $PSScriptRoot
 }
@@ -399,6 +422,20 @@ if ([string]::IsNullOrWhiteSpace($Workspace)) {
 }
 
 $workspacePath = Resolve-ExistingPath -Path $Workspace -Label "Workspace"
+$productVersion = Get-ProductVersion -WorkspacePath $workspacePath
+$releaseVersion = $productVersion.Version
+Assert-ValidReleaseVersion -ReleaseVersion $releaseVersion
+
+if (-not [string]::IsNullOrWhiteSpace($Version)) {
+    $requestedVersion = $Version.Trim()
+    if ($requestedVersion.StartsWith("v", [System.StringComparison]::OrdinalIgnoreCase)) {
+        $requestedVersion = $requestedVersion.Substring(1)
+    }
+    if ($requestedVersion -ne $releaseVersion) {
+        throw "Requested -Version $requestedVersion does not match product version $releaseVersion. Run tools\bump_version.bat first."
+    }
+}
+
 $headCommit = Get-GitValue -WorkspacePath $workspacePath -Args @("rev-parse", "HEAD")
 $branch = Get-GitValue -WorkspacePath $workspacePath -Args @("branch", "--show-current")
 if ([string]::IsNullOrWhiteSpace($branch)) {
@@ -457,6 +494,7 @@ else {
 
 if ($willOverwrite -and -not $Force) {
     Write-PlanSummary -ReleaseVersion $releaseVersion `
+        -VersionSource $productVersion.Path `
         -Branch $branch `
         -HeadCommit $headCommit `
         -OutputPath $outputPath `
@@ -468,6 +506,7 @@ if ($willOverwrite -and -not $Force) {
 }
 
 Write-PlanSummary -ReleaseVersion $releaseVersion `
+    -VersionSource $productVersion.Path `
     -Branch $branch `
     -HeadCommit $headCommit `
     -OutputPath $outputPath `

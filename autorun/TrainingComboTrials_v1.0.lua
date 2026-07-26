@@ -3,6 +3,7 @@ local imgui = imgui
 local re = re
 local json = json
 require("func/SharedHooks")
+local SF6CCVersion = require("func/SF6CC_Version")
 local RuntimeSafety = require("func/RuntimeSafety")
 local GS = require("func/GameState")
 local ComboTrialsModules = {
@@ -13,6 +14,8 @@ local ComboTrialsModules = {
     SequenceGrouping = require("func/ComboTrials/SequenceGrouping"),
     Validator = require("func/ComboTrials/Validator"),
     TrainingEnvironment = require("func/ComboTrials/TrainingEnvironment"),
+    SceneState = require("func/ComboTrials/SceneState"),
+    SceneStateRuntime = require("func/ComboTrials/SceneStateRuntime"),
     PendingAbsorb = require("func/ComboTrials/PendingAbsorb"),
     Telemetry = require("func/ComboTrials/Telemetry")
 }
@@ -365,8 +368,7 @@ local trial_state = {
     pending_exact_timeout = 0,
     saved_start_location = nil,
     flip_inputs = false,   -- Whether to visually flip the input display
-    _rec_gauges = nil,     -- Gauge snapshot at recording start
-    _rec_hp_snapshot = nil,
+    _rec_gauges = nil,     -- Internal gauge sample at recording start
     _rec_hit_type = nil,   -- CH/PC detected on first hit
     _rec_scene_state = nil,
     _saved_unique_resources = nil,
@@ -394,7 +396,7 @@ local trial_state = {
 
 local XT_SETTINGS_FILE = "TrainingComboTrials_data/XT_Settings.json"
 CTJsonInterop = CTJsonInterop or {}
-CTJsonInterop.RECORDER_VERSION = "0.97a"
+CTJsonInterop.RECORDER_VERSION = SF6CCVersion.PRODUCT_VERSION
 local xt_settings = {
     default_author = "佚名",
     language = "zh-CN"
@@ -601,6 +603,9 @@ function CTJsonInterop.warn_control_mode_mismatch(sequence, player_idx, allow_cl
 end
 
 local function build_auto_xt_meta(recording_player, sequence)
+    if not SF6CCVersion.loaded then
+        error("无法写入连段版本信息：" .. tostring(SF6CCVersion.error or "产品版本未知"))
+    end
     local player_idx = recording_player or trial_state.recording_player or 0
     local recording_context = trial_state.recording_display_context
     if type(recording_context) ~= "table" or recording_context.active ~= true
@@ -634,10 +639,16 @@ local function build_auto_xt_meta(recording_player, sequence)
         updated_at = now,
         versions = {
             game = { id = "sf6" },
-            recorder = { id = "sf6cc", version = CTJsonInterop.RECORDER_VERSION },
-            json = { id = "xt.combo_trial", version = "2.0.0" }
+            recorder = {
+                id = SF6CCVersion.PRODUCT_ID,
+                version = CTJsonInterop.RECORDER_VERSION
+            },
+            json = {
+                id = SF6CCVersion.COMBO_JSON_ID,
+                version = SF6CCVersion.COMBO_JSON_VERSION
+            }
         },
-        schema = 2,
+        schema = SF6CCVersion.COMBO_JSON_SCHEMA,
         -- Legacy aliases retained so pre-v2 SF6CC readers keep filtering correctly.
         control_type = control_type,
         timeline_input_profile = control_type,
@@ -1673,43 +1684,11 @@ function read_player_hp_snapshot(player)
     return snapshot
 end
 
-function hp_snapshot_is_damaged(snapshot)
-    if type(snapshot) ~= "table" then return false end
-    local current_hp = tonumber(snapshot.current_hp)
-    local max_hp = tonumber(snapshot.max_hp)
-    return current_hp ~= nil and max_hp ~= nil and current_hp < max_hp
-end
-
-function copy_hp_snapshot(snapshot)
-    if type(snapshot) ~= "table" then return nil end
-    local current_hp = normalize_hp_value(snapshot.current_hp)
-    if current_hp == nil then return nil end
-    local out = { current_hp = current_hp }
-    local max_hp = normalize_hp_value(snapshot.max_hp)
-    local heal_hp = normalize_hp_value(snapshot.heal_hp)
-    if max_hp ~= nil then out.max_hp = max_hp end
-    if heal_hp ~= nil then out.heal_hp = heal_hp end
-    return out
-end
-
-function capture_trial_hp_snapshot(attacker_idx)
-    local victim_idx = 1 - attacker_idx
-    local attacker = (attacker_idx == 0) and GS.p1 or GS.p2
-    local victim = (victim_idx == 0) and GS.p1 or GS.p2
-    if not attacker or not victim then return nil end
-    return {
-        attacker = read_player_hp_snapshot(attacker),
-        victim = read_player_hp_snapshot(victim)
-    }
-end
-
--- Gauge snapshot (same pattern as SheldonsBoxes)
--- attacker_idx = 0 or 1 (the player performing the combo)
-local function snapshot_gauges(attacker_idx)
+-- Internal recording sample used only to calculate combo result statistics.
+local function capture_recording_gauges(attacker_idx)
     local result = nil
     pcall(function()
-        local victim_idx = 1 - attacker_idx
-        local victim = (victim_idx == 0) and GS.p1 or GS.p2
+        local victim = (attacker_idx == 0) and GS.p2 or GS.p1
         local attacker = (attacker_idx == 0) and GS.p1 or GS.p2
         if not victim or not attacker then return end
         local gB = _td_gBattle
@@ -1724,17 +1703,6 @@ local function snapshot_gauges(attacker_idx)
         local v_hp = victim.vital_new
         local a_dr = attacker.focus_new
         local a_sa = atk_team.mSuperGauge
-        local d_dr = victim.focus_new
-        local hp_snapshot = capture_trial_hp_snapshot(attacker_idx)
-        local d_burnout = nil
-        local tm = sdk.get_managed_singleton("app.training.TrainingManager")
-        local t_data = tm and tm:get_field("_tData")
-        local parameter_setting = t_data and t_data:get_field("ParameterSetting")
-        local player_datas = parameter_setting and parameter_setting.PlayerDatas
-        local defender_params = player_datas and player_datas[victim_idx]
-        if defender_params and defender_params.Is_DG_Break ~= nil then
-            d_burnout = defender_params.Is_DG_Break == true or defender_params.Is_DG_Break == 1
-        end
 
         if v_hp == nil or a_dr == nil or a_sa == nil then return end
 
@@ -1742,10 +1710,6 @@ local function snapshot_gauges(attacker_idx)
             victim_hp = v_hp,
             attacker_drive = a_dr,
             attacker_super = a_sa,
-            defender_drive = d_dr,
-            defender_burnout = d_burnout,
-            hp_attacker = hp_snapshot and hp_snapshot.attacker or nil,
-            hp_victim = hp_snapshot and hp_snapshot.victim or nil,
             -- Min trackers (updated each frame in on_frame)
             min_victim_hp = v_hp,
             min_atk_drive = a_dr,
@@ -1782,6 +1746,16 @@ DRIVE_SETTING_FIELDS = {
     "DG_Timer"
 }
 
+SUPER_SETTING_FIELDS = {
+    "SA_Type",
+    "SA_Stock",
+    "SA_Point",
+    "Is_SA_Point_Lock",
+    "Is_SA_No_Recovery",
+    "Is_SA_Recovery_Timer",
+    "SA_Timer"
+}
+
 function restore_trial_vital(skip_hp_setting_restore)
     clear_trial_vital_state()
     if skip_hp_setting_restore ~= true and type(restore_hp_training_setting_if_needed) == "function" then
@@ -1789,35 +1763,43 @@ function restore_trial_vital(skip_hp_setting_restore)
     end
 
     local saved_drive_settings = trial_state._saved_drive_settings
-    if type(saved_drive_settings) ~= "table" then return end
-
+    local saved_super_settings = trial_state._saved_super_settings
     local tm = sdk.get_managed_singleton("app.training.TrainingManager")
-    if not tm then return end
-
-    local t_data = tm:get_field("_tData")
-    if not t_data then return end
-
-    local parameter_setting = t_data:get_field("ParameterSetting")
-    if not parameter_setting then return end
-
-    local player_datas = parameter_setting.PlayerDatas
-    if not player_datas then return end
-
     local changed = false
-    for idx, settings in pairs(saved_drive_settings) do
-        local params = player_datas[idx]
-        if params and type(settings) == "table" then
-            for _, field_name in ipairs(DRIVE_SETTING_FIELDS) do
-                if settings[field_name] ~= nil then
-                    params[field_name] = settings[field_name]
-                    changed = true
+    local t_data = tm and tm:get_field("_tData")
+    local parameter_setting = t_data and t_data:get_field("ParameterSetting")
+    local player_datas = parameter_setting and parameter_setting.PlayerDatas
+
+    if player_datas then
+        for idx, settings in pairs(type(saved_drive_settings) == "table" and saved_drive_settings or {}) do
+            local params = player_datas[idx]
+            if params and type(settings) == "table" then
+                for _, field_name in ipairs(DRIVE_SETTING_FIELDS) do
+                    if settings[field_name] ~= nil then
+                        params[field_name] = settings[field_name]
+                        changed = true
+                    end
+                end
+            end
+        end
+
+        for idx, settings in pairs(type(saved_super_settings) == "table" and saved_super_settings or {}) do
+            local params = player_datas[idx]
+            if params and type(settings) == "table" then
+                for _, field_name in ipairs(SUPER_SETTING_FIELDS) do
+                    if settings[field_name] ~= nil then
+                        params[field_name] = settings[field_name]
+                        changed = true
+                    end
                 end
             end
         end
     end
 
     trial_state._saved_drive_settings = nil
+    trial_state._saved_super_settings = nil
     if changed then tm._IsReqRefresh = true end
+    ComboTrialsModules.SceneStateRuntime.restore_live_resources(trial_state)
 end
 
 HP_RESTORE_DEBUG_PATH = "TrainingComboTrials_data/LastHpRestoreDebug.json"
@@ -2158,7 +2140,7 @@ end
 
 function build_hp_restore_debug_dump(phase, extra)
     local first = trial_state.sequence and trial_state.sequence[1]
-    local read_snapshot, read_skip_reason = read_attacker_hp_restore_snapshot()
+    local read_snapshot, read_skip_reason = read_actor_scene_hp()
     local tm = sdk.get_managed_singleton("app.training.TrainingManager")
     local target_idx = trial_state._hp_restore and trial_state._hp_restore.target_player or trial_state.playing_player or 0
     local target_player = target_idx == 1 and GS.p2 or GS.p1
@@ -2179,14 +2161,14 @@ function build_hp_restore_debug_dump(phase, extra)
             sequence_length = trial_state.sequence and #trial_state.sequence or 0,
             first_step_id = type(first) == "table" and first.id or nil,
             first_step_motion = type(first) == "table" and first.motion or nil,
-            first_snapshot_gauges = type(first) == "table" and first.snapshot_gauges or nil
+            first_scene_state = type(first) == "table" and first.scene_state or nil
         },
         playing_player = trial_state.playing_player,
         current_step = trial_state.current_step,
         pending_reinject_settings = trial_state._pending_reinject_settings == true,
         tm_is_req_refresh = tm and tm:get_field("_IsReqRefresh") or nil,
-        first_snapshot_gauges = type(first) == "table" and first.snapshot_gauges or nil,
-        read_attacker_hp_restore_snapshot = {
+        first_scene_state = type(first) == "table" and first.scene_state or nil,
+        read_actor_scene_hp = {
             snapshot = read_snapshot,
             skip_reason = read_skip_reason
         },
@@ -2289,21 +2271,29 @@ function record_hp_restore_state(state, phase, extra)
     hp_restore_trace(event)
 end
 
-function read_attacker_hp_restore_snapshot()
+function read_actor_scene_hp()
     local first = trial_state.sequence and trial_state.sequence[1]
     if type(first) ~= "table" then return nil, "missing_first_step" end
-    local gauges = first.snapshot_gauges
-    if type(gauges) ~= "table" then return nil, "missing_snapshot_gauges" end
-    local attacker = gauges.attacker
-    if type(attacker) ~= "table" then return nil, "missing_attacker_hp_snapshot" end
-    local snapshot = copy_hp_snapshot(attacker)
-    if not snapshot or snapshot.current_hp == nil then return nil, "missing_attacker_current_hp" end
+
+    local roles = ComboTrialsModules.SceneState.resolve_roles(first, trial_state.playing_player)
+    local resources = roles and ComboTrialsModules.SceneState.resources(roles.actor) or nil
+    local current_hp = normalize_hp_value(resources and resources.hp)
+    if current_hp == nil then return nil, "missing_actor_scene_hp" end
+
+    local target = roles.actor.player_index == 1 and GS.p2 or GS.p1
+    local max_hp = nil
+    pcall(function() max_hp = normalize_hp_value(target and target.vital_max) end)
+    local snapshot = {
+        current_hp = current_hp,
+        heal_hp = current_hp
+    }
+    if max_hp and max_hp > 0 then snapshot.max_hp = max_hp end
     return snapshot, nil
 end
 
 function init_hp_restore_attempt(phase, player_idx)
     trial_state._hp_restore_token = (trial_state._hp_restore_token or 0) + 1
-    local snapshot, skip_reason = read_attacker_hp_restore_snapshot()
+    local snapshot, skip_reason = read_actor_scene_hp()
     local found = type(snapshot) == "table"
     local state = {
         token = trial_state._hp_restore_token,
@@ -2665,9 +2655,11 @@ local function restore_dummy_guard_type()
     end
 end
 
--- DummyStatus.DummyActionType: 0=stand, 1=crouch. Jump variants are controlled by JumpType.
-local DUMMY_ACTION_STAND = 0
-local DUMMY_ACTION_CROUCH = 1
+-- Game enums:
+-- DummyActionType: 0=stand, 1=crouch, 2=jump.
+-- JumpType: 0=vertical, 1=front, 2=back, 3=random.
+local DUMMY_ACTION_STAND = ComboTrialsModules.TrainingEnvironment.DUMMY_ACTION.STAND
+local DUMMY_ACTION_CROUCH = ComboTrialsModules.TrainingEnvironment.DUMMY_ACTION.CROUCH
 
 local _tf_dummy_status_cache = nil
 local function get_tf_dummy_status()
@@ -3314,7 +3306,14 @@ end
 
 local function capture_trial_environment()
     local action_type, jump_type = read_dummy_action_state()
-    local stance = (action_type == DUMMY_ACTION_CROUCH) and "crouch" or "stand"
+    action_type = tonumber(action_type) or DUMMY_ACTION_STAND
+    jump_type = tonumber(jump_type) or ComboTrialsModules.TrainingEnvironment.DUMMY_JUMP.VERTICAL
+    local stance = "stand"
+    if action_type == DUMMY_ACTION_CROUCH then
+        stance = "crouch"
+    elseif action_type >= ComboTrialsModules.TrainingEnvironment.DUMMY_ACTION.JUMP and action_type <= 5 then
+        stance = "jump"
+    end
     local env = {
         schema = "xt.training_environment.v1",
         dummy_action_type = action_type,
@@ -3389,6 +3388,7 @@ local function apply_recording_environment_to_meta(meta)
     meta.environment = env
     meta.dummy_stance = env.dummy_stance
     meta.dummy_action_type = env.dummy_action_type
+    meta.dummy_jump_type = env.dummy_jump_type
     meta.dummy_guard_type = env.dummy_guard_type
 
     if environment_requests_dummy_crouch(env) then
@@ -3566,49 +3566,24 @@ local function apply_trial_training_environment(skip_refresh_settings)
     local apply_refresh_settings = skip_refresh_settings ~= true
     if apply_refresh_settings then unique_resources.apply_recorded() end
     local first_step = trial_state.sequence and trial_state.sequence[1]
-    local snapshot_gauges = type(first_step) == "table" and first_step.snapshot_gauges or nil
-    local scene_state = type(first_step) == "table" and first_step.scene_state or nil
-    local recorded_by = type(first_step) == "table" and tonumber(first_step.recorded_by or (scene_state and scene_state.recorded_by) or 0) or 0
-    local defender_side = recorded_by == 1 and "p1" or "p2"
-    local scene_defender = scene_state and scene_state.players and scene_state.players[defender_side] or nil
-    local scene_defender_status = type(scene_defender) == "table" and scene_defender.status or nil
-    local scene_defender_resources = type(scene_defender) == "table" and scene_defender.resources or nil
-    local defender_burnout = (type(snapshot_gauges) == "table" and snapshot_gauges.defender_burnout == true)
-        or (type(scene_defender_status) == "table" and scene_defender_status.burnout == true)
-    if apply_refresh_settings and defender_burnout then
-        local attacker_idx = tonumber(trial_state.playing_player or 0) or 0
-        local defender_idx = 1 - attacker_idx
-        local tm = sdk.get_managed_singleton("app.training.TrainingManager")
-        local t_data = tm and tm:get_field("_tData")
-        local parameter_setting = t_data and t_data:get_field("ParameterSetting")
-        local player_datas = parameter_setting and parameter_setting.PlayerDatas
-        local defender_params = player_datas and player_datas[defender_idx]
-        if defender_params then
-            if type(trial_state._saved_drive_settings) ~= "table" then
-                trial_state._saved_drive_settings = {}
-            end
-            if trial_state._saved_drive_settings[defender_idx] == nil then
-                local saved_drive = {}
-                for _, field_name in ipairs(DRIVE_SETTING_FIELDS) do
-                    local value = defender_params[field_name]
-                    if value ~= nil then saved_drive[field_name] = value end
-                end
-                if next(saved_drive) ~= nil then trial_state._saved_drive_settings[defender_idx] = saved_drive end
-            end
-            local defender_drive = math.max(0, tonumber(
-                type(snapshot_gauges) == "table" and snapshot_gauges.defender_drive
-                    or (type(scene_defender_resources) == "table" and scene_defender_resources.drive)
-            ) or 0)
-            defender_params.DG_Point = defender_drive
-            defender_params.DG_Stock = math.floor((defender_drive + 5000) / 10000)
-            defender_params.Is_DG_Break = true
-            if tm then tm._IsReqRefresh = true end
-        end
-    end
-    if trial_requires_dummy_crouch() then
+    ComboTrialsModules.SceneStateRuntime.apply(
+        first_step,
+        trial_state.playing_player,
+        trial_state,
+        apply_refresh_settings
+    )
+    local dummy_action_type, dummy_jump_type, dummy_action_source =
+        ComboTrialsModules.TrainingEnvironment.resolve_dummy_action(first_step)
+    trial_state._dummy_action_source = dummy_action_source
+    if dummy_action_type ~= nil then
+        set_dummy_action_type(dummy_action_type, dummy_jump_type)
+    elseif trial_requires_dummy_crouch() then
         set_dummy_action_type(DUMMY_ACTION_CROUCH)
     else
-        set_dummy_action_type(DUMMY_ACTION_STAND)
+        set_dummy_action_type(
+            DUMMY_ACTION_STAND,
+            ComboTrialsModules.TrainingEnvironment.DUMMY_JUMP.VERTICAL
+        )
     end
     set_dummy_counter_type(first_ct or 0)
     local dummy_guard_type = ct_trial_dummy_guard_type()
@@ -4239,7 +4214,7 @@ function CTTimelineSequenceNormalizer.clone_step(step)
     local clone = {}
     for k, v in pairs(step) do
         if k ~= "_xt_meta" and k ~= "_wtt_cn_meta" and k ~= "timeline"
-            and k ~= "scene_state" and k ~= "snapshot_gauges" then
+            and k ~= "scene_state" then
             if k == "motion_aliases" and type(v) == "table" then
                 local aliases = {}
                 for i, alias in ipairs(v) do aliases[i] = alias end
@@ -4483,9 +4458,9 @@ ComboTrials_Files.init(ctx, {
 local function load_combo_from_file(path, force)
     restore_dummy_action_type()
     local ok = ComboTrials_Files.load_combo_from_file(path, force)
-    if ok and type(read_attacker_hp_restore_snapshot) == "function"
+    if ok and type(read_actor_scene_hp) == "function"
         and type(restore_hp_training_setting_if_needed) == "function" then
-        local snapshot = read_attacker_hp_restore_snapshot()
+        local snapshot = read_actor_scene_hp()
         if type(snapshot) ~= "table" then
             restore_hp_training_setting_if_needed("load_plain_trial", trial_state.playing_player)
         end
@@ -4758,7 +4733,6 @@ local function start_recording(player_idx)
     trial_state.first_action_pos_p2 = nil
     trial_state.first_action_pos_p1_raw = nil
     trial_state.first_action_pos_p2_raw = nil
-    trial_state._rec_hp_snapshot = capture_trial_hp_snapshot(player_idx)
     apply_forced_position(true) -- skip_mirror: record in normal position
 
     trial_state._rec_gauges = nil
@@ -4782,7 +4756,7 @@ local function start_trial(player_idx)
         trial_state._pending_attacker_hp = nil
         trial_state._hp_inject_frames = 0
     else
-        local starting_hp_snapshot = type(read_attacker_hp_restore_snapshot()) == "table"
+        local starting_hp_snapshot = type(read_actor_scene_hp()) == "table"
         restore_trial_vital(starting_hp_snapshot)
         unique_resources.restore()
     end
@@ -4794,7 +4768,6 @@ local function start_trial(player_idx)
     invalidate_recording_display_context()
     trial_state._raw_rec_active = false
     trial_state._rec_gauges = nil
-    trial_state._rec_hp_snapshot = nil
     trial_state._rec_hit_type = nil
     trial_state._rec_environment = nil
     trial_state._rec_scene_state = nil
@@ -4852,7 +4825,6 @@ local function cancel_recording()
     trial_state._xt_pending_save_error = nil
     trial_state._rec_environment = nil
     trial_state._rec_scene_state = nil
-    trial_state._rec_hp_snapshot = nil
     trial_state._raw_rec_active = false
     trial_state._raw_rec_buffer = {}
     clear_recording_logger(canceled_player)
@@ -5105,11 +5077,19 @@ function ct_dev_minimal_hp_test_sequence()
                 tags = { "dev", "hp_restore" },
                 schema = 1
             },
-            snapshot_gauges = {
-                attacker = {
-                    current_hp = 1000,
-                    max_hp = 10000,
-                    heal_hp = 1000
+            scene_state = {
+                schema = "xt.combo_trial.scene.v2",
+                recorded_by = 0,
+                players = {
+                    p1 = {
+                        fighter_id = 21,
+                        resources = {
+                            hp = 1000
+                        }
+                    },
+                    p2 = {
+                        fighter_id = 1
+                    }
                 }
             }
         }
@@ -5174,13 +5154,17 @@ function ct_dev_patch_hp_test_sequence(sequence)
         first._xt_meta.note = dev_note
     end
 
-    local snapshot = type(first.snapshot_gauges) == "table" and first.snapshot_gauges or {}
-    snapshot.attacker = {
-        current_hp = 1000,
-        max_hp = 10000,
-        heal_hp = 1000
-    }
-    first.snapshot_gauges = snapshot
+    local scene = type(first.scene_state) == "table" and first.scene_state or {}
+    local recorded_by = tonumber(first.recorded_by or scene.recorded_by) == 1 and 1 or 0
+    local actor_side = recorded_by == 1 and "p2" or "p1"
+    scene.schema = "xt.combo_trial.scene.v2"
+    scene.recorded_by = recorded_by
+    scene.players = type(scene.players) == "table" and scene.players or {}
+    scene.players[actor_side] = type(scene.players[actor_side]) == "table" and scene.players[actor_side] or {}
+    scene.players[actor_side].resources = type(scene.players[actor_side].resources) == "table"
+        and scene.players[actor_side].resources or {}
+    scene.players[actor_side].resources.hp = 1000
+    first.scene_state = scene
     return out, nil
 end
 
@@ -6780,7 +6764,7 @@ local function ct_player_tracking(p_idx, p_state)
     and trial_state._rec_pending_snapshot and trial_state._rec_pending_snapshot > 0 then
     trial_state._rec_pending_snapshot = trial_state._rec_pending_snapshot - 1
     if trial_state._rec_pending_snapshot == 0 then
-    trial_state._rec_gauges = snapshot_gauges(p_idx)
+    trial_state._rec_gauges = capture_recording_gauges(p_idx)
     -- At this point vital_new = character's real max_hp, so damage is calculated from 100%
     end
     end
@@ -8540,11 +8524,7 @@ local function ct_player_process_actions(p_idx, p_state, actions_to_process)
                                 expected.expected_hp,
                                 process_act.current_hp,
                                 is_post_hit_setup_step((trial_state.current_step or 1) - 1),
-                                expected,
-                                Validator.build_hp_context(
-                                    trial_state.sequence,
-                                    trial_state.current_step or 1
-                                )
+                                expected
                             ) or nil
                             match_probe.action_match = {
                                 matched = action_match.matched,
@@ -8708,11 +8688,7 @@ local function ct_player_process_actions(p_idx, p_state, actions_to_process)
                                                 chain_expected.expected_hp,
                                                 process_act.current_hp,
                                                 is_post_hit_setup_step(chain_step - 1),
-                                                chain_expected,
-                                                Validator.build_hp_context(
-                                                    trial_state.sequence,
-                                                    chain_step
-                                                )
+                                                chain_expected
                                             )
                                             chain_record.chain_combo_ok = chain_combo_ok
                                             chain_record.chain_hp_ok = chain_hp_ok
@@ -9599,27 +9575,6 @@ function save_trial_sequence(meta)
             stats.super_used = math.max(0, init.attacker_super - (init.min_atk_super or init.attacker_super))
         end
         trial_state.sequence[1].combo_stats = stats
-        if init and init.defender_burnout == true then
-            local snapshot = trial_state.sequence[1].snapshot_gauges
-            if type(snapshot) ~= "table" then snapshot = {} end
-            snapshot.defender_burnout = true
-            snapshot.defender_drive = tonumber(init.defender_drive) or 0
-            trial_state.sequence[1].snapshot_gauges = snapshot
-        end
-        local hp_init = trial_state._rec_hp_snapshot
-        local hp_attacker = (type(hp_init) == "table" and hp_init.attacker) or (init and init.hp_attacker) or nil
-        local hp_victim = (type(hp_init) == "table" and hp_init.victim) or (init and init.hp_victim) or nil
-        if hp_snapshot_is_damaged(hp_attacker) or hp_snapshot_is_damaged(hp_victim) then
-            local snapshot = trial_state.sequence[1].snapshot_gauges
-            if type(snapshot) ~= "table" then snapshot = {} end
-            if hp_snapshot_is_damaged(hp_attacker) then
-                snapshot.attacker = copy_hp_snapshot(hp_attacker)
-            end
-            if hp_snapshot_is_damaged(hp_victim) then
-                snapshot.victim = copy_hp_snapshot(hp_victim)
-            end
-            trial_state.sequence[1].snapshot_gauges = snapshot
-        end
         if trial_state.sequence[1].counter_type == nil or trial_state.sequence[1].counter_type == 0 then
             local first_hit_counter_type = tonumber(trial_state._rec_first_hit_counter_type) or 0
             if first_hit_counter_type ~= 0 then
@@ -9630,7 +9585,6 @@ function save_trial_sequence(meta)
             trial_state.sequence[1].raw_input_file = logger_state.last_export_name
         end
         trial_state._rec_gauges = nil
-        trial_state._rec_hp_snapshot = nil
         trial_state._rec_hit_type = nil
         trial_state._rec_first_hit_counter_type = nil
     end
@@ -9830,71 +9784,20 @@ CTStunDemoRuntime = CTStunDemoRuntime or {}
 function CTStunDemoRuntime.needs_state_restore()
     local first = trial_state.sequence and trial_state.sequence[1]
     if type(first) ~= "table" then return false end
-    local gauges = first.snapshot_gauges
     return first.has_piyo == true
-        or (type(gauges) == "table" and gauges.defender_burnout == true)
-end
-
-function CTStunDemoRuntime.get_training_player_params(player_idx)
-    local out = get_training_parameter_probe_objects(player_idx)
-    if type(out) ~= "table" then out = {} end
-    if not out.player_params and out.parameter_setting and out.parameter_setting.PlayerDatas then
-        pcall(function() out.player_params = out.parameter_setting.PlayerDatas[player_idx] end)
-    end
-    return out
-end
-
-function CTStunDemoRuntime.save_drive_settings_once(player_idx, player_params)
-    if not player_params then return end
-    if type(trial_state._saved_drive_settings) ~= "table" then
-        trial_state._saved_drive_settings = {}
-    end
-    if trial_state._saved_drive_settings[player_idx] ~= nil then return end
-
-    local saved_drive = {}
-    for _, field_name in ipairs(DRIVE_SETTING_FIELDS) do
-        local value = player_params[field_name]
-        if value ~= nil then saved_drive[field_name] = value end
-    end
-    if next(saved_drive) ~= nil then trial_state._saved_drive_settings[player_idx] = saved_drive end
+        or type(first.scene_state) == "table"
 end
 
 function CTStunDemoRuntime.restore_pre_demo_state()
     if not CTStunDemoRuntime.needs_state_restore() then return false end
 
     local first = trial_state.sequence and trial_state.sequence[1]
-    local gauges = type(first) == "table" and first.snapshot_gauges or nil
-    if not (type(gauges) == "table" and gauges.defender_burnout == true) then return false end
-
-    local attacker_idx = tonumber(trial_state.playing_player or 0) or 0
-    if attacker_idx ~= 1 then attacker_idx = 0 end
-    local defender_idx = 1 - attacker_idx
-    local objects = CTStunDemoRuntime.get_training_player_params(defender_idx)
-    local params = objects.player_params
-    if not params then return false end
-
-    local tm = objects.tm or sdk.get_managed_singleton("app.training.TrainingManager")
-    local refresh_before = tm and tm:get_field("_IsReqRefresh") == true
-    local defender_drive = math.max(0, tonumber(gauges.defender_drive) or 0)
-    local defender_stock = math.floor((defender_drive + 5000) / 10000)
-
-    CTStunDemoRuntime.save_drive_settings_once(defender_idx, params)
-    pcall(function() params.DG_Point = defender_drive end)
-    pcall(function() params.DG_Stock = defender_stock end)
-    pcall(function() params.Is_DG_Break = true end)
-
-    if objects.param_func then
-        pcall(function() objects.param_func:call("SetDGDetailPoint", defender_idx, defender_drive) end)
-        pcall(function() objects.param_func:call("SetDGStock", defender_idx, defender_stock) end)
-    end
-
-    local defender = (defender_idx == 1) and GS.p2 or GS.p1
-    if defender then pcall(function() defender.focus_new = defender_drive end) end
-
-    if tm and refresh_before ~= true and tm:get_field("_IsReqRefresh") == true then
-        pcall(function() tm:set_field("_IsReqRefresh", false) end)
-    end
-    return true
+    return ComboTrialsModules.SceneStateRuntime.apply(
+        first,
+        trial_state.playing_player,
+        trial_state,
+        false
+    )
 end
 
 function CTStunDemoRuntime.advance_timeline_frames(frame_count)
@@ -9999,7 +9902,6 @@ local function start_demo(opts)
     end
     if not trial_state.sequence or #trial_state.sequence == 0 then return false end
     local first_stun_step = trial_state.sequence[1]
-    local first_stun_gauges = type(first_stun_step) == "table" and first_stun_step.snapshot_gauges or nil
     local raw_inputs = CTJsonInterop.normalize_raw_inputs(type(first_stun_step) == "table" and first_stun_step.raw_inputs or nil)
     local timeline = type(first_stun_step) == "table" and first_stun_step.timeline or nil
     local raw_mode_mismatch = false
@@ -10010,7 +9912,7 @@ local function start_demo(opts)
     local manual_stun_demo_required = type(first_stun_step) == "table"
         and first_stun_step.has_piyo == true
         and not use_raw_inputs
-        and not (type(first_stun_gauges) == "table" and first_stun_gauges.defender_burnout == true)
+        and not ComboTrialsModules.SceneState.defender_is_burnout(first_stun_step)
     if manual_stun_demo_required and not _G._allow_stun_demo then return false end
 
     if use_raw_inputs then

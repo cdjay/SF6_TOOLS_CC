@@ -1,8 +1,8 @@
-# SF6 Combo Trial File Format — Versioned Specification (DRAFT v2, rev 2)
+# SF6 Combo Trial File Format — v2.0.0 (FROZEN)
 
-> Joint specification proposal for WTT/SF6_Tools and SF6_TOOLS_CC (+ SF6CM), so
+> Joint specification for WTT/SF6_Tools and SF6_TOOLS_CC (+ SF6CM), so
 > combo files recorded in either project replay in the other, permanently.
-> Status: **draft under review** — rev 2 incorporates the first review pass.
+> Status: **frozen**. Editorial corrections do not change schema 2.
 
 ## 1. Goals
 
@@ -32,11 +32,11 @@ file-level payloads:
 | `motion` | string | Display/matching notation ("5HP", "236+P", "> 214+P"…) |
 | `motion_aliases` | string[]? | Extra notations accepted by the matcher (§3d) |
 | `expected_combo` | int | Combo counter expected after the previous step |
-| `expected_hp` | int? | Victim HP expected at this step (validation, NOT the starting HP — see §3c) |
+| `expected_hp` | int? | Combo actor HP expected at this step (validation, NOT either player's starting HP — see §3c) |
 | `delay_from_prev` | int | Frames between this step and the previous one |
 | `counter_type` | int | 0 normal / 1 CH / 2 PC required on this step |
 | `victim_pose` | int? | 0 stand / 1 crouch (live pose at recording) |
-| `dummy_action_type`, `dummy_jump_type` | int? | Configured dummy behavior (step 1) |
+| `dummy_action_type`, `dummy_jump_type` | int? | Configured dummy behavior (step 1). Action: 0 stand / 1 crouch / 2 jump. Jump: 0 vertical / 1 front / 2 back / 3 random |
 | `is_holdable`, `hold_frames`, `hold_partial_check` | — | Hold system |
 | `dual_threshold`, `is_projectile_hit`, `group_id`, `facing_left` | — | Matching helpers |
 | `validation_role` | string? | e.g. `"pressure_tail"` (CC) |
@@ -68,6 +68,7 @@ file-level payloads:
     "versions": {
         "game":     { "id": "sf6", "version": "1.14.2" },
         "recorder": { "id": "wtt", "version": "2.9.0" },
+        "framework":{ "id": "reframework", "version": "1.5.9.1" },
         "json":     { "id": "xt.combo_trial", "version": "2.0.0" }
     },
     "environment": { ... }
@@ -78,7 +79,8 @@ file-level payloads:
   breaking change (field renamed/retyped/removed).
 - `versions.*`: structured `{ id, version }` objects. `game` covers act-id
   drift between patches; `recorder` identifies the producing tool
-  (`wtt`, `sf6cc`, `sf6cm`); `json` is the format version.
+  (`wtt`, `sf6cc`, `sf6cm`); optional `framework` identifies the host runtime;
+  `json` is the format version.
   **RESOLVED (review pass 1):** format id is the neutral `xt.combo_trial`;
   the `id` field MAY be omitted on the `json` entry (the format is already
   identified by `schema` + this spec) — `"json": { "version": "2.0.0" }`
@@ -201,3 +203,4 @@ able to declare equivalences explicitly:
 | 1 | 2026-06 | `_xt_meta` introduced (author/title/tags/created_at) |
 | 2 rev 1 | 2026-07-13 | `versions` block, `language`, `control_mode`, `environment`, `raw_inputs`, `scene_state`, `motion_aliases`, explicit-preconditions principle, compat rules |
 | 2 rev 2 | 2026-07-14 | Review pass 1: `resources`/`status` in scene_state (start state ≠ consumption), `step_notes`, ISO 8601 + `updated_at`, structured `versions` objects, raw_inputs optionality + timeline status + no-batch-conversion rules |
+| 2.0.0 errata | 2026-07-26 | Freeze status; clarify actual `expected_hp` actor semantics; document optional REFramework host version. No JSON layout change. |

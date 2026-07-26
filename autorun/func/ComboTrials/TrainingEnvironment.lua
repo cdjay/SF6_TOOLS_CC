@@ -1,6 +1,86 @@
 local TrainingEnvironment = {
-    name = "ComboTrials.TrainingEnvironment"
+    name = "ComboTrials.TrainingEnvironment",
+    DUMMY_ACTION = {
+        STAND = 0,
+        CROUCH = 1,
+        JUMP = 2,
+    },
+    DUMMY_JUMP = {
+        VERTICAL = 0,
+        FRONT = 1,
+        BACK = 2,
+        RANDOM = 3,
+    },
 }
+
+local function optional_int(value)
+    local number = tonumber(value)
+    if number == nil then return nil end
+    return math.floor(number)
+end
+
+local function action_from_stance(value)
+    if type(value) ~= "string" then return nil end
+    local text = value:lower()
+    if text == "stand" or text == "standing" then
+        return TrainingEnvironment.DUMMY_ACTION.STAND
+    end
+    if text == "crouch" or text == "crouching" then
+        return TrainingEnvironment.DUMMY_ACTION.CROUCH
+    end
+    if text == "jump" or text == "jumping" or text == "airborne" then
+        return TrainingEnvironment.DUMMY_ACTION.JUMP
+    end
+    return nil
+end
+
+function TrainingEnvironment.resolve_dummy_action(first_step)
+    first_step = type(first_step) == "table" and first_step or {}
+    local meta = type(first_step._xt_meta) == "table" and first_step._xt_meta or nil
+    local env = meta and type(meta.environment) == "table" and meta.environment or nil
+
+    for _, candidate in ipairs({
+        { value = first_step, source = "step" },
+        { value = meta, source = "meta" },
+        { value = env, source = "environment" },
+    }) do
+        local value = candidate.value
+        if type(value) == "table" then
+            local action_type = optional_int(value.dummy_action_type)
+            if action_type ~= nil then
+                return action_type, optional_int(value.dummy_jump_type), candidate.source
+            end
+        end
+    end
+
+    for _, candidate in ipairs({
+        { value = first_step, source = "step_stance" },
+        { value = meta, source = "meta_stance" },
+        { value = env, source = "environment_stance" },
+    }) do
+        local value = candidate.value
+        if type(value) == "table" then
+            local action_type = action_from_stance(value.dummy_stance)
+            if action_type ~= nil then
+                return action_type, TrainingEnvironment.DUMMY_JUMP.VERTICAL, candidate.source
+            end
+        end
+    end
+
+    local scene = type(first_step.scene_state) == "table" and first_step.scene_state or nil
+    local players = scene and type(scene.players) == "table" and scene.players or nil
+    if players then
+        local recorded_by = tonumber(first_step.recorded_by or scene.recorded_by) == 1 and 1 or 0
+        local defender = players[recorded_by == 1 and "p1" or "p2"]
+        local status = type(defender) == "table" and defender.status or nil
+        local action_type = action_from_stance(type(status) == "table" and status.stance or nil)
+        if action_type ~= nil then
+            return action_type, TrainingEnvironment.DUMMY_JUMP.VERTICAL, "scene_defender_stance"
+        end
+    end
+
+    return nil, nil, "unrecorded"
+end
 
 local function valid_guard_type(value)
     local guard_type = tonumber(value)

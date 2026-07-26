@@ -1,4 +1,5 @@
 local Transport = require("func/Training_Telemetry")
+local SF6CCVersion = require("func/SF6CC_Version")
 
 local Telemetry = {}
 Telemetry.__index = Telemetry
@@ -7,7 +8,7 @@ Telemetry.ATTEMPT_SCHEMA = "sf6cc.hit_confirm_attempt.v1"
 Telemetry.SESSION_SCHEMA = "sf6cc.hit_confirm_session.v1"
 Telemetry.OUTPUT_DIR = "SF6_TrainingRemoteControl_data/HitConfirmTelemetry"
 Telemetry.OUTPUT_FILE = Telemetry.OUTPUT_DIR .. "/events.jsonl"
-Telemetry.MOD_VERSION = "1.0.2"
+Telemetry.MOD_VERSION = SF6CCVersion.PRODUCT_VERSION
 
 local function case_identity(case)
     local followups = {}

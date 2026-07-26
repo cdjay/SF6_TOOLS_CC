@@ -6,6 +6,7 @@ local sdk = sdk
 local imgui = imgui
 local json = json
 require("func/SharedHooks") -- error registry (_G.safe_load_json) + shared hooks
+local SF6CCVersion = require("func/SF6CC_Version")
 local RuntimeSafety = require("func/RuntimeSafety")
 local GS = require("func/GameState")
 local UIKit = require("func/UIKit")
@@ -1005,7 +1006,8 @@ re.on_draw_ui(function()
     local _has_errors = _errs and _errs.count > 0
     if _has_errors then imgui.push_style_color(0, 0xFF0000FF) end
     local _tsm_open = styled_header(
-        "小吞街霸6全能训练MOD包 v1.0.2" .. (_has_errors and " [!]" or ""),
+        "小吞街霸6全能训练MOD包 v" .. SF6CCVersion.PRODUCT_VERSION
+            .. (_has_errors and " [!]" or ""),
         UI_THEME.hdr_root
     )
     if _has_errors then imgui.pop_style_color(1) end

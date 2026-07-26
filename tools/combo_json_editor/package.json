@@ -1,0 +1,11 @@
+{
+    "name": "sf6cc-combo-json-editor",
+    "version": "1.0.0",
+    "private": true,
+    "description": "SF6CC 连段 JSON 元数据编辑器（本地离线单页工具）",
+    "scripts": {
+        "dev": "node server.mjs",
+        "start": "node server.mjs",
+        "test": "node test_editor_ui_contract.mjs && node test_combo_json_core.mjs && node test_character_catalog.mjs && node test_unique_resource_catalog.mjs && node test_file_name_sort.mjs"
+    }
+}

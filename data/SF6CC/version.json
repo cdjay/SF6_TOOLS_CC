@@ -1,0 +1,14 @@
+{
+  "schema": "sf6cc.product_version.v1",
+  "product": {
+    "id": "sf6cc",
+    "version": "1.0.2"
+  },
+  "formats": {
+    "combo_trial": {
+      "id": "xt.combo_trial",
+      "version": "2.0.0",
+      "schema": 2
+    }
+  }
+}

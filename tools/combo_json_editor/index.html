@@ -1,0 +1,339 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>SF6CC 连段 JSON 元数据编辑器 (Combo JSON Metadata Editor)</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header>
+    <div>
+        <div class="eyebrow">SF6CC 维护工具 (MAINTAINER TOOL)</div>
+        <h1>连段 JSON <span>元数据编辑器 (Metadata Editor)</span></h1>
+        <p>可编辑元数据、训练环境与资源快照 (metadata/environment/snapshots)；机制字段保持只读。</p>
+    </div>
+    <div class="header-actions">
+        <button id="openDirectory" class="primary">打开目录 (Open directory)</button>
+        <button id="openFiles">打开文件 (Open files)</button>
+        <input id="fileInput" type="file" accept=".json,application/json" multiple>
+        <button id="upgradeAll" disabled>全部升级到 v2 (Upgrade all)</button>
+        <button id="batchVersions" disabled>安全批量编辑 (Safe batch edit)</button>
+        <button id="saveAll" disabled>原地保存全部 (Save all)</button>
+        <button id="exportAll" disabled>导出全部修改 (Export all)</button>
+    </div>
+</header>
+
+<section class="summary-bar">
+    <div><strong id="fileCount">0</strong><span>文件 (Files)</span></div>
+    <div><strong id="legacyCount">0</strong><span>待升级 (Legacy)</span></div>
+    <div><strong id="changedCount">0</strong><span>已修改 (Changed)</span></div>
+    <div><strong id="errorCount">0</strong><span>异常 (Errors)</span></div>
+    <div class="path" id="rootLabel">尚未打开目录 (No directory opened)</div>
+</section>
+
+<main>
+    <aside class="panel sidebar">
+        <div class="sidebar-tools">
+            <input id="search" type="search" placeholder="搜索角色、标题、作者或文件名 (Search)">
+            <select id="characterFilter">
+                <option value="all">全部角色文件夹 (All character folders)</option>
+            </select>
+            <select id="statusFilter">
+                <option value="all">全部状态 (All states)</option>
+                <option value="legacy">待升级 (Legacy)</option>
+                <option value="changed">已修改 (Changed)</option>
+                <option value="warning">有警告 (Warnings)</option>
+            </select>
+        </div>
+        <div id="fileList" class="file-list">
+            <div class="empty">打开 CustomCombos 目录开始审核 (Open the directory to begin)</div>
+        </div>
+    </aside>
+
+    <section class="workspace">
+        <div id="welcome" class="panel welcome">
+            <div class="mark">JSON</div>
+            <h2>本地、离线、无上传 (Local, offline, no upload)</h2>
+            <p>推荐通过“打开目录 (Open directory)”载入文件，以便原地保存；普通文件模式只能下载导出。</p>
+        </div>
+
+        <div id="editor" hidden>
+            <div class="panel file-header">
+                <div>
+                    <div id="currentPath" class="mono"></div>
+                    <div id="currentStatus" class="badges"></div>
+                </div>
+                <div class="actions">
+                    <button id="upgradeCurrent">升级当前文件 (Upgrade)</button>
+                    <button id="applyCurrent" class="primary">应用表单修改 (Apply)</button>
+                    <button id="saveCurrent">保存当前文件 (Save)</button>
+                    <button id="downloadCurrent">下载 (Download)</button>
+                </div>
+            </div>
+
+            <nav class="tabs" aria-label="编辑区域 (Editor sections)">
+                <button class="active" data-tab="metadata">基础元数据 (Metadata)</button>
+                <button data-tab="environment">环境与资源 (Environment)</button>
+                <button data-tab="notes">步骤备注 (Step notes)</button>
+                <button data-tab="mechanism">机制只读 (Mechanism)</button>
+                <button data-tab="raw">JSON 预览 (Preview)</button>
+            </nav>
+
+            <section class="panel tab-panel active" data-panel="metadata">
+                <div class="form-grid">
+                    <label class="span2">标题 (title)<input id="title"></label>
+                    <label>作者 (author)<input id="author"></label>
+                    <label>角色 (character，只读)<input id="character" readonly title="角色由 JSON 内容固定，不可在编辑器中修改 (Fixed by JSON content)"></label>
+                    <label>语言 (language)
+                        <select id="language">
+                            <option value="und">未确定 (und)</option>
+                            <option value="zh-CN">简体中文 (zh-CN)</option>
+                            <option value="zh-TW">繁体中文 (zh-TW)</option>
+                            <option value="en">英语 (en)</option>
+                            <option value="ja">日语 (ja)</option>
+                            <option value="ko">韩语 (ko)</option>
+                        </select>
+                    </label>
+                    <label>控制模式 (control_mode)
+                        <select id="controlMode">
+                            <option value="unknown">未确认 (unknown)</option>
+                            <option value="classic">经典 (classic)</option>
+                            <option value="modern">现代 (modern)</option>
+                        </select>
+                    </label>
+                    <label class="span2">评分 (rating)
+                        <select id="rating">
+                            <option value="">未记录 (Not recorded)</option>
+                            <option value="0">0</option><option value="1">1</option><option value="2">2</option>
+                            <option value="3">3</option><option value="4">4</option><option value="5">5</option>
+                        </select>
+                    </label>
+                    <label>分类 (category)<input id="category"></label>
+                    <label>创建时间 (created_at)<input id="createdAt"></label>
+                    <label>更新时间 (updated_at)<input id="updatedAt"></label>
+                    <label class="wide">标签 (tags；逗号或换行分隔)<textarea id="tags" rows="2"></textarea></label>
+                    <label class="wide">说明 (note)<textarea id="note" rows="5"></textarea></label>
+                </div>
+                <div class="schema-card four">
+                    <div><span>元数据规范 (schema)</span><strong id="metaSchema"></strong></div>
+                    <div><span>JSON 格式 (json version)</span><strong id="jsonVersion"></strong></div>
+                    <div><span>录制器 (recorder)</span><strong id="recorderVersion"></strong></div>
+                    <div><span>框架 (framework)</span><strong id="frameworkVersion"></strong></div>
+                </div>
+            </section>
+
+            <section class="panel tab-panel" data-panel="environment">
+                <h2>木人与训练环境 (Dummy &amp; training environment)</h2>
+                <p class="hint">木人动作是唯一入口：选择后自动生成 dummy_stance / dummy_action_type / dummy_jump_type / requires_dummy_crouch，无需重复编辑。</p>
+                <div class="env-rows">
+                    <label>木人动作 (dummy action)
+                        <select id="dummyAction">
+                            <option value="">未记录 (Not recorded)</option>
+                            <option value="stand">站立 (stand)</option>
+                            <option value="crouch">蹲下 (crouch)</option>
+                            <option value="jump">跳跃 (jump)</option>
+                        </select>
+                    </label>
+                    <label id="dummyJumpRow" hidden>跳跃方向 (jump type)
+                        <select id="dummyJumpKind">
+                            <option value="0">原地 (vertical)</option>
+                            <option value="1">前跳 (front)</option>
+                            <option value="2">后跳 (back)</option>
+                            <option value="3">随机 (random)</option>
+                        </select>
+                    </label>
+                    <label>防御类型 (dummy_guard_type)
+                        <select id="dummyGuardType">
+                            <option value="">未记录 (Not recorded)</option>
+                            <option value="0">不防御 (0 · none)</option>
+                            <option value="2">首击后防御 (2 · after_first_hit)</option>
+                            <option value="3">全部防御 (3 · all)</option>
+                            <option value="4">随机防御 (4 · random)</option>
+                        </select>
+                    </label>
+                    <label>防御名称 (dummy_guard)
+                        <select id="dummyGuard">
+                            <option value="">未记录 (Not recorded)</option>
+                            <option value="none">不防御 (none)</option>
+                            <option value="after_first_hit">首击后防御 (after_first_hit)</option>
+                            <option value="all">全部防御 (all)</option>
+                            <option value="random">随机防御 (random)</option>
+                        </select>
+                    </label>
+                </div>
+
+                <h2>双方初始场景 (Initial scene state)</h2>
+                <p class="hint">在旧 scene.v1 上录入资源或状态时会提升为 scene.v2，原有特殊资源不会丢失 (Editing resources/status upgrades scene.v1 to scene.v2 without losing unique resources)。</p>
+                <div class="player-grid">
+                    <div class="subpanel" data-side="p1">
+                        <h3 id="p1SideLabel">玩家一 (P1)</h3>
+                        <div class="mini-grid">
+                            <label class="wide">角色 (fighter_id)<select id="p1FighterId"></select></label>
+                            <div class="field-row">
+                                <span>生命 (hp)</span>
+                                <input id="p1Hp" type="number">
+                                <div id="p1HpQuick" class="quick-sets"></div>
+                            </div>
+                            <div class="field-row">
+                                <span>斗气 (drive，0–6 格)</span>
+                                <input id="p1Drive" type="number" min="0" max="6" step="0.5">
+                                <div id="p1DriveQuick" class="quick-sets"></div>
+                            </div>
+                            <div class="field-row">
+                                <span>必杀技量表 (SA，0–3 格)</span>
+                                <input id="p1Super" type="number" min="0" max="3">
+                                <div id="p1SuperQuick" class="quick-sets"></div>
+                            </div>
+                            <label class="wide row-field">虚损 (burnout)<select id="p1Burnout"><option value="">未记录 (Not recorded)</option><option value="true">是 (true)</option><option value="false">否 (false)</option></select></label>
+                            <div class="wide resource-field">
+                                <span>角色特殊资源 (unique)</span>
+                                <div id="p1Unique" class="unique-resource-list"></div>
+                                <details id="p1UniqueUnknownWrap" class="unknown-resource">
+                                    <summary>未知扩展资源 (Unknown resource fields)</summary>
+                                    <textarea id="p1UniqueUnknown" rows="4" spellcheck="false"></textarea>
+                                </details>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="subpanel" data-side="p2">
+                        <h3 id="p2SideLabel">玩家二 (P2)</h3>
+                        <div class="mini-grid">
+                            <label class="wide">角色 (fighter_id)<select id="p2FighterId"></select></label>
+                            <div class="field-row">
+                                <span>生命 (hp)</span>
+                                <input id="p2Hp" type="number">
+                                <div id="p2HpQuick" class="quick-sets"></div>
+                            </div>
+                            <div class="field-row">
+                                <span>斗气 (drive，0–6 格)</span>
+                                <input id="p2Drive" type="number" min="0" max="6" step="0.5">
+                                <div id="p2DriveQuick" class="quick-sets"></div>
+                            </div>
+                            <div class="field-row">
+                                <span>必杀技量表 (SA，0–3 格)</span>
+                                <input id="p2Super" type="number" min="0" max="3">
+                                <div id="p2SuperQuick" class="quick-sets"></div>
+                            </div>
+                            <label class="wide row-field">虚损 (burnout)<select id="p2Burnout"><option value="">未记录 (Not recorded)</option><option value="true">是 (true)</option><option value="false">否 (false)</option></select></label>
+                            <div class="wide resource-field">
+                                <span>角色特殊资源 (unique)</span>
+                                <div id="p2Unique" class="unique-resource-list"></div>
+                                <details id="p2UniqueUnknownWrap" class="unknown-resource">
+                                    <summary>未知扩展资源 (Unknown resource fields)</summary>
+                                    <textarea id="p2UniqueUnknown" rows="4" spellcheck="false"></textarea>
+                                </details>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <h2>兼容生命快照 (snapshot_gauges)</h2>
+                <p class="hint">生命 (hp) 会同步写入 scene_state.resources.hp 与此快照；冲突时以 scene_state 为准。攻击方/受击方由 recorded_by 推导。</p>
+                <div class="player-grid">
+                    <div class="subpanel">
+                        <h3>攻击方 (attacker)</h3>
+                        <div class="mini-grid three">
+                            <label>当前生命 (current_hp)<input id="attackerCurrentHp" type="number"></label>
+                            <label>最大生命 (max_hp)<input id="attackerMaxHp" type="number"></label>
+                            <label>恢复生命 (heal_hp)<input id="attackerHealHp" type="number"></label>
+                        </div>
+                    </div>
+                    <div class="subpanel">
+                        <h3>受击方 (victim)</h3>
+                        <div class="mini-grid three">
+                            <label>当前生命 (current_hp)<input id="victimCurrentHp" type="number"></label>
+                            <label>最大生命 (max_hp)<input id="victimMaxHp" type="number"></label>
+                            <label>恢复生命 (heal_hp)<input id="victimHealHp" type="number"></label>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="panel tab-panel" data-panel="notes">
+                <div class="section-heading">
+                    <div><h2>步骤备注 (step_notes)</h2><p class="hint">与步骤数组严格按索引对齐 (aligned by step index)。</p></div>
+                    <strong id="stepCount"></strong>
+                </div>
+                <div id="stepNotes" class="step-notes"></div>
+            </section>
+
+            <section class="panel tab-panel" data-panel="mechanism">
+                <div class="section-heading">
+                    <div><h2>机制字段 (Mechanism fields)</h2><p class="hint">仅用于审核，不可编辑 (read-only)。</p></div>
+                </div>
+                <div class="table-wrap">
+                    <table>
+                        <thead><tr><th>#</th><th>动作 ID (id)</th><th>指令 (motion)</th><th>延迟 (delay_from_prev)</th><th>连击数 (expected_combo)</th><th>生命 (expected_hp)</th><th>反击 (counter_type)</th><th>分组 (group_id)</th></tr></thead>
+                        <tbody id="mechanismRows"></tbody>
+                    </table>
+                </div>
+            </section>
+
+            <section class="panel tab-panel" data-panel="raw">
+                <div class="section-heading">
+                    <div><h2>当前工作副本 (Working copy)</h2><p class="hint">预览只读 (read-only)；请通过表单修改。</p></div>
+                    <button id="copyJson">复制 JSON (Copy)</button>
+                </div>
+                <pre id="rawJson"></pre>
+            </section>
+        </div>
+    </section>
+</main>
+
+<dialog id="batchDialog">
+    <form method="dialog">
+        <div class="dialog-heading">
+            <div>
+                <div class="eyebrow">安全批量编辑 (SAFE BATCH EDIT)</div>
+                <h2>安全批量编辑 (Safe batch edit)</h2>
+            </div>
+            <button value="cancel">关闭 (Close)</button>
+        </div>
+        <p class="hint">每组字段必须显式勾选后才会覆盖；作者、角色、时间、资源和木人状态不提供全库批量覆盖 (Only checked fields are overwritten; unsafe fields are excluded)。</p>
+        <div class="form-grid">
+            <label>作用范围 (scope)
+                <select id="batchScope">
+                    <option value="all">全部已载入文件 (All loaded files)</option>
+                    <option value="filtered">当前筛选结果 (Filtered files)</option>
+                </select>
+            </label>
+            <label>游戏 ID (game.id)<input id="batchGameId" value="sf6"></label>
+            <label>游戏版本 (game.version)<input id="batchGameVersion" value="2026-05-28"></label>
+            <label>MOD/录制器 ID (recorder.id)<input id="batchRecorderId" value="sf6cc"></label>
+            <label>MOD/录制器版本 (recorder.version)<input id="batchRecorderVersion" value="1.0.0"></label>
+            <label>框架 ID (framework.id)<input id="batchFrameworkId" value="reframework"></label>
+            <label>框架版本 (framework.version)<input id="batchFrameworkVersion" value="1.5.9.1"></label>
+            <label>JSON 版本 (json.version)<input value="xt.combo_trial / 2.0.0" disabled></label>
+        </div>
+        <div class="batch-metadata">
+            <label class="checkline"><input id="batchLanguageEnabled" type="checkbox" checked>覆盖语言 (language)</label>
+            <label>语言 (language)
+                <select id="batchLanguage">
+                    <option value="zh-CN">简体中文 (zh-CN)</option>
+                    <option value="zh-TW">繁体中文 (zh-TW)</option>
+                    <option value="en">英语 (en)</option>
+                    <option value="ja">日语 (ja)</option>
+                    <option value="ko">韩语 (ko)</option>
+                    <option value="und">未确定 (und)</option>
+                </select>
+            </label>
+            <label class="checkline"><input id="batchControlEnabled" type="checkbox" checked>覆盖控制模式 (control_mode)</label>
+            <label>控制模式 (control_mode)
+                <select id="batchControlMode">
+                    <option value="classic">经典 (classic)</option>
+                    <option value="modern">现代 (modern)</option>
+                    <option value="unknown">未确认 (unknown)</option>
+                </select>
+            </label>
+        </div>
+        <div class="dialog-actions">
+            <button id="applyBatchVersions" type="button" class="primary">应用到工作副本 (Apply)</button>
+        </div>
+    </form>
+</dialog>
+
+<div id="toast" role="status" aria-live="polite"></div>
+<script type="module" src="app.mjs"></script>
+</body>
+</html>

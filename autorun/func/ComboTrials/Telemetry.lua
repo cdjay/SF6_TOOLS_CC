@@ -1,12 +1,14 @@
 -- Anonymous, append-only combo attempt telemetry for the external tray uploader.
 -- This module never performs network requests and never stores account identity.
 
+local SF6CCVersion = require("func/SF6CC_Version")
+
 local Telemetry = {
     SCHEMA = "sf6cc.combo_attempt.v1",
     IDENTITY_SCHEMA = "sf6cc.combo_identity.v1",
     OUTPUT_DIR = "SF6_TrainingRemoteControl_data/ComboTrialTelemetry",
     OUTPUT_FILE = "SF6_TrainingRemoteControl_data/ComboTrialTelemetry/events.jsonl",
-    MOD_VERSION = "1.0.2"
+    MOD_VERSION = SF6CCVersion.PRODUCT_VERSION
 }
 
 local UINT32 = 0xffffffff

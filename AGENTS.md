@@ -100,14 +100,16 @@ Use the checked-in packaging program instead of manually assembling release file
 Manual command:
 
 ```powershell
-tools\package_release.bat -Version <version> -Force
+tools\bump_version.bat -Part Patch
+tools\package_release.bat -Force
 ```
 
 Version rules:
 
-* Every release package must explicitly pass the intended target version with `-Version`.
+* `data/SF6CC/version.json` is the only product-version source used by Lua runtime code and the release packager.
+* Choose a future release explicitly with `tools\bump_version.bat -Part Major|Minor|Patch` or `-Version <semantic-version>`, then review and commit the version file before packaging.
+* The packager reads the canonical product version. Its optional `-Version` parameter is only a consistency assertion and must match the canonical version.
 * Do not use "latest package" as a release target. Do not infer a release version from `sf6cm_manifest.json`, Lua UI text, folder names, zip names, Git tags, or previous artifacts.
-* The current release target is `0.99`. Future release versions must be chosen explicitly; do not infer them from existing artifacts or manifests.
 * `0.9a` is the online stable release and must be treated as immutable. Normal release packaging must not rebuild or overwrite `0.9a`.
 * Rebuilding an immutable stable release requires an explicit special override and must be done from the corresponding tag, commit, or isolated worktree, never silently from the current development `HEAD`.
 
@@ -117,7 +119,7 @@ Default behavior:
 * The game release directory is only an explicit optional target, for example `-OutputDir "D:\Program Files (x86)\Steam\steamapps\common\Street Fighter 6\reframework\release"`.
 * Do not treat the game release directory as the default publishing directory.
 * The script creates `XiaoTun_SF6_TrainingMOD_v<version>.zip`, `XiaoTun_SF6_TrainingMOD_v<version>_runtime.zip`, unpacked folders for both packages, and `sf6cm_manifest_v<version>.json`.
-* The command-line `-Version`, output folder, zip file names, and generated manifest version must all match.
+* The canonical product version, optional command-line `-Version` assertion, output folder, zip file names, and generated manifest version must all match.
 * If the version output directory or target package files already exist, packaging fails by default.
 * `-Force` may overwrite an existing version output only after backing it up to `release\backups\<version>_<timestamp>\`.
 * `-DryRun` must show the planned version, branch, commit, output directory, source manifest version, package file names, existing artifacts, and overwrite status without generating package files.
@@ -128,7 +130,7 @@ Default behavior:
 * New package-source files must be tracked by Git before packaging; untracked files under those package-source directories make the script fail.
 * Runtime state, ignored files, repository `release/`, old ZIPs, dumps, and temporary build output must not be included.
 
-If the user asks to package a release and does not need Codex to run it, provide the command above. If Codex is explicitly asked to package, run this script rather than doing manual copy or ZIP steps.
+If the user asks to package a release and does not need Codex to run it, provide the packaging command above. If Codex is explicitly asked to package, run this script rather than doing manual copy or ZIP steps.
 
 ---
 
