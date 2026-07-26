@@ -718,14 +718,14 @@ main {
     border-radius: var(--sf6-radius-sm);
     background: color-mix(in srgb, var(--sf6-brand) 4%, transparent);
 }
-/* 右侧独立木人菜单使用淡紫色，与 P1 / P2 场景卡明确分区。 */
+/* 右侧独立木人菜单使用淡紫色，与 P1 / P2 场景卡明确分区。
+   外框只由 #dummyMenuPanel 提供，内部内容容器不得再生成第二层边框。 */
 .dummy-menu-panel { min-width: 0; }
 .dummy-env {
-    padding: 10px 12px;
-    border: 1px solid color-mix(in srgb, var(--sf6-menu) 38%, transparent);
-    border-left: 3px solid var(--sf6-menu);
-    border-radius: var(--sf6-radius-sm);
-    background: color-mix(in srgb, var(--sf6-menu) 5%, transparent);
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
 }
 .dummy-env > span:first-child {
     color: var(--sf6-menu);

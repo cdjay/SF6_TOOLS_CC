@@ -148,5 +148,10 @@ for (const selector of ["#p1ScenePanel", "#p2ScenePanel", "#dummyMenuPanel"]) {
 assert.match(styles, /--sf6-setting-modified:\s*#ff9f2f/);
 assert.match(styles, /\.select-stepper\.is-modified select/);
 assert.match(styles, /\.select-stepper\.is-unrecorded select/);
+assert.match(
+    styles,
+    /\.dummy-env\s*\{[\s\S]*?border:\s*0;/,
+    "dummy menu content must not create a second outer border"
+);
 
 console.log("editor UI contract tests passed");
