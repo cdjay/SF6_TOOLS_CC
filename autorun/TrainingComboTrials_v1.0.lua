@@ -17,7 +17,8 @@ local ComboTrialsModules = {
     SceneState = require("func/ComboTrials/SceneState"),
     SceneStateRuntime = require("func/ComboTrials/SceneStateRuntime"),
     PendingAbsorb = require("func/ComboTrials/PendingAbsorb"),
-    Telemetry = require("func/ComboTrials/Telemetry")
+    Telemetry = require("func/ComboTrials/Telemetry"),
+    CommandResolver = require("func/ComboTrials/CommandResolver")
 }
 local DebugTrace = ComboTrialsModules.DebugTrace
 local ActionMatcher = ComboTrialsModules.ActionMatcher
@@ -86,64 +87,7 @@ local INPUT_DIR_MAP = {
     [10] = "1",
     [15] = "*"
 }
-local BTN_MASKS = { [16] = "LP", [32] = "MP", [64] = "HP", [128] = "LK", [256] = "MK", [512] = "HK" }
-
-local function decode_transition_button_mask(mask)
-    mask = (tonumber(mask) or 0) & 0xFFF0
-    local punch_count = ((mask & 16) ~= 0 and 1 or 0)
-        + ((mask & 32) ~= 0 and 1 or 0) + ((mask & 64) ~= 0 and 1 or 0)
-    local kick_count = ((mask & 128) ~= 0 and 1 or 0)
-        + ((mask & 256) ~= 0 and 1 or 0) + ((mask & 512) ~= 0 and 1 or 0)
-    if punch_count > 0 and kick_count == 0 then return punch_count >= 2 and "PP" or "P" end
-    if kick_count > 0 and punch_count == 0 then return kick_count >= 2 and "KK" or "K" end
-    local parts = {}
-    for _, bit in ipairs({ 16, 32, 64, 128, 256, 512 }) do
-        if (mask & bit) ~= 0 then table.insert(parts, BTN_MASKS[bit]) end
-    end
-    return table.concat(parts, "+")
-end
-
-local PLAYER_TRANSITION_INPUT_WINDOW = 12
-local function find_recent_action_button_edge(history, parent_start_frame, current_frame, window)
-    if type(history) ~= "table" then return 0 end
-    parent_start_frame = tonumber(parent_start_frame) or -1
-    current_frame = tonumber(current_frame) or parent_start_frame
-    window = tonumber(window) or PLAYER_TRANSITION_INPUT_WINDOW
-    for i = #history, 1, -1 do
-        local entry = history[i]
-        local frame_tick = tonumber(type(entry) == "table" and entry.frame_tick) or -1
-        if (current_frame - frame_tick) > window then break end
-        -- Only edges pressed after the parent action began can describe a
-        -- derived cancel. This excludes the P edge that launched 214+P.
-        if frame_tick <= parent_start_frame then break end
-        local button_edge = (tonumber(entry.mask) or 0) & 0xFFF0
-        if button_edge ~= 0 then return button_edge end
-    end
-    return 0
-end
-
--- A resolved catalog entry means the action was deliberately admitted by the
--- BCM base table or its curated exception aliases.  Some stance normals use
--- flags=16/action_code=0 even when the player pressed an attack button, so the
--- generic intentionality heuristic alone incorrectly discards them.
 local ComboTrials_Renderer
-local function resolve_unified_command_action(character, action_id, direct_input, newly_pressed)
-    local buttons = (tonumber(direct_input) or 0) & 0xFFF0
-    if not ComboTrials_Renderer or not ComboTrials_Renderer.get_command_display then
-        return false, "resolver_unavailable", nil
-    end
-    local ok, display, status = pcall(ComboTrials_Renderer.get_command_display, character, action_id, "classic")
-    if not ok then return false, "resolver_error", nil end
-    if status == "suppress_transition" then
-        local transition_button = decode_transition_button_mask(newly_pressed)
-        if transition_button ~= "" then
-            return true, "player_input_transition", ">" .. transition_button .. " (取消)"
-        end
-        return false, status, nil
-    end
-    local is_player_command = buttons ~= 0 and type(display) == "string" and display ~= ""
-    return is_player_command, status, display
-end
 
 local esf_names_map = {
     ["ESF_001"] = "Ryu",
@@ -7760,9 +7704,9 @@ local function ct_player_input_buffer(p_state)
     local action_input_edge = newly_pressed & 0xFFF0
     local restart_input_edge = action_input_edge
     if restart_input_edge == 0 then
-        restart_input_edge = find_recent_action_button_edge(
+        restart_input_edge = ComboTrialsModules.CommandResolver.find_recent_action_button_edge(
             p_state.input_history_queue, p_state.buffer_start_frame,
-            engine_frame_count, PLAYER_TRANSITION_INPUT_WINDOW)
+            engine_frame_count, ComboTrialsModules.CommandResolver.PLAYER_TRANSITION_INPUT_WINDOW)
     end
     local repeat_expected = trial_state.is_playing
         and p_state == players[trial_state.playing_player]
@@ -7867,9 +7811,9 @@ local function ct_player_input_buffer(p_state)
             -- command owner is a real player command. State/resource branches
             -- can replace it within the ghost window (for example, a status-
             -- dependent follow-up); the later action must not erase the command.
-            local buffered_is_catalog_command = resolve_unified_command_action(
+            local buffered_is_catalog_command = ComboTrialsModules.CommandResolver.resolve_unified_command_action(
                 p_state.profile_name, p_state.buffer_act_id, p_state.buffer_direct_input,
-                p_state.buffer_newly_pressed)
+                p_state.buffer_newly_pressed, ComboTrials_Renderer)
 
             if duration > 0 and duration < ghost_wait and p_state.buffer_act_id > 50
                 and not is_alex_exempt and not buffered_is_catalog_command then
@@ -7885,8 +7829,10 @@ local function ct_player_input_buffer(p_state)
                         new_is_intentional = true
                     end
                 end
-                local new_is_catalog_command, new_command_status = resolve_unified_command_action(
-                    p_state.profile_name, _pf.act_id, _pf.direct_input, action_input_edge)
+                local new_is_catalog_command, new_command_status =
+                    ComboTrialsModules.CommandResolver.resolve_unified_command_action(
+                        p_state.profile_name, _pf.act_id, _pf.direct_input, action_input_edge,
+                        ComboTrials_Renderer)
                 if not new_is_intentional and new_is_catalog_command then
                     new_is_intentional = true
                 end
@@ -8091,8 +8037,10 @@ local function ct_player_process_actions(p_idx, p_state, actions_to_process)
             local deep_data = nil
             local best_match = nil
             local is_facing_left = false
-            local unified_command_action, unified_command_status, unified_classic_motion = resolve_unified_command_action(
-                p_state.profile_name, act_id, direct_input, process_act.newly_pressed)
+            local unified_command_action, unified_command_status, unified_classic_motion =
+                ComboTrialsModules.CommandResolver.resolve_unified_command_action(
+                    p_state.profile_name, act_id, direct_input, process_act.newly_pressed,
+                    ComboTrials_Renderer)
 
             if act_id > 50 or act_id == 17 or act_id == 18 or act_id == 36 or act_id == 37 or act_id == 38 then
                 is_trackable = true

@@ -5,6 +5,8 @@ local function read_all(path)
     return value:gsub("\r\n", "\n")
 end
 
+local command_resolver = dofile("autorun/func/ComboTrials/CommandResolver.lua")
+
 -- Load only the pure resolver functions from the active ImGui renderer; do not
 -- boot REFramework globals or exercise backend-specific drawing code.
 local renderer_source = read_all("autorun/func/ComboTrials_ImGui.lua")
@@ -180,42 +182,51 @@ assert(pending_source:find("._runtime_action_id = actual_id", 1, true),
     "matched steps must retain the runtime SA3/CA variant for final completion")
 assert(pending_source:find("._runtime_combo_on_match = combo_count", 1, true),
     "matched steps must retain the combo baseline used to confirm the first super hit")
-local resolver_block = assert(main_source:match(
-    "(local function decode_transition_button_mask.-\nend)\n\nlocal esf_names_map"))
-ComboTrials_Renderer = {
+local renderer = {
     get_command_display = function(_, action_id)
         if action_id == 906 then return nil, "suppress_transition" end
         if action_id == 901 then return "214+MP", "strict_route" end
         return nil, "action_id_missing"
     end
 }
-resolver_block = resolver_block:gsub(
-    "local ComboTrials_Renderer", "local ComboTrials_Renderer = _G.ComboTrials_Renderer", 1)
-assert(load(resolver_block
-    .. "\n_G.resolve_unified_command_action = resolve_unified_command_action"
-    .. "\n_G.find_recent_action_button_edge = find_recent_action_button_edge",
-    "recording-command-resolution", "t", _G))()
 
-local recent_edge = find_recent_action_button_edge({
+local recent_edge = command_resolver.find_recent_action_button_edge({
     { frame_tick = 100, mask = 32 },  -- MP launched the parent 214+MP
     { frame_tick = 105, mask = 128 }  -- K requested the derived cancel
 }, 100, 106, 12)
 assert(recent_edge == 128, "a delayed cancel must recover the newest post-parent button edge")
-assert(find_recent_action_button_edge({ { frame_tick = 100, mask = 32 } }, 100, 106, 12) == 0,
+assert(command_resolver.find_recent_action_button_edge(
+        { { frame_tick = 100, mask = 32 } }, 100, 106, 12) == 0,
     "the parent attack button must never be reinterpreted as a cancel")
-assert(find_recent_action_button_edge({ { frame_tick = 90, mask = 128 } }, 100, 106, 12) == 0,
+assert(command_resolver.find_recent_action_button_edge(
+        { { frame_tick = 90, mask = 128 } }, 100, 106, 12) == 0,
     "a stale pre-parent button must never produce a derived cancel")
 
-local intentional, route_status, classic = resolve_unified_command_action("AnyCharacter", 901, 32, 32)
+local intentional, route_status, classic = command_resolver.resolve_unified_command_action(
+    "AnyCharacter", 901, 32, 32, renderer)
 assert(intentional == true and route_status == "strict_route" and classic == "214+MP",
     "a physical catalog command must remain intentional")
 
-intentional, route_status, classic = resolve_unified_command_action("AnyCharacter", 906, 0, 0)
+intentional, route_status, classic = command_resolver.resolve_unified_command_action(
+    "AnyCharacter", 906, 0, 0, renderer)
 assert(intentional == false and route_status == "suppress_transition" and classic == nil,
     "a zero-input internal transition must be non-intentional in every control mode")
 
-intentional, route_status, classic = resolve_unified_command_action("AnyCharacter", 906, 128, 128)
+intentional, route_status, classic = command_resolver.resolve_unified_command_action(
+    "AnyCharacter", 906, 128, 128, renderer)
 assert(intentional == true and route_status == "player_input_transition" and classic == ">K (取消)",
     "a physical button edge must recover a player-triggered cancel without character-specific IDs")
+
+intentional, route_status, classic = command_resolver.resolve_unified_command_action(
+    "AnyCharacter", 901, 32, 32, nil)
+assert(intentional == false and route_status == "resolver_unavailable" and classic == nil,
+    "a missing renderer must retain the resolver-unavailable fallback")
+
+intentional, route_status, classic = command_resolver.resolve_unified_command_action(
+    "AnyCharacter", 901, 32, 32, {
+        get_command_display = function() error("resolver failure") end
+    })
+assert(intentional == false and route_status == "resolver_error" and classic == nil,
+    "a renderer error must retain the resolver-error fallback")
 
 print("combo command resolution tests passed")
