@@ -139,22 +139,24 @@
                         <h3 id="p1SideLabel">玩家一 (P1)</h3>
                         <div class="mini-grid">
                             <label class="wide">角色 (fighter_id)<select id="p1FighterId"></select></label>
-                            <div class="field-row">
-                                <span>生命 (hp)</span>
-                                <input id="p1Hp" type="number">
-                                <div id="p1HpQuick" class="quick-sets"></div>
+                            <div class="field-row gauge-field health-field">
+                                <span class="field-label">生命槽 <small>(HP gauge · hp)</small></span>
+                                <div class="health-gauge-control">
+                                            <div id="p1HpGauge" class="resource-segments hp-segments gauge-track" role="group" aria-label="玩家一生命槽 (P1 HP gauge)"></div>
+                                    <input id="p1Hp" type="number" min="0" max="11000" step="1" inputmode="numeric" aria-label="玩家一生命值 (P1 HP)">
+                                </div>
                             </div>
-                            <div class="field-row">
-                                <span>斗气 (drive，0–6 格)</span>
-                                <input id="p1Drive" type="number" min="0" max="6" step="0.5">
-                                <div id="p1DriveQuick" class="quick-sets"></div>
+                            <div class="field-row gauge-field drive-gauge-field">
+                                <span class="field-label">斗气槽 <small>(Drive gauge · drive)</small></span>
+                                <input id="p1Drive" type="hidden">
+                                <div id="p1DriveQuick" class="quick-sets resource-segments drive-segments" role="group" aria-label="玩家一斗气槽 (P1 Drive gauge)"></div>
+                                <label class="drive-burnout-field row-field"><span>虚损 (burnout)</span><select id="p1Burnout"><option value="false">否 (false)</option><option value="true">是 (true)</option></select></label>
                             </div>
-                            <div class="field-row">
-                                <span>必杀技量表 (SA，0–3 格)</span>
-                                <input id="p1Super" type="number" min="0" max="3">
-                                <div id="p1SuperQuick" class="quick-sets"></div>
+                            <div class="field-row gauge-field">
+                                <span class="field-label">超级必杀槽 <small>(Super Art gauge · super)</small></span>
+                                <input id="p1Super" type="hidden">
+                                <div id="p1SuperQuick" class="quick-sets resource-segments super-segments" role="group" aria-label="玩家一超级必杀槽 (P1 Super Art gauge)"></div>
                             </div>
-                            <label class="wide row-field">虚损 (burnout)<select id="p1Burnout"><option value="false">否 (false)</option><option value="true">是 (true)</option></select></label>
                             <div class="wide resource-field unique-focus">
                                 <span>角色特殊资源 (unique)</span>
                                 <div id="p1Unique" class="unique-resource-list"></div>
@@ -169,22 +171,24 @@
                         <h3 id="p2SideLabel">玩家二 (P2)</h3>
                         <div class="mini-grid">
                             <label class="wide">角色 (fighter_id)<select id="p2FighterId"></select></label>
-                            <div class="field-row">
-                                <span>生命 (hp)</span>
-                                <input id="p2Hp" type="number">
-                                <div id="p2HpQuick" class="quick-sets"></div>
+                            <div class="field-row gauge-field health-field">
+                                <span class="field-label">生命槽 <small>(HP gauge · hp)</small></span>
+                                <div class="health-gauge-control">
+                                            <div id="p2HpGauge" class="resource-segments hp-segments gauge-track" role="group" aria-label="玩家二生命槽 (P2 HP gauge)"></div>
+                                    <input id="p2Hp" type="number" min="0" max="11000" step="1" inputmode="numeric" aria-label="玩家二生命值 (P2 HP)">
+                                </div>
                             </div>
-                            <div class="field-row">
-                                <span>斗气 (drive，0–6 格)</span>
-                                <input id="p2Drive" type="number" min="0" max="6" step="0.5">
-                                <div id="p2DriveQuick" class="quick-sets"></div>
+                            <div class="field-row gauge-field drive-gauge-field">
+                                <span class="field-label">斗气槽 <small>(Drive gauge · drive)</small></span>
+                                <input id="p2Drive" type="hidden">
+                                <div id="p2DriveQuick" class="quick-sets resource-segments drive-segments" role="group" aria-label="玩家二斗气槽 (P2 Drive gauge)"></div>
+                                <label class="drive-burnout-field row-field"><span>虚损 (burnout)</span><select id="p2Burnout"><option value="false">否 (false)</option><option value="true">是 (true)</option></select></label>
                             </div>
-                            <div class="field-row">
-                                <span>必杀技量表 (SA，0–3 格)</span>
-                                <input id="p2Super" type="number" min="0" max="3">
-                                <div id="p2SuperQuick" class="quick-sets"></div>
+                            <div class="field-row gauge-field">
+                                <span class="field-label">超级必杀槽 <small>(Super Art gauge · super)</small></span>
+                                <input id="p2Super" type="hidden">
+                                <div id="p2SuperQuick" class="quick-sets resource-segments super-segments" role="group" aria-label="玩家二超级必杀槽 (P2 Super Art gauge)"></div>
                             </div>
-                            <label class="wide row-field">虚损 (burnout)<select id="p2Burnout"><option value="false">否 (false)</option><option value="true">是 (true)</option></select></label>
                             <div class="wide resource-field unique-focus">
                                 <span>角色特殊资源 (unique)</span>
                                 <div id="p2Unique" class="unique-resource-list"></div>

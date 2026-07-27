@@ -179,6 +179,90 @@ for (const id of ["resultDamage", "resultDriveUsed", "resultSuperUsed", "resultH
 }
 assert.match(app, /comboStats\.damage/);
 
+// 场景资源按游戏 HUD 表达：生命槽可点击并可手输，斗气 / SA 只保留格子交互。
+for (const side of ["p1", "p2"]) {
+    assert.match(
+        html,
+        new RegExp(`id="${side}HpGauge" class="resource-segments hp-segments gauge-track" role="group"`),
+        `${side} HP must expose a segmented clickable gauge`
+    );
+    assert.match(
+        html,
+        new RegExp(`id="${side}Hp" type="number" min="0" max="11000"`),
+        `${side} HP must retain direct numeric entry`
+    );
+    for (const resource of ["Drive", "Super"]) {
+        assert.match(
+            html,
+            new RegExp(`id="${side}${resource}" type="hidden"`),
+            `${side} ${resource} must be stored without a manual number input`
+        );
+        assert.doesNotMatch(
+            html,
+            new RegExp(`id="${side}${resource}" type="number"`),
+            `${side} ${resource} must not expose manual numeric entry`
+        );
+    }
+}
+assert.match(html, /生命槽 <small>\(HP gauge · hp\)<\/small>/);
+assert.match(html, /斗气槽 <small>\(Drive gauge · drive\)<\/small>/);
+assert.match(html, /超级必杀槽 <small>\(Super Art gauge · super\)<\/small>/);
+for (const side of ["p1", "p2"]) {
+    assert.match(
+        html,
+        new RegExp(
+            `<div class="field-row gauge-field drive-gauge-field">[\\s\\S]*?id="${side}DriveQuick"[\\s\\S]*?class="drive-burnout-field row-field"[\\s\\S]*?id="${side}Burnout"[\\s\\S]*?<\\/div>`
+        ),
+        `${side} burnout must be contained inside the Drive gauge frame`
+    );
+}
+assert.match(styles, /\.drive-burnout-field\s*\{[\s\S]*?grid-column:\s*1 \/ -1/);
+assert.match(app, /const HP_GAUGE_MAX = 11000/);
+assert.match(app, /const HP_GAUGE_LOW = 2000/);
+assert.match(app, /const HP_GAUGE_SEGMENTS = 10/);
+assert.match(app, /function hpGaugeMaxForSide/);
+assert.match(app, /snapshot_gauges\?\.\[role\]\?\.max_hp/);
+assert.match(app, /renderHealthGauge\(side\)/);
+assert.match(app, /length: HP_GAUGE_SEGMENTS/, "HP gauge must render ten segments");
+assert.match(app, /track\.className = "gauge-track"/, "Drive and Super segments must share one connected track");
+assert.match(app, /track\.append\(\.\.\.segments\)/, "connected tracks must contain every clickable segment");
+assert.match(app, /renderSegmentGauge\(side, "Drive", 6\)/);
+assert.match(app, /renderSegmentGauge\(side, "Super", 3\)/);
+assert.match(app, /current === value \? value - 1 : value/, "clicking the last filled segment must allow zero");
+assert.match(app, /syncHealthGauge/, "manual HP entry must update its visual gauge");
+assert.match(styles, /\.hp-segments\.is-low/);
+assert.match(styles, /\.drive-segments \{ --gauge-fill:/);
+assert.match(app, /resource === "Drive"[\s\S]*?classList\.toggle\(\s*"is-burnout"/);
+assert.match(app, /Burnout`\)\.value === "true"/, "Drive burnout styling must follow the side's burnout field");
+assert.match(styles, /\.drive-segments\.is-burnout\s*\{[\s\S]*?--gauge-fill:\s*#c7ced8/);
+assert.doesNotMatch(
+    styles,
+    /\.drive-segments\.is-burnout\s*\{[^}]*--gauge-empty:/s,
+    "burnout must recolor only filled Drive segments and preserve visible empty slots"
+);
+assert.match(styles, /--gauge-empty:\s*#485365/, "unfilled gauge tracks must use a visible gray");
+assert.match(styles, /\.gauge-track\s*\{[\s\S]*?grid-template-columns:\s*repeat\(var\(--gauge-segment-count\)/);
+assert.match(styles, /\.gauge-track \.gauge-segment \+ \.gauge-segment/);
+assert.match(styles, /--resource-gauge-height:\s*0\.875rem/);
+assert.match(
+    styles,
+    /\.hp-segments\.gauge-track::after\s*\{[\s\S]*?left:\s*20%;[\s\S]*?border-bottom:\s*6px solid var\(--sf6-warning\)/,
+    "HP must show an upward yellow marker below the boundary between segments two and three"
+);
+assert.match(
+    styles,
+    /\.health-gauge-control,\s*\.drive-segments,\s*\.super-segments\s*\{[\s\S]*?grid-template-columns:\s*minmax\(108px, 1fr\) var\(--resource-gauge-value-width\)/,
+    "HP, Drive, and Super must share exactly the same track and value columns"
+);
+assert.match(styles, /\.gauge-track\s*\{[\s\S]*?clip-path:\s*none/s, "resource tracks must be rectangular");
+assert.match(
+    styles,
+    /\.resource-segments \.gauge-segment,[\s\S]*?border-radius:\s*0;[\s\S]*?clip-path:\s*none/s,
+    "each clickable resource segment must also be rectangular"
+);
+assert.doesNotMatch(styles, /--resource-gauge-slant/, "slanted resource tracks must not return");
+assert.match(styles, /font:\s*var\(--sf6-font-heavy\) 1\.0625rem\/1/);
+
 // 视觉状态：P1 / P2 / 菜单分色，非默认高亮，未记录置灰。
 assert.match(app, /const DUMMY_MENU_DEFAULTS = Object\.freeze/);
 assert.match(app, /dummyGuardCount:\s*"10"/, "guard count 10 must be treated as the game default");

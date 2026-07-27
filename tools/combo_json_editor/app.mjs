@@ -81,6 +81,14 @@ const DUMMY_MENU_DEFAULTS = Object.freeze({
     dummyThrowEscapeType: "0",
     dummyWakeupType: "0"
 });
+const HP_GAUGE_MAX = 11000;
+const HP_GAUGE_LOW = 2000;
+const HP_GAUGE_SEGMENTS = 10;
+const SCENE_RESOURCE_DEFAULTS = Object.freeze({
+    Hp: "10000",
+    Drive: "6",
+    Super: "3"
+});
 
 function toast(message, isError = false) {
     const node = $("toast");
@@ -738,6 +746,16 @@ function sideLabel(side) {
     return side === attackerSide() ? "连段角色" : "木人";
 }
 
+/* 生命槽十格按角色的实际最大生命缩放。快照仅用于取得 max_hp，
+   不参与 scene_state 写回；缺失时回退到常规角色的 10000。 */
+function hpGaugeMaxForSide(record, side) {
+    const role = side === attackerSide() ? "attacker" : "victim";
+    const value = Number(record?.document?.[0]?.snapshot_gauges?.[role]?.max_hp);
+    return Number.isFinite(value) && value >= 9000 && value <= HP_GAUGE_MAX
+        ? value
+        : 10000;
+}
+
 /* 斗气 / 必杀量表：JSON 存储 = 格数 × 10000；界面按格数显示。
    旧版数据可能直接按格数记录（≤6 且非 10000 整数倍），按格数原样显示以便自动修复。 */
 function gaugeToBars(value) {
@@ -746,6 +764,92 @@ function gaugeToBars(value) {
     if (!Number.isFinite(number)) return "";
     if (number % 10000 !== 0 && number > 0 && number <= 6) return String(number);
     return String(number / 10000);
+}
+
+function dispatchValueChange(input) {
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+}
+
+function sceneResourceVisualState(input, resource) {
+    if (input.value.trim() === "") return "unrecorded";
+    return Number(input.value) === Number(SCENE_RESOURCE_DEFAULTS[resource])
+        ? "default"
+        : "modified";
+}
+
+function syncHealthGauge(side) {
+    const input = $(`${side}Hp`);
+    const gauge = $(`${side}HpGauge`);
+    const hasValue = input.value.trim() !== "" && Number.isFinite(Number(input.value));
+    const gaugeMax = Number(gauge.dataset.maxHp) || 10000;
+    const value = hasValue
+        ? Math.max(0, Math.min(gaugeMax, Number(input.value)))
+        : 0;
+    const segmentSize = gaugeMax / HP_GAUGE_SEGMENTS;
+    for (const [index, button] of [...gauge.querySelectorAll(".hp-segment")].entries()) {
+        const segment = (index + 1) * segmentSize;
+        button.dataset.gaugeValue = String(segment);
+        button.setAttribute("aria-label", `生命槽设为 ${segment} HP`);
+        button.title = `设为 ${segment} HP；再次点击可减为 ${segment - segmentSize} HP`;
+        const segmentStart = segment - segmentSize;
+        const fill = hasValue
+            ? Math.max(0, Math.min(segmentSize, value - segmentStart))
+            : 0;
+        const progress = button.querySelector("progress");
+        progress.max = segmentSize;
+        progress.value = fill;
+        button.classList.toggle("is-filled", fill > 0);
+        button.classList.toggle("is-complete", fill >= segmentSize);
+        button.setAttribute("aria-pressed", String(fill > 0));
+    }
+    gauge.classList.toggle("is-low", hasValue && value <= HP_GAUGE_LOW);
+    gauge.classList.toggle("is-unrecorded", !hasValue);
+    gauge.setAttribute("aria-valuemin", "0");
+    gauge.setAttribute("aria-valuemax", String(gaugeMax));
+    gauge.setAttribute("aria-valuenow", hasValue ? String(value) : "0");
+    gauge.setAttribute(
+        "aria-valuetext",
+        hasValue ? `${input.value} HP` : "未记录 (Not recorded)"
+    );
+    setVisualState(
+        gauge.closest(".gauge-field"),
+        sceneResourceVisualState(input, "Hp")
+    );
+}
+
+function syncSegmentGauge(side, resource) {
+    const input = $(`${side}${resource}`);
+    const container = $(`${side}${resource}Quick`);
+    const hasValue = input.value.trim() !== "" && Number.isFinite(Number(input.value));
+    const value = hasValue ? Number(input.value) : 0;
+    if (resource === "Drive") {
+        container.classList.toggle(
+            "is-burnout",
+            $(`${side}Burnout`).value === "true"
+        );
+    }
+    for (const button of container.querySelectorAll(".gauge-segment")) {
+        const segment = Number(button.dataset.gaugeValue);
+        button.classList.toggle("is-filled", hasValue && segment <= value);
+        button.setAttribute("aria-pressed", String(hasValue && segment <= value));
+    }
+    const output = container.querySelector(".gauge-readout");
+    if (output) {
+        output.value = hasValue ? String(value) : "";
+        output.textContent = hasValue ? String(value) : "未记录";
+    }
+    container.classList.toggle("is-unrecorded", !hasValue);
+    setVisualState(
+        container.closest(".gauge-field"),
+        sceneResourceVisualState(input, resource)
+    );
+}
+
+function syncSceneResourceGauges(side) {
+    syncHealthGauge(side);
+    syncSegmentGauge(side, "Drive");
+    syncSegmentGauge(side, "Super");
 }
 
 function getScenePlayer(model, side) {
@@ -837,6 +941,7 @@ function renderSelected() {
         const prefix = side;
         const player = getScenePlayer(model, side);
         setSelectValue(`${prefix}FighterId`, player.fighter_id, "");
+        $(`${prefix}HpGauge`).dataset.maxHp = String(hpGaugeMaxForSide(record, side));
         setValue(`${prefix}Hp`, player.resources?.hp);
         setValue(`${prefix}Drive`, gaugeToBars(player.resources?.drive));
         setValue(`${prefix}Super`, gaugeToBars(player.resources?.super));
@@ -844,6 +949,7 @@ function renderSelected() {
         // 眩晕 / 姿态仅记录，已从表单隐藏并保留 JSON 原值
         setSelectValue(`${prefix}Burnout`, triState(player.status?.burnout), "false");
         renderUniqueResourceEditor(prefix, player.fighter_id, player.unique);
+        syncSceneResourceGauges(side);
     }
     // UniqueData is shared when both sides use the same fighter. Prefer the
     // recorded combo actor when a legacy file contains conflicting values.
@@ -1153,12 +1259,12 @@ function preflightCheck() {
     for (const side of ["p1", "p2"]) {
         const label = `${sideLabel(side)} (${side.toUpperCase()})`;
         const hp = parseOptionalNumber(`${side}Hp`);
-        if (hp !== "" && (hp < 0 || hp > 10000)) {
-            issues.push(`${label} 生命 ${hp} 超出 0–10000 范围（数值单位错误）`);
+        if (hp !== "" && (hp < 0 || hp > HP_GAUGE_MAX)) {
+            issues.push(`${label} 生命槽 ${hp} 超出 0–${HP_GAUGE_MAX} 范围（数值单位错误）`);
         }
         const drive = parseOptionalNumber(`${side}Drive`);
         if (drive !== "" && (drive < 0 || drive > 6)) {
-            issues.push(`${label} 斗气 ${drive} 格超出 0–6 格范围（数值单位错误）`);
+            issues.push(`${label} 斗气槽 ${drive} 格超出 0–6 格范围（数值单位错误）`);
         }
         const burnout = $(`${side}Burnout`).value;
         if (drive === 0 && burnout === "false") {
@@ -1166,7 +1272,7 @@ function preflightCheck() {
         }
         const sa = parseOptionalNumber(`${side}Super`);
         if (sa !== "" && (sa < 0 || sa > 3)) {
-            issues.push(`${label} 必杀技量表 ${sa} 格超出 0–3 格范围（数值单位错误）`);
+            issues.push(`${label} 超级必杀槽 ${sa} 格超出 0–3 格范围（数值单位错误）`);
         }
     }
     if ($("dummyGuardType").value === "5") {
@@ -1179,7 +1285,7 @@ function preflightCheck() {
     for (const side of ["p1", "p2"]) {
         const player = model.scene_state?.players?.[side];
         const label = `${sideLabel(side)} (${side.toUpperCase()})`;
-        for (const [field, name, max] of [["drive", "斗气", 6], ["super", "必杀技量表", 3]]) {
+        for (const [field, name, max] of [["drive", "斗气槽", 6], ["super", "超级必杀槽", 3]]) {
             const raw = player?.resources?.[field];
             if (raw === undefined || raw === null || raw === "") continue;
             const number = Number(raw);
@@ -1338,34 +1444,81 @@ for (const id of [
 /* 虚损与斗气双向联动：是 = 0 格，否 = 6 格。 */
 for (const side of ["p1", "p2"]) {
     $(`${side}Burnout`).addEventListener("change", () => {
-        $(`${side}Drive`).value = $(`${side}Burnout`).value === "true" ? "0" : "6";
+        const drive = $(`${side}Drive`);
+        drive.value = $(`${side}Burnout`).value === "true" ? "0" : "6";
+        dispatchValueChange(drive);
     });
 }
 
-/* 数值快捷按钮：点击直接写入对应数值输入框（仍走既有表单应用/保存路径）。
-   生命按 SF6 满血 10000 计算百分比档位。 */
-function renderQuickSets(containerId, inputId, sets) {
-    const container = $(containerId);
-    const input = $(inputId);
-    if (!container || !input) return;
-    container.replaceChildren(...sets.map(([label, value]) => {
+/* 斗气槽 / 超级必杀槽：点击格子设定库存；再次点击当前最后一格会减一，
+   因而不增加裸数值输入框也能选择 0。 */
+function renderSegmentGauge(side, resource, segmentCount) {
+    const container = $(`${side}${resource}Quick`);
+    const input = $(`${side}${resource}`);
+    const resourceLabel = resource === "Drive" ? "斗气槽 (Drive gauge)" : "超级必杀槽 (Super Art gauge)";
+    const segments = Array.from({ length: segmentCount }, (_, index) => {
+        const value = index + 1;
         const button = document.createElement("button");
         button.type = "button";
-        button.className = "quick-set";
-        button.textContent = label;
+        button.className = "gauge-segment";
+        button.dataset.gaugeValue = String(value);
+        button.setAttribute("aria-label", `${resourceLabel}设为 ${value} 格`);
+        button.title = `设为 ${value} 格；再次点击可减为 ${value - 1} 格`;
         button.onclick = event => {
             event.preventDefault();
-            input.value = String(value);
-            input.dispatchEvent(new Event("input", { bubbles: true }));
-            input.dispatchEvent(new Event("change", { bubbles: true }));
+            const current = Number(input.value);
+            input.value = String(current === value ? value - 1 : value);
+            dispatchValueChange(input);
         };
         return button;
-    }));
+    });
+    const track = document.createElement("div");
+    track.className = "gauge-track";
+    track.style.setProperty("--gauge-segment-count", String(segmentCount));
+    track.append(...segments);
+    const output = document.createElement("output");
+    output.className = "gauge-readout";
+    output.setAttribute("aria-live", "polite");
+    container.replaceChildren(track, output);
+    input.addEventListener("input", () => syncSegmentGauge(side, resource));
+    input.addEventListener("change", () => syncSegmentGauge(side, resource));
+    syncSegmentGauge(side, resource);
 }
+
+function renderHealthGauge(side) {
+    const gauge = $(`${side}HpGauge`);
+    const input = $(`${side}Hp`);
+    gauge.style.setProperty("--gauge-segment-count", String(HP_GAUGE_SEGMENTS));
+    const segments = Array.from({ length: HP_GAUGE_SEGMENTS }, (_, index) => {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "gauge-segment hp-segment";
+        const progress = document.createElement("progress");
+        progress.max = 1000;
+        progress.value = 0;
+        progress.setAttribute("aria-hidden", "true");
+        button.append(progress);
+        button.onclick = event => {
+            event.preventDefault();
+            const value = Number(button.dataset.gaugeValue);
+            const gaugeMax = Number(gauge.dataset.maxHp) || 10000;
+            const segmentSize = gaugeMax / HP_GAUGE_SEGMENTS;
+            const current = Number(input.value);
+            input.value = String(current === value ? value - segmentSize : value);
+            dispatchValueChange(input);
+        };
+        return button;
+    });
+    gauge.replaceChildren(...segments);
+    input.addEventListener("input", () => syncHealthGauge(side));
+    input.addEventListener("change", () => syncHealthGauge(side));
+    syncHealthGauge(side);
+}
+
 for (const side of ["p1", "p2"]) {
-    renderQuickSets(`${side}HpQuick`, `${side}Hp`, [["20%", 2000], ["100%", 10000]]);
-    renderQuickSets(`${side}DriveQuick`, `${side}Drive`, [1, 2, 3, 4, 5, 6].map(n => [String(n), n]));
-    renderQuickSets(`${side}SuperQuick`, `${side}Super`, [1, 2, 3].map(n => [String(n), n]));
+    renderHealthGauge(side);
+    renderSegmentGauge(side, "Drive", 6);
+    renderSegmentGauge(side, "Super", 3);
 }
 
 for (const button of document.querySelectorAll(".tabs button")) {
