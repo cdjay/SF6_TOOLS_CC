@@ -695,7 +695,8 @@ function syncDummyMenuState(fillDefaults = false) {
         if ($("dummyGuardKind").value === "") $("dummyGuardKind").value = "0";
     }
 
-    const driveReversalEnabled = !["", "0"].includes($("dummyDriveReversalType").value);
+    const driveReversalEnabled = guardOptionsEnabled
+        && !["", "0"].includes($("dummyDriveReversalType").value);
     setControlDisabled("dummyDriveReversalDelay", !driveReversalEnabled);
     setControlDisabled("dummyDriveReversalCount", !driveReversalEnabled);
     if (fillDefaults && driveReversalEnabled) {

@@ -107,6 +107,11 @@ assert.match(html, /随机 \(random\)/);
 assert.match(html, /value="2">第2段后格挡 \(2 · after_first_hit\)/);
 assert.doesNotMatch(html, /value="1">(?:首击后防御|第2段后格挡)/);
 assert.match(html, /value="5">计数格挡 \(5 · count\)/);
+assert.match(
+    guardBlock,
+    /value="0">不格挡[\s\S]*value="3">格挡全部[\s\S]*value="5">计数格挡[\s\S]*value="2">第2段后格挡[\s\S]*value="4">随机格挡/,
+    "guard options must follow the native menu order"
+);
 assert.match(html, /id="dummyGuardCountRow" class="dummy-menu-row"/);
 assert.match(html, /id="dummyGuardCount"/);
 assert.match(html, /id="dummyGuardSwitchMode"[\s\S]*value="0">执行 \(execute\)/);
@@ -120,6 +125,11 @@ assert.match(app, /countGuardEnabled && fillDefaults && \$\("dummyGuardCount"\)/
 assert.match(app, /dummyGuardCountRow"\)\.hidden = !countGuardEnabled/);
 assert.match(app, /dummyGuardSwitchModeRow"\)\.hidden = !guardOptionsEnabled/);
 assert.match(app, /dummyGuardKindRow"\)\.hidden = !guardOptionsEnabled/);
+assert.match(
+    app,
+    /const driveReversalEnabled = guardOptionsEnabled\s*&&\s*!\["", "0"\]\.includes/,
+    "drive reversal delay/count must stay disabled when guard is none"
+);
 assert.match(app, /values\.dummy_guard_only_type = parseOptionalNumber\("dummyGuardSwitchMode"\)/);
 assert.match(app, /values\.dummy_drive_parry_type = parseOptionalNumber\("dummyGuardKind"\)/);
 assert.doesNotMatch(app, /values\.dummy_guard_switching\s*=/, "the internal guard bool must be preserved");
@@ -127,6 +137,18 @@ assert.doesNotMatch(app, /\bfillDefault\b/, "dummy menu state must consistently 
 assert.match(html, /T 详细设置：随机打康权重/);
 assert.doesNotMatch(html, /T 详细设置：斗气招架/);
 assert.match(html, /T 详细设置：斗气反攻随机权重/);
+const driveReversalBlock = html.match(/<select id="dummyDriveReversalType">([\s\S]*?)<\/select>/)[1];
+assert.match(
+    driveReversalBlock,
+    /value="0">不执行[\s\S]*value="1">格挡发动[\s\S]*value="2">起身发动[\s\S]*value="3">随机/,
+    "drive reversal options must follow the native menu order"
+);
+const wakeupBlock = html.match(/<select id="dummyWakeupType">([\s\S]*?)<\/select>/)[1];
+assert.match(
+    wakeupBlock,
+    /value="0">原地受身[\s\S]*value="1">后退受身[\s\S]*value="2">随机/,
+    "wakeup options must follow the native menu order"
+);
 assert.match(html, /id="p1Unique" class="unique-resource-list"/);
 assert.match(html, /id="p2Unique" class="unique-resource-list"/);
 // 环境页左栏按“连段角色 → 木人”堆叠，右栏独立展示木人训练菜单
