@@ -11,6 +11,7 @@ local _visible = false
 local _sessions = {}
 local _title = ""
 local _mode = ""  -- "reactions", "hitconfirm", "postguard"
+local _bar_options = {}
 local _font = nil
 local _font_small = nil
 local _font_title = nil
@@ -36,6 +37,7 @@ local COL_CLOSE_HOV = 0x664444FF
 local COL_CLOSE_TXT = 0xFFDADADA
 local COL_HIT       = 0xFFF5C832  -- warm gold (hit confirm)
 local COL_BLK       = 0xFFEE6644  -- coral/salmon (block confirm)
+local COL_SINGLE    = 0xFF44DDFF  -- bright cyan for single-curve/bar mode
 local COL_GRID      = 0xFF1E2233
 local COL_CHART_BG  = 0xFF0A0A14
 local COL_ACCENT    = 0xFF3A3A5A
@@ -261,10 +263,36 @@ function M.show(mode_name, stats_file, parser_type)
     _visible = true
 end
 
+function M.show_bars(title, bars, options)
+    if type(bars) ~= "table" then return false end
+    local normalized = {}
+    for _, source in ipairs(bars) do
+        local value = type(source) == "table" and tonumber(source.value) or nil
+        if value then
+            normalized[#normalized + 1] = {
+                label = tostring(source.label or ""),
+                line1 = tostring(source.line1 or source.label or ""),
+                line2 = tostring(source.line2 or ""),
+                value = math.max(0, value),
+                samples = math.max(0, math.floor(tonumber(source.samples) or 0)),
+                color = tonumber(source.color) or COL_SINGLE,
+            }
+        end
+    end
+    if #normalized == 0 then return false end
+    _sessions = normalized
+    _title = tostring(title or "统计")
+    _mode = "custom_bars"
+    _bar_options = type(options) == "table" and options or {}
+    _visible = true
+    return true
+end
+
 function M.hide()
     _visible = false
     _sessions = {}
     _mode = ""
+    _bar_options = {}
 end
 
 function M.is_visible()
@@ -332,8 +360,6 @@ end
 -- =========================================================
 -- IMGUI: LINE CHART (HitConfirm - hit% & block% curves)
 -- =========================================================
-
-local COL_SINGLE    = 0xFF44DDFF  -- bright cyan for single-curve mode
 
 local function _rec_fill_area_seg(i, c, sx, sy, cy, ch)
     local v = tonumber(_sessions[i][c.key]) or 0
@@ -612,6 +638,147 @@ local function draw_chart(sw, sh, fh, fh_s)
     end
 end
 
+local function nice_damage_axis(max_value)
+    if max_value <= 0 then return 100, 25 end
+    local raw_step = max_value / 4
+    local power = 10 ^ math.floor(math.log(raw_step) / math.log(10))
+    local normalized = raw_step / power
+    local nice = normalized <= 1 and 1
+        or (normalized <= 2 and 2)
+        or (normalized <= 5 and 5)
+        or 10
+    local step = nice * power
+    return step * 4, step
+end
+
+local function draw_bar_chart(sw, sh, fh, fh_s)
+    local n = #_sessions
+    if n <= 0 then return end
+    local L = layout
+    local pad = sh * L.pad
+    local header_h = sh * L.header_h
+    local chart_h = sh * L.chart_h
+    local axis_h = sh * 0.062
+    local footer_h = sh * L.footer_h
+    local panel_w = sw * math.min(0.88, math.max(0.58, 0.40 + n * 0.022))
+    local panel_h = header_h + pad + chart_h + axis_h + footer_h + pad
+    local panel_x = (sw - panel_w) * 0.5
+    local panel_y = sh * L.panel_cy - panel_h * 0.5
+
+    Canvas.fill_rect(panel_x - 1, panel_y - 1, panel_w + 2, panel_h + 2, COL_SHADOW)
+    Canvas.fill_rect(panel_x, panel_y, panel_w, panel_h, COL_BG)
+    Canvas.outline_rect(panel_x, panel_y, panel_w, panel_h, 1, COL_BORDER)
+    draw_header(panel_x, panel_y, panel_w, header_h, fh, pad)
+
+    local margin_l = sw * 0.052
+    local margin_r = sw * 0.016
+    local cx = panel_x + margin_l
+    local cy = panel_y + header_h + pad * 1.4
+    local cw = panel_w - margin_l - margin_r
+    local ch = chart_h
+    Canvas.fill_rect(cx, cy, cw, ch, COL_CHART_BG)
+    Canvas.outline_rect(cx, cy, cw, ch, 1, COL_ACCENT)
+
+    local maximum = 0
+    local total_samples = 0
+    for _, item in ipairs(_sessions) do
+        maximum = math.max(maximum, tonumber(item.value) or 0)
+        total_samples = total_samples + (tonumber(item.samples) or 0)
+    end
+    local axis_max, axis_step = nice_damage_axis(maximum)
+    for index = 0, 4 do
+        local value = axis_step * index
+        local gy = cy + ch - ch * value / axis_max
+        if index > 0 and index < 4 then
+            for gx = cx, cx + cw - 4, 8 do
+                Canvas.fill_rect(gx, gy, 4, 1, COL_GRID)
+            end
+        else
+            Canvas.fill_rect(cx, gy, cw, 1, COL_ACCENT)
+        end
+        local label = tostring(math.floor(value + 0.5))
+        local label_w = measure_text(_font_small, label, fh_s, 0.55)
+        Canvas.text(_font_small, label, cx - label_w - pad * 0.5, gy - fh_s * 0.45, COL_TEXT_DIM)
+    end
+    Canvas.text(
+        _font_small,
+        tostring(_bar_options.y_label or "平均伤害"),
+        panel_x + pad,
+        cy - fh_s * 1.4,
+        COL_TEXT
+    )
+
+    local slot_w = cw / n
+    local bar_w = math.max(4, slot_w * 0.66)
+    local mx, my = -1, -1
+    local mouse_ok, mouse_x, mouse_y = pcall(_rec_get_mouse_xy)
+    if mouse_ok and mouse_x then mx, my = mouse_x, mouse_y end
+    local tooltip = nil
+    for index, item in ipairs(_sessions) do
+        local value = tonumber(item.value) or 0
+        local height = ch * math.min(value / axis_max, 1)
+        local x = cx + (index - 0.5) * slot_w - bar_w * 0.5
+        local y = cy + ch - height
+        local color = tonumber(item.color) or COL_SINGLE
+        Canvas.fill_rect(x, y, bar_w, height, color)
+        Canvas.outline_rect(x, y, bar_w, height, 1, 0xCCFFFFFF)
+
+        local value_text = tostring(math.floor(value + 0.5))
+        local value_w = measure_text(_font_small, value_text, fh_s, 0.55)
+        Canvas.text(_font_small, value_text, x + (bar_w - value_w) * 0.5,
+            math.max(cy, y - fh_s * 1.15), COL_TEXT)
+
+        local center_x = x + bar_w * 0.5
+        local line1_w = measure_text(_font_small, item.line1, fh_s, 0.55)
+        Canvas.text(_font_small, item.line1, center_x - line1_w * 0.5,
+            cy + ch + fh_s * 0.45, COL_TEXT)
+        if item.line2 ~= "" then
+            local line2_w = measure_text(_font_small, item.line2, fh_s, 0.55)
+            Canvas.text(_font_small, item.line2, center_x - line2_w * 0.5,
+                cy + ch + fh_s * 1.65, color)
+        end
+
+        if mx >= x and mx <= x + bar_w and my >= y and my <= cy + ch then
+            tooltip = {
+                x = center_x,
+                y = y,
+                color = color,
+                text = item.label,
+                detail = string.format("平均伤害 %.1f　样本 %d", value, item.samples),
+            }
+        end
+    end
+
+    if tooltip then
+        local width = math.max(
+            measure_text(_font_small, tooltip.text, fh_s, 0.58),
+            measure_text(_font_small, tooltip.detail, fh_s, 0.58)
+        ) + pad * 2
+        local height = fh_s * 2.5 + pad
+        local x = math.max(cx, math.min(cx + cw - width, tooltip.x - width * 0.5))
+        local y = tooltip.y - height - fh_s
+        if y < cy then y = tooltip.y + fh_s end
+        Canvas.fill_rect(x + 2, y + 2, width, height, COL_SHADOW)
+        Canvas.fill_rect(x, y, width, height, 0xF0141420)
+        Canvas.outline_rect(x, y, width, height, 1, tooltip.color)
+        Canvas.text(_font_small, tooltip.text, x + pad, y + pad * 0.35, tooltip.color)
+        Canvas.text(_font_small, tooltip.detail, x + pad,
+            y + pad * 0.35 + fh_s * 1.2, COL_TEXT)
+    end
+
+    local footer_y = panel_y + panel_h - footer_h
+    Canvas.fill_rect(panel_x + pad * 1.5, footer_y, panel_w - pad * 3, 1, COL_ACCENT)
+    local footer = string.format(
+        "%s　样本 %d　资源组合 %d",
+        tostring(_bar_options.x_label or "资源组合（斗气 / SA·CA）"),
+        total_samples,
+        n
+    )
+    local footer_w, footer_text_h = measure_text(_font, footer, fh, 0.66)
+    Canvas.text(_font, footer, panel_x + (panel_w - footer_w) * 0.5,
+        footer_y + (footer_h - footer_text_h) * 0.5, COL_TEXT)
+end
+
 -- =========================================================
 -- IMGUI MAIN DRAW
 -- =========================================================
@@ -659,7 +826,11 @@ local function imgui_draw()
         _last_font_h_title = fh_t
     end
 
-    pcall(draw_chart, sw, sh, fh, fh_s)
+    if _mode == "custom_bars" then
+        pcall(draw_bar_chart, sw, sh, fh, fh_s)
+    else
+        pcall(draw_chart, sw, sh, fh, fh_s)
+    end
 end
 
 -- Expose draw for external overlay (drawn last = on top of everything)

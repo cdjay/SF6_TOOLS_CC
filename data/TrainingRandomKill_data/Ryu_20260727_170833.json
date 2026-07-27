@@ -1,0 +1,977 @@
+{
+  "annotations": {
+    "version": 1,
+    "record_slots": [
+      {
+        "slot": 1,
+        "text": ""
+      },
+      {
+        "slot": 2,
+        "text": ""
+      },
+      {
+        "slot": 3,
+        "text": ""
+      },
+      {
+        "slot": 4,
+        "text": ""
+      },
+      {
+        "slot": 5,
+        "text": ""
+      },
+      {
+        "slot": 6,
+        "text": ""
+      },
+      {
+        "slot": 7,
+        "text": ""
+      },
+      {
+        "slot": 8,
+        "text": ""
+      }
+    ],
+    "reversals": {
+      "down": [
+        {
+          "slot": 1,
+          "text": ""
+        },
+        {
+          "slot": 2,
+          "text": ""
+        },
+        {
+          "slot": 3,
+          "text": ""
+        },
+        {
+          "slot": 4,
+          "text": ""
+        },
+        {
+          "slot": 5,
+          "text": ""
+        },
+        {
+          "slot": 6,
+          "text": ""
+        },
+        {
+          "slot": 7,
+          "text": ""
+        },
+        {
+          "slot": 8,
+          "text": ""
+        },
+        {
+          "slot": 9,
+          "text": ""
+        },
+        {
+          "slot": 10,
+          "text": ""
+        }
+      ],
+      "guard": [
+        {
+          "slot": 1,
+          "text": ""
+        },
+        {
+          "slot": 2,
+          "text": ""
+        },
+        {
+          "slot": 3,
+          "text": ""
+        },
+        {
+          "slot": 4,
+          "text": ""
+        },
+        {
+          "slot": 5,
+          "text": ""
+        },
+        {
+          "slot": 6,
+          "text": ""
+        },
+        {
+          "slot": 7,
+          "text": ""
+        },
+        {
+          "slot": 8,
+          "text": ""
+        },
+        {
+          "slot": 9,
+          "text": ""
+        },
+        {
+          "slot": 10,
+          "text": ""
+        }
+      ],
+      "damage": [
+        {
+          "slot": 1,
+          "text": ""
+        },
+        {
+          "slot": 2,
+          "text": ""
+        },
+        {
+          "slot": 3,
+          "text": ""
+        },
+        {
+          "slot": 4,
+          "text": ""
+        },
+        {
+          "slot": 5,
+          "text": ""
+        },
+        {
+          "slot": 6,
+          "text": ""
+        },
+        {
+          "slot": 7,
+          "text": ""
+        },
+        {
+          "slot": 8,
+          "text": ""
+        },
+        {
+          "slot": 9,
+          "text": ""
+        },
+        {
+          "slot": 10,
+          "text": ""
+        }
+      ]
+    }
+  },
+  "created_at": "2026-07-27 17:08:34",
+  "description": "随机斩杀训练",
+  "fighter_id": 1,
+  "fighter_name": "Ryu",
+  "reversals": {
+    "damage": [
+      {
+        "active": false,
+        "count": 1,
+        "delay_frame": 0,
+        "fields": {
+          "Count": 1,
+          "Delay": 0,
+          "Frame": 0,
+          "IsActive": false,
+          "IsFrame": false,
+          "IsValid": false,
+          "Level": 0,
+          "SkillIndex": -1,
+          "Type": -1
+        },
+        "skill_index": -1,
+        "slot": 1,
+        "type": -1
+      },
+      {
+        "active": false,
+        "count": 1,
+        "delay_frame": 0,
+        "fields": {
+          "Count": 1,
+          "Delay": 0,
+          "Frame": 0,
+          "IsActive": false,
+          "IsFrame": false,
+          "IsValid": false,
+          "Level": 0,
+          "SkillIndex": -1,
+          "Type": -1
+        },
+        "skill_index": -1,
+        "slot": 2,
+        "type": -1
+      },
+      {
+        "active": false,
+        "count": 1,
+        "delay_frame": 0,
+        "fields": {
+          "Count": 1,
+          "Delay": 0,
+          "Frame": 0,
+          "IsActive": false,
+          "IsFrame": false,
+          "IsValid": false,
+          "Level": 0,
+          "SkillIndex": -1,
+          "Type": -1
+        },
+        "skill_index": -1,
+        "slot": 3,
+        "type": -1
+      },
+      {
+        "active": false,
+        "count": 1,
+        "delay_frame": 0,
+        "fields": {
+          "Count": 1,
+          "Delay": 0,
+          "Frame": 0,
+          "IsActive": false,
+          "IsFrame": false,
+          "IsValid": false,
+          "Level": 0,
+          "SkillIndex": -1,
+          "Type": -1
+        },
+        "skill_index": -1,
+        "slot": 4,
+        "type": -1
+      },
+      {
+        "active": false,
+        "count": 1,
+        "delay_frame": 0,
+        "fields": {
+          "Count": 1,
+          "Delay": 0,
+          "Frame": 0,
+          "IsActive": false,
+          "IsFrame": false,
+          "IsValid": false,
+          "Level": 0,
+          "SkillIndex": -1,
+          "Type": -1
+        },
+        "skill_index": -1,
+        "slot": 5,
+        "type": -1
+      },
+      {
+        "active": false,
+        "count": 1,
+        "delay_frame": 0,
+        "fields": {
+          "Count": 1,
+          "Delay": 0,
+          "Frame": 0,
+          "IsActive": false,
+          "IsFrame": false,
+          "IsValid": false,
+          "Level": 0,
+          "SkillIndex": -1,
+          "Type": -1
+        },
+        "skill_index": -1,
+        "slot": 6,
+        "type": -1
+      },
+      {
+        "active": false,
+        "count": 1,
+        "delay_frame": 0,
+        "fields": {
+          "Count": 1,
+          "Delay": 0,
+          "Frame": 0,
+          "IsActive": false,
+          "IsFrame": false,
+          "IsValid": false,
+          "Level": 0,
+          "SkillIndex": -1,
+          "Type": -1
+        },
+        "skill_index": -1,
+        "slot": 7,
+        "type": -1
+      },
+      {
+        "active": false,
+        "count": 1,
+        "delay_frame": 0,
+        "fields": {
+          "Count": 1,
+          "Delay": 0,
+          "Frame": 0,
+          "IsActive": false,
+          "IsFrame": false,
+          "IsValid": false,
+          "Level": 0,
+          "SkillIndex": -1,
+          "Type": -1
+        },
+        "skill_index": -1,
+        "slot": 8,
+        "type": -1
+      },
+      {
+        "active": false,
+        "count": 1,
+        "delay_frame": 0,
+        "fields": {
+          "Count": 1,
+          "Delay": 0,
+          "Frame": 0,
+          "IsActive": false,
+          "IsFrame": false,
+          "IsValid": false,
+          "Level": 0,
+          "SkillIndex": -1,
+          "Type": -1
+        },
+        "skill_index": -1,
+        "slot": 9,
+        "type": -1
+      },
+      {
+        "active": false,
+        "count": 1,
+        "delay_frame": 0,
+        "fields": {
+          "Count": 1,
+          "Delay": 0,
+          "Frame": 0,
+          "IsActive": false,
+          "IsFrame": false,
+          "IsValid": false,
+          "Level": 0,
+          "SkillIndex": -1,
+          "Type": -1
+        },
+        "skill_index": -1,
+        "slot": 10,
+        "type": -1
+      }
+    ],
+    "down": [
+      {
+        "active": false,
+        "count": 1,
+        "delay_frame": 0,
+        "fields": {
+          "Count": 1,
+          "Delay": 0,
+          "Frame": 0,
+          "IsActive": false,
+          "IsFrame": false,
+          "IsValid": false,
+          "Level": 0,
+          "SkillIndex": -1,
+          "Type": -1
+        },
+        "skill_index": -1,
+        "slot": 1,
+        "type": -1
+      },
+      {
+        "active": false,
+        "count": 1,
+        "delay_frame": 0,
+        "fields": {
+          "Count": 1,
+          "Delay": 0,
+          "Frame": 0,
+          "IsActive": false,
+          "IsFrame": false,
+          "IsValid": false,
+          "Level": 0,
+          "SkillIndex": -1,
+          "Type": -1
+        },
+        "skill_index": -1,
+        "slot": 2,
+        "type": -1
+      },
+      {
+        "active": false,
+        "count": 1,
+        "delay_frame": 0,
+        "fields": {
+          "Count": 1,
+          "Delay": 0,
+          "Frame": 0,
+          "IsActive": false,
+          "IsFrame": false,
+          "IsValid": false,
+          "Level": 0,
+          "SkillIndex": -1,
+          "Type": -1
+        },
+        "skill_index": -1,
+        "slot": 3,
+        "type": -1
+      },
+      {
+        "active": false,
+        "count": 1,
+        "delay_frame": 0,
+        "fields": {
+          "Count": 1,
+          "Delay": 0,
+          "Frame": 0,
+          "IsActive": false,
+          "IsFrame": false,
+          "IsValid": false,
+          "Level": 0,
+          "SkillIndex": -1,
+          "Type": -1
+        },
+        "skill_index": -1,
+        "slot": 4,
+        "type": -1
+      },
+      {
+        "active": false,
+        "count": 1,
+        "delay_frame": 0,
+        "fields": {
+          "Count": 1,
+          "Delay": 0,
+          "Frame": 0,
+          "IsActive": false,
+          "IsFrame": false,
+          "IsValid": false,
+          "Level": 0,
+          "SkillIndex": -1,
+          "Type": -1
+        },
+        "skill_index": -1,
+        "slot": 5,
+        "type": -1
+      },
+      {
+        "active": false,
+        "count": 1,
+        "delay_frame": 0,
+        "fields": {
+          "Count": 1,
+          "Delay": 0,
+          "Frame": 0,
+          "IsActive": false,
+          "IsFrame": false,
+          "IsValid": false,
+          "Level": 0,
+          "SkillIndex": -1,
+          "Type": -1
+        },
+        "skill_index": -1,
+        "slot": 6,
+        "type": -1
+      },
+      {
+        "active": false,
+        "count": 1,
+        "delay_frame": 0,
+        "fields": {
+          "Count": 1,
+          "Delay": 0,
+          "Frame": 0,
+          "IsActive": false,
+          "IsFrame": false,
+          "IsValid": false,
+          "Level": 0,
+          "SkillIndex": -1,
+          "Type": -1
+        },
+        "skill_index": -1,
+        "slot": 7,
+        "type": -1
+      },
+      {
+        "active": false,
+        "count": 1,
+        "delay_frame": 0,
+        "fields": {
+          "Count": 1,
+          "Delay": 0,
+          "Frame": 0,
+          "IsActive": false,
+          "IsFrame": false,
+          "IsValid": false,
+          "Level": 0,
+          "SkillIndex": -1,
+          "Type": -1
+        },
+        "skill_index": -1,
+        "slot": 8,
+        "type": -1
+      },
+      {
+        "active": false,
+        "count": 1,
+        "delay_frame": 0,
+        "fields": {
+          "Count": 1,
+          "Delay": 0,
+          "Frame": 0,
+          "IsActive": false,
+          "IsFrame": false,
+          "IsValid": false,
+          "Level": 0,
+          "SkillIndex": -1,
+          "Type": -1
+        },
+        "skill_index": -1,
+        "slot": 9,
+        "type": -1
+      },
+      {
+        "active": false,
+        "count": 1,
+        "delay_frame": 0,
+        "fields": {
+          "Count": 1,
+          "Delay": 0,
+          "Frame": 0,
+          "IsActive": false,
+          "IsFrame": false,
+          "IsValid": false,
+          "Level": 0,
+          "SkillIndex": -1,
+          "Type": -1
+        },
+        "skill_index": -1,
+        "slot": 10,
+        "type": -1
+      }
+    ],
+    "guard": [
+      {
+        "active": true,
+        "count": 1,
+        "delay_frame": 0,
+        "fields": {
+          "Count": 1,
+          "Delay": 0,
+          "Frame": 0,
+          "IsActive": true,
+          "IsFrame": false,
+          "IsValid": true,
+          "Level": 0,
+          "SkillIndex": 10,
+          "Type": 5
+        },
+        "skill_index": 10,
+        "slot": 1,
+        "type": 5
+      },
+      {
+        "active": true,
+        "count": 1,
+        "delay_frame": 0,
+        "fields": {
+          "Count": 1,
+          "Delay": 0,
+          "Frame": 0,
+          "IsActive": true,
+          "IsFrame": false,
+          "IsValid": true,
+          "Level": 3,
+          "SkillIndex": 1,
+          "Type": 2
+        },
+        "skill_index": 1,
+        "slot": 2,
+        "type": 2
+      },
+      {
+        "active": true,
+        "count": 1,
+        "delay_frame": 0,
+        "fields": {
+          "Count": 1,
+          "Delay": 0,
+          "Frame": 0,
+          "IsActive": true,
+          "IsFrame": false,
+          "IsValid": true,
+          "Level": 0,
+          "SkillIndex": 2,
+          "Type": 3
+        },
+        "skill_index": 2,
+        "slot": 3,
+        "type": 3
+      },
+      {
+        "active": true,
+        "count": 1,
+        "delay_frame": 0,
+        "fields": {
+          "Count": 1,
+          "Delay": 0,
+          "Frame": 0,
+          "IsActive": true,
+          "IsFrame": false,
+          "IsValid": true,
+          "Level": 0,
+          "SkillIndex": 0,
+          "Type": 3
+        },
+        "skill_index": 0,
+        "slot": 4,
+        "type": 3
+      },
+      {
+        "active": true,
+        "count": 1,
+        "delay_frame": 0,
+        "fields": {
+          "Count": 1,
+          "Delay": 0,
+          "Frame": 0,
+          "IsActive": true,
+          "IsFrame": false,
+          "IsValid": true,
+          "Level": 0,
+          "SkillIndex": 8,
+          "Type": 5
+        },
+        "skill_index": 8,
+        "slot": 5,
+        "type": 5
+      },
+      {
+        "active": false,
+        "count": 1,
+        "delay_frame": 0,
+        "fields": {
+          "Count": 1,
+          "Delay": 0,
+          "Frame": 0,
+          "IsActive": false,
+          "IsFrame": false,
+          "IsValid": false,
+          "Level": 0,
+          "SkillIndex": -1,
+          "Type": -1
+        },
+        "skill_index": -1,
+        "slot": 6,
+        "type": -1
+      },
+      {
+        "active": false,
+        "count": 1,
+        "delay_frame": 0,
+        "fields": {
+          "Count": 1,
+          "Delay": 0,
+          "Frame": 0,
+          "IsActive": false,
+          "IsFrame": false,
+          "IsValid": false,
+          "Level": 0,
+          "SkillIndex": -1,
+          "Type": -1
+        },
+        "skill_index": -1,
+        "slot": 7,
+        "type": -1
+      },
+      {
+        "active": false,
+        "count": 1,
+        "delay_frame": 0,
+        "fields": {
+          "Count": 1,
+          "Delay": 0,
+          "Frame": 0,
+          "IsActive": false,
+          "IsFrame": false,
+          "IsValid": false,
+          "Level": 0,
+          "SkillIndex": -1,
+          "Type": -1
+        },
+        "skill_index": -1,
+        "slot": 8,
+        "type": -1
+      },
+      {
+        "active": false,
+        "count": 1,
+        "delay_frame": 0,
+        "fields": {
+          "Count": 1,
+          "Delay": 0,
+          "Frame": 0,
+          "IsActive": false,
+          "IsFrame": false,
+          "IsValid": false,
+          "Level": 0,
+          "SkillIndex": -1,
+          "Type": -1
+        },
+        "skill_index": -1,
+        "slot": 9,
+        "type": -1
+      },
+      {
+        "active": false,
+        "count": 1,
+        "delay_frame": 0,
+        "fields": {
+          "Count": 1,
+          "Delay": 0,
+          "Frame": 0,
+          "IsActive": false,
+          "IsFrame": false,
+          "IsValid": false,
+          "Level": 0,
+          "SkillIndex": -1,
+          "Type": -1
+        },
+        "skill_index": -1,
+        "slot": 10,
+        "type": -1
+      }
+    ]
+  },
+  "schema": "sf6cc.training_setup.v2",
+  "settings": {
+    "record": {
+      "fighter_fields": {
+        "FighterID": 1
+      },
+      "record_setting_fields": {
+        "InfoType": 0,
+        "LoopType": 0,
+        "PlayType": 0,
+        "RecordCountDown": 0,
+        "RecordStartType": 1,
+        "RecordType": 1
+      }
+    }
+  },
+  "slots": [
+    {
+      "capacity": 3600,
+      "fields": {
+        "Frame": 0,
+        "IsActive": false,
+        "IsValid": false,
+        "Weight": 1
+      },
+      "frame": 0,
+      "input_buff": null,
+      "input_fields": {
+        "Cursor": 0,
+        "IsForceStop": false,
+        "Num": 0,
+        "State": 1,
+        "cmd_type": 0,
+        "isLoop": false,
+        "negativeEdge": false
+      },
+      "input_num": 0,
+      "is_active": false,
+      "is_valid": false,
+      "name": "slot1",
+      "slot": 1,
+      "weight": 1
+    },
+    {
+      "capacity": 3600,
+      "fields": {
+        "Frame": 0,
+        "IsActive": false,
+        "IsValid": false,
+        "Weight": 1
+      },
+      "frame": 0,
+      "input_buff": null,
+      "input_fields": {
+        "Cursor": 0,
+        "IsForceStop": false,
+        "Num": 0,
+        "State": 1,
+        "cmd_type": 0,
+        "isLoop": false,
+        "negativeEdge": false
+      },
+      "input_num": 0,
+      "is_active": false,
+      "is_valid": false,
+      "name": "slot2",
+      "slot": 2,
+      "weight": 1
+    },
+    {
+      "capacity": 3600,
+      "fields": {
+        "Frame": 0,
+        "IsActive": false,
+        "IsValid": false,
+        "Weight": 1
+      },
+      "frame": 0,
+      "input_buff": null,
+      "input_fields": {
+        "Cursor": 0,
+        "IsForceStop": false,
+        "Num": 0,
+        "State": 1,
+        "cmd_type": 0,
+        "isLoop": false,
+        "negativeEdge": false
+      },
+      "input_num": 0,
+      "is_active": false,
+      "is_valid": false,
+      "name": "slot3",
+      "slot": 3,
+      "weight": 1
+    },
+    {
+      "capacity": 3600,
+      "fields": {
+        "Frame": 0,
+        "IsActive": false,
+        "IsValid": false,
+        "Weight": 1
+      },
+      "frame": 0,
+      "input_buff": null,
+      "input_fields": {
+        "Cursor": 0,
+        "IsForceStop": false,
+        "Num": 0,
+        "State": 1,
+        "cmd_type": 0,
+        "isLoop": false,
+        "negativeEdge": false
+      },
+      "input_num": 0,
+      "is_active": false,
+      "is_valid": false,
+      "name": "slot4",
+      "slot": 4,
+      "weight": 1
+    },
+    {
+      "capacity": 3600,
+      "fields": {
+        "Frame": 0,
+        "IsActive": false,
+        "IsValid": false,
+        "Weight": 1
+      },
+      "frame": 0,
+      "input_buff": null,
+      "input_fields": {
+        "Cursor": 0,
+        "IsForceStop": false,
+        "Num": 0,
+        "State": 1,
+        "cmd_type": 0,
+        "isLoop": false,
+        "negativeEdge": false
+      },
+      "input_num": 0,
+      "is_active": false,
+      "is_valid": false,
+      "name": "slot5",
+      "slot": 5,
+      "weight": 1
+    },
+    {
+      "capacity": 0,
+      "fields": {
+        "Frame": 0,
+        "IsActive": false,
+        "IsValid": false,
+        "Weight": 1
+      },
+      "frame": 0,
+      "input_buff": null,
+      "input_fields": {
+        "Cursor": 0,
+        "IsForceStop": false,
+        "Num": 0,
+        "State": 0,
+        "cmd_type": 0,
+        "isLoop": false,
+        "negativeEdge": false
+      },
+      "input_num": 0,
+      "is_active": false,
+      "is_valid": false,
+      "name": "slot6",
+      "slot": 6,
+      "weight": 1
+    },
+    {
+      "capacity": 0,
+      "fields": {
+        "Frame": 0,
+        "IsActive": false,
+        "IsValid": false,
+        "Weight": 1
+      },
+      "frame": 0,
+      "input_buff": null,
+      "input_fields": {
+        "Cursor": 0,
+        "IsForceStop": false,
+        "Num": 0,
+        "State": 0,
+        "cmd_type": 0,
+        "isLoop": false,
+        "negativeEdge": false
+      },
+      "input_num": 0,
+      "is_active": false,
+      "is_valid": false,
+      "name": "slot7",
+      "slot": 7,
+      "weight": 1
+    },
+    {
+      "capacity": 3600,
+      "fields": {
+        "Frame": 0,
+        "IsActive": false,
+        "IsValid": false,
+        "Weight": 1
+      },
+      "frame": 0,
+      "input_buff": null,
+      "input_fields": {
+        "Cursor": 0,
+        "IsForceStop": false,
+        "Num": 0,
+        "State": 0,
+        "cmd_type": 0,
+        "isLoop": false,
+        "negativeEdge": false
+      },
+      "input_num": 0,
+      "is_active": false,
+      "is_valid": false,
+      "name": "slot8",
+      "slot": 8,
+      "weight": 1
+    }
+  ],
+  "source_player": "P2",
+  "title": "随机斩杀训练"
+}

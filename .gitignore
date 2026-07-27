@@ -28,6 +28,10 @@ sync_signal.json
 /data/SF6_TrainingRemoteControl_data/HitConfirmTelemetry/
 /data/SF6CC_DynamicRecords/*.json
 /data/SF6CC_DynamicRecords/backups/
+/data/SF6CC_TrainingConfigs/configs/
+/data/SF6CC_TrainingConfigs/backups/
+/data/SF6CC_TrainingConfigs/config_index.json
+/data/SF6CC_TrainingConfigs/latest_backup.json
 
 # Accidental copied image assets
 /images/buttonsAndArrows/* 拷贝.png

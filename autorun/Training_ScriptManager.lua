@@ -314,6 +314,9 @@ local function update_guard_logic()
         -- Do not call ChangeGuardType here: mode 2 (guard after first hit)
         -- is reset to no guard by that API, while direct GuardSetting+bApply works.
 
+    elseif current_mode == 5 then
+        -- >>> RANDOM KILL >>> TrainingRandomKill is the sole owner.
+        -- Its one-click setup applies and restores the dummy guard settings.
 
     elseif current_mode == 0 then
         -- >>> DISABLED / COMBO TRIALS >>> RESTORE
@@ -339,6 +342,7 @@ local _tsm_last_mode = _G.CurrentTrainerMode
 local TRAINING_MODE_MODULES = {
     { id = 4, label = "连段训练" },
     { id = 2, label = "确认训练" },
+    { id = 5, label = "随机斩杀" },
 }
 
 local TSM_MODE_NAMES = { [0] = "已关闭" }
@@ -874,7 +878,12 @@ re.on_frame(function()
             end)
         end
     end
-    if _G._tsm_last_mode and _G._tsm_last_mode ~= _G.CurrentTrainerMode then
+    -- Random Kill captures and restores the user's native position settings.
+    -- Let that mode own its entry refresh so the manager does not erase the
+    -- baseline before the feature can snapshot it.
+    if _G._tsm_last_mode
+        and _G._tsm_last_mode ~= _G.CurrentTrainerMode
+        and _G.CurrentTrainerMode ~= 5 then
         pcall(function()
             local tm = sdk.get_managed_singleton("app.training.TrainingManager")
             if not tm then return end
@@ -927,8 +936,9 @@ local UI_THEME = {
     hdr_root = UIKit.THEME.hdr_dark_purple,
     hdr_combo_config = UIKit.THEME.hdr_rainbow_red,
     hdr_confirm_config = UIKit.THEME.hdr_rainbow_orange,
-    hdr_training_config = UIKit.THEME.hdr_rainbow_yellow,
-    hdr_distance_viewer = UIKit.THEME.hdr_rainbow_green,
+    hdr_random_kill_config = UIKit.THEME.hdr_rainbow_yellow,
+    hdr_training_config = UIKit.THEME.hdr_rainbow_green,
+    hdr_distance_viewer = UIKit.THEME.hdr_rainbow_cyan,
     hdr_collision_boxes = UIKit.THEME.hdr_rainbow_blue,
     hdr_hotkeys = UIKit.THEME.hdr_rainbow_violet,
 }
@@ -1032,11 +1042,14 @@ re.on_draw_ui(function()
         local c0, v0 = imgui.checkbox("关闭", _G.CurrentTrainerMode == 0)
         if c0 and v0 then _G.CurrentTrainerMode = 0 end
         imgui.same_line()
+        local c4, v4 = imgui.checkbox("连段训练", _G.CurrentTrainerMode == 4)
+        if c4 and v4 then _G.CurrentTrainerMode = 4 end
+        imgui.same_line()
         local c2, v2 = imgui.checkbox("确认训练", _G.CurrentTrainerMode == 2)
         if c2 and v2 then _G.CurrentTrainerMode = 2 end
         imgui.same_line()
-        local c4, v4 = imgui.checkbox("连段训练", _G.CurrentTrainerMode == 4)
-        if c4 and v4 then _G.CurrentTrainerMode = 4 end
+        local c5, v5 = imgui.checkbox("随机斩杀", _G.CurrentTrainerMode == 5)
+        if c5 and v5 then _G.CurrentTrainerMode = 5 end
 
         imgui.separator()
         if styled_header("连段训练配置", UI_THEME.hdr_combo_config) then
@@ -1054,6 +1067,15 @@ re.on_draw_ui(function()
                 imgui.text_colored("勾选顶部栏“确认训练”后显示配置。", 0xFF888888)
             else
                 TrainingMenuRegistry.draw("confirm_config")
+            end
+        end
+
+        if styled_header("随机斩杀配置", UI_THEME.hdr_random_kill_config) then
+            if _G.CurrentTrainerMode ~= 5 then
+                imgui.text_colored("当前未启用随机斩杀训练。", 0xFF888888)
+                imgui.text_colored("勾选顶部栏“随机斩杀”后将一键完成设置。", 0xFF888888)
+            else
+                TrainingMenuRegistry.draw("random_kill_config")
             end
         end
 

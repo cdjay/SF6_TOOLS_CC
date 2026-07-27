@@ -1,0 +1,10 @@
+{
+  "schema": "sf6cc.random_kill_config.v1",
+  "user": {
+    "schema_version": 1,
+    "edge_weight": 80,
+    "mid_weight": 20,
+    "low_health_chance": 50,
+    "show_floating": true
+  }
+}
