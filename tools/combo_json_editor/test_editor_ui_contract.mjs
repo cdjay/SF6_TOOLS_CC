@@ -8,6 +8,41 @@ const styles = fs.readFileSync(new URL("./styles.css", import.meta.url), "utf8")
 const ids = [...html.matchAll(/\bid="([^"]+)"/g)].map(match => match[1]);
 assert.equal(new Set(ids).size, ids.length, "HTML ids must be unique");
 
+assert.doesNotMatch(html, /id="saveAllChanges"/, "save-all must remain a global header action");
+assert.match(html, /id="saveAll" disabled>保存全部修改 \(Save all changes\)<\/button>/);
+assert.match(app, /保存全部修改 · \$\{changedCount\}/);
+assert.match(html, /id="refreshDirectory" disabled>刷新目录 \(Refresh directory\)<\/button>/);
+assert.match(app, /indexedDB\.open\(DIRECTORY_HANDLE_DB, 1\)/);
+assert.match(app, /objectStore\(DIRECTORY_HANDLE_STORE\)\.put\(handle, LAST_DIRECTORY_KEY\)/);
+assert.match(app, /async function refreshDirectory/);
+assert.match(app, /await loadDirectoryHandle\(handle, selectedPath\)/);
+assert.match(app, /\$\("refreshDirectory"\)\.onclick = \(\) => refreshDirectory\(\)/);
+assert.match(app, /restoreRememberedDirectory\(\);\s*$/);
+for (const id of ["upgradeCurrent", "applyCurrent", "saveCurrent", "downloadCurrent"]) {
+    assert.match(
+        html,
+        new RegExp(`id="currentComboActions"[\\s\\S]*?id="${id}"`),
+        `${id} must live inside the current combo action card`
+    );
+}
+for (const id of [
+    "currentComboTitle",
+    "currentComboCharacter",
+    "currentComboAuthor",
+    "currentComboControl",
+    "currentComboLanguage",
+    "currentComboCategory",
+    "currentComboRating"
+]) {
+    assert.match(html, new RegExp(`id="${id}"`), `${id} must appear in the combo summary card`);
+    assert.match(app, new RegExp(`\\$\\("${id}"\\)`), `${id} must be populated from the selected combo`);
+}
+assert.match(
+    app,
+    /\$\("scenePlayerStack"\)\.append\([\s\S]*?\$\("currentComboActions"\)/,
+    "single-combo actions must follow the dummy player card"
+);
+
 const staticAppReferences = [...app.matchAll(/\$\("([A-Za-z0-9_-]+)"\)/g)].map(match => match[1]);
 for (const id of new Set(staticAppReferences)) {
     assert.ok(ids.includes(id), `missing HTML element #${id}`);

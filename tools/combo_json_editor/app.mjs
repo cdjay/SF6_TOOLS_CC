@@ -22,10 +22,14 @@ import {
 import { compareFileNames, isFailMarkedFile } from "./file_name_sort.mjs";
 
 const $ = id => document.getElementById(id);
+const DIRECTORY_HANDLE_DB = "sf6cc-combo-json-editor";
+const DIRECTORY_HANDLE_STORE = "directory-handles";
+const LAST_DIRECTORY_KEY = "last-opened-directory";
 const state = {
     records: [],
     selected: null,
     rootHandle: null,
+    rememberedRootHandle: null,
     rootName: "",
     filter: "",
     status: "all",
@@ -139,16 +143,21 @@ function recordCharacter(record) {
 }
 
 function updateSummary() {
+    const changedCount = state.records.filter(record => record.changed).length;
     $("fileCount").textContent = state.records.length;
     $("legacyCount").textContent = state.records.filter(isLegacy).length;
-    $("changedCount").textContent = state.records.filter(record => record.changed).length;
+    $("changedCount").textContent = changedCount;
     $("errorCount").textContent = state.records.filter(record => record.error).length;
     $("rootLabel").textContent = state.rootName || "文件选择模式 (File selection mode)";
     const hasRecords = state.records.length > 0;
     $("upgradeAll").disabled = !hasRecords;
     $("batchVersions").disabled = !hasRecords;
-    $("exportAll").disabled = !state.records.some(record => record.changed);
-    $("saveAll").disabled = !state.rootHandle || !state.records.some(record => record.changed);
+    $("refreshDirectory").disabled = !(state.rootHandle || state.rememberedRootHandle);
+    $("exportAll").disabled = changedCount === 0;
+    $("saveAll").disabled = !state.rootHandle || changedCount === 0;
+    $("saveAll").textContent = changedCount > 0
+        ? `保存全部修改 · ${changedCount} (Save all changes)`
+        : "保存全部修改 (Save all changes)";
 }
 
 function filteredRecords() {
@@ -458,6 +467,70 @@ async function walkDirectory(handle, prefix = "") {
     return records;
 }
 
+function openDirectoryHandleDatabase() {
+    return new Promise((resolve, reject) => {
+        const request = indexedDB.open(DIRECTORY_HANDLE_DB, 1);
+        request.onupgradeneeded = () => {
+            if (!request.result.objectStoreNames.contains(DIRECTORY_HANDLE_STORE)) {
+                request.result.createObjectStore(DIRECTORY_HANDLE_STORE);
+            }
+        };
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+    });
+}
+
+async function readRememberedDirectoryHandle() {
+    if (!window.indexedDB) return null;
+    const database = await openDirectoryHandleDatabase();
+    try {
+        return await new Promise((resolve, reject) => {
+            const transaction = database.transaction(DIRECTORY_HANDLE_STORE, "readonly");
+            const request = transaction.objectStore(DIRECTORY_HANDLE_STORE).get(LAST_DIRECTORY_KEY);
+            request.onsuccess = () => resolve(request.result || null);
+            request.onerror = () => reject(request.error);
+        });
+    } finally {
+        database.close();
+    }
+}
+
+async function rememberDirectoryHandle(handle) {
+    if (!window.indexedDB) return;
+    const database = await openDirectoryHandleDatabase();
+    try {
+        await new Promise((resolve, reject) => {
+            const transaction = database.transaction(DIRECTORY_HANDLE_STORE, "readwrite");
+            transaction.objectStore(DIRECTORY_HANDLE_STORE).put(handle, LAST_DIRECTORY_KEY);
+            transaction.oncomplete = () => resolve();
+            transaction.onerror = () => reject(transaction.error);
+            transaction.onabort = () => reject(transaction.error);
+        });
+    } finally {
+        database.close();
+    }
+}
+
+async function directoryPermissionGranted(handle, requestAccess = false) {
+    if (!handle?.queryPermission) return true;
+    const options = { mode: "readwrite" };
+    if (await handle.queryPermission(options) === "granted") return true;
+    return requestAccess && await handle.requestPermission(options) === "granted";
+}
+
+async function loadDirectoryHandle(handle, preferredPath = "") {
+    const records = await walkDirectory(handle);
+    records.sort((left, right) => compareFileNames(left.name, right.name));
+    state.records = records;
+    state.rootHandle = handle;
+    state.rememberedRootHandle = handle;
+    state.rootName = handle.name;
+    state.selected = records.find(record => record.path === preferredPath && !record.error)
+        || records.find(record => !record.error)
+        || null;
+    finishLoad();
+}
+
 async function openDirectory() {
     if (!window.showDirectoryPicker) {
         toast("当前浏览器不支持目录原地写入，请使用 Chrome/Edge 或文件模式 (Directory write is unsupported).", true);
@@ -465,15 +538,58 @@ async function openDirectory() {
     }
     try {
         const handle = await window.showDirectoryPicker({ mode: "readwrite" });
-        const records = await walkDirectory(handle);
-        records.sort((left, right) => compareFileNames(left.name, right.name));
-        state.records = records;
-        state.rootHandle = handle;
-        state.rootName = handle.name;
-        state.selected = records.find(record => !record.error) || null;
-        finishLoad();
+        await loadDirectoryHandle(handle);
+        try {
+            await rememberDirectoryHandle(handle);
+        } catch {
+            toast("目录已打开，但浏览器无法记住该目录 (Opened, but could not remember directory).", true);
+        }
     } catch (error) {
         if (error.name !== "AbortError") toast(error.message, true);
+    }
+}
+
+async function refreshDirectory({ requestAccess = true } = {}) {
+    const handle = state.rootHandle
+        || state.rememberedRootHandle
+        || await readRememberedDirectoryHandle();
+    if (!handle) {
+        toast("没有可刷新的历史目录，请先打开目录 (No remembered directory).", true);
+        return;
+    }
+    const changedCount = state.records.filter(record => record.changed).length;
+    if (changedCount && !confirm(
+        `刷新将放弃 ${changedCount} 个尚未保存的修改。确定继续？ (Discard unsaved changes and refresh?)`
+    )) return;
+    try {
+        if (!await directoryPermissionGranted(handle, requestAccess)) {
+            state.rememberedRootHandle = handle;
+            updateSummary();
+            toast("请授权访问上次目录后再刷新 (Directory permission is required).", true);
+            return;
+        }
+        const selectedPath = state.selected?.path || "";
+        await loadDirectoryHandle(handle, selectedPath);
+        toast(`目录已刷新：${handle.name} (Directory refreshed)`);
+    } catch (error) {
+        toast(`刷新目录失败 (Refresh failed): ${error.message}`, true);
+    }
+}
+
+async function restoreRememberedDirectory() {
+    if (!window.showDirectoryPicker || !window.indexedDB) return;
+    try {
+        const handle = await readRememberedDirectoryHandle();
+        if (!handle) return;
+        state.rememberedRootHandle = handle;
+        if (await directoryPermissionGranted(handle, false)) {
+            await refreshDirectory({ requestAccess: false });
+            return;
+        }
+        state.rootName = `上次目录：${handle.name}（点击“刷新目录”重新授权）`;
+        updateSummary();
+    } catch {
+        /* 浏览器可能禁用 IndexedDB；不影响手动打开目录。 */
     }
 }
 
@@ -861,7 +977,33 @@ function renderSelected() {
     if (!record) return;
     const model = metadataModel(record.document);
     const meta = record.document[0]._xt_meta || {};
+    const character = recordCharacter(record);
+    const languageLabels = {
+        "zh-CN": "简体中文 (zh-CN)",
+        "zh-TW": "繁体中文 (zh-TW)",
+        en: "英语 (en)",
+        ja: "日语 (ja)",
+        ko: "韩语 (ko)",
+        und: "未确定 (und)"
+    };
+    const controlLabels = {
+        classic: "经典 (classic)",
+        modern: "现代 (modern)",
+        unknown: "未确认 (unknown)"
+    };
+    $("currentComboTitle").textContent = model.title || record.name;
     $("currentPath").textContent = record.path;
+    $("currentComboCharacter").textContent = character
+        ? `${character.zh} (${character.en}) · ID ${character.fighterId}`
+        : model.character || "未记录 (Not recorded)";
+    $("currentComboAuthor").textContent = model.author || "未记录 (Not recorded)";
+    $("currentComboControl").textContent =
+        controlLabels[model.control_mode] || model.control_mode || "未记录 (Not recorded)";
+    $("currentComboLanguage").textContent =
+        languageLabels[model.language] || model.language || "未记录 (Not recorded)";
+    $("currentComboCategory").textContent = model.category || "未分类 (Uncategorized)";
+    $("currentComboRating").textContent =
+        model.rating === "" ? "未记录 (Not recorded)" : `${model.rating} / 5`;
     $("title").value = model.title;
     $("author").value = model.author;
     $("character").value = model.character;
@@ -934,7 +1076,8 @@ function renderSelected() {
     const dummySide = comboSide === "p1" ? "p2" : "p1";
     $("scenePlayerStack").append(
         $(`${comboSide}ScenePanel`),
-        $(`${dummySide}ScenePanel`)
+        $(`${dummySide}ScenePanel`),
+        $("currentComboActions")
     );
 
     for (const side of ["p1", "p2"]) {
@@ -1156,7 +1299,7 @@ function applyCurrentForm() {
         renderSelected();
         renderFileList();
         updateSummary();
-        toast("表单修改已应用到工作副本 (Applied to working copy)");
+        toast("修改已暂存；可继续审核或点击“保存全部修改” (Changes staged)");
         return true;
     } catch (error) {
         toast(`无法应用 (Cannot apply): ${error.message}`, true);
@@ -1385,6 +1528,7 @@ async function exportAll() {
 }
 
 $("openDirectory").onclick = openDirectory;
+$("refreshDirectory").onclick = () => refreshDirectory();
 $("openFiles").onclick = () => $("fileInput").click();
 $("fileInput").onchange = () => openFiles($("fileInput").files);
 $("search").oninput = event => { state.filter = event.target.value.trim().toLowerCase(); renderFileList(); };
@@ -1527,3 +1671,5 @@ for (const button of document.querySelectorAll(".tabs button")) {
         document.querySelectorAll(".tab-panel").forEach(panel => panel.classList.toggle("active", panel.dataset.panel === button.dataset.tab));
     };
 }
+
+restoreRememberedDirectory();

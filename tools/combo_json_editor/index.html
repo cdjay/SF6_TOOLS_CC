@@ -15,11 +15,12 @@
     </div>
     <div class="header-actions">
         <button id="openDirectory" class="primary">打开目录 (Open directory)</button>
+        <button id="refreshDirectory" disabled>刷新目录 (Refresh directory)</button>
         <button id="openFiles">打开文件 (Open files)</button>
         <input id="fileInput" type="file" accept=".json,application/json" multiple>
         <button id="upgradeAll" disabled>全部升级到 v2 (Upgrade all)</button>
         <button id="batchVersions" disabled>安全批量编辑 (Safe batch edit)</button>
-        <button id="saveAll" disabled>原地保存全部 (Save all)</button>
+        <button id="saveAll" disabled>保存全部修改 (Save all changes)</button>
         <button id="exportAll" disabled>导出全部修改 (Export all)</button>
     </div>
 </header>
@@ -59,17 +60,21 @@
         </div>
 
         <div id="editor" hidden>
-            <div class="panel file-header">
-                <div>
-                    <div id="currentPath" class="mono"></div>
-                    <div id="currentStatus" class="badges"></div>
+            <div class="panel file-header current-combo-card">
+                <div class="current-combo-heading">
+                    <span class="current-combo-kicker">当前连段 (Current combo)</span>
+                    <h2 id="currentComboTitle"></h2>
+                    <div id="currentPath" class="mono current-combo-path"></div>
                 </div>
-                <div class="actions">
-                    <button id="upgradeCurrent">升级当前文件 (Upgrade)</button>
-                    <button id="applyCurrent" class="primary">应用表单修改 (Apply)</button>
-                    <button id="saveCurrent">保存当前文件 (Save)</button>
-                    <button id="downloadCurrent">下载 (Download)</button>
-                </div>
+                <dl class="current-combo-meta" aria-label="当前连段元数据 (Current combo metadata)">
+                    <div><dt>角色 (Character)</dt><dd id="currentComboCharacter"></dd></div>
+                    <div><dt>作者 (Author)</dt><dd id="currentComboAuthor"></dd></div>
+                    <div><dt>控制模式 (Control)</dt><dd id="currentComboControl"></dd></div>
+                    <div><dt>语言 (Language)</dt><dd id="currentComboLanguage"></dd></div>
+                    <div><dt>分类 (Category)</dt><dd id="currentComboCategory"></dd></div>
+                    <div><dt>评分 (Rating)</dt><dd id="currentComboRating"></dd></div>
+                </dl>
+                <div id="currentStatus" class="badges current-combo-status"></div>
             </div>
 
             <nav class="tabs" aria-label="编辑区域 (Editor sections)">
@@ -199,6 +204,16 @@
                             </div>
                         </div>
                     </div>
+                    <section id="currentComboActions" class="subpanel current-combo-actions" aria-labelledby="currentComboActionsTitle">
+                        <h3 id="currentComboActionsTitle">当前连段操作 (Current combo actions)</h3>
+                        <p class="hint">仅作用于当前连段；“应用”会先暂存修改，再选择保存或下载。</p>
+                        <div class="actions">
+                            <button id="upgradeCurrent">升级当前文件 (Upgrade)</button>
+                            <button id="applyCurrent" class="primary">应用表单修改 (Apply)</button>
+                            <button id="saveCurrent">保存当前文件 (Save)</button>
+                            <button id="downloadCurrent">下载 (Download)</button>
+                        </div>
+                    </section>
                     </div>
                     <div id="dummyMenuPanel" class="subpanel dummy-menu-panel">
                         <div id="dummyEnvBlock" class="resource-field dummy-env">

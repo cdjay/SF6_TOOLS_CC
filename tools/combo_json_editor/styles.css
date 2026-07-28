@@ -727,17 +727,72 @@ main {
 .welcome h2 { font-size: var(--sf6-text-title-md); font-weight: var(--sf6-font-heavy); }
 .welcome p { max-width: 560px; color: var(--sf6-text-muted); }
 
-/* ---- 文件头 ---- */
+/* ---- 当前连段信息卡 ---- */
 .file-header {
-    padding: 14px 16px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 15px;
+    padding: 18px 20px;
+    display: grid;
+    grid-template-columns: minmax(240px, 1.05fr) minmax(430px, 1.5fr);
+    align-items: start;
+    gap: 14px 24px;
     border-left: 3px solid var(--sf6-brand);
     border-radius: var(--sf6-radius-md);
 }
 .mono { font: var(--sf6-text-sm)/1.4 var(--sf6-font-mono); word-break: break-all; }
+.current-combo-heading { min-width: 0; }
+.current-combo-kicker {
+    display: block;
+    margin-bottom: 5px;
+    color: var(--sf6-brand);
+    font-size: var(--sf6-text-micro);
+    font-weight: var(--sf6-font-heavy);
+    letter-spacing: 0.12em;
+}
+.current-combo-heading h2 {
+    margin: 0;
+    color: var(--sf6-base-content);
+    font-size: clamp(1.125rem, 1.8vw, 1.5rem);
+    font-weight: var(--sf6-font-heavy);
+    line-height: 1.28;
+}
+.current-combo-path {
+    margin-top: 6px;
+    color: var(--sf6-text-faint);
+    font-size: var(--sf6-text-micro);
+}
+.current-combo-meta {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+    margin: 0;
+}
+.current-combo-meta > div {
+    min-width: 0;
+    padding: 8px 10px;
+    border-left: 2px solid color-mix(in srgb, var(--sf6-brand) 54%, transparent);
+    background: color-mix(in srgb, var(--sf6-base-content) 4%, transparent);
+}
+.current-combo-meta dt {
+    color: var(--sf6-text-faint);
+    font-size: var(--sf6-text-micro);
+    font-weight: var(--sf6-font-bold);
+    line-height: 1.25;
+}
+.current-combo-meta dd {
+    margin: 4px 0 0;
+    overflow: hidden;
+    color: color-mix(in srgb, var(--sf6-base-content) 88%, transparent);
+    font-size: var(--sf6-text-xs);
+    font-weight: var(--sf6-font-heavy);
+    line-height: 1.35;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.current-combo-status {
+    grid-column: 1 / -1;
+    margin-top: 0;
+    padding-top: 10px;
+    border-top: 1px solid var(--sf6-border-subtle);
+}
 
 /* 徽章 — HUD 平面状态标签 */
 .badges { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
@@ -862,7 +917,8 @@ main {
 }
 #p1ScenePanel,
 #p2ScenePanel,
-#dummyMenuPanel {
+#dummyMenuPanel,
+#currentComboActions {
     --scene-accent: var(--sf6-modern);
     border-color: color-mix(in srgb, var(--scene-accent) 56%, var(--sf6-border-subtle));
     border-left: 4px solid var(--scene-accent);
@@ -877,8 +933,10 @@ main {
 #p1ScenePanel { --scene-accent: var(--sf6-p1); }
 #p2ScenePanel { --scene-accent: var(--sf6-p2); }
 #dummyMenuPanel { --scene-accent: var(--sf6-menu); }
+#currentComboActions { --scene-accent: var(--sf6-brand); }
 #p1ScenePanel h3,
-#p2ScenePanel h3 {
+#p2ScenePanel h3,
+#currentComboActions h3 {
     border-bottom-color: color-mix(in srgb, var(--scene-accent) 28%, transparent);
     color: var(--scene-accent);
 }
@@ -897,6 +955,16 @@ main {
 /* 右侧独立木人菜单使用淡紫色，与 P1 / P2 场景卡明确分区。
    外框只由 #dummyMenuPanel 提供，内部内容容器不得再生成第二层边框。 */
 .dummy-menu-panel { min-width: 0; }
+.current-combo-actions .hint { margin: 0 0 12px; }
+.current-combo-actions .actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+}
+.current-combo-actions .actions button {
+    width: 100%;
+    min-width: 0;
+}
 .dummy-env {
     padding: 0;
     border: 0;
@@ -1216,6 +1284,8 @@ dialog::backdrop { background: rgb(5 10 18 / 66%); backdrop-filter: blur(5px); }
     header { align-items: start; flex-direction: column; }
     .header-actions { justify-content: start; }
     main { grid-template-columns: 280px minmax(0, 1fr); }
+    .file-header { grid-template-columns: 1fr; }
+    .current-combo-meta { grid-template-columns: repeat(3, minmax(0, 1fr)); }
     .scene-columns { grid-template-columns: 1fr; }
     .form-grid { grid-template-columns: repeat(2, 1fr); }
     .form-grid.compact { grid-template-columns: repeat(2, 1fr); }
@@ -1227,7 +1297,7 @@ dialog::backdrop { background: rgb(5 10 18 / 66%); backdrop-filter: blur(5px); }
     main { display: block; }
     .sidebar { position: relative; top: 0; height: 310px; margin-bottom: 14px; }
     .scene-columns { grid-template-columns: 1fr; }
-    .file-header { align-items: start; flex-direction: column; }
+    .current-combo-meta { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .actions { justify-content: start; }
     .step-note { grid-template-columns: 35px 80px minmax(0, 1fr); }
     .batch-metadata { grid-template-columns: auto 1fr; }
