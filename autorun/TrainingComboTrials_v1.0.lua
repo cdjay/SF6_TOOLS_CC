@@ -970,9 +970,9 @@ local d2d_cfg = {
     icon_size = 0.035,
     font_size = 0.028,
     trial_title_show = true,
-    show_trial_notes = false,
-    auto_next_trial = true,    -- after a manual success: auto-load the next combo in the list
-    auto_retry_on_fail = true, -- after the fail banner ends: auto-reset the trial (no manual reset needed)
+    show_trial_notes = true,
+    auto_next_trial = false,    -- after a manual success: auto-load the next combo in the list
+    auto_retry_on_fail = false, -- after the fail banner ends: auto-reset the trial (no manual reset needed)
     trial_title_font_size = 0.030,
     spacing_y = 0.045,
     spacing_x = 0.005,
@@ -10276,7 +10276,7 @@ end
 -- end)
 
 
-if not _G._allow_stun_demo then _G._allow_stun_demo = false end
+if _G._allow_stun_demo == nil then _G._allow_stun_demo = true end
 
 ctx.ct_get_field = function(obj, name)
     return obj:get_field(name)

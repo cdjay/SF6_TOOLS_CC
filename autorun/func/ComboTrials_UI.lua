@@ -103,6 +103,9 @@ local COMBO_COLUMN_STRETCH = 1 << 3
 local COMBO_SORT_ASCENDING = 1
 local COMBO_SORT_DESCENDING = 2
 local COMBO_STARTER_COLUMN_WIDTH = 140
+local COMBO_TABLE_BG_TARGET_ROW = 1
+local COMBO_SELECTED_ROW_BG_COLOR = 0xCC802460
+local COMBO_TABLE_ROW_HEADERS = 1
 local _combo_sort_cache = {
     items = nil,
     info_items = nil,
@@ -168,11 +171,35 @@ local function combo_row_status(info, item)
     return status
 end
 
-local function combo_table_cell(value, id, selected, color)
+local function combo_centered_overlay(value, screen_pos, width, color)
+    local text = tostring(value or "—")
+    local text_width = imgui.calc_text_size(text).x
+    local text_x = screen_pos.x + math.max(0, ((tonumber(width) or 0) - text_width) * 0.5)
+    local draw_list = imgui.get_window_draw_list()
+    if draw_list then
+        draw_list:add_text(Vector2f.new(text_x, screen_pos.y), color or 0xFFFFFFFF, text)
+    end
+end
+
+local function combo_table_cell(value, id, centered, color, width)
+    local text = tostring(value or "—")
     if color then imgui.push_style_color(0, color) end
-    local clicked = imgui.menu_item(tostring(value or "—") .. "##" .. id, "", selected == true, true)
+    local screen_pos = imgui.get_cursor_screen_pos()
+    local label = centered and ("##" .. id) or (text .. "##" .. id)
+    local clicked = imgui.menu_item(label, "", false, true)
     if color then imgui.pop_style_color(1) end
+    if centered then combo_centered_overlay(text, screen_pos, width, color) end
     return clicked
+end
+
+local function combo_table_header(label, centered, width)
+    if not centered then
+        imgui.table_header(label)
+        return
+    end
+    local screen_pos = imgui.get_cursor_screen_pos()
+    imgui.table_header("##" .. label .. "Header")
+    combo_centered_overlay(label, screen_pos, width, nil)
 end
 
 local function combo_starter_icon_tokens(info)
@@ -331,7 +358,7 @@ local function combo_openable(label, current_idx, items, info_items, force_open,
     if preview_color then imgui.pop_style_color(1) end
 
     local line_h = imgui.calc_text_size("W").y + 6
-    local max_visible = 12
+    local max_visible = 20
     local visible_count = math.max(1, math.min(#items, max_visible))
     local popup_h = ((visible_count + 1) * line_h) + 18
     local available_w = math.max(360, (ctx.cached_sw or 1920) - btn_screen_x - 16)
@@ -362,14 +389,26 @@ local function combo_openable(label, current_idx, items, info_items, force_open,
             imgui.table_setup_column("起手", COMBO_COLUMN_FIXED, COMBO_STARTER_COLUMN_WIDTH)
             imgui.table_setup_column("伤害", COMBO_COLUMN_FIXED, 76)
             imgui.table_setup_column("斗气", COMBO_COLUMN_FIXED, 58)
-            imgui.table_setup_column("能量", COMBO_COLUMN_FIXED, 58)
+            imgui.table_setup_column("能量", COMBO_COLUMN_FIXED, 72)
             imgui.table_setup_scroll_freeze(0, 1)
-            imgui.table_headers_row()
+            imgui.table_next_row(COMBO_TABLE_ROW_HEADERS)
+            for column_idx, header in ipairs({
+                { "C/完", true, 58 },
+                { "名称", false },
+                { "起手", false },
+                { "伤害", true, 76 },
+                { "斗气", true, 58 },
+                { "能量", true, 72 },
+            }) do
+                imgui.table_set_column_index(column_idx - 1)
+                combo_table_header(header[1], header[2], header[3])
+            end
 
             local sort_column, sort_direction = combo_table_sort_state()
             local display_order = combo_table_order(items, info_items, sort_column, sort_direction)
             for _, i in ipairs(display_order) do
-                local is_highlighted = (i == _dropdown_highlight_idx)
+                local is_selected = (i == current_idx)
+                local is_scroll_target = (i == _dropdown_highlight_idx)
                 local item = items[i]
                 local info = info_items[i]
                 local completed = is_completed_combo_display(item)
@@ -380,25 +419,29 @@ local function combo_openable(label, current_idx, items, info_items, force_open,
                 local row_clicked = false
 
                 imgui.table_next_row()
+                if is_selected then
+                    imgui.table_set_bg_color(
+                        COMBO_TABLE_BG_TARGET_ROW, COMBO_SELECTED_ROW_BG_COLOR, -1)
+                end
                 imgui.table_next_column()
-                row_clicked = combo_table_cell(status, row_id .. "Status", false, row_color) or row_clicked
+                row_clicked = combo_table_cell(status, row_id .. "Status", true, row_color, 58) or row_clicked
                 imgui.table_next_column()
-                row_clicked = combo_table_cell(combo_row_value(info, "name"), row_id .. "Name", is_highlighted, row_color) or row_clicked
+                row_clicked = combo_table_cell(combo_row_value(info, "name"), row_id .. "Name", false, row_color, nil) or row_clicked
                 imgui.table_next_column()
                 row_clicked = combo_starter_cell(info, row_id .. "Starter", row_color, line_h) or row_clicked
                 imgui.table_next_column()
-                row_clicked = combo_table_cell(combo_row_value(info, "damage"), row_id .. "Damage", false, row_color) or row_clicked
+                row_clicked = combo_table_cell(combo_row_value(info, "damage"), row_id .. "Damage", true, row_color, 76) or row_clicked
                 imgui.table_next_column()
-                row_clicked = combo_table_cell(combo_row_value(info, "drive"), row_id .. "Drive", false, row_color) or row_clicked
+                row_clicked = combo_table_cell(combo_row_value(info, "drive"), row_id .. "Drive", true, row_color, 58) or row_clicked
                 imgui.table_next_column()
-                row_clicked = combo_table_cell(combo_row_value(info, "energy"), row_id .. "Energy", false, row_color) or row_clicked
+                row_clicked = combo_table_cell(combo_row_value(info, "energy"), row_id .. "Energy", true, row_color, 72) or row_clicked
 
                 if row_clicked then
                     new_idx = i
                     changed = true
                 end
 
-                if is_highlighted and _dropdown_scroll_needed then
+                if is_scroll_target and _dropdown_scroll_needed then
                     pcall(imgui.set_scroll_here_y)
                     _dropdown_scroll_needed = false
                 end
@@ -1662,13 +1705,13 @@ local function draw_combo_trials_menu_ui()
         if auto_c and ctx.demo_state then ctx.demo_state.auto_playlist_enabled = auto_v == true end
         local asd_c, asd_v = imgui.checkbox("允许晕厥连段使用演示", _G._allow_stun_demo or false)
         if asd_c then _G._allow_stun_demo = asd_v end
-        if d2d_cfg.show_trial_notes == nil then d2d_cfg.show_trial_notes = false end
+        if d2d_cfg.show_trial_notes == nil then d2d_cfg.show_trial_notes = true end
         local notes_c, notes_v = imgui.checkbox("显示备注", d2d_cfg.show_trial_notes)
         if notes_c then
             d2d_cfg.show_trial_notes = notes_v
             if ctx.save_d2d_config then ctx.save_d2d_config() end
         end
-        if d2d_cfg.auto_next_trial == nil then d2d_cfg.auto_next_trial = true end
+        if d2d_cfg.auto_next_trial == nil then d2d_cfg.auto_next_trial = false end
         local ant_c, ant_v = imgui.checkbox("成功后自动进入下一个连段", d2d_cfg.auto_next_trial)
         if ant_c then
             d2d_cfg.auto_next_trial = ant_v
@@ -1678,7 +1721,7 @@ local function draw_combo_trials_menu_ui()
         if imgui.button("清除完成标记") and ctx.clear_completed_trials then
             ctx.clear_completed_trials()
         end
-        if d2d_cfg.auto_retry_on_fail == nil then d2d_cfg.auto_retry_on_fail = true end
+        if d2d_cfg.auto_retry_on_fail == nil then d2d_cfg.auto_retry_on_fail = false end
         local arf_c, arf_v = imgui.checkbox("失败后自动重试（无需手动重置）", d2d_cfg.auto_retry_on_fail)
         if arf_c then
             d2d_cfg.auto_retry_on_fail = arf_v

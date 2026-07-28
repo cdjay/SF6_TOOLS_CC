@@ -52,6 +52,20 @@ assert(sequence[7].id == 1200, "the restored direction must precede the final co
 CTTimelineSequenceNormalizer.expand(sequence, resolve_classic)
 assert(#sequence == 7, "normalization must be idempotent")
 
+local sagat_clean_4hp = {
+    { id = 669, motion = "4HP", expected_combo = 2, timeline = {
+        "5f : 6+HP", "26f : 6", "8f : 5", "1f : 5+MP",
+        "1f : 5", "1f : 6+HP", "20f : 5",
+    } },
+    { id = 901, motion = "236+MP", expected_combo = 3 },
+    { id = 669, motion = "4HP", expected_combo = 4 },
+}
+CTTimelineSequenceNormalizer.expand(sagat_clean_4hp, function(step) return step.motion end)
+assert(#sagat_clean_4hp == 3,
+    "a multi-hit Sagat 4HP with one physical input must remain one action step")
+assert(sagat_clean_4hp[1].expected_combo == 2,
+    "removing repeated mash inputs must preserve the multi-hit combo requirement")
+
 local bracketed = {
     "1f : 5", "1f : 2", "1f : 8", -- pre-trial movement
     "1f : 5+LP",                    -- first known action

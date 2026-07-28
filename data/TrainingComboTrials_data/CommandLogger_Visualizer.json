@@ -3,6 +3,8 @@
     "arrow_size": 0.050999999046325684,
     "auto_launch_idx": 2,
     "auto_load": true,
+    "auto_next_trial": false,
+    "auto_retry_on_fail": false,
     "bar_img_offset_x": -0.02500000037252903,
     "bar_img_offset_y": -0.01899999938905239,
     "bar_width_pct": 0.5699999928474426,
@@ -150,7 +152,7 @@
         "y": 0.35
     },
     "show_combo_count": false,
-    "show_trial_notes": false,
+    "show_trial_notes": true,
     "show_live_single_p1": true,
     "show_live_single_p2": true,
     "show_p1": false,

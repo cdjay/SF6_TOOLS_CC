@@ -89,6 +89,31 @@ assert(ui_source:find("local COMBO_COLUMN_STRETCH = 1 << 3", 1, true), "stretch 
 assert(ui_source:find("local COMBO_TABLE_FLAGS = (1 << 3)", 1, true), "sortable table flag is missing")
 assert(ui_source:find("imgui.table_get_sort_specs()", 1, true), "table sort specifications are not read")
 assert(ui_source:find("table.sort(order", 1, true), "table rows are not sorted")
+assert(ui_source:find("imgui.table_set_bg_color(", 1, true),
+    "selected combo row does not receive a persistent table background")
+assert(ui_source:find("COMBO_SELECTED_ROW_BG_COLOR", 1, true),
+    "selected combo row background color is missing")
+assert(ui_source:find("local is_selected = (i == current_idx)", 1, true),
+    "selected combo row background must follow the active combo index")
+assert(ui_source:find("local is_scroll_target = (i == _dropdown_highlight_idx)", 1, true),
+    "initial popup scroll target must remain separate from the selected combo")
+assert(ui_source:find("local function combo_centered_overlay", 1, true),
+    "compact combo columns do not use centered overlay text")
+assert(not ui_source:find("COMBO_SELECTABLE_TEXT_ALIGN", 1, true),
+    "combo table must not use an incompatible SelectableTextAlign style variable")
+assert(ui_source:find("draw_list:add_text", 1, true),
+    "centered combo text must use the window draw list")
+local centered_overlay_source = assert(ui_source:match(
+    "local function combo_centered_overlay.-\nend"),
+    "centered combo overlay implementation is missing")
+assert(not centered_overlay_source:find("set_cursor_pos", 1, true),
+    "centered combo text must not reposition the ImGui cursor")
+assert(ui_source:find('table_setup_column("能量", COMBO_COLUMN_FIXED, 72)', 1, true),
+    "energy column is not wide enough for its header and values")
+assert(ui_source:find("local max_visible = 20", 1, true),
+    "combo popup must show up to twenty rows")
+assert(not ui_source:find("selected == true", 1, true),
+    "selected combo row must not use the menu-item checkmark")
 assert(ui_source:find("texture.draw_window", 1, true), "starter icons are not drawn in the popup window layer")
 assert(ui_source:find("renderer.parse_starter_icons", 1, true), "starter notation parser is not reused")
 for _, header in ipairs({ "C/完", "名称", "起手", "伤害", "斗气", "能量" }) do
