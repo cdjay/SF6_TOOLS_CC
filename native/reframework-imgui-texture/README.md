@@ -20,6 +20,7 @@ current DX11 or DX12 backend own upload and device-reset recreation.
 ```lua
 local handle = texture.load("buttonsAndArrows/1.png")
 texture.draw(handle, 100, 100, 32, 32)
+texture.draw_window(handle, 100, 100, 32, 32)
 local width, height = texture.size(handle)
 texture.release(handle)
 texture.clear_cache()
@@ -34,6 +35,11 @@ pointers.
 so non-square resources are not stretched. Missing or undecodable PNGs are
 cached as failed entries, logged once, and draw `[PNG missing]` as the visible
 fallback.
+
+`texture.draw_window()` uses the current ImGui window draw list and its active
+clip rectangle. Call it while drawing a window, popup, table or child region
+when the image must appear above that window's background. The original
+`texture.draw()` continues to use the background draw list for HUD overlays.
 
 Decoded RGBA bytes remain cached so a cleared or rebuilt font atlas can be
 repopulated without reading or decoding the PNG again. `release()` and

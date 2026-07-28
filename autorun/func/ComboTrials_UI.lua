@@ -97,6 +97,52 @@ local _dropdown_scroll_needed = false
 local CONTROL_CLASSIC_COLOR = 0xFFDDA0CC
 local CONTROL_MODERN_COLOR = 0xFF66A0DD
 local COMPLETED_TRIAL_COLOR = 0xFF55DD77
+local COMBO_TABLE_FLAGS = (1 << 3) | (1 << 4) | (1 << 6) | (1 << 7) | (1 << 9) | (1 << 25)
+local COMBO_COLUMN_FIXED = 1 << 4
+local COMBO_COLUMN_STRETCH = 1 << 3
+local COMBO_SORT_ASCENDING = 1
+local COMBO_SORT_DESCENDING = 2
+local COMBO_STARTER_COLUMN_WIDTH = 140
+local _combo_sort_cache = {
+    items = nil,
+    info_items = nil,
+    count = 0,
+    column = nil,
+    direction = nil,
+    order = {},
+}
+local _combo_starter_icon_files = {
+    ["1"] = "1.png",
+    ["2"] = "2.png",
+    ["3"] = "3.png",
+    ["4"] = "4.png",
+    ["5"] = "5.png",
+    ["6"] = "6.png",
+    ["7"] = "7.png",
+    ["8"] = "8.png",
+    ["9"] = "9.png",
+    ["360"] = "360.png",
+    plus = "PLUS.png",
+    p = "P.png",
+    k = "K.png",
+    lp = "lp.png",
+    mp = "mp.png",
+    hp = "hp.png",
+    lk = "lk.png",
+    mk = "mk.png",
+    hk = "hk.png",
+    throw = "THROW.png",
+    di = "di.png",
+    dr = "dr.png",
+    drc = "drc.png",
+    parry = "parry.png",
+    rev = "rev.png",
+    hold = "hold.png",
+    followup = "followup.png",
+    validfollowup = "validfollowup.png",
+}
+local _combo_starter_icon_handles = {}
+local _combo_starter_icon_failed = {}
 
 local function combo_control_color(value)
     local mode = tostring(value or ""):lower()
@@ -110,7 +156,164 @@ local function is_completed_combo_display(value)
     return tostring(value or ""):find("^【完】") ~= nil
 end
 
-local function combo_openable(label, current_idx, items, force_open, btn_width)
+local function combo_row_value(info, key)
+    local value = type(info) == "table" and tostring(info[key] or "") or ""
+    return value ~= "" and value or "—"
+end
+
+local function combo_row_status(info, item)
+    local control_type = type(info) == "table" and info.control_type or item
+    local status = tostring(control_type or ""):lower() == "modern" and "M" or "C"
+    if is_completed_combo_display(item) then status = status .. "/完" end
+    return status
+end
+
+local function combo_table_cell(value, id, selected, color)
+    if color then imgui.push_style_color(0, color) end
+    local clicked = imgui.menu_item(tostring(value or "—") .. "##" .. id, "", selected == true, true)
+    if color then imgui.pop_style_color(1) end
+    return clicked
+end
+
+local function combo_starter_icon_tokens(info)
+    local starter = type(info) == "table" and tostring(info.starter or "") or ""
+    local renderer = ctx and ctx.combo_renderer
+    if starter == "" or not renderer or type(renderer.parse_starter_icons) ~= "function" then return nil end
+
+    local ok, tokens = pcall(renderer.parse_starter_icons, starter)
+    if not ok or type(tokens) ~= "table" or #tokens == 0 then return nil end
+    for _, token in ipairs(tokens) do
+        if type(token) ~= "table" or not _combo_starter_icon_files[token.val] then return nil end
+    end
+    return tokens
+end
+
+local function combo_starter_icon_handle(icon_key)
+    local handle = _combo_starter_icon_handles[icon_key]
+    if handle then return handle end
+    if _combo_starter_icon_failed[icon_key] then return nil end
+    if type(texture) ~= "table" or type(texture.load) ~= "function" then return nil end
+
+    local ok, loaded = pcall(texture.load, "buttonsAndArrows/" .. _combo_starter_icon_files[icon_key])
+    if ok and loaded then
+        _combo_starter_icon_handles[icon_key] = loaded
+        return loaded
+    end
+    _combo_starter_icon_failed[icon_key] = true
+    return nil
+end
+
+local function combo_starter_cell(info, id, color, line_h)
+    local fallback = combo_row_value(info, "starter")
+    if type(texture) ~= "table" or type(texture.draw_window) ~= "function" then
+        return combo_table_cell(fallback, id, false, color)
+    end
+
+    local tokens = combo_starter_icon_tokens(info)
+    if not tokens then return combo_table_cell(fallback, id, false, color) end
+
+    local handles = {}
+    for idx, token in ipairs(tokens) do
+        local handle = combo_starter_icon_handle(token.val)
+        if not handle then return combo_table_cell(fallback, id, false, color) end
+        handles[idx] = handle
+    end
+
+    local screen_pos = imgui.get_cursor_screen_pos()
+    local clicked = combo_table_cell("", id, false, color)
+    local spacing = 1
+    local available = COMBO_STARTER_COLUMN_WIDTH - 8 - math.max(0, #handles - 1) * spacing
+    local icon_size = math.max(12, math.min(line_h - 3, math.floor(available / #handles)))
+    local x = screen_pos.x + 3
+    local y = screen_pos.y + math.max(0, math.floor((line_h - icon_size) * 0.5))
+    for _, handle in ipairs(handles) do
+        pcall(texture.draw_window, handle, x, y, icon_size, icon_size)
+        x = x + icon_size + spacing
+    end
+    return clicked
+end
+
+local function combo_sort_value(column, info, item)
+    if column == 0 then return combo_row_status(info, item), false end
+
+    local key = nil
+    if column == 1 then key = "name"
+    elseif column == 2 then key = "starter"
+    elseif column == 3 then key = "damage"
+    elseif column == 4 then key = "drive"
+    elseif column == 5 then key = "energy"
+    end
+
+    local value = type(info) == "table" and tostring(info[key] or "") or ""
+    if value == "" then
+        if column == 1 then return tostring(item or ""):lower(), false end
+        return nil, column >= 3
+    end
+    if column >= 3 then return tonumber(value), true end
+    return value:lower(), false
+end
+
+local function combo_table_sort_state()
+    local sort_specs = imgui.table_get_sort_specs()
+    if not sort_specs then return nil, nil end
+
+    local spec = nil
+    local ok, specs = pcall(function() return sort_specs:get_specs() end)
+    if ok and specs then
+        pcall(function() spec = specs[1] end)
+        if not spec then pcall(function() spec = specs[0] end) end
+    end
+
+    local column = spec and tonumber(spec.column_index) or nil
+    local direction = spec and tonumber(spec.sort_direction) or nil
+    pcall(function() sort_specs.specs_dirty = false end)
+    return column, direction
+end
+
+local function combo_table_order(items, info_items, column, direction)
+    local cache = _combo_sort_cache
+    if cache.items == items
+        and cache.info_items == info_items
+        and cache.count == #items
+        and cache.column == column
+        and cache.direction == direction then
+        return cache.order
+    end
+
+    local order = {}
+    for idx = 1, #items do order[idx] = idx end
+
+    if column ~= nil then
+        local descending = direction == COMBO_SORT_DESCENDING
+        table.sort(order, function(a_idx, b_idx)
+            local a_value, numeric = combo_sort_value(column, info_items[a_idx], items[a_idx])
+            local b_value = combo_sort_value(column, info_items[b_idx], items[b_idx])
+            local a_missing = a_value == nil
+            local b_missing = b_value == nil
+            if a_missing ~= b_missing then return not a_missing end
+            if a_missing then return a_idx < b_idx end
+            if numeric then
+                a_value = tonumber(a_value)
+                b_value = tonumber(b_value)
+            end
+            if a_value == b_value then return a_idx < b_idx end
+            if descending then return a_value > b_value end
+            return a_value < b_value
+        end)
+    end
+
+    cache.items = items
+    cache.info_items = info_items
+    cache.count = #items
+    cache.column = column
+    cache.direction = direction
+    cache.order = order
+    return order
+end
+
+local function combo_openable(label, current_idx, items, info_items, force_open, btn_width)
+    items = items or {}
+    info_items = info_items or {}
     local popup_id = label .. "_popup"
     local preview = (items and items[current_idx]) or "---"
 
@@ -127,16 +330,18 @@ local function combo_openable(label, current_idx, items, force_open, btn_width)
     local clicked = imgui.button(preview .. "  \xe2\x96\xbc" .. label, Vector2f.new(w, 0))
     if preview_color then imgui.pop_style_color(1) end
 
+    local line_h = imgui.calc_text_size("W").y + 6
+    local max_visible = 12
+    local visible_count = math.max(1, math.min(#items, max_visible))
+    local popup_h = ((visible_count + 1) * line_h) + 18
+    local available_w = math.max(360, (ctx.cached_sw or 1920) - btn_screen_x - 16)
+    local popup_w = math.min(math.max(btn_width or 0, 920), available_w)
+
     local should_open = force_open or clicked
     if should_open then
-        -- Estimate popup height: item count * line height, capped
-        local line_h = imgui.calc_text_size("W").y + 6
-        local max_visible = 10
-        local visible_count = math.min(#items, max_visible)
-        local popup_h = (visible_count * line_h) + 8
-
+        _combo_sort_cache.items = nil
         -- Position the popup just above the button, left-aligned
-        imgui.set_next_window_pos(Vector2f.new(btn_screen_x, btn_screen_y - popup_h), 1)
+        imgui.set_next_window_pos(Vector2f.new(btn_screen_x, math.max(0, btn_screen_y - popup_h)), 1)
 
         imgui.open_popup(popup_id)
         _dropdown_highlight_idx = current_idx
@@ -147,25 +352,58 @@ local function combo_openable(label, current_idx, items, force_open, btn_width)
     local changed = false
     local new_idx = current_idx
 
+    imgui.set_next_window_size(Vector2f.new(popup_w, popup_h), 1)
     if imgui.begin_popup(popup_id) then
         _G.ComboTrials_DropdownOpen = true
 
-        for i = 1, #items do
-            local is_highlighted = (i == _dropdown_highlight_idx)
-            local item = items[i]
-            local completed = is_completed_combo_display(item)
-            local row_color = completed and COMPLETED_TRIAL_COLOR or combo_control_color(item)
-            if row_color then imgui.push_style_color(0, row_color) end
-            if imgui.menu_item(item, completed and "√" or "", is_highlighted, true) then
-                new_idx = i
-                changed = true
+        if imgui.begin_table("##ComboListTable" .. label, 6, COMBO_TABLE_FLAGS, Vector2f.new(0, 0)) then
+            imgui.table_setup_column("C/完", COMBO_COLUMN_FIXED, 58)
+            imgui.table_setup_column("名称", COMBO_COLUMN_STRETCH, 1)
+            imgui.table_setup_column("起手", COMBO_COLUMN_FIXED, COMBO_STARTER_COLUMN_WIDTH)
+            imgui.table_setup_column("伤害", COMBO_COLUMN_FIXED, 76)
+            imgui.table_setup_column("斗气", COMBO_COLUMN_FIXED, 58)
+            imgui.table_setup_column("能量", COMBO_COLUMN_FIXED, 58)
+            imgui.table_setup_scroll_freeze(0, 1)
+            imgui.table_headers_row()
+
+            local sort_column, sort_direction = combo_table_sort_state()
+            local display_order = combo_table_order(items, info_items, sort_column, sort_direction)
+            for _, i in ipairs(display_order) do
+                local is_highlighted = (i == _dropdown_highlight_idx)
+                local item = items[i]
+                local info = info_items[i]
+                local completed = is_completed_combo_display(item)
+                local control_type = type(info) == "table" and info.control_type or item
+                local status = combo_row_status(info, item)
+                local row_color = completed and COMPLETED_TRIAL_COLOR or combo_control_color(control_type)
+                local row_id = "ComboRow" .. tostring(i) .. label
+                local row_clicked = false
+
+                imgui.table_next_row()
+                imgui.table_next_column()
+                row_clicked = combo_table_cell(status, row_id .. "Status", false, row_color) or row_clicked
+                imgui.table_next_column()
+                row_clicked = combo_table_cell(combo_row_value(info, "name"), row_id .. "Name", is_highlighted, row_color) or row_clicked
+                imgui.table_next_column()
+                row_clicked = combo_starter_cell(info, row_id .. "Starter", row_color, line_h) or row_clicked
+                imgui.table_next_column()
+                row_clicked = combo_table_cell(combo_row_value(info, "damage"), row_id .. "Damage", false, row_color) or row_clicked
+                imgui.table_next_column()
+                row_clicked = combo_table_cell(combo_row_value(info, "drive"), row_id .. "Drive", false, row_color) or row_clicked
+                imgui.table_next_column()
+                row_clicked = combo_table_cell(combo_row_value(info, "energy"), row_id .. "Energy", false, row_color) or row_clicked
+
+                if row_clicked then
+                    new_idx = i
+                    changed = true
+                end
+
+                if is_highlighted and _dropdown_scroll_needed then
+                    pcall(imgui.set_scroll_here_y)
+                    _dropdown_scroll_needed = false
+                end
             end
-            if row_color then imgui.pop_style_color(1) end
-            -- Scroll to highlighted item
-            if is_highlighted and _dropdown_scroll_needed then
-                pcall(imgui.set_scroll_here_y)
-                _dropdown_scroll_needed = false
-            end
+            imgui.end_table()
         end
         imgui.end_popup()
     else
@@ -254,7 +492,14 @@ local function draw_top_combo_picker(id, dd_w, sp)
     end
 
     local should_open = (_G.ComboTrials_OpenDropdown == true)
-    local changed, new_idx = combo_openable("##FilesP1", file_system.selected_file_idx_p1, file_system.saved_combos_display_p1, should_open, filtered_dd_w)
+    local changed, new_idx = combo_openable(
+        "##FilesP1",
+        file_system.selected_file_idx_p1,
+        file_system.saved_combos_display_p1,
+        file_system.saved_combos_info_p1,
+        should_open,
+        filtered_dd_w
+    )
     if changed then
         file_system.selected_file_idx_p1 = new_idx
         load_and_start_trial(0)
@@ -559,7 +804,7 @@ local function draw_single_line_content()
     local return_gap = 0
     local is_demo_active_early = (ctx.demo_state and ctx.demo_state.is_playing)
     local is_replay_mode = RuntimeSafety.is_replay_allowed()
-    local visible_button_count = 2
+    local visible_button_count = 3
     if trial_state.is_recording or is_demo_active_early or is_replay_mode then
         visible_button_count = 2
     elseif trial_state.is_playing then
@@ -659,6 +904,10 @@ local function draw_single_line_content()
                 ctx.reset_trial_steps_and_load(trial_state.playing_player)
             end
         else
+            if styled_sf6_button("刷新列表", false, btn_w, true, false, SWITCH_COLORS) then
+                file_system.request_combo_list_refresh("manual list refresh", true)
+            end
+            imgui.same_line(0, sp)
             if styled_sf6_button("录制连段", false, btn_w, true, false, P1_COLORS) then start_recording(0) end
         end
 
@@ -820,7 +1069,14 @@ local function draw_combo_trials_content(is_floating)
         imgui.pop_item_width()
     else
         local should_open = (_G.ComboTrials_OpenDropdown == true)
-        local f1_changed, new_idx1 = combo_openable("##FilesP1", file_system.selected_file_idx_p1, file_system.saved_combos_display_p1, should_open, col1_w)
+        local f1_changed, new_idx1 = combo_openable(
+            "##FilesP1",
+            file_system.selected_file_idx_p1,
+            file_system.saved_combos_display_p1,
+            file_system.saved_combos_info_p1,
+            should_open,
+            col1_w
+        )
         if f1_changed then
             file_system.selected_file_idx_p1 = new_idx1
             load_and_start_trial(0)

@@ -56,7 +56,7 @@ using GetCustomRectFn = bool (*)(
     ImFontAtlasRectId,
     ImFontAtlasRect*
 );
-using GetBackgroundDrawListFn = ImDrawList* (*)();
+using GetDrawListFn = ImDrawList* (*)();
 using AddImageFn = void (*)(
     ImDrawList*,
     ImTextureRef,
@@ -76,7 +76,8 @@ struct CImGuiApi {
     AddCustomRectFn add_custom_rect{};
     RemoveCustomRectFn remove_custom_rect{};
     GetCustomRectFn get_custom_rect{};
-    GetBackgroundDrawListFn get_background_draw_list{};
+    GetDrawListFn get_background_draw_list{};
+    GetDrawListFn get_window_draw_list{};
     AddImageFn add_image{};
     AddTextFn add_text{};
 };
@@ -164,6 +165,7 @@ bool resolve_cimgui_api() {
         "ImFontAtlas_GetCustomRect"
     );
     ok &= resolve_export(g_imgui.get_background_draw_list, "igGetBackgroundDrawList_Nil");
+    ok &= resolve_export(g_imgui.get_window_draw_list, "igGetWindowDrawList");
     ok &= resolve_export(g_imgui.add_image, "ImDrawList_AddImage");
     ok &= resolve_export(g_imgui.add_text, "ImDrawList_AddText_Vec2");
     return ok;
@@ -654,11 +656,7 @@ bool integrate_pending_locked(std::string& error) {
     return true;
 }
 
-void draw_fallback(float x, float y, const char* text) {
-    if (!imgui_context_ready()) {
-        return;
-    }
-    ImDrawList* draw_list = g_imgui.get_background_draw_list();
+void draw_fallback(ImDrawList* draw_list, float x, float y, const char* text) {
     if (draw_list == nullptr) {
         return;
     }
@@ -766,7 +764,7 @@ int lua_texture_load(lua_State* state) {
     }
 }
 
-int lua_texture_draw(lua_State* state) {
+int lua_texture_draw_impl(lua_State* state, bool use_window_draw_list) {
     try {
         const auto handle = lua_handle(state, 1);
         const auto x = lua_finite_number(state, 2);
@@ -788,9 +786,29 @@ int lua_texture_draw(lua_State* state) {
         }
 
         std::scoped_lock lock{g_mutex};
+        if (!imgui_context_ready()) {
+            lua_pushboolean(state, 0);
+            lua_pushliteral(state, "ImGui context 尚未就绪");
+            return 2;
+        }
+
+        ImDrawList* draw_list = use_window_draw_list
+            ? g_imgui.get_window_draw_list()
+            : g_imgui.get_background_draw_list();
+        if (draw_list == nullptr) {
+            lua_pushboolean(state, 0);
+            lua_pushstring(
+                state,
+                use_window_draw_list
+                    ? "无法取得 ImGui window draw list"
+                    : "无法取得 ImGui background draw list"
+            );
+            return 2;
+        }
+
         const auto found = g_entries.find(*handle);
         if (found == g_entries.end()) {
-            draw_fallback(*x, *y, "[texture invalid]");
+            draw_fallback(draw_list, *x, *y, "[texture invalid]");
             const std::string key = "invalid_handle:" + std::to_string(*handle);
             if (g_logged_errors.emplace(key).second && g_functions != nullptr) {
                 g_functions->log_error(
@@ -805,29 +823,16 @@ int lua_texture_draw(lua_State* state) {
 
         TextureEntry& entry = *found->second;
         if (entry.decode_failed) {
-            draw_fallback(*x, *y, "[PNG missing]");
+            draw_fallback(draw_list, *x, *y, "[PNG missing]");
             lua_pushboolean(state, 0);
             lua_pushlstring(state, entry.error.data(), entry.error.size());
             return 2;
         }
 
         if (!entry.atlas_ready) {
-            draw_fallback(*x, *y, "[texture pending]");
+            draw_fallback(draw_list, *x, *y, "[texture pending]");
             lua_pushboolean(state, 0);
             lua_pushliteral(state, "PNG 正在等待 ImGui 字体图集上传");
-            return 2;
-        }
-
-        if (!imgui_context_ready()) {
-            lua_pushboolean(state, 0);
-            lua_pushliteral(state, "ImGui context 尚未就绪");
-            return 2;
-        }
-
-        ImDrawList* draw_list = g_imgui.get_background_draw_list();
-        if (draw_list == nullptr) {
-            lua_pushboolean(state, 0);
-            lua_pushliteral(state, "无法取得 ImGui background draw list");
             return 2;
         }
 
@@ -844,7 +849,7 @@ int lua_texture_draw(lua_State* state) {
         ImFontAtlasRect rect{};
         if (!get_custom_rect(atlas, entry.atlas_rect_id, rect)) {
             entry.atlas_ready = false;
-            draw_fallback(*x, *y, "[texture pending]");
+            draw_fallback(draw_list, *x, *y, "[texture pending]");
             lua_pushboolean(state, 0);
             lua_pushliteral(state, "PNG 的 ImGui 字体图集区域已失效");
             return 2;
@@ -867,6 +872,14 @@ int lua_texture_draw(lua_State* state) {
     } catch (...) {
         return push_failure(state, "texture.draw 发生未知错误");
     }
+}
+
+int lua_texture_draw(lua_State* state) {
+    return lua_texture_draw_impl(state, false);
+}
+
+int lua_texture_draw_window(lua_State* state) {
+    return lua_texture_draw_impl(state, true);
 }
 
 int lua_texture_size(lua_State* state) {
@@ -932,11 +945,12 @@ void register_lua_api(lua_State* state) {
     lua_getglobal(state, "texture");
     if (!lua_istable(state, -1)) {
         lua_pop(state, 1);
-        lua_createtable(state, 0, 5);
+        lua_createtable(state, 0, 6);
     }
 
     set_table_function(state, "load", lua_texture_load);
     set_table_function(state, "draw", lua_texture_draw);
+    set_table_function(state, "draw_window", lua_texture_draw_window);
     set_table_function(state, "size", lua_texture_size);
     set_table_function(state, "release", lua_texture_release);
     set_table_function(state, "clear_cache", lua_texture_clear_cache);

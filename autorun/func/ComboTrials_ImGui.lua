@@ -1905,7 +1905,7 @@ local function is_shun_goku_satsu_motion(motion)
 end
 
 local function parse_motion_to_icons(log_entry, trial_mode, should_flip, reverse_layout)
-    local d2d_cfg = ctx.d2d_cfg
+    local d2d_cfg = ctx and ctx.d2d_cfg or {}
     local motion_tokens = {}
     local s = tostring(log_entry.motion or "")
 
@@ -3174,6 +3174,23 @@ function M.get_command_display(character, action_id, mode)
     local command_map, status = load_command_display_map(character)
     if not command_map then return nil, status end
     return get_command_display(command_map, action_id, mode)
+end
+
+function M.parse_starter_icons(starter)
+    local motion = tostring(starter or ""):upper():gsub("_", " ")
+    local compact = motion:gsub("%s+", "")
+    if compact == "RAWDR" then
+        motion = "RAW DR"
+    elseif compact == "DRIVERUSH" then
+        motion = "DRIVE RUSH"
+    end
+
+    local tokens = parse_motion_to_icons({ motion = motion }, "starter", false, false)
+    if type(tokens) ~= "table" or #tokens == 0 then return nil end
+    for _, token in ipairs(tokens) do
+        if type(token) ~= "table" or token.type ~= "img" then return nil end
+    end
+    return tokens
 end
 
 function M.reset_anim()

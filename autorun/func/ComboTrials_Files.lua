@@ -298,10 +298,43 @@ local function combo_info_from_file(filepath, char_name)
         for _, token in ipairs(tags) do
             if token ~= "" then out[#out + 1] = "[" .. sanitize_utf8_display(token) .. "]" end
         end
-        return table.concat(out, " ")
+
+        local drive_idx = nil
+        local drive = ""
+        local energy = ""
+        for idx, token in ipairs(tags) do
+            local drive_value = token:match("^D(%d+_%d+)$") or token:match("^D(%d+)$")
+            if drive_value and not drive_idx then
+                drive_idx = idx
+                drive = drive_value:gsub("_", ".")
+            end
+            local energy_value = token:match("^SA(%d+)$")
+            if energy_value and energy == "" then energy = energy_value end
+        end
+
+        local damage_idx = drive_idx and (drive_idx - 1) or nil
+        local damage = ""
+        if damage_idx and damage_idx >= 2 and tostring(tags[damage_idx] or ""):match("^%d+$") then
+            damage = tostring(tags[damage_idx])
+        else
+            damage_idx = nil
+        end
+
+        local starter = ""
+        if damage_idx and damage_idx > 2 then
+            starter = table.concat(tags, "_", 2, damage_idx - 1)
+        end
+
+        return table.concat(out, " "), {
+            category = sanitize_utf8_display(tags[1] or ""),
+            starter = sanitize_utf8_display(starter),
+            damage = sanitize_utf8_display(damage),
+            drive = sanitize_utf8_display(drive),
+            energy = sanitize_utf8_display(energy),
+        }
     end
 
-    local short_key = combo_file_key(filename)
+    local short_key, columns = combo_file_key(filename)
 
     local function clean_title(value)
         if type(value) ~= "string" then return nil end
@@ -317,10 +350,17 @@ local function combo_info_from_file(filepath, char_name)
     local wtt_title = type(wtt_meta) == "table" and clean_title(wtt_meta.title) or nil
 
     local title = xt_title or wtt_title or ""
+    local fallback_name = fallback:gsub("%.[Jj][Ss][Oo][Nn]$", "")
     return {
         prefix = combo_control_label(control_type),
         title = title,
+        name = title ~= "" and title or fallback_name,
         short_key = short_key,
+        category = columns.category,
+        starter = columns.starter,
+        damage = columns.damage,
+        drive = columns.drive,
+        energy = columns.energy,
         control_type = control_type,
         filepath = filepath,
     }, nil, control_type
@@ -463,7 +503,7 @@ local function filter_combo_lists(display_all, path_all, control_all)
         end
     end
     local display_list = build_combo_display_list(info_list)
-    return display_list, path_list, control_list
+    return display_list, path_list, control_list, info_list
 end
 
 local function scan_combo_files(player_idx)
@@ -575,23 +615,27 @@ end
 local function update_combo_file_list(player_idx)
     local display_all, path_all, control_all, scan_ok, skipped_count = scan_combo_files(player_idx)
     if not scan_ok then return false end
-    local display_list, path_list, control_list = filter_combo_lists(display_all, path_all, control_all)
+    local display_list, path_list, control_list, info_list = filter_combo_lists(display_all, path_all, control_all)
     local character = players[player_idx] and players[player_idx].profile_name or "Unknown"
 
     if player_idx == 0 then
         file_system.saved_combos_all_display_p1 = build_combo_display_list(display_all)
+        file_system.saved_combos_all_info_p1 = display_all
         file_system.saved_combos_all_paths_p1 = path_all
         file_system.saved_combos_all_control_p1 = control_all
         file_system.saved_combos_display_p1 = display_list
+        file_system.saved_combos_info_p1 = info_list
         file_system.saved_combos_paths_p1 = path_list
         file_system.saved_combos_control_p1 = control_list
         file_system.skipped_combos_p1 = skipped_count
         file_system.combo_list_character_p1 = character
     else
         file_system.saved_combos_all_display_p2 = build_combo_display_list(display_all)
+        file_system.saved_combos_all_info_p2 = display_all
         file_system.saved_combos_all_paths_p2 = path_all
         file_system.saved_combos_all_control_p2 = control_all
         file_system.saved_combos_display_p2 = display_list
+        file_system.saved_combos_info_p2 = info_list
         file_system.saved_combos_paths_p2 = path_list
         file_system.saved_combos_control_p2 = control_list
         file_system.skipped_combos_p2 = skipped_count

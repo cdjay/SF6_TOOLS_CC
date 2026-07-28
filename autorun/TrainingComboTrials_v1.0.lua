@@ -855,18 +855,22 @@ end
 
 local file_system = {
     saved_combos_display_p1 = {},
+    saved_combos_info_p1 = {},
     saved_combos_paths_p1 = {},
     saved_combos_control_p1 = {},
     saved_combos_all_display_p1 = {},
+    saved_combos_all_info_p1 = {},
     saved_combos_all_paths_p1 = {},
     saved_combos_all_control_p1 = {},
     skipped_combos_p1 = 0,
     selected_file_idx_p1 = 1,
 
     saved_combos_display_p2 = {},
+    saved_combos_info_p2 = {},
     saved_combos_paths_p2 = {},
     saved_combos_control_p2 = {},
     saved_combos_all_display_p2 = {},
+    saved_combos_all_info_p2 = {},
     saved_combos_all_paths_p2 = {},
     saved_combos_all_control_p2 = {},
     skipped_combos_p2 = 0,
@@ -1212,6 +1216,7 @@ end
 
 ComboTrials_Renderer = require("func/ComboTrials_ImGui")
 ComboTrials_Renderer.init(ctx)
+ctx.combo_renderer = ComboTrials_Renderer
 
 -- Pure ImGui rendering is implemented by ComboTrials_ImGui.lua.
 
@@ -6394,12 +6399,12 @@ local function ct_poll_trialhub_sync_signal()
     file_system.diag_no_signal_counter = 0
 
     local version = signal.version
-    local time_value = signal.time or signal.updated_at
+    local time_value = signal.time or signal.updated_at or signal.updatedAt or signal.timestamp
     if version == nil and time_value == nil then
         file_system.diag_invalid_signal_counter = file_system.diag_invalid_signal_counter + 1
         if file_system.diag_invalid_signal_counter == 1 or file_system.diag_invalid_signal_counter >= 20 then
             file_system.diag_log("sync signal invalid path=" .. tostring(signal_path)
-                .. " version=nil time=nil updated_at=nil")
+                .. " version=nil time=nil updated_at=nil updatedAt=nil timestamp=nil")
             file_system.diag_invalid_signal_counter = 1
         end
         return
