@@ -17,15 +17,6 @@ local MIN_HIT_CONTACT_HP_DELTA = 10
 -- before that point.
 local DEFAULT_EXPECTED_REPEAT_EARLY_WINDOW = 12
 
-local function attack_button_count(mask)
-    mask = (tonumber(mask) or 0) & 0xFFF0
-    local count = 0
-    for _, bit in ipairs({ 16, 32, 64, 128, 256, 512 }) do
-        if (mask & bit) ~= 0 then count = count + 1 end
-    end
-    return count
-end
-
 -- pl_input_new uses physical direction bits (right=4, left=8). Normalize them
 -- to facing-relative notation before dash pairing; BCM command directions use
 -- a different lookup and must not be reused for physical input.
@@ -137,71 +128,6 @@ function M.evaluate_expected_repeat_input(params)
     return result
 end
 
--- Recording has no future sequence step to prove that an advancing same-ID
--- action is a repeat. A prior hit or block contact admits a new attack edge as
--- a candidate. The candidate is not an action yet; a later, distinct contact
--- confirms that the repeated move really came out.
-function M.evaluate_recording_repeat_input(params)
-    params = type(params) == "table" and params or {}
-    local current_button_mask = params.current_button_mask
-    if current_button_mask == nil then current_button_mask = params.action_button_edge end
-    local result = {
-        accepted = false,
-        reason = nil,
-        last_recorded_id = tonumber(params.last_recorded_id),
-        current_id = tonumber(params.current_id),
-        buffered_id = tonumber(params.buffered_id),
-        contact_serial = tonumber(params.contact_serial) or 0,
-        last_recorded_has_contact = params.last_recorded_has_contact == true,
-        action_button_edge = (tonumber(params.action_button_edge) or 0) & 0xFFF0,
-        current_button_count = attack_button_count(current_button_mask),
-        minimum_button_count = math.max(1, math.floor(tonumber(params.minimum_button_count) or 1))
-    }
-
-    if result.action_button_edge == 0 then
-        result.reason = "missing_attack_edge"
-    elseif result.current_button_count < result.minimum_button_count then
-        result.reason = "insufficient_current_buttons"
-    elseif result.last_recorded_id == nil then
-        result.reason = "missing_recorded_action"
-    elseif result.current_id ~= result.last_recorded_id
-        or result.buffered_id ~= result.last_recorded_id then
-        result.reason = "runtime_action_id_mismatch"
-    elseif not result.last_recorded_has_contact then
-        result.reason = "recorded_action_not_contacted"
-    elseif result.contact_serial <= 0 then
-        result.reason = "recorded_action_has_no_prior_contact"
-    else
-        result.accepted = true
-        result.reason = "recording_repeat_candidate_ready"
-    end
-    return result
-end
-
-function M.evaluate_recording_repeat_contact(params)
-    params = type(params) == "table" and params or {}
-    local result = {
-        accepted = false,
-        reason = nil,
-        candidate_id = tonumber(params.candidate_id),
-        current_id = tonumber(params.current_id),
-        contact_serial_at_input = tonumber(params.contact_serial_at_input) or 0,
-        current_contact_serial = tonumber(params.current_contact_serial) or 0
-    }
-
-    if result.candidate_id == nil then
-        result.reason = "missing_recording_repeat_candidate"
-    elseif result.current_id ~= result.candidate_id then
-        result.reason = "recording_repeat_action_id_mismatch"
-    elseif result.current_contact_serial <= result.contact_serial_at_input then
-        result.reason = "recording_repeat_contact_not_advanced"
-    else
-        result.accepted = true
-        result.reason = "recording_repeat_contact_confirmed"
-    end
-    return result
-end
-
 -- Separate normal hits can both expose combo_cnt == 1 when the polling sample
 -- misses the brief reset between them. In that case an HP decrease is accepted
 -- only with a normal hit signal and a meaningful single-frame damage delta.
@@ -283,11 +209,9 @@ function M.detect(current_id, current_frame, buffered_id, buffered_frame, state,
         end
     end
 
-    -- Some commands can be entered again while the engine keeps both the same
-    -- Action ID and a monotonically advancing ActionFrame. Playback may admit a
-    -- fresh edge when the recorded sequence independently proves that the next
-    -- expected step is the same action. Recording deliberately does not use
-    -- this immediate path: it waits for a real hit before committing a repeat.
+    -- Playback may admit a fresh edge when the recorded sequence independently
+    -- proves that the next expected step is the same action. Recording never
+    -- uses input or contact alone to synthesize a new action instance.
     if confirmed_repeat_input and action_button_edge ~= 0 then
         local confirmation_reason = type(confirmed_repeat_input) == "string"
             and confirmed_repeat_input or "expected_repeat_action_input"

@@ -94,12 +94,6 @@ assert(character_rules.find_recording_absorb_owner({
         ["970"] = { absorb_ids = "975", record_absorb_as_parent = true }
     }, {}, 975) == nil,
     "ambiguous absorb parents must fail closed instead of choosing an arbitrary command")
-assert(character_rules.get_recording_repeat_min_buttons({
-        recording_repeat_min_buttons = 2
-    }) == 2,
-    "a character rule must be able to require the full multi-button repeat chord")
-assert(character_rules.get_recording_repeat_min_buttons(nil) == 1,
-    "characters without a repeat chord rule must retain the existing single-edge behavior")
 local deejay_sa3_exception = character_rules.get_match_rule({}, {}, "DeeJay", 1268)
 assert(deejay_sa3_exception ~= nil,
     "Dee Jay SA3/CA compatibility must live in character rules, not legacy combo JSON")

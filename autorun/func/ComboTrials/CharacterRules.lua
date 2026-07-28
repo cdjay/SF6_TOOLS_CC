@@ -104,13 +104,6 @@ function CharacterRules.find_recording_absorb_owner(character_rules, common_rule
     return nil
 end
 
-function CharacterRules.get_recording_repeat_min_buttons(exception)
-    local count = type(exception) == "table"
-        and tonumber(exception.recording_repeat_min_buttons) or nil
-    if count == nil then return 1 end
-    return math.max(1, math.floor(count))
-end
-
 function CharacterRules.is_action_required(exception)
     if type(exception) ~= "table" then return false end
     return exception.action_required == true
