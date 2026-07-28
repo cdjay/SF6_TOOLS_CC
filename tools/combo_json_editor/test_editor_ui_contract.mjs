@@ -12,12 +12,18 @@ assert.doesNotMatch(html, /id="saveAllChanges"/, "save-all must remain a global 
 assert.match(html, /id="saveAll" disabled>保存全部修改 \(Save all changes\)<\/button>/);
 assert.match(app, /保存全部修改 · \$\{changedCount\}/);
 assert.match(html, /id="refreshDirectory" disabled>刷新目录 \(Refresh directory\)<\/button>/);
+assert.match(html, /id="titleSort"[\s\S]*?按名称排序 \(Sort by title\)/);
 assert.match(app, /indexedDB\.open\(DIRECTORY_HANDLE_DB, 1\)/);
 assert.match(app, /objectStore\(DIRECTORY_HANDLE_STORE\)\.put\(handle, LAST_DIRECTORY_KEY\)/);
 assert.match(app, /async function refreshDirectory/);
 assert.match(app, /await loadDirectoryHandle\(handle, selectedPath\)/);
 assert.match(app, /\$\("refreshDirectory"\)\.onclick = \(\) => refreshDirectory\(\)/);
 assert.match(app, /restoreRememberedDirectory\(\);\s*$/);
+assert.match(app, /state\.titleSort === "title-asc"/);
+assert.match(app, /state\.titleSort === "title-desc"/);
+assert.match(app, /compareComboTitles\(left, right, -1\)/);
+assert.match(app, /\$\("titleSort"\)\.onclick/);
+assert.match(styles, /\.sidebar-sort\[aria-pressed="true"\]/);
 for (const id of ["upgradeCurrent", "applyCurrent", "saveCurrent", "downloadCurrent"]) {
     assert.match(
         html,
@@ -39,8 +45,18 @@ for (const id of [
 }
 assert.match(
     app,
-    /\$\("scenePlayerStack"\)\.append\([\s\S]*?\$\("currentComboActions"\)/,
-    "single-combo actions must follow the dummy player card"
+    /\$\("scenePlayerStack"\)\.append\([\s\S]*?\$\(`\$\{dummySide\}ScenePanel`\)[\s\S]*?\);/,
+    "player stack must contain only the combo character and dummy player cards"
+);
+assert.doesNotMatch(
+    app,
+    /scenePlayerStack"\)\.append\([\s\S]*?currentComboActions/,
+    "single-combo actions must not remain in the player stack"
+);
+assert.match(
+    html,
+    /id="sceneMenuStack"[\s\S]*?id="dummyMenuPanel"[\s\S]*?id="currentComboActions"/,
+    "single-combo actions must sit directly below the dummy training menu"
 );
 
 const staticAppReferences = [...app.matchAll(/\$\("([A-Za-z0-9_-]+)"\)/g)].map(match => match[1]);
@@ -189,7 +205,7 @@ assert.match(html, /id="p2Unique" class="unique-resource-list"/);
 // 环境页左栏按“连段角色 → 木人”堆叠，右栏独立展示木人训练菜单
 assert.match(html, /resource-field unique-focus/);
 assert.match(html, /id="dummyEnvBlock"/);
-for (const id of ["scenePlayerStack", "p1ScenePanel", "p2ScenePanel", "dummyMenuPanel"]) {
+for (const id of ["scenePlayerStack", "sceneMenuStack", "p1ScenePanel", "p2ScenePanel", "dummyMenuPanel"]) {
     assert.match(html, new RegExp(`id="${id}"`), `${id} must support the split environment layout`);
 }
 assert.doesNotMatch(html, /id="p[12]DummySlot"/, "dummy menu must not remain nested in a player panel");

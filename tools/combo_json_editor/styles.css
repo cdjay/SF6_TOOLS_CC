@@ -651,6 +651,15 @@ main {
     border-bottom: 1px solid var(--sf6-border-subtle);
     background: color-mix(in srgb, var(--sf6-base-200) 64%, transparent);
 }
+.sidebar-sort {
+    width: 100%;
+    justify-content: center;
+}
+.sidebar-sort[aria-pressed="true"] {
+    border-color: color-mix(in srgb, var(--sf6-brand) 72%, var(--sf6-border-strong));
+    background: color-mix(in srgb, var(--sf6-brand) 12%, transparent);
+    color: var(--sf6-brand);
+}
 .file-list { flex: 1; min-height: 0; overflow: auto; padding: 6px; }
 .file-row {
     width: 100%;
@@ -895,7 +904,8 @@ main {
     gap: 12px;
     margin: 12px 0 26px;
 }
-.scene-player-stack {
+.scene-player-stack,
+.scene-menu-stack {
     display: grid;
     align-content: start;
     gap: 12px;

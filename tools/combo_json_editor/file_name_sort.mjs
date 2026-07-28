@@ -1,7 +1,7 @@
 /* ==========================================================================
    连段训练 JSON 文件名自然排序
    规则：
-   1. 仅比较文件名，不比较目录、JSON 标题或内容（_xt_meta.title 只影响显示）。
+   1. 默认顺序仅比较文件名；编辑器可另行调用 compareComboTitles 按 _xt_meta.title 排序。
    2. 文件名统一转小写，排序不区分大小写。
    3. 按“文本段 + 数字段”自然升序：combo2.json 排在 combo10.json 前。
    4. 数值相同时数字位数少者优先：2.json 排在 02.json 前。
@@ -49,6 +49,41 @@ export function compareFileNames(left, right) {
         j += 1;
     }
     return (a.length - i) - (b.length - j);
+}
+
+const utf8Encoder = new TextEncoder();
+
+function luaTrim(value) {
+    return String(value).replace(/^[\t\n\v\f\r ]+|[\t\n\v\f\r ]+$/g, "");
+}
+
+export function comboRecordTitle(record) {
+    const root = record?.document?.[0] || {};
+    const title = typeof root?._xt_meta?.title === "string" ? luaTrim(root._xt_meta.title) : "";
+    const legacyTitle = typeof root?._wtt_cn_meta?.title === "string"
+        ? luaTrim(root._wtt_cn_meta.title)
+        : "";
+    return title || legacyTitle || String(record?.name || "").replace(/\.json$/i, "");
+}
+
+function luaAsciiLower(value) {
+    return String(value).replace(/[A-Z]/g, char => String.fromCharCode(char.charCodeAt(0) + 32));
+}
+
+/* 对齐游戏 ComboTrials_UI.lua：
+   Lua string.lower 只处理 ASCII，随后用 < / > 按 UTF-8 字节逐项比较。
+   不使用 Intl.Collator，因此中文不按拼音、数字也不按自然数排序。 */
+export function compareComboTitles(left, right, direction = 1) {
+    const leftBytes = utf8Encoder.encode(luaAsciiLower(comboRecordTitle(left)));
+    const rightBytes = utf8Encoder.encode(luaAsciiLower(comboRecordTitle(right)));
+    const length = Math.min(leftBytes.length, rightBytes.length);
+    for (let index = 0; index < length; index += 1) {
+        if (leftBytes[index] === rightBytes[index]) continue;
+        const result = leftBytes[index] < rightBytes[index] ? -1 : 1;
+        return direction < 0 ? -result : result;
+    }
+    const result = leftBytes.length === rightBytes.length ? 0 : leftBytes.length < rightBytes.length ? -1 : 1;
+    return direction < 0 ? -result : result;
 }
 
 /* 区分大小写：仅精确匹配 _FAIL_ */

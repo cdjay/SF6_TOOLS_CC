@@ -40,6 +40,10 @@
             <select id="characterFilter">
                 <option value="all">全部角色文件夹 (All character folders)</option>
             </select>
+            <button id="titleSort" class="sidebar-sort" type="button" aria-pressed="false"
+                    title="按 JSON 的 title 字段排序；再次点击切换方向 (Sort by JSON title)">
+                按名称排序 (Sort by title)
+            </button>
             <select id="statusFilter">
                 <option value="all">全部状态 (All states)</option>
                 <option value="legacy">待升级 (Legacy)</option>
@@ -204,17 +208,8 @@
                             </div>
                         </div>
                     </div>
-                    <section id="currentComboActions" class="subpanel current-combo-actions" aria-labelledby="currentComboActionsTitle">
-                        <h3 id="currentComboActionsTitle">当前连段操作 (Current combo actions)</h3>
-                        <p class="hint">仅作用于当前连段；“应用”会先暂存修改，再选择保存或下载。</p>
-                        <div class="actions">
-                            <button id="upgradeCurrent">升级当前文件 (Upgrade)</button>
-                            <button id="applyCurrent" class="primary">应用表单修改 (Apply)</button>
-                            <button id="saveCurrent">保存当前文件 (Save)</button>
-                            <button id="downloadCurrent">下载 (Download)</button>
-                        </div>
-                    </section>
                     </div>
+                    <div id="sceneMenuStack" class="scene-menu-stack">
                     <div id="dummyMenuPanel" class="subpanel dummy-menu-panel">
                         <div id="dummyEnvBlock" class="resource-field dummy-env">
                                     <span>木人与训练菜单 (Dummy &amp; training menu)</span>
@@ -339,6 +334,17 @@
                                         </label>
                                     </div>
                         </div>
+                    </div>
+                    <section id="currentComboActions" class="subpanel current-combo-actions" aria-labelledby="currentComboActionsTitle">
+                        <h3 id="currentComboActionsTitle">当前连段操作 (Current combo actions)</h3>
+                        <p class="hint">仅作用于当前连段；“应用”会先暂存修改，再选择保存或下载。</p>
+                        <div class="actions">
+                            <button id="upgradeCurrent">升级当前文件 (Upgrade)</button>
+                            <button id="applyCurrent" class="primary">应用表单修改 (Apply)</button>
+                            <button id="saveCurrent">保存当前文件 (Save)</button>
+                            <button id="downloadCurrent">下载 (Download)</button>
+                        </div>
+                    </section>
                     </div>
                 </div>
             </section>

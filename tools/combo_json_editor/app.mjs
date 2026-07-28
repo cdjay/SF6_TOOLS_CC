@@ -19,7 +19,7 @@ import {
     resourceOptions,
     splitUniqueResourceValues
 } from "./unique_resource_catalog.mjs";
-import { compareFileNames, isFailMarkedFile } from "./file_name_sort.mjs";
+import { compareComboTitles, compareFileNames, isFailMarkedFile } from "./file_name_sort.mjs";
 
 const $ = id => document.getElementById(id);
 const DIRECTORY_HANDLE_DB = "sf6cc-combo-json-editor";
@@ -33,6 +33,7 @@ const state = {
     rootName: "",
     filter: "",
     status: "all",
+    titleSort: "file",
     characterFolder: "all"
 };
 let toastTimer = null;
@@ -163,7 +164,7 @@ function updateSummary() {
 function filteredRecords() {
     /* 排序在载入时完成；筛选（含未来的经典/现代筛选）只过滤、不改变剩余项目顺序。
        文件名含区分大小写 _FAIL_ 的、以及无效或无法加载的 JSON 不进入列表。 */
-    return state.records.filter(record => {
+    const records = state.records.filter(record => {
         if (isFailMarkedFile(record.name)) return false;
         if (record.error || !record.document) return false;
         if (state.filter && !recordSearchText(record).includes(state.filter)) return false;
@@ -173,6 +174,23 @@ function filteredRecords() {
         if (state.status === "warning" && !(record.error || record.warnings.length)) return false;
         return true;
     });
+    if (state.titleSort === "title-asc") records.sort(compareComboTitles);
+    if (state.titleSort === "title-desc") {
+        records.sort((left, right) => compareComboTitles(left, right, -1));
+    }
+    return records;
+}
+
+function updateTitleSortButton() {
+    const button = $("titleSort");
+    const labels = {
+        file: "按名称排序 (Sort by title)",
+        "title-asc": "名称 ↑ (Title ascending)",
+        "title-desc": "名称 ↓ (Title descending)"
+    };
+    button.textContent = labels[state.titleSort];
+    button.dataset.sortMode = state.titleSort;
+    button.setAttribute("aria-pressed", String(state.titleSort !== "file"));
 }
 
 function renderFileList() {
@@ -1076,8 +1094,7 @@ function renderSelected() {
     const dummySide = comboSide === "p1" ? "p2" : "p1";
     $("scenePlayerStack").append(
         $(`${comboSide}ScenePanel`),
-        $(`${dummySide}ScenePanel`),
-        $("currentComboActions")
+        $(`${dummySide}ScenePanel`)
     );
 
     for (const side of ["p1", "p2"]) {
@@ -1533,6 +1550,12 @@ $("openFiles").onclick = () => $("fileInput").click();
 $("fileInput").onchange = () => openFiles($("fileInput").files);
 $("search").oninput = event => { state.filter = event.target.value.trim().toLowerCase(); renderFileList(); };
 $("characterFilter").onchange = event => { state.characterFolder = event.target.value; renderFileList(); };
+$("titleSort").onclick = () => {
+    const modes = ["file", "title-asc", "title-desc"];
+    state.titleSort = modes[(modes.indexOf(state.titleSort) + 1) % modes.length];
+    updateTitleSortButton();
+    renderFileList();
+};
 $("statusFilter").onchange = event => { state.status = event.target.value; renderFileList(); };
 $("upgradeCurrent").onclick = upgradeCurrent;
 $("upgradeAll").onclick = upgradeAll;
@@ -1672,4 +1695,5 @@ for (const button of document.querySelectorAll(".tabs button")) {
     };
 }
 
+updateTitleSortButton();
 restoreRememberedDirectory();

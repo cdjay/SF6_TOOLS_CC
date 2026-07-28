@@ -1,5 +1,11 @@
 import assert from "node:assert/strict";
-import { compareFileNames, isFailMarkedFile, naturalNameSegments } from "./file_name_sort.mjs";
+import {
+    comboRecordTitle,
+    compareComboTitles,
+    compareFileNames,
+    isFailMarkedFile,
+    naturalNameSegments
+} from "./file_name_sort.mjs";
 
 function assertOrder(names, expected) {
     const sorted = [...names].sort(compareFileNames);
@@ -43,5 +49,50 @@ assert.ok(isFailMarkedFile("AKI_COMBO_FAIL_01.json"));
 assert.ok(isFailMarkedFile("x_FAIL_y.json"));
 assert.ok(!isFailMarkedFile("x_fail_y.json"));
 assert.ok(!isFailMarkedFile("normal.json"));
+
+const titleRecords = [
+    { name: "light.json", document: [{ _xt_meta: { title: "4帧起手_轻波掌压制偷+2" } }] },
+    { name: "switch.json", document: [{ _xt_meta: { title: "4帧起手_换边出版" } }] },
+    { name: "forward.json", document: [{ _xt_meta: { title: "4帧起手_前重拳压制+3" } }] },
+    { name: "all.json", document: [{ _xt_meta: { title: "4帧起手_全资源斩杀" } }] }
+];
+assert.deepEqual(
+    [...titleRecords].sort(compareComboTitles).map(comboRecordTitle),
+    ["4帧起手_全资源斩杀", "4帧起手_前重拳压制+3", "4帧起手_换边出版", "4帧起手_轻波掌压制偷+2"],
+    "title ascending sort must match the game's UTF-8 byte order"
+);
+assert.deepEqual(
+    [...titleRecords].sort((left, right) => compareComboTitles(left, right, -1)).map(comboRecordTitle),
+    ["4帧起手_轻波掌压制偷+2", "4帧起手_换边出版", "4帧起手_前重拳压制+3", "4帧起手_全资源斩杀"],
+    "title descending sort must reverse the game's UTF-8 byte order"
+);
+assert.ok(
+    compareComboTitles(
+        { name: "ten.json", document: [{ _xt_meta: { title: "连段10" } }] },
+        { name: "two.json", document: [{ _xt_meta: { title: "连段2" } }] }
+    ) < 0,
+    "game title sorting must remain lexical rather than natural numeric sorting"
+);
+assert.equal(
+    compareComboTitles(
+        { name: "upper.json", document: [{ _xt_meta: { title: "ABC" } }] },
+        { name: "lower.json", document: [{ _xt_meta: { title: "abc" } }] }
+    ),
+    0,
+    "game title sorting must use Lua-style ASCII lowercase comparison"
+);
+assert.equal(
+    comboRecordTitle({
+        name: "legacy.json",
+        document: [{ _xt_meta: { title: "" }, _wtt_cn_meta: { title: "旧标题" } }]
+    }),
+    "旧标题",
+    "legacy WTT title must match the game's fallback behavior"
+);
+assert.equal(
+    comboRecordTitle({ name: "Ryu_COMBO_1.json", document: [{}] }),
+    "Ryu_COMBO_1",
+    "missing titles must fall back to the extensionless file name like the game"
+);
 
 console.log("file name sort tests passed");
