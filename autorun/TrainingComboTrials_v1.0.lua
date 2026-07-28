@@ -626,6 +626,12 @@ function _G.CTRecordingRepeat.read_live_damage_type(player_obj)
     return tonumber(raw_value) or tonumber(tostring(raw_value)) or 0
 end
 
+function _G.CTRecordingRepeat.read_live_hit_stop(player_obj)
+    if not player_obj then return 0 end
+    local raw_value = player_obj:get_field("hit_stop")
+    return tonumber(raw_value) or tonumber(tostring(raw_value)) or 0
+end
+
 -- =========================================================
 -- DEMO ENGINE STATE
 -- =========================================================
@@ -6978,6 +6984,10 @@ local function ct_player_tracking(p_idx, p_state)
         local damage_ok, captured_damage_type =
             pcall(_G.CTRecordingRepeat.read_live_damage_type, _pf.victim_obj)
         if damage_ok then victim_damage_type = captured_damage_type or 0 end
+        local victim_hit_stop = 0
+        local hit_stop_ok, captured_hit_stop =
+            pcall(_G.CTRecordingRepeat.read_live_hit_stop, _pf.victim_obj)
+        if hit_stop_ok then victim_hit_stop = captured_hit_stop or 0 end
         local block_contact = ActionRestartDetector.evaluate_block_contact(
             victim_damage_type, p_state.recording_block_contact_active)
         if block_contact.started then
@@ -7004,6 +7014,8 @@ local function ct_player_tracking(p_idx, p_state)
             previous_combo = p_state.last_combo_count or 0,
             current_hp = current_victim_hp,
             previous_hp = p_state.recording_last_victim_hp,
+            damage_type = victim_damage_type,
+            hit_stop = victim_hit_stop,
             blocked = block_contact.active
         })
         p_state.recording_last_victim_hp = current_victim_hp
@@ -7739,6 +7751,7 @@ local function ct_player_input_buffer(p_state)
         current_id = _pf.act_id,
         buffered_id = p_state.buffer_act_id,
         contact_serial = p_state.recording_contact_serial,
+        last_recorded_has_contact = recording_last_step and recording_last_step.has_contact == true,
         action_button_edge = action_input_edge
     })
     local confirmed_repeat_input = expected_repeat_input.accepted

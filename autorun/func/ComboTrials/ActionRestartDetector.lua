@@ -10,6 +10,7 @@ local REPEATABLE_COMMON_ACTIONS = {
 
 local DEFAULT_DASH_TAP_WINDOW = 12
 local DASH_ACTION_BIND_WINDOW = 12
+local MIN_HIT_CONTACT_HP_DELTA = 10
 -- Match the player-action transition lookup window. A repeated command can be
 -- buffered several frames before the engine would expose its next action start;
 -- Sagat's recorded consecutive OD projectile reaches the physical edge 5f
@@ -140,6 +141,7 @@ function M.evaluate_recording_repeat_input(params)
         current_id = tonumber(params.current_id),
         buffered_id = tonumber(params.buffered_id),
         contact_serial = tonumber(params.contact_serial) or 0,
+        last_recorded_has_contact = params.last_recorded_has_contact == true,
         action_button_edge = (tonumber(params.action_button_edge) or 0) & 0xFFF0
     }
 
@@ -150,6 +152,8 @@ function M.evaluate_recording_repeat_input(params)
     elseif result.current_id ~= result.last_recorded_id
         or result.buffered_id ~= result.last_recorded_id then
         result.reason = "runtime_action_id_mismatch"
+    elseif not result.last_recorded_has_contact then
+        result.reason = "recorded_action_not_contacted"
     elseif result.contact_serial <= 0 then
         result.reason = "recorded_action_has_no_prior_contact"
     else
@@ -184,9 +188,10 @@ function M.evaluate_recording_repeat_contact(params)
 end
 
 -- Separate normal hits can both expose combo_cnt == 1 when the polling sample
--- misses the brief reset between them. A real victim HP decrease is an
--- independent contact edge for recording, while an unchanged/refilling HP
--- value cannot confirm a repeated action that never came out.
+-- misses the brief reset between them. In that case an HP decrease is accepted
+-- only with a normal hit signal and a meaningful single-frame damage delta.
+-- Persistent damage (for example A.K.I. poison) must not confirm a repeated
+-- action candidate even if an unrelated hit signal is still visible.
 function M.evaluate_recording_hit_contact(params)
     params = type(params) == "table" and params or {}
     local result = {
@@ -196,21 +201,32 @@ function M.evaluate_recording_hit_contact(params)
         previous_combo = tonumber(params.previous_combo) or 0,
         current_hp = tonumber(params.current_hp),
         previous_hp = tonumber(params.previous_hp),
+        damage_type = tonumber(params.damage_type) or 0,
+        hit_stop = tonumber(params.hit_stop) or 0,
+        minimum_hp_delta = tonumber(params.minimum_hp_delta) or MIN_HIT_CONTACT_HP_DELTA,
         blocked = params.blocked == true
     }
     result.combo_increased = result.current_combo > result.previous_combo
+    result.hp_delta = result.current_hp ~= nil
+        and result.previous_hp ~= nil
+        and math.max(0, result.previous_hp - result.current_hp) or 0
     result.hp_decreased = result.current_hp ~= nil
         and result.previous_hp ~= nil
         and result.current_hp < result.previous_hp
+    result.has_hit_signal = result.damage_type == 3 and result.hit_stop > 0
 
     if result.combo_increased then
         result.accepted = true
         result.reason = "combo_increased"
-    elseif result.hp_decreased and not result.blocked then
-        result.accepted = true
-        result.reason = "victim_hp_decreased"
-    elseif result.hp_decreased then
+    elseif result.hp_decreased and result.blocked then
         result.reason = "blocked_hp_decrease"
+    elseif result.hp_decreased and not result.has_hit_signal then
+        result.reason = "hp_decreased_without_hit_signal"
+    elseif result.hp_decreased and result.hp_delta < result.minimum_hp_delta then
+        result.reason = "hp_decrease_below_contact_threshold"
+    elseif result.hp_decreased then
+        result.accepted = true
+        result.reason = "victim_hp_decreased_hit_signal"
     else
         result.reason = "no_new_hit_contact"
     end

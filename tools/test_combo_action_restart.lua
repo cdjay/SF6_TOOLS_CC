@@ -56,6 +56,7 @@ local recording_repeat_eval = detector.evaluate_recording_repeat_input({
     current_id = 621,
     buffered_id = 621,
     contact_serial = 1,
+    last_recorded_has_contact = true,
     action_button_edge = 32
 })
 assert(recording_repeat_eval.accepted == true
@@ -87,10 +88,23 @@ assert(recording_repeat_contact.accepted == true
     "the second 2MP must be confirmed only when it produces a later hit or block contact")
 
 recording_repeat_eval = detector.evaluate_recording_repeat_input({
+    last_recorded_id = 619,
+    current_id = 619,
+    buffered_id = 619,
+    contact_serial = 4,
+    last_recorded_has_contact = false,
+    action_button_edge = 16
+})
+assert(recording_repeat_eval.accepted == false
+        and recording_repeat_eval.reason == "recorded_action_not_contacted",
+    "an OD whip contact must not let buffered 5LP duplicate an unconfirmed 2LP")
+
+recording_repeat_eval = detector.evaluate_recording_repeat_input({
     last_recorded_id = 621,
     current_id = 621,
     buffered_id = 621,
     contact_serial = 0,
+    last_recorded_has_contact = true,
     action_button_edge = 32
 })
 assert(recording_repeat_eval.accepted == false
@@ -111,10 +125,48 @@ local hit_contact = detector.evaluate_recording_hit_contact({
     current_combo = 1,
     previous_combo = 1,
     current_hp = 8400,
-    previous_hp = 9000
+    previous_hp = 9000,
+    damage_type = 3,
+    hit_stop = 4
 })
-assert(hit_contact.accepted == true and hit_contact.reason == "victim_hp_decreased",
+assert(hit_contact.accepted == true and hit_contact.reason == "victim_hp_decreased_hit_signal",
     "a second normal hit must create a contact even when combo_cnt remains 1")
+
+hit_contact = detector.evaluate_recording_hit_contact({
+    current_combo = 4,
+    previous_combo = 4,
+    current_hp = 8993,
+    previous_hp = 9000,
+    damage_type = 0,
+    hit_stop = 0
+})
+assert(hit_contact.accepted == false
+        and hit_contact.reason == "hp_decreased_without_hit_signal",
+    "A.K.I. poison damage must not confirm a repeated normal candidate")
+
+hit_contact = detector.evaluate_recording_hit_contact({
+    current_combo = 4,
+    previous_combo = 4,
+    current_hp = 8993,
+    previous_hp = 9000,
+    damage_type = 3,
+    hit_stop = 4
+})
+assert(hit_contact.accepted == false
+        and hit_contact.reason == "hp_decrease_below_contact_threshold",
+    "A.K.I. poison damage must stay rejected even while a stale hit signal is visible")
+
+hit_contact = detector.evaluate_recording_hit_contact({
+    current_combo = 4,
+    previous_combo = 4,
+    current_hp = 8993,
+    previous_hp = 9000,
+    damage_type = 3,
+    hit_stop = 0
+})
+assert(hit_contact.accepted == false
+        and hit_contact.reason == "hp_decreased_without_hit_signal",
+    "an HP decrease without victim hit stop must not become a recording contact")
 
 hit_contact = detector.evaluate_recording_hit_contact({
     current_combo = 1,
