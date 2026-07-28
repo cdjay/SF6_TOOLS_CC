@@ -46,6 +46,13 @@ const commandSource = {
         motion_command: null,
         control_support: "classic_only"
     },
+    "200": {
+        classic_command: { display: "214214+P", inputs: ["214214+P"] },
+        simple_command: { display: "> 中", inputs: ["> 中"] },
+        motion_command: null,
+        control_support: "classic_modern",
+        ownership: "assist_combo"
+    },
     _meta: {
         schema: "xt.command_display.v1", character: "Test", fighter_id: 99,
         generated_at: "2026-07-23T00:00:00.000Z"
@@ -60,6 +67,11 @@ const officialSnapshot = {
     "101": {
         classic_display: "6 + HP", modern_display: "6 + SP",
         move_name: "测试派生", official_web_id: "302"
+    },
+    "200": {
+        classic_display: "21424 | 24214 + LP | MP | HP",
+        modern_display: "4 + 强 + SP/214214 + 中",
+        move_name: "SA2 测试波（Lv1）", official_web_id: "402"
     },
     _meta: {
         schema: "xt.modern_display.v1", character: "Test", fighter_id: 99,
@@ -86,6 +98,24 @@ const officialSnapshot = {
             name: "UNBOUND", type: "SPECIAL", command: "214 ＋ LK",
             command_modern: "4＋SP/214＋弱/6＋SP/236＋强",
             damage: "900", startup_frame: "10", active_frame: null, recovery_frame: null
+        },
+        {
+            triggerId: "80", actionId: "200", webId: "402", skill: "SA2 测试波（Lv1）",
+            name: "(SA2_TEST)", type: "SA", command: "21424 | 24214 ＋ LP | MP | HP",
+            command_modern: "4＋强＋SP/214214＋中", note: ["ボタンをホールドする事で性能変化"],
+            translation: "Hold down the button to change the properties of this move."
+        },
+        {
+            triggerId: "81", actionId: "200", webId: "403", skill: "SA2 测试波（Lv2）",
+            name: "(SA2_TEST)", type: "SA", command: "21425 | 24214 ＋ LP | MP | HP",
+            command_modern: "4＋强＋SP/214214＋中", note: ["ボタンをホールドする事で性能変化"],
+            translation: "Hold down the button to change the properties of this move."
+        },
+        {
+            triggerId: "82", actionId: "200", webId: "404", skill: "SA2 测试波（Lv3）",
+            name: "(SA2_TEST)", type: "SA", command: "21426 | 24214 ＋ LP | MP | HP",
+            command_modern: "4＋强＋SP/214214＋中", note: ["ボタンをホールドする事で性能変化"],
+            translation: "Hold down the button to change the properties of this move."
         }
     ]
 };
@@ -96,7 +126,7 @@ const output = webCharacter.buildWebCharacter(commandSource, {
     officialSha256: "official-hash"
 });
 assert.deepStrictEqual(webCharacter.validateWebCharacter(output, commandSource),
-    { action_count: 3, move_count: 3 });
+    { action_count: 4, move_count: 6 });
 assert.strictEqual(output._meta.schema, "xt.character.web.v1");
 assert.strictEqual(output._meta.command_source_sha256, "command-hash");
 assert.strictEqual(output._meta.frame_source_sha256, "official-hash");
@@ -116,6 +146,16 @@ assert.strictEqual(output.moves["web:400:1"].command.fallback.modern.simple.disp
 assert.strictEqual(output.moves["web:400:1"].command.fallback.modern.motion.display, "214 + 弱/236 + 强");
 assert.deepStrictEqual(output.moves["web:400:1"].command.fallback.modern.variants.map(item => item.display),
     ["4 + SP", "214 + 弱", "6 + SP", "236 + 强"]);
+assert.strictEqual(output.actions["200"].modern.simple.display, "> 中");
+for (const moveId of ["web:402:1", "web:403:1", "web:404:1"]) {
+    const move = output.moves[moveId];
+    assert.strictEqual(move.command.source, "official_fallback");
+    assert.strictEqual(move.command.fallback.classic.display, "214214+P");
+    assert.strictEqual(move.command.fallback.modern.simple.display, "4 + 强 + SP");
+    assert.strictEqual(move.command.fallback.modern.motion.display, "214214 + 中");
+    assert.strictEqual(move.official_command.classic, "214214+P");
+}
+assert.deepStrictEqual(output.moves["web:402:1"].action_ids, [200]);
 assert.strictEqual(output._audit.duplicate_official_web_id_count, 1);
 assert.strictEqual(output._audit.unresolved_move_binding_count, 0);
 assert.deepStrictEqual(webCharacter.buildWebCharacter(commandSource, {

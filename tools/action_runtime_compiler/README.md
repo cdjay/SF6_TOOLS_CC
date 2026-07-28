@@ -167,6 +167,11 @@ tools\action_runtime_compiler\2_build_lastjson.bat 2026-05-28
 `lastjson` 与 `lastjson_web` 必须同时正好生成30个角色；任一生成、校验或目录替换失败时，两套旧
 结果都会保留。
 
+官网帧数据模块可能把等级蓄力招式的内部候选编码放在 `command` 字段。网页生成器不会直接渲染
+该编码：同一内部招式、同一 Action 提示且备注明确按住按钮的等级组，Classic 使用 AC+BCM 的
+已验证 Action 指令，Modern 使用官网独立招式语义。Action 索引仍保留原有连段或 assist-combo
+投影，避免角色资料页修正影响连段步骤。
+
 `lastjson-manifest.json` 放在版本目录根部，不混入 `lastjson`，因此 `lastjson` 内始终正好30个可全选复制的角色文件。manifest 记录每个角色的输入文件、输出哈希、Action 数和相对覆盖前结果的新增/删除/变化 ID。
 
 ## 5. 官网文件名与角色名

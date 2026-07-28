@@ -89,6 +89,10 @@ tools/action_runtime_compiler/acbcm/<版本>/lastjson_web/<Character>.json
 `command.source = "action"` 时，使用 `actions[String(command.action_id)]`。未能安全绑定当前 Action ID
 的官网招式使用 `official_fallback`，其 `fallback` 直接包含可渲染的经典和现代 token。
 
+同一内部招式、同一官网 Action 提示、至少两个等级且备注明确要求按住按钮时，网页生成器将其识别为
+等级蓄力组。此类 move 的 Classic 指令使用已验证 AC+BCM Action 投影，Modern 指令使用官网独立
+招式语义，并写入 `official_fallback`；Action 索引本身仍保留连段步骤或 assist-combo 语义。
+
 `raw` 永远保留官网原文。只有纯数字字段才写入 `value`；`4-6`、`※1100` 等条件或范围文本的
 `value` 为 `null`，网站展示不得丢弃 `raw`。
 

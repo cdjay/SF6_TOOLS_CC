@@ -366,6 +366,44 @@ function chooseMoveCandidate(candidateIds, moves, binding, actionId) {
     return null;
 }
 
+function holdLevelGroupKey(move) {
+    const name = trim(move && move.name);
+    const internalName = trim(move && move.internal_name);
+    const actionHint = trim(move && move.official_action_id_hint);
+    if (!name || !internalName || !actionHint
+        || !/(?:Lv|Level|等级|レベル)\s*\d/iu.test(name)) return null;
+    const description = [...(move.notes || []), move.translation || ""].join("\n");
+    if (!/ボタンをホールド|按住|保持|hold (?:down )?the button/iu.test(description)) return null;
+    return `${actionHint}\u0000${internalName}`;
+}
+
+function normalizeHoldLevelMoveCommands(moves, actions) {
+    const groups = new Map();
+    for (const [moveId, move] of Object.entries(moves)) {
+        const key = holdLevelGroupKey(move);
+        if (!key) continue;
+        if (!groups.has(key)) groups.set(key, []);
+        groups.get(key).push(moveId);
+    }
+    for (const moveIds of groups.values()) {
+        if (moveIds.length < 2) continue;
+        const actionHint = moves[moveIds[0]].official_action_id_hint;
+        const classic = actions[actionHint] && actions[actionHint].classic
+            && actions[actionHint].classic.display;
+        if (!classic || moveIds.some(moveId => !moves[moveId].official_command.modern)) continue;
+        for (const moveId of moveIds) {
+            const move = moves[moveId];
+            const modern = move.official_command.modern;
+            move.official_command = { classic, modern };
+            move.command = {
+                source: "official_fallback",
+                action_id: null,
+                fallback: buildCommandSet(classic, modern, Number(actionHint))
+            };
+        }
+    }
+}
+
 function buildWebCharacter(commandSource, options = {}) {
     const sourceMeta = commandSource && commandSource._meta || {};
     if (sourceMeta.schema !== "xt.command_display.v1") {
@@ -427,6 +465,7 @@ function buildWebCharacter(commandSource, options = {}) {
             move.command = { source: "action", action_id: actionId, fallback: null };
         }
     }
+    normalizeHoldLevelMoveCommands(moves, actions);
 
     const duplicateOfficialWebIds = [...byWebId.entries()].filter(([, ids]) => ids.length > 1)
         .map(([officialWebId, moveIds]) => ({ official_web_id: officialWebId, move_ids: moveIds }));
