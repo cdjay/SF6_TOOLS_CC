@@ -7746,13 +7746,19 @@ local function ct_player_input_buffer(p_state)
         and p_state == players[trial_state.recording_player]
         and trial_state.sequence
         and trial_state.sequence[#trial_state.sequence] or nil
+    local recording_repeat_exc = recording_last_step
+        and CharacterRules.get_exception(
+            p_state.exceptions, common_exceptions, recording_last_step.id) or nil
     local recording_repeat_input = ActionRestartDetector.evaluate_recording_repeat_input({
         last_recorded_id = recording_last_step and recording_last_step.id or nil,
         current_id = _pf.act_id,
         buffered_id = p_state.buffer_act_id,
         contact_serial = p_state.recording_contact_serial,
         last_recorded_has_contact = recording_last_step and recording_last_step.has_contact == true,
-        action_button_edge = action_input_edge
+        action_button_edge = action_input_edge,
+        current_button_mask = _pf.direct_input,
+        minimum_button_count =
+            CharacterRules.get_recording_repeat_min_buttons(recording_repeat_exc)
     })
     local confirmed_repeat_input = expected_repeat_input.accepted
     local started_new_action, started_new_action_reason = ActionRestartDetector.detect(
@@ -7982,22 +7988,13 @@ end
 
 local function ct_player_process_actions(p_idx, p_state, actions_to_process)
     for _, process_act in ipairs(actions_to_process) do
-        local act_id = process_act.id
+        local runtime_act_id = process_act.id
+        local act_id = runtime_act_id
         local flags = process_act.flags
         local action_code = process_act.action_code
         local direct_input = process_act.direct_input
         local b_type = process_act.b_type
         local engine_frame_count = process_act.engine_frame
-        local act_name = act_id_reverse_enum[act_id] or "Unknown"
-
-        -- 1. EARLY EXCEPTION RESOLUTION (For Hold Link)
-        local exc = CharacterRules.get_exception(p_state.exceptions, common_exceptions, act_id)
-
-        if p_state.editing_id == act_id then
-            exc = ActionMatcher.build_edit_exception(p_state)
-        end
-
-        exc = CharacterRules.apply_runtime_overrides(p_state.profile_name, act_id, exc, p_state.log)
 
         -- ABSORPTION CHECK (Does the active parent action want to absorb this new ID?)
         local is_continuation = false
@@ -8010,8 +8007,35 @@ local function ct_player_process_actions(p_idx, p_state, actions_to_process)
                 parent_exc = { absorb_ids = p_state.edit_absorb_ids }
             end
 
-            is_continuation = ActionMatcher.matches_absorb_id(parent_exc, act_id)
+            is_continuation = ActionMatcher.matches_absorb_id(parent_exc, runtime_act_id)
         end
+
+        -- Some state-dependent commands branch away from their catalog Action
+        -- at frame zero, so polling never observes the command owner itself.
+        -- Character rules must opt in, and a physical catalog command is still
+        -- required before recording an absorbed runtime ID as its parent.
+        if not is_continuation and trial_state.is_recording
+            and p_idx == trial_state.recording_player then
+            local absorb_owner_id = CharacterRules.find_recording_absorb_owner(
+                p_state.exceptions, common_exceptions, runtime_act_id)
+            if absorb_owner_id then
+                local owner_is_command = ComboTrialsModules.CommandResolver.resolve_unified_command_action(
+                    p_state.profile_name, absorb_owner_id, direct_input, process_act.newly_pressed,
+                    ComboTrials_Renderer)
+                if owner_is_command then act_id = absorb_owner_id end
+            end
+        end
+
+        local act_name = act_id_reverse_enum[act_id] or "Unknown"
+
+        -- 1. EARLY EXCEPTION RESOLUTION (For Hold Link)
+        local exc = CharacterRules.get_exception(p_state.exceptions, common_exceptions, act_id)
+
+        if p_state.editing_id == act_id then
+            exc = ActionMatcher.build_edit_exception(p_state)
+        end
+
+        exc = CharacterRules.apply_runtime_overrides(p_state.profile_name, act_id, exc, p_state.log)
 
         -- 2. CLOSING THE PREVIOUS ACTION
         if #p_state.log > 0 then

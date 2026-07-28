@@ -17,6 +17,15 @@ local MIN_HIT_CONTACT_HP_DELTA = 10
 -- before that point.
 local DEFAULT_EXPECTED_REPEAT_EARLY_WINDOW = 12
 
+local function attack_button_count(mask)
+    mask = (tonumber(mask) or 0) & 0xFFF0
+    local count = 0
+    for _, bit in ipairs({ 16, 32, 64, 128, 256, 512 }) do
+        if (mask & bit) ~= 0 then count = count + 1 end
+    end
+    return count
+end
+
 -- pl_input_new uses physical direction bits (right=4, left=8). Normalize them
 -- to facing-relative notation before dash pairing; BCM command directions use
 -- a different lookup and must not be reused for physical input.
@@ -134,6 +143,8 @@ end
 -- confirms that the repeated move really came out.
 function M.evaluate_recording_repeat_input(params)
     params = type(params) == "table" and params or {}
+    local current_button_mask = params.current_button_mask
+    if current_button_mask == nil then current_button_mask = params.action_button_edge end
     local result = {
         accepted = false,
         reason = nil,
@@ -142,11 +153,15 @@ function M.evaluate_recording_repeat_input(params)
         buffered_id = tonumber(params.buffered_id),
         contact_serial = tonumber(params.contact_serial) or 0,
         last_recorded_has_contact = params.last_recorded_has_contact == true,
-        action_button_edge = (tonumber(params.action_button_edge) or 0) & 0xFFF0
+        action_button_edge = (tonumber(params.action_button_edge) or 0) & 0xFFF0,
+        current_button_count = attack_button_count(current_button_mask),
+        minimum_button_count = math.max(1, math.floor(tonumber(params.minimum_button_count) or 1))
     }
 
     if result.action_button_edge == 0 then
         result.reason = "missing_attack_edge"
+    elseif result.current_button_count < result.minimum_button_count then
+        result.reason = "insufficient_current_buttons"
     elseif result.last_recorded_id == nil then
         result.reason = "missing_recorded_action"
     elseif result.current_id ~= result.last_recorded_id

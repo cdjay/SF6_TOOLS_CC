@@ -63,6 +63,34 @@ assert(recording_repeat_eval.accepted == true
         and recording_repeat_eval.reason == "recording_repeat_candidate_ready",
     "Dee Jay's second 2MP edge must become a candidate after the first hit or block contact")
 
+recording_repeat_eval = detector.evaluate_recording_repeat_input({
+    last_recorded_id = 906,
+    current_id = 906,
+    buffered_id = 906,
+    contact_serial = 1,
+    last_recorded_has_contact = true,
+    action_button_edge = 64,
+    current_button_mask = 64,
+    minimum_button_count = 2
+})
+assert(recording_repeat_eval.accepted == false
+        and recording_repeat_eval.reason == "insufficient_current_buttons",
+    "A.K.I. 214PP must not claim its single-punch 6P follow-up as a repeated 214PP")
+
+recording_repeat_eval = detector.evaluate_recording_repeat_input({
+    last_recorded_id = 906,
+    current_id = 906,
+    buffered_id = 906,
+    contact_serial = 1,
+    last_recorded_has_contact = true,
+    action_button_edge = 64,
+    current_button_mask = 32 | 64,
+    minimum_button_count = 2
+})
+assert(recording_repeat_eval.accepted == true
+        and recording_repeat_eval.reason == "recording_repeat_candidate_ready",
+    "a real repeated 214PP must remain eligible when the second punch completes the chord")
+
 started, reason = detector.detect(621, 24, 621, 23, nil, nil, 32, false)
 assert(started == false and reason == "no_new_action",
     "a recording candidate must not create a step before the repeated action really hits")

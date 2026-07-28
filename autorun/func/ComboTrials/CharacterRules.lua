@@ -81,6 +81,36 @@ local function parse_absorb_ids(exception)
     return ids
 end
 
+function CharacterRules.find_recording_absorb_owner(character_rules, common_rules, action_id)
+    local actual_id = tonumber(action_id)
+    if actual_id == nil then return nil end
+
+    local matches = {}
+    local function collect(rules)
+        for owner_id, exception in pairs(rules or {}) do
+            if type(exception) == "table" and exception.record_absorb_as_parent == true then
+                local absorb_ids = parse_absorb_ids(exception)
+                local owner_num = tonumber(owner_id)
+                if owner_num and absorb_ids and absorb_ids[actual_id] then
+                    matches[#matches + 1] = owner_num
+                end
+            end
+        end
+    end
+
+    collect(character_rules)
+    collect(common_rules)
+    if #matches == 1 then return matches[1] end
+    return nil
+end
+
+function CharacterRules.get_recording_repeat_min_buttons(exception)
+    local count = type(exception) == "table"
+        and tonumber(exception.recording_repeat_min_buttons) or nil
+    if count == nil then return 1 end
+    return math.max(1, math.floor(count))
+end
+
 function CharacterRules.is_action_required(exception)
     if type(exception) ~= "table" then return false end
     return exception.action_required == true

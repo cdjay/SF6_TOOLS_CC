@@ -78,6 +78,28 @@ assert(action_matcher.is_exact_expected_action(nil, 854) == false,
     "the expected-step fallback must remain disabled outside active playback")
 
 local character_rules = dofile("autorun/func/ComboTrials/CharacterRules.lua")
+assert(character_rules.find_recording_absorb_owner({
+        ["944"] = {
+            absorb_ids = "936,941,945",
+            record_absorb_as_parent = true
+        }
+    }, {}, 945) == 944,
+    "an opted-in frame-zero absorb branch must resolve to its recording command owner")
+assert(character_rules.find_recording_absorb_owner({
+        ["944"] = { absorb_ids = "936,941,945" }
+    }, {}, 945) == nil,
+    "absorb aliases must not change recording identity without an explicit character rule")
+assert(character_rules.find_recording_absorb_owner({
+        ["969"] = { absorb_ids = "975", record_absorb_as_parent = true },
+        ["970"] = { absorb_ids = "975", record_absorb_as_parent = true }
+    }, {}, 975) == nil,
+    "ambiguous absorb parents must fail closed instead of choosing an arbitrary command")
+assert(character_rules.get_recording_repeat_min_buttons({
+        recording_repeat_min_buttons = 2
+    }) == 2,
+    "a character rule must be able to require the full multi-button repeat chord")
+assert(character_rules.get_recording_repeat_min_buttons(nil) == 1,
+    "characters without a repeat chord rule must retain the existing single-edge behavior")
 local deejay_sa3_exception = character_rules.get_match_rule({}, {}, "DeeJay", 1268)
 assert(deejay_sa3_exception ~= nil,
     "Dee Jay SA3/CA compatibility must live in character rules, not legacy combo JSON")
@@ -158,6 +180,10 @@ assert(main_source:find("ActionMatcher.matches_expected_action_id", 1, true),
     "playback intentionality must admit configured action aliases before filtering")
 assert(main_source:find("expected_exception", 1, true),
     "playback action matching must receive the expected step's character rule")
+assert(main_source:find("CharacterRules.find_recording_absorb_owner", 1, true),
+    "recording must recover explicitly configured frame-zero command owners")
+assert(main_source:find("ActionMatcher.matches_absorb_id(parent_exc, runtime_act_id)", 1, true),
+    "existing absorbed phases must be checked before recording-time owner recovery")
 local completion_calls = 0
 for _ in main_source:gmatch("ActionMatcher%.is_completion_satisfied") do
     completion_calls = completion_calls + 1
@@ -186,6 +212,7 @@ local renderer = {
     get_command_display = function(_, action_id)
         if action_id == 906 then return nil, "suppress_transition" end
         if action_id == 901 then return "214+MP", "strict_route" end
+        if action_id == 944 then return "236+PP", "strict_route" end
         return nil, "action_id_missing"
     end
 }
@@ -206,6 +233,16 @@ local intentional, route_status, classic = command_resolver.resolve_unified_comm
     "AnyCharacter", 901, 32, 32, renderer)
 assert(intentional == true and route_status == "strict_route" and classic == "214+MP",
     "a physical catalog command must remain intentional")
+
+intentional, route_status, classic = command_resolver.resolve_unified_command_action(
+    "AKI", 944, 0, 48, renderer)
+assert(intentional == true and route_status == "strict_route" and classic == "236+PP",
+    "A.K.I. 236+PP must survive a delayed state-dependent Action transition")
+
+intentional, route_status, classic = command_resolver.resolve_unified_command_action(
+    "AnyCharacter", 901, 0, 0, renderer)
+assert(intentional == false and route_status == "strict_route" and classic == "214+MP",
+    "a catalog action without held buttons or a recovered edge must remain non-intentional")
 
 intentional, route_status, classic = command_resolver.resolve_unified_command_action(
     "AnyCharacter", 906, 0, 0, renderer)

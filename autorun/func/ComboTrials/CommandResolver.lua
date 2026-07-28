@@ -49,7 +49,8 @@ end
 -- flags=16/action_code=0 even when the player pressed an attack button, so the
 -- generic intentionality heuristic alone incorrectly discards them.
 function M.resolve_unified_command_action(character, action_id, direct_input, newly_pressed, renderer)
-    local buttons = (tonumber(direct_input) or 0) & 0xFFF0
+    local held_buttons = (tonumber(direct_input) or 0) & 0xFFF0
+    local edge_buttons = (tonumber(newly_pressed) or 0) & 0xFFF0
     if not renderer or not renderer.get_command_display then
         return false, "resolver_unavailable", nil
     end
@@ -62,7 +63,11 @@ function M.resolve_unified_command_action(character, action_id, direct_input, ne
         end
         return false, status, nil
     end
-    local is_player_command = buttons ~= 0 and type(display) == "string" and display ~= ""
+    -- The engine can expose the catalog Action a few frames after the physical
+    -- button edge, after direct_input has already returned to zero. The input
+    -- buffer recovers that post-parent edge specifically for this transition.
+    local is_player_command = (held_buttons ~= 0 or edge_buttons ~= 0)
+        and type(display) == "string" and display ~= ""
     return is_player_command, status, display
 end
 
