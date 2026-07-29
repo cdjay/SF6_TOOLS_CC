@@ -142,6 +142,71 @@ normalize_sequence_counter_types(legacy_counter_sequence)
 assert(legacy_counter_sequence[1].counter_type == 1,
     "legacy files must retain first-step counter inference from combo_stats")
 
+local parry_counter_sequence = {
+    {
+        id = 480,
+        motion = "PARRY",
+        counter_type = 2,
+        expected_combo = 0,
+        damage_at_step = 0,
+        has_hit = false,
+        combo_stats = { hit_type = "PC" },
+    },
+    {
+        id = 740,
+        motion = "RAW DR",
+        counter_type = 0,
+        expected_combo = 0,
+        damage_at_step = 0,
+        has_hit = false,
+    },
+    {
+        id = 669,
+        motion = "4HK",
+        counter_type = 2,
+        expected_combo = 1,
+        damage_at_step = 1200,
+        has_hit = true,
+    },
+}
+normalize_sequence_counter_types(parry_counter_sequence)
+assert(parry_counter_sequence[1].counter_type == 0,
+    "a non-hit Parry must not inherit the first hit's punish-counter label")
+assert(parry_counter_sequence[3].counter_type == 2,
+    "the punish-counter label must remain on the action that actually hit")
+
+local legacy_parry_counter_sequence = {
+    {
+        id = 480,
+        motion = "PARRY",
+        counter_type = 2,
+        expected_combo = 0,
+        damage_at_step = 0,
+        has_hit = false,
+        combo_stats = { hit_type = "PC" },
+    },
+    {
+        id = 740,
+        motion = "RAW DR",
+        counter_type = 0,
+        expected_combo = 0,
+        damage_at_step = 0,
+        has_hit = false,
+    },
+    {
+        id = 669,
+        motion = "4HK",
+        counter_type = 0,
+        expected_combo = 1,
+        damage_at_step = 1200,
+        has_hit = true,
+    },
+}
+normalize_sequence_counter_types(legacy_parry_counter_sequence)
+assert(legacy_parry_counter_sequence[1].counter_type == 0
+        and legacy_parry_counter_sequence[3].counter_type == 2,
+    "legacy setup counters must migrate to the first recorded hit")
+
 local mixed_facing = {
     { index = 1, start_frame = 0, duration = 1, dir = "6" },
     { index = 2, start_frame = 1, duration = 1, dir = "5" },

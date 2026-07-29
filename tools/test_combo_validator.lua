@@ -4,6 +4,17 @@ package.path = package.path
 
 local Validator = require("func/ComboTrials/Validator")
 
+assert(Validator.counter_type_for_display({
+    motion = "PARRY",
+    counter_type = 2,
+    has_hit = false,
+}) == 0, "a non-hit Parry must never display a punish-counter label")
+assert(Validator.counter_type_for_display({
+    motion = "4HK",
+    counter_type = 2,
+    has_hit = true,
+}) == 2, "the action that actually hit must retain its punish-counter label")
+
 local previous_hit = {
     expected_combo = 2,
     damage_at_step = 1470,

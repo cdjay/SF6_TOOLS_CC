@@ -4621,6 +4621,32 @@ local function normalize_sequence_counter_types(sequence, infer_first_from_legac
         local inferred = counter_type_from_hit_type(first.combo_stats.hit_type)
         if inferred ~= 0 then first.counter_type = inferred end
     end
+
+    -- Older recordings copied the first landed hit's CH/PC state onto step 1
+    -- even when step 1 was only movement/setup (Parry, Drive Rush, jump, whiff).
+    -- Keep the environment state, but bind the per-step label to the action
+    -- that actually recorded contact.
+    local first_counter_type = tonumber(first.counter_type) or 0
+    local first_is_non_hit_setup = first_counter_type ~= 0
+        and first.has_hit ~= true
+        and first.has_contact ~= true
+        and (tonumber(first.expected_combo) or 0) == 0
+        and (tonumber(first.damage_at_step) or 0) == 0
+    if first_is_non_hit_setup then
+        for i = 2, #sequence do
+            local hit_step = sequence[i]
+            if type(hit_step) == "table"
+                and (hit_step.has_hit == true or hit_step.has_contact == true) then
+                local hit_counter_type = tonumber(hit_step.counter_type) or 0
+                if hit_counter_type == 0 or hit_counter_type == first_counter_type then
+                    hit_step.counter_type = first_counter_type
+                    first.counter_type = 0
+                end
+                break
+            end
+        end
+    end
+
     for _, step in ipairs(sequence) do
         if step.counter_type == nil then step.counter_type = 0 end
         if type(step.motion_aliases) ~= "table" then step.motion_aliases = {} end
@@ -9669,10 +9695,15 @@ function save_trial_sequence(meta)
             stats.super_used = math.max(0, init.attacker_super - (init.min_atk_super or init.attacker_super))
         end
         trial_state.sequence[1].combo_stats = stats
-        if trial_state.sequence[1].counter_type == nil or trial_state.sequence[1].counter_type == 0 then
-            local first_hit_counter_type = tonumber(trial_state._rec_first_hit_counter_type) or 0
-            if first_hit_counter_type ~= 0 then
-                trial_state.sequence[1].counter_type = first_hit_counter_type
+        local first_hit_counter_type = tonumber(trial_state._rec_first_hit_counter_type) or 0
+        if first_hit_counter_type ~= 0 then
+            for _, step in ipairs(trial_state.sequence) do
+                if step.has_hit == true or step.has_contact == true then
+                    if step.counter_type == nil or step.counter_type == 0 then
+                        step.counter_type = first_hit_counter_type
+                    end
+                    break
+                end
             end
         end
         if logger_state.last_export_name then

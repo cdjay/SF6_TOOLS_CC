@@ -11,6 +11,12 @@ function Validator.is_pressure_tail_step(step)
     return step.validation_role == "pressure_tail"
 end
 
+function Validator.counter_type_for_display(step)
+    if type(step) ~= "table" then return 0 end
+    if step.has_hit ~= true and step.has_contact ~= true then return 0 end
+    return tonumber(step.counter_type) or 0
+end
+
 function Validator.is_non_damage_transition(expected, prev_step)
     if type(expected) ~= "table" or type(prev_step) ~= "table" then return false end
 

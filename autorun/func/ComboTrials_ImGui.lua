@@ -10,6 +10,7 @@ local M = {}
 local RuntimeSafety = require("func/RuntimeSafety")
 local Canvas = require("func/ImGuiCanvas")
 local SequenceGrouping = require("func/ComboTrials/SequenceGrouping")
+local Validator = require("func/ComboTrials/Validator")
 
 -- Shared context (set by init)
 local ctx -- { d2d_cfg, trial_state, players, sf6_menu_state }
@@ -2308,8 +2309,9 @@ local function parse_motion_to_icons(log_entry, trial_mode, should_flip, reverse
         end
     end
 
-    -- Tag (打康) or (确反康) per step
-    local ct = log_entry.counter_type
+    -- CH/PC belongs to an actual contact, never to setup actions such as
+    -- Parry, Drive Rush, movement, jump, or a recorded whiff.
+    local ct = Validator.counter_type_for_display(log_entry)
     if ct == 1 then
         table.insert(final_tokens, { type = "text", val = " (打康)", col = 0xFFFFFFFF })
     elseif ct == 2 then
