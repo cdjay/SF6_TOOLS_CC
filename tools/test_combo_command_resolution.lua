@@ -21,12 +21,14 @@ local semantic_block = assert(renderer_source:match(
 assert(load(semantic_block .. "\n_G.resolve_classic_common_semantic = resolve_classic_common_semantic",
     "classic-common-semantic", "t", _G))()
 
-assert(load(classic_block .. "\n_G.get_classic_display_motion = get_classic_display_motion",
+assert(load(classic_block .. "\n_G.get_classic_display_motion = get_classic_display_motion"
+    .. "\n_G.get_modern_display_motion = get_modern_display_motion",
     "classic-command-resolution", "t", _G))()
 
 local command_map = {
     _slim = true,
     ["901"] = { classic = "214+MP", status = "strict_route" },
+    ["936"] = { classic = "PP", status = "strict_route" },
     ["906"] = { classic = "Normal", status = "suppress_transition" },
     ["1037"] = { classic = "528", status = "strict_route" }
 }
@@ -57,6 +59,80 @@ assert(motion == ">K (FEINT)" and status == "player_input_transition",
 motion, status = get_classic_display_motion(command_map, { id = 1037, motion = ">29 (cancel)" })
 assert(motion == ">29 (cancel)" and status == "recorded_context",
     "contextual trial notation must survive classic command resolution")
+
+motion, status = get_classic_display_motion(command_map, { id = 936, motion = ">PP" })
+assert(motion == ">PP" and status == "recorded_context",
+    "a verified execution-phase action must retain its recorded follow-up notation")
+
+RUNTIME_COMMON_ACTIONS = {}
+TYPE37_FOLLOWUP_PHASE_REASON = "ac_type37_verified_followup_execution_phase"
+local type37_route = {
+    display = "SP",
+    character = "Luke",
+    owner_action_id = 935,
+    display_action_id = 936,
+    bcm_owner_action_id = 935,
+    source = "ac_type37_followup_execution_phase",
+    ac_relation_type = 37,
+    ac_path = { 935, 936 },
+    inherited_from_action_id = 935,
+    confidence = "verified_inherited_followup_execution_phase",
+    direct_evidence = false,
+    inheritance_evidence = true,
+    inheritance_reason = TYPE37_FOLLOWUP_PHASE_REASON,
+    rebind_evidence = false,
+    runtime_common_evidence = false,
+    official_semantic_evidence = false,
+    community_semantic_evidence = false,
+    assist_combo_evidence = false,
+    charge_context_evidence = false,
+    super_shortcut_direction_evidence = false,
+    ac_attr = 64,
+    ac_action_frame = 0,
+    ac_param00 = 0,
+    ac_param01 = 0,
+    ac_param02 = 0,
+    ac_param03 = 0,
+    ac_param04 = 0,
+    ac_param05 = 0,
+    ac_trigger_id = -1,
+    official_followup_source_action_id = 933
+}
+local type37_map = {
+    _meta = {
+        character = "Luke",
+        type37_followup_execution_phase_relations = {
+            {
+                source_action_id = 935,
+                target_action_id = 936,
+                branch_type = 37,
+                attr = 64,
+                action_frame = 0,
+                param00 = 0,
+                param01 = 0,
+                param02 = 0,
+                param03 = 0,
+                param04 = 0,
+                param05 = 0,
+                trigger_id = -1,
+                official_followup_source_action_id = 933,
+                reason = TYPE37_FOLLOWUP_PHASE_REASON
+            }
+        }
+    },
+    ["936"] = {
+        ownership = "type37_followup_execution_phase",
+        routes = { type37_route }
+    }
+}
+motion, status = get_modern_display_motion(type37_map, { id = 936 })
+assert(motion == "SP" and status == "strict_route",
+    "the runtime must admit a fully audited Type37 follow-up execution phase")
+type37_route.ac_attr = 0
+motion, status = get_modern_display_motion(type37_map, { id = 936 })
+assert(motion == nil and status == "route_unverified",
+    "the runtime must reject a Type37 phase whose AC signature was altered")
+type37_route.ac_attr = 64
 
 motion, status = get_classic_display_motion(command_map, { id = 9999, motion = "Unknown" })
 assert(motion == nil and status == "action_id_missing", "missing classic IDs must reach the common audit path")

@@ -18,6 +18,7 @@ const VERIFIED_ALIAS_REASON = "ac_verified_equivalent_action_variant";
 const TYPE20_DIRECTION_REASON = "ac_type20_verified_directional_air_attack";
 const TYPE20_HOLD_REASON = "ac_type20_verified_hold_continuation";
 const TYPE20_PHASE_REASON = "ac_type20_verified_multi_input_action_phase";
+const TYPE37_FOLLOWUP_PHASE_REASON = "ac_type37_verified_followup_execution_phase";
 const CHARGE_CONTEXT_REASON = "bcm_charge_profile_context_proves_modern_held_shortcut";
 const AC_CHARGE_CONTEXT_REASON = "ac_full_structure_peer_and_bcm_selector_prove_charge_context";
 const SUPER_SHORTCUT_DIRECTION_REASON = "bcm_super_supr_direction_qualifies_easy_shortcut";
@@ -1201,6 +1202,25 @@ function type20ActionPhaseRoute(character, relation, sourceRoute) {
     return route;
 }
 
+function type37FollowupPhaseRoute(character, relation, sourceRoute) {
+    const sourceId = Number(relation.source_action_id);
+    const targetId = Number(relation.target_action_id);
+    const route = inheritedRouteFromSource(character, sourceRoute, sourceId, targetId,
+        sourceRoute.display, "ac_type37_followup_execution_phase", 37,
+        TYPE37_FOLLOWUP_PHASE_REASON, "verified_inherited_followup_execution_phase");
+    route.ac_attr = relation.attr;
+    route.ac_action_frame = relation.action_frame;
+    route.ac_param00 = relation.param00;
+    route.ac_param01 = relation.param01;
+    route.ac_param02 = relation.param02;
+    route.ac_param03 = relation.param03;
+    route.ac_param04 = relation.param04;
+    route.ac_param05 = relation.param05;
+    route.ac_trigger_id = relation.trigger_id;
+    route.official_followup_source_action_id = relation.official_followup_source_action_id;
+    return route;
+}
+
 function targetComboRepeatRoute(character, targetId, parentId, trigger, profile, parentButton) {
     const detail = resolved(`> ${parentButton}`, null, parentButton, [parentButton], 1);
     const route = {
@@ -1878,6 +1898,52 @@ function strictType20ActionPhaseRelations(actionSource, actionSet) {
         || left.target_action_id - right.target_action_id);
 }
 
+function strictType37FollowupPhaseRelations(actionSource, actionSet, officialFollowupRelations) {
+    const { objects, actions } = characterActionGraph(actionSource, actionSet);
+    const candidates = [];
+    for (const [sourceId, root] of actions) {
+        const officialRelation = officialFollowupRelations.get(String(sourceId));
+        if (!officialRelation || officialRelation.type !== "followup"
+            || officialRelation.evidence !== OFFICIAL_FOLLOWUP_REASON
+            || !Number.isInteger(Number(officialRelation.source_action_id))) continue;
+        for (const fields of branchKeys(root, objects)) {
+            const branch = completeBranch(fields);
+            if (!branch || branch.Type !== 37 || branch.Action === sourceId
+                || !actions.has(branch.Action) || branch.Attr !== 64
+                || branch.ActionFrame !== 0 || branch.Param00 !== 0
+                || branch.Param01 !== 0 || branch.Param02 !== 0
+                || branch.Param03 !== 0 || branch.Param04 !== 0
+                || branch.Param05 !== 0 || branch.TriggerID !== -1) continue;
+            candidates.push({
+                source_action_id: sourceId,
+                target_action_id: branch.Action,
+                branch_type: 37,
+                attr: branch.Attr,
+                action_frame: branch.ActionFrame,
+                param00: branch.Param00,
+                param01: branch.Param01,
+                param02: branch.Param02,
+                param03: branch.Param03,
+                param04: branch.Param04,
+                param05: branch.Param05,
+                trigger_id: branch.TriggerID,
+                official_followup_source_action_id: Number(officialRelation.source_action_id)
+            });
+        }
+    }
+    const sourceCounts = new Map(), targetCounts = new Map();
+    for (const relation of candidates) {
+        sourceCounts.set(relation.source_action_id,
+            (sourceCounts.get(relation.source_action_id) || 0) + 1);
+        targetCounts.set(relation.target_action_id,
+            (targetCounts.get(relation.target_action_id) || 0) + 1);
+    }
+    return candidates.filter(relation => sourceCounts.get(relation.source_action_id) === 1
+        && targetCounts.get(relation.target_action_id) === 1)
+        .sort((left, right) => left.source_action_id - right.source_action_id
+            || left.target_action_id - right.target_action_id);
+}
+
 function automaticHoldTransitionType29Targets(actionSource, actionSet) {
     const { objects, actions } = characterActionGraph(actionSource, actionSet);
     const holdTargets = new Set(strictType20HoldRelations(actionSource, actionSet)
@@ -2531,6 +2597,22 @@ function assertRoute(route) {
             throw new Error(`Modern Type20 action-phase route 证据非法: ${route.display}`);
         }
     }
+    if (route.source === "ac_type37_followup_execution_phase") {
+        if (route.inheritance_evidence !== true
+            || route.inheritance_reason !== TYPE37_FOLLOWUP_PHASE_REASON
+            || route.confidence !== "verified_inherited_followup_execution_phase"
+            || Number(route.ac_relation_type) !== 37 || route.ac_path.length < 2
+            || Number(route.ac_path[route.ac_path.length - 1]) !== Number(route.display_action_id)
+            || Number(route.inherited_from_action_id) !== Number(route.ac_path[route.ac_path.length - 2])
+            || Number(route.ac_attr) !== 64 || Number(route.ac_action_frame) !== 0
+            || Number(route.ac_param00) !== 0 || Number(route.ac_param01) !== 0
+            || Number(route.ac_param02) !== 0 || Number(route.ac_param03) !== 0
+            || Number(route.ac_param04) !== 0 || Number(route.ac_param05) !== 0
+            || Number(route.ac_trigger_id) !== -1
+            || !Number.isInteger(Number(route.official_followup_source_action_id))) {
+            throw new Error(`Modern Type37 followup execution-phase route 证据非法: ${route.display}`);
+        }
+    }
     if (["ac_type20_state_direction", "ac_type1_state_neutral",
         "ac_type13_neutral_continuation"].includes(route.source)) {
         const directionRoute = route.source === "ac_type20_state_direction";
@@ -3016,6 +3098,32 @@ function buildCommandDisplay(actionSource, bcmCatalog, runtime, supplement, opti
         type20PhaseRouteCount += routes.length;
     }
 
+    const verifiedSourceFollowups = inferOfficialFollowupRelations(options.officialSemantics, entries);
+    const type37FollowupPhaseCandidates = strictType37FollowupPhaseRelations(
+        actionSource, actionSet, verifiedSourceFollowups);
+    const appliedType37FollowupPhaseRelations = [];
+    let type37FollowupPhaseRouteCount = 0;
+    for (const relation of type37FollowupPhaseCandidates) {
+        const sourceId = String(relation.source_action_id);
+        const targetId = String(relation.target_action_id);
+        const sourceEntry = entries[sourceId];
+        if (!sourceEntry || entries[targetId]
+            || Object.prototype.hasOwnProperty.call(bcmCatalog.actions || {}, targetId)) continue;
+        const sourceRoutes = sourceEntry.routes.filter(route => route.direct_evidence === true
+            && route.inheritance_evidence === false
+            && Number(route.owner_action_id) === Number(sourceId));
+        if (!sourceRoutes.length || sourceRoutes.length !== sourceEntry.routes.length) continue;
+        const routes = sourceRoutes.map(route =>
+            type37FollowupPhaseRoute(character, relation, route));
+        for (const route of routes) assertRoute(route);
+        entries[targetId] = { routes, ownership: "type37_followup_execution_phase" };
+        appliedType37FollowupPhaseRelations.push({
+            ...relation,
+            reason: TYPE37_FOLLOWUP_PHASE_REASON
+        });
+        type37FollowupPhaseRouteCount += routes.length;
+    }
+
     const holdButtonForMask = mask => {
         if (mask === 112 || mask === 896) return ANY_BUTTON;
         if (mask === 16 || mask === 128) return "弱";
@@ -3116,6 +3224,12 @@ function buildCommandDisplay(actionSource, bcmCatalog, runtime, supplement, opti
         relationCounts[key] = (relationCounts[key] || 0) + 1;
     }
     const officialFollowupRelations = inferOfficialFollowupRelations(options.officialSemantics, entries);
+    for (const relation of appliedType37FollowupPhaseRelations) {
+        const sourceRelation = officialFollowupRelations.get(String(relation.source_action_id));
+        if (sourceRelation && !officialFollowupRelations.has(String(relation.target_action_id))) {
+            officialFollowupRelations.set(String(relation.target_action_id), { ...sourceRelation });
+        }
+    }
     const separatedCommands = new Map();
     for (const [id, entry] of Object.entries(entries)) {
         if (entry.suppress_display === true) continue;
@@ -3140,7 +3254,8 @@ function buildCommandDisplay(actionSource, bcmCatalog, runtime, supplement, opti
     }
     const equivalentOwnership = new Set([
         "verified_alias", "structural_twin", "rebind",
-        "type20_hold_continuation", "type20_action_phase"
+        "type20_hold_continuation", "type20_action_phase",
+        "type37_followup_execution_phase"
     ]);
     let classicProjectionChanged = true;
     while (classicProjectionChanged) {
@@ -3218,6 +3333,7 @@ function buildCommandDisplay(actionSource, bcmCatalog, runtime, supplement, opti
             type20_directional_route_count: type20DirectionalRouteCount,
             type20_hold_route_count: type20HoldRouteCount,
             type20_action_phase_route_count: type20PhaseRouteCount,
+            type37_followup_execution_phase_route_count: type37FollowupPhaseRouteCount,
             charge_context_route_count: chargeContextRouteCount,
             super_shortcut_direction_route_count: superShortcutDirectionRouteCount,
             ac_charge_context_relation_count: appliedAcChargeRelations.length,
@@ -3267,6 +3383,7 @@ function buildCommandDisplay(actionSource, bcmCatalog, runtime, supplement, opti
             type20_directional_relations: appliedType20Relations,
             type20_hold_relations: appliedType20HoldRelations,
             type20_action_phase_relations: appliedType20PhaseRelations,
+            type37_followup_execution_phase_relations: appliedType37FollowupPhaseRelations,
             target_combo_repeat_relations: appliedTargetComboRelations,
             structural_twin_relations: appliedStructuralTwins,
             assist_combo_relations: appliedAssistComboRelations,
@@ -3313,6 +3430,9 @@ function buildCommandDisplay(actionSource, bcmCatalog, runtime, supplement, opti
                 type20_hold_route_count: type20HoldRouteCount,
                 type20_action_phase_relation_count: appliedType20PhaseRelations.length,
                 type20_action_phase_route_count: type20PhaseRouteCount,
+                type37_followup_execution_phase_relation_count:
+                    appliedType37FollowupPhaseRelations.length,
+                type37_followup_execution_phase_route_count: type37FollowupPhaseRouteCount,
                 charge_context_route_count: chargeContextRouteCount,
                 super_shortcut_direction_route_count: superShortcutDirectionRouteCount,
                 ac_charge_context_relation_count: appliedAcChargeRelations.length,

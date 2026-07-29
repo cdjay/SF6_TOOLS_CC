@@ -170,6 +170,7 @@ local VERIFIED_ALIAS_REASON = "ac_verified_equivalent_action_variant"
 local TYPE20_DIRECTION_REASON = "ac_type20_verified_directional_air_attack"
 local TYPE20_HOLD_REASON = "ac_type20_verified_hold_continuation"
 local TYPE20_PHASE_REASON = "ac_type20_verified_multi_input_action_phase"
+local TYPE37_FOLLOWUP_PHASE_REASON = "ac_type37_verified_followup_execution_phase"
 local CHARGE_CONTEXT_REASON = "bcm_charge_profile_context_proves_modern_held_shortcut"
 local AC_CHARGE_CONTEXT_REASON = "ac_full_structure_peer_and_bcm_selector_prove_charge_context"
 local SUPER_SHORTCUT_DIRECTION_REASON = "bcm_super_supr_direction_qualifies_easy_shortcut"
@@ -416,6 +417,24 @@ local function load_command_display_map(character)
         and tonumber(meta.type20_action_phase_route_count) == type20_phase_routes
         and type(meta.type20_action_phase_relations) == "table"
         and #meta.type20_action_phase_relations == type20_phase_relations
+    local has_type37_followup_phase_audit = type(audit) == "table"
+        and (audit.type37_followup_execution_phase_relation_count ~= nil
+            or audit.type37_followup_execution_phase_route_count ~= nil)
+    local type37_followup_phase_relations = has_type37_followup_phase_audit
+        and tonumber(audit.type37_followup_execution_phase_relation_count) or nil
+    local type37_followup_phase_routes = has_type37_followup_phase_audit
+        and tonumber(audit.type37_followup_execution_phase_route_count) or nil
+    local type37_followup_phase_audit_ok = not has_type37_followup_phase_audit
+        or (type37_followup_phase_relations ~= nil and type37_followup_phase_routes ~= nil
+        and type37_followup_phase_relations >= 0
+        and type37_followup_phase_routes >= type37_followup_phase_relations
+        and type37_followup_phase_relations == math.floor(type37_followup_phase_relations)
+        and type37_followup_phase_routes == math.floor(type37_followup_phase_routes)
+        and tonumber(meta.type37_followup_execution_phase_route_count)
+            == type37_followup_phase_routes
+        and type(meta.type37_followup_execution_phase_relations) == "table"
+        and #meta.type37_followup_execution_phase_relations
+            == type37_followup_phase_relations)
     local target_combo_relations = type(audit) == "table"
         and tonumber(audit.target_combo_repeat_relation_count) or nil
     local target_combo_routes = type(audit) == "table"
@@ -707,6 +726,7 @@ local function load_command_display_map(character)
         and type20_audit_ok
         and type20_hold_audit_ok
         and type20_phase_audit_ok
+        and type37_followup_phase_audit_ok
         and target_combo_audit_ok
         and structural_twin_audit_ok
         and assist_combo_audit_ok
@@ -1176,6 +1196,57 @@ local function get_modern_display_motion(modern_map, step)
             and tonumber(route.display_action_id) == step_id
             and route.confidence == "verified_inherited_action_phase"
             and route_character == map_character and phase_signature_ok
+        local declared_type37_followup_phase = false
+        local declared_type37_followup_source = nil
+        local type37_followup_phase_declarations = type(modern_map._meta) == "table"
+            and modern_map._meta.type37_followup_execution_phase_relations or nil
+        if type(type37_followup_phase_declarations) == "table" then
+            for _, relation in ipairs(type37_followup_phase_declarations) do
+                if type(relation) == "table"
+                    and tonumber(relation.source_action_id) == inherited_source
+                    and tonumber(relation.target_action_id) == step_id
+                    and tonumber(relation.branch_type) == 37
+                    and tonumber(relation.attr) == 64
+                    and tonumber(relation.action_frame) == 0
+                    and tonumber(relation.param00) == 0
+                    and tonumber(relation.param01) == 0
+                    and tonumber(relation.param02) == 0
+                    and tonumber(relation.param03) == 0
+                    and tonumber(relation.param04) == 0
+                    and tonumber(relation.param05) == 0
+                    and tonumber(relation.trigger_id) == -1
+                    and tonumber(relation.official_followup_source_action_id) ~= nil
+                    and relation.reason == TYPE37_FOLLOWUP_PHASE_REASON then
+                    declared_type37_followup_phase = true
+                    declared_type37_followup_source =
+                        tonumber(relation.official_followup_source_action_id)
+                    break
+                end
+            end
+        end
+        local type37_followup_phase_ok =
+            source == "ac_type37_followup_execution_phase"
+            and entry.ownership == "type37_followup_execution_phase"
+            and declared_type37_followup_phase
+            and route.direct_evidence == false and route.inheritance_evidence == true
+            and route.rebind_evidence == false and route.runtime_common_evidence == false
+            and route.official_semantic_evidence == false
+            and route.community_semantic_evidence == false
+            and route.inheritance_reason == TYPE37_FOLLOWUP_PHASE_REASON
+            and tonumber(route.ac_relation_type) == 37 and inherited_source ~= nil
+            and step_id ~= nil and type(ac_path) == "table" and #ac_path >= 2
+            and tonumber(ac_path[#ac_path - 1]) == inherited_source
+            and tonumber(ac_path[#ac_path]) == step_id
+            and tonumber(route.display_action_id) == step_id
+            and route.confidence == "verified_inherited_followup_execution_phase"
+            and route_character == map_character
+            and tonumber(route.ac_attr) == 64 and tonumber(route.ac_action_frame) == 0
+            and tonumber(route.ac_param00) == 0 and tonumber(route.ac_param01) == 0
+            and tonumber(route.ac_param02) == 0 and tonumber(route.ac_param03) == 0
+            and tonumber(route.ac_param04) == 0 and tonumber(route.ac_param05) == 0
+            and tonumber(route.ac_trigger_id) == -1
+            and tonumber(route.official_followup_source_action_id)
+                == declared_type37_followup_source
         local state_relation_list = nil
         local state_reason = nil
         local state_confidence = nil
@@ -1364,6 +1435,7 @@ local function get_modern_display_motion(modern_map, step)
         if charge_context_ok and super_shortcut_ok
             and (direct_ok or inherited_ok or rebind_ok or runtime_common_ok or official_semantic_ok
                 or verified_alias_ok or type20_ok or type20_hold_ok or type20_phase_ok
+                or type37_followup_phase_ok
                 or state_choice_ok
                 or target_combo_ok or structural_twin_ok
                 or assist_combo_ok)

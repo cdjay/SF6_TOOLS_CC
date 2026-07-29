@@ -43,6 +43,8 @@ AC/BCM 批量导出还会从同一指令结果与同版本 OFF 快照生成网�
 - `simple_command`：现代简化指令投影，主要来自 `easy/supr`。
 - `motion_command`：现代搓招投影，主要来自 `sprt`。
 - `relation`：共享 ActionGraph 中已验证的派生关系。
+- 官网已确认的派生输入动作若通过唯一、完整匹配的 AC `Type 37 + Attr 64` 分支进入
+  实际执行阶段，执行阶段 Action ID 可继承指令投影；录像中的真实 Action ID 不得改写。
 - `control_support`：`classic_modern`、`classic_only` 或 `unknown`。现代投影缺少经典文本时
   必须标记为 `unknown`，因为这表示编译器尚未补齐经典投影，不代表 Action 仅现代可用。
 

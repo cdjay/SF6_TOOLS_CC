@@ -222,6 +222,8 @@ acbcm/<版本>/lastjson/<Character>.json
 - `simple_command`：简化输入；同一招的等价方向保存在 `inputs` 中；
 - `motion_command`：搓招输入；
 - `relation`：派生动作通过 `type: followup` 和 `source_action_id` 引用前置动作。
+- `type37_followup_execution_phase`：仅投影官网已确认派生动作的精确
+  `Type 37 + Attr 64` 一对一执行阶段，保留实战实际发生的 Action ID。
 
 运行时读取三个指令槽，并根据派生关系生成 `>`；`/` 只用于分隔完整的简化路线与搓招路线，
 不再表示动作阶段。

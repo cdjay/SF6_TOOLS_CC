@@ -1045,6 +1045,75 @@ const rejectedPhase = commandDisplay.buildCommandDisplay(makeType20ActionPhaseSo
     phaseRuntime, {}, { generatedAt: "type20-action-phase-negative" });
 assertNoModernCommand(rejectedPhase["3101"]);
 
+function makeType37FollowupPhaseSource(attr) {
+    let id = 1;
+    const objects = [], records = [];
+    const add = object => {
+        const result = { object_id: id++, ...object };
+        objects.push(result);
+        return result.object_id;
+    };
+    const addAction = (actionId, branches) => {
+        const items = branches.map((branch, index) => {
+            const branchId = add({ object_type: "CharacterAsset.BranchKey", fields: [
+                ["Action", branch.target], ["Type", 37], ["Attr", branch.attr],
+                ["ActionFrame", 0], ["Param00", 0], ["Param01", 0],
+                ["Param02", 0], ["Param03", 0], ["Param04", 0],
+                ["Param05", 0], ["TriggerID", -1]
+            ].map(([name, value]) => ({ name, value: scalar(value) })) });
+            return { index, value: ref(branchId) };
+        });
+        const keys = add({ object_type: "Test.Keys", items });
+        const root = add({ object_type: "FAB.ACTION",
+            fields: [{ name: "Keys", value: ref(keys) }] });
+        records.push({ source_scope: "character", native_action_id: actionId,
+            action_ref: ref(root) });
+    };
+    addAction(3200, []);
+    addAction(3201, [{ target: 3202, attr }]);
+    addAction(3202, []);
+    return { objects, records };
+}
+const type37Catalog = { source: { character: "FollowupExecutionPhase" }, actions: {
+    "3200": { action_id: 3200, classic_display: "214+PP", triggers: [
+        trigger(3200, profiles(profile(true, "214+PP", 400, 16480)),
+            { function_id: 2 })
+    ] },
+    "3201": { action_id: 3201, classic_display: "PP", triggers: [
+        trigger(3201, profiles(profile(true, "PP", 400, 16480)),
+            { function_id: 2 })
+    ] }
+} };
+const type37Runtime = { character: "FollowupExecutionPhase", fighter_id: 107,
+    action_ids: [3200, 3201, 3202], aliases: {}, sources: {}, validation: { rules: {} },
+    actions: { "3200": "214+PP", "3201": "PP" },
+    evidence: { ac_derived_commands: [], alias_relations: [] } };
+const type37Official = {
+    "3200": { classic_display: "214 + PP", modern_display: "4 + SP",
+        move_name: "Parent Move" },
+    "3201": { classic_display: "(Parent Move 後に) PP", modern_display: "(Parent Move 後に) SP",
+        move_name: "Follow-up Move" }
+};
+const type37Output = commandDisplay.buildCommandDisplay(
+    makeType37FollowupPhaseSource(64), type37Catalog, type37Runtime, {}, {
+        generatedAt: "type37-followup-execution-phase",
+        officialSemantics: type37Official
+    });
+assert.strictEqual(type37Output["3202"].ownership, "type37_followup_execution_phase");
+assert.strictEqual(type37Output["3202"].classic_command.display, "PP");
+assert.strictEqual(type37Output["3202"].relation.source_action_id, 3200);
+assert.strictEqual(type37Output["3202"].routes[0].source,
+    "ac_type37_followup_execution_phase");
+assert.strictEqual(type37Output["3202"].routes[0].inherited_from_action_id, 3201);
+assert.strictEqual(type37Output._meta.audit.type37_followup_execution_phase_relation_count, 1);
+assert.strictEqual(type37Output._meta.audit.type37_followup_execution_phase_route_count, 1);
+const rejectedType37 = commandDisplay.buildCommandDisplay(
+    makeType37FollowupPhaseSource(0), type37Catalog, type37Runtime, {}, {
+        generatedAt: "type37-followup-execution-phase-negative",
+        officialSemantics: type37Official
+    });
+assertNoModernCommand(rejectedType37["3202"]);
+
 // Only compiler-verified Type29/35 equivalent-action aliases inherit a route.
 const aliasRuntime = clone(runtime);
 aliasRuntime.evidence.alias_relations = [{ alias_action_id: 979, target_action_id: 903,
