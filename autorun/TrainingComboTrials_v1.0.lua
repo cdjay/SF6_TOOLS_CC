@@ -4612,14 +4612,8 @@ end
 
 local function normalize_sequence_counter_types(sequence, infer_first_from_legacy_stats)
     if type(sequence) ~= "table" or type(sequence[1]) ~= "table" then return end
-    local character = type(sequence[1]._xt_meta) == "table" and sequence[1]._xt_meta.character or nil
-    local function resolve_classic_motion(step)
-        if not character or not ComboTrials_Renderer or not ComboTrials_Renderer.get_command_display then return nil end
-        local ok, motion = pcall(ComboTrials_Renderer.get_command_display, character, step and step.id, "classic")
-        if ok then return motion end
-        return nil
-    end
-    CTTimelineSequenceNormalizer.expand(sequence, resolve_classic_motion)
+    -- Recorded action IDs are the validation ground truth. Timeline data is
+    -- playback-only and must never synthesize additional command steps.
     local first = sequence[1]
     if infer_first_from_legacy_stats ~= false
         and (first.counter_type == nil or first.counter_type == 0)

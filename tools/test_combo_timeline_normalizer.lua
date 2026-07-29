@@ -83,6 +83,8 @@ assert(#guarded == 3, "unbracketed leading/trailing movement must not become tri
 
 local normalize_block = assert(source:match(
     "(local function normalize_sequence_counter_types.-)%s+function ct_is_ingrid_charge_stock_action"))
+assert(not normalize_block:find("CTTimelineSequenceNormalizer.expand", 1, true),
+    "sequence loading must not synthesize command steps from timeline inputs")
 normalize_block = normalize_block:gsub(
     "^local function normalize_sequence_counter_types",
     "normalize_sequence_counter_types = function",
@@ -93,6 +95,36 @@ counter_type_from_hit_type = function(hit_type)
     return 0
 end
 assert(load(normalize_block, "counter-type-normalizer", "t", _G))()
+
+local ryu_action_id_ground_truth = {
+    {
+        _xt_meta = { character = "Ryu" },
+        id = 617,
+        motion = "HK",
+        expected_combo = 1,
+        timeline = {
+            "40f : 5+HK", "14f : 5", "5f : 4", "3f : 5", "7f : 4", "4f : 5",
+            "9f : 2", "3f : 2+HP", "3f : 1+HP", "1f : 1", "3f : 4", "2f : 5",
+            "3f : 2", "3f : 1", "2f : 1+HP", "1f : 4+HP", "1f : 4", "3f : 5",
+            "3f : 2", "4f : 1", "1f : 4", "3f : 4+HK", "687f : 5",
+        },
+    },
+    { id = 17, motion = "66", expected_combo = 1 },
+    { id = 630, motion = "2HP", expected_combo = 2 },
+    { id = 934, motion = "623+HP", expected_combo = 3 },
+    { id = 1239, motion = "236236+K", expected_combo = 8 },
+}
+normalize_sequence_counter_types(ryu_action_id_ground_truth, false)
+assert(#ryu_action_id_ground_truth == 5,
+    "noisy direction inputs must not create a synthetic action-ID step")
+assert(ryu_action_id_ground_truth[5].id == 1239,
+    "the recorded action-ID order must remain unchanged")
+local dash_step_count = 0
+for _, step in ipairs(ryu_action_id_ground_truth) do
+    if tonumber(step.id) == 17 then dash_step_count = dash_step_count + 1 end
+end
+assert(dash_step_count == 1,
+    "timeline direction changes must not duplicate the recorded dash action")
 
 local fresh_counter_sequence = {
     { id = 621, motion = "2+MP", counter_type = 0, combo_stats = { hit_type = "CH" } },
