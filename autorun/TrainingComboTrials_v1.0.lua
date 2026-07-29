@@ -4666,6 +4666,7 @@ local function normalize_sequence_counter_types(sequence, infer_first_from_legac
             end
         end
     end
+
 end
 
 function ct_is_ingrid_charge_stock_action(char_name, act_id)
@@ -8644,7 +8645,11 @@ local function ct_player_process_actions(p_idx, p_state, actions_to_process)
                                 expected.expected_hp,
                                 process_act.current_hp,
                                 is_post_hit_setup_step((trial_state.current_step or 1) - 1),
-                                expected
+                                expected,
+                                Validator.is_terminal_explicit_whiff(
+                                    trial_state.sequence,
+                                    trial_state.current_step
+                                )
                             ) or nil
                             match_probe.action_match = {
                                 matched = action_match.matched,
@@ -8808,7 +8813,11 @@ local function ct_player_process_actions(p_idx, p_state, actions_to_process)
                                                 chain_expected.expected_hp,
                                                 process_act.current_hp,
                                                 is_post_hit_setup_step(chain_step - 1),
-                                                chain_expected
+                                                chain_expected,
+                                                Validator.is_terminal_explicit_whiff(
+                                                    trial_state.sequence,
+                                                    chain_step
+                                                )
                                             )
                                             chain_record.chain_combo_ok = chain_combo_ok
                                             chain_record.chain_hp_ok = chain_hp_ok

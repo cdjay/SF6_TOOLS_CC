@@ -137,7 +137,8 @@ function PendingAbsorb.apply_matched_step(ctx, params)
         expected.expected_hp,
         actual_hp,
         ctx.is_post_hit_setup_step(state.current_step - 1),
-        expected
+        expected,
+        ctx.Validator.is_terminal_explicit_whiff(state.sequence, state.current_step)
     )
 
     ctx.DebugTrace.record_validation_debug(state, {
@@ -378,7 +379,8 @@ function PendingAbsorb.check(ctx, phase)
         expected.expected_hp,
         current_hp,
         ctx.is_post_hit_setup_step(pending.step - 1),
-        expected
+        expected,
+        ctx.Validator.is_terminal_explicit_whiff(state.sequence, pending.step)
     )
     probe.pending_combo_ok = combo_ok
     probe.pending_hp_ok = hp_ok

@@ -11,6 +11,25 @@ function Validator.is_pressure_tail_step(step)
     return step.validation_role == "pressure_tail"
 end
 
+function Validator.is_explicit_whiff_step(step)
+    if type(step) ~= "table" then return false end
+    if step.id == nil or tonumber(step.expected_combo) ~= 0 then return false end
+    if step.has_hit == true or step.has_contact == true then return false end
+
+    local motion = tostring(step.motion or "")
+    local motion_upper = motion:upper()
+    return motion:find("空挥", 1, true) ~= nil
+        or motion:find("绌烘尌", 1, true) ~= nil
+        or motion_upper:find("WHIFF", 1, true) ~= nil
+end
+
+function Validator.is_terminal_explicit_whiff(sequence, step_idx)
+    if type(sequence) ~= "table" or #sequence == 0 then return false end
+    local idx = tonumber(step_idx)
+    if idx == nil or idx ~= #sequence then return false end
+    return Validator.is_explicit_whiff_step(sequence[idx])
+end
+
 function Validator.counter_type_for_display(step)
     if type(step) ~= "table" then return 0 end
     if step.has_hit ~= true and step.has_contact ~= true then return 0 end
@@ -80,9 +99,15 @@ function Validator.check_combo(params)
     return combo_ok
 end
 
-function Validator.check_hp(expected_hp, current_hp, is_oki, expected)
+function Validator.check_hp(expected_hp, current_hp, is_oki, expected, terminal_explicit_whiff)
     local hp_ok = true
     if Validator.is_pressure_tail_step(expected) then
+        return true
+    end
+    if terminal_explicit_whiff == true and Validator.is_explicit_whiff_step(expected) then
+        -- A safe-jump/pressure whiff can occur after training-mode HP has
+        -- already been restored. The action and timing are still validated by
+        -- the normal matcher; only the stale post-hit HP snapshot is ignored.
         return true
     end
     if expected_hp ~= nil and current_hp ~= nil then
