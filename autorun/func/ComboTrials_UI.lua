@@ -97,7 +97,8 @@ local _dropdown_scroll_needed = false
 local CONTROL_CLASSIC_COLOR = 0xFFDDA0CC
 local CONTROL_MODERN_COLOR = 0xFF66A0DD
 local COMPLETED_TRIAL_COLOR = 0xFF55DD77
-local COMBO_TABLE_FLAGS = (1 << 3) | (1 << 4) | (1 << 6) | (1 << 7) | (1 << 9) | (1 << 25)
+local COMBO_TABLE_FLAGS = (1 << 3) | (1 << 4) | (1 << 6) | (1 << 7) | (1 << 9)
+local COMBO_TABLE_SCROLL_Y = 1 << 25
 local COMBO_COLUMN_FIXED = 1 << 4
 local COMBO_COLUMN_STRETCH = 1 << 3
 local COMBO_SORT_ASCENDING = 1
@@ -360,7 +361,10 @@ local function combo_openable(label, current_idx, items, info_items, force_open,
     local line_h = imgui.calc_text_size("W").y + 6
     local max_visible = 20
     local visible_count = math.max(1, math.min(#items, max_visible))
-    local popup_h = ((visible_count + 1) * line_h) + 18
+    local needs_vertical_scroll = #items > max_visible
+    -- Header and icon-backed menu rows consume more than one bare text line.
+    -- Reserve one additional line so short lists never hide their final row.
+    local popup_h = ((visible_count + 2) * line_h) + 18
     local available_w = math.max(360, (ctx.cached_sw or 1920) - btn_screen_x - 16)
     local popup_w = math.min(math.max(btn_width or 0, 920), available_w)
 
@@ -383,14 +387,16 @@ local function combo_openable(label, current_idx, items, info_items, force_open,
     if imgui.begin_popup(popup_id) then
         _G.ComboTrials_DropdownOpen = true
 
-        if imgui.begin_table("##ComboListTable" .. label, 6, COMBO_TABLE_FLAGS, Vector2f.new(0, 0)) then
+        local table_flags = COMBO_TABLE_FLAGS
+        if needs_vertical_scroll then table_flags = table_flags | COMBO_TABLE_SCROLL_Y end
+        if imgui.begin_table("##ComboListTable" .. label, 6, table_flags, Vector2f.new(0, 0)) then
             imgui.table_setup_column("C/完", COMBO_COLUMN_FIXED, 58)
             imgui.table_setup_column("名称", COMBO_COLUMN_STRETCH, 1)
             imgui.table_setup_column("起手", COMBO_COLUMN_FIXED, COMBO_STARTER_COLUMN_WIDTH)
             imgui.table_setup_column("伤害", COMBO_COLUMN_FIXED, 76)
             imgui.table_setup_column("斗气", COMBO_COLUMN_FIXED, 58)
             imgui.table_setup_column("能量", COMBO_COLUMN_FIXED, 72)
-            imgui.table_setup_scroll_freeze(0, 1)
+            if needs_vertical_scroll then imgui.table_setup_scroll_freeze(0, 1) end
             imgui.table_next_row(COMBO_TABLE_ROW_HEADERS)
             for column_idx, header in ipairs({
                 { "C/完", true, 58 },

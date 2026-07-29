@@ -112,6 +112,12 @@ assert(ui_source:find('table_setup_column("能量", COMBO_COLUMN_FIXED, 72)', 1,
     "energy column is not wide enough for its header and values")
 assert(ui_source:find("local max_visible = 20", 1, true),
     "combo popup must show up to twenty rows")
+assert(ui_source:find("local needs_vertical_scroll = #items > max_visible", 1, true),
+    "short combo lists must not force a vertical scrollbar")
+assert(ui_source:find("if needs_vertical_scroll then table_flags = table_flags | COMBO_TABLE_SCROLL_Y end", 1, true),
+    "vertical scrolling must only be enabled after the visible-row limit")
+assert(ui_source:find("local popup_h = ((visible_count + 2) * line_h) + 18", 1, true),
+    "popup height must reserve enough padding for every short-list row")
 assert(not ui_source:find("selected == true", 1, true),
     "selected combo row must not use the menu-item checkmark")
 assert(ui_source:find("texture.draw_window", 1, true), "starter icons are not drawn in the popup window layer")
