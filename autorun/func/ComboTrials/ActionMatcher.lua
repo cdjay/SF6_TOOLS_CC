@@ -120,7 +120,14 @@ function ActionMatcher.match_expected_action(expected, actual_action_id, actual_
         and tonumber(actual_action_id) == tonumber(expected.id)
     local alias_id_matched = not exact_id_matched
         and ActionMatcher.matches_expected_action_id(expected, actual_action_id, expected_exception)
-    local motion_matched = expected and ActionMatcher.motion_matches_expected(actual_motion, actual_input, expected)
+    -- A recorded Action ID is the validation ground truth. Motion/input text is
+    -- display and legacy fallback data; it must not advance a step when the
+    -- runtime has produced a different Action ID. Known runtime variants remain
+    -- supported through the explicit action_alias_ids rule above.
+    local has_expected_id = expected and tonumber(expected.id) ~= nil
+    local motion_matched = not has_expected_id
+        and expected
+        and ActionMatcher.motion_matches_expected(actual_motion, actual_input, expected)
     return {
         matched = exact_id_matched or alias_id_matched or motion_matched or false,
         match_reason = exact_id_matched and "id"
@@ -169,7 +176,14 @@ local function motion_has_followup_marker(value)
     return motion:sub(1, 1) == ">" or motion:find(">", 1, true) ~= nil
 end
 
-function ActionMatcher.is_optional_parent_for_followup(actual_motion, expected_step, actual_action_id, expected_exception)
+function ActionMatcher.is_optional_parent_for_followup(
+    actual_motion,
+    expected_step,
+    actual_action_id,
+    expected_exception,
+    previous_step,
+    actual_input
+)
     if type(actual_motion) ~= "string" or type(expected_step) ~= "table" then return false end
     local expected_motion = trim(expected_step.motion)
     local exception_motion = expected_exception and expected_exception.follow_up_motion or nil
@@ -180,6 +194,24 @@ function ActionMatcher.is_optional_parent_for_followup(actual_motion, expected_s
             return true
         end
         if list_contains_token(expected_exception.optional_parent_motions, actual_motion, ActionMatcher.normalize_motion_token) then
+            return true
+        end
+    end
+
+    -- Some commands enter an internal runtime phase after the follow-up button
+    -- is pressed, before the follow-up's recorded Action ID becomes observable.
+    -- Ignore only a new Action ID that still resolves to the previous command
+    -- while the physical input matches the expected follow-up. The real
+    -- expected Action ID must still arrive before the step can advance.
+    if type(previous_step) == "table"
+        and tonumber(actual_action_id) ~= nil
+        and tonumber(previous_step.id) ~= nil
+        and tonumber(actual_action_id) ~= tonumber(previous_step.id) then
+        local actual_m = ActionMatcher.normalize_motion_token(actual_motion)
+        local previous_m = ActionMatcher.normalize_motion_token(previous_step.motion)
+        if actual_m ~= ""
+            and actual_m == previous_m
+            and ActionMatcher.motion_matches_expected(nil, actual_input, expected_step) then
             return true
         end
     end

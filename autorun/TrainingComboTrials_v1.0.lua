@@ -8838,7 +8838,9 @@ local function ct_player_process_actions(p_idx, p_state, actions_to_process)
                                 motion_str,
                                 expected,
                                 act_id,
-                                CharacterRules.get_exception(p_state.exceptions, common_exceptions, expected.id)
+                                CharacterRules.get_exception(p_state.exceptions, common_exceptions, expected.id),
+                                trace_prev_step,
+                                real_input_str
                             ) then
                                 -- Older combo JSON may omit the stance entry before a > follow-up.
                                 -- Do not let the parent action match the follow-up by button input.

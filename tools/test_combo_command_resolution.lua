@@ -152,6 +152,48 @@ assert(action_matcher.is_exact_expected_action({ id = 854 }, 855) == false,
     "a different runtime action must not be admitted by the exact expected-step fallback")
 assert(action_matcher.is_exact_expected_action(nil, 854) == false,
     "the expected-step fallback must remain disabled outside active playback")
+local kimberly_parent_match = action_matcher.match_expected_action(
+    { id = 908, motion = ">LK" },
+    904,
+    "236+KK",
+    "LK"
+)
+assert(kimberly_parent_match.matched == false and kimberly_parent_match.match_reason == "none",
+    "Kimberly's internal 904 phase must not satisfy the recorded 908 follow-up by its LK input")
+assert(action_matcher.is_optional_parent_for_followup(
+        "236+KK",
+        { id = 908, motion = ">LK" },
+        904,
+        nil,
+        { id = 903, motion = "236+KK" },
+        "LK"
+    ) == true,
+    "Kimberly's internal 904 phase must be ignored while playback waits for Action ID 908")
+assert(action_matcher.is_optional_parent_for_followup(
+        "236+KK",
+        { id = 908, motion = ">LK" },
+        904,
+        nil,
+        { id = 903, motion = "236+KK" },
+        "HK"
+    ) == false,
+    "a different physical button must not be hidden as a follow-up transition phase")
+local kimberly_followup_match = action_matcher.match_expected_action(
+    { id = 908, motion = ">LK" },
+    908,
+    "Unknown",
+    "None"
+)
+assert(kimberly_followup_match.matched == true and kimberly_followup_match.match_reason == "id",
+    "the recorded Kimberly follow-up must advance only when runtime Action ID 908 occurs")
+local idless_legacy_match = action_matcher.match_expected_action(
+    { motion = "DI" },
+    854,
+    "DI",
+    "DI"
+)
+assert(idless_legacy_match.matched == true and idless_legacy_match.match_reason == "motion",
+    "motion fallback must remain available only for legacy steps without an Action ID")
 
 local character_rules = dofile("autorun/func/ComboTrials/CharacterRules.lua")
 assert(character_rules.find_recording_absorb_owner({
