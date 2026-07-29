@@ -12,6 +12,11 @@ assert(Validator.counter_type_for_display({
 }) == 0, "a non-hit Parry must never display a punish-counter label")
 assert(Validator.counter_type_for_display({
     motion = "4HK",
+    _ct_counter_label_type = 2,
+    has_hit = false,
+}) == 2, "the menu-derived expected label must not depend on mutable runtime hit flags")
+assert(Validator.counter_type_for_display({
+    motion = "4HK",
     counter_type = 2,
     has_hit = true,
 }) == 2, "the action that actually hit must retain its punish-counter label")

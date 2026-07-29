@@ -5,6 +5,10 @@ local function read_all(path)
     return value
 end
 
+package.path = package.path
+    .. ";./autorun/?.lua"
+    .. ";./autorun/?/init.lua"
+
 -- Load the pure normalizer block without booting REFramework/game globals.
 local source = read_all("autorun/TrainingComboTrials_v1.0.lua")
 local block = assert(source:match(
@@ -89,11 +93,9 @@ normalize_block = normalize_block:gsub(
     "^local function normalize_sequence_counter_types",
     "normalize_sequence_counter_types = function",
     1)
-counter_type_from_hit_type = function(hit_type)
-    if hit_type == "PC" then return 2 end
-    if hit_type == "CH" then return 1 end
-    return 0
-end
+ComboTrialsModules = {
+    TrainingEnvironment = require("func/ComboTrials/TrainingEnvironment")
+}
 assert(load(normalize_block, "counter-type-normalizer", "t", _G))()
 
 local ryu_action_id_ground_truth = {
@@ -127,20 +129,38 @@ assert(dash_step_count == 1,
     "timeline direction changes must not duplicate the recorded dash action")
 
 local fresh_counter_sequence = {
-    { id = 621, motion = "2+MP", counter_type = 0, combo_stats = { hit_type = "CH" } },
-    { id = 621, motion = "2+MP", counter_type = 1 }
+    {
+        id = 621,
+        motion = "2+MP (PC)",
+        dummy_counter_type = 0,
+        counter_type = 2,
+        combo_stats = { hit_type = "CH" },
+        _xt_meta = {
+            dummy_counter_type = 0,
+            environment = { dummy_counter_type = 0 },
+        },
+    },
+    { id = 621, motion = "2+MP (打康)", counter_type = 1, has_hit = true }
 }
 normalize_sequence_counter_types(fresh_counter_sequence, false)
-assert(fresh_counter_sequence[1].counter_type == 0
-        and fresh_counter_sequence[2].counter_type == 1,
-    "a later counter hit in a fresh recording must stay on the second step")
+assert(fresh_counter_sequence[1].counter_type == nil
+        and fresh_counter_sequence[2].counter_type == nil,
+    "per-step counter state must be removed after normalization")
+assert(fresh_counter_sequence[1].combo_stats.hit_type == nil,
+    "the fixed normal menu value must override stale CH/PC summaries")
+assert(fresh_counter_sequence[1].motion == "2+MP"
+        and fresh_counter_sequence[2].motion == "2+MP",
+    "counter labels embedded in motion text must be removed")
 
 local legacy_counter_sequence = {
     { id = 621, motion = "2+MP", counter_type = 0, combo_stats = { hit_type = "CH" } }
 }
 normalize_sequence_counter_types(legacy_counter_sequence)
-assert(legacy_counter_sequence[1].counter_type == 1,
-    "legacy files must retain first-step counter inference from combo_stats")
+assert(legacy_counter_sequence[1].dummy_counter_type == 1
+        and legacy_counter_sequence[1]._xt_meta.environment.dummy_counter_type == 1,
+    "legacy summaries must migrate into the fixed counter-menu rule")
+assert(legacy_counter_sequence[1].counter_type == nil,
+    "legacy per-step counter fields must not survive migration")
 
 local parry_counter_sequence = {
     {
@@ -170,10 +190,13 @@ local parry_counter_sequence = {
     },
 }
 normalize_sequence_counter_types(parry_counter_sequence)
-assert(parry_counter_sequence[1].counter_type == 0,
-    "a non-hit Parry must not inherit the first hit's punish-counter label")
-assert(parry_counter_sequence[3].counter_type == 2,
-    "the punish-counter label must remain on the action that actually hit")
+assert(parry_counter_sequence[1].dummy_counter_type == 2,
+    "the whole trial must retain the fixed punish-counter menu value")
+assert(parry_counter_sequence[1].counter_type == nil
+        and parry_counter_sequence[3].counter_type == nil,
+    "setup and hit steps must not keep independent counter rules")
+assert(parry_counter_sequence[3].has_contact == true,
+    "the first actual contact must remain identifiable for display")
 
 local legacy_parry_counter_sequence = {
     {
@@ -203,9 +226,9 @@ local legacy_parry_counter_sequence = {
     },
 }
 normalize_sequence_counter_types(legacy_parry_counter_sequence)
-assert(legacy_parry_counter_sequence[1].counter_type == 0
-        and legacy_parry_counter_sequence[3].counter_type == 2,
-    "legacy setup counters must migrate to the first recorded hit")
+assert(legacy_parry_counter_sequence[1].dummy_counter_type == 2
+        and legacy_parry_counter_sequence[3].has_contact == true,
+    "legacy setup counters must migrate to one fixed rule and a contact marker")
 
 local mixed_facing = {
     { index = 1, start_frame = 0, duration = 1, dir = "6" },

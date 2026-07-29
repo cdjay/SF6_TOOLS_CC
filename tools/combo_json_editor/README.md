@@ -29,7 +29,7 @@ node tools\combo_json_editor\server.mjs
 - 角色特殊资源：按 Fighter ID 显示语义化控件，例如“电刃炼气 (Denjin Charge)”开/关、“刃焰 (Flame Stock)”库存；布兰卡、韩蛛俐和杰米会同时显示两项资源。双方为同一角色时，训练模式共享同一个 `UniqueData` 资源键，两侧控件会自动同步。未知扩展资源保留在单独的 JSON 区域。
 - 安全批量编辑：可统一写入游戏、MOD/录制器、REFramework、JSON 格式版本，以及明确确认过的语言和控制模式。
 
-动作 ID、指令、延迟、连击数、`timeline`、`raw_inputs` 等机制字段只读。
+动作 ID、指令、延迟、连击数、`timeline`、`raw_inputs` 等机制字段只读。唯一例外是打康规则规范化：保存菜单值时会删除旧 `motion` 标签和步骤级 `counter_type`，避免它们再次覆盖固定菜单。
 作者、角色、创建时间、资源和木人状态不提供全库批量覆盖。
 
 ## 批量迁移
@@ -70,6 +70,17 @@ node tools\combo_json_editor\fill_dummy_menu_defaults.mjs `
 ```
 
 确认后增加 `--write` 原地写入。该工具不覆盖已有非空值；格挡空值按合集约定写为“第2段后格挡”，双方空资源写为生命槽 10000、斗气槽 6 格、超级必杀槽 3 格、虚损关闭，角色特殊资源按 Fighter ID 写入标准状态。工具不创建磁盘备份，因此只应用于已经独立备份的维护副本。
+
+打康/确反康规则以 `_xt_meta.environment.dummy_counter_type` 为唯一逻辑来源；`_xt_meta` 与首步骤同名字段只作为兼容镜像。一次性清理旧合集时先预检：
+
+```powershell
+node tools\combo_json_editor\migrate_counter_policy.mjs `
+  --root "<CustomCombos目录>" `
+  --dry-run `
+  --report "<预检报告.json>"
+```
+
+独立备份确认后，将 `--dry-run` 改为 `--write`。脚本会恢复可唯一判断的旧 CH/PC 意图、同步三个菜单镜像、删除步骤级 `counter_type` 和指令文本标签，并把既有命中证据固化为 `has_contact`。存在无效或歧义文件时不会写入。
 
 ## 迁移原则
 

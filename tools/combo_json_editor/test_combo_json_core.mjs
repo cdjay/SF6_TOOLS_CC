@@ -3,10 +3,14 @@ import {
     applyMetadataEdits,
     applyVersionProfile,
     COMBO_JSON_EDITOR,
+    findFirstContactStep,
     mechanismProjection,
     migrateComboDocument,
+    normalizeCounterPolicyDocument,
     parseComboJson,
+    resolveCounterPolicy,
     serializeComboJson,
+    stripCounterTags,
     validateComboDocument
 } from "./combo_json_core.mjs";
 
@@ -154,6 +158,45 @@ assert.equal(edited[0].scene_state.schema, COMBO_JSON_EDITOR.sceneV2);
 assert.equal(edited[0].scene_state.players.p2.resources.hp, 8000);
 assert.equal(edited[0].snapshot_gauges.victim.heal_hp, 9000);
 assert.equal(validateComboDocument(edited).valid, true);
+
+const conflictingCounterSources = [
+    {
+        id: 480,
+        motion: "PARRY (PC)",
+        counter_type: 2,
+        dummy_counter_type: 0,
+        combo_stats: { hit_type: "PC" },
+        _xt_meta: {
+            dummy_counter_type: 0,
+            environment: { dummy_counter_type: 0 }
+        }
+    },
+    {
+        id: 669,
+        motion: "4HK (确反康)",
+        counter_type: 2,
+        expected_combo: 1,
+        has_hit: true
+    }
+];
+assert.equal(resolveCounterPolicy(conflictingCounterSources).counterType, 0,
+    "canonical menu value must override stale legacy evidence");
+assert.equal(resolveCounterPolicy(conflictingCounterSources, { recoverLegacyZero: true }).counterType, 2,
+    "the one-time migration must recover legacy intent from an injected zero");
+assert.equal(findFirstContactStep(conflictingCounterSources), 1);
+assert.equal(stripCounterTags("4HK (确反康)"), "4HK");
+const normalizedCounter = normalizeCounterPolicyDocument(conflictingCounterSources, {
+    counterType: 1
+}).document;
+assert.equal(normalizedCounter[0]._xt_meta.environment.dummy_counter_type, 1);
+assert.equal(normalizedCounter[0]._xt_meta.dummy_counter_type, 1);
+assert.equal(normalizedCounter[0].dummy_counter_type, 1);
+assert.equal(normalizedCounter[0].combo_stats.hit_type, "CH");
+assert.equal(normalizedCounter[0].counter_type, undefined);
+assert.equal(normalizedCounter[1].counter_type, undefined);
+assert.equal(normalizedCounter[1].has_contact, true);
+assert.equal(normalizedCounter[0].motion, "PARRY");
+assert.equal(normalizedCounter[1].motion, "4HK");
 
 const serialized = serializeComboJson(edited);
 assert.deepEqual(parseComboJson(serialized, "roundtrip"), edited);

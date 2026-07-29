@@ -210,14 +210,6 @@ function PendingAbsorb.apply_matched_step(ctx, params)
             state.fail_reason = nil
         end
 
-        local just_validated = state.sequence[state.current_step - 1]
-        if not just_validated or just_validated.counter_type == 0 then
-            local next_step = state.sequence[state.current_step]
-            if next_step and next_step.counter_type then
-                ctx.set_dummy_counter_type(next_step.counter_type)
-            end
-        end
-
         if expected.is_holdable and expected.charge_status then
             local safe_mask = params.hold_mask
             if not safe_mask or safe_mask == 0 then safe_mask = (params.direct_input or 0) & 0xFFF0 end

@@ -313,7 +313,7 @@ local trial_state = {
     saved_start_location = nil,
     flip_inputs = false,   -- Whether to visually flip the input display
     _rec_gauges = nil,     -- Internal gauge sample at recording start
-    _rec_hit_type = nil,   -- CH/PC detected on first hit
+    _rec_hit_type = nil,   -- Derived from the fixed recorded counter-menu value
     _rec_scene_state = nil,
     _saved_unique_resources = nil,
     _saved_drive_settings = nil,
@@ -602,12 +602,6 @@ local function build_auto_xt_meta(recording_player, sequence)
 end
 
 load_xt_settings()
-
-local function counter_type_from_hit_type(hit_type)
-    if hit_type == "PC" then return 2 end
-    if hit_type == "CH" then return 1 end
-    return 0
-end
 
 _G.CTRecordingRepeat = _G.CTRecordingRepeat or {}
 
@@ -3743,9 +3737,7 @@ local function apply_trial_training_environment(skip_refresh_settings)
     local first_step = trial_state.sequence and trial_state.sequence[1]
     local settings =
         ComboTrialsModules.TrainingEnvironment.resolve_recorded_settings(first_step)
-    local first_ct = settings.dummy_counter_type
-        or (first_step and first_step.counter_type)
-        or 0
+    local first_ct = settings.dummy_counter_type or 0
     ComboTrialsModules.SceneStateRuntime.apply(
         first_step,
         trial_state.playing_player,
@@ -4614,41 +4606,12 @@ local function normalize_sequence_counter_types(sequence, infer_first_from_legac
     if type(sequence) ~= "table" or type(sequence[1]) ~= "table" then return end
     -- Recorded action IDs are the validation ground truth. Timeline data is
     -- playback-only and must never synthesize additional command steps.
-    local first = sequence[1]
-    if infer_first_from_legacy_stats ~= false
-        and (first.counter_type == nil or first.counter_type == 0)
-        and type(first.combo_stats) == "table" then
-        local inferred = counter_type_from_hit_type(first.combo_stats.hit_type)
-        if inferred ~= 0 then first.counter_type = inferred end
-    end
-
-    -- Older recordings copied the first landed hit's CH/PC state onto step 1
-    -- even when step 1 was only movement/setup (Parry, Drive Rush, jump, whiff).
-    -- Keep the environment state, but bind the per-step label to the action
-    -- that actually recorded contact.
-    local first_counter_type = tonumber(first.counter_type) or 0
-    local first_is_non_hit_setup = first_counter_type ~= 0
-        and first.has_hit ~= true
-        and first.has_contact ~= true
-        and (tonumber(first.expected_combo) or 0) == 0
-        and (tonumber(first.damage_at_step) or 0) == 0
-    if first_is_non_hit_setup then
-        for i = 2, #sequence do
-            local hit_step = sequence[i]
-            if type(hit_step) == "table"
-                and (hit_step.has_hit == true or hit_step.has_contact == true) then
-                local hit_counter_type = tonumber(hit_step.counter_type) or 0
-                if hit_counter_type == 0 or hit_counter_type == first_counter_type then
-                    hit_step.counter_type = first_counter_type
-                    first.counter_type = 0
-                end
-                break
-            end
-        end
-    end
+    ComboTrialsModules.TrainingEnvironment.normalize_counter_policy(
+        sequence,
+        infer_first_from_legacy_stats
+    )
 
     for _, step in ipairs(sequence) do
-        if step.counter_type == nil then step.counter_type = 0 end
         if type(step.motion_aliases) ~= "table" then step.motion_aliases = {} end
         local motion = tostring(step.motion or ""):upper():gsub("%s+", "")
         local dirs, btns = motion:match("^(%d+)%+?(.*)$")
@@ -4958,8 +4921,11 @@ local function start_recording(player_idx)
 
     trial_state._rec_gauges = nil
     trial_state._rec_pending_snapshot = 8
-    trial_state._rec_hit_type = nil
-    trial_state._rec_first_hit_counter_type = nil
+    local recorded_counter_type = tonumber(
+        trial_state._rec_environment and trial_state._rec_environment.dummy_counter_type
+    ) or 0
+    trial_state._rec_hit_type = recorded_counter_type == 2 and "PC"
+        or (recorded_counter_type == 1 and "CH" or nil)
     trial_state._piyo_detected = false
     trial_state._piyo_frame = nil
     trial_state._rec_frame_count = 0
@@ -5283,7 +5249,6 @@ function ct_dev_minimal_hp_test_sequence()
             motion = "236236P",
             motion_aliases = {},
             delay_from_prev = 0,
-            counter_type = 0,
             recorded_by = 0,
             _xt_meta = {
                 title = CT_DEV_HP_TEST_TITLE,
@@ -5786,15 +5751,6 @@ local function _ct_track_rec_gauges(victim, p_char, p_idx)
     end
 end
 
-local function _ct_capture_rec_hit_type(victim_obj)
-    local counter_type = _G.CTRecordingRepeat.read_live_counter_type(victim_obj)
-    if counter_type == 2 then
-        trial_state._rec_hit_type = "PC"
-    elseif counter_type == 1 and trial_state._rec_hit_type ~= "PC" then
-        trial_state._rec_hit_type = "CH"
-    end
-end
-
 local function _ct_check_knockdown(victim_obj)
     if not victim_obj then return false end
     local pose_st = victim_obj:get_type_definition():get_field("pose_st"):get_data(victim_obj)
@@ -6087,13 +6043,6 @@ local function advance_same_action_continuation_steps(combo_count, call_site)
         trial_state.last_played_frame = engine_frame_count
         trial_state.ui_visual_step = trial_state.current_step
         trial_state.floating_info = nil
-
-        local next_step = trial_state.sequence[trial_state.current_step]
-        if next_step and next_step.counter_type then
-            set_dummy_counter_type(next_step.counter_type)
-        else
-            set_dummy_counter_type(0)
-        end
 
         advanced = true
     end
@@ -7014,29 +6963,12 @@ local function ct_player_tracking(p_idx, p_state)
         end)
 
         if trial_state.is_recording and p_idx == trial_state.recording_player then
-            local hit_counter_type = 0
-            local counter_ok, captured_counter =
-                pcall(_G.CTRecordingRepeat.read_live_counter_type, _pf.victim_obj)
-            if counter_ok then hit_counter_type = captured_counter or 0 end
-            if trial_state._rec_first_hit_counter_type == nil then
-                trial_state._rec_first_hit_counter_type = hit_counter_type
-                if hit_counter_type == 2 then
-                    trial_state._rec_hit_type = "PC"
-                elseif hit_counter_type == 1 then
-                    trial_state._rec_hit_type = "CH"
-                end
-            end
-
             if #trial_state.sequence > 0 then
                 local step = trial_state.sequence[#trial_state.sequence]
                 step.has_contact = true
                 -- has_hit is now handled by on_frame delayed combo tracking
                 -- Track if there was AT LEAST one projectile hit during the action
                 step.is_projectile_hit = step.is_projectile_hit or hit_is_projectile
-                -- Capture CH/PC at the moment of the hit
-                if step.counter_type == 0 and hit_counter_type ~= 0 then
-                    step.counter_type = hit_counter_type
-                end
             end
         elseif trial_state.is_playing and p_idx == trial_state.playing_player
             and not (trial_state.fail_timer and trial_state.fail_timer > 0) then
@@ -7057,14 +6989,6 @@ local function ct_player_tracking(p_idx, p_state)
                 if hit_is_projectile then prev_step.is_projectile_hit = true end
                 advance_same_action_continuation_steps(_pf.current_combo or 0, "hit_detection")
 
-                -- Hit confirmed: apply the counter_type of the next step
-                local next_step = trial_state.sequence[trial_state.current_step]
-                if next_step and next_step.counter_type then
-                    set_dummy_counter_type(next_step.counter_type)
-                else
-                    set_dummy_counter_type(0)
-                end
-
                 -- Advance ONLY the [ACTION X / Y] counter on impact
                 trial_state.ui_visual_step = trial_state.current_step
                 trial_state.floating_info = nil -- <-- Clear text while waiting for the next input
@@ -7072,12 +6996,6 @@ local function ct_player_tracking(p_idx, p_state)
 
         end
     			end
-
-    -- Capture CH/PC continuously during recording (independent of combo count for DI etc.)
-    if trial_state._rec_first_hit_counter_type == nil
-        and trial_state.is_recording and p_idx == trial_state.recording_player then
-        pcall(_ct_capture_rec_hit_type, _pf.victim_obj)
-    end
 
     -- Opponent knockdown detection (pose_st == 3)
     _pf.opponent_knocked_down = false
@@ -7246,10 +7164,6 @@ local function ct_player_validation(p_idx, p_state)
                         expected.actual_combo = _pf.current_combo or 0
                         trial_state.last_played_frame = engine_frame_count
                         trial_state.current_step = trial_state.current_step + 1
-                        local next_step = trial_state.sequence[trial_state.current_step]
-                        if next_step and next_step.counter_type then
-                            set_dummy_counter_type(next_step.counter_type)
-                        end
                     else
                     ComboTrialsModules.PendingAbsorb.clear(trial_state, "timeout")
                     trial_state.fail_timer = d2d_cfg.fail_display_frames or 120
@@ -8471,7 +8385,6 @@ local function ct_player_process_actions(p_idx, p_state, actions_to_process)
                         is_projectile_hit = false,
                         delay_from_prev = delay,
                         facing_left = is_facing_left,
-                        counter_type = 0,
                         next_auto_id = nil -- Will be filled if the next action is automatic
                     })
                     assign_groups(trial_state.sequence, p_state.profile_name)
@@ -9704,23 +9617,11 @@ function save_trial_sequence(meta)
             stats.super_used = math.max(0, init.attacker_super - (init.min_atk_super or init.attacker_super))
         end
         trial_state.sequence[1].combo_stats = stats
-        local first_hit_counter_type = tonumber(trial_state._rec_first_hit_counter_type) or 0
-        if first_hit_counter_type ~= 0 then
-            for _, step in ipairs(trial_state.sequence) do
-                if step.has_hit == true or step.has_contact == true then
-                    if step.counter_type == nil or step.counter_type == 0 then
-                        step.counter_type = first_hit_counter_type
-                    end
-                    break
-                end
-            end
-        end
         if logger_state.last_export_name then
             trial_state.sequence[1].raw_input_file = logger_state.last_export_name
         end
         trial_state._rec_gauges = nil
         trial_state._rec_hit_type = nil
-        trial_state._rec_first_hit_counter_type = nil
     end
 
     if type(meta) == "table" and type(trial_state.sequence[1]) == "table" then
@@ -9742,8 +9643,7 @@ function save_trial_sequence(meta)
             trial_state.sequence[1].raw_inputs = trial_state._raw_rec_buffer
         end
     end
-    -- Fresh recordings already bind counter state per hit. Legacy combo_stats
-    -- inference would incorrectly move a later counter hit onto the first step.
+    -- Counter state is a fixed training-menu rule for the entire recording.
     normalize_sequence_counter_types(trial_state.sequence, false)
 
     if fs.create_dir then

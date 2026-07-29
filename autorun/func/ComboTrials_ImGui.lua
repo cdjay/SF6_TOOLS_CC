@@ -11,6 +11,7 @@ local RuntimeSafety = require("func/RuntimeSafety")
 local Canvas = require("func/ImGuiCanvas")
 local SequenceGrouping = require("func/ComboTrials/SequenceGrouping")
 local Validator = require("func/ComboTrials/Validator")
+local TrainingEnvironment = require("func/ComboTrials/TrainingEnvironment")
 
 -- Shared context (set by init)
 local ctx -- { d2d_cfg, trial_state, players, sf6_menu_state }
@@ -1809,12 +1810,17 @@ end
 
 local function build_display_lines(sequence)
     local lines = {}
+    local counter_policy = TrainingEnvironment.resolve_counter_policy(sequence, false)
+    local counter_contact_step = TrainingEnvironment.find_first_contact_step(sequence)
     local sequence_character = get_sequence_character(sequence)
     local is_modern, modern_map, modern_character, modern_status, classic_modern_projection =
         resolve_modern_display_context(sequence)
     local state = ctx and ctx.trial_state
     local audit_context = state and state.is_recording == true and sequence == state.sequence
         and "recording" or "loaded"
+    if audit_context == "recording" and type(state._rec_environment) == "table" then
+        counter_policy = tonumber(state._rec_environment.dummy_counter_type) or counter_policy
+    end
     local source_file = audit_context == "loaded" and state
         and (state.current_file_path or state.current_file) or nil
 
@@ -1846,6 +1852,10 @@ local function build_display_lines(sequence)
                     source_file, audit_context .. ":" .. tostring(i))
             end
             step = clone_step_for_display(raw_step, classic_motion, false)
+        end
+        step.motion = TrainingEnvironment.strip_counter_tags(step.motion)
+        if i == counter_contact_step and (counter_policy == 1 or counter_policy == 2) then
+            step._ct_counter_label_type = counter_policy
         end
         if include_step then
             local gid = step.group_id or i
@@ -1918,10 +1928,14 @@ local function merge_group_log_item(steps)
     end
     local ui_result_text = nil
     local ui_result_kind = nil
+    local counter_label_type = nil
     for _, s in ipairs(steps) do
         if s.ui_result_text then
             ui_result_text = s.ui_result_text
             ui_result_kind = s.ui_result_kind
+        end
+        if s._ct_counter_label_type ~= nil then
+            counter_label_type = s._ct_counter_label_type
         end
     end
 
@@ -1935,6 +1949,7 @@ local function merge_group_log_item(steps)
         combo_stats    = first.combo_stats,
         facing_left    = first.facing_left,
         _ct_modern_display = has_modern_display,
+        _ct_counter_label_type = counter_label_type,
         ui_result_text = ui_result_text,
         ui_result_kind = ui_result_kind,
     }
@@ -1980,7 +1995,7 @@ end
 local function parse_motion_to_icons(log_entry, trial_mode, should_flip, reverse_layout)
     local d2d_cfg = ctx and ctx.d2d_cfg or {}
     local motion_tokens = {}
-    local s = tostring(log_entry.motion or "")
+    local s = TrainingEnvironment.strip_counter_tags(log_entry.motion)
 
     -- Convert to uppercase IMMEDIATELY so that j. becomes J.
     s = s:upper()

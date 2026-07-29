@@ -32,6 +32,8 @@ end
 
 function Validator.counter_type_for_display(step)
     if type(step) ~= "table" then return 0 end
+    local expected = tonumber(step._ct_counter_label_type)
+    if expected == 1 or expected == 2 then return expected end
     if step.has_hit ~= true and step.has_contact ~= true then return 0 end
     return tonumber(step.counter_type) or 0
 end

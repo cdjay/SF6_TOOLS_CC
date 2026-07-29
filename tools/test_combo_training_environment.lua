@@ -164,6 +164,38 @@ assert(TrainingEnvironment.counter_type_from_runtime(2, 2) == 3,
     "native random counter pair must decode to the portable random value")
 assert(TrainingEnvironment.counter_type_from_runtime(0, 1) == 2,
     "native punish counter must decode correctly")
+local fixed_counter_sequence = {
+    {
+        id = 480,
+        motion = "PARRY (PC)",
+        dummy_counter_type = 0,
+        counter_type = 2,
+        combo_stats = { hit_type = "PC" },
+        _xt_meta = {
+            dummy_counter_type = 0,
+            environment = { dummy_counter_type = 0 },
+        },
+    },
+    {
+        id = 669,
+        motion = "4HK (确反康)",
+        counter_type = 2,
+        expected_combo = 1,
+        has_hit = true,
+    },
+}
+local fixed_counter, contact_step, counter_source =
+    TrainingEnvironment.normalize_counter_policy(fixed_counter_sequence, true)
+assert(fixed_counter == 0 and counter_source == "environment",
+    "the canonical fixed menu value must override legacy per-step and summary values")
+assert(contact_step == 2 and fixed_counter_sequence[2].has_contact == true,
+    "the first actual contact must be retained independently of the menu value")
+assert(fixed_counter_sequence[1].counter_type == nil
+        and fixed_counter_sequence[2].counter_type == nil,
+    "normalization must remove all per-step counter rules")
+assert(fixed_counter_sequence[1].motion == "PARRY"
+        and fixed_counter_sequence[2].motion == "4HK",
+    "normalization must remove counter labels embedded in commands")
 assert(TrainingEnvironment.drive_reversal_count_to_runtime(6) == 5,
     "drive reversal count must encode to the zero-based native value")
 assert(TrainingEnvironment.drive_reversal_count_from_runtime(5) == 6,

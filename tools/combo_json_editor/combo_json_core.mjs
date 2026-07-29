@@ -290,6 +290,197 @@ function collectEnvironment(meta, first = null) {
     return environment;
 }
 
+function normalizedCounterType(value) {
+    if (value === null || value === undefined || String(value).trim() === "") return null;
+    const number = Number(value);
+    if (!Number.isFinite(number)) return null;
+    const integer = Math.floor(number);
+    return integer >= 0 && integer <= 3 ? integer : null;
+}
+
+function counterTypeFromHitType(value) {
+    const normalized = String(value ?? "").trim().toUpperCase().replace(/[\s_-]+/g, "");
+    if (normalized === "PC" || normalized === "PUNISHCOUNTER") return 2;
+    if (normalized === "CH" || normalized === "COUNTERHIT") return 1;
+    return null;
+}
+
+function counterTypeFromMotion(value) {
+    const text = String(value ?? "");
+    if (/确反康|PUNISH[\s_-]*COUNTER|\bPC\b/i.test(text)) return 2;
+    if (/打康|COUNTER[\s_-]*HIT|\bCH\b/i.test(text)) return 1;
+    return null;
+}
+
+export function stripCounterTags(value) {
+    let text = String(value ?? "");
+    const stripGroup = (match, inner) => {
+        const normalized = String(inner).trim().toUpperCase().replace(/[\s_-]+/g, "");
+        return ["PC", "CH", "PUNISHCOUNTER", "COUNTERHIT", "确反康", "打康"].includes(normalized)
+            ? ""
+            : match;
+    };
+    text = text.replace(/\(([^()]*)\)/g, stripGroup);
+    text = text.replace(/\[([^\[\]]*)\]/g, stripGroup);
+    text = text.replace(/\s*(?:确反康|打康)\s*/g, " ");
+    return text.replace(/\s+/g, " ").trim();
+}
+
+function isSetupOrWhiffStep(step) {
+    if (!isObject(step)) return true;
+    const motion = stripCounterTags(step.motion).toUpperCase();
+    const compact = motion.replace(/[\s_+\-]+/g, "");
+    return motion.includes("空挥")
+        || motion.includes("WHIFF")
+        || motion.includes("PARRY")
+        || motion.includes("DRIVE PARRY")
+        || ["DP", "DR", "DRC", "RAWDR", "66", "44", "7", "8", "9"].includes(compact);
+}
+
+export function findFirstContactStep(document) {
+    if (!Array.isArray(document)) return null;
+    let index = document.findIndex(step => (
+        isObject(step) && (step.has_contact === true || step.has_hit === true)
+    ));
+    if (index >= 0) return index;
+    index = document.findIndex(step => (
+        isObject(step)
+        && !isSetupOrWhiffStep(step)
+        && Number(step.expected_combo ?? 0) > 0
+    ));
+    if (index >= 0) return index;
+    let previousDamage = 0;
+    for (let stepIndex = 0; stepIndex < document.length; stepIndex += 1) {
+        const step = document[stepIndex];
+        if (!isObject(step)) continue;
+        const damage = Number(step.damage_at_step ?? 0);
+        if (!isSetupOrWhiffStep(step) && Number.isFinite(damage) && damage > previousDamage) {
+            return stepIndex;
+        }
+        if (Number.isFinite(damage)) previousDamage = Math.max(previousDamage, damage);
+    }
+    index = document.findIndex(step => {
+        const legacy = isObject(step) ? normalizedCounterType(step.counter_type) : null;
+        return legacy !== null && legacy !== 0 && !isSetupOrWhiffStep(step);
+    });
+    return index >= 0 ? index : null;
+}
+
+export function resolveCounterPolicy(document, options = {}) {
+    if (!Array.isArray(document) || !isObject(document[0])) {
+        return { counterType: 0, source: "default", ambiguous: false, evidence: [] };
+    }
+    const first = document[0];
+    const meta = isObject(first._xt_meta) ? first._xt_meta : {};
+    const environment = isObject(meta.environment) ? meta.environment : {};
+    const environmentValue = normalizedCounterType(environment.dummy_counter_type);
+    const metaValue = normalizedCounterType(meta.dummy_counter_type);
+    const firstValue = normalizedCounterType(first.dummy_counter_type);
+    const summaryValue = counterTypeFromHitType(first.combo_stats?.hit_type);
+    const stepValues = [...new Set(document
+        .map(step => normalizedCounterType(step?.counter_type))
+        .filter(value => value === 1 || value === 2))];
+    const motionValues = [...new Set(document
+        .map(step => counterTypeFromMotion(step?.motion))
+        .filter(value => value === 1 || value === 2))];
+    const legacyEvidence = [summaryValue, ...stepValues, ...motionValues]
+        .filter(value => value === 1 || value === 2);
+    const uniqueLegacy = [...new Set(legacyEvidence)];
+
+    if (environmentValue !== null
+        && (environmentValue !== 0 || options.recoverLegacyZero !== true)) {
+        return {
+            counterType: environmentValue,
+            source: "environment",
+            ambiguous: false,
+            evidence: legacyEvidence
+        };
+    }
+    if (options.recoverLegacyZero === true && uniqueLegacy.length === 1) {
+        return {
+            counterType: uniqueLegacy[0],
+            source: "legacy_evidence",
+            ambiguous: false,
+            evidence: legacyEvidence
+        };
+    }
+    if (options.recoverLegacyZero === true && uniqueLegacy.length > 1) {
+        return {
+            counterType: environmentValue ?? metaValue ?? firstValue ?? 0,
+            source: "ambiguous_legacy",
+            ambiguous: true,
+            evidence: uniqueLegacy
+        };
+    }
+    if (environmentValue !== null) {
+        return { counterType: environmentValue, source: "environment", ambiguous: false, evidence: legacyEvidence };
+    }
+    if (metaValue !== null) {
+        return { counterType: metaValue, source: "meta", ambiguous: false, evidence: legacyEvidence };
+    }
+    if (firstValue !== null) {
+        return { counterType: firstValue, source: "step", ambiguous: false, evidence: legacyEvidence };
+    }
+    if (uniqueLegacy.length === 1) {
+        return { counterType: uniqueLegacy[0], source: "legacy_evidence", ambiguous: false, evidence: legacyEvidence };
+    }
+    return {
+        counterType: 0,
+        source: uniqueLegacy.length > 1 ? "ambiguous_legacy" : "default",
+        ambiguous: uniqueLegacy.length > 1,
+        evidence: uniqueLegacy
+    };
+}
+
+export function normalizeCounterPolicyDocument(document, options = {}) {
+    const out = options.inPlace === true ? document : deepClone(document);
+    const validation = validateComboDocument(out);
+    if (!validation.valid) throw new Error(validation.errors.join("；"));
+    const resolved = options.counterType === undefined
+        ? resolveCounterPolicy(out, options)
+        : {
+            counterType: normalizedCounterType(options.counterType),
+            source: "explicit",
+            ambiguous: false,
+            evidence: []
+        };
+    if (resolved.counterType === null) {
+        throw new Error(`无效打康菜单值 (invalid counter menu value): ${String(options.counterType)}`);
+    }
+
+    const first = out[0];
+    if (!isObject(first._xt_meta)) first._xt_meta = {};
+    const meta = first._xt_meta;
+    if (!isObject(meta.environment)) meta.environment = {};
+    if (!meta.environment.schema) meta.environment.schema = COMBO_JSON_EDITOR.environmentV1;
+    meta.environment.dummy_counter_type = resolved.counterType;
+    meta.dummy_counter_type = resolved.counterType;
+    first.dummy_counter_type = resolved.counterType;
+
+    const contactStep = findFirstContactStep(out);
+    out.forEach((step, index) => {
+        if (step.has_hit === true) step.has_contact = true;
+        step.motion = stripCounterTags(step.motion);
+        delete step.counter_type;
+        if (index === contactStep && [1, 2].includes(resolved.counterType)) {
+            step.has_contact = true;
+        }
+    });
+    if (isObject(first.combo_stats)) {
+        if (resolved.counterType === 2) first.combo_stats.hit_type = "PC";
+        else if (resolved.counterType === 1) first.combo_stats.hit_type = "CH";
+        else delete first.combo_stats.hit_type;
+    }
+    return {
+        document: out,
+        counterType: resolved.counterType,
+        source: resolved.source,
+        ambiguous: resolved.ambiguous,
+        evidence: resolved.evidence,
+        contactStep
+    };
+}
+
 function diffPaths(before, after, prefix = "") {
     if (Object.is(before, after)) return [];
     if (Array.isArray(before) && Array.isArray(after)) {
@@ -509,6 +700,13 @@ function updateEnvironmentInPlace(document, values) {
         meta.environment = environment;
     } else {
         delete meta.environment;
+    }
+    const counterType = normalizedCounterType(normalizedValues.dummy_counter_type);
+    if (counterType !== null) {
+        normalizeCounterPolicyDocument(document, {
+            counterType,
+            inPlace: true
+        });
     }
 }
 

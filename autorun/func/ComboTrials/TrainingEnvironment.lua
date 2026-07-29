@@ -119,10 +119,202 @@ local function bounded_int(value, minimum, maximum)
     return number
 end
 
+local function valid_counter_type(value)
+    return bounded_int(value, 0, 3)
+end
+
+local function counter_type_from_hit_type(hit_type)
+    local normalized = tostring(hit_type or ""):upper():gsub("%s+", "")
+    if normalized == "PC" or normalized == "PUNISHCOUNTER" then
+        return TrainingEnvironment.DUMMY_COUNTER.PUNISH_COUNTER
+    end
+    if normalized == "CH" or normalized == "COUNTERHIT" then
+        return TrainingEnvironment.DUMMY_COUNTER.COUNTER
+    end
+    return nil
+end
+
+local function counter_hit_type(counter_type)
+    counter_type = valid_counter_type(counter_type)
+    if counter_type == TrainingEnvironment.DUMMY_COUNTER.PUNISH_COUNTER then return "PC" end
+    if counter_type == TrainingEnvironment.DUMMY_COUNTER.COUNTER then return "CH" end
+    return nil
+end
+
+function TrainingEnvironment.strip_counter_tags(motion)
+    local text = tostring(motion or "")
+    local function strip_group(group)
+        local inner = group:sub(2, -2)
+        local normalized = inner:upper():gsub("[%s_%-]+", "")
+        if normalized == "PC"
+            or normalized == "CH"
+            or normalized == "PUNISHCOUNTER"
+            or normalized == "COUNTERHIT"
+            or normalized == "确反康"
+            or normalized == "打康" then
+            return ""
+        end
+        return group
+    end
+    text = text:gsub("%b()", strip_group)
+    text = text:gsub("%b[]", strip_group)
+    text = text:gsub("%s*确反康%s*", " ")
+    text = text:gsub("%s*打康%s*", " ")
+    text = text:gsub("%s+", " ")
+    return (text:match("^%s*(.-)%s*$"))
+end
+
+local function sequence_first(sequence_or_first)
+    if type(sequence_or_first) ~= "table" then return nil, nil end
+    if type(sequence_or_first[1]) == "table" then
+        return sequence_or_first[1], sequence_or_first
+    end
+    return sequence_or_first, nil
+end
+
+function TrainingEnvironment.resolve_counter_policy(sequence_or_first, infer_legacy)
+    local first, sequence = sequence_first(sequence_or_first)
+    if type(first) ~= "table" then
+        return TrainingEnvironment.DUMMY_COUNTER.NORMAL, "default"
+    end
+    local meta = type(first._xt_meta) == "table" and first._xt_meta or nil
+    local env = meta and type(meta.environment) == "table" and meta.environment or nil
+
+    -- The recorded training-menu value is the fixed rule for the whole trial.
+    -- Compatibility mirrors are consulted only when the canonical environment
+    -- field is absent.
+    for _, candidate in ipairs({
+        { value = env and env.dummy_counter_type, source = "environment" },
+        { value = meta and meta.dummy_counter_type, source = "meta" },
+        { value = first.dummy_counter_type, source = "step" },
+    }) do
+        local value = valid_counter_type(candidate.value)
+        if value ~= nil then return value, candidate.source end
+    end
+
+    if infer_legacy ~= false then
+        local legacy = type(first.combo_stats) == "table"
+            and counter_type_from_hit_type(first.combo_stats.hit_type)
+            or nil
+        if legacy ~= nil then return legacy, "legacy_combo_stats" end
+        if sequence then
+            for _, step in ipairs(sequence) do
+                legacy = type(step) == "table" and valid_counter_type(step.counter_type) or nil
+                if legacy ~= nil and legacy ~= TrainingEnvironment.DUMMY_COUNTER.NORMAL then
+                    return legacy, "legacy_step"
+                end
+            end
+        else
+            legacy = valid_counter_type(first.counter_type)
+            if legacy ~= nil and legacy ~= TrainingEnvironment.DUMMY_COUNTER.NORMAL then
+                return legacy, "legacy_step"
+            end
+        end
+    end
+    return TrainingEnvironment.DUMMY_COUNTER.NORMAL, "default"
+end
+
+local function is_setup_or_whiff_step(step)
+    if type(step) ~= "table" then return true end
+    local motion = TrainingEnvironment.strip_counter_tags(step.motion):upper()
+    local compact = motion:gsub("[%s_+%-]+", "")
+    if motion:find("空挥", 1, true)
+        or motion:find("WHIFF", 1, true)
+        or motion:find("PARRY", 1, true)
+        or motion:find("DRIVE PARRY", 1, true)
+        or compact == "DP"
+        or compact == "DR"
+        or compact == "DRC"
+        or compact == "RAWDR"
+        or compact == "66"
+        or compact == "44"
+        or compact == "7"
+        or compact == "8"
+        or compact == "9" then
+        return true
+    end
+    return false
+end
+
+function TrainingEnvironment.find_first_contact_step(sequence)
+    if type(sequence) ~= "table" then return nil end
+    for i, step in ipairs(sequence) do
+        if type(step) == "table"
+            and (step.has_contact == true or step.has_hit == true) then
+            return i
+        end
+    end
+    for i, step in ipairs(sequence) do
+        if type(step) == "table"
+            and not is_setup_or_whiff_step(step)
+            and (tonumber(step.expected_combo) or 0) > 0 then
+            return i
+        end
+    end
+    local previous_damage = 0
+    for i, step in ipairs(sequence) do
+        if type(step) == "table" then
+            local damage = tonumber(step.damage_at_step) or 0
+            if not is_setup_or_whiff_step(step) and damage > previous_damage then return i end
+            previous_damage = math.max(previous_damage, damage)
+        end
+    end
+    for i, step in ipairs(sequence) do
+        local legacy_counter = type(step) == "table" and valid_counter_type(step.counter_type) or nil
+        if legacy_counter ~= nil
+            and legacy_counter ~= TrainingEnvironment.DUMMY_COUNTER.NORMAL
+            and not is_setup_or_whiff_step(step) then
+            return i
+        end
+    end
+    return nil
+end
+
+function TrainingEnvironment.normalize_counter_policy(sequence, infer_legacy)
+    if type(sequence) ~= "table" or type(sequence[1]) ~= "table" then
+        return TrainingEnvironment.DUMMY_COUNTER.NORMAL, nil
+    end
+    local first = sequence[1]
+    local counter_type, source =
+        TrainingEnvironment.resolve_counter_policy(sequence, infer_legacy)
+    local contact_step = TrainingEnvironment.find_first_contact_step(sequence)
+
+    first._xt_meta = type(first._xt_meta) == "table" and first._xt_meta or {}
+    local meta = first._xt_meta
+    meta.environment = type(meta.environment) == "table" and meta.environment or {}
+    if meta.environment.schema == nil then
+        meta.environment.schema = "xt.training_environment.v1"
+    end
+    meta.environment.dummy_counter_type = counter_type
+    meta.dummy_counter_type = counter_type
+    first.dummy_counter_type = counter_type
+
+    for i, step in ipairs(sequence) do
+        if type(step) == "table" then
+            if step.has_hit == true then step.has_contact = true end
+            step.motion = TrainingEnvironment.strip_counter_tags(step.motion)
+            step.counter_type = nil
+            if i == contact_step and (counter_type == 1 or counter_type == 2) then
+                step.has_contact = true
+            end
+        end
+    end
+    if type(first.combo_stats) == "table" then
+        first.combo_stats.hit_type = counter_hit_type(counter_type)
+    end
+    return counter_type, contact_step, source
+end
+
 local function recorded_value(first_step, field_name)
     first_step = type(first_step) == "table" and first_step or {}
     local meta = type(first_step._xt_meta) == "table" and first_step._xt_meta or nil
     local env = meta and type(meta.environment) == "table" and meta.environment or nil
+    if field_name == "dummy_counter_type" then
+        if env and env[field_name] ~= nil then return env[field_name], "environment" end
+        if meta and meta[field_name] ~= nil then return meta[field_name], "meta" end
+        if first_step[field_name] ~= nil then return first_step[field_name], "step" end
+        return nil, "unrecorded"
+    end
     if first_step[field_name] ~= nil then return first_step[field_name], "step" end
     if meta and meta[field_name] ~= nil then return meta[field_name], "meta" end
     if env and env[field_name] ~= nil then return env[field_name], "environment" end

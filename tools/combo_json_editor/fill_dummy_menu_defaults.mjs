@@ -7,6 +7,10 @@ import {
     characterByFolder,
     folderFromPath
 } from "./character_catalog.mjs";
+import {
+    normalizeCounterPolicyDocument,
+    resolveCounterPolicy
+} from "./combo_json_core.mjs";
 import { resourceDefinitionsForFighter } from "./unique_resource_catalog.mjs";
 
 const ENVIRONMENT_SCHEMA = "xt.training_environment.v1";
@@ -383,6 +387,21 @@ function fillSceneDefaults(document, relativePath, report) {
 
 function mutateDocument(document, relativePath) {
     const report = { changed: false, insertions: {}, conflicts: [] };
+    const counterResolution = resolveCounterPolicy(document, {
+        recoverLegacyZero: true
+    });
+    if (counterResolution.ambiguous) {
+        throw new Error(`${relativePath}: 打康菜单旧字段存在歧义`);
+    }
+    const beforeCounterNormalization = JSON.stringify(document);
+    normalizeCounterPolicyDocument(document, {
+        counterType: counterResolution.counterType,
+        inPlace: true
+    });
+    if (JSON.stringify(document) !== beforeCounterNormalization) {
+        report.insertions.counter_policy_normalized = 1;
+        report.changed = true;
+    }
     const containers = ensureContainers(document, relativePath);
 
     for (const field of [
