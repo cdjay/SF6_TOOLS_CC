@@ -7,9 +7,17 @@ local CharacterRules = {
 local EXCEPTION_DIR = "TrainingComboTrials_data/exceptions"
 local COMMON_EXCEPTIONS_FILE = EXCEPTION_DIR .. "/Common.json"
 
--- Some supers select a different runtime action and internal hit counter from
--- the same player command according to health. Keep this compatibility outside
--- recorded combo JSON so legacy files remain portable and immutable.
+-- Some commands select a different runtime Action ID according to game version
+-- or runtime state. Keep this compatibility outside recorded combo JSON so
+-- legacy files remain portable and immutable.
+local UNIVERSAL_ACTION_VARIANT_RULES = {
+    -- Older recordings use 854 for Drive Impact. Current command data and
+    -- runtime use 855 for the same DI command.
+    ["854"] = {
+        action_alias_ids = "855"
+    }
+}
+
 local ACTION_VARIANT_RULES = {
     DeeJay = {
         ["1268"] = {
@@ -24,6 +32,16 @@ local ACTION_VARIANT_RULES = {
         }
     }
 }
+
+local function merge_match_rule(base, overlay)
+    if not overlay then return base end
+    if not base then return overlay end
+
+    local merged = {}
+    for key, value in pairs(base) do merged[key] = value end
+    for key, value in pairs(overlay) do merged[key] = value end
+    return merged
+end
 
 function CharacterRules.get_exception_filename(character_name)
     return EXCEPTION_DIR .. "/" .. tostring(character_name or ""):gsub("[^%w_]", "") .. ".json"
@@ -53,15 +71,13 @@ end
 
 function CharacterRules.get_match_rule(character_rules, common_rules, character_name, action_id)
     local exception = CharacterRules.get_exception(character_rules, common_rules, action_id)
+    local universal_variant = UNIVERSAL_ACTION_VARIANT_RULES[tostring(action_id)]
     local character_variants = ACTION_VARIANT_RULES[tostring(character_name or "")]
-    local variant = character_variants and character_variants[tostring(action_id)] or nil
-    if not variant then return exception end
-    if not exception then return variant end
-
-    local merged = {}
-    for key, value in pairs(exception) do merged[key] = value end
-    for key, value in pairs(variant) do merged[key] = value end
-    return merged
+    local character_variant = character_variants and character_variants[tostring(action_id)] or nil
+    return merge_match_rule(
+        merge_match_rule(exception, universal_variant),
+        character_variant
+    )
 end
 
 function CharacterRules.has_character_exception(character_rules, action_id)

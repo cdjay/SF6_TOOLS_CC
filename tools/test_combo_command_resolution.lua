@@ -196,6 +196,35 @@ assert(idless_legacy_match.matched == true and idless_legacy_match.match_reason 
     "motion fallback must remain available only for legacy steps without an Action ID")
 
 local character_rules = dofile("autorun/func/ComboTrials/CharacterRules.lua")
+local legacy_di_rule = character_rules.get_match_rule({}, {}, "ChunLi", 854)
+local legacy_di_match = action_matcher.match_expected_action(
+    { id = 854, motion = "DI" },
+    855,
+    "DI",
+    "HP+HK",
+    legacy_di_rule
+)
+assert(legacy_di_match.matched == true and legacy_di_match.match_reason == "action_alias_id",
+    "a legacy Action ID 854 DI step must admit the current runtime Action ID 855")
+local current_di_rule = character_rules.get_match_rule({}, {}, "ChunLi", 855)
+local reverse_di_match = action_matcher.match_expected_action(
+    { id = 855, motion = "DI" },
+    854,
+    "DI",
+    "HP+HK",
+    current_di_rule
+)
+assert(reverse_di_match.matched == false,
+    "current Action ID 855 DI recordings must not gain an unsupported reverse alias")
+local jamie_di_rule = character_rules.get_match_rule(
+    { ["854"] = { force = true } },
+    {},
+    "Jamie",
+    854
+)
+assert(jamie_di_rule.force == true
+        and action_matcher.matches_expected_action_id({ id = 854 }, 855, jamie_di_rule) == true,
+    "the universal DI alias must merge with character-specific Action ID 854 rules")
 assert(character_rules.find_recording_absorb_owner({
         ["944"] = {
             absorb_ids = "936,941,945",
