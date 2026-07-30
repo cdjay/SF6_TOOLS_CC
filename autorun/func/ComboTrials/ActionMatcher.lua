@@ -223,6 +223,25 @@ function ActionMatcher.matches_expected_action_id(expected, actual_action_id, ex
     return list_contains_number(expected_exception and expected_exception.action_alias_ids, actual_id)
 end
 
+-- Legacy exception tables can ignore a parent Action because old motion-only
+-- JSON omitted it. A current raw-input recording is stronger evidence: when
+-- that exact (or explicitly aliased) Action is the active expected step, the
+-- legacy ignore rule must not erase it. Timeline-only WTT files keep the old
+-- compatibility behavior.
+function ActionMatcher.should_admit_ignored_expected_action(
+    input_truth_mode,
+    expected,
+    actual_action_id,
+    expected_exception
+)
+    return input_truth_mode == true
+        and ActionMatcher.matches_expected_action_id(
+            expected,
+            actual_action_id,
+            expected_exception
+        )
+end
+
 function ActionMatcher.effective_expected_combo(expected, previous_step, expected_exception)
     if type(expected) ~= "table" then return nil, "missing_expected" end
     local recorded_combo = tonumber(expected.expected_combo)

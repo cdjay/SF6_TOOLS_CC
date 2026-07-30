@@ -20,6 +20,29 @@ assert(ActionMatcher.sequence_uses_input_truth({
     { timeline = { { frame = 1, input = 18 } } },
 }) == false, "a legacy timeline-only trial must retain compatibility matching")
 
+local ignored_kimberly_parent = { ignore = true }
+assert(ActionMatcher.should_admit_ignored_expected_action(
+        true,
+        { id = 900, motion = "236+K" },
+        900,
+        ignored_kimberly_parent
+    ) == true,
+    "raw-input Action truth must override a legacy ignore rule for the expected ID")
+assert(ActionMatcher.should_admit_ignored_expected_action(
+        false,
+        { id = 900, motion = "236+K" },
+        900,
+        ignored_kimberly_parent
+    ) == false,
+    "timeline-only legacy files must retain their ignore compatibility rules")
+assert(ActionMatcher.should_admit_ignored_expected_action(
+        true,
+        { id = 900, motion = "236+K" },
+        905,
+        ignored_kimberly_parent
+    ) == false,
+    "raw-input truth must not admit a different runtime Action")
+
 local unanchored_internal_transition = ActionMatcher.classify_runtime_transition({
     previous_step = { id = 904, motion = "[4]6+HP" },
     expected_step = { id = 34, motion = "8" },

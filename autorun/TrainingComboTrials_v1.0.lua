@@ -4884,7 +4884,7 @@ ctx.resolve_compiled_motion = function(action_id, event, session)
     local character = type(session) == "table" and session.character or nil
     if ComboTrials_Renderer and ComboTrials_Renderer.get_command_display
         and type(character) == "string" and character ~= "" then
-        local ok, display, status = pcall(
+        local ok, display, status, metadata = pcall(
             ComboTrials_Renderer.get_command_display,
             character,
             action_id,
@@ -4900,9 +4900,9 @@ ctx.resolve_compiled_motion = function(action_id, event, session)
             and display:match("^%s*(.-)%s*$") or ""
         if ok and trimmed ~= "" then
             return ComboTrialsModules.TrainingEnvironment.strip_counter_tags(trimmed),
-                status
+                status, metadata
         end
-        return nil, ok and status or "resolver_error"
+        return nil, ok and status or "resolver_error", metadata
     end
     return nil, "map_unavailable"
 end
@@ -8167,6 +8167,17 @@ local function ct_player_process_actions(p_idx, p_state, actions_to_process)
                         act_id,
                         expected_exception
                     )
+
+                if is_ignored and ignore_reason == "[例外：忽略]"
+                    and ActionMatcher.should_admit_ignored_expected_action(
+                        input_truth_mode,
+                        expected_for_ignore,
+                        act_id,
+                        expected_exception
+                    ) then
+                    is_ignored = false
+                    ignore_reason = ""
+                end
 
                 local previous_expected_for_transition = expected_for_ignore
                     and trial_state.current_step

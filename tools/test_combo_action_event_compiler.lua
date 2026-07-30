@@ -102,12 +102,115 @@ local function test_motion_resolver(action_id)
         [630] = "2+HP",
         [651] = "j.MP",
         [740] = "RAW DR",
+        [900] = "236+K",
+        [903] = "236+KK",
+        [904] = "236+KK",
+        [905] = "Normal",
+        [908] = "6",
         [994] = "[2]8+HK",
         [1222] = "236236+K",
     }
-    if motions[action_id] then return motions[action_id], "loaded" end
+    if motions[action_id] then
+        local metadata = action_id == 904 and {
+            ownership = "type20_action_phase",
+            inherited_from_action_id = 903,
+        } or nil
+        return motions[action_id], "loaded", metadata
+    end
     return nil, "action_id_missing"
 end
+
+local inherited_phase_followup = compiler.new({ character = "Kimberly", frame = 0 })
+inherited_phase_followup.events = {
+    {
+        id = 903,
+        frame = 10,
+        has_hit = false,
+        has_contact = false,
+        anchor = { kind = "button_release", released_buttons = 128 },
+    },
+    {
+        id = 904,
+        frame = 12,
+        has_hit = false,
+        has_contact = false,
+        anchor = { kind = "button_press", pressed_buttons = 128 },
+    },
+    {
+        id = 908,
+        frame = 18,
+        has_hit = true,
+        has_contact = true,
+        expected_combo = 1,
+        damage_at_step = 500,
+        anchor = { kind = "button_release", released_buttons = 128 },
+    },
+}
+inherited_phase_followup.max_combo = 1
+inherited_phase_followup.current_damage = 500
+inherited_phase_followup.hit_contacts = 1
+local inherited_phase_result = compiler.finalize(inherited_phase_followup, {
+    motion_resolver = test_motion_resolver,
+})
+assert(#inherited_phase_result.steps == 2
+    and inherited_phase_result.steps[1].id == 903
+    and inherited_phase_result.steps[2].id == 908,
+    "a verified owner and its immediate type-20 phase must remain one command")
+assert(inherited_phase_result.steps[2].motion == ">LK"
+    and inherited_phase_result.stats.input_refined_motion_actions == 1,
+    "an underspecified follow-up must use the actual player button edge")
+local inherited_phase_evaluation = transcriber.evaluate({
+    {
+        id = 903,
+        motion = "236+KK",
+        expected_combo = 0,
+        damage_at_step = 0,
+        combo_stats = { damage = 500 },
+    },
+    {
+        id = 908,
+        motion = ">LK",
+        expected_combo = 1,
+        damage_at_step = 500,
+    },
+}, inherited_phase_result, {
+    input_source = "raw_inputs",
+    raw_inputs = { 0, 128, 0 },
+    input_completed = true,
+})
+assert(inherited_phase_evaluation.ok == true
+    and inherited_phase_evaluation.advisories[1]
+        == "input_refined_followup_motion:1",
+    "input-refined follow-up notation must remain accepted and auditable")
+assert(inherited_phase_result.trace.suppressed_events[1].id == 904
+    and inherited_phase_result.trace.suppressed_events[1].reason
+        == "redundant_inherited_action_phase",
+    "type-20 phase projection must remain explicit in the audit trace")
+
+local generic_followup = compiler.new({ character = "Kimberly", frame = 0 })
+generic_followup.events = {
+    {
+        id = 900,
+        frame = 20,
+        has_hit = false,
+        has_contact = false,
+        anchor = { kind = "button_release", released_buttons = 128 },
+    },
+    {
+        id = 905,
+        frame = 28,
+        has_hit = false,
+        has_contact = false,
+        anchor = { kind = "button_release", released_buttons = 32 },
+    },
+}
+local generic_followup_result = compiler.finalize(generic_followup, {
+    motion_resolver = test_motion_resolver,
+})
+assert(#generic_followup_result.steps == 2
+    and generic_followup_result.steps[1].motion == "236+K"
+    and generic_followup_result.steps[2].motion == ">MP",
+    "a catalog 'Normal' immediately after a setup Action must expose its real button")
 
 local delayed_catalog_action = compiler.new({ character = "Luke", frame = 0 })
 local function delayed_observe(frame, action_id, input)

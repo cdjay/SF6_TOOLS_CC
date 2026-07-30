@@ -4,7 +4,7 @@
 local Transcriber = {
     name = "ComboTrials.Transcriber",
     REPORT_SCHEMA = "sf6cc.combo_transcription_report.v1",
-    VALIDATION_REVISION = 10,
+    VALIDATION_REVISION = 11,
     OUTPUT_ROOT = "TrainingComboTrials_data/TranscribedCandidates",
     REPORT_ROOT = "TrainingComboTrials_data/TranscriptionReports",
 }
@@ -227,6 +227,14 @@ function Transcriber.evaluate(sequence, compiled, runtime)
         advisories[#advisories + 1] = string.format(
             "input_derived_contact_motion:%d",
             input_derived_motion_actions
+        )
+    end
+    local input_refined_motion_actions =
+        tonumber(stats.input_refined_motion_actions) or 0
+    if input_refined_motion_actions > 0 then
+        advisories[#advisories + 1] = string.format(
+            "input_refined_followup_motion:%d",
+            input_refined_motion_actions
         )
     end
     if (tonumber(stats.resolver_error_actions) or 0) > 0 then

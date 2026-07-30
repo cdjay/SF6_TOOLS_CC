@@ -1478,6 +1478,30 @@ build_slim_command_display_map = function(loaded)
         if type(entry) == "table" and tostring(action_id):match("^%d+$") then
             local motion, status = get_modern_display_motion(loaded, { id = action_id })
             do
+                local runtime_metadata = nil
+                if entry.ownership == "type20_action_phase" then
+                    local inherited_from_action_id = nil
+                    local inheritance_is_consistent = true
+                    for _, route in ipairs(type(entry.routes) == "table" and entry.routes or {}) do
+                        if type(route) == "table"
+                            and route.source == "ac_type20_action_phase"
+                            and route.confidence == "verified_inherited_action_phase" then
+                            local candidate = tonumber(route.inherited_from_action_id)
+                            if candidate ~= nil and inherited_from_action_id ~= nil
+                                and candidate ~= inherited_from_action_id then
+                                inheritance_is_consistent = false
+                                break
+                            end
+                            inherited_from_action_id = candidate or inherited_from_action_id
+                        end
+                    end
+                    if inheritance_is_consistent and inherited_from_action_id ~= nil then
+                        runtime_metadata = {
+                            ownership = entry.ownership,
+                            inherited_from_action_id = inherited_from_action_id,
+                        }
+                    end
+                end
                 local function read_classic(command)
                     if type(command) ~= "table" or type(command.display) ~= "string"
                         or trim_string(command.display) == "" or type(command.inputs) ~= "table"
@@ -1490,7 +1514,12 @@ build_slim_command_display_map = function(loaded)
                 local classic = read_classic(entry.classic_command)
                 classic = resolve_classic_common_semantic(entry, classic, motion, status)
                 if status == "suppress_transition" then
-                    slim[tostring(action_id)] = { classic = classic, motion = nil, status = status }
+                    slim[tostring(action_id)] = {
+                        classic = classic,
+                        motion = nil,
+                        status = status,
+                        metadata = runtime_metadata,
+                    }
                 else
                     local relation = type(entry.relation) == "table" and entry.relation or nil
                     local strip_followup = relation and relation.type == "followup"
@@ -1525,10 +1554,15 @@ build_slim_command_display_map = function(loaded)
                                 type = relation.type,
                                 source_action_id = tonumber(relation.source_action_id)
                             } or nil,
-                            status = status
+                            status = status,
+                            metadata = runtime_metadata,
                         }
                     else
-                        slim[tostring(action_id)] = { motion = nil, status = "invalid_split_commands" }
+                        slim[tostring(action_id)] = {
+                            motion = nil,
+                            status = "invalid_split_commands",
+                            metadata = runtime_metadata,
+                        }
                     end
                 end
             end
@@ -1612,13 +1646,19 @@ local function get_command_display(command_map, action_id, mode)
     end
     local resolved = command_map[tostring(action_id or "")]
     if type(resolved) ~= "table" then return nil, "action_id_missing" end
-    if resolved.status == "suppress_transition" then return nil, resolved.status end
-    if mode == "classic" then return resolved.classic, resolved.status or "loaded" end
+    if resolved.status == "suppress_transition" then
+        return nil, resolved.status, resolved.metadata
+    end
+    if mode == "classic" then
+        return resolved.classic, resolved.status or "loaded", resolved.metadata
+    end
     local commands = resolved.commands
-    if type(commands) ~= "table" then return nil, resolved.status or "command_unavailable" end
+    if type(commands) ~= "table" then
+        return nil, resolved.status or "command_unavailable", resolved.metadata
+    end
     if mode ~= "motion" and mode ~= "all" then mode = "simple" end
     return commands[mode] or commands.simple or commands.motion or commands.all,
-        resolved.status or "loaded"
+        resolved.status or "loaded", resolved.metadata
 end
 
 local function unresolved_action_placeholder(step)

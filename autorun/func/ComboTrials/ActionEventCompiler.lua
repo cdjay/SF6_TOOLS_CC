@@ -19,6 +19,7 @@ local Compiler = {
     -- Negative-edge commands transition shortly after release. A much older
     -- release must not claim a later low-numbered locomotion/system Action.
     RELEASE_LOW_ACTION_BIND_WINDOW = 8,
+    PLAYER_FOLLOWUP_INPUT_WINDOW = 12,
     DASH_TAP_WINDOW = 12,
     BUTTON_MASK = 0xFFF0,
 }
@@ -405,9 +406,10 @@ end
 
 local function resolve_motion(resolver, event, session)
     if type(resolver) ~= "function" then return nil, nil end
-    local ok, value, status = pcall(resolver, event.id, event, session)
+    local ok, value, status, metadata = pcall(resolver, event.id, event, session)
     if not ok then return nil, "resolver_error" end
-    return type(value) == "string" and value ~= "" and value or nil, status
+    return type(value) == "string" and value ~= "" and value or nil,
+        status, type(metadata) == "table" and metadata or nil
 end
 
 local function promote_unmapped_event(
@@ -441,13 +443,63 @@ local function promote_unmapped_event(
             candidate.frame = observed_frame
             candidate.action_frame = tonumber(observed.action_frame) or 0
             candidate.bind_reason = "unmapped_precursor_promoted_to_observed_action"
-            local motion, status = resolve_motion(resolver, candidate, session)
+            local motion, status, metadata = resolve_motion(resolver, candidate, session)
             if motion ~= nil and status ~= "suppress_transition" then
-                return candidate, motion, status
+                return candidate, motion, status, metadata
             end
         end
     end
     return nil
+end
+
+-- Type-20 relations can expose both the BCM owner Action and a short internal
+-- execution phase for one physical command. Keep a phase when it appears on
+-- its own, but collapse it when its declared owner was just recorded with the
+-- same command and neither Action produced contact.
+local function is_redundant_inherited_action_phase(previous, current)
+    if type(previous) ~= "table" or type(current) ~= "table" then return false end
+    local previous_event = previous.event
+    local current_event = current.event
+    local metadata = current.resolution_metadata
+    if type(previous_event) ~= "table" or type(current_event) ~= "table"
+        or type(metadata) ~= "table"
+        or metadata.ownership ~= "type20_action_phase"
+        or tonumber(metadata.inherited_from_action_id) ~= tonumber(previous_event.id) then
+        return false
+    end
+    if previous_event.has_contact == true or previous_event.has_hit == true
+        or current_event.has_contact == true or current_event.has_hit == true then
+        return false
+    end
+    local delay = (tonumber(current_event.frame) or 0)
+        - (tonumber(previous_event.frame) or 0)
+    return delay >= 0 and delay <= 4
+        and compact_motion(previous.motion) ~= ""
+        and compact_motion(previous.motion) == compact_motion(current.motion)
+end
+
+local function is_underspecified_catalog_motion(motion)
+    local compact = compact_motion(motion)
+    return compact == "NORMAL" or compact:match("^[1-9]$") ~= nil
+end
+
+-- Some character command tables identify a follow-up Action but only describe
+-- it as "Normal" or a direction. When it immediately follows a non-contact
+-- setup Action, the physical button edge is the missing player-visible fact.
+local function derive_contextual_followup_motion(previous, current)
+    if type(previous) ~= "table" or type(current) ~= "table"
+        or type(previous.event) ~= "table" or type(current.event) ~= "table"
+        or not is_underspecified_catalog_motion(current.motion)
+        or previous.motion == nil or is_underspecified_catalog_motion(previous.motion)
+        or previous.event.has_contact == true or previous.event.has_hit == true then
+        return nil
+    end
+    local delay = (tonumber(current.event.frame) or 0)
+        - (tonumber(previous.event.frame) or 0)
+    if delay < 0 or delay > Compiler.PLAYER_FOLLOWUP_INPUT_WINDOW then return nil end
+    local buttons = button_notation(event_button_mask(current.event))
+    if buttons == "" then return nil end
+    return ">" .. buttons
 end
 
 local function next_promotion_boundary(
@@ -715,6 +767,7 @@ function Compiler.finalize(session, options)
     local resolved_motion_actions = 0
     local fallback_motion_actions = 0
     local input_derived_motion_actions = 0
+    local input_refined_motion_actions = 0
     local unresolved_motion_actions = 0
     local resolver_error_actions = 0
     local cumulative_damage = 0
@@ -728,27 +781,30 @@ function Compiler.finalize(session, options)
     local source_events = type(session) == "table" and session.events or {}
     for event_index, source_event in ipairs(source_events) do
         local event = source_event
-        local motion, resolution_status = resolve_motion(resolver, event, session)
+        local motion, resolution_status, resolution_metadata =
+            resolve_motion(resolver, event, session)
         if type(resolver) == "function"
             and motion == nil
             and resolution_status ~= "resolver_error"
             and resolution_status ~= "suppress_transition" then
-            local promoted, promoted_motion, promoted_status = promote_unmapped_event(
-                event,
-                next_promotion_boundary(
-                    source_events,
-                    event_index,
+            local promoted, promoted_motion, promoted_status, promoted_metadata =
+                promote_unmapped_event(
+                    event,
+                    next_promotion_boundary(
+                        source_events,
+                        event_index,
+                        resolver,
+                        session
+                    ),
+                    session.observed_actions,
                     resolver,
                     session
-                ),
-                session.observed_actions,
-                resolver,
-                session
-            )
+                )
             if promoted then
                 event = promoted
                 motion = promoted_motion
                 resolution_status = promoted_status
+                resolution_metadata = promoted_metadata
                 promoted_events[#promoted_events + 1] = {
                     from_id = source_event.id,
                     from_frame = source_event.frame,
@@ -780,34 +836,56 @@ function Compiler.finalize(session, options)
                 event = event,
                 motion = motion,
                 resolution_status = resolution_status,
+                resolution_metadata = resolution_metadata,
             }
             previous = projected[#projected]
+            local redundant_action_phase =
+                is_redundant_inherited_action_phase(previous, current)
             local quick_drive_parry =
                 is_quick_drive_parry_precursor(previous, current)
             local jump_startup = is_jump_startup_precursor(previous, current)
             local unmapped_input = is_unmapped_input_precursor(previous, current)
-            if quick_drive_parry or jump_startup or unmapped_input then
-                projected[#projected] = nil
+            if redundant_action_phase then
+                merge_event_truth(previous.event, event)
                 suppressed_events[#suppressed_events + 1] = {
-                    id = previous.event.id,
-                    frame = previous.event.frame,
-                    merged_into = event.id,
-                    reason = quick_drive_parry
-                            and "quick_drive_parry_raw_dr_precursor"
-                        or (jump_startup and "jump_startup_transition"
-                            or "unmapped_input_precursor"),
+                    id = event.id,
+                    frame = event.frame,
+                    merged_into = previous.event.id,
+                    reason = "redundant_inherited_action_phase",
                 }
+            else
+                if quick_drive_parry or jump_startup or unmapped_input then
+                    projected[#projected] = nil
+                    suppressed_events[#suppressed_events + 1] = {
+                        id = previous.event.id,
+                        frame = previous.event.frame,
+                        merged_into = event.id,
+                        reason = quick_drive_parry
+                                and "quick_drive_parry_raw_dr_precursor"
+                            or (jump_startup and "jump_startup_transition"
+                                or "unmapped_input_precursor"),
+                    }
+                end
+                projected[#projected + 1] = current
             end
-            projected[#projected + 1] = current
         end
     end
 
     local previous_event = nil
+    local previous_resolved = nil
     local projected_events = {}
     for index, resolved in ipairs(projected) do
         local event = resolved.event
         cumulative_damage = math.max(cumulative_damage, tonumber(event.damage_at_step) or 0)
         local motion = resolved.motion
+        local refined_motion =
+            derive_contextual_followup_motion(previous_resolved, resolved)
+        if refined_motion ~= nil then
+            motion = refined_motion
+            resolved.motion = refined_motion
+            resolved.resolution_status = "input_derived_followup"
+            input_refined_motion_actions = input_refined_motion_actions + 1
+        end
         if motion then
             resolved_motion_actions = resolved_motion_actions + 1
         else
@@ -866,6 +944,7 @@ function Compiler.finalize(session, options)
             has_contact = event.has_contact == true,
         }
         previous_event = event
+        previous_resolved = resolved
     end
 
     local last_sample = type(session) == "table" and session.last_sample or nil
@@ -885,6 +964,7 @@ function Compiler.finalize(session, options)
             resolved_motion_actions = resolved_motion_actions,
             fallback_motion_actions = fallback_motion_actions,
             input_derived_motion_actions = input_derived_motion_actions,
+            input_refined_motion_actions = input_refined_motion_actions,
             unresolved_motion_actions = unresolved_motion_actions,
             resolver_error_actions = resolver_error_actions,
             suppressed_action_events = #suppressed_events,

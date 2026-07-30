@@ -319,6 +319,8 @@ assert(action_matcher.matches_expected_action_id({ id = 1268 }, 1220, deejay_sa3
 local main_source = read_all("autorun/TrainingComboTrials_v1.0.lua")
 assert(main_source:find("ActionMatcher.matches_expected_action_id", 1, true),
     "playback intentionality must admit configured action aliases before filtering")
+assert(main_source:find("ActionMatcher.should_admit_ignored_expected_action", 1, true),
+    "raw-input expected Actions must override legacy ignore rules during live validation")
 assert(main_source:find("expected_exception", 1, true),
     "playback action matching must receive the expected step's character rule")
 assert(main_source:find("CharacterRules.find_recording_absorb_owner", 1, true),
