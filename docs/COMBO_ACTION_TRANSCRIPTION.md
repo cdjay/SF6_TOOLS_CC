@@ -28,10 +28,13 @@ WTT 不需要修改。`motion` 优先由当前 Action 指令目录生成；目�
 `action_trace.observed_actions`，用于核对“游戏实际发生了什么”；没有对应新输入的内部
 过渡只进入审计轨迹，不会伪造成玩家需要执行的 V2 step。
 
-Action ID 对应的经典指令必须由已审计的角色指令表解析。解析器报错或 Action ID 没有
-可靠指令时，批量转录会标记失败，不再静默接受根据单帧输入猜出的 motion。按键松开触发
-的内部 Action 阶段会合并回原输入；快速出现的 Drive Parry 前置阶段会提升为实际
-`RAW DR` Action，而有明确停留时间的 `PARRY > RAW DR` 仍保留为两个指令。
+Action ID 对应的经典指令优先由已审计的角色指令表解析。解析器报错仍会使批量转录失败。
+如果目录缺少某个 Action，但它绑定了明确按键并在运行时真实命中或格挡，则 Action ID
+与接触结果已经证明这是玩家动作；系统会保留该 ID，并从完整输入方向序列生成兼容
+motion，同时在报告中写入 `input_derived_contact_motion` 提示。没有接触结果的目录缺项
+仍按 `unresolved_action_motion` 严格失败，避免把蓄力失败后出现的普通技误当成原计划
+招式。按键松开触发的内部 Action 阶段会合并回原输入；快速出现的 Drive Parry 前置阶段
+会提升为实际 `RAW DR` Action，而有明确停留时间的 `PARRY > RAW DR` 仍保留为两个指令。
 
 部分招式会先暴露没有指令表语义的内部 Action，几十帧后才进入可持久显示的真实
 Action。编译器允许同一个输入锚点沿运行时 Action 轨迹向后提升最多 60 帧，但绝不跨越
@@ -73,6 +76,13 @@ V2 `scene_state` 是新文件的场景权威。只有旧 WTT 文件缺少对应 
 新版直接录制和转录候选都以内嵌 `raw_inputs` 作为首选回放事实。为兼容旧 WTTmod，
 timeline 可以继续保留，但不会覆盖或反向推导 Action ID。
 
+训练检测也遵守同一边界：含 `raw_inputs` 的文件使用输入事实严格模式，只有 JSON 中
+记录的 Action ID（或明确声明的版本变体 ID）才能完成对应 step。没有新输入锚点的游戏
+内部 Action 只进入观察日志，不会触发“错误动作”；旧 `absorb_ids` 也不能代替已转录的
+Action step。按键松开只在紧邻窗口内保留负缘触发语义，陈旧松键不能绑定几十帧后的
+低编号移动/系统 Action；否则蓄力技输入过程中的跳跃启动会被错误绘制成独立的“上”。
+只有 timeline-only 的旧 WTT 文件继续走历史兼容规则。
+
 源文件永远不会被覆盖。每次运行使用独立目录：
 
 ```text
@@ -92,6 +102,11 @@ TrainingComboTrials_data/TranscriptionReports/<Character>_<timestamp>.json
 
 失败项同时记录 `validation_revision`。当资源或结果验收口径升级时，旧 revision 的失败
 会自动重新排队；已经完成 raw 二次验证的成功候选不会因此整批重跑。
+
+如果失败原因需要维护者在游戏内手工调整外部环境，例如把 2P 换成大体型角色，载入最近
+转录报告后可使用“仅重试转录失败项（N）”。它会创建独立候选目录和报告，只重放当前
+报告中的失败源文件，并通过 `source_transcription_report` 保留来源；不会重跑或覆盖
+已经通过的候选。
 
 ## 运行目录批量审计
 

@@ -102,6 +102,7 @@ local function test_motion_resolver(action_id)
         [630] = "2+HP",
         [651] = "j.MP",
         [740] = "RAW DR",
+        [994] = "[2]8+HK",
         [1222] = "236236+K",
     }
     if motions[action_id] then return motions[action_id], "loaded" end
@@ -252,6 +253,57 @@ assert(#super_direction_buffer_result.steps == 1
     and super_direction_buffer_result.stats.fallback_motion_actions == 0,
     "a super motion's unmapped double-tap buffer must merge into its button Action")
 
+local contact_fallback = compiler.new({ character = "Guile", frame = 0 })
+contact_fallback.events = {
+    {
+        id = 922,
+        frame = 10,
+        expected_combo = 2,
+        damage_at_step = 1380,
+        has_hit = true,
+        has_contact = true,
+        anchor = {
+            kind = "button_press",
+            pressed_buttons = 16 | 32,
+            held_buttons = 16 | 32,
+            direction = "3",
+            direction_sequence = "2363",
+        },
+    },
+}
+contact_fallback.max_combo = 2
+contact_fallback.current_damage = 1380
+contact_fallback.hit_contacts = 1
+contact_fallback.input_anchor_count = 1
+local contact_fallback_result = compiler.finalize(contact_fallback, {
+    motion_resolver = test_motion_resolver,
+})
+assert(#contact_fallback_result.steps == 1
+    and contact_fallback_result.steps[1].id == 922
+    and contact_fallback_result.steps[1].motion == "236+LP+MP",
+    "a contact-proven Action missing from the catalog must use normalized input notation")
+assert(contact_fallback_result.stats.fallback_motion_actions == 1
+    and contact_fallback_result.stats.input_derived_motion_actions == 1
+    and contact_fallback_result.stats.unresolved_motion_actions == 0,
+    "contact-proven input notation must remain distinct from unresolved motion")
+local contact_fallback_evaluation = transcriber.evaluate({
+    {
+        id = 922,
+        motion = "236+LP+MP",
+        expected_combo = 2,
+        damage_at_step = 1380,
+        combo_stats = { damage = 1380 },
+    },
+}, contact_fallback_result, {
+    input_source = "timeline",
+    raw_inputs = { 0, 3, 3 | 16 | 32 },
+    input_completed = true,
+})
+assert(contact_fallback_evaluation.ok == true
+    and contact_fallback_evaluation.advisories[1]
+        == "input_derived_contact_motion:1",
+    "a contact-proven input-derived motion must be auditable without blocking transcription")
+
 local jump_attack = compiler.new({ character = "Luke", frame = 0 })
 local function jump_attack_observe(frame, action_id, input, combo, victim_hp)
     compiler.observe(jump_attack, {
@@ -398,6 +450,48 @@ assert(release_result.steps[1].motion == "236+LP"
 assert(release_result.stats.fallback_motion_actions == 0
     and release_result.stats.suppressed_action_events == 1,
     "a fully resolved command must expose no guessed motion")
+
+local stale_release_jump = compiler.new({ character = "Guile", frame = 0 })
+local function stale_release_observe(frame, action_id, input, combo, victim_hp)
+    compiler.observe(stale_release_jump, {
+        frame = frame,
+        action_id = action_id,
+        action_frame = frame,
+        direct_input = input,
+        facing_right = true,
+        combo_count = combo or 0,
+        actor_hp = 10000,
+        victim_hp = victim_hp or 10000,
+    })
+end
+stale_release_observe(1, 10, 0)
+stale_release_observe(2, 10, 64)
+stale_release_observe(3, 600, 64)
+stale_release_observe(4, 600, 0)
+for frame = 5, 39 do
+    stale_release_observe(frame, 600, 0)
+end
+stale_release_observe(40, 34, 1)
+stale_release_observe(41, 34, 1)
+stale_release_observe(42, 994, 1 | 512)
+stale_release_observe(43, 994, 1 | 512, 1, 9000)
+local stale_release_result = compiler.finalize(stale_release_jump, {
+    motion_resolver = test_motion_resolver,
+})
+assert(#stale_release_result.steps == 2
+    and stale_release_result.steps[1].id == 600
+    and stale_release_result.steps[2].id == 994,
+    "a stale button release must not turn charge-move jump startup into a step")
+for _, event in ipairs(stale_release_result.trace.input_bound_events) do
+    assert(event.id ~= 34,
+        "the internal jump startup must remain observation truth, not V2 input truth")
+end
+local saw_observed_jump_startup = false
+for _, observed in ipairs(stale_release_result.trace.observed_actions) do
+    if observed.id == 34 then saw_observed_jump_startup = true end
+end
+assert(saw_observed_jump_startup,
+    "the raw Action trace must still retain the internal jump startup")
 
 local landing_precursor = compiler.new({ character = "Ryu", frame = 0 })
 local function landing_observe(frame, action_id, input, combo, victim_hp)
@@ -985,6 +1079,30 @@ assert(#stale_failure_remaining == 1
     and stale_failure_remaining[1]:match("A%.json$")
     and stale_failure_retained == 1,
     "resume must revalidate failures when the validation policy revision changes")
+
+local explicit_failure_retry = transcriber.failed_source_paths({
+    character = "Guile",
+    items = {
+        {
+            source_file = "TrainingComboTrials_data\\CustomCombos\\Guile\\A.json",
+            status = "passed",
+            raw_replay_verified = true,
+        },
+        {
+            source_file = "TrainingComboTrials_data\\CustomCombos\\Guile\\B.json",
+            status = "failed",
+            raw_replay_verified = false,
+            validation_revision = transcriber.VALIDATION_REVISION,
+        },
+        {
+            source_file = "trainingcombotrials_data/customcombos/guile/B.json",
+            status = "failed",
+        },
+    },
+})
+assert(#explicit_failure_retry == 1
+    and explicit_failure_retry[1]:match("B%.json$"),
+    "manual environment changes must be able to retry only current transcription failures")
 
 local environment_source = {
     {

@@ -96,6 +96,17 @@ function ActionMatcher.is_drive_rush_motion(motion)
     return normalized == "RAWDR" or normalized == "DRC"
 end
 
+-- raw_inputs is the portable input truth produced by the current recorder and
+-- transcriber. Its generated steps already contain the Action IDs that were
+-- actually observed during that exact replay, so legacy absorb/substitution
+-- rules must not be allowed to replace those steps.
+function ActionMatcher.sequence_uses_input_truth(sequence)
+    local first = type(sequence) == "table" and sequence[1] or nil
+    return type(first) == "table"
+        and type(first.raw_inputs) == "table"
+        and #first.raw_inputs > 0
+end
+
 -- A physical frame has one input intent. When an attack button changes on the
 -- same frame as a direction, the button command owns that frame; the direction
 -- must not also seed a later dash pair. This is the priority already used by
@@ -138,8 +149,23 @@ function ActionMatcher.classify_runtime_transition(params)
         result.reason = "expected_action"
         return result
     end
+
+    local has_input_anchor = type(params.input_anchor_kind) == "string"
+        and params.input_anchor_kind ~= ""
+    if params.input_truth_mode == true and not has_input_anchor then
+        local is_unanchored_drive_parry_phase = is_drive_parry_step(params.previous_step)
+            and ActionMatcher.is_raw_drive_rush_action_id(params.actual_action_id)
+            and not is_drive_rush_step(params.expected_step)
+        result.ignored = true
+        result.reason = is_unanchored_drive_parry_phase
+            and "unanchored_drive_parry_phase_transition"
+            or "unanchored_input_truth_transition"
+        return result
+    end
+
     if not is_drive_parry_step(params.previous_step) then
-        result.reason = "previous_step_not_drive_parry"
+        result.reason = has_input_anchor and "player_input_anchored"
+            or "previous_step_not_drive_parry"
         return result
     end
     if not ActionMatcher.is_raw_drive_rush_action_id(params.actual_action_id) then
@@ -158,8 +184,6 @@ function ActionMatcher.classify_runtime_transition(params)
         return result
     end
 
-    local has_input_anchor = type(params.input_anchor_kind) == "string"
-        and params.input_anchor_kind ~= ""
     local incompatible_dash_anchor = params.input_anchor_kind == "double_tap"
         and ActionMatcher.normalize_motion_token(params.input_anchor_motion) ~= "66"
     if has_input_anchor and not incompatible_dash_anchor then

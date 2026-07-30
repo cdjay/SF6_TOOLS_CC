@@ -13,6 +13,49 @@ assert(ActionMatcher.should_observe_dash_direction_edge(32 | 256, 0) == false,
 assert(ActionMatcher.should_observe_dash_direction_edge(0, 32) == false,
     "a button-release frame must not also seed a dash pair")
 
+assert(ActionMatcher.sequence_uses_input_truth({
+    { raw_inputs = { 0, 2, 18 } },
+}) == true, "a raw-input recording must use strict input/Action truth")
+assert(ActionMatcher.sequence_uses_input_truth({
+    { timeline = { { frame = 1, input = 18 } } },
+}) == false, "a legacy timeline-only trial must retain compatibility matching")
+
+local unanchored_internal_transition = ActionMatcher.classify_runtime_transition({
+    previous_step = { id = 904, motion = "[4]6+HP" },
+    expected_step = { id = 34, motion = "8" },
+    expected_action_matches_current = false,
+    actual_action_id = 5,
+    input_truth_mode = true,
+    frames_since_previous = 40,
+})
+assert(unanchored_internal_transition.ignored == true
+    and unanchored_internal_transition.reason == "unanchored_input_truth_transition",
+    "an unanchored internal Action must not fail a raw-input trial")
+
+local anchored_wrong_transition = ActionMatcher.classify_runtime_transition({
+    previous_step = { id = 904, motion = "[4]6+HP" },
+    expected_step = { id = 34, motion = "8" },
+    expected_action_matches_current = false,
+    actual_action_id = 674,
+    input_anchor_kind = "button_press",
+    input_truth_mode = true,
+    frames_since_previous = 40,
+})
+assert(anchored_wrong_transition.ignored == false,
+    "a fresh player input must keep an unexpected Action eligible for failure")
+
+local exact_unanchored_transition = ActionMatcher.classify_runtime_transition({
+    previous_step = { id = 904, motion = "[4]6+HP" },
+    expected_step = { id = 34, motion = "8" },
+    expected_action_matches_current = true,
+    actual_action_id = 34,
+    input_truth_mode = true,
+    frames_since_previous = 45,
+})
+assert(exact_unanchored_transition.ignored == false
+    and exact_unanchored_transition.reason == "expected_action",
+    "the recorded Action ID must remain valid even when it has no button anchor")
+
 local held_parry_transition = ActionMatcher.classify_runtime_transition({
     previous_step = { id = 480, motion = "PARRY" },
     expected_step = { id = 630, motion = "2+HP" },

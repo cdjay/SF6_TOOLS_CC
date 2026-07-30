@@ -16,6 +16,9 @@ local Compiler = {
     -- input-bound event.
     PROMOTION_WINDOW = 60,
     UNMAPPED_PRECURSOR_WINDOW = 20,
+    -- Negative-edge commands transition shortly after release. A much older
+    -- release must not claim a later low-numbered locomotion/system Action.
+    RELEASE_LOW_ACTION_BIND_WINDOW = 8,
     DASH_TAP_WINDOW = 12,
     BUTTON_MASK = 0xFFF0,
 }
@@ -137,11 +140,20 @@ local MOTION_SUFFIXES = {
 }
 
 local function canonical_direction_motion(sequence, current_direction)
+    sequence = tostring(sequence or "")
     for _, suffix in ipairs(MOTION_SUFFIXES) do
-        if sequence:sub(-#suffix) == suffix then return suffix end
+        if sequence:sub(-#suffix) == suffix
+            or (#sequence > #suffix
+                and sequence:sub(-#suffix - 1, -2) == suffix) then
+            return suffix
+        end
     end
-    if sequence:sub(-2) == "66" then return "66" end
-    if sequence:sub(-2) == "44" then return "44" end
+    if sequence:sub(-2) == "66" or sequence:sub(-3, -2) == "66" then
+        return "66"
+    end
+    if sequence:sub(-2) == "44" or sequence:sub(-3, -2) == "44" then
+        return "44"
+    end
     return current_direction ~= "5" and current_direction or ""
 end
 
@@ -611,12 +623,18 @@ function Compiler.observe(session, sample)
     end
 
     if pending and action_is_recordable(action_id) then
+        local pending_age = frame - (tonumber(pending.frame) or frame)
+        local stale_release_low_action = pending.kind == "button_release"
+            and action_id <= 50
+            and pending_age > Compiler.RELEASE_LOW_ACTION_BIND_WINDOW
         local changed_after_anchor = pending.initial_action_id ~= nil
             and action_id ~= pending.initial_action_id
         local restarted_after_anchor = action_restarted and frame >= pending.frame
         local dash_already_active = pending.kind == "double_tap"
             and DASH_ACTIONS[action_id] == true
-        if actual_action_start or changed_after_anchor or restarted_after_anchor or dash_already_active then
+        if not stale_release_low_action
+            and (actual_action_start or changed_after_anchor
+                or restarted_after_anchor or dash_already_active) then
             local bound_anchor = pending
             local bound_event = add_event(
                 session,
@@ -696,6 +714,8 @@ function Compiler.finalize(session, options)
     local promoted_events = {}
     local resolved_motion_actions = 0
     local fallback_motion_actions = 0
+    local input_derived_motion_actions = 0
+    local unresolved_motion_actions = 0
     local resolver_error_actions = 0
     local cumulative_damage = 0
     local unresolved_anchors = type(session) == "table"
@@ -795,6 +815,17 @@ function Compiler.finalize(session, options)
             if resolved.resolution_status == "resolver_error" then
                 resolver_error_actions = resolver_error_actions + 1
             end
+            if resolved.resolution_status ~= "resolver_error"
+                and (event.has_contact == true or event.has_hit == true)
+                and event_button_mask(event) ~= 0 then
+                -- The Action ID and contact are runtime facts. A missing
+                -- command-catalog row only makes the display notation
+                -- input-derived; it does not make the player Action unknown.
+                input_derived_motion_actions =
+                    input_derived_motion_actions + 1
+            else
+                unresolved_motion_actions = unresolved_motion_actions + 1
+            end
             motion = fallback_motion(event)
         end
         local step = {
@@ -853,6 +884,8 @@ function Compiler.finalize(session, options)
             motion_resolver_available = type(resolver) == "function",
             resolved_motion_actions = resolved_motion_actions,
             fallback_motion_actions = fallback_motion_actions,
+            input_derived_motion_actions = input_derived_motion_actions,
+            unresolved_motion_actions = unresolved_motion_actions,
             resolver_error_actions = resolver_error_actions,
             suppressed_action_events = #suppressed_events,
             promoted_action_events = #promoted_events,

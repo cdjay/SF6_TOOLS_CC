@@ -7944,6 +7944,7 @@ local function ct_player_input_buffer(p_state)
 end
 
 local function ct_player_process_actions(p_idx, p_state, actions_to_process)
+    local input_truth_mode = ActionMatcher.sequence_uses_input_truth(trial_state.sequence)
     for _, process_act in ipairs(actions_to_process) do
         local runtime_act_id = process_act.id
         local act_id = runtime_act_id
@@ -8042,7 +8043,8 @@ local function ct_player_process_actions(p_idx, p_state, actions_to_process)
                     p_state.profile_name, act_id, direct_input, process_act.newly_pressed,
                     ComboTrials_Renderer)
 
-            if act_id > 50 or act_id == 17 or act_id == 18 or act_id == 36 or act_id == 37 or act_id == 38 then
+            if act_id > 50 or act_id == 17 or act_id == 18
+                or act_id == 36 or act_id == 37 or act_id == 38 then
                 is_trackable = true
                 _pf.ct_block_guard = string.find(act_name, "GRD_") ~= nil
                 if trial_state.is_playing then
@@ -8177,6 +8179,7 @@ local function ct_player_process_actions(p_idx, p_state, actions_to_process)
                     actual_action_id = act_id,
                     input_anchor_kind = process_act.input_anchor_kind,
                     input_anchor_motion = process_act.input_anchor_motion,
+                    input_truth_mode = input_truth_mode,
                     frames_since_previous = engine_frame_count
                         - (tonumber(trial_state.last_played_frame) or engine_frame_count),
                 })
@@ -8805,13 +8808,18 @@ local function ct_player_process_actions(p_idx, p_state, actions_to_process)
                                 consumed_for_step = trial_state._consumed_action_instances[process_act.action_instance]
                             end
                             if expected and not action_match.matched then
-                                local recent_absorb = CharacterRules.find_recent_absorb_confirmation(
-                                    p_state.exceptions,
-                                    common_exceptions,
-                                    expected,
-                                    p_state.log,
-                                    p_state.profile_name
-                                )
+                                local recent_absorb = input_truth_mode
+                                    and {
+                                        matched = false,
+                                        block_reason = "input_truth_requires_recorded_action_id",
+                                    }
+                                    or CharacterRules.find_recent_absorb_confirmation(
+                                        p_state.exceptions,
+                                        common_exceptions,
+                                        expected,
+                                        p_state.log,
+                                        p_state.profile_name
+                                    )
                                 match_probe.recent_absorb = recent_absorb
                                 if recent_absorb.matched then
                                     local confirmed = apply_matched_step(
@@ -9228,14 +9236,19 @@ local function ct_player_process_actions(p_idx, p_state, actions_to_process)
                 and trial_state.success_timer == 0
                 and not (trial_state.fail_timer and trial_state.fail_timer > 0) then
                 local expected = trial_state.sequence[trial_state.current_step]
-                local current_absorb = CharacterRules.match_current_absorb_confirmation(
-                    p_state.exceptions,
-                    common_exceptions,
-                    expected,
-                    act_id,
-                    _pf.current_combo or 0,
-                    p_state.profile_name
-                )
+                local current_absorb = input_truth_mode
+                    and {
+                        matched = false,
+                        block_reason = "input_truth_requires_recorded_action_id",
+                    }
+                    or CharacterRules.match_current_absorb_confirmation(
+                        p_state.exceptions,
+                        common_exceptions,
+                        expected,
+                        act_id,
+                        _pf.current_combo or 0,
+                        p_state.profile_name
+                    )
                 local match_probe = build_match_probe(expected, "non_intentional_action")
                 match_probe.current_absorb = current_absorb
                 match_probe.reject_reason = current_absorb.matched and nil or current_absorb.block_reason
@@ -10945,18 +10958,70 @@ local function available_combo_paths(requested_paths)
     return selected
 end
 
-local function failed_audit_paths(run)
+local function retryable_audit_paths(run)
     if type(run) ~= "table" or run.mode ~= "runtime_audit"
         or type(run.items) ~= "table" then
-        return {}
+        return {}, { failed = 0, stale = 0 }
     end
-    local requested = {}
-    for _, item in ipairs(run.items) do
-        if item.status ~= "passed" and item.source_file then
-            requested[#requested + 1] = item.source_file
-        end
+    local requested, counts =
+        ComboTrialsModules.RuntimeAuditor.retry_source_paths(run)
+    return available_combo_paths(requested), counts
+end
+
+local function failed_transcription_paths(run)
+    return available_combo_paths(
+        ComboTrialsModules.Transcriber.failed_source_paths(run)
+    )
+end
+
+ctx.get_transcription_failure_retry_state = function()
+    local run = demo_state.transcription_run
+    if not run or run.active == true or run.mode == "runtime_audit" then return nil end
+    local paths = failed_transcription_paths(run)
+    if #paths == 0 then return nil end
+    return {
+        count = #paths,
+        report_path = run.report_path,
+    }
+end
+
+ctx.start_transcription_failures = function()
+    local source_run = demo_state.transcription_run
+    local paths = failed_transcription_paths(source_run)
+    if #paths == 0 then
+        ct_ticker("最近转录报告没有可重试的失败项")
+        return false
     end
-    return available_combo_paths(requested)
+    if trial_state.is_recording or trial_state.is_playing or demo_state.is_playing then
+        ct_ticker("请先停止录制、训练或演示")
+        return false
+    end
+    local character = players[0] and players[0].profile_name or "Unknown"
+    if character == "Unknown" then return false end
+    local run_id = os.date("%Y%m%d_%H%M%S")
+    local run = ComboTrialsModules.Transcriber.new_run(
+        character,
+        paths,
+        CTJsonInterop.iso8601_now()
+    )
+    run.run_id = run_id
+    run.source_transcription_report = source_run.report_path
+    run.return_path = trial_state.current_file_path or trial_state.current_file
+    run.output_dir = ComboTrialsModules.Transcriber.OUTPUT_ROOT
+        .. "/" .. file_system.sanitize_filename_component(character, 32, "Unknown")
+        .. "/" .. run_id .. "_failure_retry"
+    run.report_path = ComboTrialsModules.Transcriber.REPORT_ROOT
+        .. "/" .. file_system.sanitize_filename_component(character, 32, "Unknown")
+        .. "_failure_retry_" .. run_id .. ".json"
+    demo_state.transcription_run = run
+    ctx.create_transcription_directories(run)
+    ctx.persist_transcription_report(run)
+    ct_ticker(string.format(
+        "开始重试 %s 的 %d 个转录失败项",
+        character,
+        #paths
+    ))
+    return ctx.start_next_transcription_file()
 end
 
 ctx.start_runtime_audit = function(options)
@@ -10997,7 +11062,7 @@ ctx.start_runtime_audit = function(options)
         ct_ticker(audit_scope == "current"
             and "请先在当前角色列表中载入或选中一个连段"
             or (audit_scope == "retry_failures"
-                and "最近审计没有可复审的失败项"
+                and "最近审计没有可复审的失败或过期项"
                 or "当前角色没有可审计的连段文件"))
         return false
     end
@@ -11028,7 +11093,7 @@ ctx.start_runtime_audit = function(options)
         audit_scope == "current"
             and "开始单条审计 %s：%s"
             or (audit_scope == "retry_failures"
-                and "开始复审 %s 的 %d 个失败项"
+                and "开始复审 %s 的 %d 个待处理项"
                 or "开始审计 %s 运行目录中的 %d 个连段"),
         character,
         audit_scope == "current"
@@ -11061,19 +11126,25 @@ end
 ctx.get_runtime_audit_retry_state = function()
     local run = demo_state.transcription_run
     if not run or run.active == true or run.mode ~= "runtime_audit" then return nil end
-    local paths = failed_audit_paths(run)
+    local paths, counts = retryable_audit_paths(run)
     if #paths == 0 then return nil end
+    local item_label = counts.stale > 0
+        and (counts.failed > 0 and "失败/过期项" or "过期项")
+        or "失败项"
     return {
         count = #paths,
         report_path = run.report_path,
+        failed_count = counts.failed,
+        stale_count = counts.stale,
+        item_label = item_label,
     }
 end
 
 ctx.start_transcription_from_audit_failures = function()
     local audit_run = demo_state.transcription_run
-    local paths = failed_audit_paths(audit_run)
+    local paths = retryable_audit_paths(audit_run)
     if #paths == 0 then
-        ct_ticker("最近审计没有可转录的失败项")
+        ct_ticker("最近审计没有可转录的失败或过期项")
         return false
     end
     if trial_state.is_recording or trial_state.is_playing or demo_state.is_playing then
@@ -11100,15 +11171,15 @@ ctx.start_transcription_from_audit_failures = function()
     demo_state.transcription_run = run
     ctx.create_transcription_directories(run)
     ctx.persist_transcription_report(run)
-    ct_ticker(string.format("开始转录 %s 的 %d 个审计失败项", character, #paths))
+    ct_ticker(string.format("开始转录 %s 的 %d 个审计待处理项", character, #paths))
     return ctx.start_next_transcription_file()
 end
 
 ctx.start_runtime_audit_failures = function()
     local audit_run = demo_state.transcription_run
-    local paths = failed_audit_paths(audit_run)
+    local paths = retryable_audit_paths(audit_run)
     if #paths == 0 then
-        ct_ticker("最近审计没有可复审的失败项")
+        ct_ticker("最近审计没有可复审的失败或过期项")
         return false
     end
     return ctx.start_runtime_audit({

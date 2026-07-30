@@ -123,4 +123,30 @@ assert(single_report.audit_scope == "current"
     and single_report.total == 1,
     "single audit reports must disclose their narrow scope")
 
+local retry_paths, retry_counts = RuntimeAuditor.retry_source_paths({
+    items = {
+        {
+            source_file = "A.json",
+            status = "passed",
+            validation_revision = RuntimeAuditor.VALIDATION_REVISION,
+        },
+        {
+            source_file = "B.json",
+            status = "passed",
+            validation_revision = RuntimeAuditor.VALIDATION_REVISION - 1,
+        },
+        {
+            source_file = "C.json",
+            status = "failed",
+            validation_revision = RuntimeAuditor.VALIDATION_REVISION,
+        },
+    },
+})
+assert(#retry_paths == 2
+    and retry_paths[1] == "B.json"
+    and retry_paths[2] == "C.json"
+    and retry_counts.stale == 1
+    and retry_counts.failed == 1,
+    "retry selection must include stale passes without requeueing current passes")
+
 print("combo runtime auditor tests passed")

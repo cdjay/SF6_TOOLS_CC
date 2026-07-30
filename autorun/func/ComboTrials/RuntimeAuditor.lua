@@ -7,7 +7,7 @@ local RuntimeAuditor = {
     name = "ComboTrials.RuntimeAuditor",
     REPORT_SCHEMA = "sf6cc.combo_runtime_audit.v1",
     REPORT_ROOT = "TrainingComboTrials_data/RuntimeAuditReports",
-    VALIDATION_REVISION = 10,
+    VALIDATION_REVISION = 14,
 }
 
 local function deep_copy(value)
@@ -25,6 +25,29 @@ function RuntimeAuditor.select_single_path(paths, requested_path)
         if normalize_path(path) == requested then return { path } end
     end
     return {}
+end
+
+function RuntimeAuditor.retry_source_paths(run)
+    local paths = {}
+    local seen = {}
+    local counts = { failed = 0, stale = 0 }
+    local items = type(run) == "table" and type(run.items) == "table"
+        and run.items or {}
+    for _, item in ipairs(items) do
+        local path = item and item.source_file
+        local key = normalize_path(path)
+        local failed = item and item.status ~= "passed"
+        local stale = item
+            and tonumber(item.validation_revision)
+                ~= RuntimeAuditor.VALIDATION_REVISION
+        if failed then counts.failed = counts.failed + 1 end
+        if stale then counts.stale = counts.stale + 1 end
+        if (failed or stale) and key ~= "" and not seen[key] then
+            paths[#paths + 1] = path
+            seen[key] = true
+        end
+    end
+    return paths, counts
 end
 
 function RuntimeAuditor.new_run(character, paths, now, options)

@@ -4,7 +4,7 @@
 local Transcriber = {
     name = "ComboTrials.Transcriber",
     REPORT_SCHEMA = "sf6cc.combo_transcription_report.v1",
-    VALIDATION_REVISION = 8,
+    VALIDATION_REVISION = 10,
     OUTPUT_ROOT = "TrainingComboTrials_data/TranscribedCandidates",
     REPORT_ROOT = "TrainingComboTrials_data/TranscriptionReports",
 }
@@ -210,9 +210,24 @@ function Transcriber.evaluate(sequence, compiled, runtime)
     if (tonumber(stats.unresolved_anchors) or 0) > 0 then
         reasons[#reasons + 1] = "unresolved_input_actions"
     end
+    local unresolved_motion_actions = tonumber(stats.unresolved_motion_actions)
+    if unresolved_motion_actions == nil then
+        -- Reports produced before the compiler distinguished safe,
+        -- contact-proven input notation from genuinely unresolved Actions
+        -- must retain the old strict behavior.
+        unresolved_motion_actions = tonumber(stats.fallback_motion_actions) or 0
+    end
     if stats.motion_resolver_available == true
-        and (tonumber(stats.fallback_motion_actions) or 0) > 0 then
+        and unresolved_motion_actions > 0 then
         reasons[#reasons + 1] = "unresolved_action_motion"
+    end
+    local input_derived_motion_actions =
+        tonumber(stats.input_derived_motion_actions) or 0
+    if input_derived_motion_actions > 0 then
+        advisories[#advisories + 1] = string.format(
+            "input_derived_contact_motion:%d",
+            input_derived_motion_actions
+        )
     end
     if (tonumber(stats.resolver_error_actions) or 0) > 0 then
         reasons[#reasons + 1] = "motion_resolver_error"
@@ -548,6 +563,26 @@ function Transcriber.resume_info(previous_run, character, paths)
     }
 end
 
+function Transcriber.failed_source_paths(previous_run)
+    if type(previous_run) ~= "table"
+        or previous_run.active == true
+        or previous_run.mode == "runtime_audit"
+        or type(previous_run.items) ~= "table" then
+        return {}
+    end
+    local paths = {}
+    local seen = {}
+    for _, item in ipairs(previous_run.items) do
+        local path = item and item.source_file
+        local key = normalized_source_path(path)
+        if item and item.status ~= "passed" and key ~= "" and not seen[key] then
+            paths[#paths + 1] = path
+            seen[key] = true
+        end
+    end
+    return paths
+end
+
 function Transcriber.resume_run(previous_run, character, paths, now)
     local info = Transcriber.resume_info(previous_run, character, paths)
     if not info then return nil, "nothing_to_resume" end
@@ -596,6 +631,7 @@ function Transcriber.report(run)
         failed = run.failed,
         resume_count = tonumber(run.resume_count) or 0,
         source_audit_report = run.source_audit_report,
+        source_transcription_report = run.source_transcription_report,
         candidate_root = run.output_dir
             or (Transcriber.OUTPUT_ROOT .. "/" .. tostring(run.character)),
         items = deep_copy(run.items),

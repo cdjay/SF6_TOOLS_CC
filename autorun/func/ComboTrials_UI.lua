@@ -1783,6 +1783,20 @@ local function draw_combo_trials_menu_ui()
                     transcription = ctx.get_transcription_state and ctx.get_transcription_state() or transcription
                 end
             end
+            local failure_retry = ctx.get_transcription_failure_retry_state
+                and ctx.get_transcription_failure_retry_state()
+                or nil
+            if failure_retry
+                and imgui.button(string.format(
+                    "仅重试转录失败项（%d）",
+                    failure_retry.count or 0
+                ))
+                and ctx.start_transcription_failures then
+                ctx.start_transcription_failures()
+                transcription = ctx.get_transcription_state
+                    and ctx.get_transcription_state()
+                    or transcription
+            end
         end
         if not (transcription and transcription.active == true) then
             imgui.spacing()
@@ -1820,7 +1834,8 @@ local function draw_combo_trials_menu_ui()
                 or nil
             if audit_retry then
                 if imgui.button(string.format(
-                        "仅转录审计失败项（%d）",
+                        "仅转录审计%s（%d）",
+                        audit_retry.item_label or "失败项",
                         audit_retry.count or 0
                     ))
                     and ctx.start_transcription_from_audit_failures then
@@ -1831,7 +1846,8 @@ local function draw_combo_trials_menu_ui()
                 end
                 imgui.same_line()
                 if imgui.button(string.format(
-                        "仅复审失败项（%d）",
+                        "仅复审%s（%d）",
+                        audit_retry.item_label or "失败项",
                         audit_retry.count or 0
                     ))
                     and ctx.start_runtime_audit_failures then
