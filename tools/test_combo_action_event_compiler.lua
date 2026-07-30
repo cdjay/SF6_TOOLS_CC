@@ -819,6 +819,57 @@ local legacy_damage_source = {
         combo_stats = { damage = 300 },
     },
 }
+local missing_terminal_contact = transcriber.evaluate({
+    {
+        id = 970,
+        motion = "214+LP",
+        expected_combo = 9,
+        damage_at_step = 1890,
+        combo_stats = { damage = 2690 },
+    },
+    {
+        id = 660,
+        motion = "j.HK",
+        expected_combo = 1,
+        damage_at_step = 2690,
+        has_hit = true,
+        has_contact = true,
+    },
+}, {
+    steps = {
+        {
+            id = 970,
+            motion = "214+LP",
+            expected_combo = 9,
+            damage_at_step = 1890,
+            has_hit = true,
+            has_contact = true,
+        },
+        {
+            id = 660,
+            motion = "j.HK",
+            expected_combo = 0,
+            damage_at_step = 1890,
+            has_hit = false,
+            has_contact = false,
+        },
+    },
+    stats = {
+        damage = 1890,
+        max_combo = 9,
+        unresolved_anchors = 0,
+        block_contacts = 0,
+    },
+}, {
+    input_source = "timeline",
+    raw_inputs = { 0, 512, 0 },
+    input_completed = true,
+    allow_legacy_damage_drift = true,
+    allow_legacy_outcome_rebuild = true,
+})
+assert(missing_terminal_contact.ok == false
+    and missing_terminal_contact.reasons[1] == "terminal_expected_contact_missing",
+    "an earlier max combo must not hide a missing terminal OKI hit")
 local legacy_damage_drift = transcriber.evaluate(legacy_damage_source, {
     steps = {
         {

@@ -4,7 +4,7 @@
 local Transcriber = {
     name = "ComboTrials.Transcriber",
     REPORT_SCHEMA = "sf6cc.combo_transcription_report.v1",
-    VALIDATION_REVISION = 11,
+    VALIDATION_REVISION = 12,
     OUTPUT_ROOT = "TrainingComboTrials_data/TranscribedCandidates",
     REPORT_ROOT = "TrainingComboTrials_data/TranscriptionReports",
 }
@@ -77,6 +77,21 @@ local function expected_outcome(sequence)
         drive_used = tonumber(stats.drive_used) or 0,
         super_used = tonumber(stats.super_used) or 0,
     }
+end
+
+local function expects_terminal_contact(sequence)
+    if type(sequence) ~= "table" or #sequence == 0 then return false end
+    local terminal = sequence[#sequence]
+    if type(terminal) ~= "table" then return false end
+    if terminal.has_hit == true or terminal.has_contact == true
+        or terminal.hit_result == "block" or terminal.was_blocked == true then
+        return true
+    end
+    local previous = #sequence > 1 and sequence[#sequence - 1] or nil
+    local terminal_damage = tonumber(terminal.damage_at_step)
+    local previous_damage = tonumber(type(previous) == "table" and previous.damage_at_step)
+    return terminal_damage ~= nil and previous_damage ~= nil
+        and terminal_damage > previous_damage
 end
 
 local function append_unique(target, value)
@@ -207,6 +222,13 @@ function Transcriber.evaluate(sequence, compiled, runtime)
     if runtime.input_completed ~= true then reasons[#reasons + 1] = "input_not_completed" end
     if runtime.timed_out == true then reasons[#reasons + 1] = "replay_tail_timeout" end
     if #steps == 0 then reasons[#reasons + 1] = "no_action_steps" end
+    local observed_terminal = steps[#steps]
+    if source_action_match and expects_terminal_contact(sequence)
+        and type(observed_terminal) == "table"
+        and observed_terminal.has_hit ~= true
+        and observed_terminal.has_contact ~= true then
+        reasons[#reasons + 1] = "terminal_expected_contact_missing"
+    end
     if (tonumber(stats.unresolved_anchors) or 0) > 0 then
         reasons[#reasons + 1] = "unresolved_input_actions"
     end
