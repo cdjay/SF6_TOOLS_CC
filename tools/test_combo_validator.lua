@@ -4,6 +4,60 @@ package.path = package.path
 
 local Validator = require("func/ComboTrials/Validator")
 local PendingAbsorb = require("func/ComboTrials/PendingAbsorb")
+local ActionMatcher = require("func/ComboTrials/ActionMatcher")
+
+assert(ActionMatcher.should_observe_dash_direction_edge(0, 0) == true,
+    "a direction-only frame may participate in a dash pair")
+assert(ActionMatcher.should_observe_dash_direction_edge(32 | 256, 0) == false,
+    "a Parry button edge must own its frame instead of also seeding a dash pair")
+assert(ActionMatcher.should_observe_dash_direction_edge(0, 32) == false,
+    "a button-release frame must not also seed a dash pair")
+
+local held_parry_transition = ActionMatcher.classify_runtime_transition({
+    previous_step = { id = 480, motion = "PARRY" },
+    expected_step = { id = 630, motion = "2+HP" },
+    expected_action_matches_current = false,
+    actual_action_id = 740,
+    frames_since_previous = 6,
+})
+assert(held_parry_transition.ignored == true
+    and held_parry_transition.reason == "unanchored_drive_parry_phase_transition",
+    "a held-Parry phase transition without a new input must not fail the next trial step")
+
+local anchored_drive_rush = ActionMatcher.classify_runtime_transition({
+    previous_step = { id = 480, motion = "PARRY" },
+    expected_step = { id = 630, motion = "2+HP" },
+    expected_action_matches_current = false,
+    actual_action_id = 740,
+    input_anchor_kind = "double_tap",
+    input_anchor_motion = "66",
+    frames_since_previous = 6,
+})
+assert(anchored_drive_rush.ignored == false,
+    "a fresh directional input must keep an unexpected RAW DR intentional")
+
+local backward_dash_parry_phase = ActionMatcher.classify_runtime_transition({
+    previous_step = { id = 480, motion = "PARRY" },
+    expected_step = { id = 630, motion = "2+HP" },
+    expected_action_matches_current = false,
+    actual_action_id = 740,
+    input_anchor_kind = "double_tap",
+    input_anchor_motion = "44",
+    frames_since_previous = 6,
+})
+assert(backward_dash_parry_phase.ignored == true
+    and backward_dash_parry_phase.reason == "drive_rush_incompatible_direction_anchor",
+    "a backward 44 input cannot be treated as the causal anchor of RAW DR")
+
+local expected_drive_rush = ActionMatcher.classify_runtime_transition({
+    previous_step = { id = 480, motion = "PARRY" },
+    expected_step = { id = 740, motion = "RAW DR" },
+    expected_action_matches_current = true,
+    actual_action_id = 740,
+    frames_since_previous = 6,
+})
+assert(expected_drive_rush.ignored == false,
+    "an explicitly recorded RAW DR step must always remain validatable")
 
 assert(Validator.counter_type_for_display({
     motion = "PARRY",
@@ -61,6 +115,43 @@ assert(Validator.check_combo({
     prev_step = previous_hit,
     current_combo = 3,
 }) == true, "the existing same-frame current-hit tolerance must remain")
+
+local pressure_trial = {
+    {
+        id = 600,
+        motion = "LP",
+        expected_combo = 1,
+        damage_at_step = 300,
+        has_hit = true,
+    },
+    {
+        id = 17,
+        motion = "66",
+        expected_combo = 0,
+        damage_at_step = 300,
+        has_hit = false,
+    },
+    {
+        id = 666,
+        motion = "6+HP",
+        expected_combo = 0,
+        damage_at_step = 300,
+        has_hit = false,
+        has_contact = true,
+        hit_result = "block",
+        was_blocked = true,
+    },
+}
+assert(Validator.annotate_terminal_pressure_tail(pressure_trial) == true
+    and Validator.is_pressure_tail_step(pressure_trial[3]),
+    "a post-hit terminal non-damaging Action must become a pressure tail")
+assert(Validator.requires_block_outcome(pressure_trial[3]) == false,
+    "a pressure tail must not wait for the generic block-contact window")
+assert(Validator.check_combo({
+    expected = pressure_trial[3],
+    prev_step = pressure_trial[2],
+    current_combo = 0,
+}) == true, "a pressure tail must not require another combo-count increment")
 
 local absolute_hp_trial = {
     {
@@ -197,5 +288,39 @@ assert(runtime_trial.current_step == 3 and runtime_trial.fail_timer == 0,
     "the terminal whiff must advance without a false HP failure")
 assert(runtime_trial.success_timer == 0,
     "the HP exception must not grant pressure-tail auto-success")
+
+local pressure_runtime = {
+    sequence = pressure_trial,
+    current_step = 3,
+    last_played_frame = 100,
+    success_timer = 0,
+    fail_timer = 0,
+}
+local pressure_applied = PendingAbsorb.apply_matched_step({
+    state = pressure_runtime,
+    p_idx = 0,
+    p_state = {},
+    frame = 119,
+    pf = { opponent_knocked_down = false },
+    Validator = Validator,
+    DebugTrace = { record_validation_debug = function() end },
+    is_post_hit_setup_step = function() return false end,
+    set_dummy_counter_type = function() end,
+    d2d_cfg = { fail_display_frames = 120 },
+}, {
+    expected = pressure_trial[3],
+    actual_action_id = 666,
+    actual_motion = "6+HP",
+    actual_input = "6+HP",
+    frame = 119,
+    combo_count = 0,
+    actual_hp = 10000,
+    match_reason = "id",
+    action_instance = 43,
+})
+assert(pressure_applied == true
+    and pressure_runtime.current_step == 4
+    and pressure_runtime.success_timer == 120,
+    "the exact terminal pressure Action must finish immediately without a hit")
 
 print("combo validator tests passed")

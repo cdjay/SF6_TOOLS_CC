@@ -1,0 +1,608 @@
+-- Pure helpers for batch-transcribing input-driven combo recordings.
+-- Runtime playback, file I/O and UI scheduling are owned by the main script.
+
+local Transcriber = {
+    name = "ComboTrials.Transcriber",
+    REPORT_SCHEMA = "sf6cc.combo_transcription_report.v1",
+    VALIDATION_REVISION = 8,
+    OUTPUT_ROOT = "TrainingComboTrials_data/TranscribedCandidates",
+    REPORT_ROOT = "TrainingComboTrials_data/TranscriptionReports",
+}
+
+local Validator = require("func/ComboTrials/Validator")
+local SceneState = require("func/ComboTrials/SceneState")
+
+local DERIVED_STEP_KEYS = {
+    actual_combo = true,
+    action_instance = true,
+    counter_type = true,
+    damage_at_step = true,
+    delay_from_prev = true,
+    display_only = true,
+    dual_threshold = true,
+    expected_combo = true,
+    expected_hp = true,
+    facing_left = true,
+    group_id = true,
+    has_contact = true,
+    has_hit = true,
+    hit_result = true,
+    hold_frames = true,
+    hold_partial_check = true,
+    id = true,
+    is_holdable = true,
+    is_projectile_hit = true,
+    motion = true,
+    motion_aliases = true,
+    validation_role = true,
+    was_blocked = true,
+}
+
+local function deep_copy(value, seen)
+    local value_type = type(value)
+    if value_type ~= "table" then return value end
+    seen = seen or {}
+    if seen[value] then return seen[value] end
+    local output = {}
+    seen[value] = output
+    for key, child in pairs(value) do
+        output[deep_copy(key, seen)] = deep_copy(child, seen)
+    end
+    return output
+end
+
+local function first_step(sequence)
+    return type(sequence) == "table" and type(sequence[1]) == "table"
+        and sequence[1] or {}
+end
+
+local function expected_outcome(sequence)
+    local first = first_step(sequence)
+    local stats = type(first.combo_stats) == "table" and first.combo_stats or {}
+    local expected_damage = tonumber(stats.damage) or 0
+    local expected_combo = 0
+    local expected_blocks = 0
+    local max_step_damage = 0
+    for _, step in ipairs(type(sequence) == "table" and sequence or {}) do
+        expected_combo = math.max(expected_combo, tonumber(step.expected_combo) or 0)
+        max_step_damage = math.max(max_step_damage, tonumber(step.damage_at_step) or 0)
+        if step.hit_result == "block" or step.was_blocked == true then
+            expected_blocks = expected_blocks + 1
+        end
+    end
+    return {
+        damage = math.max(expected_damage, max_step_damage),
+        max_combo = expected_combo,
+        block_contacts = expected_blocks,
+        drive_used = tonumber(stats.drive_used) or 0,
+        super_used = tonumber(stats.super_used) or 0,
+    }
+end
+
+local function append_unique(target, value)
+    for _, existing in ipairs(target) do
+        if existing == value then return end
+    end
+    target[#target + 1] = value
+end
+
+local function action_sequence_matches(sequence, compiled_steps, action_ids_equivalent)
+    if type(sequence) ~= "table" or type(compiled_steps) ~= "table"
+        or #sequence == 0 or #sequence ~= #compiled_steps then
+        return false
+    end
+    for index = 1, #sequence do
+        local expected_id = tonumber(sequence[index] and sequence[index].id)
+        local observed_id = tonumber(compiled_steps[index] and compiled_steps[index].id)
+        if expected_id == nil or observed_id == nil then return false end
+        if expected_id ~= observed_id then
+            local equivalent = false
+            if type(action_ids_equivalent) == "function" then
+                local ok, result = pcall(
+                    action_ids_equivalent,
+                    expected_id,
+                    observed_id,
+                    index
+                )
+                equivalent = ok and result == true
+            end
+            if not equivalent then return false end
+        end
+    end
+    return true
+end
+
+local function nonzero_resource(value)
+    if type(value) == "boolean" then return value end
+    if type(value) == "number" then return value ~= 0 end
+    if type(value) ~= "table" then return false end
+    for _, child in pairs(value) do
+        if nonzero_resource(child) then return true end
+    end
+    return false
+end
+
+local function scene_roles(first)
+    local scene = type(first.scene_state) == "table" and first.scene_state or nil
+    local players = scene and type(scene.players) == "table" and scene.players or nil
+    if not players then return nil, nil end
+    local recorded_by = tonumber(first.recorded_by or scene.recorded_by) == 1 and 1 or 0
+    return players[recorded_by == 1 and "p2" or "p1"],
+        players[recorded_by == 1 and "p1" or "p2"]
+end
+
+function Transcriber.suspected_causes(sequence)
+    local first = first_step(sequence)
+    local causes = {}
+    local meta = type(first._xt_meta) == "table" and first._xt_meta or {}
+    local environment = type(meta.environment) == "table" and meta.environment or {}
+    local snapshot = type(first.snapshot_gauges) == "table" and first.snapshot_gauges or {}
+    local actor_scene, defender_scene = scene_roles(first)
+    local actor_resources = actor_scene and actor_scene.resources or nil
+    local actor_unique = actor_scene and actor_scene.unique or nil
+    local defender_status = defender_scene and defender_scene.status or nil
+
+    local counter = tonumber(environment.dummy_counter_type
+        or meta.dummy_counter_type or first.dummy_counter_type)
+    if counter == 2 then append_unique(causes, "first_hit_punish_counter") end
+
+    local actor_snapshot = type(snapshot.attacker) == "table" and snapshot.attacker or {}
+    local actor_hp = tonumber(type(actor_resources) == "table" and actor_resources.hp)
+        or tonumber(actor_snapshot.current_hp)
+    local actor_max_hp = tonumber(actor_snapshot.max_hp)
+    if actor_hp and ((actor_max_hp and actor_hp <= actor_max_hp * 0.25) or actor_hp <= 2500) then
+        append_unique(causes, "actor_low_health")
+    end
+    if nonzero_resource(actor_unique) then
+        append_unique(causes, "actor_character_resource_required")
+    end
+
+    if (type(defender_status) == "table" and defender_status.burnout == true)
+        or (defender_status == nil and snapshot.defender_burnout == true) then
+        append_unique(causes, "defender_burnout")
+    end
+    local victim_snapshot = type(snapshot.victim) == "table" and snapshot.victim or {}
+    local victim_hp = tonumber(victim_snapshot.current_hp)
+    local victim_heal = tonumber(victim_snapshot.heal_hp)
+    local defender_resources = defender_scene and defender_scene.resources or nil
+    local scene_victim_hp = tonumber(
+        type(defender_resources) == "table" and defender_resources.hp
+    )
+    if victim_hp and victim_heal and victim_heal > victim_hp
+        and (scene_victim_hp == nil or scene_victim_hp == victim_hp) then
+        append_unique(causes, "defender_virtual_damage")
+    end
+
+    local guard_type = tonumber(first.dummy_guard_type
+        or meta.dummy_guard_type or environment.dummy_guard_type)
+    local guard_switching = first.dummy_guard_switching
+    if guard_switching == nil then guard_switching = meta.dummy_guard_switching end
+    if guard_switching == nil then guard_switching = environment.dummy_guard_switching end
+    if (guard_type and guard_type ~= 0) or guard_switching == true then
+        append_unique(causes, "defender_guard_state_change")
+    end
+    return causes
+end
+
+function Transcriber.evaluate(sequence, compiled, runtime)
+    runtime = type(runtime) == "table" and runtime or {}
+    compiled = type(compiled) == "table" and compiled or {}
+    local stats = type(compiled.stats) == "table" and compiled.stats or {}
+    local steps = type(compiled.steps) == "table" and compiled.steps or {}
+    local expected = expected_outcome(sequence)
+    local reasons = {}
+    local advisories = {}
+    local source_action_match = action_sequence_matches(
+        sequence,
+        steps,
+        runtime.action_ids_equivalent
+    )
+
+    if runtime.input_source ~= "raw_inputs" and runtime.input_source ~= "timeline" then
+        reasons[#reasons + 1] = "missing_input_stream"
+    end
+    if type(runtime.raw_inputs) ~= "table" or #runtime.raw_inputs == 0 then
+        reasons[#reasons + 1] = "transcribed_raw_inputs_missing"
+    end
+    if runtime.input_completed ~= true then reasons[#reasons + 1] = "input_not_completed" end
+    if runtime.timed_out == true then reasons[#reasons + 1] = "replay_tail_timeout" end
+    if #steps == 0 then reasons[#reasons + 1] = "no_action_steps" end
+    if (tonumber(stats.unresolved_anchors) or 0) > 0 then
+        reasons[#reasons + 1] = "unresolved_input_actions"
+    end
+    if stats.motion_resolver_available == true
+        and (tonumber(stats.fallback_motion_actions) or 0) > 0 then
+        reasons[#reasons + 1] = "unresolved_action_motion"
+    end
+    if (tonumber(stats.resolver_error_actions) or 0) > 0 then
+        reasons[#reasons + 1] = "motion_resolver_error"
+    end
+
+    local damage_tolerance = math.max(20, math.floor(expected.damage * 0.01 + 0.5))
+    local observed_combo = tonumber(stats.max_combo) or 0
+    local allow_legacy_damage_drift = runtime.allow_legacy_damage_drift == true
+        and source_action_match
+        and observed_combo == expected.max_combo
+    local observed_damage = tonumber(stats.damage) or 0
+    if expected.damage > 0
+        and math.abs(observed_damage - expected.damage) > damage_tolerance
+        and not allow_legacy_damage_drift then
+        if runtime.allow_legacy_outcome_rebuild == true then
+            advisories[#advisories + 1] = string.format(
+                "source_damage_rebuilt:expected=%d:observed=%d",
+                expected.damage,
+                observed_damage
+            )
+        else
+            reasons[#reasons + 1] = "damage_mismatch"
+        end
+    end
+    if expected.max_combo > 0
+        and observed_combo ~= expected.max_combo then
+        if runtime.allow_legacy_outcome_rebuild == true then
+            advisories[#advisories + 1] = string.format(
+                "source_combo_count_rebuilt:expected=%d:observed=%d",
+                expected.max_combo,
+                observed_combo
+            )
+        else
+            reasons[#reasons + 1] = "combo_count_mismatch"
+        end
+    end
+    if expected.block_contacts > 0
+        and (tonumber(stats.block_contacts) or 0) == 0 then
+        reasons[#reasons + 1] = "block_contact_missing"
+    end
+    if runtime.compare_drive_usage ~= false
+        and expected.drive_used > 0
+        and math.abs((tonumber(stats.drive_used) or 0) - expected.drive_used) > 100 then
+        reasons[#reasons + 1] = "drive_consumption_mismatch"
+    end
+    if expected.super_used > 0
+        and math.abs((tonumber(stats.super_used) or 0) - expected.super_used) > 100 then
+        reasons[#reasons + 1] = "super_consumption_mismatch"
+    end
+
+    return {
+        ok = #reasons == 0,
+        reasons = reasons,
+        advisories = advisories,
+        suspected_causes = #reasons > 0 and Transcriber.suspected_causes(sequence) or {},
+        expected = expected,
+        observed = deep_copy(stats),
+        source_action_match = source_action_match,
+    }
+end
+
+local function prefix_reasons(reasons, prefix)
+    local prefixed = {}
+    for _, reason in ipairs(type(reasons) == "table" and reasons or {}) do
+        prefixed[#prefixed + 1] = prefix .. tostring(reason)
+    end
+    return prefixed
+end
+
+function Transcriber.verify_candidate(candidate, compiled, runtime)
+    runtime = type(runtime) == "table" and runtime or {}
+    compiled = type(compiled) == "table" and compiled or {}
+    local evaluation = Transcriber.evaluate(candidate, compiled, {
+        input_source = "raw_inputs",
+        raw_inputs = runtime.raw_inputs,
+        input_completed = runtime.input_completed,
+        timed_out = runtime.timed_out,
+    })
+    local reasons = prefix_reasons(evaluation.reasons, "raw_replay_")
+    local expected_steps = type(candidate) == "table" and candidate or {}
+    local observed_steps = type(compiled.steps) == "table" and compiled.steps or {}
+    local timing_tolerance = math.max(0, tonumber(runtime.timing_tolerance) or 2)
+
+    if #observed_steps ~= #expected_steps then
+        reasons[#reasons + 1] = string.format(
+            "raw_replay_action_count_mismatch:expected=%d:actual=%d",
+            #expected_steps,
+            #observed_steps
+        )
+    end
+
+    for index = 1, math.min(#expected_steps, #observed_steps) do
+        local expected = expected_steps[index]
+        local observed = observed_steps[index]
+        local expected_id = tonumber(expected and expected.id)
+        local observed_id = tonumber(observed and observed.id)
+        if expected_id ~= observed_id then
+            reasons[#reasons + 1] = string.format(
+                "raw_replay_action_id_mismatch:step=%d:expected=%s:actual=%s",
+                index,
+                tostring(expected_id),
+                tostring(observed_id)
+            )
+        end
+
+        if index > 1 then
+            local expected_delay = tonumber(expected and expected.delay_from_prev) or 0
+            local observed_delay = tonumber(observed and observed.delay_from_prev) or 0
+            if math.abs(observed_delay - expected_delay) > timing_tolerance then
+                reasons[#reasons + 1] = string.format(
+                    "raw_replay_action_timing_mismatch:step=%d:expected=%d:actual=%d",
+                    index,
+                    expected_delay,
+                    observed_delay
+                )
+            end
+        end
+
+        local expected_combo = tonumber(expected and expected.expected_combo) or 0
+        local observed_combo = tonumber(observed and observed.expected_combo) or 0
+        if expected_combo ~= observed_combo then
+            reasons[#reasons + 1] = string.format(
+                "raw_replay_step_combo_mismatch:step=%d:expected=%d:actual=%d",
+                index,
+                expected_combo,
+                observed_combo
+            )
+        end
+
+        local expected_damage = tonumber(expected and expected.damage_at_step) or 0
+        local observed_damage = tonumber(observed and observed.damage_at_step) or 0
+        local damage_tolerance = math.max(20, math.floor(expected_damage * 0.01 + 0.5))
+        if math.abs(observed_damage - expected_damage) > damage_tolerance then
+            reasons[#reasons + 1] = string.format(
+                "raw_replay_step_damage_mismatch:step=%d:expected=%d:actual=%d",
+                index,
+                expected_damage,
+                observed_damage
+            )
+        end
+    end
+
+    return {
+        ok = #reasons == 0,
+        reasons = reasons,
+        suspected_causes = #reasons > 0 and Transcriber.suspected_causes(candidate) or {},
+        expected = evaluation.expected,
+        observed = evaluation.observed,
+        action_comparison = {
+            expected_count = #expected_steps,
+            observed_count = #observed_steps,
+            timing_tolerance = timing_tolerance,
+        },
+    }
+end
+
+function Transcriber.mark_raw_replay_verified(candidate, now)
+    local first = first_step(candidate)
+    if next(first) == nil then return false end
+    first._xt_meta = type(first._xt_meta) == "table" and first._xt_meta or {}
+    local transcription = type(first._xt_meta.transcription) == "table"
+        and first._xt_meta.transcription or {}
+    first._xt_meta.transcription = transcription
+    transcription.raw_replay_verified = true
+    transcription.raw_replay_verified_at = now
+    transcription.validation_revision = Transcriber.VALIDATION_REVISION
+    return true
+end
+
+function Transcriber.build_candidate(source_sequence, compiled, version_info, now, transcription)
+    if type(source_sequence) ~= "table" or type(source_sequence[1]) ~= "table" then
+        return nil, "invalid_source_sequence"
+    end
+    local steps = type(compiled) == "table" and compiled.steps or nil
+    if type(steps) ~= "table" or #steps == 0 then return nil, "no_compiled_steps" end
+
+    local payload = deep_copy(source_sequence[1])
+    for key in pairs(DERIVED_STEP_KEYS) do payload[key] = nil end
+    local candidate = deep_copy(steps)
+    Validator.annotate_terminal_pressure_tail(candidate)
+    for key, value in pairs(payload) do candidate[1][key] = value end
+    local synchronized_legacy_fields =
+        SceneState.synchronize_legacy_snapshot(candidate[1])
+
+    local meta = type(candidate[1]._xt_meta) == "table" and candidate[1]._xt_meta or {}
+    candidate[1]._xt_meta = meta
+    meta.updated_at = now
+    if meta.created_at == nil then meta.created_at = now end
+    meta.schema = tonumber(version_info and version_info.schema) or meta.schema or 2
+    meta.versions = type(meta.versions) == "table" and meta.versions or {}
+    meta.versions.game = { id = "sf6" }
+    meta.versions.recorder = {
+        id = version_info and version_info.product_id or "sf6cc",
+        version = version_info and version_info.product_version or "unknown",
+    }
+    meta.versions.json = {
+        id = version_info and version_info.json_id or "xt.combo_trial",
+        version = version_info and version_info.json_version or "2",
+    }
+    transcription = type(transcription) == "table" and transcription or {}
+    if type(transcription.raw_inputs) == "table" and #transcription.raw_inputs > 0 then
+        candidate[1].raw_inputs = deep_copy(transcription.raw_inputs)
+    end
+    meta.transcription = type(meta.transcription) == "table" and meta.transcription or {}
+    meta.transcription.schema = "sf6cc.combo_transcription.v1"
+    meta.transcription.source_input = transcription.input_source
+    meta.transcription.raw_inputs_origin =
+        transcription.input_source == "timeline" and "captured_timeline_replay" or "source_recording"
+    if type(transcription.source_advisories) == "table"
+        and #transcription.source_advisories > 0 then
+        meta.transcription.source_advisories =
+            deep_copy(transcription.source_advisories)
+    else
+        meta.transcription.source_advisories = nil
+    end
+    if synchronized_legacy_fields > 0 then
+        meta.transcription.synchronized_legacy_scene_fields =
+            synchronized_legacy_fields
+    else
+        meta.transcription.synchronized_legacy_scene_fields = nil
+    end
+    if type(meta.step_notes) == "table" then
+        local source_notes = meta.step_notes
+        local rewritten_notes = {}
+        for index = 1, #candidate do
+            rewritten_notes[index] = type(source_notes[index]) == "string"
+                and source_notes[index] or ""
+        end
+        meta.step_notes = rewritten_notes
+    end
+
+    local source_stats = type(source_sequence[1].combo_stats) == "table"
+        and deep_copy(source_sequence[1].combo_stats) or {}
+    source_stats.damage = tonumber(compiled.stats and compiled.stats.damage) or source_stats.damage or 0
+    source_stats.drive_used = tonumber(compiled.stats and compiled.stats.drive_used)
+        or source_stats.drive_used or 0
+    source_stats.super_used = tonumber(compiled.stats and compiled.stats.super_used)
+        or source_stats.super_used or 0
+    candidate[1].combo_stats = source_stats
+    return candidate
+end
+
+function Transcriber.new_run(character, paths, now)
+    local copied_paths = {}
+    for _, path in ipairs(type(paths) == "table" and paths or {}) do
+        copied_paths[#copied_paths + 1] = path
+    end
+    return {
+        active = true,
+        cancel_requested = false,
+        character = character or "Unknown",
+        paths = copied_paths,
+        path_index = 0,
+        resume_processed = 0,
+        index = 0,
+        total = #copied_paths,
+        passed = 0,
+        failed = 0,
+        started_at = now,
+        finished_at = nil,
+        current_path = nil,
+        current_name = nil,
+        current_source = nil,
+        input_source = nil,
+        capture_input_source = nil,
+        captured_raw_inputs = nil,
+        input_finished_frame = nil,
+        pending_next = false,
+        pending_next_frame = nil,
+        session = nil,
+        phase = nil,
+        capture_compiled = nil,
+        capture_evaluation = nil,
+        verification_candidate = nil,
+        items = {},
+        status = "准备转录",
+        report_path = nil,
+    }
+end
+
+local function normalized_source_path(path)
+    return tostring(path or ""):gsub("\\", "/"):lower()
+end
+
+function Transcriber.remaining_paths(previous_run, paths)
+    local completed = {}
+    local retained = {}
+    local items = type(previous_run) == "table"
+        and type(previous_run.items) == "table" and previous_run.items or {}
+    for _, item in ipairs(items) do
+        -- Reports written before raw replay verification have no marker at
+        -- all. Requeue both their apparent passes and failures: either result
+        -- may have been caused by the old, unstable environment startup.
+        -- Current failures explicitly store false plus the active validation
+        -- revision. A policy upgrade requeues only stale failures.
+        local has_verification_marker = item.raw_replay_verified ~= nil
+        local validation_is_current =
+            tonumber(item.validation_revision) == Transcriber.VALIDATION_REVISION
+        local is_completed =
+            (item.status == "passed" and item.raw_replay_verified == true)
+            or (item.status ~= "passed"
+                and has_verification_marker
+                and validation_is_current)
+        if is_completed then
+            local key = normalized_source_path(item and item.source_file)
+            if key ~= "" then completed[key] = true end
+            retained[#retained + 1] = deep_copy(item)
+        end
+    end
+
+    local remaining = {}
+    for _, path in ipairs(type(paths) == "table" and paths or {}) do
+        if not completed[normalized_source_path(path)] then
+            remaining[#remaining + 1] = path
+        end
+    end
+    return remaining, #retained, retained
+end
+
+function Transcriber.resume_info(previous_run, character, paths)
+    if type(previous_run) ~= "table" or previous_run.active == true then return nil end
+    if type(previous_run.items) ~= "table" or #previous_run.items == 0 then return nil end
+    if tostring(previous_run.character or ""):lower() ~= tostring(character or ""):lower() then
+        return nil
+    end
+
+    local remaining, processed = Transcriber.remaining_paths(previous_run, paths)
+    if #remaining == 0 then return nil end
+    return {
+        processed = processed,
+        remaining = #remaining,
+        total = processed + #remaining,
+    }
+end
+
+function Transcriber.resume_run(previous_run, character, paths, now)
+    local info = Transcriber.resume_info(previous_run, character, paths)
+    if not info then return nil, "nothing_to_resume" end
+
+    local remaining, _, retained = Transcriber.remaining_paths(previous_run, paths)
+    local run = Transcriber.new_run(
+        character,
+        remaining,
+        previous_run.started_at or now
+    )
+    run.items = retained
+    run.resume_processed = #run.items
+    run.index = run.resume_processed
+    run.total = run.resume_processed + #run.paths
+    run.output_dir = previous_run.output_dir or previous_run.candidate_root
+    run.report_path = previous_run.report_path
+    run.resume_count = (tonumber(previous_run.resume_count) or 0) + 1
+    run.resumed = true
+    run.status = string.format(
+        "准备续转：已处理 %d，剩余 %d",
+        run.resume_processed,
+        #run.paths
+    )
+    for _, item in ipairs(run.items) do
+        if item.status == "passed" then
+            run.passed = run.passed + 1
+        else
+            run.failed = run.failed + 1
+        end
+    end
+    return run
+end
+
+function Transcriber.report(run)
+    return {
+        schema = Transcriber.REPORT_SCHEMA,
+        validation_revision = Transcriber.VALIDATION_REVISION,
+        character = run.character,
+        started_at = run.started_at,
+        finished_at = run.finished_at,
+        canceled = run.cancel_requested == true,
+        fatal_error = run.fatal_error,
+        total = run.total,
+        processed = #run.items,
+        passed = run.passed,
+        failed = run.failed,
+        resume_count = tonumber(run.resume_count) or 0,
+        source_audit_report = run.source_audit_report,
+        candidate_root = run.output_dir
+            or (Transcriber.OUTPUT_ROOT .. "/" .. tostring(run.character)),
+        items = deep_copy(run.items),
+    }
+end
+
+Transcriber.deep_copy = deep_copy
+Transcriber.expected_outcome = expected_outcome
+
+return Transcriber

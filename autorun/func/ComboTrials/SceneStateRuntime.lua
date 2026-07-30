@@ -79,6 +79,9 @@ local function resource_values(role)
     local resources = SceneState.resources(role)
     return {
         hp = normalized_point(type(resources) == "table" and resources.hp),
+        heal_hp = normalized_point(
+            type(resources) == "table" and resources.heal_hp
+        ),
         drive = normalized_point(
             type(resources) == "table" and resources.drive,
             60000
@@ -107,8 +110,8 @@ local function write_live_resources(player_index, values)
     if player and values.hp ~= nil then
         pcall(function() player.vital_new = values.hp end)
         pcall(function() player.vital_old = values.hp end)
-        pcall(function() player.heal_new = values.hp end)
-        pcall(function() player.heal_old = values.hp end)
+        pcall(function() player.heal_new = values.heal_hp or values.hp end)
+        pcall(function() player.heal_old = values.heal_hp or values.hp end)
     end
     if player and values.drive ~= nil then
         pcall(function() player.focus_new = values.drive end)

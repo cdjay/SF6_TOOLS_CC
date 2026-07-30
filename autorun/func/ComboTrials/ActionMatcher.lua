@@ -1,5 +1,35 @@
 local ActionMatcher = {
-    name = "ComboTrials.ActionMatcher"
+    name = "ComboTrials.ActionMatcher",
+    -- Keep runtime validation and ActionEventCompiler on the same definition
+    -- of how long a physical input may bind to a later Action transition.
+    PLAYER_ACTION_BIND_WINDOW = 45,
+    DRIVE_PARRY_TRANSITION_WINDOW = 12,
+}
+
+local DRIVE_PARRY_INPUT_ACTIONS = {
+    [480] = true,
+}
+
+local RAW_DRIVE_RUSH_ACTIONS = {
+    [500] = true,
+    [501] = true,
+    [731] = true,
+    [740] = true,
+    [760] = true,
+}
+
+local DRIVE_RUSH_ACTIONS = {
+    [500] = true,
+    [501] = true,
+    [502] = true,
+    [504] = true,
+    [730] = true,
+    [731] = true,
+    [739] = true,
+    [740] = true,
+    [741] = true,
+    [760] = true,
+    [761] = true,
 }
 
 local function trim(value)
@@ -47,6 +77,101 @@ function ActionMatcher.normalize_motion_token(value)
     s = s:gsub("（绌烘尌）", "")
     s = s:gsub("（WHIFF）", "")
     return s
+end
+
+function ActionMatcher.is_drive_parry_action_id(action_id)
+    return DRIVE_PARRY_INPUT_ACTIONS[tonumber(action_id)] == true
+end
+
+function ActionMatcher.is_raw_drive_rush_action_id(action_id)
+    return RAW_DRIVE_RUSH_ACTIONS[tonumber(action_id)] == true
+end
+
+function ActionMatcher.is_drive_rush_action_id(action_id)
+    return DRIVE_RUSH_ACTIONS[tonumber(action_id)] == true
+end
+
+function ActionMatcher.is_drive_rush_motion(motion)
+    local normalized = ActionMatcher.normalize_motion_token(motion)
+    return normalized == "RAWDR" or normalized == "DRC"
+end
+
+-- A physical frame has one input intent. When an attack button changes on the
+-- same frame as a direction, the button command owns that frame; the direction
+-- must not also seed a later dash pair. This is the priority already used by
+-- ActionEventCompiler and must also govern the live validator.
+function ActionMatcher.should_observe_dash_direction_edge(pressed_buttons, released_buttons)
+    return ((tonumber(pressed_buttons) or 0) & 0xFFF0) == 0
+        and ((tonumber(released_buttons) or 0) & 0xFFF0) == 0
+end
+
+local function is_drive_parry_step(step)
+    if type(step) ~= "table" then return false end
+    if ActionMatcher.is_drive_parry_action_id(step.id) then return true end
+    local motion = ActionMatcher.normalize_motion_token(step.motion)
+    return motion == "PARRY" or motion == "DP"
+end
+
+local function is_drive_rush_step(step)
+    return type(step) == "table"
+        and (ActionMatcher.is_drive_rush_action_id(step.id)
+            or ActionMatcher.is_drive_rush_motion(step.motion))
+end
+
+-- Runtime Action IDs are the matching truth, but an Action transition is not
+-- automatically a second player command. It must also have a fresh input
+-- anchor. In particular, held Drive Parry exposes a short RAW-DR-family phase
+-- before a following normal on some routes. ActionEventCompiler correctly
+-- leaves that unanchored phase out; this policy keeps live trial validation on
+-- the same semantics without suppressing an explicitly recorded Drive Rush.
+function ActionMatcher.classify_runtime_transition(params)
+    params = type(params) == "table" and params or {}
+    local result = {
+        ignored = false,
+        reason = nil,
+        input_anchor_kind = params.input_anchor_kind,
+        input_anchor_motion = params.input_anchor_motion,
+        frames_since_previous = tonumber(params.frames_since_previous),
+    }
+
+    if params.expected_action_matches_current == true then
+        result.reason = "expected_action"
+        return result
+    end
+    if not is_drive_parry_step(params.previous_step) then
+        result.reason = "previous_step_not_drive_parry"
+        return result
+    end
+    if not ActionMatcher.is_raw_drive_rush_action_id(params.actual_action_id) then
+        result.reason = "actual_action_not_raw_drive_rush_family"
+        return result
+    end
+    if is_drive_rush_step(params.expected_step) then
+        result.reason = "drive_rush_expected"
+        return result
+    end
+
+    local elapsed = result.frames_since_previous
+    if elapsed == nil or elapsed < 0
+        or elapsed > ActionMatcher.DRIVE_PARRY_TRANSITION_WINDOW then
+        result.reason = "outside_drive_parry_transition_window"
+        return result
+    end
+
+    local has_input_anchor = type(params.input_anchor_kind) == "string"
+        and params.input_anchor_kind ~= ""
+    local incompatible_dash_anchor = params.input_anchor_kind == "double_tap"
+        and ActionMatcher.normalize_motion_token(params.input_anchor_motion) ~= "66"
+    if has_input_anchor and not incompatible_dash_anchor then
+        result.reason = "player_input_anchored"
+        return result
+    end
+
+    result.ignored = true
+    result.reason = incompatible_dash_anchor
+        and "drive_rush_incompatible_direction_anchor"
+        or "unanchored_drive_parry_phase_transition"
+    return result
 end
 
 function ActionMatcher.motion_matches_expected(actual_motion, actual_input, expected)

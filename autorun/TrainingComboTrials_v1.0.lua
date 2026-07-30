@@ -18,7 +18,10 @@ local ComboTrialsModules = {
     SceneStateRuntime = require("func/ComboTrials/SceneStateRuntime"),
     PendingAbsorb = require("func/ComboTrials/PendingAbsorb"),
     Telemetry = require("func/ComboTrials/Telemetry"),
-    CommandResolver = require("func/ComboTrials/CommandResolver")
+    CommandResolver = require("func/ComboTrials/CommandResolver"),
+    ActionEventCompiler = require("func/ComboTrials/ActionEventCompiler"),
+    Transcriber = require("func/ComboTrials/Transcriber"),
+    RuntimeAuditor = require("func/ComboTrials/RuntimeAuditor")
 }
 local DebugTrace = ComboTrialsModules.DebugTrace
 local ActionMatcher = ComboTrialsModules.ActionMatcher
@@ -125,8 +128,6 @@ local esf_names_map = {
 
 local common_exceptions = CharacterRules.load_common()
 
-local DR_IDS = { [500]=true, [501]=true, [502]=true, [504]=true, [730]=true, [731]=true, [739]=true, [740]=true, [741]=true, [760]=true, [761]=true }
-
 local unique_resources = {
     by_fighter_id = {
         [1] = {
@@ -231,13 +232,11 @@ function unique_resources.fighter_id_for_resource(resource_id)
 end
 
 local function is_drive_rush_id(act_id)
-    return DR_IDS[act_id] == true
+    return ActionMatcher.is_drive_rush_action_id(act_id)
 end
 
 local function is_drive_rush_motion(motion)
-    if not motion then return false end
-    local m = motion:upper()
-    return m == "DRIVE RUSH" or m == "DRC" or m == "RAW DR"
+    return ActionMatcher.is_drive_rush_motion(motion)
 end
 
 local function is_parry_action(motion_str, real_input_str, act_name)
@@ -644,6 +643,19 @@ local demo_state = {
     playlist_pending_next = false,
     playlist_loading = false
 }
+demo_state.transcription_run = nil
+demo_state.mark_transcription_input_finished = function()
+    local run = demo_state.transcription_run
+    if not run or run.active ~= true
+        or run.input_finished_frame ~= nil then
+        return false
+    end
+    run.input_finished_frame = engine_frame_count
+    run.status = "等待末尾命中结算"
+    demo_state._transcription_input_finished = true
+    demo_state.p1_mask = 0
+    return true
+end
 
 local p_id_stack = {}
 local tick_done_this_frame = false
@@ -1162,6 +1174,9 @@ ctx.stop_demo_playback = function(reason, old_file, new_file, stop_trial, keep_p
     demo_state._total_frames = 0
     demo_state._piyo_waiting = false
     demo_state._piyo_triggered = false
+    demo_state.transcribing = false
+    demo_state._transcription_input_finished = false
+    demo_state._transcription_capture_frame = false
     demo_state.current_file = nil
     demo_state.current_file_path = nil
     demo_state.current_file_name = nil
@@ -4639,6 +4654,7 @@ end
 local ComboTrials_Files = require("func/ComboTrials_Files")
 ComboTrials_Files.init(ctx, {
     normalize_sequence_counter_types = normalize_sequence_counter_types,
+    normalize_sequence_semantics = Validator.annotate_terminal_pressure_tail,
     assign_groups = assign_groups,
     restore_trial_dummy_action_type = restore_dummy_action_type,
 })
@@ -4692,6 +4708,12 @@ local function reset_player_action_buffers(p_state)
     p_state.buffer_action_code = _pf.action_code or 0
     p_state.buffer_direct_input = direct_input
     p_state.buffer_newly_pressed = 0
+    p_state.buffer_input_anchor_kind = nil
+    p_state.buffer_input_anchor_frame = nil
+    p_state.buffer_input_anchor_motion = nil
+    p_state.last_player_action_anchor = nil
+    p_state.consumed_player_action_anchor_serial = nil
+    p_state.player_action_anchor_serial = 0
     p_state.buffer_b_type = _pf.b_type or 0
     p_state.buffer_hold_frames = 0
     p_state.buffer_is_committed = true
@@ -4858,6 +4880,50 @@ end
 -- END DEMO PLAYBACK AREA
 -- =========================================================
 
+ctx.resolve_compiled_motion = function(action_id, event, session)
+    local character = type(session) == "table" and session.character or nil
+    if ComboTrials_Renderer and ComboTrials_Renderer.get_command_display
+        and type(character) == "string" and character ~= "" then
+        local ok, display, status = pcall(
+            ComboTrials_Renderer.get_command_display,
+            character,
+            action_id,
+            "classic"
+        )
+        if ok and status == "suppress_transition" then
+            return nil, status
+        end
+        -- Do not call the later-declared local trim_string here. This resolver
+        -- is defined before that declaration, so Lua would resolve it as a
+        -- missing global and silently fall back to guessed input notation.
+        local trimmed = type(display) == "string"
+            and display:match("^%s*(.-)%s*$") or ""
+        if ok and trimmed ~= "" then
+            return ComboTrialsModules.TrainingEnvironment.strip_counter_tags(trimmed),
+                status
+        end
+        return nil, ok and status or "resolver_error"
+    end
+    return nil, "map_unavailable"
+end
+
+ctx.new_action_event_session = function(player_idx, source)
+    local p_state = players[player_idx]
+    return ComboTrialsModules.ActionEventCompiler.new({
+        character = p_state and p_state.profile_name or "Unknown",
+        control_mode = control_type_from_input_type(read_player_input_type(player_idx)),
+        source = source,
+        frame = engine_frame_count,
+    })
+end
+
+ctx.compile_action_event_session = function(session)
+    if type(session) ~= "table" then return nil end
+    return ComboTrialsModules.ActionEventCompiler.finalize(session, {
+        motion_resolver = ctx.resolve_compiled_motion,
+    })
+end
+
 
 local function start_recording(player_idx)
     if _G.CurrentTrainerMode ~= 4
@@ -4931,6 +4997,9 @@ local function start_recording(player_idx)
     trial_state._rec_frame_count = 0
     trial_state._raw_rec_buffer = {}
     trial_state._raw_rec_active = true
+    trial_state._action_event_session = ctx.new_action_event_session(player_idx, "recording")
+    trial_state._recording_compiler_used = false
+    trial_state._last_action_compile = nil
     return true
 end
 
@@ -4952,6 +5021,8 @@ local function start_trial(player_idx)
     players[trial_state.recording_player].recording_last_victim_hp = nil
     invalidate_recording_display_context()
     trial_state._raw_rec_active = false
+    trial_state._action_event_session = nil
+    trial_state._recording_compiler_used = false
     trial_state._rec_gauges = nil
     trial_state._rec_hit_type = nil
     trial_state._rec_environment = nil
@@ -5010,6 +5081,9 @@ local function cancel_recording()
     trial_state._rec_scene_state = nil
     trial_state._raw_rec_active = false
     trial_state._raw_rec_buffer = {}
+    trial_state._action_event_session = nil
+    trial_state._recording_compiler_used = false
+    trial_state._last_action_compile = nil
     clear_recording_logger(canceled_player)
     -- Flush displayed input history
     reset_combo_visual_runtime()
@@ -5032,9 +5106,24 @@ local function cancel_recording_due_to_menu(reason)
 end
 
 local function stop_recording_and_save()
+    local saved_player = trial_state.recording_player
+    local compiled = ctx.compile_action_event_session(trial_state._action_event_session)
+    trial_state._action_event_session = nil
+    trial_state._last_action_compile = compiled
+    if compiled and type(compiled.steps) == "table" and #compiled.steps > 0 then
+        -- The legacy recorder may still collect its diagnostics while recording,
+        -- but only the input-bound runtime compiler is allowed to create V2 steps.
+        trial_state.sequence = compiled.steps
+        Validator.annotate_terminal_pressure_tail(trial_state.sequence)
+        trial_state._recording_compiler_used = true
+    else
+        trial_state.sequence = {}
+        trial_state._recording_compiler_used = false
+    end
+
     -- Check if logger has data (for replay/BH mode where sequence stays empty)
     local logger_has_data = false
-    if trial_state.recording_player == 0 then
+    if saved_player == 0 then
         logger_has_data = logger_state.rec_p1.has_started and #logger_state.rec_p1.data > 0
     else
         logger_has_data = logger_state.rec_p2.has_started and #logger_state.rec_p2.data > 0
@@ -5042,7 +5131,7 @@ local function stop_recording_and_save()
 
     -- If nothing was recorded anywhere, act exactly like Cancel
     if #trial_state.sequence == 0 and not logger_has_data then
-        local canceled_player = trial_state.recording_player
+        local canceled_player = saved_player
         cancel_recording()
 
         if canceled_player == 0 then
@@ -5059,7 +5148,14 @@ local function stop_recording_and_save()
         return
     end
 
-    local saved_player = trial_state.recording_player
+    if #trial_state.sequence == 0 then
+        cancel_recording()
+        trial_state._xt_pending_save_error = "输入流没有绑定到任何实际 Action，未生成文件"
+        _G.ComboTrials_SaveFailedPlayer = saved_player
+        _G.ComboTrials_PendingSaveCanceled = saved_player
+        return
+    end
+
     trial_state.is_recording = false
     players[saved_player].recording_block_contact_active = false
     players[saved_player].recording_last_victim_hp = nil
@@ -5080,12 +5176,6 @@ local function stop_recording_and_save()
     rec.active = false
     rec.has_started = false
     rec.data = {}
-
-    if #trial_state.sequence == 0 then
-        cancel_recording()
-        _G.ComboTrials_PendingSaveCanceled = saved_player
-        return
-    end
 
     trial_state.recording_player = saved_player
     local ok, saved_path = pcall(save_trial_sequence, build_auto_xt_meta(saved_player, trial_state.sequence))
@@ -5121,7 +5211,9 @@ local function reset_trial_steps()
     -- Reset positions if forced pos / mirror is active
     apply_forced_position()
     trial_state._pending_reinject_settings = true
-    ctx.begin_trial_telemetry_attempt((demo_state and demo_state.is_playing) and "auto_demo" or "manual")
+    if trial_state._transcribing ~= true then
+        ctx.begin_trial_telemetry_attempt((demo_state and demo_state.is_playing) and "auto_demo" or "manual")
+    end
 end
 
 local function refresh_combo_list_preserve_selection(reload_current_file)
@@ -6495,6 +6587,10 @@ local function cleanup_combo_trials_runtime_on_scene_exit(reason)
     live_display_context.invalidate()
     ComboTrials_Renderer.clear_unresolved_action_audit()
 
+    if demo_state.transcription_run and demo_state.transcription_run.active == true
+        and ctx.cancel_transcription then
+        pcall(ctx.cancel_transcription)
+    end
     if trial_state.is_recording then
         cancel_recording()
     end
@@ -6568,6 +6664,10 @@ end
 
 local function ct_handle_mode_exit()
     if _G.CurrentTrainerMode ~= 4 then
+        if demo_state.transcription_run and demo_state.transcription_run.active == true
+            and ctx.cancel_transcription then
+            pcall(ctx.cancel_transcription)
+        end
         invalidate_recording_display_context()
         live_display_context.invalidate()
         if trial_state._vital_initialized ~= false then
@@ -7134,7 +7234,7 @@ local function ct_player_validation(p_idx, p_state)
                     local prev_step = trial_state.current_step > 1 and trial_state.sequence[trial_state.current_step - 1] or nil
                     if is_pressure_tail_step(expected) then
                         DebugTrace.record_match_probe(trial_state, {
-                            phase = "pressure_tail_timeout_skip",
+                            phase = "pressure_tail_timeout",
                             frame = engine_frame_count,
                             trial_file = trial_state.current_file or trial_state.current_file_path,
                             trial_filename = trial_state.current_file_name,
@@ -7156,14 +7256,11 @@ local function ct_player_validation(p_idx, p_state)
                             frame_diff = frames_since - delay,
                             validation_role = expected.validation_role,
                             allow_whiff = expected.allow_whiff,
-                            reject_reason = "pressure_tail_timeout_skipped"
+                            reject_reason = "pressure_tail_action_missed"
                         })
-                        local raw_timeout_frame_diff = frames_since - delay
-                        expected.last_frame_diff = raw_timeout_frame_diff
-                        ComboTrialsModules.PendingAbsorb.set_timing_ui_result(trial_state, trial_state.current_step, expected.last_frame_diff)
-                        expected.actual_combo = _pf.current_combo or 0
-                        trial_state.last_played_frame = engine_frame_count
-                        trial_state.current_step = trial_state.current_step + 1
+                        ComboTrialsModules.PendingAbsorb.clear(trial_state, "pressure_tail_timeout")
+                        trial_state.fail_timer = d2d_cfg.fail_display_frames or 120
+                        trial_state.fail_reason = "PRESSURE TOO LATE (Missed Input)"
                     else
                     ComboTrialsModules.PendingAbsorb.clear(trial_state, "timeout")
                     trial_state.fail_timer = d2d_cfg.fail_display_frames or 120
@@ -7458,7 +7555,11 @@ local function ct_player_input_buffer(p_state)
         return {}
     end
 
-    local newly_pressed = (_pf.direct_input ~ p_state.last_direct_input) & _pf.direct_input
+    local previous_direct_input = tonumber(p_state.last_direct_input) or 0
+    local newly_pressed = (_pf.direct_input ~ previous_direct_input) & _pf.direct_input
+    local newly_released = (_pf.direct_input ~ previous_direct_input) & previous_direct_input
+    local pressed_buttons = newly_pressed & 0xFFF0
+    local released_buttons = newly_released & 0xFFF0
     local direction_input = tonumber(_pf.direction_input) or (_pf.direct_input & 0xF)
     local previous_direction_input = tonumber(p_state.last_direction_input) or 0
     local newly_pressed_dir = ((direction_input ~ previous_direction_input) & direction_input) & 0xF
@@ -7471,9 +7572,28 @@ local function ct_player_input_buffer(p_state)
 
     p_state.dash_tap_state = p_state.dash_tap_state or {}
     local dash_pair = nil
-    if detected_66_edge or detected_44_edge then
+    if (detected_66_edge or detected_44_edge)
+        and ActionMatcher.should_observe_dash_direction_edge(
+            pressed_buttons, released_buttons) then
         dash_pair = ActionRestartDetector.observe_dash_direction_edge(
             p_state.dash_tap_state, current_dir, engine_frame_count)
+    end
+
+    local anchor_kind = nil
+    if pressed_buttons ~= 0 then
+        anchor_kind = "button_press"
+    elseif released_buttons ~= 0 then
+        anchor_kind = "button_release"
+    end
+    if dash_pair then anchor_kind = "double_tap" end
+    if anchor_kind then
+        p_state.player_action_anchor_serial = (p_state.player_action_anchor_serial or 0) + 1
+        p_state.last_player_action_anchor = {
+            serial = p_state.player_action_anchor_serial,
+            frame = engine_frame_count,
+            kind = anchor_kind,
+            motion = dash_pair and (dash_pair.direction .. dash_pair.direction) or nil,
+        }
     end
 
     if newly_pressed > 0 then
@@ -7612,6 +7732,26 @@ local function ct_player_input_buffer(p_state)
         -- new. Character cancel transitions can arrive later than ghost_wait.
         action_input_edge = restart_input_edge
     end
+    local current_input_anchor_kind = nil
+    local current_input_anchor_frame = nil
+    local current_input_anchor_motion = nil
+    if started_new_action and type(p_state.last_player_action_anchor) == "table" then
+        local player_anchor = p_state.last_player_action_anchor
+        local anchor_serial = tonumber(player_anchor.serial)
+        local anchor_frame = tonumber(player_anchor.frame)
+        local anchor_age = anchor_frame and (engine_frame_count - anchor_frame) or nil
+        if anchor_serial ~= nil
+            and anchor_serial ~= tonumber(p_state.consumed_player_action_anchor_serial)
+            and anchor_frame ~= nil
+            and anchor_frame > (tonumber(p_state.buffer_start_frame) or -1)
+            and anchor_age >= 0
+            and anchor_age <= ActionMatcher.PLAYER_ACTION_BIND_WINDOW then
+            current_input_anchor_kind = player_anchor.kind
+            current_input_anchor_frame = anchor_frame
+            current_input_anchor_motion = player_anchor.motion
+            p_state.consumed_player_action_anchor_serial = anchor_serial
+        end
+    end
     _G.CTSameActionTrace.trace("action_sample", p_state, {
         current_action_id = _pf.act_id,
         current_action_frame = _pf.act_frame,
@@ -7716,6 +7856,9 @@ local function ct_player_input_buffer(p_state)
                     action_code = p_state.buffer_action_code,
                     direct_input = p_state.buffer_direct_input,
                     newly_pressed = p_state.buffer_newly_pressed,
+                    input_anchor_kind = p_state.buffer_input_anchor_kind,
+                    input_anchor_frame = p_state.buffer_input_anchor_frame,
+                    input_anchor_motion = p_state.buffer_input_anchor_motion,
                     b_type = p_state.buffer_b_type,
                     engine_frame = p_state.buffer_start_frame,
                     action_instance = p_state.buffer_action_instance,
@@ -7748,6 +7891,9 @@ local function ct_player_input_buffer(p_state)
         p_state.buffer_action_code = _pf.action_code
         p_state.buffer_direct_input = _pf.direct_input
         p_state.buffer_newly_pressed = action_input_edge
+        p_state.buffer_input_anchor_kind = current_input_anchor_kind
+        p_state.buffer_input_anchor_frame = current_input_anchor_frame
+        p_state.buffer_input_anchor_motion = current_input_anchor_motion
         p_state.buffer_b_type = _pf.b_type
         p_state.buffer_hold_frames = 0
         p_state.buffer_current_hp = _pf.p_char.vital_new
@@ -7773,6 +7919,9 @@ local function ct_player_input_buffer(p_state)
             action_code = p_state.buffer_action_code,
             direct_input = p_state.buffer_direct_input,
             newly_pressed = p_state.buffer_newly_pressed,
+            input_anchor_kind = p_state.buffer_input_anchor_kind,
+            input_anchor_frame = p_state.buffer_input_anchor_frame,
+            input_anchor_motion = p_state.buffer_input_anchor_motion,
             b_type = p_state.buffer_b_type,
             engine_frame = p_state.buffer_start_frame,
             action_instance = p_state.buffer_action_instance,
@@ -7887,6 +8036,7 @@ local function ct_player_process_actions(p_idx, p_state, actions_to_process)
             local deep_data = nil
             local best_match = nil
             local is_facing_left = false
+            local transition_policy = nil
             local unified_command_action, unified_command_status, unified_classic_motion =
                 ComboTrialsModules.CommandResolver.resolve_unified_command_action(
                     p_state.profile_name, act_id, direct_input, process_act.newly_pressed,
@@ -8015,6 +8165,25 @@ local function ct_player_process_actions(p_idx, p_state, actions_to_process)
                         act_id,
                         expected_exception
                     )
+
+                local previous_expected_for_transition = expected_for_ignore
+                    and trial_state.current_step
+                    and trial_state.current_step > 1
+                    and trial_state.sequence[trial_state.current_step - 1] or nil
+                transition_policy = ActionMatcher.classify_runtime_transition({
+                    previous_step = previous_expected_for_transition,
+                    expected_step = expected_for_ignore,
+                    expected_action_matches_current = expected_action_matches_current == true,
+                    actual_action_id = act_id,
+                    input_anchor_kind = process_act.input_anchor_kind,
+                    input_anchor_motion = process_act.input_anchor_motion,
+                    frames_since_previous = engine_frame_count
+                        - (tonumber(trial_state.last_played_frame) or engine_frame_count),
+                })
+                if transition_policy.ignored then
+                    is_ignored = true
+                    ignore_reason = "[输入事实：无新输入的内部状态跳转]"
+                end
 
                 if not is_ignored and not expected_action_matches_current then
                     local ignore_prev = ActionMatcher.evaluate_ignore_prev(exc, p_state.log, engine_frame_count)
@@ -8546,6 +8715,9 @@ local function ct_player_process_actions(p_idx, p_state, actions_to_process)
                                 action_match.frame_diff = process_act.frame_diff
                             end
                             local match_probe = build_match_probe(expected, "intentional_action")
+                            match_probe.transition_policy = transition_policy
+                            match_probe.input_anchor_kind = process_act.input_anchor_kind
+                            match_probe.input_anchor_motion = process_act.input_anchor_motion
                             local trace_prev_step = trial_state.current_step and trial_state.current_step > 1
                                 and trial_state.sequence[trial_state.current_step - 1] or nil
                             local trace_combo_ok = expected and Validator.check_combo({
@@ -8857,7 +9029,8 @@ local function ct_player_process_actions(p_idx, p_state, actions_to_process)
                                 match_probe.previous_action_instance = trace_prev_step.action_instance
                                 match_probe.action_instance = process_act.action_instance
                                 DebugTrace.record_match_probe(trial_state, match_probe)
-                            elseif action_match.matched and expected and expected.hit_result == "block" then
+                            elseif action_match.matched and expected
+                                and Validator.requires_block_outcome(expected) then
                                 _pf.ct_block_action_frame = process_act.synthetic
                                     and (process_act.engine_frame or engine_frame_count) or engine_frame_count
                                 trial_state._pending_block_outcome = {
@@ -8938,26 +9111,12 @@ local function ct_player_process_actions(p_idx, p_state, actions_to_process)
                                 match_probe.just_confirmed_recent_absorb = just_confirmed_recent_absorb
 
                                 if expected and is_pressure_tail_step(expected) then
-                                    if expected.finish_on_action == true then
-                                        match_probe.branch = "pressure_tail_wait_for_finish_action"
-                                        match_probe.reject_reason = "pressure_tail_action_mismatch_wait"
-                                        DebugTrace.record_match_probe(trial_state, match_probe)
-                                    else
-                                        match_probe.branch = "pressure_tail_whiff_tolerance"
-                                        match_probe.reject_reason = nil
-                                        DebugTrace.record_match_probe(trial_state, match_probe)
-                                        apply_matched_step(
-                                            expected,
-                                            act_id,
-                                            motion_str,
-                                            real_input_str,
-                                            process_act.synthetic and (process_act.engine_frame or engine_frame_count) or engine_frame_count,
-                                            _pf.current_combo or 0,
-                                            process_act.current_hp,
-                                            "pressure_tail_whiff",
-                                            action_match
-                                        )
-                                    end
+                                    -- Pressure/setup tails validate the real
+                                    -- recorded Action, but never require that
+                                    -- terminal Action to hit or be blocked.
+                                    match_probe.branch = "pressure_tail_wait_for_action"
+                                    match_probe.reject_reason = "pressure_tail_action_mismatch_wait"
+                                    DebugTrace.record_match_probe(trial_state, match_probe)
                                 elseif expecting_dr and is_parry then
                                     -- Tolerance: Expecting DR, got Parry → ignore, wait for DR
                                     match_probe.reject_reason = "expecting_dr_got_parry_wait"
@@ -9360,6 +9519,56 @@ ctx.handle_trial_auto_flow = function()
     end
 end
 
+ctx.observe_runtime_action_truth = function(p_idx)
+    local session = nil
+    if trial_state.is_recording and p_idx == trial_state.recording_player then
+        session = trial_state._action_event_session
+    elseif demo_state.transcription_run
+        and demo_state.transcription_run.active == true and p_idx == 0 then
+        session = demo_state.transcription_run.session
+    end
+    if type(session) ~= "table" then return end
+
+    local actor_hp, actor_drive, actor_super = nil, nil, nil
+    local victim_hp, victim_damage_type = nil, 0
+    pcall(function() actor_hp = tonumber(_pf.p_char and _pf.p_char.vital_new) end)
+    pcall(function() actor_drive = tonumber(_pf.p_char and _pf.p_char.focus_new) end)
+    pcall(function()
+        local team = _td_gBattle:get_field("Team"):get_data(nil)
+        actor_super = tonumber(team and team.mcTeam
+            and team.mcTeam[p_idx] and team.mcTeam[p_idx].mSuperGauge)
+    end)
+    pcall(function() victim_hp = tonumber(_pf.victim_obj and _pf.victim_obj.vital_new) end)
+    pcall(function()
+        victim_damage_type = tonumber(
+            _pf.victim_obj and _pf.victim_obj:get_field("damage_type")
+        ) or 0
+    end)
+    local event_count_before = #session.events
+    pcall(ComboTrialsModules.ActionEventCompiler.observe, session, {
+        frame = engine_frame_count,
+        action_id = _pf.act_id,
+        action_frame = _pf.act_frame,
+        direct_input = _pf.direct_input,
+        direction_input = _pf.direction_input,
+        facing_right = _pf.facing_right,
+        combo_count = _pf.current_combo,
+        actor_hp = actor_hp,
+        actor_drive = actor_drive,
+        actor_super = actor_super,
+        victim_hp = victim_hp,
+        victim_damage_type = victim_damage_type,
+    })
+    if trial_state.is_recording and p_idx == trial_state.recording_player
+        and event_count_before == 0 and #session.events > 0
+        and trial_state.first_action_pos_p1 == nil then
+        trial_state.first_action_pos_p1,
+            trial_state.first_action_pos_p2,
+            trial_state.first_action_pos_p1_raw,
+            trial_state.first_action_pos_p2_raw = capture_current_positions()
+    end
+end
+
 -- =========================================================
 -- MAIN ON_FRAME — ORCHESTRATOR
 -- =========================================================
@@ -9518,6 +9727,22 @@ re.on_frame(function()
         _pf.current_combo = get_combo_count(_pf.p_char)
         _pf.victim_idx = 1 - p_idx
         _pf.victim_obj = (_pf.victim_idx == 0) and GS.p1 or GS.p2
+        ctx.observe_runtime_action_truth(p_idx)
+
+        if trial_state._transcribing == true then
+            p_state.last_combo_count = _pf.current_combo
+            goto ct_next_player
+        end
+        if trial_state.is_recording then
+            -- Keep only result/gauge sampling from the legacy pipeline. Step
+            -- admission, command lookup, exception learning and charge mutation
+            -- are intentionally bypassed for new recordings.
+            if p_idx == trial_state.recording_player then
+                ct_player_tracking(p_idx, p_state)
+            end
+            p_state.last_combo_count = _pf.current_combo
+            goto ct_next_player
+        end
 
         -- Once manual play reaches success, freeze the validation pipeline.
         -- The banner timer may expire, but _success_latched remains true until
@@ -9541,7 +9766,10 @@ re.on_frame(function()
         p_state.last_combo_count = _pf.current_combo
         ::ct_next_player::
     end
-    if (trial_state.success_timer or 0) <= 0 and trial_state._success_latched ~= true then
+    if ctx.tick_transcription then ctx.tick_transcription() end
+    if trial_state._transcribing ~= true
+        and (trial_state.success_timer or 0) <= 0
+        and trial_state._success_latched ~= true then
         ComboTrialsModules.PendingAbsorb.sync_failure_ui_result(trial_state)
     end
 end)
@@ -9555,32 +9783,34 @@ function save_trial_sequence(meta)
     local char_name = players[rec_p].profile_name
 
     local p_state = players[rec_p]
-    if #trial_state.sequence > 0 and #p_state.log > 0 then
-        local last_step = trial_state.sequence[#trial_state.sequence]
-        for _, log_entry in ipairs(p_state.log) do
-                    if log_entry.trial_step_idx == #trial_state.sequence then
-                        last_step.expected_combo = log_entry.combo_count or 0
-                        break
-                    end
+    if #trial_state.sequence > 0 then
+        if trial_state._recording_compiler_used ~= true and #p_state.log > 0 then
+            local last_step = trial_state.sequence[#trial_state.sequence]
+            for _, log_entry in ipairs(p_state.log) do
+                if log_entry.trial_step_idx == #trial_state.sequence then
+                    last_step.expected_combo = log_entry.combo_count or 0
+                    break
                 end
+            end
 
-                -- FINAL WHIFF DETECTION: Apply the tag on the very last recorded hit
-                -- Also consider expected_combo > 0 as proof of hit (cancel/last hit)
-                if not last_step.has_hit and not last_step.has_contact
-                    and (last_step.expected_combo or 0) == 0 then
-                    local p_id = last_step.id or 0
-                    local is_mov = (p_id == 17 or p_id == 18 or p_id == 36 or p_id == 37 or p_id == 38) or is_drive_rush_id(p_id)
-                    local is_ingrid_charge_stock = ct_is_ingrid_charge_stock_action(char_name, p_id)
-                    local m_str = last_step.motion and last_step.motion:upper() or ""
-                    local is_parry = m_str:match("PARRY")
-                    local is_dash = m_str:match("DASH") or m_str:match("66") or m_str:match("44") or is_drive_rush_motion(last_step.motion)
+            -- Legacy-only presentation tag. Input-compiled steps retain their
+            -- neutral motion notation and express contact through V2 fields.
+            if not last_step.has_hit and not last_step.has_contact
+                and (last_step.expected_combo or 0) == 0 then
+                local p_id = last_step.id or 0
+                local is_mov = (p_id == 17 or p_id == 18 or p_id == 36 or p_id == 37 or p_id == 38) or is_drive_rush_id(p_id)
+                local is_ingrid_charge_stock = ct_is_ingrid_charge_stock_action(char_name, p_id)
+                local m_str = last_step.motion and last_step.motion:upper() or ""
+                local is_parry = m_str:match("PARRY")
+                local is_dash = m_str:match("DASH") or m_str:match("66") or m_str:match("44") or is_drive_rush_motion(last_step.motion)
 
-                    if not is_mov and not is_ingrid_charge_stock and not is_parry and not is_dash and not m_str:match("空挥") and not m_str:match("WHIFF") then
-                        last_step.motion = last_step.motion .. " (空挥)"
-                    end
+                if not is_mov and not is_ingrid_charge_stock and not is_parry and not is_dash and not m_str:match("空挥") and not m_str:match("WHIFF") then
+                    last_step.motion = last_step.motion .. " (空挥)"
                 end
+            end
+        end
 
-                if trial_state.start_pos_p1 and trial_state.start_pos_p2 then
+        if trial_state.start_pos_p1 and trial_state.start_pos_p2 then
             trial_state.sequence[1].start_pos_p1 = trial_state.start_pos_p1
             trial_state.sequence[1].start_pos_p2 = trial_state.start_pos_p2
             trial_state.sequence[1].start_pos_p1_raw = trial_state.start_pos_p1_raw
@@ -9612,7 +9842,14 @@ function save_trial_sequence(meta)
         -- Calculate combo stats (damage, drive, super, hit type)
         -- Uses MIN values tracked frame-by-frame (training refills gauges)
         local init = trial_state._rec_gauges
-        local stats = { hit_type = trial_state._rec_hit_type }
+        local compiled_stats = type(trial_state._last_action_compile) == "table"
+            and trial_state._last_action_compile.stats or {}
+        local stats = {
+            hit_type = trial_state._rec_hit_type,
+            damage = tonumber(compiled_stats.damage) or 0,
+            drive_used = tonumber(compiled_stats.drive_used) or 0,
+            super_used = tonumber(compiled_stats.super_used) or 0,
+        }
         if init then
             stats.damage     = math.max(0, init.victim_hp - (init.min_victim_hp or init.victim_hp))
             stats.drive_used = math.max(0, init.attacker_drive - (init.min_atk_drive or init.attacker_drive))
@@ -9702,6 +9939,8 @@ function save_trial_sequence(meta)
     assign_groups(trial_state.sequence, char_name)
     json.dump_file(path, trial_state.sequence)
     trial_state._raw_rec_buffer = {}
+    trial_state._recording_compiler_used = false
+    trial_state._last_action_compile = nil
     trial_state._rec_environment = nil
     trial_state._rec_scene_state = nil
     refresh_combo_list_preserve_selection(false)
@@ -9824,6 +10063,17 @@ function CTStunDemoRuntime.needs_state_restore()
         or type(first.scene_state) == "table"
 end
 
+function CTStunDemoRuntime.needs_timeline_catch_up()
+    local first = trial_state.sequence and trial_state.sequence[1]
+    if type(first) ~= "table" then return false end
+
+    -- Timeline catch-up is a legacy workaround for stun/burnout sequences
+    -- whose input hook genuinely runs fewer times during the wall-stun state.
+    -- A portable scene snapshot also needs restoration, but must not opt an
+    -- ordinary combo into catch-up: doing so consumes inputs during hitstop.
+    return ComboTrialsModules.SceneState.requires_timeline_catch_up(first)
+end
+
 function CTStunDemoRuntime.restore_pre_demo_state()
     if not CTStunDemoRuntime.needs_state_restore() then return false end
 
@@ -9871,7 +10121,7 @@ function CTStunDemoRuntime.advance_timeline_frames(frame_count)
 end
 
 function CTStunDemoRuntime.catch_up_missed_engine_frames()
-    if not CTStunDemoRuntime.needs_state_restore() then return 0 end
+    if not CTStunDemoRuntime.needs_timeline_catch_up() then return 0 end
     local now_frame = engine_frame_count or 0
     local last_frame = demo_state._last_tick_frame
     if type(last_frame) ~= "number" then return 0 end
@@ -9883,6 +10133,11 @@ end
 
 local function start_demo(opts)
     opts = opts or {}
+    if opts.transcribe == true
+        and (not demo_state.transcription_run
+            or demo_state.transcription_run.active ~= true) then
+        return false
+    end
     if opts.playlist_start == true and trial_state.is_recording then return false end
     if opts.playlist_start == true then
         if file_system.refresh_combo_list_preserve_selection then
@@ -9945,11 +10200,17 @@ local function start_demo(opts)
         raw_mode_mismatch = CTJsonInterop.warn_control_mode_mismatch(trial_state.sequence, 0)
     end
     local use_raw_inputs = raw_inputs ~= nil and not (raw_mode_mismatch and type(timeline) == "table" and #timeline > 0)
+    if opts.transcribe == true and demo_state.transcription_run then
+        demo_state.transcription_run.input_source =
+            use_raw_inputs and "raw_inputs" or "timeline"
+    end
     local manual_stun_demo_required = type(first_stun_step) == "table"
         and first_stun_step.has_piyo == true
         and not use_raw_inputs
         and not ComboTrialsModules.SceneState.defender_is_burnout(first_stun_step)
-    if manual_stun_demo_required and not _G._allow_stun_demo then return false end
+    if manual_stun_demo_required and opts.transcribe ~= true and not _G._allow_stun_demo then
+        return false
+    end
 
     if use_raw_inputs then
         demo_state.raw_buffer = raw_inputs
@@ -9980,6 +10241,15 @@ local function start_demo(opts)
     trial_state._raw_rec_active = false
     trial_state.is_playing = true
     trial_state.playing_player = 0
+    -- Transcription observes Action truth without running the legacy trial
+    -- matcher. Runtime audit still captures through the same replay plumbing,
+    -- but must exercise the normal training UI validation pipeline.
+    local runtime_audit = opts.transcribe == true
+        and demo_state.transcription_run
+        and demo_state.transcription_run.mode == "runtime_audit"
+    trial_state._transcribing = opts.transcribe == true
+        and runtime_audit ~= true
+    trial_state._runtime_auditing = runtime_audit == true
     
     -- CLEANUP TIMERS
     trial_state.success_timer = 0
@@ -10007,12 +10277,16 @@ local function start_demo(opts)
     demo_state._total_frames = 0
     demo_state._piyo_waiting = false
     demo_state._piyo_triggered = false
+    demo_state.transcribing = opts.transcribe == true
+    demo_state._transcription_input_finished = false
+    demo_state._transcription_capture_frame = false
     demo_state.current_file = trial_state.current_file
     demo_state.current_file_path = trial_state.current_file_path
     demo_state.current_file_name = trial_state.current_file_name
-    ctx.begin_trial_telemetry_attempt("auto_demo")
+    if opts.transcribe ~= true then ctx.begin_trial_telemetry_attempt("auto_demo") end
 
-    print("[ComboTrials] DEMO Started" .. (use_raw_inputs and " (RAW native)" or " (LEGACY timeline)"))
+    print("[ComboTrials] " .. (opts.transcribe == true and "TRANSCRIBE" or "DEMO")
+        .. " Started" .. (use_raw_inputs and " (RAW native)" or " (LEGACY timeline)"))
     return true
 end
 
@@ -10026,6 +10300,979 @@ ctx.stop_demo = function()
     )
 end
 ctx.start_demo = start_demo
+
+ctx.persist_transcription_report = nil
+
+ctx.transcription_item = function(path, status, details)
+    details = type(details) == "table" and details or {}
+    local item = {
+        source_file = path,
+        source_name = tostring(path or ""):match("([^/\\]+)$") or tostring(path or ""),
+        status = status,
+        input_source = details.input_source,
+        candidate_file = details.candidate_file,
+        reasons = details.reasons or {},
+        advisories = details.advisories or {},
+        suspected_causes = details.suspected_causes or {},
+        expected = details.expected,
+        observed = details.observed,
+        capture_observed = details.capture_observed,
+        capture_advisories = details.capture_advisories,
+        capture_source_action_match = details.capture_source_action_match,
+        verification_observed = details.verification_observed,
+        raw_input_count = details.raw_input_count,
+        action_trace = details.action_trace,
+        verification_action_trace = details.verification_action_trace,
+        action_comparison = details.action_comparison,
+        trial_completion = details.trial_completion,
+        raw_replay_verified = details.raw_replay_verified == true,
+        audit_mode = details.audit_mode,
+        validation_revision =
+            details.audit_mode == "runtime_audit"
+                and ComboTrialsModules.RuntimeAuditor.VALIDATION_REVISION
+                or ComboTrialsModules.Transcriber.VALIDATION_REVISION,
+    }
+    local run = demo_state.transcription_run
+    run.items[#run.items + 1] = item
+    if status == "passed" then
+        run.passed = run.passed + 1
+    else
+        run.failed = run.failed + 1
+    end
+    if ctx.persist_transcription_report then ctx.persist_transcription_report(run) end
+    return item
+end
+
+ctx.create_transcription_directories = function(run)
+    if not fs or not fs.create_dir then return end
+    pcall(fs.create_dir, "TrainingComboTrials_data")
+    if run.mode == "runtime_audit" then
+        pcall(fs.create_dir, ComboTrialsModules.RuntimeAuditor.REPORT_ROOT)
+        return
+    end
+    pcall(fs.create_dir, ComboTrialsModules.Transcriber.OUTPUT_ROOT)
+    pcall(fs.create_dir, ComboTrialsModules.Transcriber.OUTPUT_ROOT .. "/" .. run.character)
+    pcall(fs.create_dir, run.output_dir)
+    pcall(fs.create_dir, ComboTrialsModules.Transcriber.REPORT_ROOT)
+end
+
+ctx.persist_transcription_report = function(run)
+    if not run or not run.report_path then return false end
+    local report = run.mode == "runtime_audit"
+        and ComboTrialsModules.RuntimeAuditor.report(run)
+        or ComboTrialsModules.Transcriber.report(run)
+    local ok, result = pcall(
+        json.dump_file,
+        run.report_path,
+        report
+    )
+    if not ok or result == false then
+        run.report_error = ok and "json.dump_file returned false" or tostring(result)
+        return false
+    end
+    run.report_error = nil
+    return true
+end
+
+ctx.reset_transcription_environment = function()
+    pcall(restore_trial_vital)
+    pcall(function() unique_resources.restore() end)
+    pcall(restore_trial_defense_settings)
+    pcall(restore_dummy_counter_type)
+    pcall(restore_dummy_guard_type)
+    pcall(restore_dummy_action_type)
+    pcall(reset_positions_to_default)
+    pcall(function()
+        local tm = sdk.get_managed_singleton("app.training.TrainingManager")
+        if tm then tm._IsReqRefresh = true end
+    end)
+end
+
+ctx.finish_transcription_run = function(canceled)
+    local run = demo_state.transcription_run
+    if not run then return false end
+    local is_audit = run.mode == "runtime_audit"
+    run.cancel_requested = canceled == true or run.cancel_requested == true
+    run.active = false
+    run.finished_at = CTJsonInterop.iso8601_now()
+    run.status = run.fatal_error
+        and ((is_audit and "审计" or "转录") .. "已停止：" .. tostring(run.fatal_error))
+        or (run.cancel_requested and "已取消，报告已生成"
+            or (is_audit and "运行目录审计完成" or "转录完成"))
+    trial_state._transcribing = false
+    trial_state._runtime_auditing = false
+    demo_state.transcribing = false
+    demo_state._transcription_input_finished = false
+    if demo_state.is_playing then
+        ctx.stop_demo_playback(
+            run.cancel_requested and "transcription_canceled" or "transcription_complete",
+            demo_state.current_file_path or trial_state.current_file_path or trial_state.current_file,
+            nil,
+            true
+        )
+    end
+    ctx.reset_transcription_environment()
+    run.pending_next = false
+    run.pending_next_frame = nil
+
+    ctx.create_transcription_directories(run)
+    if not ctx.persist_transcription_report(run) then
+        run.status = "转录结束，但报告写入失败：" .. tostring(run.report_error)
+    end
+
+    if run.return_path then pcall(load_combo_from_file, run.return_path, true) end
+    ct_ticker(string.format(
+        "%s%s：成功 %d，需处理 %d",
+        is_audit and "运行审计" or "转录",
+        run.cancel_requested and "已取消" or "完成",
+        run.passed,
+        run.failed
+    ))
+    return true
+end
+
+ctx.complete_transcription_item = function(run, evaluation, details)
+    details = type(details) == "table" and details or {}
+    evaluation = type(evaluation) == "table" and evaluation or {}
+    evaluation.reasons = type(evaluation.reasons) == "table"
+        and evaluation.reasons or { "transcription_evaluation_missing" }
+    evaluation.suspected_causes =
+        type(evaluation.suspected_causes) == "table"
+        and evaluation.suspected_causes or {}
+    if not evaluation.ok and #evaluation.suspected_causes == 0 then
+        evaluation.suspected_causes =
+            ComboTrialsModules.Transcriber.suspected_causes(run.current_source)
+    end
+    ctx.transcription_item(run.current_path, evaluation.ok and "passed" or "failed", {
+        input_source = run.capture_input_source or run.input_source,
+        candidate_file = details.candidate_file,
+        reasons = evaluation.reasons,
+        advisories = evaluation.advisories,
+        suspected_causes = evaluation.suspected_causes,
+        expected = evaluation.expected,
+        observed = evaluation.observed,
+        capture_observed = run.capture_evaluation and run.capture_evaluation.observed or nil,
+        capture_advisories =
+            run.capture_evaluation and run.capture_evaluation.advisories or nil,
+        capture_source_action_match =
+            run.capture_evaluation and run.capture_evaluation.source_action_match or nil,
+        verification_observed = details.verification_observed,
+        raw_input_count = type(run.captured_raw_inputs) == "table"
+            and #run.captured_raw_inputs or 0,
+        action_trace = run.capture_compiled and run.capture_compiled.trace
+            or (details.compiled and details.compiled.trace or nil),
+        verification_action_trace = details.verification_action_trace,
+        action_comparison = evaluation.action_comparison,
+        trial_completion = evaluation.trial_completion,
+        raw_replay_verified = details.raw_replay_verified == true,
+        audit_mode = run.mode,
+    })
+
+    ctx.stop_demo_playback(
+        "transcription_file_complete",
+        demo_state.current_file_path or trial_state.current_file_path or trial_state.current_file,
+        nil,
+        true
+    )
+    trial_state.is_playing = false
+    ctx.reset_transcription_environment()
+    run.current_path = nil
+    run.current_name = nil
+    run.current_source = nil
+    run.input_source = nil
+    run.capture_input_source = nil
+    run.input_finished_frame = nil
+    run.session = nil
+    run.captured_raw_inputs = nil
+    run.phase = nil
+    run.capture_compiled = nil
+    run.capture_evaluation = nil
+    run.verification_candidate = nil
+    if run.cancel_requested then return ctx.finish_transcription_run(true) end
+    run.pending_next = true
+    run.pending_next_frame = engine_frame_count or 0
+    run.status = string.format(
+        "正在重置%s环境 %d/%d",
+        run.mode == "runtime_audit" and "审计" or "训练",
+        run.index,
+        run.total
+    )
+    return true
+end
+
+ctx.begin_raw_transcription_verification = function(run, candidate, compiled, evaluation)
+    run.phase = "verify_raw"
+    run.capture_input_source = run.input_source
+    run.capture_compiled = compiled
+    run.capture_evaluation = evaluation
+    run.verification_candidate = candidate
+
+    ctx.stop_demo_playback(
+        "transcription_capture_complete",
+        demo_state.current_file_path or trial_state.current_file_path or trial_state.current_file,
+        run.current_path,
+        true
+    )
+    trial_state.is_playing = false
+    ctx.reset_transcription_environment()
+
+    local verification_sequence =
+        ComboTrialsModules.Transcriber.deep_copy(candidate)
+    local loaded = ComboTrials_Files.load_combo_sequence(
+        verification_sequence,
+        run.current_path,
+        true
+    )
+    if loaded then
+        start_trial(0)
+        run.input_source = "raw_inputs"
+        run.input_finished_frame = nil
+        run.session = ctx.new_action_event_session(0, "transcription_raw_verify")
+        run.status = string.format(
+            "正在验证 raw input %d/%d：%s",
+            run.index,
+            run.total,
+            run.current_name
+        )
+        if start_demo({ transcribe = true, countdown_frames = 20 }) then
+            return true
+        end
+    end
+
+    return ctx.complete_transcription_item(run, {
+        ok = false,
+        reasons = { "raw_replay_demo_start_failed" },
+        suspected_causes =
+            ComboTrialsModules.Transcriber.suspected_causes(run.current_source),
+        expected = evaluation.expected,
+        observed = {},
+    }, {
+        verification_observed = {},
+    })
+end
+
+ctx.finish_current_transcription_file = function(timed_out)
+    local run = demo_state.transcription_run
+    if not run or run.active ~= true or type(run.current_source) ~= "table" then return false end
+
+    local compiled = ctx.compile_action_event_session(run.session)
+    if run.phase == "audit_raw" then
+        local sequence_count = #(trial_state.sequence or {})
+        local current_step = tonumber(trial_state.current_step) or 0
+        local fail_timer = tonumber(trial_state.fail_timer) or 0
+        local trial_completion = {
+            completed = sequence_count > 0
+                and current_step > sequence_count
+                and fail_timer <= 0
+                and trial_state.fail_reason == nil,
+            current_step = current_step,
+            total_steps = sequence_count,
+            success_timer = tonumber(trial_state.success_timer) or 0,
+            success_latched = trial_state._success_latched == true,
+            fail_timer = fail_timer,
+            fail_reason = trial_state.fail_reason,
+        }
+        local evaluation = ComboTrialsModules.RuntimeAuditor.evaluate(
+            run.current_source,
+            compiled,
+            {
+                raw_inputs = run.captured_raw_inputs,
+                input_completed = run.input_finished_frame ~= nil,
+                timed_out = timed_out == true,
+                timing_tolerance = 2,
+                trial_completed = trial_completion.completed,
+                trial_completion = trial_completion,
+            }
+        )
+        return ctx.complete_transcription_item(run, evaluation, {
+            candidate_file = run.current_path,
+            compiled = compiled,
+            verification_observed = evaluation.observed,
+            verification_action_trace = compiled and compiled.trace or nil,
+            raw_replay_verified = evaluation.ok == true,
+        })
+    end
+    if run.phase == "verify_raw" then
+        local evaluation = ComboTrialsModules.Transcriber.verify_candidate(
+            run.verification_candidate,
+            compiled,
+            {
+                raw_inputs = run.captured_raw_inputs,
+                input_completed = run.input_finished_frame ~= nil,
+                timed_out = timed_out == true,
+                timing_tolerance = 2,
+            }
+        )
+        local candidate_path = nil
+        local raw_replay_verified = false
+        if evaluation.ok then
+            ComboTrialsModules.Transcriber.mark_raw_replay_verified(
+                run.verification_candidate,
+                CTJsonInterop.iso8601_now()
+            )
+            candidate_path = run.output_dir .. "/" .. run.current_name
+            local written, write_result = pcall(
+                json.dump_file,
+                candidate_path,
+                run.verification_candidate
+            )
+            if not written or write_result == false then
+                candidate_path = nil
+                evaluation.ok = false
+                evaluation.reasons[#evaluation.reasons + 1] =
+                    "candidate_write_failed:" .. tostring(
+                        written and "json.dump_file returned false" or write_result
+                    )
+            else
+                raw_replay_verified = true
+            end
+        end
+
+        return ctx.complete_transcription_item(run, evaluation, {
+            candidate_file = candidate_path,
+            verification_observed = evaluation.observed,
+            verification_action_trace = compiled and compiled.trace or nil,
+            raw_replay_verified = raw_replay_verified,
+        })
+    end
+
+    local evaluation = ComboTrialsModules.Transcriber.evaluate(run.current_source, compiled, {
+        input_source = run.input_source,
+        raw_inputs = run.captured_raw_inputs,
+        input_completed = run.input_finished_frame ~= nil,
+        timed_out = timed_out == true,
+        action_ids_equivalent = function(expected_id, observed_id)
+            local player_state = players[trial_state.playing_player or 0]
+            local match_rule = CharacterRules.get_match_rule(
+                player_state and player_state.exceptions or nil,
+                common_exceptions,
+                run.character,
+                expected_id
+            )
+            return ActionMatcher.matches_expected_action_id(
+                { id = expected_id },
+                observed_id,
+                match_rule
+            )
+        end,
+        -- Legacy drive totals are not a stable replay oracle because Drive
+        -- regenerates during a combo and old recorders used different sampling
+        -- windows. The generated candidate is still checked strictly against
+        -- its own second raw replay.
+        compare_drive_usage = false,
+        -- Old damage metadata may predate current burnout chip rules or may
+        -- span a training-health refill. Accept drift only when every expected
+        -- Action ID and the combo structure were reproduced exactly.
+        allow_legacy_damage_drift = true,
+        -- timeline/raw_inputs and the restored scene are the transcription
+        -- facts. Old step damage/combo fields are derived metadata; rebuild
+        -- them from the capture, then require an exact second raw replay.
+        allow_legacy_outcome_rebuild = true,
+    })
+    if evaluation.ok then
+        local candidate, candidate_error = ComboTrialsModules.Transcriber.build_candidate(
+            run.current_source,
+            compiled,
+            {
+                schema = SF6CCVersion.COMBO_JSON_SCHEMA,
+                product_id = SF6CCVersion.PRODUCT_ID,
+                product_version = SF6CCVersion.PRODUCT_VERSION,
+                json_id = SF6CCVersion.COMBO_JSON_ID,
+                json_version = SF6CCVersion.COMBO_JSON_VERSION,
+            },
+            CTJsonInterop.iso8601_now(),
+            {
+                input_source = run.input_source,
+                raw_inputs = run.captured_raw_inputs,
+                source_advisories = evaluation.advisories,
+            }
+        )
+        if candidate then
+            local prepared, prepare_error = pcall(function()
+                normalize_sequence_counter_types(candidate, false)
+                assign_groups(candidate, run.character)
+            end)
+            if prepared then
+                return ctx.begin_raw_transcription_verification(
+                    run,
+                    candidate,
+                    compiled,
+                    evaluation
+                )
+            else
+                evaluation.ok = false
+                evaluation.reasons[#evaluation.reasons + 1] =
+                    "candidate_prepare_failed:" .. tostring(prepare_error)
+            end
+        else
+            evaluation.ok = false
+            evaluation.reasons[#evaluation.reasons + 1] =
+                "candidate_build_failed:" .. tostring(candidate_error)
+        end
+    end
+
+    return ctx.complete_transcription_item(run, evaluation, {
+        compiled = compiled,
+    })
+end
+
+ctx.start_next_transcription_file = function()
+    local run = demo_state.transcription_run
+    if not run or run.active ~= true then return false end
+
+    run.path_index = tonumber(run.path_index) or 0
+    run.resume_processed = tonumber(run.resume_processed) or 0
+    while run.path_index < #run.paths do
+        run.path_index = run.path_index + 1
+        run.index = run.resume_processed + run.path_index
+        local path = run.paths[run.path_index]
+        local loaded_ok, source = pcall(json.load_file, path)
+        local valid_source = loaded_ok and type(source) == "table" and type(source[1]) == "table"
+        if not valid_source then
+            ctx.transcription_item(path, "failed", {
+                reasons = { "source_json_load_failed" },
+                audit_mode = run.mode,
+            })
+        else
+            local raw_inputs = CTJsonInterop.normalize_raw_inputs(source[1].raw_inputs)
+            local timeline = source[1].timeline
+            local has_timeline = type(timeline) == "table" and #timeline > 0
+            local is_audit = run.mode == "runtime_audit"
+            if is_audit and not raw_inputs then
+                ctx.transcription_item(path, "failed", {
+                    reasons = { "runtime_audit_raw_inputs_missing" },
+                    suspected_causes =
+                        ComboTrialsModules.Transcriber.suspected_causes(source),
+                    audit_mode = run.mode,
+                })
+            elseif not is_audit and not raw_inputs and not has_timeline then
+                ctx.transcription_item(path, "failed", {
+                    reasons = { "missing_input_stream" },
+                    suspected_causes =
+                        ComboTrialsModules.Transcriber.suspected_causes(source),
+                    audit_mode = run.mode,
+                })
+            else
+                run.current_path = path
+                run.current_name = tostring(path):match("([^/\\]+)$") or ("combo_" .. tostring(run.index) .. ".json")
+                run.current_source = source
+                run.input_source = is_audit and "raw_inputs"
+                    or (raw_inputs and "raw_inputs" or "timeline")
+                run.capture_input_source = run.input_source
+                run.captured_raw_inputs = raw_inputs or {}
+                run.input_finished_frame = nil
+                run.phase = is_audit and "audit_raw" or "capture"
+                run.capture_compiled = nil
+                run.capture_evaluation = nil
+                run.verification_candidate = nil
+                run.session = ctx.new_action_event_session(
+                    0,
+                    is_audit and "runtime_audit" or "transcription"
+                )
+                run.status = string.format(
+                    "正在%s %d/%d：%s",
+                    is_audit and "审计" or "转录",
+                    run.index,
+                    run.total,
+                    run.current_name
+                )
+                trial_state._transcribing = not is_audit
+                trial_state._runtime_auditing = is_audit
+                if load_combo_from_file(path, true) then
+                    start_trial(0)
+                    if start_demo({ transcribe = true, countdown_frames = 20 }) then
+                        return true
+                    end
+                end
+
+                return ctx.complete_transcription_item(run, {
+                    ok = false,
+                    reasons = {
+                        is_audit
+                            and "runtime_audit_demo_start_failed"
+                            or "demo_start_failed",
+                    },
+                    suspected_causes =
+                        ComboTrialsModules.Transcriber.suspected_causes(source),
+                    expected = ComboTrialsModules.Transcriber.expected_outcome(source),
+                    observed = {},
+                }, {
+                    compiled = nil,
+                })
+            end
+        end
+    end
+    return ctx.finish_transcription_run(false)
+end
+
+ctx.tick_transcription = function()
+    local run = demo_state.transcription_run
+    if not run or run.active ~= true then return end
+    if run.cancel_requested then
+        ctx.finish_transcription_run(true)
+        return
+    end
+    if run.pending_next == true then
+        local elapsed = (engine_frame_count or 0) - (run.pending_next_frame or 0)
+        local refreshing = false
+        pcall(function()
+            local tm = sdk.get_managed_singleton("app.training.TrainingManager")
+            refreshing = tm and tm:get_field("_IsReqRefresh") == true or false
+        end)
+        if elapsed >= 180 and refreshing then
+            run.fatal_error = "训练环境重置超时"
+            ctx.finish_transcription_run(true)
+        elseif elapsed >= 5 and not refreshing then
+            run.pending_next = false
+            run.pending_next_frame = nil
+            ctx.start_next_transcription_file()
+        end
+        return
+    end
+    if run.input_finished_frame == nil then return end
+    local elapsed = engine_frame_count - run.input_finished_frame
+    local session = run.session
+    local last_activity = type(session) == "table"
+        and tonumber(session.last_activity_frame) or run.input_finished_frame
+    local last_sample = type(session) == "table" and session.last_sample or nil
+    local combo = tonumber(type(last_sample) == "table" and last_sample.combo_count) or 0
+    local settled = elapsed >= 90
+        and (engine_frame_count - last_activity) >= 45
+        and combo == 0
+    if settled or elapsed >= 360 then
+        ctx.finish_current_transcription_file(not settled)
+    end
+end
+
+ctx.get_transcription_resume_state = function()
+    if demo_state.transcription_run
+        and demo_state.transcription_run.mode == "runtime_audit" then
+        return nil
+    end
+    local character = players[0] and players[0].profile_name or "Unknown"
+    local paths = file_system.saved_combos_all_paths_p1
+        or file_system.saved_combos_paths_p1
+        or {}
+    return ComboTrialsModules.Transcriber.resume_info(
+        demo_state.transcription_run,
+        character,
+        paths
+    )
+end
+
+ctx.start_transcription = function(force_new)
+    local existing_run = demo_state.transcription_run
+    if existing_run and existing_run.active == true then return false end
+    if trial_state.is_recording or trial_state.is_playing or demo_state.is_playing then
+        ct_ticker("请先停止录制、训练或演示")
+        return false
+    end
+    if file_system.refresh_combo_list_preserve_selection then
+        file_system.refresh_combo_list_preserve_selection(false)
+    end
+    local character = players[0] and players[0].profile_name or "Unknown"
+    local paths = file_system.saved_combos_all_paths_p1
+        or file_system.saved_combos_paths_p1
+        or {}
+    if character == "Unknown" or #paths == 0 then
+        ct_ticker("当前角色没有可转录的连段文件")
+        return false
+    end
+
+    local now = CTJsonInterop.iso8601_now()
+    local run = nil
+    if force_new ~= true
+        and (not existing_run or existing_run.mode ~= "runtime_audit") then
+        run = ComboTrialsModules.Transcriber.resume_run(
+            existing_run,
+            character,
+            paths,
+            now
+        )
+    end
+    local resumed = run ~= nil
+    if not run then
+        run = ComboTrialsModules.Transcriber.new_run(character, paths, now)
+    end
+    demo_state.transcription_run = run
+    run.return_path = trial_state.current_file_path or trial_state.current_file
+    if not resumed then
+        run.run_id = os.date("%Y%m%d_%H%M%S")
+        run.output_dir = ComboTrialsModules.Transcriber.OUTPUT_ROOT
+            .. "/" .. file_system.sanitize_filename_component(character, 32, "Unknown")
+            .. "/" .. run.run_id
+        run.report_path = ComboTrialsModules.Transcriber.REPORT_ROOT
+            .. "/" .. file_system.sanitize_filename_component(character, 32, "Unknown")
+            .. "_" .. run.run_id .. ".json"
+    end
+    ctx.create_transcription_directories(run)
+    ctx.persist_transcription_report(run)
+    if resumed then
+        ct_ticker(string.format(
+            "继续转录 %s：已处理 %d，剩余 %d",
+            character,
+            run.resume_processed,
+            #run.paths
+        ))
+    else
+        ct_ticker(string.format("开始转录 %s 的 %d 个连段", character, #paths))
+    end
+    return ctx.start_next_transcription_file()
+end
+
+local function normalized_runtime_combo_path(value)
+    return tostring(value or ""):gsub("\\", "/"):lower()
+end
+
+local function available_combo_paths(requested_paths)
+    local all_paths = file_system.saved_combos_all_paths_p1
+        or file_system.saved_combos_paths_p1
+        or {}
+    local available = {}
+    for _, path in ipairs(all_paths) do
+        available[normalized_runtime_combo_path(path)] = path
+    end
+    local selected = {}
+    local seen = {}
+    for _, requested in ipairs(type(requested_paths) == "table" and requested_paths or {}) do
+        local path = available[normalized_runtime_combo_path(requested)]
+        local key = normalized_runtime_combo_path(path)
+        if path and not seen[key] then
+            selected[#selected + 1] = path
+            seen[key] = true
+        end
+    end
+    return selected
+end
+
+local function failed_audit_paths(run)
+    if type(run) ~= "table" or run.mode ~= "runtime_audit"
+        or type(run.items) ~= "table" then
+        return {}
+    end
+    local requested = {}
+    for _, item in ipairs(run.items) do
+        if item.status ~= "passed" and item.source_file then
+            requested[#requested + 1] = item.source_file
+        end
+    end
+    return available_combo_paths(requested)
+end
+
+ctx.start_runtime_audit = function(options)
+    options = type(options) == "table" and options or {}
+    local existing_run = demo_state.transcription_run
+    if existing_run and existing_run.active == true then return false end
+    if trial_state.is_recording or trial_state.is_playing or demo_state.is_playing then
+        ct_ticker("请先停止录制、训练或演示")
+        return false
+    end
+    if file_system.refresh_combo_list_preserve_selection then
+        file_system.refresh_combo_list_preserve_selection(false)
+    end
+
+    local character = players[0] and players[0].profile_name or "Unknown"
+    local all_paths = file_system.saved_combos_all_paths_p1
+        or file_system.saved_combos_paths_p1
+        or {}
+    local paths = all_paths
+    local requested_path = nil
+    local audit_scope = options.scope == "current" and "current"
+        or (options.scope == "retry_failures" and "retry_failures" or "all")
+    if type(options.paths) == "table" then
+        paths = available_combo_paths(options.paths)
+    elseif audit_scope == "current" then
+        requested_path = trial_state.current_file_path or trial_state.current_file
+        if not requested_path then
+            local selected_index = file_system.selected_file_idx_p1 or 1
+            requested_path = file_system.saved_combos_paths_p1
+                and file_system.saved_combos_paths_p1[selected_index] or nil
+        end
+        paths = ComboTrialsModules.RuntimeAuditor.select_single_path(
+            all_paths,
+            requested_path
+        )
+    end
+    if character == "Unknown" or #paths == 0 then
+        ct_ticker(audit_scope == "current"
+            and "请先在当前角色列表中载入或选中一个连段"
+            or (audit_scope == "retry_failures"
+                and "最近审计没有可复审的失败项"
+                or "当前角色没有可审计的连段文件"))
+        return false
+    end
+
+    local run_id = os.date("%Y%m%d_%H%M%S")
+    local run = ComboTrialsModules.RuntimeAuditor.new_run(
+        character,
+        paths,
+        CTJsonInterop.iso8601_now(),
+        {
+            scope = audit_scope,
+            requested_path = requested_path,
+        }
+    )
+    run.run_id = run_id
+    run.source_audit_report = options.source_audit_report
+    run.return_path = trial_state.current_file_path or trial_state.current_file
+    run.report_path = ComboTrialsModules.RuntimeAuditor.REPORT_ROOT
+        .. "/" .. file_system.sanitize_filename_component(character, 32, "Unknown")
+        .. (audit_scope == "current" and "_single"
+            or (audit_scope == "retry_failures" and "_retry" or ""))
+        .. "_" .. run_id .. ".json"
+    demo_state.transcription_run = run
+
+    ctx.create_transcription_directories(run)
+    ctx.persist_transcription_report(run)
+    ct_ticker(string.format(
+        audit_scope == "current"
+            and "开始单条审计 %s：%s"
+            or (audit_scope == "retry_failures"
+                and "开始复审 %s 的 %d 个失败项"
+                or "开始审计 %s 运行目录中的 %d 个连段"),
+        character,
+        audit_scope == "current"
+            and (tostring(paths[1]):match("([^/\\]+)$") or tostring(paths[1]))
+            or #paths
+    ))
+    return ctx.start_next_transcription_file()
+end
+
+ctx.start_runtime_audit_current = function()
+    return ctx.start_runtime_audit({ scope = "current" })
+end
+
+ctx.cancel_transcription = function()
+    local run = demo_state.transcription_run
+    if not run or run.active ~= true then return false end
+    run.cancel_requested = true
+    return ctx.finish_transcription_run(true)
+end
+
+ctx.get_transcription_state = function()
+    return demo_state.transcription_run
+end
+
+ctx.get_runtime_audit_state = function()
+    local run = demo_state.transcription_run
+    return run and run.mode == "runtime_audit" and run or nil
+end
+
+ctx.get_runtime_audit_retry_state = function()
+    local run = demo_state.transcription_run
+    if not run or run.active == true or run.mode ~= "runtime_audit" then return nil end
+    local paths = failed_audit_paths(run)
+    if #paths == 0 then return nil end
+    return {
+        count = #paths,
+        report_path = run.report_path,
+    }
+end
+
+ctx.start_transcription_from_audit_failures = function()
+    local audit_run = demo_state.transcription_run
+    local paths = failed_audit_paths(audit_run)
+    if #paths == 0 then
+        ct_ticker("最近审计没有可转录的失败项")
+        return false
+    end
+    if trial_state.is_recording or trial_state.is_playing or demo_state.is_playing then
+        ct_ticker("请先停止录制、训练或演示")
+        return false
+    end
+    local character = players[0] and players[0].profile_name or "Unknown"
+    if character == "Unknown" then return false end
+    local run_id = os.date("%Y%m%d_%H%M%S")
+    local run = ComboTrialsModules.Transcriber.new_run(
+        character,
+        paths,
+        CTJsonInterop.iso8601_now()
+    )
+    run.run_id = run_id
+    run.source_audit_report = audit_run.report_path
+    run.return_path = trial_state.current_file_path or trial_state.current_file
+    run.output_dir = ComboTrialsModules.Transcriber.OUTPUT_ROOT
+        .. "/" .. file_system.sanitize_filename_component(character, 32, "Unknown")
+        .. "/" .. run_id .. "_audit_retry"
+    run.report_path = ComboTrialsModules.Transcriber.REPORT_ROOT
+        .. "/" .. file_system.sanitize_filename_component(character, 32, "Unknown")
+        .. "_audit_retry_" .. run_id .. ".json"
+    demo_state.transcription_run = run
+    ctx.create_transcription_directories(run)
+    ctx.persist_transcription_report(run)
+    ct_ticker(string.format("开始转录 %s 的 %d 个审计失败项", character, #paths))
+    return ctx.start_next_transcription_file()
+end
+
+ctx.start_runtime_audit_failures = function()
+    local audit_run = demo_state.transcription_run
+    local paths = failed_audit_paths(audit_run)
+    if #paths == 0 then
+        ct_ticker("最近审计没有可复审的失败项")
+        return false
+    end
+    return ctx.start_runtime_audit({
+        scope = "retry_failures",
+        paths = paths,
+        source_audit_report = audit_run.report_path,
+    })
+end
+
+ctx.load_latest_runtime_audit_report = function()
+    local character = players[0] and players[0].profile_name or "Unknown"
+    if character == "Unknown" or not fs or not fs.glob then return false end
+    local safe_character = file_system.sanitize_filename_component(character, 32, "Unknown")
+    local glob_ok, paths = pcall(
+        fs.glob,
+        "TrainingComboTrials_data\\\\RuntimeAuditReports\\\\" .. safe_character .. "_.*json"
+    )
+    if not glob_ok or type(paths) ~= "table" or #paths == 0 then
+        ct_ticker("没有找到当前角色的审计报告")
+        return false
+    end
+    table.sort(paths)
+    for index = #paths, 1, -1 do
+        local report_path = paths[index]
+        local loaded_ok, report = pcall(json.load_file, report_path)
+        if loaded_ok and type(report) == "table"
+            and report.schema == ComboTrialsModules.RuntimeAuditor.REPORT_SCHEMA
+            and type(report.items) == "table" then
+            report.active = false
+            report.mode = "runtime_audit"
+            report.report_path = report_path
+            report.status = string.format(
+                "已载入审计报告：成功 %d，失败 %d",
+                tonumber(report.passed) or 0,
+                tonumber(report.failed) or 0
+            )
+            demo_state.transcription_run = report
+            return true
+        end
+    end
+    ct_ticker("最近的审计报告无法读取")
+    return false
+end
+
+ctx.load_latest_transcription_report = function()
+    local character = players[0] and players[0].profile_name or "Unknown"
+    if character == "Unknown" or not fs or not fs.glob then return false end
+    local safe_character = file_system.sanitize_filename_component(character, 32, "Unknown")
+    local glob_ok, paths = pcall(
+        fs.glob,
+        "TrainingComboTrials_data\\\\TranscriptionReports\\\\" .. safe_character .. "_.*json"
+    )
+    if not glob_ok or type(paths) ~= "table" or #paths == 0 then
+        ct_ticker("没有找到当前角色的转录报告")
+        return false
+    end
+    table.sort(paths)
+    local report_path = paths[#paths]
+    local loaded_ok, report = pcall(json.load_file, report_path)
+    if not loaded_ok or type(report) ~= "table"
+        or report.schema ~= ComboTrialsModules.Transcriber.REPORT_SCHEMA
+        or type(report.items) ~= "table" then
+        ct_ticker("最近的转录报告无法读取")
+        return false
+    end
+    report.active = false
+    report.report_path = report_path
+    report.output_dir = report.candidate_root
+    report.review_index = 1
+    local verified_passes = 0
+    local pending_reverification = 0
+    local current_failures = 0
+    for _, item in ipairs(report.items) do
+        if item.status == "passed" and item.raw_replay_verified == true then
+            verified_passes = verified_passes + 1
+        elseif item.raw_replay_verified == nil
+            or (item.status ~= "passed"
+                and tonumber(item.validation_revision)
+                    ~= ComboTrialsModules.Transcriber.VALIDATION_REVISION) then
+            pending_reverification = pending_reverification + 1
+        elseif item.status ~= "passed" then
+            current_failures = current_failures + 1
+        end
+    end
+    report.status = string.format(
+        "已载入报告：已验证 %d，待补验 %d，本轮需处理 %d",
+        verified_passes,
+        pending_reverification,
+        current_failures
+    )
+    demo_state.transcription_run = report
+    return true
+end
+
+ctx.get_transcription_candidate_state = function()
+    local run = demo_state.transcription_run
+    if not run or run.mode == "runtime_audit"
+        or type(run.items) ~= "table" then
+        return nil
+    end
+    local candidates = {}
+    for _, item in ipairs(run.items) do
+        if item.status == "passed"
+            and item.raw_replay_verified == true
+            and type(item.candidate_file) == "string"
+            and item.candidate_file ~= "" then
+            candidates[#candidates + 1] = item
+        end
+    end
+    if #candidates == 0 then return { count = 0, index = 0 } end
+    run.review_index = math.max(1, math.min(#candidates, tonumber(run.review_index) or 1))
+    local item = candidates[run.review_index]
+    return {
+        count = #candidates,
+        index = run.review_index,
+        name = item.source_name or tostring(item.candidate_file):match("([^/\\]+)$"),
+        path = item.candidate_file,
+    }
+end
+
+ctx.change_transcription_candidate = function(delta)
+    local run = demo_state.transcription_run
+    local state = ctx.get_transcription_candidate_state()
+    if not run or not state or state.count == 0 then return false end
+    local next_index = state.index + (tonumber(delta) or 0)
+    if next_index < 1 then next_index = state.count end
+    if next_index > state.count then next_index = 1 end
+    run.review_index = next_index
+    return true
+end
+
+ctx.start_transcription_candidate = function()
+    local state = ctx.get_transcription_candidate_state()
+    if not state or not state.path or trial_state.is_recording then return false end
+    if demo_state.is_playing then
+        ctx.stop_demo_playback(
+            "transcription_candidate_switch",
+            demo_state.current_file_path or trial_state.current_file_path or trial_state.current_file,
+            state.path,
+            true
+        )
+    else
+        trial_state.is_playing = false
+    end
+    if not load_combo_from_file(state.path, true) then
+        ct_ticker("候选文件加载失败")
+        return false
+    end
+    start_trial(0)
+    local run = demo_state.transcription_run
+    if run then run.status = "正在审阅候选：" .. tostring(state.name or state.path) end
+    ct_ticker(string.format("已加载候选 %d/%d", state.index, state.count))
+    return true
+end
+
+ctx.stop_demo_without_transcription = ctx.stop_demo
+ctx.stop_demo = function()
+    local run = demo_state.transcription_run
+    if run and run.active == true then
+        ctx.cancel_transcription()
+        return
+    end
+    ctx.stop_demo_without_transcription()
+end
 
 local function can_start_combo_action()
     return not trial_state.is_recording
@@ -10345,6 +11592,7 @@ table.insert(_G._shared_input_pre, function(p_id, args)
         start_demo({ playlist_next = true })
     end
     if not tick_done_this_frame and demo_state.is_playing and not demo_state.raw_buffer then
+        demo_state._transcription_capture_frame = false
         if not trial_state.is_playing then
             demo_state.is_playing = false
             demo_state.p1_mask = 0
@@ -10360,9 +11608,13 @@ table.insert(_G._shared_input_pre, function(p_id, args)
             local tm = sdk.get_managed_singleton("app.training.TrainingManager")
             if tm and tm:get_field("_IsReqRefresh") == true then is_refreshing = true end
             if trial_state.pending_exact_pos and trial_state.pending_exact_pos > 0 then is_refreshing = true end
+            if trial_state._pending_reinject_settings == true then is_refreshing = true end
 
             if not is_paused and not is_refreshing then
-                if demo_state.countdown and demo_state.countdown > 0 then
+                if demo_state._transcription_input_finished == true then
+                    demo_state.p1_mask = 0
+                    demo_state._last_tick_frame = nil
+                elseif demo_state.countdown and demo_state.countdown > 0 then
                     demo_state.countdown = demo_state.countdown - 1
                     demo_state.p1_mask = 0
                     demo_state._last_tick_frame = nil
@@ -10379,9 +11631,18 @@ table.insert(_G._shared_input_pre, function(p_id, args)
                         demo_state.p1_mask = step.mask
                         CTStunDemoRuntime.advance_timeline_frames(1)
                         demo_state._last_tick_frame = engine_frame_count or 0
+                        demo_state._transcription_capture_frame =
+                            demo_state.transcribing == true
                     else
-                        ctx.finish_demo_telemetry_cycle()
-                        if demo_state.playlist_active == true then
+                        if demo_state.transcribing == true then
+                            demo_state.mark_transcription_input_finished()
+                        else
+                            ctx.finish_demo_telemetry_cycle()
+                        end
+                        if demo_state.transcribing == true then
+                            demo_state.p1_mask = 0
+                            demo_state._last_tick_frame = nil
+                        elseif demo_state.playlist_active == true then
                             demo_state.is_playing = false
                             demo_state.current_frame = 0
                             demo_state.current_step = 1
@@ -10426,10 +11687,17 @@ local function _ct_demo_inject_mask()
         if has_right then final_mask = final_mask | 8 end
         if has_left  then final_mask = final_mask | 4 end
     end
-    local orig_in = p1:get_field("pl_input_new") or 0
-    local orig_sw = p1:get_field("pl_sw_new") or 0
-    p1:set_field("pl_input_new", orig_in | final_mask)
-    p1:set_field("pl_sw_new", orig_sw | final_mask)
+    if demo_state.transcribing == true then
+        -- Batch transcription must be deterministic. Do not merge accidental
+        -- physical input into the replay stream being captured.
+        p1:set_field("pl_input_new", final_mask)
+        p1:set_field("pl_sw_new", final_mask)
+    else
+        local orig_in = p1:get_field("pl_input_new") or 0
+        local orig_sw = p1:get_field("pl_sw_new") or 0
+        p1:set_field("pl_input_new", orig_in | final_mask)
+        p1:set_field("pl_sw_new", orig_sw | final_mask)
+    end
 end
 
 CTRawInputRuntime = CTRawInputRuntime or {}
@@ -10447,8 +11715,12 @@ function CTRawInputRuntime.capture(p_id)
 end
 
 function CTRawInputRuntime.play()
-    if demo_state.countdown and demo_state.countdown > 0 then
-        demo_state.countdown = demo_state.countdown - 1
+    if demo_state._transcription_input_finished == true then
+        local waiting_player = GS.p1
+        if waiting_player then
+            waiting_player:set_field("pl_input_new", 0)
+            waiting_player:set_field("pl_sw_new", 0)
+        end
         return
     end
 
@@ -10461,13 +11733,33 @@ function CTRawInputRuntime.play()
     local tm = sdk.get_managed_singleton("app.training.TrainingManager")
     if tm and tm:get_field("_IsReqRefresh") == true then return end
     if trial_state.pending_exact_pos and trial_state.pending_exact_pos > 0 then return end
+    if trial_state._pending_reinject_settings == true then return end
+
+    -- Countdown is a stable pre-roll, not a refresh timeout. Burning it while
+    -- position/resource restoration is still pending makes the first replay
+    -- start earlier than every subsequent replay of the same raw stream.
+    if demo_state.countdown and demo_state.countdown > 0 then
+        demo_state.countdown = demo_state.countdown - 1
+        return
+    end
 
     local buffer = demo_state.raw_buffer
     if type(buffer) ~= "table" or #buffer == 0 then return end
     local index = demo_state.play_index or 1
     if index > #buffer then
-        ctx.finish_demo_telemetry_cycle()
-        if demo_state.playlist_active == true then
+        if demo_state.transcribing == true then
+            demo_state.mark_transcription_input_finished()
+            local waiting_player = GS.p1
+            if waiting_player then
+                waiting_player:set_field("pl_input_new", 0)
+                waiting_player:set_field("pl_sw_new", 0)
+            end
+        else
+            ctx.finish_demo_telemetry_cycle()
+        end
+        if demo_state.transcribing == true then
+            return
+        elseif demo_state.playlist_active == true then
             demo_state.is_playing = false
             demo_state.raw_buffer = nil
             demo_state.play_index = 1
@@ -10504,8 +11796,23 @@ table.insert(_G._shared_input_post, function(p_id, retval)
     end
     if p_id == 0 and demo_state.is_playing and demo_state.raw_buffer then
         pcall(CTRawInputRuntime.play)
-    elseif p_id == 0 and demo_state.is_playing and demo_state.p1_mask > 0 then
+    elseif p_id == 0 and demo_state.is_playing
+        and (demo_state.p1_mask > 0
+            or demo_state._transcription_capture_frame == true) then
         pcall(_ct_demo_inject_mask)
+    end
+    if p_id == 0
+        and demo_state.transcribing == true
+        and demo_state._transcription_capture_frame == true then
+        local run = demo_state.transcription_run
+        local player = GS.p1
+        if run and type(run.captured_raw_inputs) == "table" and player then
+            local value = 0
+            pcall(function() value = tonumber(player:get_field("pl_input_new")) or 0 end)
+            run.captured_raw_inputs[#run.captured_raw_inputs + 1] =
+                math.floor(value) & 0xFFFF
+        end
+        demo_state._transcription_capture_frame = false
     end
 end)
 end

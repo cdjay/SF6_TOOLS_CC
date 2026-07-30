@@ -12,7 +12,7 @@ local M = {}
 
 local ctx
 local trial_state, players, file_system
-local normalize_sequence_counter_types, assign_groups
+local normalize_sequence_counter_types, normalize_sequence_semantics, assign_groups
 local restore_trial_dummy_action_type
 local XT_SCHEMA_MAX = 2
 local schema_warning_paths = {}
@@ -90,7 +90,7 @@ local function combo_control_label(control_type)
     return control_type == "modern" and "[M]" or "[C]"
 end
 
-function M.load_combo_from_file(path, force)
+local function install_combo_sequence(loaded, path, force)
     if trial_state._xt_pending_save and not force then return false end
     if not path then return false end
 
@@ -105,15 +105,11 @@ function M.load_combo_from_file(path, force)
         })
     end
 
-    local loaded, load_error = load_combo_json(path)
-    if not loaded then
-        warn_combo_file_once(path, load_error or "JSON load failed")
-        return false
-    end
     warn_newer_schema(path, loaded)
 
     local prepared, prepare_error = pcall(function()
         normalize_sequence_counter_types(loaded)
+        if normalize_sequence_semantics then normalize_sequence_semantics(loaded) end
         assign_groups(loaded)
     end)
     if not prepared then
@@ -149,6 +145,27 @@ function M.load_combo_from_file(path, force)
         trial_state.first_action_pos_p2_raw = loaded[1].first_action_pos_p2_raw
     end
     return true
+end
+
+function M.load_combo_sequence(sequence, path, force)
+    local valid, reason = is_valid_combo_sequence(sequence)
+    if not valid then
+        warn_combo_file_once(path or "<memory>", reason or "invalid combo sequence")
+        return false
+    end
+    return install_combo_sequence(sequence, path or "<memory>", force)
+end
+
+function M.load_combo_from_file(path, force)
+    if trial_state._xt_pending_save and not force then return false end
+    if not path then return false end
+
+    local loaded, load_error = load_combo_json(path)
+    if not loaded then
+        warn_combo_file_once(path, load_error or "JSON load failed")
+        return false
+    end
+    return install_combo_sequence(loaded, path, force)
 end
 
 function M.clear_combo_state()
@@ -728,6 +745,7 @@ function M.init(context, opts)
     players = assert(ctx.players, "ComboTrials_Files requires ctx.players")
     file_system = assert(ctx.file_system, "ComboTrials_Files requires ctx.file_system")
     normalize_sequence_counter_types = assert(opts.normalize_sequence_counter_types, "ComboTrials_Files requires normalize_sequence_counter_types")
+    normalize_sequence_semantics = opts.normalize_sequence_semantics
     assign_groups = assert(opts.assign_groups, "ComboTrials_Files requires assign_groups")
     restore_trial_dummy_action_type = opts.restore_trial_dummy_action_type
 

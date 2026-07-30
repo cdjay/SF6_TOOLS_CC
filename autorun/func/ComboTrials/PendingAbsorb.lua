@@ -203,7 +203,6 @@ function PendingAbsorb.apply_matched_step(ctx, params)
         PendingAbsorb.clear(state, "step_advanced")
 
         if ctx.Validator.is_pressure_tail_step(expected)
-            and expected.finish_on_action == true
             and matched_step == #state.sequence then
             state.success_timer = ctx.d2d_cfg.fail_display_frames or 120
             state.fail_timer = 0

@@ -11,6 +11,53 @@ function Validator.is_pressure_tail_step(step)
     return step.validation_role == "pressure_tail"
 end
 
+function Validator.is_terminal_pressure_tail_candidate(sequence, step_idx)
+    if type(sequence) ~= "table" or #sequence < 2 then return false end
+    local idx = tonumber(step_idx) or #sequence
+    if idx ~= #sequence then return false end
+
+    local step = sequence[idx]
+    local previous = sequence[idx - 1]
+    if type(step) ~= "table" or type(previous) ~= "table" then return false end
+    if step.validation_role ~= nil then
+        return Validator.is_pressure_tail_step(step)
+    end
+    if step.id == nil or step.has_hit == true then return false end
+    if (tonumber(step.expected_combo) or 0) ~= 0 then return false end
+
+    local step_damage = tonumber(step.damage_at_step)
+    local previous_damage = tonumber(previous.damage_at_step)
+    if step_damage == nil or previous_damage == nil or step_damage ~= previous_damage then
+        return false
+    end
+
+    -- A terminal non-damaging Action is a pressure/setup tail only when the
+    -- same recording has already established a real damaging hit. This keeps
+    -- standalone whiffs and block-string recordings on their normal paths.
+    for i = 1, idx - 1 do
+        local earlier = sequence[i]
+        if type(earlier) == "table"
+            and (earlier.has_hit == true
+                or (tonumber(earlier.expected_combo) or 0) > 0
+                or (tonumber(earlier.damage_at_step) or 0) > 0) then
+            return true
+        end
+    end
+    return false
+end
+
+function Validator.annotate_terminal_pressure_tail(sequence)
+    if not Validator.is_terminal_pressure_tail_candidate(sequence) then return false end
+    sequence[#sequence].validation_role = "pressure_tail"
+    return true
+end
+
+function Validator.requires_block_outcome(step)
+    return type(step) == "table"
+        and step.hit_result == "block"
+        and not Validator.is_pressure_tail_step(step)
+end
+
 function Validator.is_explicit_whiff_step(step)
     if type(step) ~= "table" then return false end
     if step.id == nil or tonumber(step.expected_combo) ~= 0 then return false end
