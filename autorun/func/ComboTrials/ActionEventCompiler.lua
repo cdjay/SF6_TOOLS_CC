@@ -173,6 +173,9 @@ local function fallback_motion(event)
     if ((tonumber(button_mask) or 0) & Compiler.BUTTON_MASK) == (64 | 512) then
         return "DI"
     end
+    if ((tonumber(button_mask) or 0) & Compiler.BUTTON_MASK) == (32 | 256) then
+        return "PARRY"
+    end
     local buttons = button_notation(button_mask)
     local direction = canonical_direction_motion(
         tostring(anchor.direction_sequence or ""),
@@ -447,6 +450,58 @@ local function is_unmapped_direction_transition(current)
         and event_button_mask(current.event) == 0
         and current.event.has_contact ~= true
         and current.event.has_hit ~= true
+end
+
+-- RAW DR can expose a later 741 execution state after the already-recorded
+-- 740 owner Action. Both IDs are runtime facts, but the second state has no
+-- independent physical command and must not create another V2 instruction.
+local function is_redundant_drive_rush_phase(previous, current)
+    if type(previous) ~= "table" or type(current) ~= "table"
+        or type(previous.event) ~= "table"
+        or type(current.event) ~= "table" then
+        return false
+    end
+    if not ActionMatcher.is_drive_rush_action_id(previous.event.id)
+        or not ActionMatcher.is_drive_rush_action_id(current.event.id)
+        or not ActionMatcher.is_drive_rush_motion(previous.motion)
+        or current.event.has_contact == true
+        or current.event.has_hit == true then
+        return false
+    end
+    local delay = (tonumber(current.event.frame) or 0)
+        - (tonumber(previous.event.frame) or 0)
+    return delay >= 0 and delay <= Compiler.BIND_WINDOW
+end
+
+-- A mapped attack can change to an unmapped multi-hit execution state while a
+-- direction buffer is already being entered for the next command. With no
+-- attack button on that anchor, the direction did not cause the contact Action;
+-- merge the observed hit truth into its mapped owner instead of drawing a
+-- fabricated directional instruction.
+local function is_unmapped_contact_continuation(previous, current)
+    if type(previous) ~= "table" or type(current) ~= "table"
+        or type(previous.event) ~= "table"
+        or type(current.event) ~= "table" then
+        return false
+    end
+    local anchor = type(current.event.anchor) == "table"
+        and current.event.anchor or {}
+    if previous.motion == nil
+        or current.motion ~= nil
+        or current.resolution_status ~= "action_id_missing"
+        or event_button_mask(current.event) ~= 0
+        or (anchor.kind ~= "double_tap"
+            and anchor.kind ~= "direction_action"
+            and anchor.kind ~= "movement_action")
+        or (previous.event.has_contact ~= true
+            and previous.event.has_hit ~= true)
+        or (current.event.has_contact ~= true
+            and current.event.has_hit ~= true) then
+        return false
+    end
+    local delay = (tonumber(current.event.frame) or 0)
+        - (tonumber(previous.event.frame) or 0)
+    return delay >= 0 and delay <= Compiler.BIND_WINDOW
 end
 
 local function resolve_motion(resolver, event, session)
@@ -987,6 +1042,7 @@ function Compiler.finalize(session, options)
     local resolved_motion_actions = 0
     local fallback_motion_actions = 0
     local input_derived_motion_actions = 0
+    local input_derived_noncontact_motion_actions = 0
     local input_refined_motion_actions = 0
     local unresolved_motion_actions = 0
     local resolver_error_actions = 0
@@ -1090,6 +1146,23 @@ function Compiler.finalize(session, options)
                 resolution_status = resolution_status,
                 resolution_metadata = resolution_metadata,
             }
+            previous = projected[#projected]
+            local redundant_drive_rush =
+                is_redundant_drive_rush_phase(previous, current)
+            local contact_continuation =
+                is_unmapped_contact_continuation(previous, current)
+            if redundant_drive_rush or contact_continuation then
+                merge_event_truth(previous.event, event)
+                suppressed_events[#suppressed_events + 1] = {
+                    id = event.id,
+                    frame = event.frame,
+                    merged_into = previous.event.id,
+                    reason = redundant_drive_rush
+                            and "redundant_drive_rush_phase"
+                        or "unmapped_contact_continuation",
+                }
+                goto continue_projection
+            end
             local unmapped_direction =
                 is_unmapped_direction_transition(current)
             if unmapped_direction then
@@ -1173,13 +1246,21 @@ function Compiler.finalize(session, options)
                 resolver_error_actions = resolver_error_actions + 1
             end
             if resolved.resolution_status ~= "resolver_error"
-                and (event.has_contact == true or event.has_hit == true)
-                and event_button_mask(event) ~= 0 then
+                and event_button_mask(event) ~= 0
+                and ((event.has_contact == true or event.has_hit == true)
+                    or (type(event.anchor) == "table"
+                        and event.anchor.kind == "button_press")) then
                 -- The Action ID and contact are runtime facts. A missing
-                -- command-catalog row only makes the display notation
-                -- input-derived; it does not make the player Action unknown.
+                -- command-catalog row only makes the display notation input-
+                -- derived. A physical button press is also sufficient truth
+                -- for a whiff or setup Action that intentionally has no
+                -- contact.
                 input_derived_motion_actions =
                     input_derived_motion_actions + 1
+                if event.has_contact ~= true and event.has_hit ~= true then
+                    input_derived_noncontact_motion_actions =
+                        input_derived_noncontact_motion_actions + 1
+                end
             else
                 unresolved_motion_actions = unresolved_motion_actions + 1
             end
@@ -1243,6 +1324,8 @@ function Compiler.finalize(session, options)
             resolved_motion_actions = resolved_motion_actions,
             fallback_motion_actions = fallback_motion_actions,
             input_derived_motion_actions = input_derived_motion_actions,
+            input_derived_noncontact_motion_actions =
+                input_derived_noncontact_motion_actions,
             input_refined_motion_actions = input_refined_motion_actions,
             unresolved_motion_actions = unresolved_motion_actions,
             resolver_error_actions = resolver_error_actions,
@@ -1267,6 +1350,10 @@ function Compiler.finalize(session, options)
             projected_events = projected_events,
             suppressed_events = suppressed_events,
             promoted_events = promoted_events,
+            pending_anchor = type(session) == "table"
+                and session.pending_anchor or nil,
+            expired_anchor_count = type(session) == "table"
+                and (session.unresolved_anchor_count or 0) or 0,
         },
     }
 end

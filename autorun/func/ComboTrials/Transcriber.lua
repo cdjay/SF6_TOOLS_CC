@@ -4,7 +4,7 @@
 local Transcriber = {
     name = "ComboTrials.Transcriber",
     REPORT_SCHEMA = "sf6cc.combo_transcription_report.v1",
-    VALIDATION_REVISION = 19,
+    VALIDATION_REVISION = 20,
     OUTPUT_ROOT = "TrainingComboTrials_data/TranscribedCandidates",
     REPORT_ROOT = "TrainingComboTrials_data/TranscriptionReports",
 }
@@ -126,14 +126,27 @@ local function expected_outcome(sequence)
     }
 end
 
-local function expects_hit_reconnect_after_combo_reset(sequence)
+local function expected_hit_reconnect_reason(sequence)
     local max_combo_before = 0
     local reset_pending = false
     local damage_at_reset = 0
+    local zero_combo_contact_damage = nil
     for _, step in ipairs(type(sequence) == "table" and sequence or {}) do
         if type(step) == "table" then
             local combo = math.max(0, tonumber(step.expected_combo) or 0)
             local damage = math.max(0, tonumber(step.damage_at_step) or 0)
+            local expects_contact =
+                step.has_hit == true or step.has_contact == true
+            if combo == 0 and damage > 0 and expects_contact then
+                zero_combo_contact_damage = math.max(
+                    tonumber(zero_combo_contact_damage) or 0,
+                    damage
+                )
+            elseif combo > 0 and zero_combo_contact_damage ~= nil
+                and damage > zero_combo_contact_damage
+                and expects_contact then
+                return "expected_hit_after_zero_combo_contact"
+            end
             if max_combo_before > 0 and combo == 0 then
                 reset_pending = true
                 damage_at_reset = math.max(damage_at_reset, damage)
@@ -141,8 +154,8 @@ local function expects_hit_reconnect_after_combo_reset(sequence)
                 if reset_pending
                     and combo < max_combo_before
                     and damage > damage_at_reset
-                    and (step.has_hit == true or step.has_contact == true) then
-                    return true
+                    and expects_contact then
+                    return "expected_hit_reconnect_after_combo_reset"
                 end
                 if combo >= max_combo_before then
                     reset_pending = false
@@ -152,7 +165,7 @@ local function expects_hit_reconnect_after_combo_reset(sequence)
             end
         end
     end
-    return false
+    return nil
 end
 
 local function set_prepared_environment_field(first, field_name, value)
@@ -180,9 +193,10 @@ function Transcriber.prepare_capture_sequence(source_sequence)
     local expected = expected_outcome(prepared)
     local guard_type =
         TrainingEnvironment.resolve_dummy_guard_type(first, nil)
+    local reconnect_reason = expected_hit_reconnect_reason(prepared)
     if expected.block_contacts == 0
         and guard_type == TrainingEnvironment.DUMMY_GUARD.AFTER_FIRST_HIT
-        and expects_hit_reconnect_after_combo_reset(prepared) then
+        and reconnect_reason ~= nil then
         set_prepared_environment_field(
             first,
             "dummy_guard_type",
@@ -193,7 +207,7 @@ function Transcriber.prepare_capture_sequence(source_sequence)
             field = "dummy_guard_type",
             from = guard_type,
             to = TrainingEnvironment.DUMMY_GUARD.NONE,
-            reason = "expected_hit_reconnect_after_combo_reset",
+            reason = reconnect_reason,
         }
     end
     return prepared, adjustments
@@ -440,8 +454,16 @@ function Transcriber.evaluate(sequence, compiled, runtime)
                 "unexpected_block_contacts_without_action_evidence"
         end
     end
-    if (tonumber(stats.unresolved_anchors) or 0) > 0 then
-        reasons[#reasons + 1] = "unresolved_input_actions"
+    local unresolved_anchors = tonumber(stats.unresolved_anchors) or 0
+    if unresolved_anchors > 0 then
+        -- Raw input is preserved frame-for-frame, so a press that does not
+        -- produce an Action is still reproducible evidence rather than a
+        -- transcription failure. Actual Actions, outcome and the second raw
+        -- replay remain the acceptance boundary.
+        advisories[#advisories + 1] = string.format(
+            "unbound_input_anchors:%d",
+            unresolved_anchors
+        )
     end
     local unresolved_motion_actions = tonumber(stats.unresolved_motion_actions)
     if unresolved_motion_actions == nil then
@@ -456,10 +478,23 @@ function Transcriber.evaluate(sequence, compiled, runtime)
     end
     local input_derived_motion_actions =
         tonumber(stats.input_derived_motion_actions) or 0
-    if input_derived_motion_actions > 0 then
+    local input_derived_noncontact_motion_actions =
+        tonumber(stats.input_derived_noncontact_motion_actions) or 0
+    local input_derived_contact_motion_actions = math.max(
+        0,
+        input_derived_motion_actions
+            - input_derived_noncontact_motion_actions
+    )
+    if input_derived_contact_motion_actions > 0 then
         advisories[#advisories + 1] = string.format(
             "input_derived_contact_motion:%d",
-            input_derived_motion_actions
+            input_derived_contact_motion_actions
+        )
+    end
+    if input_derived_noncontact_motion_actions > 0 then
+        advisories[#advisories + 1] = string.format(
+            "input_derived_noncontact_motion:%d",
+            input_derived_noncontact_motion_actions
         )
     end
     local input_refined_motion_actions =

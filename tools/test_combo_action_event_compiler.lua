@@ -709,6 +709,116 @@ assert(contact_fallback_evaluation.ok == true
         == "input_derived_contact_motion:1",
     "a contact-proven input-derived motion must be auditable without blocking transcription")
 
+local noncontact_fallback = compiler.new({ character = "MBison", frame = 0 })
+noncontact_fallback.events = {
+    {
+        id = 921,
+        frame = 10,
+        has_hit = false,
+        has_contact = false,
+        anchor = {
+            kind = "button_press",
+            pressed_buttons = 512,
+            held_buttons = 512,
+            direction = "5",
+        },
+    },
+}
+local noncontact_fallback_result = compiler.finalize(noncontact_fallback, {
+    motion_resolver = test_motion_resolver,
+})
+assert(#noncontact_fallback_result.steps == 1
+    and noncontact_fallback_result.steps[1].id == 921
+    and noncontact_fallback_result.steps[1].motion == "HK"
+    and noncontact_fallback_result.stats.input_derived_motion_actions == 1
+    and noncontact_fallback_result.stats.input_derived_noncontact_motion_actions == 1
+    and noncontact_fallback_result.stats.unresolved_motion_actions == 0,
+    "a real button-bound whiff Action must use physical input when its catalog row is absent")
+
+local parry_fallback = compiler.new({ character = "MBison", frame = 0 })
+parry_fallback.events = {
+    {
+        id = 974,
+        frame = 10,
+        expected_combo = 2,
+        damage_at_step = 840,
+        has_hit = true,
+        has_contact = true,
+        anchor = {
+            kind = "button_press",
+            pressed_buttons = 32 | 256,
+            held_buttons = 32 | 256,
+            direction = "5",
+        },
+    },
+}
+local parry_fallback_result = compiler.finalize(parry_fallback, {
+    motion_resolver = test_motion_resolver,
+})
+assert(#parry_fallback_result.steps == 1
+    and parry_fallback_result.steps[1].id == 974
+    and parry_fallback_result.steps[1].motion == "PARRY",
+    "an unmapped MP+MK Action must retain its real ID and display the system command")
+
+local bison_contact_continuation =
+    compiler.new({ character = "MBison", frame = 0 })
+bison_contact_continuation.events = {
+    {
+        id = 981,
+        frame = 10,
+        expected_combo = 1,
+        damage_at_step = 360,
+        has_hit = true,
+        has_contact = true,
+        anchor = { kind = "button_press", pressed_buttons = 64 },
+    },
+    {
+        id = 982,
+        frame = 48,
+        expected_combo = 2,
+        damage_at_step = 1080,
+        has_hit = true,
+        has_contact = true,
+        anchor = { kind = "double_tap", direction = "6" },
+    },
+}
+local bison_contact_continuation_result =
+    compiler.finalize(bison_contact_continuation, {
+        motion_resolver = function(action_id)
+            if action_id == 981 then return "214+HP", "strict_route" end
+            return nil, "action_id_missing"
+        end,
+    })
+assert(#bison_contact_continuation_result.steps == 1
+    and bison_contact_continuation_result.steps[1].id == 981
+    and bison_contact_continuation_result.steps[1].expected_combo == 2
+    and bison_contact_continuation_result.steps[1].damage_at_step == 1080
+    and bison_contact_continuation_result.trace.suppressed_events[1].reason
+        == "unmapped_contact_continuation",
+    "a direction-buffered unmapped multi-hit phase must merge into its mapped owner")
+
+local drive_rush_phase = compiler.new({ character = "MBison", frame = 0 })
+drive_rush_phase.events = {
+    {
+        id = 740,
+        frame = 10,
+        anchor = { kind = "double_tap", direction = "6" },
+    },
+    {
+        id = 741,
+        frame = 44,
+        anchor = { kind = "double_tap", direction = "6" },
+    },
+}
+local drive_rush_phase_result = compiler.finalize(drive_rush_phase, {
+    motion_resolver = test_motion_resolver,
+})
+assert(#drive_rush_phase_result.steps == 1
+    and drive_rush_phase_result.steps[1].id == 740
+    and drive_rush_phase_result.trace.suppressed_events[1].reason
+        == "redundant_drive_rush_phase",
+    "a later Drive Rush execution phase must not become a second V2 command")
+
 local jump_attack = compiler.new({ character = "Luke", frame = 0 })
 local function jump_attack_observe(frame, action_id, input, combo, victim_hp)
     compiler.observe(jump_attack, {
@@ -1046,6 +1156,17 @@ local evaluation = transcriber.evaluate(source, result, {
     input_completed = true,
 })
 assert(evaluation.ok == true, "matching runtime outcome must be transcribable")
+result.stats.unresolved_anchors = 1
+local unbound_input_evaluation = transcriber.evaluate(source, result, {
+    input_source = "timeline",
+    raw_inputs = { 0, 2, 18, 18, 2, 0 },
+    input_completed = true,
+})
+assert(unbound_input_evaluation.ok == true
+    and unbound_input_evaluation.advisories[1]
+        == "unbound_input_anchors:1",
+    "an input that produced no runtime Action must remain an advisory in preserved raw input")
+result.stats.unresolved_anchors = 0
 
 local failed = transcriber.evaluate(source, {
     steps = result.steps,
@@ -1505,6 +1626,51 @@ local legacy_oki_source = {
         has_contact = true,
     },
 }
+local zero_combo_contact_source = {
+    {
+        id = 973,
+        motion = "214+LP",
+        expected_combo = 0,
+        damage_at_step = 700,
+        has_hit = true,
+        has_contact = true,
+        dummy_guard_type = 2,
+        dummy_guard_switching = true,
+        _xt_meta = {
+            dummy_guard_type = 2,
+            dummy_guard_switching = true,
+            environment = {
+                dummy_guard_type = 2,
+                dummy_guard_switching = true,
+            },
+        },
+    },
+    {
+        id = 740,
+        motion = "RAW DR",
+        expected_combo = 0,
+        damage_at_step = 700,
+        has_hit = false,
+        has_contact = false,
+    },
+    {
+        id = 612,
+        motion = "HK",
+        expected_combo = 1,
+        damage_at_step = 1780,
+        has_hit = true,
+        has_contact = true,
+    },
+}
+local prepared_zero_contact, zero_contact_adjustments =
+    transcriber.prepare_capture_sequence(zero_combo_contact_source)
+assert(#zero_contact_adjustments == 1
+    and zero_contact_adjustments[1].reason
+        == "expected_hit_after_zero_combo_contact"
+    and prepared_zero_contact[1].dummy_guard_type == 0
+    and prepared_zero_contact[1].dummy_guard_switching == false
+    and zero_combo_contact_source[1].dummy_guard_type == 2,
+    "a zero-combo setup hit followed by a new hit string must disable conflicting guard on a copy")
 local prepared_oki, oki_adjustments =
     transcriber.prepare_capture_sequence(legacy_oki_source)
 assert(#oki_adjustments == 1
