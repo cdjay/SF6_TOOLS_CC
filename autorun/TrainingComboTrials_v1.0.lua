@@ -10392,6 +10392,7 @@ ctx.transcription_item = function(path, status, details)
             details.capture_environment_validation,
         verification_environment_validation =
             details.verification_environment_validation,
+        environment_adjustments = details.environment_adjustments,
         raw_input_count = details.raw_input_count,
         action_trace = details.action_trace,
         verification_action_trace = details.verification_action_trace,
@@ -10558,6 +10559,7 @@ ctx.complete_transcription_item = function(run, evaluation, details)
         capture_environment_validation = capture_environment_validation,
         verification_environment_validation =
             verification_environment_validation,
+        environment_adjustments = run.capture_environment_adjustments,
         raw_input_count = type(run.captured_raw_inputs) == "table"
             and #run.captured_raw_inputs or 0,
         action_trace = run.capture_compiled and run.capture_compiled.trace
@@ -10588,6 +10590,7 @@ ctx.complete_transcription_item = function(run, evaluation, details)
     run.phase = nil
     run.capture_compiled = nil
     run.capture_evaluation = nil
+    run.capture_environment_adjustments = nil
     run.verification_candidate = nil
     if run.cancel_requested then return ctx.finish_transcription_run(true) end
     run.pending_next = true
@@ -10777,6 +10780,17 @@ ctx.finish_current_transcription_file = function(timed_out)
         verify_environment = true,
         environment_observed = ctx.read_transcription_environment(),
     })
+    if type(run.capture_environment_adjustments) == "table" then
+        for _, adjustment in ipairs(run.capture_environment_adjustments) do
+            evaluation.advisories[#evaluation.advisories + 1] = string.format(
+                "capture_environment_adjusted:%s:%s->%s:%s",
+                tostring(adjustment.field),
+                tostring(adjustment.from),
+                tostring(adjustment.to),
+                tostring(adjustment.reason)
+            )
+        end
+    end
     if evaluation.ok then
         local candidate, candidate_error = ComboTrialsModules.Transcriber.build_candidate(
             run.current_source,
@@ -10793,6 +10807,8 @@ ctx.finish_current_transcription_file = function(timed_out)
                 input_source = run.input_source,
                 raw_inputs = run.captured_raw_inputs,
                 source_advisories = evaluation.advisories,
+                environment_adjustments =
+                    run.capture_environment_adjustments,
             }
         )
         if candidate then
@@ -10861,6 +10877,13 @@ ctx.start_next_transcription_file = function()
                     audit_mode = run.mode,
                 })
             else
+                local environment_adjustments = {}
+                if not is_audit then
+                    source, environment_adjustments =
+                        ComboTrialsModules.Transcriber.prepare_capture_sequence(
+                            source
+                        )
+                end
                 run.current_path = path
                 run.current_name = tostring(path):match("([^/\\]+)$") or ("combo_" .. tostring(run.index) .. ".json")
                 run.current_source = source
@@ -10872,6 +10895,8 @@ ctx.start_next_transcription_file = function()
                 run.phase = is_audit and "audit_raw" or "capture"
                 run.capture_compiled = nil
                 run.capture_evaluation = nil
+                run.capture_environment_adjustments =
+                    environment_adjustments
                 run.verification_candidate = nil
                 run.session = ctx.new_action_event_session(
                     0,
@@ -10886,7 +10911,17 @@ ctx.start_next_transcription_file = function()
                 )
                 trial_state._transcribing = not is_audit
                 trial_state._runtime_auditing = is_audit
-                if load_combo_from_file(path, true) then
+                local loaded = false
+                if is_audit then
+                    loaded = load_combo_from_file(path, true)
+                else
+                    loaded = ComboTrials_Files.load_combo_sequence(
+                        ComboTrialsModules.Transcriber.deep_copy(source),
+                        path,
+                        true
+                    )
+                end
+                if loaded then
                     start_trial(0)
                     if start_demo({ transcribe = true, countdown_frames = 20 }) then
                         return true

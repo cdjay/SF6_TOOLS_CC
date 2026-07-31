@@ -7,7 +7,7 @@ local RuntimeAuditor = {
     name = "ComboTrials.RuntimeAuditor",
     REPORT_SCHEMA = "sf6cc.combo_runtime_audit.v1",
     REPORT_ROOT = "TrainingComboTrials_data/RuntimeAuditReports",
-    VALIDATION_REVISION = 21,
+    VALIDATION_REVISION = 22,
 }
 
 local function deep_copy(value)

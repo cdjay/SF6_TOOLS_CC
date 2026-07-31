@@ -492,6 +492,84 @@ assert(#unmapped_direction_result.steps == 1
         == "unmapped_input_precursor",
     "an unmapped direction startup must yield to its immediate button Action")
 
+local elena_direction_transition =
+    compiler.new({ character = "Elena", frame = 0 })
+elena_direction_transition.events = {
+    {
+        id = 900,
+        frame = 10,
+        has_hit = true,
+        has_contact = true,
+        expected_combo = 10,
+        damage_at_step = 2739,
+        anchor = { kind = "button_press", pressed_buttons = 128 },
+    },
+    {
+        id = 904,
+        frame = 67,
+        has_hit = false,
+        has_contact = false,
+        anchor = { kind = "direction_action", direction = "1" },
+    },
+    {
+        id = 910,
+        frame = 78,
+        has_hit = true,
+        has_contact = true,
+        expected_combo = 11,
+        damage_at_step = 3039,
+        anchor = { kind = "button_press", pressed_buttons = 128 },
+    },
+}
+elena_direction_transition.current_damage = 3039
+elena_direction_transition.max_combo = 11
+local function elena_motion_resolver(action_id)
+    if action_id == 900 then return "236+LK", "strict_route" end
+    if action_id == 910 then return "623+LK", "strict_route" end
+    return nil, "action_id_missing"
+end
+local elena_direction_result =
+    compiler.finalize(elena_direction_transition, {
+        motion_resolver = elena_motion_resolver,
+    })
+assert(#elena_direction_result.steps == 2
+    and elena_direction_result.steps[1].id == 900
+    and elena_direction_result.steps[2].id == 910
+    and elena_direction_result.stats.unresolved_motion_actions == 0
+    and elena_direction_result.trace.suppressed_events[1].id == 904
+    and elena_direction_result.trace.suppressed_events[1].reason
+        == "unmapped_direction_transition",
+    "an unmapped contact-free direction state must not become a V2 command")
+
+local state_specific_di = compiler.new({ character = "Elena", frame = 0 })
+state_specific_di.events = {
+    {
+        id = 856,
+        frame = 20,
+        has_hit = true,
+        has_contact = true,
+        expected_combo = 1,
+        damage_at_step = 960,
+        anchor = {
+            kind = "button_press",
+            direction = "6",
+            pressed_buttons = 64 | 512,
+            held_buttons = 64 | 512,
+        },
+    },
+}
+state_specific_di.current_damage = 960
+state_specific_di.max_combo = 1
+local state_specific_di_result = compiler.finalize(state_specific_di, {
+    motion_resolver = elena_motion_resolver,
+})
+assert(#state_specific_di_result.steps == 1
+    and state_specific_di_result.steps[1].id == 856
+    and state_specific_di_result.steps[1].motion == "DI"
+    and state_specific_di_result.stats.input_derived_motion_actions == 1
+    and state_specific_di_result.stats.unresolved_motion_actions == 0,
+    "an unmapped state-specific HP+HK Action must preserve its ID and display DI")
+
 local unrelated_after_release = compiler.new({ character = "Luke", frame = 0 })
 unrelated_after_release.events = {
     {
@@ -1383,6 +1461,78 @@ assert(action_variant_drift.ok == true
     and action_variant_drift.source_action_match == true,
     "explicit Action aliases must preserve structural matching across game versions")
 
+local legacy_oki_source = {
+    {
+        id = 624,
+        motion = "2MP",
+        expected_combo = 1,
+        damage_at_step = 600,
+        has_hit = true,
+        has_contact = true,
+        dummy_guard_type = 2,
+        dummy_guard_switching = true,
+        _xt_meta = {
+            dummy_guard_type = 2,
+            dummy_guard_switching = true,
+            environment = {
+                dummy_guard_type = 2,
+                dummy_guard_switching = true,
+            },
+        },
+    },
+    {
+        id = 934,
+        motion = ">6+P",
+        expected_combo = 8,
+        damage_at_step = 2584,
+        has_hit = true,
+        has_contact = true,
+    },
+    {
+        id = 939,
+        motion = "236+LP (空挥)",
+        expected_combo = 0,
+        damage_at_step = 2584,
+        has_hit = false,
+        has_contact = false,
+    },
+    {
+        id = 969,
+        motion = ">6+HK",
+        expected_combo = 1,
+        damage_at_step = 3624,
+        has_hit = true,
+        has_contact = true,
+    },
+}
+local prepared_oki, oki_adjustments =
+    transcriber.prepare_capture_sequence(legacy_oki_source)
+assert(#oki_adjustments == 1
+    and oki_adjustments[1].reason
+        == "expected_hit_reconnect_after_combo_reset"
+    and prepared_oki[1].dummy_guard_type == 0
+    and prepared_oki[1].dummy_guard_switching == false
+    and prepared_oki[1]._xt_meta.dummy_guard_type == 0
+    and prepared_oki[1]._xt_meta.environment.dummy_guard_type == 0
+    and legacy_oki_source[1].dummy_guard_type == 2,
+    "an expected post-reset hit string must disable conflicting guard on a copy")
+local one_string_source = transcriber.deep_copy(legacy_oki_source)
+one_string_source[3].expected_combo = 8
+one_string_source[4].expected_combo = 9
+local prepared_one_string, one_string_adjustments =
+    transcriber.prepare_capture_sequence(one_string_source)
+assert(#one_string_adjustments == 0
+    and prepared_one_string[1].dummy_guard_type == 2,
+    "a continuous combo must retain its recorded after-first-hit guard setting")
+local blocked_oki_source = transcriber.deep_copy(legacy_oki_source)
+blocked_oki_source[4].was_blocked = true
+blocked_oki_source[4].hit_result = "block"
+local prepared_blocked_oki, blocked_oki_adjustments =
+    transcriber.prepare_capture_sequence(blocked_oki_source)
+assert(#blocked_oki_adjustments == 0
+    and prepared_blocked_oki[1].dummy_guard_type == 2,
+    "an OKI sequence that expects block contact must retain its guard setting")
+
 local candidate = assert(transcriber.build_candidate(source, result, {
     schema = 2,
     product_id = "sf6cc",
@@ -1392,6 +1542,7 @@ local candidate = assert(transcriber.build_candidate(source, result, {
 }, "2026-07-30T00:00:00+08:00", {
     input_source = "timeline",
     raw_inputs = { 0, 2, 18, 18, 2, 0 },
+    environment_adjustments = oki_adjustments,
 }))
 assert(candidate[1].id == 600 and candidate[1].motion == "2+LP",
     "candidate steps must come from the new runtime compiler")
@@ -1401,6 +1552,9 @@ assert(#candidate[1].raw_inputs == 6 and candidate[1].raw_inputs[3] == 18,
     "timeline transcription must emit a frame-accurate raw input stream")
 assert(candidate[1]._xt_meta.transcription.raw_inputs_origin == "captured_timeline_replay",
     "candidate metadata must disclose how raw input was obtained")
+assert(candidate[1]._xt_meta.transcription.environment_adjustments[1].reason
+        == "expected_hit_reconnect_after_combo_reset",
+    "candidate metadata must disclose derived training-environment changes")
 assert(candidate[1]._xt_meta.created_at == "old"
     and candidate[1]._xt_meta.updated_at == "2026-07-30T00:00:00+08:00",
     "metadata must be preserved and updated independently")

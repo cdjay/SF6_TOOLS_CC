@@ -162,11 +162,18 @@ end
 
 local function fallback_motion(event)
     local anchor = event.anchor or {}
-    local buttons = button_notation(
+    local button_mask =
         (tonumber(anchor.pressed_buttons) or 0) ~= 0 and anchor.pressed_buttons
             or ((tonumber(anchor.held_buttons) or 0) ~= 0 and anchor.held_buttons
                 or anchor.released_buttons)
-    )
+    -- HP+HK is the universal classic Drive Impact input. When a character
+    -- exposes an unmapped state-specific DI Action, preserve the real Action
+    -- ID while still presenting the player command instead of a directional
+    -- fallback such as 6+HP+HK.
+    if ((tonumber(button_mask) or 0) & Compiler.BUTTON_MASK) == (64 | 512) then
+        return "DI"
+    end
+    local buttons = button_notation(button_mask)
     local direction = canonical_direction_motion(
         tostring(anchor.direction_sequence or ""),
         tostring(anchor.direction or "5")
@@ -422,6 +429,24 @@ local function is_unmapped_input_precursor(previous, current)
             or previous_anchor.kind == "movement_action")
         and (current_anchor.kind == "double_tap"
             or current_anchor.kind == "movement_action")
+end
+
+-- Pure direction input is necessary evidence for mapped mechanics such as C.
+-- Viper's 528 high-jump cancel. An Action with no command-map entry, no
+-- physical button and no contact is different: it is only a transient stance
+-- or direction-buffer state and must not become an unresolved V2 command.
+local function is_unmapped_direction_transition(current)
+    if type(current) ~= "table" or type(current.event) ~= "table" then
+        return false
+    end
+    local anchor = type(current.event.anchor) == "table"
+        and current.event.anchor or {}
+    return current.motion == nil
+        and current.resolution_status == "action_id_missing"
+        and anchor.kind == "direction_action"
+        and event_button_mask(current.event) == 0
+        and current.event.has_contact ~= true
+        and current.event.has_hit ~= true
 end
 
 local function resolve_motion(resolver, event, session)
@@ -1065,6 +1090,16 @@ function Compiler.finalize(session, options)
                 resolution_status = resolution_status,
                 resolution_metadata = resolution_metadata,
             }
+            local unmapped_direction =
+                is_unmapped_direction_transition(current)
+            if unmapped_direction then
+                suppressed_events[#suppressed_events + 1] = {
+                    id = event.id,
+                    frame = event.frame,
+                    reason = "unmapped_direction_transition",
+                }
+                goto continue_projection
+            end
             previous = projected[#projected]
             local release_ghost =
                 is_release_ghost_precursor(previous, current)
@@ -1112,6 +1147,7 @@ function Compiler.finalize(session, options)
                 projected[#projected + 1] = current
             end
         end
+        ::continue_projection::
     end
 
     local previous_event = nil

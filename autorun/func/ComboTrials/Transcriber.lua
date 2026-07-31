@@ -4,7 +4,7 @@
 local Transcriber = {
     name = "ComboTrials.Transcriber",
     REPORT_SCHEMA = "sf6cc.combo_transcription_report.v1",
-    VALIDATION_REVISION = 18,
+    VALIDATION_REVISION = 19,
     OUTPUT_ROOT = "TrainingComboTrials_data/TranscribedCandidates",
     REPORT_ROOT = "TrainingComboTrials_data/TranscriptionReports",
 }
@@ -124,6 +124,79 @@ local function expected_outcome(sequence)
         drive_used = tonumber(stats.drive_used) or 0,
         super_used = tonumber(stats.super_used) or 0,
     }
+end
+
+local function expects_hit_reconnect_after_combo_reset(sequence)
+    local max_combo_before = 0
+    local reset_pending = false
+    local damage_at_reset = 0
+    for _, step in ipairs(type(sequence) == "table" and sequence or {}) do
+        if type(step) == "table" then
+            local combo = math.max(0, tonumber(step.expected_combo) or 0)
+            local damage = math.max(0, tonumber(step.damage_at_step) or 0)
+            if max_combo_before > 0 and combo == 0 then
+                reset_pending = true
+                damage_at_reset = math.max(damage_at_reset, damage)
+            elseif combo > 0 then
+                if reset_pending
+                    and combo < max_combo_before
+                    and damage > damage_at_reset
+                    and (step.has_hit == true or step.has_contact == true) then
+                    return true
+                end
+                if combo >= max_combo_before then
+                    reset_pending = false
+                    damage_at_reset = 0
+                end
+                max_combo_before = math.max(max_combo_before, combo)
+            end
+        end
+    end
+    return false
+end
+
+local function set_prepared_environment_field(first, field_name, value)
+    first[field_name] = value
+    first._xt_meta = type(first._xt_meta) == "table" and first._xt_meta or {}
+    first._xt_meta[field_name] = value
+    first._xt_meta.environment =
+        type(first._xt_meta.environment) == "table"
+            and first._xt_meta.environment or {}
+    first._xt_meta.environment[field_name] = value
+end
+
+-- A legacy OKI recording can explicitly expect a second damaging string
+-- after its combo counter returned to zero while also carrying "guard after
+-- first hit". Those facts cannot both happen under raw input: the defender
+-- guards the entire second string. Prepare an in-memory transcription copy
+-- with guard disabled, preserve the source file, and persist the derivation
+-- in the generated candidate/report.
+function Transcriber.prepare_capture_sequence(source_sequence)
+    local prepared = deep_copy(source_sequence)
+    local first = first_step(prepared)
+    local adjustments = {}
+    if next(first) == nil then return prepared, adjustments end
+
+    local expected = expected_outcome(prepared)
+    local guard_type =
+        TrainingEnvironment.resolve_dummy_guard_type(first, nil)
+    if expected.block_contacts == 0
+        and guard_type == TrainingEnvironment.DUMMY_GUARD.AFTER_FIRST_HIT
+        and expects_hit_reconnect_after_combo_reset(prepared) then
+        set_prepared_environment_field(
+            first,
+            "dummy_guard_type",
+            TrainingEnvironment.DUMMY_GUARD.NONE
+        )
+        set_prepared_environment_field(first, "dummy_guard_switching", false)
+        adjustments[#adjustments + 1] = {
+            field = "dummy_guard_type",
+            from = guard_type,
+            to = TrainingEnvironment.DUMMY_GUARD.NONE,
+            reason = "expected_hit_reconnect_after_combo_reset",
+        }
+    end
+    return prepared, adjustments
 end
 
 local ENVIRONMENT_READBACK_FIELDS = {
@@ -623,6 +696,13 @@ function Transcriber.build_candidate(source_sequence, compiled, version_info, no
             deep_copy(transcription.source_advisories)
     else
         meta.transcription.source_advisories = nil
+    end
+    if type(transcription.environment_adjustments) == "table"
+        and #transcription.environment_adjustments > 0 then
+        meta.transcription.environment_adjustments =
+            deep_copy(transcription.environment_adjustments)
+    else
+        meta.transcription.environment_adjustments = nil
     end
     if synchronized_legacy_fields > 0 then
         meta.transcription.synchronized_legacy_scene_fields =
