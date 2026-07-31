@@ -36,6 +36,21 @@ local _, invalid_override_count, invalid_override_status =
     })
 assert(invalid_override_count == 0 and invalid_override_status == "invalid_override_document",
     "command overrides for another character must fail closed")
+local cammy_overrides, cammy_override_count, cammy_override_status =
+    command_display_overrides.merge({ _slim = true }, "Cammy", {
+        schema = "xt.command_display_overrides.v1",
+        character = "Cammy",
+        entries = {
+            ["908"] = {
+                classic = ">HK",
+                evidence = "verified 4+MP follow-up HK",
+            },
+        },
+    })
+assert(cammy_override_status == "loaded" and cammy_override_count == 1
+    and cammy_overrides["908"].classic == ">HK"
+    and cammy_overrides["908"].status == "runtime_verified_override",
+    "Cammy's verified target-combo follow-up must override the missing strict route")
 
 -- Load only the pure resolver functions from the active ImGui renderer; do not
 -- boot REFramework globals or exercise backend-specific drawing code.
@@ -217,6 +232,15 @@ assert(action_matcher.is_optional_parent_for_followup(
         "HK"
     ) == false,
     "an exact expected Action must not be rejected when adjacent follow-ups share one motion")
+assert(action_matcher.is_optional_parent_for_followup(
+        "j.P",
+        { id = 979, motion = "j.Throw" },
+        966,
+        { optional_parent_ids = { 966 } },
+        { id = 951, motion = "236+MP+HP" },
+        "LK"
+    ) == true,
+    "an explicit transient parent rule must work for a button chord without a > notation")
 local kimberly_followup_match = action_matcher.match_expected_action(
     { id = 908, motion = ">LK" },
     908,

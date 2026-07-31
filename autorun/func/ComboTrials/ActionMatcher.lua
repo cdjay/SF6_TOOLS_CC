@@ -363,8 +363,9 @@ function ActionMatcher.is_optional_parent_for_followup(
     end
     local expected_motion = trim(expected_step.motion)
     local exception_motion = expected_exception and expected_exception.follow_up_motion or nil
-    if not motion_has_followup_marker(exception_motion or expected_motion) then return false end
-
+    -- Explicit character rules describe observed runtime transitions and do
+    -- not require the display notation to use a generic `>` marker. This also
+    -- covers button chords such as Cammy's staggered j.Throw input.
     if expected_exception then
         if list_contains_token(expected_exception.optional_parent_ids, tonumber(actual_action_id), tonumber) then
             return true
@@ -373,6 +374,8 @@ function ActionMatcher.is_optional_parent_for_followup(
             return true
         end
     end
+
+    if not motion_has_followup_marker(exception_motion or expected_motion) then return false end
 
     -- Some commands enter an internal runtime phase after the follow-up button
     -- is pressed, before the follow-up's recorded Action ID becomes observable.

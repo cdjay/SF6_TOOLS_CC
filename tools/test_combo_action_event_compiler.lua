@@ -925,6 +925,173 @@ assert(#alex_hp_release_result.steps == 1
         == "character_internal_action_phase",
     "Alex's mapped HP release phase must merge only after Action 976")
 
+local cammy_target_combo_phase = compiler.new({ character = "Cammy", frame = 0 })
+cammy_target_combo_phase.events = {
+    {
+        id = 652,
+        frame = 100,
+        expected_combo = 4,
+        damage_at_step = 1584,
+        has_hit = true,
+        has_contact = true,
+        anchor = { kind = "button_press", pressed_buttons = 512 },
+    },
+    {
+        id = 653,
+        frame = 127,
+        expected_combo = 5,
+        damage_at_step = 1752,
+        has_hit = true,
+        has_contact = true,
+        anchor = { kind = "button_press", pressed_buttons = 512 },
+    },
+    {
+        id = 902,
+        frame = 162,
+        expected_combo = 6,
+        damage_at_step = 1977,
+        has_hit = true,
+        has_contact = true,
+        anchor = { kind = "button_press", pressed_buttons = 256 },
+    },
+}
+cammy_target_combo_phase.current_damage = 1977
+cammy_target_combo_phase.max_combo = 6
+local cammy_target_combo_result = compiler.finalize(cammy_target_combo_phase, {
+    motion_resolver = function(action_id)
+        if action_id == 652 then return ">HK", "strict_route" end
+        if action_id == 902 then return "236+MK", "strict_route" end
+        return nil, "action_id_missing"
+    end,
+})
+assert(#cammy_target_combo_result.steps == 2
+    and cammy_target_combo_result.steps[1].id == 652
+    and cammy_target_combo_result.steps[1].expected_combo == 5
+    and cammy_target_combo_result.steps[1].damage_at_step == 1752
+    and cammy_target_combo_result.steps[2].id == 902
+    and cammy_target_combo_result.trace.suppressed_events[1].id == 653
+    and cammy_target_combo_result.trace.suppressed_events[1].reason
+        == "character_internal_action_phase",
+    "Cammy's second target-combo contact Action must merge into its command owner")
+
+local cammy_internal_recovery = compiler.new({ character = "Cammy", frame = 0 })
+cammy_internal_recovery.events = {
+    {
+        id = 916,
+        frame = 100,
+        expected_combo = 1,
+        damage_at_step = 500,
+        has_hit = true,
+        has_contact = true,
+        anchor = { kind = "button_press", pressed_buttons = 256 },
+    },
+    {
+        id = 933,
+        frame = 118,
+        expected_combo = 0,
+        damage_at_step = 500,
+        has_hit = false,
+        has_contact = false,
+        anchor = { kind = "button_press", pressed_buttons = 256 },
+    },
+    {
+        id = 500,
+        frame = 180,
+        expected_combo = 0,
+        damage_at_step = 500,
+        has_hit = false,
+        has_contact = false,
+        anchor = { kind = "double_tap", held_buttons = 288 },
+    },
+    {
+        id = 1022,
+        frame = 220,
+        expected_combo = 2,
+        damage_at_step = 1000,
+        has_hit = true,
+        has_contact = true,
+        anchor = { kind = "button_press", pressed_buttons = 512 },
+    },
+    {
+        id = 1023,
+        frame = 255,
+        expected_combo = 0,
+        damage_at_step = 1000,
+        has_hit = false,
+        has_contact = false,
+        anchor = { kind = "button_press", pressed_buttons = 512 },
+    },
+}
+cammy_internal_recovery.current_damage = 1000
+cammy_internal_recovery.max_combo = 2
+local cammy_internal_recovery_result = compiler.finalize(cammy_internal_recovery, {
+    motion_resolver = function(action_id)
+        if action_id == 916 then return "623+MK", "strict_route" end
+        if action_id == 500 then return "RAW DR", "strict_route" end
+        if action_id == 1022 then return "j.214+HK", "strict_route" end
+        return nil, "action_id_missing"
+    end,
+})
+assert(#cammy_internal_recovery_result.steps == 3
+    and cammy_internal_recovery_result.steps[1].id == 916
+    and cammy_internal_recovery_result.steps[2].id == 500
+    and cammy_internal_recovery_result.steps[3].id == 1022
+    and cammy_internal_recovery_result.trace.suppressed_events[1].id == 933
+    and cammy_internal_recovery_result.trace.suppressed_events[2].id == 1023,
+    "Cammy's grounded and aerial recovery phases must not become instructions")
+
+local cammy_air_throw_chord = compiler.new({ character = "Cammy", frame = 0 })
+cammy_air_throw_chord.events = {
+    {
+        id = 966,
+        frame = 100,
+        expected_combo = 0,
+        damage_at_step = 0,
+        has_hit = false,
+        has_contact = false,
+        anchor = { kind = "button_press", pressed_buttons = 16 },
+    },
+    {
+        id = 979,
+        frame = 101,
+        expected_combo = 0,
+        damage_at_step = 0,
+        has_hit = false,
+        has_contact = false,
+        anchor = { kind = "button_press", pressed_buttons = 128 },
+    },
+    {
+        id = 981,
+        frame = 110,
+        expected_combo = 1,
+        damage_at_step = 1150,
+        has_hit = true,
+        has_contact = true,
+        anchor = { kind = "button_press", pressed_buttons = 144 },
+    },
+}
+cammy_air_throw_chord.current_damage = 1150
+cammy_air_throw_chord.max_combo = 1
+local cammy_air_throw_result = compiler.finalize(cammy_air_throw_chord, {
+    motion_resolver = function(action_id)
+        if action_id == 966 then return "j.P", "route_unverified" end
+        if action_id == 979 then return "j.Throw", "route_unverified" end
+        return nil, "action_id_missing"
+    end,
+})
+assert(#cammy_air_throw_result.steps == 1
+    and cammy_air_throw_result.steps[1].id == 979
+    and cammy_air_throw_result.steps[1].motion == "j.Throw"
+    and cammy_air_throw_result.steps[1].expected_combo == 1
+    and cammy_air_throw_result.steps[1].damage_at_step == 1150
+    and cammy_air_throw_result.trace.suppressed_events[1].id == 966
+    and cammy_air_throw_result.trace.suppressed_events[1].reason
+        == "character_transient_input_precursor"
+    and cammy_air_throw_result.trace.suppressed_events[2].id == 981
+    and cammy_air_throw_result.trace.suppressed_events[2].reason
+        == "character_internal_action_phase",
+    "Cammy's staggered air-throw chord must produce only the durable throw command")
+
 local noncontact_fallback = compiler.new({ character = "MBison", frame = 0 })
 noncontact_fallback.events = {
     {

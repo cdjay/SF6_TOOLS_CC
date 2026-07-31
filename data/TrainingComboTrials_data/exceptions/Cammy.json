@@ -21,5 +21,11 @@
     "is_holdable": true,
     "charge_min": 17,
     "charge_max": 17
+  },
+  "979": {
+    "absorb_ids": "980,981",
+    "optional_parent_ids": [
+      966
+    ]
   }
 }

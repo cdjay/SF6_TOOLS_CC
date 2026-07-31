@@ -82,9 +82,25 @@ local INTERNAL_ACTION_PHASE_TRANSITIONS = {
         [976] = { [977] = true },
         [1208] = { [1209] = true },
     },
+    cammy = {
+        [652] = { [653] = true },
+        [916] = { [933] = true },
+        [979] = { [980] = true, [981] = true },
+        [1022] = { [1023] = true },
+    },
     ehonda = {
         [1215] = { [1216] = true },
         [1221] = { [1222] = true },
+    },
+}
+
+-- A chord can briefly launch a normal before the remaining button arrives.
+-- These exact transitions replace the transient precursor with the durable
+-- command Action; unlike INTERNAL_ACTION_PHASE_TRANSITIONS, truth belongs to
+-- the destination rather than the precursor.
+local TRANSIENT_INPUT_PRECURSOR_TRANSITIONS = {
+    cammy = {
+        [966] = { [979] = true },
     },
 }
 
@@ -538,6 +554,27 @@ local function is_character_internal_action_phase(previous, current, character)
         and character_rules[tonumber(previous.event.id)] or nil
     return type(destinations) == "table"
         and destinations[tonumber(current.event.id)] == true
+end
+
+local function is_character_transient_input_precursor(previous, current, character)
+    if type(previous) ~= "table" or type(current) ~= "table"
+        or type(previous.event) ~= "table"
+        or type(current.event) ~= "table"
+        or previous.event.has_contact == true
+        or previous.event.has_hit == true then
+        return false
+    end
+    local key = tostring(character or ""):lower():gsub("[^%w]", "")
+    local character_rules = TRANSIENT_INPUT_PRECURSOR_TRANSITIONS[key]
+    local destinations = type(character_rules) == "table"
+        and character_rules[tonumber(previous.event.id)] or nil
+    if type(destinations) ~= "table"
+        or destinations[tonumber(current.event.id)] ~= true then
+        return false
+    end
+    local delay = (tonumber(current.event.frame) or 0)
+        - (tonumber(previous.event.frame) or 0)
+    return delay >= 0 and delay <= Compiler.UNMAPPED_PRECURSOR_WINDOW
 end
 
 local function resolve_motion(resolver, event, session)
@@ -1239,6 +1276,12 @@ function Compiler.finalize(session, options)
             local unmapped_input = is_unmapped_input_precursor(previous, current)
             local unverified_direction =
                 is_unverified_direction_button_precursor(previous, current)
+            local transient_input =
+                is_character_transient_input_precursor(
+                    previous,
+                    current,
+                    session and session.character
+                )
             if redundant_action_phase then
                 merge_event_truth(previous.event, event)
                 suppressed_events[#suppressed_events + 1] = {
@@ -1249,7 +1292,7 @@ function Compiler.finalize(session, options)
                 }
             else
                 if quick_drive_parry or jump_startup or unmapped_input
-                    or unverified_direction then
+                    or unverified_direction or transient_input then
                     if jump_startup then
                         -- The hit can be sampled on the short BGN phase before
                         -- the durable jump Action appears. Preserve that truth
@@ -1266,7 +1309,9 @@ function Compiler.finalize(session, options)
                                 and "quick_drive_parry_raw_dr_precursor"
                             or (jump_startup and "jump_startup_transition"
                                 or (unmapped_input and "unmapped_input_precursor"
-                                    or "unverified_direction_button_precursor")),
+                                    or (transient_input
+                                        and "character_transient_input_precursor"
+                                        or "unverified_direction_button_precursor"))),
                     }
                 end
                 projected[#projected + 1] = current

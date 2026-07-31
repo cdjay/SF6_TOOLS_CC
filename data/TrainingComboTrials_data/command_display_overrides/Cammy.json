@@ -1,0 +1,10 @@
+{
+  "schema": "xt.command_display_overrides.v1",
+  "character": "Cammy",
+  "entries": {
+    "908": {
+      "classic": ">HK",
+      "evidence": "Raw input reaches Action 908 from 4+MP with a distinct HK press; the legacy combo counter also contains the follow-up hit"
+    }
+  }
+}
