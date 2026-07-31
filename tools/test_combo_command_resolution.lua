@@ -6,6 +6,36 @@ local function read_all(path)
 end
 
 local command_resolver = dofile("autorun/func/ComboTrials/CommandResolver.lua")
+local command_display_overrides =
+    dofile("autorun/func/ComboTrials/CommandDisplayOverrides.lua")
+
+local override_map = { _slim = true, ["967"] = { classic = ">6+P" } }
+local merged_overrides, applied_overrides, override_status =
+    command_display_overrides.merge(override_map, "Alex", {
+        schema = "xt.command_display_overrides.v1",
+        character = "Alex",
+        entries = {
+            ["967"] = { classic = "bad replacement", evidence = "test" },
+            ["968"] = { classic = ">6+MP", evidence = "three raw replays" },
+            ["977"] = { classic = ">HP (INSTANT)", evidence = "five raw replays" },
+            ["978"] = { classic = ">LK" },
+        },
+    })
+assert(override_status == "loaded" and applied_overrides == 2
+    and merged_overrides["967"].classic == ">6+P"
+    and merged_overrides["968"].classic == ">6+MP"
+    and merged_overrides["968"].status == "runtime_verified_override"
+    and merged_overrides["977"].classic == ">HP (INSTANT)"
+    and merged_overrides["978"] == nil,
+    "verified command overrides must fill missing Actions without silently replacing catalog rows")
+local _, invalid_override_count, invalid_override_status =
+    command_display_overrides.merge({ _slim = true }, "Alex", {
+        schema = "xt.command_display_overrides.v1",
+        character = "Ryu",
+        entries = { ["968"] = { classic = ">6+MP", evidence = "test" } },
+    })
+assert(invalid_override_count == 0 and invalid_override_status == "invalid_override_document",
+    "command overrides for another character must fail closed")
 
 -- Load only the pure resolver functions from the active ImGui renderer; do not
 -- boot REFramework globals or exercise backend-specific drawing code.
@@ -178,6 +208,15 @@ assert(action_matcher.is_optional_parent_for_followup(
         "HK"
     ) == false,
     "a different physical button must not be hidden as a follow-up transition phase")
+assert(action_matcher.is_optional_parent_for_followup(
+        ">HK",
+        { id = 983, motion = ">HK" },
+        983,
+        nil,
+        { id = 982, motion = ">HK" },
+        "HK"
+    ) == false,
+    "an exact expected Action must not be rejected when adjacent follow-ups share one motion")
 local kimberly_followup_match = action_matcher.match_expected_action(
     { id = 908, motion = ">LK" },
     908,

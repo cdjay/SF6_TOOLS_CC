@@ -101,6 +101,23 @@ function Validator.is_non_damage_transition(expected, prev_step)
         and expected_damage == previous_damage
 end
 
+function Validator.is_expected_combo_restart_step(expected, prev_step)
+    if type(expected) ~= "table" or type(prev_step) ~= "table" then return false end
+
+    local expected_combo = tonumber(expected.expected_combo)
+    local previous_combo = tonumber(prev_step.expected_combo)
+    local expected_damage = tonumber(expected.damage_at_step)
+    local previous_damage = tonumber(prev_step.damage_at_step)
+    return expected_combo ~= nil
+        and previous_combo ~= nil
+        and expected_combo > 0
+        and previous_combo > expected_combo
+        and expected_damage ~= nil
+        and previous_damage ~= nil
+        and expected_damage > previous_damage
+        and expected.has_contact == true
+end
+
 function Validator.check_combo(params)
     local combo_ok = true
     local expected = params.expected
@@ -132,6 +149,13 @@ function Validator.check_combo(params)
                 combo_ok = true
             elseif current_combo == 0 and prev_step.expected_combo > 0 then
                 -- Oki / cross-up setup: combo dropped naturally (opponent got up)
+                combo_ok = true
+            elseif Validator.is_expected_combo_restart_step(expected, prev_step)
+                and current_combo == tonumber(expected.expected_combo) then
+                -- A transcribed multi-string OKI route can start a new combo
+                -- without an intervening Action row at combo zero. The lower
+                -- recorded counter plus increasing damage is the explicit
+                -- boundary; validate the new string against its own counter.
                 combo_ok = true
             elseif expected and expected.expected_combo == 0 then
                 -- RESET TOLERANCE 2.0 (Standing Reset / Oki):

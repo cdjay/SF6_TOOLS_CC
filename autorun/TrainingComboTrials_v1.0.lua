@@ -7197,6 +7197,11 @@ local function ct_player_validation(p_idx, p_state)
 
                     local current_expected = trial_state.sequence[trial_state.current_step]
                     local is_reset_expected = current_expected and current_expected.expected_combo == 0
+                    local is_combo_restart_expected =
+                        Validator.is_expected_combo_restart_step(
+                            current_expected,
+                            last_validated
+                        )
                     local current_is_pressure_tail = is_pressure_tail_step(current_expected)
 
                     if last_validated and last_validated.expected_combo and last_validated.expected_combo > 0 then
@@ -7216,6 +7221,7 @@ local function ct_player_validation(p_idx, p_state)
                             end
                             trial_state.active_universal_hold = nil
                         elseif not _pf.opponent_knocked_down and not is_reset_expected
+                            and not is_combo_restart_expected
                             and not current_is_pressure_tail
                             and not (last_validated.expected_combo == (trial_state.current_step >= 3 and trial_state.sequence[trial_state.current_step - 2].expected_combo or 0)) then
                             ComboTrialsModules.PendingAbsorb.clear(trial_state, "combo_dropped")
@@ -10660,6 +10666,20 @@ ctx.finish_current_transcription_file = function(timed_out)
     if not run or run.active ~= true or type(run.current_source) ~= "table" then return false end
 
     local compiled = ctx.compile_action_event_session(run.session)
+    local function runtime_action_ids_equivalent(expected_id, observed_id)
+        local player_state = players[trial_state.playing_player or 0]
+        local match_rule = CharacterRules.get_match_rule(
+            player_state and player_state.exceptions or nil,
+            common_exceptions,
+            run.character,
+            expected_id
+        )
+        return ActionMatcher.matches_expected_action_id(
+            { id = expected_id },
+            observed_id,
+            match_rule
+        )
+    end
     if run.phase == "audit_raw" then
         local sequence_count = #(trial_state.sequence or {})
         local current_step = tonumber(trial_state.current_step) or 0
@@ -10683,6 +10703,7 @@ ctx.finish_current_transcription_file = function(timed_out)
                 raw_inputs = run.captured_raw_inputs,
                 input_completed = run.input_finished_frame ~= nil,
                 timed_out = timed_out == true,
+                action_ids_equivalent = runtime_action_ids_equivalent,
                 timing_tolerance = 2,
                 trial_completed = trial_completion.completed,
                 trial_completion = trial_completion,
@@ -10706,6 +10727,7 @@ ctx.finish_current_transcription_file = function(timed_out)
                 raw_inputs = run.captured_raw_inputs,
                 input_completed = run.input_finished_frame ~= nil,
                 timed_out = timed_out == true,
+                action_ids_equivalent = runtime_action_ids_equivalent,
                 timing_tolerance = 2,
                 verify_environment = true,
                 environment_observed = ctx.read_transcription_environment(),
@@ -10749,20 +10771,7 @@ ctx.finish_current_transcription_file = function(timed_out)
         raw_inputs = run.captured_raw_inputs,
         input_completed = run.input_finished_frame ~= nil,
         timed_out = timed_out == true,
-        action_ids_equivalent = function(expected_id, observed_id)
-            local player_state = players[trial_state.playing_player or 0]
-            local match_rule = CharacterRules.get_match_rule(
-                player_state and player_state.exceptions or nil,
-                common_exceptions,
-                run.character,
-                expected_id
-            )
-            return ActionMatcher.matches_expected_action_id(
-                { id = expected_id },
-                observed_id,
-                match_rule
-            )
-        end,
+        action_ids_equivalent = runtime_action_ids_equivalent,
         -- Legacy drive totals are not a stable replay oracle because Drive
         -- regenerates during a combo and old recorders used different sampling
         -- windows. The generated candidate is still checked strictly against
@@ -11129,7 +11138,8 @@ ctx.start_transcription_failures = function()
     local character = players[0] and players[0].profile_name or "Unknown"
     if character == "Unknown" then return false end
     local run_id = os.date("%Y%m%d_%H%M%S")
-    local run = ComboTrialsModules.Transcriber.new_run(
+    local run = ComboTrialsModules.Transcriber.failure_retry_run(
+        source_run,
         character,
         paths,
         CTJsonInterop.iso8601_now()

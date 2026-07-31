@@ -6,6 +6,7 @@ local compiler = dofile("autorun/func/ComboTrials/ActionEventCompiler.lua")
 local transcriber = dofile("autorun/func/ComboTrials/Transcriber.lua")
 local CharacterRules = require("func/ComboTrials/CharacterRules")
 local ActionMatcher = require("func/ComboTrials/ActionMatcher")
+local SceneState = require("func/ComboTrials/SceneState")
 
 assert(compiler.BIND_WINDOW == ActionMatcher.PLAYER_ACTION_BIND_WINDOW,
     "compiler and runtime validator must share one physical-input bind window")
@@ -95,8 +96,12 @@ assert(repeated_result.steps[1].id == 601 and repeated_result.steps[2].id == 601
 local function test_motion_resolver(action_id)
     local motions = {
         [17] = "66",
+        [33] = "8",
         [34] = "8",
+        [35] = "7",
+        [36] = "8",
         [37] = "9",
+        [38] = "7",
         [480] = "DP",
         [600] = "236+LP",
         [630] = "2+HP",
@@ -709,6 +714,217 @@ assert(contact_fallback_evaluation.ok == true
         == "input_derived_contact_motion:1",
     "a contact-proven input-derived motion must be auditable without blocking transcription")
 
+local honda_super_contact_phase = compiler.new({ character = "EHonda", frame = 0 })
+honda_super_contact_phase.events = {
+    {
+        id = 1221,
+        frame = 100,
+        expected_combo = 20,
+        damage_at_step = 4774,
+        has_hit = false,
+        has_contact = false,
+        anchor = {
+            kind = "button_press",
+            pressed_buttons = 64,
+            initial_action_id = 902,
+        },
+    },
+    {
+        id = 1222,
+        frame = 167,
+        expected_combo = 23,
+        damage_at_step = 7024,
+        has_hit = true,
+        has_contact = true,
+        anchor = {
+            kind = "button_press",
+            pressed_buttons = 32 | 256,
+            initial_action_id = 1221,
+        },
+    },
+}
+honda_super_contact_phase.current_damage = 7024
+honda_super_contact_phase.max_combo = 23
+local honda_super_contact_result = compiler.finalize(honda_super_contact_phase, {
+    motion_resolver = function(action_id)
+        if action_id == 1221 then return "214214+P", "strict_route" end
+        return nil, "action_id_missing"
+    end,
+})
+assert(#honda_super_contact_result.steps == 1
+    and honda_super_contact_result.steps[1].id == 1221
+    and honda_super_contact_result.steps[1].motion == "214214+P"
+    and honda_super_contact_result.steps[1].expected_combo == 23
+    and honda_super_contact_result.steps[1].damage_at_step == 7024
+    and honda_super_contact_result.steps[1].has_hit == true
+    and honda_super_contact_result.stats.fallback_motion_actions == 0
+    and honda_super_contact_result.trace.suppressed_events[1].id == 1222
+    and honda_super_contact_result.trace.suppressed_events[1].merged_into == 1221
+    and honda_super_contact_result.trace.suppressed_events[1].reason
+        == "character_internal_action_phase",
+    "Honda's unmapped super contact phase must merge into the real super command")
+
+local alex_super_recovery_phase = compiler.new({ character = "Alex", frame = 0 })
+alex_super_recovery_phase.events = {
+    {
+        id = 1208,
+        frame = 100,
+        expected_combo = 4,
+        damage_at_step = 3620,
+        has_hit = true,
+        has_contact = true,
+        anchor = {
+            kind = "button_press",
+            pressed_buttons = 64,
+        },
+    },
+    {
+        id = 1209,
+        frame = 209,
+        expected_combo = 0,
+        damage_at_step = 3620,
+        has_hit = false,
+        has_contact = false,
+        anchor = {
+            kind = "double_tap",
+            held_buttons = 32 | 256,
+            initial_action_id = 1208,
+        },
+    },
+    {
+        id = 500,
+        frame = 244,
+        expected_combo = 0,
+        damage_at_step = 3620,
+        has_hit = false,
+        has_contact = false,
+        anchor = {
+            kind = "double_tap",
+            held_buttons = 32 | 256,
+            initial_action_id = 1209,
+        },
+    },
+}
+alex_super_recovery_phase.current_damage = 3620
+alex_super_recovery_phase.max_combo = 4
+local alex_super_recovery_result = compiler.finalize(alex_super_recovery_phase, {
+    motion_resolver = function(action_id)
+        if action_id == 1208 then return "214214+P", "strict_route" end
+        if action_id == 500 then return "RAW DR", "strict_route" end
+        return nil, "action_id_missing"
+    end,
+})
+assert(#alex_super_recovery_result.steps == 2
+    and alex_super_recovery_result.steps[1].id == 1208
+    and alex_super_recovery_result.steps[2].id == 500
+    and alex_super_recovery_result.stats.fallback_motion_actions == 0
+    and alex_super_recovery_result.trace.suppressed_events[1].id == 1209
+    and alex_super_recovery_result.trace.suppressed_events[1].merged_into == 1208
+    and alex_super_recovery_result.trace.suppressed_events[1].reason
+        == "character_internal_action_phase",
+    "Alex's unmapped super recovery phase must merge into the real super command")
+
+local alex_hp_contact_phase = compiler.new({ character = "Alex", frame = 0 })
+alex_hp_contact_phase.events = {
+    {
+        id = 608,
+        frame = 100,
+        expected_combo = 0,
+        damage_at_step = 1600,
+        has_hit = false,
+        has_contact = false,
+        anchor = { kind = "button_press", pressed_buttons = 64 },
+    },
+    {
+        id = 610,
+        frame = 119,
+        expected_combo = 3,
+        damage_at_step = 2300,
+        has_hit = true,
+        has_contact = true,
+        anchor = {
+            kind = "button_press",
+            pressed_buttons = 64,
+            initial_action_id = 608,
+        },
+    },
+    {
+        id = 901,
+        frame = 138,
+        expected_combo = 4,
+        damage_at_step = 2900,
+        has_hit = true,
+        has_contact = true,
+        anchor = { kind = "button_press", pressed_buttons = 32 },
+    },
+}
+alex_hp_contact_phase.current_damage = 2900
+alex_hp_contact_phase.max_combo = 4
+local alex_hp_contact_result = compiler.finalize(alex_hp_contact_phase, {
+    motion_resolver = function(action_id)
+        if action_id == 608 then return "HP", "strict_route" end
+        if action_id == 901 then return "214+MP", "strict_route" end
+        return nil, "action_id_missing"
+    end,
+})
+assert(#alex_hp_contact_result.steps == 2
+    and alex_hp_contact_result.steps[1].id == 608
+    and alex_hp_contact_result.steps[1].expected_combo == 3
+    and alex_hp_contact_result.steps[1].damage_at_step == 2300
+    and alex_hp_contact_result.steps[2].id == 901
+    and alex_hp_contact_result.stats.fallback_motion_actions == 0
+    and alex_hp_contact_result.trace.suppressed_events[1].id == 610
+    and alex_hp_contact_result.trace.suppressed_events[1].merged_into == 608
+    and alex_hp_contact_result.trace.suppressed_events[1].reason
+        == "character_internal_action_phase",
+    "Alex's unmapped HP contact phase must merge into the real HP command")
+
+local alex_hp_release_phase = compiler.new({ character = "Alex", frame = 0 })
+alex_hp_release_phase.events = {
+    {
+        id = 976,
+        frame = 100,
+        expected_combo = 0,
+        damage_at_step = 1000,
+        has_hit = false,
+        has_contact = false,
+        anchor = { kind = "button_press", pressed_buttons = 64 },
+    },
+    {
+        id = 977,
+        frame = 101,
+        expected_combo = 2,
+        damage_at_step = 1960,
+        has_hit = true,
+        has_contact = true,
+        anchor = {
+            kind = "button_release",
+            released_buttons = 64,
+            initial_action_id = 976,
+        },
+    },
+}
+alex_hp_release_phase.current_damage = 1960
+alex_hp_release_phase.max_combo = 2
+local alex_hp_release_result = compiler.finalize(alex_hp_release_phase, {
+    motion_resolver = function(action_id)
+        if action_id == 976 then return "HP", "strict_route" end
+        if action_id == 977 then return ">HP (INSTANT)", "runtime_verified_override" end
+        return nil, "action_id_missing"
+    end,
+})
+assert(#alex_hp_release_result.steps == 1
+    and alex_hp_release_result.steps[1].id == 976
+    and alex_hp_release_result.steps[1].motion == "HP"
+    and alex_hp_release_result.steps[1].expected_combo == 2
+    and alex_hp_release_result.steps[1].damage_at_step == 1960
+    and alex_hp_release_result.steps[1].has_hit == true
+    and alex_hp_release_result.trace.suppressed_events[1].id == 977
+    and alex_hp_release_result.trace.suppressed_events[1].merged_into == 976
+    and alex_hp_release_result.trace.suppressed_events[1].reason
+        == "character_internal_action_phase",
+    "Alex's mapped HP release phase must merge only after Action 976")
+
 local noncontact_fallback = compiler.new({ character = "MBison", frame = 0 })
 noncontact_fallback.events = {
     {
@@ -770,7 +986,10 @@ bison_contact_continuation.events = {
         damage_at_step = 360,
         has_hit = true,
         has_contact = true,
-        anchor = { kind = "button_press", pressed_buttons = 64 },
+        anchor = {
+            kind = "button_press",
+            pressed_buttons = 64,
+        },
     },
     {
         id = 982,
@@ -779,7 +998,11 @@ bison_contact_continuation.events = {
         damage_at_step = 1080,
         has_hit = true,
         has_contact = true,
-        anchor = { kind = "double_tap", direction = "6" },
+        anchor = {
+            kind = "double_tap",
+            direction = "6",
+            initial_action_id = 981,
+        },
     },
 }
 local bison_contact_continuation_result =
@@ -796,6 +1019,49 @@ assert(#bison_contact_continuation_result.steps == 1
     and bison_contact_continuation_result.trace.suppressed_events[1].reason
         == "unmapped_contact_continuation",
     "a direction-buffered unmapped multi-hit phase must merge into its mapped owner")
+
+local marisa_delayed_contact = compiler.new({ character = "Marisa", frame = 0 })
+marisa_delayed_contact.events = {
+    {
+        id = 686,
+        frame = 10,
+        expected_combo = 0,
+        damage_at_step = 0,
+        has_hit = false,
+        has_contact = false,
+        anchor = {
+            kind = "button_press",
+            pressed_buttons = 64,
+        },
+    },
+    {
+        id = 684,
+        frame = 15,
+        expected_combo = 1,
+        damage_at_step = 1000,
+        has_hit = true,
+        has_contact = true,
+        anchor = {
+            kind = "direction_action",
+            direction = "4",
+            initial_action_id = 686,
+        },
+    },
+}
+local marisa_delayed_contact_result =
+    compiler.finalize(marisa_delayed_contact, {
+        motion_resolver = function(action_id)
+            if action_id == 686 then return "4+HP", "strict_route" end
+            return nil, "action_id_missing"
+        end,
+    })
+assert(#marisa_delayed_contact_result.steps == 1
+    and marisa_delayed_contact_result.steps[1].id == 686
+    and marisa_delayed_contact_result.steps[1].expected_combo == 1
+    and marisa_delayed_contact_result.steps[1].damage_at_step == 1000
+    and marisa_delayed_contact_result.trace.suppressed_events[1].reason
+        == "unmapped_contact_continuation",
+    "an unmapped contact phase that starts during its mapped owner must merge even when the owner has not hit yet")
 
 local drive_rush_phase = compiler.new({ character = "MBison", frame = 0 })
 drive_rush_phase.events = {
@@ -881,6 +1147,42 @@ assert(delayed_jump_result.trace.suppressed_events[1].id == 34
     and delayed_jump_result.trace.suppressed_events[1].reason
         == "jump_startup_transition",
     "JUMP_F_BGN must collapse into the durable forward-jump Action")
+
+local vertical_jump_contact_startup = compiler.new({
+    character = "EHonda",
+    frame = 0,
+})
+vertical_jump_contact_startup.events = {
+    {
+        id = 33,
+        frame = 10,
+        expected_combo = 2,
+        damage_at_step = 1700,
+        has_hit = true,
+        has_contact = true,
+        anchor = { kind = "direction_action", direction = "8" },
+    },
+    {
+        id = 36,
+        frame = 14,
+        expected_combo = 0,
+        damage_at_step = 0,
+        has_hit = false,
+        has_contact = false,
+        anchor = { kind = "movement_action", direction = "8" },
+    },
+}
+local vertical_jump_contact_result = compiler.finalize(
+    vertical_jump_contact_startup,
+    { motion_resolver = test_motion_resolver }
+)
+assert(#vertical_jump_contact_result.steps == 1
+    and vertical_jump_contact_result.steps[1].id == 36
+    and vertical_jump_contact_result.steps[1].expected_combo == 2
+    and vertical_jump_contact_result.steps[1].damage_at_step == 1700
+    and vertical_jump_contact_result.steps[1].has_hit == true
+    and vertical_jump_contact_result.trace.suppressed_events[1].id == 33,
+    "vertical jump BGN contact truth must move to the durable jump Action")
 
 local released_jump_attack = compiler.new({ character = "Luke", frame = 0 })
 local released_jump_rows = {
@@ -1460,6 +1762,134 @@ assert(regressed_combo.ok == false
     and regressed_combo.environment_validation.matches == true,
     "a reproducible blocked drop must not rebuild a smaller combo as success")
 
+local segmented_legacy_source = {
+    {
+        id = 600,
+        motion = "LP",
+        expected_combo = 1,
+        damage_at_step = 300,
+        has_hit = true,
+        has_contact = true,
+        combo_stats = { damage = 900, super_used = 20000 },
+    },
+    {
+        id = 500,
+        motion = "DRC",
+        expected_combo = 0,
+        damage_at_step = 300,
+        has_hit = true,
+        has_contact = true,
+    },
+    {
+        id = 601,
+        motion = "MP",
+        expected_combo = 2,
+        damage_at_step = 600,
+        has_hit = true,
+        has_contact = true,
+    },
+    {
+        id = 1221,
+        motion = "214214+P",
+        expected_combo = 4,
+        damage_at_step = 900,
+        has_hit = true,
+        has_contact = true,
+    },
+}
+local segmented_legacy_steps = {
+    {
+        id = 600,
+        motion = "LP",
+        expected_combo = 1,
+        damage_at_step = 300,
+        has_hit = true,
+        has_contact = true,
+    },
+    {
+        id = 700,
+        motion = "AUTO",
+        expected_combo = 1,
+        damage_at_step = 300,
+        has_hit = false,
+        has_contact = false,
+    },
+    {
+        id = 500,
+        motion = "DRC",
+        expected_combo = 0,
+        damage_at_step = 300,
+        has_hit = false,
+        has_contact = false,
+    },
+    {
+        id = 601,
+        motion = "MP",
+        expected_combo = 1,
+        damage_at_step = 700,
+        has_hit = true,
+        has_contact = true,
+    },
+    {
+        id = 1221,
+        motion = "214214+P",
+        expected_combo = 2,
+        damage_at_step = 1200,
+        has_hit = true,
+        has_contact = true,
+    },
+}
+local segmented_legacy_rebuild = transcriber.evaluate(segmented_legacy_source, {
+    steps = segmented_legacy_steps,
+    stats = {
+        damage = 1200,
+        max_combo = 2,
+        super_used = 30000,
+        unresolved_anchors = 0,
+        block_contacts = 0,
+    },
+}, {
+    input_source = "timeline",
+    raw_inputs = { 16, 0, 288, 0, 32, 0 },
+    input_completed = true,
+    allow_legacy_outcome_rebuild = true,
+})
+assert(segmented_legacy_rebuild.ok == true
+    and segmented_legacy_rebuild.source_action_match == false
+    and segmented_legacy_rebuild.source_action_subsequence_match == true
+    and segmented_legacy_rebuild.legacy_segmented_outcome == true
+    and table.concat(segmented_legacy_rebuild.advisories, ","):match(
+        "source_segmented_combo_count_rebuilt"
+    )
+    and table.concat(segmented_legacy_rebuild.advisories, ","):match(
+        "source_segmented_super_usage_rebuilt"
+    ),
+    "a complete segmented legacy route may rebuild cumulative combo and net Super fields")
+
+local incomplete_segmented_steps = transcriber.deep_copy(segmented_legacy_steps)
+table.remove(incomplete_segmented_steps, 4)
+local incomplete_segmented_rebuild = transcriber.evaluate(segmented_legacy_source, {
+    steps = incomplete_segmented_steps,
+    stats = {
+        damage = 900,
+        max_combo = 2,
+        super_used = 30000,
+        unresolved_anchors = 0,
+        block_contacts = 0,
+    },
+}, {
+    input_source = "timeline",
+    raw_inputs = { 16, 0, 288, 0, 32, 0 },
+    input_completed = true,
+    allow_legacy_outcome_rebuild = true,
+})
+assert(incomplete_segmented_rebuild.ok == false
+    and incomplete_segmented_rebuild.source_action_subsequence_match == false
+    and table.concat(incomplete_segmented_rebuild.reasons, ","):match(
+        "combo_count_regressed"
+    ),
+    "a segmented route with a missing authored Action must remain a failure")
+
 local terminal_pressure_rebuild = transcriber.evaluate({
     {
         id = 600,
@@ -1581,6 +2011,15 @@ local action_variant_drift = transcriber.evaluate({
 assert(action_variant_drift.ok == true
     and action_variant_drift.source_action_match == true,
     "explicit Action aliases must preserve structural matching across game versions")
+for _, pair in ipairs({ { 970, 971 }, { 971, 970 }, { 972, 973 }, { 973, 972 } }) do
+    local rule = CharacterRules.get_match_rule(nil, nil, "EHonda", pair[1])
+    assert(ActionMatcher.matches_expected_action_id(
+            { id = pair[1] },
+            pair[2],
+            rule
+        ),
+        "Honda verified Action variants must match symmetrically")
+end
 
 local legacy_oki_source = {
     {
@@ -1699,6 +2138,103 @@ assert(#blocked_oki_adjustments == 0
     and prepared_blocked_oki[1].dummy_guard_type == 2,
     "an OKI sequence that expects block contact must retain its guard setting")
 
+local legacy_low_health_source = {
+    {
+        id = 607,
+        motion = "HP",
+        expected_hp = 2100,
+        recorded_by = 0,
+        scene_state = {
+            recorded_by = 0,
+            players = {
+                p1 = {
+                    resources = {
+                        hp = 10000,
+                        heal_hp = 10000,
+                        drive = 60000,
+                        super = 30000,
+                    },
+                },
+                p2 = { resources = { hp = 10000 } },
+            },
+        },
+    },
+    {
+        id = 1217,
+        motion = "236236+K",
+        expected_hp = 2100,
+    },
+}
+local prepared_low_health, low_health_adjustments =
+    transcriber.prepare_capture_sequence(legacy_low_health_source)
+local prepared_low_health_roles =
+    SceneState.resolve_roles(prepared_low_health[1], 0)
+assert(#low_health_adjustments == 1
+    and low_health_adjustments[1].field
+        == "scene_state.actor.resources.hp"
+    and low_health_adjustments[1].reason
+        == "stable_legacy_expected_hp"
+    and SceneState.resources(prepared_low_health_roles.actor).hp == 2100
+    and SceneState.resources(prepared_low_health_roles.actor).heal_hp == 2100
+    and legacy_low_health_source[1].scene_state.players.p1.resources.hp == 10000,
+    "a stable legacy low-health snapshot must repair only the copied actor scene for CA playback")
+local unstable_low_health_source = transcriber.deep_copy(legacy_low_health_source)
+unstable_low_health_source[2].expected_hp = 2000
+local prepared_unstable_health, unstable_health_adjustments =
+    transcriber.prepare_capture_sequence(unstable_low_health_source)
+assert(#unstable_health_adjustments == 0
+    and prepared_unstable_health[1].scene_state.players.p1.resources.hp == 10000,
+    "conflicting legacy HP samples must not override the V2 scene authority")
+local low_health_causes = transcriber.suspected_causes(legacy_low_health_source)
+assert(table.concat(low_health_causes, ","):match("actor_low_health"),
+    "legacy expected_hp must identify a missing low-health environment in failure reports")
+
+local honda_legacy_buff_source = {
+    {
+        id = 926,
+        motion = "214+HP",
+        expected_hp = 10500,
+        recorded_by = 0,
+        scene_state = {
+            recorded_by = 0,
+            players = {
+                p1 = {
+                    fighter_id = 20,
+                    resources = { hp = 10500 },
+                    unique = { stock_0_020 = 0 },
+                },
+                p2 = { fighter_id = 1, resources = { hp = 10000 } },
+            },
+        },
+    },
+}
+local prepared_honda_buff, honda_buff_adjustments =
+    transcriber.prepare_capture_sequence(honda_legacy_buff_source)
+local prepared_honda_roles = SceneState.resolve_roles(prepared_honda_buff[1], 0)
+assert(#honda_buff_adjustments == 1
+    and honda_buff_adjustments[1].field
+        == "scene_state.actor.unique.stock_0_020"
+    and honda_buff_adjustments[1].reason
+        == "source_action_requires_unique_resource"
+    and prepared_honda_roles.actor.state.unique.stock_0_020 == 1
+    and honda_legacy_buff_source[1].scene_state.players.p1.unique.stock_0_020 == 0,
+    "an enhanced Honda Action must repair missing initial Sumo Spirit on the copied scene")
+local honda_buff_causes = transcriber.suspected_causes(honda_legacy_buff_source)
+assert(table.concat(honda_buff_causes, ","):match(
+        "actor_character_resource_required"
+    ),
+    "enhanced Honda Actions must diagnose a missing unique resource")
+
+local honda_runtime_buff_source = transcriber.deep_copy(honda_legacy_buff_source)
+honda_runtime_buff_source[1].id = 970
+honda_runtime_buff_source[1].scene_state.players.p1.unique.stock_0_020 = 0
+honda_runtime_buff_source[2] = { id = 926, motion = "214+HP", expected_hp = 10500 }
+local prepared_runtime_buff, runtime_buff_adjustments =
+    transcriber.prepare_capture_sequence(honda_runtime_buff_source)
+assert(#runtime_buff_adjustments == 0
+    and prepared_runtime_buff[1].scene_state.players.p1.unique.stock_0_020 == 0,
+    "a replay that establishes Honda stock before the enhanced Action must retain stock zero")
+
 local candidate = assert(transcriber.build_candidate(source, result, {
     schema = 2,
     product_id = "sf6cc",
@@ -1796,6 +2332,33 @@ local verification_failure = transcriber.verify_candidate(candidate, {
 assert(verification_failure.ok == false
     and table.concat(verification_failure.reasons, ","):match("raw_replay_action_id_mismatch"),
     "raw replay verification must reject streams that execute a different Action")
+local honda_variant_candidate = transcriber.deep_copy(candidate)
+local honda_variant_compiled = transcriber.deep_copy(result)
+honda_variant_candidate[1].id = 973
+honda_variant_compiled.steps[1].id = 972
+local honda_variant_verified = transcriber.verify_candidate(
+    honda_variant_candidate,
+    honda_variant_compiled,
+    {
+        raw_inputs = honda_variant_candidate[1].raw_inputs,
+        input_completed = true,
+        action_ids_equivalent = function(expected_id, observed_id)
+            local rule = CharacterRules.get_match_rule(
+                nil,
+                nil,
+                "EHonda",
+                expected_id
+            )
+            return ActionMatcher.matches_expected_action_id(
+                { id = expected_id },
+                observed_id,
+                rule
+            )
+        end,
+    }
+)
+assert(honda_variant_verified.ok == true,
+    "raw replay verification must accept explicitly equivalent Honda Action variants")
 assert(transcriber.mark_raw_replay_verified(candidate, "2026-07-30T00:01:00+08:00")
     and candidate[1]._xt_meta.transcription.raw_replay_verified == true,
     "verified candidates must carry a machine-readable verification marker")
@@ -2006,6 +2569,44 @@ local explicit_failure_retry = transcriber.failed_source_paths({
 assert(#explicit_failure_retry == 1
     and explicit_failure_retry[1]:match("B%.json$"),
     "manual environment changes must be able to retry only current transcription failures")
+
+local failure_retry_run = transcriber.failure_retry_run({
+    character = "Marisa",
+    items = {
+        {
+            source_file = "TrainingComboTrials_data\\CustomCombos\\Marisa\\A.json",
+            source_name = "A.json",
+            candidate_file =
+                "TrainingComboTrials_data/TranscribedCandidates/Marisa/run1/A.json",
+            status = "passed",
+            raw_replay_verified = true,
+        },
+        {
+            source_file = "TrainingComboTrials_data\\CustomCombos\\Marisa\\B.json",
+            source_name = "B.json",
+            status = "failed",
+            raw_replay_verified = false,
+        },
+        {
+            source_file = "TrainingComboTrials_data\\CustomCombos\\Marisa\\C.json",
+            source_name = "C.json",
+            candidate_file =
+                "TrainingComboTrials_data/TranscribedCandidates/Marisa/run1/C.json",
+            status = "passed",
+            raw_replay_verified = false,
+        },
+    },
+}, "Marisa", {
+    "TrainingComboTrials_data\\CustomCombos\\Marisa\\B.json",
+}, "2026-07-31T17:00:00+08:00")
+assert(#failure_retry_run.items == 1
+    and failure_retry_run.items[1].source_name == "A.json"
+    and #failure_retry_run.paths == 1
+    and failure_retry_run.resume_processed == 1
+    and failure_retry_run.index == 1
+    and failure_retry_run.total == 2
+    and failure_retry_run.passed == 1,
+    "a failure retry report must retain verified passes and retry only failed paths")
 
 local environment_source = {
     {

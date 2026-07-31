@@ -4,7 +4,7 @@
 local Transcriber = {
     name = "ComboTrials.Transcriber",
     REPORT_SCHEMA = "sf6cc.combo_transcription_report.v1",
-    VALIDATION_REVISION = 20,
+    VALIDATION_REVISION = 26,
     OUTPUT_ROOT = "TrainingComboTrials_data/TranscribedCandidates",
     REPORT_ROOT = "TrainingComboTrials_data/TranscriptionReports",
 }
@@ -178,6 +178,107 @@ local function set_prepared_environment_field(first, field_name, value)
     first._xt_meta.environment[field_name] = value
 end
 
+local function stable_legacy_actor_hp(sequence)
+    local stable = nil
+    for _, step in ipairs(type(sequence) == "table" and sequence or {}) do
+        local hp = tonumber(type(step) == "table" and step.expected_hp)
+        if hp ~= nil then
+            hp = math.max(0, math.floor(hp + 0.5))
+            if stable ~= nil and hp ~= stable then return nil end
+            stable = hp
+        end
+    end
+    return stable
+end
+
+local function prepare_stable_legacy_actor_hp(first, sequence, adjustments)
+    local legacy_hp = stable_legacy_actor_hp(sequence)
+    local roles = SceneState.resolve_roles(first, 0)
+    local actor_state = roles and roles.actor and roles.actor.state or nil
+    local actor_resources = type(actor_state) == "table"
+        and type(actor_state.resources) == "table"
+        and actor_state.resources or nil
+    local scene_hp = tonumber(actor_resources and actor_resources.hp)
+    if legacy_hp == nil or legacy_hp <= 0 or scene_hp == nil or scene_hp <= 0
+        or legacy_hp == scene_hp then
+        return
+    end
+
+    -- Older V2 recorders stored the real attacking HP in expected_hp but wrote
+    -- a generic 10000 into scene_state. Characters do not all have 10000 max
+    -- HP, so a threshold-only repair misses exact CA boundaries such as E.
+    -- Honda's 2625/10500. A value repeated on every Action is stable runtime
+    -- evidence. During transcription only, repair the copied scene from it;
+    -- the original JSON remains untouched.
+    actor_resources.hp = legacy_hp
+    if actor_resources.heal_hp ~= nil then
+        actor_resources.heal_hp = legacy_hp
+    end
+    adjustments[#adjustments + 1] = {
+        field = "scene_state.actor.resources.hp",
+        from = scene_hp,
+        to = legacy_hp,
+        reason = "stable_legacy_expected_hp",
+    }
+end
+
+local LEGACY_UNIQUE_ACTION_REQUIREMENTS = {
+    [20] = {
+        resource_id = "stock_0_020",
+        value = 1,
+        -- [Shoulder Stance] Hundred Hand Slap Actions. These cannot occur
+        -- without E. Honda's stored Sumo Spirit stock.
+        required_action_ids = {
+            [925] = true,
+            [926] = true,
+            [927] = true,
+            [928] = true,
+            [929] = true,
+        },
+        -- 22K establishes the stock during the replay, so a later enhanced
+        -- Action does not prove that stock was required at frame zero.
+        producer_action_ids = {
+            [970] = true,
+            [971] = true,
+        },
+    },
+}
+
+local function required_initial_unique_rule(first, sequence)
+    local roles = SceneState.resolve_roles(first, 0)
+    local actor_state = roles and roles.actor and roles.actor.state or nil
+    local fighter_id = tonumber(type(actor_state) == "table" and actor_state.fighter_id)
+    local rule = fighter_id and LEGACY_UNIQUE_ACTION_REQUIREMENTS[fighter_id] or nil
+    if type(rule) ~= "table" then return nil, nil end
+
+    local produced = false
+    for _, step in ipairs(type(sequence) == "table" and sequence or {}) do
+        local action_id = tonumber(type(step) == "table" and step.id)
+        if action_id and rule.producer_action_ids[action_id] then produced = true end
+        if action_id and rule.required_action_ids[action_id] and not produced then
+            return rule, actor_state
+        end
+    end
+    return nil, actor_state
+end
+
+local function prepare_legacy_unique_state(first, sequence, adjustments)
+    local rule, actor_state = required_initial_unique_rule(first, sequence)
+    if type(rule) ~= "table" or type(actor_state) ~= "table" then return end
+    actor_state.unique = type(actor_state.unique) == "table"
+        and actor_state.unique or {}
+    local old_value = tonumber(actor_state.unique[rule.resource_id])
+    if old_value ~= nil and old_value >= rule.value then return end
+
+    actor_state.unique[rule.resource_id] = rule.value
+    adjustments[#adjustments + 1] = {
+        field = "scene_state.actor.unique." .. rule.resource_id,
+        from = old_value,
+        to = rule.value,
+        reason = "source_action_requires_unique_resource",
+    }
+end
+
 -- A legacy OKI recording can explicitly expect a second damaging string
 -- after its combo counter returned to zero while also carrying "guard after
 -- first hit". Those facts cannot both happen under raw input: the defender
@@ -190,6 +291,8 @@ function Transcriber.prepare_capture_sequence(source_sequence)
     local adjustments = {}
     if next(first) == nil then return prepared, adjustments end
 
+    prepare_stable_legacy_actor_hp(first, prepared, adjustments)
+    prepare_legacy_unique_state(first, prepared, adjustments)
     local expected = expected_outcome(prepared)
     local guard_type =
         TrainingEnvironment.resolve_dummy_guard_type(first, nil)
@@ -334,6 +437,74 @@ local function action_sequence_matches(sequence, compiled_steps, action_ids_equi
     return true
 end
 
+local function action_ids_match(expected_id, observed_id, action_ids_equivalent, index)
+    if expected_id == observed_id then return true end
+    if type(action_ids_equivalent) ~= "function" then return false end
+    local ok, result = pcall(
+        action_ids_equivalent,
+        expected_id,
+        observed_id,
+        index
+    )
+    return ok and result == true
+end
+
+-- Some early recorders omitted transient or newly mapped Actions while still
+-- preserving every authored Action in order. This weaker relationship is not
+-- enough for normal combo acceptance, but it proves that a segmented legacy
+-- OKI route was executed in full before its derived counters are rebuilt.
+local function action_sequence_is_subsequence(sequence, compiled_steps, action_ids_equivalent)
+    if type(sequence) ~= "table" or type(compiled_steps) ~= "table"
+        or #sequence == 0 or #compiled_steps == 0 then
+        return false
+    end
+
+    local observed_index = 1
+    for expected_index, expected in ipairs(sequence) do
+        local expected_id = tonumber(type(expected) == "table" and expected.id)
+        if expected_id == nil then return false end
+        local matched = false
+        while observed_index <= #compiled_steps do
+            local observed_id = tonumber(
+                type(compiled_steps[observed_index]) == "table"
+                    and compiled_steps[observed_index].id
+            )
+            if observed_id ~= nil and action_ids_match(
+                expected_id,
+                observed_id,
+                action_ids_equivalent,
+                expected_index
+            ) then
+                matched = true
+                observed_index = observed_index + 1
+                break
+            end
+            observed_index = observed_index + 1
+        end
+        if not matched then return false end
+    end
+    return true
+end
+
+local function terminal_action_contact_matches(sequence, compiled_steps, action_ids_equivalent)
+    local expected = type(sequence) == "table" and sequence[#sequence] or nil
+    local observed = type(compiled_steps) == "table" and compiled_steps[#compiled_steps] or nil
+    local expected_id = tonumber(type(expected) == "table" and expected.id)
+    local observed_id = tonumber(type(observed) == "table" and observed.id)
+    if expected_id == nil or observed_id == nil
+        or not action_ids_match(
+            expected_id,
+            observed_id,
+            action_ids_equivalent,
+            #sequence
+        ) then
+        return false
+    end
+    if not expects_terminal_contact(sequence) then return true end
+    return observed.has_hit == true or observed.has_contact == true
+        or observed.hit_result == "block" or observed.was_blocked == true
+end
+
 local function nonzero_resource(value)
     if type(value) == "boolean" then return value end
     if type(value) == "number" then return value ~= 0 end
@@ -369,13 +540,21 @@ function Transcriber.suspected_causes(sequence)
     if counter == 2 then append_unique(causes, "first_hit_punish_counter") end
 
     local actor_snapshot = type(snapshot.attacker) == "table" and snapshot.attacker or {}
+    local legacy_actor_hp = stable_legacy_actor_hp(sequence)
     local actor_hp = tonumber(type(actor_resources) == "table" and actor_resources.hp)
         or tonumber(actor_snapshot.current_hp)
     local actor_max_hp = tonumber(actor_snapshot.max_hp)
-    if actor_hp and ((actor_max_hp and actor_hp <= actor_max_hp * 0.25) or actor_hp <= 2500) then
+    if (actor_hp
+            and ((actor_max_hp and actor_hp <= actor_max_hp * 0.25)
+                or actor_hp <= 2500))
+        or (legacy_actor_hp
+            and ((actor_hp and actor_hp > 0
+                    and legacy_actor_hp <= actor_hp * 0.25)
+                or legacy_actor_hp <= 2500)) then
         append_unique(causes, "actor_low_health")
     end
-    if nonzero_resource(actor_unique) then
+    local required_unique_rule = required_initial_unique_rule(first, sequence)
+    if nonzero_resource(actor_unique) or required_unique_rule ~= nil then
         append_unique(causes, "actor_character_resource_required")
     end
 
@@ -419,6 +598,19 @@ function Transcriber.evaluate(sequence, compiled, runtime)
         steps,
         runtime.action_ids_equivalent
     )
+    local source_action_subsequence_match = action_sequence_is_subsequence(
+        sequence,
+        steps,
+        runtime.action_ids_equivalent
+    )
+    local legacy_segmented_outcome = runtime.allow_legacy_outcome_rebuild == true
+        and expected_hit_reconnect_reason(sequence) ~= nil
+        and source_action_subsequence_match
+        and terminal_action_contact_matches(
+            sequence,
+            steps,
+            runtime.action_ids_equivalent
+        )
 
     if runtime.input_source ~= "raw_inputs" and runtime.input_source ~= "timeline" then
         reasons[#reasons + 1] = "missing_input_stream"
@@ -538,11 +730,21 @@ function Transcriber.evaluate(sequence, compiled, runtime)
             )
         elseif runtime.allow_legacy_outcome_rebuild == true
             and observed_combo < expected.max_combo then
-            reasons[#reasons + 1] = string.format(
-                "combo_count_regressed:expected=%d:observed=%d",
-                expected.max_combo,
-                observed_combo
-            )
+            if legacy_segmented_outcome
+                and observed_combo > 0
+                and observed_blocks == expected.block_contacts then
+                advisories[#advisories + 1] = string.format(
+                    "source_segmented_combo_count_rebuilt:expected=%d:observed=%d",
+                    expected.max_combo,
+                    observed_combo
+                )
+            else
+                reasons[#reasons + 1] = string.format(
+                    "combo_count_regressed:expected=%d:observed=%d",
+                    expected.max_combo,
+                    observed_combo
+                )
+            end
         else
             reasons[#reasons + 1] = "combo_count_mismatch"
         end
@@ -558,7 +760,16 @@ function Transcriber.evaluate(sequence, compiled, runtime)
     end
     if expected.super_used > 0
         and math.abs((tonumber(stats.super_used) or 0) - expected.super_used) > 100 then
-        reasons[#reasons + 1] = "super_consumption_mismatch"
+        if legacy_segmented_outcome
+            and observed_blocks == expected.block_contacts then
+            advisories[#advisories + 1] = string.format(
+                "source_segmented_super_usage_rebuilt:expected=%d:observed=%d",
+                expected.super_used,
+                tonumber(stats.super_used) or 0
+            )
+        else
+            reasons[#reasons + 1] = "super_consumption_mismatch"
+        end
     end
     local environment_validation =
         validate_training_environment(sequence, runtime, reasons)
@@ -571,6 +782,8 @@ function Transcriber.evaluate(sequence, compiled, runtime)
         expected = expected,
         observed = deep_copy(stats),
         source_action_match = source_action_match,
+        source_action_subsequence_match = source_action_subsequence_match,
+        legacy_segmented_outcome = legacy_segmented_outcome,
         environment_validation = environment_validation,
     }
 end
@@ -591,6 +804,7 @@ function Transcriber.verify_candidate(candidate, compiled, runtime)
         raw_inputs = runtime.raw_inputs,
         input_completed = runtime.input_completed,
         timed_out = runtime.timed_out,
+        action_ids_equivalent = runtime.action_ids_equivalent,
         verify_environment = runtime.verify_environment,
         environment_observed = runtime.environment_observed,
     })
@@ -612,7 +826,16 @@ function Transcriber.verify_candidate(candidate, compiled, runtime)
         local observed = observed_steps[index]
         local expected_id = tonumber(expected and expected.id)
         local observed_id = tonumber(observed and observed.id)
-        if expected_id ~= observed_id then
+        local equivalent = expected_id == observed_id
+        if not equivalent and type(runtime.action_ids_equivalent) == "function" then
+            local ok, matched = pcall(
+                runtime.action_ids_equivalent,
+                expected_id,
+                observed_id
+            )
+            equivalent = ok and matched == true
+        end
+        if not equivalent then
             reasons[#reasons + 1] = string.format(
                 "raw_replay_action_id_mismatch:step=%d:expected=%s:actual=%s",
                 index,
@@ -877,6 +1100,36 @@ function Transcriber.failed_source_paths(previous_run)
         end
     end
     return paths
+end
+
+-- A failure-only retry still represents the same character-wide conversion.
+-- Retain previously verified passes in the new run so its report and candidate
+-- browser remain a complete install set instead of exposing only the retried
+-- subset from a separate output directory.
+function Transcriber.failure_retry_run(previous_run, character, paths, now)
+    local run = Transcriber.new_run(character, paths, now)
+    local retained = {}
+    local items = type(previous_run) == "table"
+        and type(previous_run.items) == "table" and previous_run.items or {}
+    for _, item in ipairs(items) do
+        if item.status == "passed"
+            and item.raw_replay_verified == true
+            and type(item.candidate_file) == "string"
+            and item.candidate_file ~= "" then
+            retained[#retained + 1] = deep_copy(item)
+        end
+    end
+    run.items = retained
+    run.resume_processed = #retained
+    run.index = #retained
+    run.total = #retained + #run.paths
+    run.passed = #retained
+    run.status = string.format(
+        "准备重试：已验证 %d，待重试 %d",
+        #retained,
+        #run.paths
+    )
+    return run
 end
 
 function Transcriber.resume_run(previous_run, character, paths, now)

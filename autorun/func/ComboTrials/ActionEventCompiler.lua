@@ -66,7 +66,26 @@ local JUMP_ACTIONS = {
 -- the durable forward-jump Action. The training validator intentionally
 -- ignores the BGN phase, so it must never become a separate V2 step.
 local JUMP_STARTUP_TRANSITIONS = {
+    [33] = { [36] = true },
     [34] = { [37] = true },
+    [35] = { [38] = true },
+}
+
+-- Some moves expose a separate contact or recovery Action even though the
+-- player issued only the preceding command. These exact, runtime-verified
+-- transitions must fold into the command-owning Action. The destination may
+-- also be a valid standalone command in another context, so suppression is
+-- limited to the listed predecessor/destination pair.
+local INTERNAL_ACTION_PHASE_TRANSITIONS = {
+    alex = {
+        [608] = { [610] = true },
+        [976] = { [977] = true },
+        [1208] = { [1209] = true },
+    },
+    ehonda = {
+        [1215] = { [1216] = true },
+        [1221] = { [1222] = true },
+    },
 }
 
 local DASH_ACTIONS = {
@@ -384,7 +403,6 @@ end
 local function is_jump_startup_precursor(previous, current)
     if type(previous) ~= "table" or type(current) ~= "table" then return false end
     if type(previous.event) ~= "table" or type(current.event) ~= "table" then return false end
-    if previous.event.has_contact == true or previous.event.has_hit == true then return false end
     local destinations = JUMP_STARTUP_TRANSITIONS[tonumber(previous.event.id)]
     if type(destinations) ~= "table"
         or destinations[tonumber(current.event.id)] ~= true then
@@ -473,11 +491,13 @@ local function is_redundant_drive_rush_phase(previous, current)
     return delay >= 0 and delay <= Compiler.BIND_WINDOW
 end
 
--- A mapped attack can change to an unmapped multi-hit execution state while a
--- direction buffer is already being entered for the next command. With no
--- attack button on that anchor, the direction did not cause the contact Action;
--- merge the observed hit truth into its mapped owner instead of drawing a
--- fabricated directional instruction.
+-- A mapped attack can change to an unmapped execution/contact state while a
+-- direction buffer is already being entered for the next command. The owner
+-- Action may not yet contain the hit: Marisa 686 -> 684 and 902 -> 907 expose
+-- their contact only on the second state. With no attack button on that anchor,
+-- and with the anchor having started during the mapped owner, the direction did
+-- not cause the contact Action. Merge the observed truth into the owner instead
+-- of drawing a fabricated directional instruction.
 local function is_unmapped_contact_continuation(previous, current)
     if type(previous) ~= "table" or type(current) ~= "table"
         or type(previous.event) ~= "table"
@@ -493,15 +513,31 @@ local function is_unmapped_contact_continuation(previous, current)
         or (anchor.kind ~= "double_tap"
             and anchor.kind ~= "direction_action"
             and anchor.kind ~= "movement_action")
-        or (previous.event.has_contact ~= true
-            and previous.event.has_hit ~= true)
         or (current.event.has_contact ~= true
             and current.event.has_hit ~= true) then
         return false
     end
     local delay = (tonumber(current.event.frame) or 0)
         - (tonumber(previous.event.frame) or 0)
-    return delay >= 0 and delay <= Compiler.BIND_WINDOW
+    if delay < 0 or delay > Compiler.BIND_WINDOW then return false end
+    if previous.event.has_contact == true or previous.event.has_hit == true then
+        return true
+    end
+    return tonumber(anchor.initial_action_id) == tonumber(previous.event.id)
+end
+
+local function is_character_internal_action_phase(previous, current, character)
+    if type(previous) ~= "table" or type(current) ~= "table"
+        or type(previous.event) ~= "table"
+        or type(current.event) ~= "table" then
+        return false
+    end
+    local key = tostring(character or ""):lower():gsub("[^%w]", "")
+    local character_rules = INTERNAL_ACTION_PHASE_TRANSITIONS[key]
+    local destinations = type(character_rules) == "table"
+        and character_rules[tonumber(previous.event.id)] or nil
+    return type(destinations) == "table"
+        and destinations[tonumber(current.event.id)] == true
 end
 
 local function resolve_motion(resolver, event, session)
@@ -1151,7 +1187,14 @@ function Compiler.finalize(session, options)
                 is_redundant_drive_rush_phase(previous, current)
             local contact_continuation =
                 is_unmapped_contact_continuation(previous, current)
-            if redundant_drive_rush or contact_continuation then
+            local internal_action_phase =
+                is_character_internal_action_phase(
+                    previous,
+                    current,
+                    session and session.character
+                )
+            if redundant_drive_rush or contact_continuation
+                or internal_action_phase then
                 merge_event_truth(previous.event, event)
                 suppressed_events[#suppressed_events + 1] = {
                     id = event.id,
@@ -1159,7 +1202,9 @@ function Compiler.finalize(session, options)
                     merged_into = previous.event.id,
                     reason = redundant_drive_rush
                             and "redundant_drive_rush_phase"
-                        or "unmapped_contact_continuation",
+                        or (internal_action_phase
+                            and "character_internal_action_phase"
+                            or "unmapped_contact_continuation"),
                 }
                 goto continue_projection
             end
@@ -1205,6 +1250,13 @@ function Compiler.finalize(session, options)
             else
                 if quick_drive_parry or jump_startup or unmapped_input
                     or unverified_direction then
+                    if jump_startup then
+                        -- The hit can be sampled on the short BGN phase before
+                        -- the durable jump Action appears. Preserve that truth
+                        -- on the command-owning jump instead of retaining an
+                        -- unresolved startup instruction.
+                        merge_event_truth(current.event, previous.event)
+                    end
                     projected[#projected] = nil
                     suppressed_events[#suppressed_events + 1] = {
                         id = previous.event.id,

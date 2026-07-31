@@ -182,6 +182,41 @@ assert(Validator.check_combo({
     current_combo = 3,
 }) == true, "the existing same-frame current-hit tolerance must remain")
 
+local segmented_previous = {
+    expected_combo = 20,
+    damage_at_step = 2985,
+    has_contact = true,
+}
+local segmented_restart = {
+    expected_combo = 1,
+    damage_at_step = 3345,
+    has_contact = true,
+}
+assert(Validator.is_expected_combo_restart_step(segmented_restart, segmented_previous),
+    "a lower positive counter with increasing damage must identify a recorded OKI restart")
+assert(Validator.check_combo({
+    expected = segmented_restart,
+    prev_step = segmented_previous,
+    current_combo = 1,
+}) == true, "the first hit of a recorded OKI restart must validate against the new segment")
+assert(Validator.check_combo({
+    expected = segmented_restart,
+    prev_step = segmented_previous,
+    current_combo = 2,
+}) == false, "an OKI restart must not hide the wrong new-segment combo count")
+assert(Validator.is_expected_combo_restart_step({
+    expected_combo = 1,
+    damage_at_step = 2985,
+    has_contact = true,
+}, segmented_previous) == false,
+    "a lower counter without new damage must not create an implicit restart")
+assert(Validator.is_expected_combo_restart_step({
+    expected_combo = 1,
+    damage_at_step = 3345,
+    has_contact = false,
+}, segmented_previous) == false,
+    "a non-contact setup row must not create an implicit restart")
+
 local pressure_trial = {
     {
         id = 600,

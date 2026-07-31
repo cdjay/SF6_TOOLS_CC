@@ -30,6 +30,16 @@ local ACTION_VARIANT_RULES = {
             action_alias_combo_deltas = { ["1268"] = 32 },
             finish_on_first_hit = true
         }
+    },
+    EHonda = {
+        -- These pairs are verified inherited variants of the same physical
+        -- command. The game can select either member on two identical raw
+        -- replays, so matching must be symmetric while the captured real ID
+        -- remains in the candidate JSON.
+        ["970"] = { action_alias_ids = "971" },
+        ["971"] = { action_alias_ids = "970" },
+        ["972"] = { action_alias_ids = "973" },
+        ["973"] = { action_alias_ids = "972" }
     }
 }
 

@@ -12,6 +12,7 @@ local Canvas = require("func/ImGuiCanvas")
 local SequenceGrouping = require("func/ComboTrials/SequenceGrouping")
 local Validator = require("func/ComboTrials/Validator")
 local TrainingEnvironment = require("func/ComboTrials/TrainingEnvironment")
+local CommandDisplayOverrides = require("func/ComboTrials/CommandDisplayOverrides")
 
 -- Shared context (set by init)
 local ctx -- { d2d_cfg, trial_state, players, sf6_menu_state }
@@ -749,6 +750,12 @@ local function load_command_display_map(character)
         and tostring(meta.character or "") == key
         and strict_audit then
         local slim = build_slim_command_display_map(loaded)
+        slim = CommandDisplayOverrides.load_and_merge(slim, key, function(filename)
+            if type(_G.safe_load_json) == "function" then
+                return _G.safe_load_json(filename)
+            end
+            return json.load_file(filename)
+        end)
         loaded = nil
         command_display_cache[key] = slim
         command_display_runtime.cache_status[key] = "loaded"

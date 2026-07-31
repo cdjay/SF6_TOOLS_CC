@@ -353,6 +353,14 @@ function ActionMatcher.is_optional_parent_for_followup(
     actual_input
 )
     if type(actual_motion) ~= "string" or type(expected_step) ~= "table" then return false end
+    -- An Action that is already the exact recorded expectation is never an
+    -- optional parent. This guard must run before motion-based heuristics:
+    -- adjacent follow-ups can legitimately share the same displayed command
+    -- (for example Alex 982 -> 983, both rendered as >HK).
+    if tonumber(expected_step.id) ~= nil
+        and tonumber(actual_action_id) == tonumber(expected_step.id) then
+        return false
+    end
     local expected_motion = trim(expected_step.motion)
     local exception_motion = expected_exception and expected_exception.follow_up_motion or nil
     if not motion_has_followup_marker(exception_motion or expected_motion) then return false end
