@@ -148,5 +148,26 @@ assert(#retry_paths == 2
     and retry_counts.stale == 1
     and retry_counts.failed == 1,
     "retry selection must include stale passes without requeueing current passes")
+local failed_paths = RuntimeAuditor.failed_source_paths({
+    items = {
+        {
+            source_file = "A.json",
+            status = "passed",
+            validation_revision = RuntimeAuditor.VALIDATION_REVISION - 1,
+        },
+        {
+            source_file = "B.json",
+            status = "failed",
+            validation_revision = RuntimeAuditor.VALIDATION_REVISION,
+        },
+        {
+            source_file = "b.JSON",
+            status = "failed",
+            validation_revision = RuntimeAuditor.VALIDATION_REVISION,
+        },
+    },
+})
+assert(#failed_paths == 1 and failed_paths[1] == "B.json",
+    "audit-to-transcription selection must exclude stale passes and deduplicate failures")
 
 print("combo runtime auditor tests passed")

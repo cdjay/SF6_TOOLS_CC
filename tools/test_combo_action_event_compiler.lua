@@ -268,6 +268,230 @@ assert(#release_between_result.steps == 1
     and release_between_result.stats.suppressed_action_events == 1,
     "an internal release phase must not split one input from its durable Action")
 
+local function cviper_delayed_motion_resolver(action_id)
+    if action_id == 608 then return "HK", "strict_route" end
+    if action_id == 930 then return "236+KK", "strict_route" end
+    if action_id == 905 then return "236+PP", "strict_route" end
+    if action_id == 969 then return "623+LP", "strict_route" end
+    if action_id == 971 then return "623+MP", "strict_route" end
+    if action_id == 973 then return "623+PP", "strict_route" end
+    if action_id == 961 then return "j.236+HK", "strict_route" end
+    if action_id == 1036 then return "528", "route_unverified" end
+    if action_id == 1037 then return "528", "route_unverified" end
+    if action_id == 1200 then return "236236+K", "strict_route" end
+    if action_id == 1218 then return "214214+K", "strict_route" end
+    return nil, "route_unverified"
+end
+
+local buffered_super = compiler.new({ character = "CViper", frame = 0 })
+local function buffered_super_observe(frame, action_id, input)
+    compiler.observe(buffered_super, {
+        frame = frame,
+        action_id = action_id,
+        action_frame = frame,
+        direct_input = input,
+        facing_right = true,
+        combo_count = 0,
+        actor_hp = 10000,
+        victim_hp = 10000,
+    })
+end
+buffered_super_observe(1, 930, 0)
+buffered_super_observe(2, 930, 128)
+buffered_super_observe(3, 930, 0)
+buffered_super_observe(4, 936, 0)
+buffered_super_observe(5, 1218, 0)
+local buffered_super_result = compiler.finalize(buffered_super, {
+    motion_resolver = cviper_delayed_motion_resolver,
+})
+assert(#buffered_super_result.steps == 1
+    and buffered_super_result.steps[1].id == 1218
+    and buffered_super_result.steps[1].motion == "214214+K"
+    and buffered_super_result.trace.input_bound_events[1].anchor.kind
+        == "button_press"
+    and buffered_super_result.trace.promoted_events[1].from_id == 936,
+    "a short release must not replace the press that launches a delayed durable Action")
+
+local release_ghost = compiler.new({ character = "CViper", frame = 0 })
+release_ghost.events = {
+    {
+        id = 608,
+        frame = 10,
+        has_hit = true,
+        has_contact = true,
+        expected_combo = 4,
+        damage_at_step = 2850,
+        anchor = { kind = "button_press", pressed_buttons = 512 },
+    },
+    {
+        id = 1037,
+        frame = 33,
+        has_hit = false,
+        has_contact = false,
+        expected_combo = 0,
+        damage_at_step = 2850,
+        anchor = { kind = "button_release", released_buttons = 512 },
+    },
+    {
+        id = 930,
+        frame = 35,
+        has_hit = true,
+        has_contact = true,
+        expected_combo = 10,
+        damage_at_step = 5750,
+        anchor = { kind = "button_press", pressed_buttons = 768 },
+    },
+}
+release_ghost.current_damage = 5750
+release_ghost.max_combo = 10
+local release_ghost_result = compiler.finalize(release_ghost, {
+    motion_resolver = cviper_delayed_motion_resolver,
+})
+assert(#release_ghost_result.steps == 2
+    and release_ghost_result.steps[1].id == 608
+    and release_ghost_result.steps[2].id == 930
+    and release_ghost_result.trace.suppressed_events[1].id == 1037
+    and release_ghost_result.trace.suppressed_events[1].reason
+        == "ghost_release_transition",
+    "transcription must suppress the same short release Ghost ignored by the live UI")
+
+local direction_cancel = compiler.new({ character = "CViper", frame = 0 })
+local function direction_cancel_observe(frame, action_id, input)
+    compiler.observe(direction_cancel, {
+        frame = frame,
+        action_id = action_id,
+        action_frame = frame,
+        direct_input = input,
+        facing_right = true,
+        combo_count = 0,
+        actor_hp = 10000,
+        victim_hp = 10000,
+    })
+end
+direction_cancel_observe(1, 10, 0)
+direction_cancel_observe(2, 10, 16)
+direction_cancel_observe(3, 10, 0)
+direction_cancel_observe(4, 969, 0)
+direction_cancel_observe(5, 969, 2)
+direction_cancel_observe(6, 969, 1)
+direction_cancel_observe(7, 969, 1)
+direction_cancel_observe(8, 1037, 1)
+local direction_cancel_result = compiler.finalize(direction_cancel, {
+    motion_resolver = cviper_delayed_motion_resolver,
+})
+assert(#direction_cancel_result.steps == 2
+    and direction_cancel_result.steps[1].id == 969
+    and direction_cancel_result.steps[2].id == 1037
+    and direction_cancel_result.steps[2].motion == "528"
+    and direction_cancel_result.trace.input_bound_events[2].anchor.kind
+        == "direction_action",
+    "a real direction-triggered high-jump cancel must remain a visible Action step")
+
+local unverified_direction_precursor =
+    compiler.new({ character = "CViper", frame = 0 })
+unverified_direction_precursor.events = {
+    {
+        id = 1037,
+        frame = 10,
+        has_hit = true,
+        has_contact = true,
+        expected_combo = 2,
+        damage_at_step = 1280,
+        anchor = { kind = "button_press", pressed_buttons = 32 },
+    },
+    {
+        id = 1037,
+        frame = 30,
+        has_hit = false,
+        has_contact = false,
+        expected_combo = 0,
+        damage_at_step = 1280,
+        anchor = { kind = "direction_action" },
+    },
+}
+unverified_direction_precursor.observed_actions = {
+    { id = 971, frame = 12, action_frame = 0 },
+    { id = 1037, frame = 30, action_frame = 0 },
+}
+unverified_direction_precursor.current_damage = 1280
+unverified_direction_precursor.max_combo = 2
+local unverified_direction_result =
+    compiler.finalize(unverified_direction_precursor, {
+        motion_resolver = cviper_delayed_motion_resolver,
+    })
+assert(#unverified_direction_result.steps == 2
+    and unverified_direction_result.steps[1].id == 971
+    and unverified_direction_result.steps[2].id == 1037
+    and unverified_direction_result.trace.promoted_events[1].from_id == 1037
+    and unverified_direction_result.trace.promoted_events[1].to_id == 971,
+    "a direction-only Action bound to an attack press must promote to the durable attack")
+
+local source_bound_direction_precursor =
+    compiler.new({ character = "CViper", frame = 0 })
+source_bound_direction_precursor.events = {
+    {
+        id = 1037,
+        frame = 10,
+        has_hit = false,
+        has_contact = false,
+        anchor = { kind = "button_press", pressed_buttons = 48 },
+    },
+    {
+        id = 973,
+        frame = 12,
+        has_hit = true,
+        has_contact = true,
+        expected_combo = 4,
+        damage_at_step = 2400,
+        anchor = { kind = "button_release", released_buttons = 48 },
+    },
+}
+source_bound_direction_precursor.current_damage = 2400
+source_bound_direction_precursor.max_combo = 4
+local source_bound_direction_result =
+    compiler.finalize(source_bound_direction_precursor, {
+        motion_resolver = cviper_delayed_motion_resolver,
+    })
+assert(#source_bound_direction_result.steps == 1
+    and source_bound_direction_result.steps[1].id == 973
+    and source_bound_direction_result.trace.suppressed_events[1].id == 1037
+    and source_bound_direction_result.trace.suppressed_events[1].reason
+        == "unverified_direction_button_precursor",
+    "a source-bound durable attack must absorb its unexplained direction precursor")
+
+local unmapped_direction_precursor =
+    compiler.new({ character = "CViper", frame = 0 })
+unmapped_direction_precursor.events = {
+    {
+        id = 1023,
+        frame = 10,
+        has_hit = false,
+        has_contact = false,
+        anchor = { kind = "direction_action", direction = "8" },
+    },
+    {
+        id = 961,
+        frame = 13,
+        has_hit = true,
+        has_contact = true,
+        expected_combo = 3,
+        damage_at_step = 2220,
+        anchor = { kind = "button_press", pressed_buttons = 512 },
+    },
+}
+unmapped_direction_precursor.current_damage = 2220
+unmapped_direction_precursor.max_combo = 3
+local unmapped_direction_result =
+    compiler.finalize(unmapped_direction_precursor, {
+        motion_resolver = cviper_delayed_motion_resolver,
+    })
+assert(#unmapped_direction_result.steps == 1
+    and unmapped_direction_result.steps[1].id == 961
+    and unmapped_direction_result.trace.suppressed_events[1].id == 1023
+    and unmapped_direction_result.trace.suppressed_events[1].reason
+        == "unmapped_input_precursor",
+    "an unmapped direction startup must yield to its immediate button Action")
+
 local unrelated_after_release = compiler.new({ character = "Luke", frame = 0 })
 unrelated_after_release.events = {
     {
@@ -945,6 +1169,179 @@ assert(rebuilt_legacy_outcome.ok == true
     and rebuilt_legacy_outcome.source_action_match == false,
     "transcription may rebuild stale derived outcome fields before strict raw replay")
 
+local regressed_combo_source = {
+    {
+        id = 608,
+        motion = "HK",
+        expected_combo = 1,
+        damage_at_step = 1080,
+        has_hit = true,
+        has_contact = true,
+        combo_stats = { damage = 2600 },
+        _xt_meta = {
+            environment = {
+                dummy_counter_type = 2,
+                dummy_guard_type = 2,
+                dummy_guard_count = 10,
+            },
+        },
+    },
+    {
+        id = 623,
+        motion = "j.HP",
+        expected_combo = 2,
+        damage_at_step = 1880,
+        has_hit = true,
+        has_contact = true,
+    },
+    {
+        id = 604,
+        motion = "HP",
+        expected_combo = 3,
+        damage_at_step = 2600,
+        has_hit = true,
+        has_contact = true,
+    },
+}
+local regressed_combo = transcriber.evaluate(regressed_combo_source, {
+    steps = {
+        {
+            id = 608,
+            motion = "HK",
+            expected_combo = 1,
+            damage_at_step = 1080,
+            has_hit = true,
+            has_contact = true,
+        },
+        {
+            id = 623,
+            motion = "j.HP",
+            expected_combo = 2,
+            damage_at_step = 1880,
+            has_hit = true,
+            has_contact = true,
+        },
+        {
+            id = 604,
+            motion = "HP",
+            expected_combo = 0,
+            damage_at_step = 1880,
+            has_hit = false,
+            has_contact = true,
+            hit_result = "block",
+            was_blocked = true,
+        },
+    },
+    stats = {
+        damage = 1880,
+        max_combo = 2,
+        unresolved_anchors = 0,
+        block_contacts = 1,
+    },
+}, {
+    input_source = "timeline",
+    raw_inputs = { 768, 0, 64, 0, 64, 0 },
+    input_completed = true,
+    allow_legacy_damage_drift = true,
+    allow_legacy_outcome_rebuild = true,
+    verify_environment = true,
+    environment_observed = {
+        dummy_counter_type = 2,
+        dummy_guard_type = 2,
+        dummy_guard_count = 10,
+    },
+})
+assert(regressed_combo.ok == false
+    and table.concat(regressed_combo.reasons, ","):match(
+        "unexpected_block_before_combo_completion"
+    )
+    and table.concat(regressed_combo.reasons, ","):match(
+        "combo_count_regressed:expected=3:observed=2"
+    )
+    and regressed_combo.environment_validation.matches == true,
+    "a reproducible blocked drop must not rebuild a smaller combo as success")
+
+local terminal_pressure_rebuild = transcriber.evaluate({
+    {
+        id = 600,
+        motion = "LP",
+        expected_combo = 1,
+        damage_at_step = 300,
+        has_hit = true,
+        has_contact = true,
+        combo_stats = { damage = 600 },
+    },
+    {
+        id = 666,
+        motion = "6+HP",
+        expected_combo = 1,
+        damage_at_step = 600,
+        has_hit = true,
+        has_contact = true,
+    },
+}, {
+    steps = {
+        {
+            id = 600,
+            motion = "LP",
+            expected_combo = 1,
+            damage_at_step = 300,
+            has_hit = true,
+            has_contact = true,
+        },
+        {
+            id = 666,
+            motion = "6+HP",
+            expected_combo = 0,
+            damage_at_step = 300,
+            has_hit = false,
+            has_contact = true,
+            hit_result = "block",
+            was_blocked = true,
+        },
+    },
+    stats = {
+        damage = 300,
+        max_combo = 1,
+        unresolved_anchors = 0,
+        block_contacts = 1,
+    },
+}, {
+    input_source = "timeline",
+    raw_inputs = { 16, 0, 64, 0 },
+    input_completed = true,
+    allow_legacy_damage_drift = true,
+    allow_legacy_outcome_rebuild = true,
+})
+assert(terminal_pressure_rebuild.ok == true,
+    "a block after the source maximum combo was reached may remain a pressure tail")
+
+local environment_mismatch = transcriber.evaluate(regressed_combo_source, {
+    steps = regressed_combo_source,
+    stats = {
+        damage = 2600,
+        max_combo = 3,
+        unresolved_anchors = 0,
+        block_contacts = 0,
+    },
+}, {
+    input_source = "timeline",
+    raw_inputs = { 768, 0, 64, 0, 64, 0 },
+    input_completed = true,
+    verify_environment = true,
+    environment_observed = {
+        dummy_counter_type = 0,
+        dummy_guard_type = 2,
+        dummy_guard_count = 10,
+    },
+})
+assert(environment_mismatch.ok == false
+    and environment_mismatch.reasons[1]
+        == "training_environment_mismatch:"
+            .. "dummy_counter_type:expected=2:actual=0"
+    and environment_mismatch.environment_validation.matches == false,
+    "transcription must reject a punish-counter menu write that did not apply")
+
 local action_variant_drift = transcriber.evaluate({
     {
         id = 854,
@@ -1233,6 +1630,38 @@ assert(#stale_failure_remaining == 1
     and stale_failure_remaining[1]:match("A%.json$")
     and stale_failure_retained == 1,
     "resume must revalidate failures when the validation policy revision changes")
+
+local report_paths = {
+    "TrainingComboTrials_data/TranscriptionReports/"
+        .. "CViper_failure_retry_20260731_115136.json",
+    "TrainingComboTrials_data/TranscriptionReports/CViper_20260731_125047.json",
+    "TrainingComboTrials_data/TranscriptionReports/CViper_in_progress.json",
+}
+local reports_by_path = {
+    [report_paths[1]] = {
+        schema = transcriber.REPORT_SCHEMA,
+        finished_at = "2026-07-31T11:51:36+08:00",
+        items = { { status = "passed" } },
+    },
+    [report_paths[2]] = {
+        schema = transcriber.REPORT_SCHEMA,
+        finished_at = "2026-07-31T12:53:50+08:00",
+        items = { { status = "failed" } },
+    },
+    [report_paths[3]] = {
+        schema = transcriber.REPORT_SCHEMA,
+        started_at = "2026-07-31T13:07:01+08:00",
+        items = { { status = "passed", source = "started_at" } },
+    },
+}
+local latest_report_path, latest_report = transcriber.select_latest_report(
+    report_paths,
+    function(path) return reports_by_path[path] end,
+    transcriber.REPORT_SCHEMA
+)
+assert(latest_report_path == report_paths[3]
+    and latest_report.items[1].source == "started_at",
+    "latest report loading must use started_at when finished_at is not available")
 
 local explicit_failure_retry = transcriber.failed_source_paths({
     character = "Guile",

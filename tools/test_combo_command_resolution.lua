@@ -354,8 +354,12 @@ assert(pending_source:find("._runtime_combo_on_match = combo_count", 1, true),
 local renderer = {
     get_command_display = function(_, action_id)
         if action_id == 906 then return nil, "suppress_transition" end
+        if action_id == 907 then return nil, "suppress_transition" end
         if action_id == 901 then return "214+MP", "strict_route" end
+        if action_id == 903 then return "214+HP", "strict_route" end
         if action_id == 944 then return "236+PP", "strict_route" end
+        if action_id == 1037 then return "528", "route_unverified" end
+        if action_id == 608 then return "HK", "route_unverified" end
         return nil, "action_id_missing"
     end
 }
@@ -371,6 +375,49 @@ assert(command_resolver.find_recent_action_button_edge(
 assert(command_resolver.find_recent_action_button_edge(
         { { frame_tick = 90, mask = 128 } }, 100, 106, 12) == 0,
     "a stale pre-parent button must never produce a derived cancel")
+
+local viper_owner_event = {
+    id = 903,
+    frame = 100,
+    anchor = {
+        pressed_buttons = 192,
+        released_buttons = 0,
+        held_buttons = 192,
+    },
+}
+local viper_cancel_event = {
+    id = 907,
+    frame = 102,
+    anchor = {
+        pressed_buttons = 0,
+        released_buttons = 64,
+        held_buttons = 0,
+    },
+}
+local viper_session = {
+    events = { viper_owner_event, viper_cancel_event },
+}
+local transition_edge = command_resolver.find_input_bound_transition_edge(
+    "CViper", viper_cancel_event, viper_session, renderer)
+assert(transition_edge == 128,
+    "a delayed C. Viper cancel must subtract the preceding command's HP owner")
+viper_cancel_event.anchor.released_buttons = 192
+transition_edge = command_resolver.find_input_bound_transition_edge(
+    "CViper", viper_cancel_event, viper_session, renderer)
+assert(transition_edge == 128,
+    "a combined HP+LK release must retain only the K transition edge")
+local transition_intentional, transition_status, transition_motion =
+    command_resolver.resolve_unified_command_action(
+        "CViper",
+        907,
+        transition_edge,
+        transition_edge,
+        renderer
+    )
+assert(transition_intentional == true
+        and transition_status == "player_input_transition"
+        and transition_motion == ">K (取消)",
+    "the recovered C. Viper cancel must render as one stable K transition")
 
 local intentional, route_status, classic = command_resolver.resolve_unified_command_action(
     "AnyCharacter", 901, 32, 32, renderer)
@@ -396,6 +443,16 @@ intentional, route_status, classic = command_resolver.resolve_unified_command_ac
     "AnyCharacter", 906, 128, 128, renderer)
 assert(intentional == true and route_status == "player_input_transition" and classic == ">K (取消)",
     "a physical button edge must recover a player-triggered cancel without character-specific IDs")
+
+intentional, route_status, classic = command_resolver.resolve_unified_command_action(
+    "CViper", 1037, 32, 32, renderer)
+assert(intentional == false and route_status == "route_unverified" and classic == "528",
+    "a direction-only route must not claim an unexplained attack-button edge")
+
+intentional, route_status, classic = command_resolver.resolve_unified_command_action(
+    "CViper", 608, 512, 512, renderer)
+assert(intentional == true and route_status == "route_unverified" and classic == "HK",
+    "a route-unverified normal must remain intentional when its button is visible")
 
 intentional, route_status, classic = command_resolver.resolve_unified_command_action(
     "AnyCharacter", 901, 32, 32, nil)

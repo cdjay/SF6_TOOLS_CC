@@ -3801,6 +3801,10 @@ local function apply_trial_training_environment(skip_refresh_settings)
         GuardWeight = settings.dummy_guard_weight,
         GuardOnlyType = settings.dummy_guard_only_type
     })
+    pcall(function()
+        local tm = sdk.get_managed_singleton("app.training.TrainingManager")
+        if tm then tm._IsReqRefresh = true end
+    end)
 end
 
 local function capture_current_positions()
@@ -4891,6 +4895,31 @@ ctx.resolve_compiled_motion = function(action_id, event, session)
             "classic"
         )
         if ok and status == "suppress_transition" then
+            local anchor = type(event) == "table" and type(event.anchor) == "table"
+                and event.anchor or {}
+            local edge_buttons =
+                ComboTrialsModules.CommandResolver.find_input_bound_transition_edge(
+                    character,
+                    event,
+                    session,
+                    ComboTrials_Renderer
+                )
+            local direct_input =
+                ((tonumber(anchor.held_buttons) or 0) | edge_buttons)
+            local intentional, transition_status, transition_motion =
+                ComboTrialsModules.CommandResolver.resolve_unified_command_action(
+                    character,
+                    action_id,
+                    direct_input,
+                    edge_buttons,
+                    ComboTrials_Renderer
+                )
+            if intentional and type(transition_motion) == "string"
+                and transition_motion ~= "" then
+                return ComboTrialsModules.TrainingEnvironment.strip_counter_tags(
+                    transition_motion
+                ), transition_status, metadata
+            end
             return nil, status
         end
         -- Do not call the later-declared local trim_string here. This resolver
@@ -8178,6 +8207,20 @@ local function ct_player_process_actions(p_idx, p_state, actions_to_process)
                     is_ignored = false
                     ignore_reason = ""
                 end
+                if is_ignored and ignore_reason == "[指令表：内部状态跳转]"
+                    and ActionMatcher.should_admit_ignored_expected_action(
+                        input_truth_mode,
+                        expected_for_ignore,
+                        act_id,
+                        expected_exception
+                    ) then
+                    -- A raw-input candidate is created from an input-bound
+                    -- runtime Action. Static command data may classify the
+                    -- same ID as a zero-input phase in other contexts; it must
+                    -- not erase the exact expected Action during playback.
+                    is_ignored = false
+                    ignore_reason = ""
+                end
 
                 local previous_expected_for_transition = expected_for_ignore
                     and trial_state.current_step
@@ -10344,6 +10387,11 @@ ctx.transcription_item = function(path, status, details)
         capture_advisories = details.capture_advisories,
         capture_source_action_match = details.capture_source_action_match,
         verification_observed = details.verification_observed,
+        environment_validation = details.environment_validation,
+        capture_environment_validation =
+            details.capture_environment_validation,
+        verification_environment_validation =
+            details.verification_environment_validation,
         raw_input_count = details.raw_input_count,
         action_trace = details.action_trace,
         verification_action_trace = details.verification_action_trace,
@@ -10396,6 +10444,18 @@ ctx.persist_transcription_report = function(run)
     end
     run.report_error = nil
     return true
+end
+
+ctx.read_transcription_environment = function()
+    local counter = ct_read_dummy_counter_settings()
+    local guard = ct_read_dummy_guard_settings()
+    return {
+        dummy_counter_type = tonumber(counter.counter_type),
+        dummy_guard_type = tonumber(guard.guard_type),
+        dummy_guard_count = tonumber(guard.guard_count),
+        counter_runtime = counter,
+        guard_runtime = guard,
+    }
 end
 
 ctx.reset_transcription_environment = function()
@@ -10467,6 +10527,19 @@ ctx.complete_transcription_item = function(run, evaluation, details)
         evaluation.suspected_causes =
             ComboTrialsModules.Transcriber.suspected_causes(run.current_source)
     end
+    local final_is_verification =
+        run.phase == "verify_raw" or run.phase == "audit_raw"
+    local capture_environment_validation =
+        run.capture_evaluation
+            and run.capture_evaluation.environment_validation or nil
+    if capture_environment_validation == nil and not final_is_verification then
+        capture_environment_validation = evaluation.environment_validation
+    end
+    local verification_environment_validation =
+        details.verification_environment_validation
+    if verification_environment_validation == nil and final_is_verification then
+        verification_environment_validation = evaluation.environment_validation
+    end
     ctx.transcription_item(run.current_path, evaluation.ok and "passed" or "failed", {
         input_source = run.capture_input_source or run.input_source,
         candidate_file = details.candidate_file,
@@ -10481,6 +10554,10 @@ ctx.complete_transcription_item = function(run, evaluation, details)
         capture_source_action_match =
             run.capture_evaluation and run.capture_evaluation.source_action_match or nil,
         verification_observed = details.verification_observed,
+        environment_validation = evaluation.environment_validation,
+        capture_environment_validation = capture_environment_validation,
+        verification_environment_validation =
+            verification_environment_validation,
         raw_input_count = type(run.captured_raw_inputs) == "table"
             and #run.captured_raw_inputs or 0,
         action_trace = run.capture_compiled and run.capture_compiled.trace
@@ -10606,6 +10683,8 @@ ctx.finish_current_transcription_file = function(timed_out)
                 timing_tolerance = 2,
                 trial_completed = trial_completion.completed,
                 trial_completion = trial_completion,
+                verify_environment = true,
+                environment_observed = ctx.read_transcription_environment(),
             }
         )
         return ctx.complete_transcription_item(run, evaluation, {
@@ -10625,6 +10704,8 @@ ctx.finish_current_transcription_file = function(timed_out)
                 input_completed = run.input_finished_frame ~= nil,
                 timed_out = timed_out == true,
                 timing_tolerance = 2,
+                verify_environment = true,
+                environment_observed = ctx.read_transcription_environment(),
             }
         )
         local candidate_path = nil
@@ -10689,9 +10770,12 @@ ctx.finish_current_transcription_file = function(timed_out)
         -- Action ID and the combo structure were reproduced exactly.
         allow_legacy_damage_drift = true,
         -- timeline/raw_inputs and the restored scene are the transcription
-        -- facts. Old step damage/combo fields are derived metadata; rebuild
-        -- them from the capture, then require an exact second raw replay.
+        -- facts. Old derived outcome fields may be rebuilt when current play
+        -- adds hits, but a smaller maximum combo remains a hard failure.
+        -- Every accepted capture must then survive an exact second raw replay.
         allow_legacy_outcome_rebuild = true,
+        verify_environment = true,
+        environment_observed = ctx.read_transcription_environment(),
     })
     if evaluation.ok then
         local candidate, candidate_error = ComboTrialsModules.Transcriber.build_candidate(
@@ -11138,6 +11222,8 @@ ctx.get_runtime_audit_retry_state = function()
     local run = demo_state.transcription_run
     if not run or run.active == true or run.mode ~= "runtime_audit" then return nil end
     local paths, counts = retryable_audit_paths(run)
+    local failed_paths =
+        ComboTrialsModules.RuntimeAuditor.failed_source_paths(run)
     if #paths == 0 then return nil end
     local item_label = counts.stale > 0
         and (counts.failed > 0 and "失败/过期项" or "过期项")
@@ -11147,15 +11233,17 @@ ctx.get_runtime_audit_retry_state = function()
         report_path = run.report_path,
         failed_count = counts.failed,
         stale_count = counts.stale,
+        transcription_count = #failed_paths,
         item_label = item_label,
     }
 end
 
 ctx.start_transcription_from_audit_failures = function()
     local audit_run = demo_state.transcription_run
-    local paths = retryable_audit_paths(audit_run)
+    local paths =
+        ComboTrialsModules.RuntimeAuditor.failed_source_paths(audit_run)
     if #paths == 0 then
-        ct_ticker("最近审计没有可转录的失败或过期项")
+        ct_ticker("最近审计没有可转录的失败项")
         return false
     end
     if trial_state.is_recording or trial_state.is_playing or demo_state.is_playing then
@@ -11212,24 +11300,23 @@ ctx.load_latest_runtime_audit_report = function()
         ct_ticker("没有找到当前角色的审计报告")
         return false
     end
-    table.sort(paths)
-    for index = #paths, 1, -1 do
-        local report_path = paths[index]
-        local loaded_ok, report = pcall(json.load_file, report_path)
-        if loaded_ok and type(report) == "table"
-            and report.schema == ComboTrialsModules.RuntimeAuditor.REPORT_SCHEMA
-            and type(report.items) == "table" then
-            report.active = false
-            report.mode = "runtime_audit"
-            report.report_path = report_path
-            report.status = string.format(
-                "已载入审计报告：成功 %d，失败 %d",
-                tonumber(report.passed) or 0,
-                tonumber(report.failed) or 0
-            )
-            demo_state.transcription_run = report
-            return true
-        end
+    local report_path, report =
+        ComboTrialsModules.Transcriber.select_latest_report(
+            paths,
+            json.load_file,
+            ComboTrialsModules.RuntimeAuditor.REPORT_SCHEMA
+        )
+    if report then
+        report.active = false
+        report.mode = "runtime_audit"
+        report.report_path = report_path
+        report.status = string.format(
+            "已载入审计报告：成功 %d，失败 %d",
+            tonumber(report.passed) or 0,
+            tonumber(report.failed) or 0
+        )
+        demo_state.transcription_run = report
+        return true
     end
     ct_ticker("最近的审计报告无法读取")
     return false
@@ -11247,12 +11334,13 @@ ctx.load_latest_transcription_report = function()
         ct_ticker("没有找到当前角色的转录报告")
         return false
     end
-    table.sort(paths)
-    local report_path = paths[#paths]
-    local loaded_ok, report = pcall(json.load_file, report_path)
-    if not loaded_ok or type(report) ~= "table"
-        or report.schema ~= ComboTrialsModules.Transcriber.REPORT_SCHEMA
-        or type(report.items) ~= "table" then
+    local report_path, report =
+        ComboTrialsModules.Transcriber.select_latest_report(
+            paths,
+            json.load_file,
+            ComboTrialsModules.Transcriber.REPORT_SCHEMA
+        )
+    if not report then
         ct_ticker("最近的转录报告无法读取")
         return false
     end

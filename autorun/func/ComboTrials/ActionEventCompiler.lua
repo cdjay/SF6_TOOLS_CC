@@ -20,6 +20,8 @@ local Compiler = {
     -- release must not claim a later low-numbered locomotion/system Action.
     RELEASE_LOW_ACTION_BIND_WINDOW = 8,
     PLAYER_FOLLOWUP_INPUT_WINDOW = 12,
+    GHOST_FILTER_FRAMES = 4,
+    DIRECTION_ACTION_BIND_WINDOW = 4,
     DASH_TAP_WINDOW = 12,
     BUTTON_MASK = 0xFFF0,
 }
@@ -227,12 +229,12 @@ local function update_actor_resources(session, sample)
     end
 end
 
-local function snapshot_anchor(session, sample, kind, pressed, released, hold_frames)
+local function build_anchor(session, sample, kind, pressed, released, hold_frames)
     local frame = tonumber(sample.frame) or 0
     local previous_event = session.events[#session.events]
     local history_start = previous_event and math.max(previous_event.frame - 5, frame - 90)
         or math.max(session.started_frame or frame, frame - 90)
-    local anchor = {
+    return {
         frame = frame,
         kind = kind,
         pressed_buttons = pressed or 0,
@@ -244,6 +246,17 @@ local function snapshot_anchor(session, sample, kind, pressed, released, hold_fr
         initial_action_frame = session.previous_action_frame,
         hold_frames = tonumber(hold_frames) or nil,
     }
+end
+
+local function snapshot_anchor(session, sample, kind, pressed, released, hold_frames)
+    local anchor = build_anchor(
+        session,
+        sample,
+        kind,
+        pressed,
+        released,
+        hold_frames
+    )
     session.input_anchor_count = session.input_anchor_count + 1
     session.input_started = true
     session.pending_anchor = anchor
@@ -292,6 +305,7 @@ local function add_event(session, sample, anchor, reason)
     session.events[#session.events + 1] = event
     session.current_event = event
     session.pending_anchor = nil
+    session.recent_direction_anchor = nil
     session.started = true
     session.started_frame = session.started_frame or frame
     session.last_activity_frame = frame
@@ -343,6 +357,10 @@ local function compact_motion(value)
     return tostring(value or ""):upper():gsub("[%s_+%-]+", "")
 end
 
+local function is_direction_only_motion(value)
+    return compact_motion(value):match("^[1-9]+$") ~= nil
+end
+
 local function is_quick_drive_parry_precursor(previous, current)
     if type(previous) ~= "table" or type(current) ~= "table" then return false end
     if previous.event.has_contact == true or previous.event.has_hit == true then return false end
@@ -387,12 +405,14 @@ local function is_unmapped_input_precursor(previous, current)
         and current.event.anchor or {}
     if previous_buttons == 0
         and current_buttons ~= 0
-        and previous_anchor.kind == "double_tap" then
+        and (previous_anchor.kind == "double_tap"
+            or previous_anchor.kind == "direction_action") then
         -- Quarter-circle repetitions inside a super input can briefly look
         -- like a standalone directional double tap. If no catalog Action or
         -- contact resulted before the following button Action, it is only the
         -- direction buffer of that command.
-        return true
+        return previous_anchor.kind == "double_tap"
+            or delay < Compiler.GHOST_FILTER_FRAMES
     end
     local movement_motion = compact_motion(current.motion)
     return previous_buttons == 0
@@ -452,6 +472,62 @@ local function promote_unmapped_event(
     return nil
 end
 
+-- A direction-only Action can briefly own the runtime slot when an attack
+-- button is pressed, even though that button actually launches a different
+-- durable Action a few frames later. A genuine direction command is captured
+-- from its direction edge; a direction-only route bound to an attack press is
+-- therefore an unexplained precursor and may follow that same input to the
+-- first strictly resolved runtime Action.
+local function promote_unverified_direction_precursor(
+    event,
+    next_event_frame,
+    observed_actions,
+    resolver,
+    session,
+    motion,
+    resolution_status
+)
+    local anchor = type(event) == "table" and type(event.anchor) == "table"
+        and event.anchor or {}
+    if resolution_status ~= "route_unverified"
+        or anchor.kind ~= "button_press"
+        or event_button_mask(event) == 0
+        or not is_direction_only_motion(motion) then
+        return nil
+    end
+
+    local event_frame = tonumber(event.frame) or 0
+    for _, observed in ipairs(type(observed_actions) == "table" and observed_actions or {}) do
+        local observed_frame = tonumber(observed and observed.frame)
+        local observed_id = tonumber(observed and observed.id)
+        local delay = observed_frame and (observed_frame - event_frame) or nil
+        if delay and delay > 0 and delay < Compiler.GHOST_FILTER_FRAMES
+            and (tonumber(next_event_frame) == nil
+                or observed_frame < tonumber(next_event_frame))
+            and observed_id ~= nil
+            and observed_id ~= tonumber(event.id) then
+            local candidate = shallow_copy(event)
+            candidate.promoted_from_id = event.id
+            candidate.promoted_from_frame = event.frame
+            candidate.id = observed_id
+            candidate.frame = observed_frame
+            candidate.action_frame = tonumber(observed.action_frame) or 0
+            candidate.bind_reason =
+                "unverified_direction_precursor_promoted_to_observed_action"
+            local candidate_motion, candidate_status, candidate_metadata =
+                resolve_motion(resolver, candidate, session)
+            if candidate_motion ~= nil
+                and candidate_status ~= "route_unverified"
+                and candidate_status ~= "suppress_transition"
+                and candidate_status ~= "resolver_error" then
+                return candidate, candidate_motion, candidate_status,
+                    candidate_metadata
+            end
+        end
+    end
+    return nil
+end
+
 -- Type-20 relations can expose both the BCM owner Action and a short internal
 -- execution phase for one physical command. Keep a phase when it appears on
 -- its own, but collapse it when its declared owner was just recorded with the
@@ -476,6 +552,57 @@ local function is_redundant_inherited_action_phase(previous, current)
     return delay >= 0 and delay <= 4
         and compact_motion(previous.motion) ~= ""
         and compact_motion(previous.motion) == compact_motion(current.motion)
+end
+
+-- The live validator debounces a short non-contact Action that starts on a
+-- release edge and is replaced by the next deliberate button Action. Apply
+-- the same rule during transcription so a self-consistent compiler replay
+-- cannot emit a step that the training UI will always classify as Ghost.
+local function is_release_ghost_precursor(previous, current)
+    if type(previous) ~= "table" or type(current) ~= "table"
+        or type(previous.event) ~= "table" or type(current.event) ~= "table" then
+        return false
+    end
+    local previous_anchor = type(previous.event.anchor) == "table"
+        and previous.event.anchor or {}
+    local current_anchor = type(current.event.anchor) == "table"
+        and current.event.anchor or {}
+    if previous_anchor.kind ~= "button_release"
+        or current_anchor.kind ~= "button_press"
+        or previous.resolution_status ~= "route_unverified"
+        or previous.event.has_contact == true
+        or previous.event.has_hit == true
+        or event_button_mask(current.event) == 0 then
+        return false
+    end
+    local delay = (tonumber(current.event.frame) or 0)
+        - (tonumber(previous.event.frame) or 0)
+    return delay > 0 and delay < Compiler.GHOST_FILTER_FRAMES
+end
+
+-- The durable Action may already have its own source event. In that case the
+-- promotion pass deliberately stops before it, and projection collapses the
+-- unexplained direction-only button phase into that following strict Action.
+local function is_unverified_direction_button_precursor(previous, current)
+    if type(previous) ~= "table" or type(current) ~= "table"
+        or type(previous.event) ~= "table" or type(current.event) ~= "table" then
+        return false
+    end
+    local anchor = type(previous.event.anchor) == "table"
+        and previous.event.anchor or {}
+    if previous.resolution_status ~= "route_unverified"
+        or anchor.kind ~= "button_press"
+        or event_button_mask(previous.event) == 0
+        or not is_direction_only_motion(previous.motion)
+        or current.motion == nil
+        or current.resolution_status == "route_unverified"
+        or current.resolution_status == "suppress_transition"
+        or current.resolution_status == "resolver_error" then
+        return false
+    end
+    local delay = (tonumber(current.event.frame) or 0)
+        - (tonumber(previous.event.frame) or 0)
+    return delay > 0 and delay < Compiler.GHOST_FILTER_FRAMES
 end
 
 local function is_underspecified_catalog_motion(motion)
@@ -551,6 +678,7 @@ function Compiler.new(options)
         input_anchor_count = 0,
         unresolved_anchor_count = 0,
         pending_anchor = nil,
+        recent_direction_anchor = nil,
         button_press_frames = {},
         last_direction_tap = {},
         direction_history = {},
@@ -598,6 +726,20 @@ function Compiler.observe(session, sample)
             direction = direction,
         }
         trim_direction_history(session, frame)
+        if pressed == 0 and released == 0
+            and direction ~= "5" and direction ~= "*" then
+            -- Direction-only Actions can become visible a few engine frames
+            -- after the physical edge. Keep a non-blocking candidate separate
+            -- from button/dash anchors: unused direction changes are ordinary
+            -- motion input and must not count as unresolved commands.
+            session.recent_direction_anchor = build_anchor(
+                session,
+                sample,
+                "direction_action",
+                0,
+                0
+            )
+        end
     end
 
     update_damage(session, sample)
@@ -612,14 +754,37 @@ function Compiler.observe(session, sample)
                 release_hold_frames
             )
         end
-        anchor = snapshot_anchor(
-            session,
-            sample,
-            pressed ~= 0 and "button_press" or "button_release",
-            pressed,
-            released,
-            released ~= 0 and release_hold_frames or nil
-        )
+        local pending_press = type(session.pending_anchor) == "table"
+            and session.pending_anchor or nil
+        local pending_buttons = pending_press
+            and ((tonumber(pending_press.pressed_buttons) or 0)
+                & Compiler.BUTTON_MASK) or 0
+        local release_completes_pending_press = pressed == 0
+            and released ~= 0
+            and pending_press ~= nil
+            and pending_press.kind == "button_press"
+            and (pending_buttons & released) ~= 0
+        if release_completes_pending_press then
+            -- A buffered/cancel Action can become visible only after the player
+            -- has already released the triggering button. Retain the press as
+            -- the command truth; replacing it with the release prevents later
+            -- internal phases from being promoted to the durable Action.
+            pending_press.hold_frames = math.max(
+                tonumber(pending_press.hold_frames) or 0,
+                release_hold_frames
+            )
+            pending_press.release_frame = frame
+            anchor = pending_press
+        else
+            anchor = snapshot_anchor(
+                session,
+                sample,
+                pressed ~= 0 and "button_press" or "button_release",
+                pressed,
+                released,
+                released ~= 0 and release_hold_frames or nil
+            )
+        end
     elseif ActionMatcher.should_observe_dash_direction_edge(pressed, released) then
         anchor = observe_dash_anchor(session, sample, direction, direction_changed)
     end
@@ -644,6 +809,8 @@ function Compiler.observe(session, sample)
         session.last_activity_frame = frame
     end
 
+    local action_start_absorbed = false
+
     -- A neutral Drive Rush briefly exposes the Drive Parry input Action before
     -- switching to RAW DR. When that switch happens immediately, it is one
     -- player command and the later Action ID is the durable truth. A held
@@ -659,6 +826,7 @@ function Compiler.observe(session, sample)
         session.current_event.action_frame = action_frame
         session.current_event.bind_reason = "quick_drive_parry_promoted_to_raw_dr"
         session.pending_anchor = nil
+        action_start_absorbed = true
     end
 
     local pending = session.pending_anchor
@@ -674,6 +842,7 @@ function Compiler.observe(session, sample)
         pending = nil
     end
 
+    local action_bound = false
     if pending and action_is_recordable(action_id) then
         local pending_age = frame - (tonumber(pending.frame) or frame)
         local stale_release_low_action = pending.kind == "button_release"
@@ -695,6 +864,7 @@ function Compiler.observe(session, sample)
                 action_restarted and "action_frame_rewind"
                     or (dash_already_active and "double_tap_action" or "action_id_changed")
             )
+            action_bound = bound_event ~= nil
             -- A jump direction + attack can first expose the jump Action, then
             -- the airborne normal one frame later. A direction edge or button
             -- release may replace the original press anchor before the jump
@@ -710,9 +880,34 @@ function Compiler.observe(session, sample)
                 session.pending_anchor = continuation
             end
         end
-    elseif actual_action_start and MOVEMENT_ACTIONS[action_id] and direction ~= "5" then
+    end
+
+    if not action_bound and actual_action_start
+        and MOVEMENT_ACTIONS[action_id] and direction ~= "5" then
         local movement_anchor = anchor or snapshot_anchor(session, sample, "movement_action", 0, 0)
         add_event(session, sample, movement_anchor, "movement_action_started")
+        action_bound = true
+    end
+
+    local direction_anchor = session.recent_direction_anchor
+    local direction_anchor_age = type(direction_anchor) == "table"
+        and (frame - (tonumber(direction_anchor.frame) or frame)) or nil
+    if not action_bound
+        and actual_action_start
+        and not action_start_absorbed
+        and direction_anchor_age ~= nil
+        and direction_anchor_age >= 0
+        and direction_anchor_age <= Compiler.DIRECTION_ACTION_BIND_WINDOW
+        and not ActionMatcher.is_raw_drive_rush_action_id(action_id)
+        and JUMP_STARTUP_TRANSITIONS[action_id] == nil
+        and action_is_recordable(action_id) then
+        -- Some character mechanics are completed by direction alone (for
+        -- example a high-jump cancel). They have no attack-button or dash
+        -- anchor, but a recent pure direction edge plus real Action start is
+        -- still direct input truth and must become a visible V2 step.
+        session.input_anchor_count = session.input_anchor_count + 1
+        session.input_started = true
+        add_event(session, sample, direction_anchor, "direction_action_started")
     end
 
     local current = session.current_event
@@ -784,6 +979,38 @@ function Compiler.finalize(session, options)
         local motion, resolution_status, resolution_metadata =
             resolve_motion(resolver, event, session)
         if type(resolver) == "function"
+            and resolution_status == "route_unverified" then
+            local promoted, promoted_motion, promoted_status, promoted_metadata =
+                promote_unverified_direction_precursor(
+                    event,
+                    next_promotion_boundary(
+                        source_events,
+                        event_index,
+                        resolver,
+                        session
+                    ),
+                    session.observed_actions,
+                    resolver,
+                    session,
+                    motion,
+                    resolution_status
+                )
+            if promoted then
+                event = promoted
+                motion = promoted_motion
+                resolution_status = promoted_status
+                resolution_metadata = promoted_metadata
+                promoted_events[#promoted_events + 1] = {
+                    from_id = source_event.id,
+                    from_frame = source_event.frame,
+                    to_id = event.id,
+                    to_frame = event.frame,
+                    motion = motion,
+                    reason = event.bind_reason,
+                }
+            end
+        end
+        if type(resolver) == "function"
             and motion == nil
             and resolution_status ~= "resolver_error"
             and resolution_status ~= "suppress_transition" then
@@ -839,12 +1066,26 @@ function Compiler.finalize(session, options)
                 resolution_metadata = resolution_metadata,
             }
             previous = projected[#projected]
+            local release_ghost =
+                is_release_ghost_precursor(previous, current)
+            if release_ghost then
+                projected[#projected] = nil
+                suppressed_events[#suppressed_events + 1] = {
+                    id = previous.event.id,
+                    frame = previous.event.frame,
+                    merged_into = event.id,
+                    reason = "ghost_release_transition",
+                }
+                previous = projected[#projected]
+            end
             local redundant_action_phase =
                 is_redundant_inherited_action_phase(previous, current)
             local quick_drive_parry =
                 is_quick_drive_parry_precursor(previous, current)
             local jump_startup = is_jump_startup_precursor(previous, current)
             local unmapped_input = is_unmapped_input_precursor(previous, current)
+            local unverified_direction =
+                is_unverified_direction_button_precursor(previous, current)
             if redundant_action_phase then
                 merge_event_truth(previous.event, event)
                 suppressed_events[#suppressed_events + 1] = {
@@ -854,7 +1095,8 @@ function Compiler.finalize(session, options)
                     reason = "redundant_inherited_action_phase",
                 }
             else
-                if quick_drive_parry or jump_startup or unmapped_input then
+                if quick_drive_parry or jump_startup or unmapped_input
+                    or unverified_direction then
                     projected[#projected] = nil
                     suppressed_events[#suppressed_events + 1] = {
                         id = previous.event.id,
@@ -863,7 +1105,8 @@ function Compiler.finalize(session, options)
                         reason = quick_drive_parry
                                 and "quick_drive_parry_raw_dr_precursor"
                             or (jump_startup and "jump_startup_transition"
-                                or "unmapped_input_precursor"),
+                                or (unmapped_input and "unmapped_input_precursor"
+                                    or "unverified_direction_button_precursor")),
                     }
                 end
                 projected[#projected + 1] = current

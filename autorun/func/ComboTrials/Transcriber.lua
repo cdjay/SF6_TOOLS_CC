@@ -4,13 +4,60 @@
 local Transcriber = {
     name = "ComboTrials.Transcriber",
     REPORT_SCHEMA = "sf6cc.combo_transcription_report.v1",
-    VALIDATION_REVISION = 12,
+    VALIDATION_REVISION = 18,
     OUTPUT_ROOT = "TrainingComboTrials_data/TranscribedCandidates",
     REPORT_ROOT = "TrainingComboTrials_data/TranscriptionReports",
 }
 
+local function report_time_key(path, report)
+    local report_times = {
+        type(report) == "table" and report.finished_at or nil,
+        type(report) == "table" and report.started_at or nil,
+    }
+    for index = 1, 2 do
+        local value = report_times[index]
+        local year, month, day, hour, minute, second =
+            tostring(value or ""):match(
+                "^(%d%d%d%d)%-(%d%d)%-(%d%d)T(%d%d):(%d%d):(%d%d)"
+            )
+        if year then
+            return year .. month .. day .. hour .. minute .. second
+        end
+    end
+
+    local latest_stamp = nil
+    for stamp in tostring(path or ""):gmatch("(%d%d%d%d%d%d%d%d_%d%d%d%d%d%d)") do
+        latest_stamp = stamp
+    end
+    return latest_stamp and latest_stamp:gsub("_", "") or ""
+end
+
+-- Report variants use different filename infixes (single/failure_retry/etc.),
+-- so lexical path order is not chronological. Select by persisted report time
+-- and use the path only as a deterministic tie-breaker.
+function Transcriber.select_latest_report(paths, loader, expected_schema)
+    if type(paths) ~= "table" or type(loader) ~= "function" then return nil end
+    local best_path, best_report, best_key = nil, nil, nil
+    for _, path in ipairs(paths) do
+        local ok, report = pcall(loader, path)
+        if ok and type(report) == "table"
+            and (expected_schema == nil or report.schema == expected_schema)
+            and type(report.items) == "table" then
+            local key = report_time_key(path, report)
+            if best_report == nil or key > best_key
+                or (key == best_key and tostring(path) > tostring(best_path)) then
+                best_path = path
+                best_report = report
+                best_key = key
+            end
+        end
+    end
+    return best_path, best_report
+end
+
 local Validator = require("func/ComboTrials/Validator")
 local SceneState = require("func/ComboTrials/SceneState")
+local TrainingEnvironment = require("func/ComboTrials/TrainingEnvironment")
 
 local DERIVED_STEP_KEYS = {
     actual_combo = true,
@@ -79,6 +126,59 @@ local function expected_outcome(sequence)
     }
 end
 
+local ENVIRONMENT_READBACK_FIELDS = {
+    "dummy_counter_type",
+    "dummy_guard_type",
+    "dummy_guard_count",
+}
+
+local function validate_training_environment(sequence, runtime, reasons)
+    if runtime.verify_environment ~= true then return nil end
+
+    local expected =
+        TrainingEnvironment.resolve_recorded_settings(first_step(sequence))
+    local observed = type(runtime.environment_observed) == "table"
+        and runtime.environment_observed or {}
+    local validation = {
+        expected = {},
+        observed = deep_copy(observed),
+        mismatches = {},
+        matches = true,
+    }
+
+    for _, field_name in ipairs(ENVIRONMENT_READBACK_FIELDS) do
+        local expected_value = tonumber(expected[field_name])
+        if expected_value ~= nil then
+            local observed_value = tonumber(observed[field_name])
+            validation.expected[field_name] = expected_value
+            if observed_value == nil then
+                validation.matches = false
+                validation.mismatches[#validation.mismatches + 1] = {
+                    field = field_name,
+                    expected = expected_value,
+                    actual = nil,
+                }
+                reasons[#reasons + 1] =
+                    "training_environment_readback_missing:" .. field_name
+            elseif observed_value ~= expected_value then
+                validation.matches = false
+                validation.mismatches[#validation.mismatches + 1] = {
+                    field = field_name,
+                    expected = expected_value,
+                    actual = observed_value,
+                }
+                reasons[#reasons + 1] = string.format(
+                    "training_environment_mismatch:%s:expected=%d:actual=%d",
+                    field_name,
+                    expected_value,
+                    observed_value
+                )
+            end
+        end
+    end
+    return validation
+end
+
 local function expects_terminal_contact(sequence)
     if type(sequence) ~= "table" or #sequence == 0 then return false end
     local terminal = sequence[#sequence]
@@ -92,6 +192,26 @@ local function expects_terminal_contact(sequence)
     local previous_damage = tonumber(type(previous) == "table" and previous.damage_at_step)
     return terminal_damage ~= nil and previous_damage ~= nil
         and terminal_damage > previous_damage
+end
+
+local function block_before_expected_combo_completion(steps, expected_combo)
+    local max_combo_before = 0
+    local saw_block = false
+    for index, step in ipairs(type(steps) == "table" and steps or {}) do
+        if type(step) == "table" then
+            if step.hit_result == "block" or step.was_blocked == true then
+                saw_block = true
+                if max_combo_before < expected_combo then
+                    return true, index, tonumber(step.id), max_combo_before
+                end
+            end
+            max_combo_before = math.max(
+                max_combo_before,
+                tonumber(step.expected_combo) or 0
+            )
+        end
+    end
+    return false, nil, nil, max_combo_before, saw_block
 end
 
 local function append_unique(target, value)
@@ -229,6 +349,24 @@ function Transcriber.evaluate(sequence, compiled, runtime)
         and observed_terminal.has_contact ~= true then
         reasons[#reasons + 1] = "terminal_expected_contact_missing"
     end
+    local observed_blocks = tonumber(stats.block_contacts) or 0
+    if expected.block_contacts == 0 and observed_blocks > 0 then
+        local blocked_early, block_step, block_action, combo_before, saw_block =
+            block_before_expected_combo_completion(steps, expected.max_combo)
+        if blocked_early then
+            reasons[#reasons + 1] = string.format(
+                "unexpected_block_before_combo_completion:"
+                    .. "step=%d:action=%s:combo=%d:expected=%d",
+                block_step,
+                tostring(block_action),
+                combo_before,
+                expected.max_combo
+            )
+        elseif not saw_block then
+            reasons[#reasons + 1] =
+                "unexpected_block_contacts_without_action_evidence"
+        end
+    end
     if (tonumber(stats.unresolved_anchors) or 0) > 0 then
         reasons[#reasons + 1] = "unresolved_input_actions"
     end
@@ -282,11 +420,18 @@ function Transcriber.evaluate(sequence, compiled, runtime)
             reasons[#reasons + 1] = "damage_mismatch"
         end
     end
-    if expected.max_combo > 0
-        and observed_combo ~= expected.max_combo then
-        if runtime.allow_legacy_outcome_rebuild == true then
+    if expected.max_combo > 0 and observed_combo ~= expected.max_combo then
+        if runtime.allow_legacy_outcome_rebuild == true
+            and observed_combo > expected.max_combo then
             advisories[#advisories + 1] = string.format(
                 "source_combo_count_rebuilt:expected=%d:observed=%d",
+                expected.max_combo,
+                observed_combo
+            )
+        elseif runtime.allow_legacy_outcome_rebuild == true
+            and observed_combo < expected.max_combo then
+            reasons[#reasons + 1] = string.format(
+                "combo_count_regressed:expected=%d:observed=%d",
                 expected.max_combo,
                 observed_combo
             )
@@ -307,6 +452,8 @@ function Transcriber.evaluate(sequence, compiled, runtime)
         and math.abs((tonumber(stats.super_used) or 0) - expected.super_used) > 100 then
         reasons[#reasons + 1] = "super_consumption_mismatch"
     end
+    local environment_validation =
+        validate_training_environment(sequence, runtime, reasons)
 
     return {
         ok = #reasons == 0,
@@ -316,6 +463,7 @@ function Transcriber.evaluate(sequence, compiled, runtime)
         expected = expected,
         observed = deep_copy(stats),
         source_action_match = source_action_match,
+        environment_validation = environment_validation,
     }
 end
 
@@ -335,6 +483,8 @@ function Transcriber.verify_candidate(candidate, compiled, runtime)
         raw_inputs = runtime.raw_inputs,
         input_completed = runtime.input_completed,
         timed_out = runtime.timed_out,
+        verify_environment = runtime.verify_environment,
+        environment_observed = runtime.environment_observed,
     })
     local reasons = prefix_reasons(evaluation.reasons, "raw_replay_")
     local expected_steps = type(candidate) == "table" and candidate or {}
@@ -406,6 +556,7 @@ function Transcriber.verify_candidate(candidate, compiled, runtime)
         suspected_causes = #reasons > 0 and Transcriber.suspected_causes(candidate) or {},
         expected = evaluation.expected,
         observed = evaluation.observed,
+        environment_validation = evaluation.environment_validation,
         action_comparison = {
             expected_count = #expected_steps,
             observed_count = #observed_steps,
