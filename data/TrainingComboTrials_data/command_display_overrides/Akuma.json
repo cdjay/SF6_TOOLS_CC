@@ -1,0 +1,85 @@
+{
+  "schema": "xt.command_display_overrides.v1",
+  "character": "Akuma",
+  "contextual_internal_phases": {
+    "908": {
+      "owner_ids": [
+        903
+      ],
+      "evidence": "The verified runtime audit records Action 908 only as the contact phase immediately following command Action 903"
+    },
+    "914": {
+      "owner_ids": [
+        904
+      ],
+      "evidence": "The verified runtime audit records Action 914 only as the contact phase immediately following command Action 904"
+    },
+    "948": {
+      "owner_ids": [
+        947,
+        952
+      ],
+      "evidence": "The AC transition graph declares Action 948 as a context-dependent phase after air command Action 947 or 952; verified raw-input runtime audits directly confirm 952 to 948"
+    },
+    "1010": {
+      "owner_ids": [
+        998,
+        999,
+        1000,
+        1005,
+        1006,
+        1007
+      ],
+      "evidence": "The AC transition graph declares Action 1010 as the shared landing or contact phase of Actions 998, 999, 1000, 1005, 1006 and 1007; verified raw-input runtime audits directly confirm 1000 to 1010"
+    },
+    "1216": {
+      "owner_ids": [
+        1213,
+        1214
+      ],
+      "evidence": "The AC transition graph declares Action 1216 as the cinematic phase after level-three command Action 1213 or 1214; verified raw-input runtime audits directly confirm 1213 to 1216"
+    }
+  },
+  "entries": {
+    "622": {
+      "classic": "2+LP",
+      "replace": true,
+      "evidence": "Four verified relative raw-input replays bind crouching LP presses and hit contact to Action 622; the generated catalog independently records the same Classic command"
+    },
+    "627": {
+      "classic": "2+MP",
+      "replace": true,
+      "evidence": "Three verified relative raw-input replay events bind crouching MP presses and hit contact to Action 627; the generated catalog independently records the same Classic command"
+    },
+    "661": {
+      "classic": "6+MP",
+      "replace": true,
+      "evidence": "Two verified relative raw-input replay events bind forward MP presses and hit contact to Action 661; the generated catalog independently records the same Classic command"
+    },
+    "975": {
+      "classic": "214+LP",
+      "replace": true,
+      "evidence": "Three verified relative raw-input replays bind 214+LP to Action 975 with hit contact and the expected 6+P continuation; the generated catalog records the same Classic command"
+    },
+    "977": {
+      "classic": "214+HP",
+      "replace": true,
+      "evidence": "Seventeen verified relative raw-input replay events across fourteen trials bind 214+HP and hit contact to Action 977; the generated catalog records the same Classic command"
+    },
+    "982": {
+      "classic": "6+P",
+      "replace": true,
+      "evidence": "Three verified relative raw-input replays enter Action 982 from Action 975 on the recorded 6+P follow-up and confirm hit contact; the generated catalog records the same Classic command"
+    },
+    "985": {
+      "classic": "6+P",
+      "replace": true,
+      "evidence": "Three verified relative raw-input replays enter Action 985 from Action 977 on the recorded 6+P follow-up and confirm hit contact; the generated catalog records the same Classic command"
+    },
+    "991": {
+      "classic": "236+HK",
+      "replace": true,
+      "evidence": "Five verified relative raw-input replays bind 236+HK to non-contact Action 991 immediately before the audited Demon Raid j.HK follow-up; the generated catalog records the same Classic command"
+    }
+  }
+}

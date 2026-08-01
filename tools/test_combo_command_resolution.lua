@@ -8,6 +8,7 @@ end
 local command_resolver = dofile("autorun/func/ComboTrials/CommandResolver.lua")
 local command_display_overrides =
     dofile("autorun/func/ComboTrials/CommandDisplayOverrides.lua")
+CommandDisplayOverrides = command_display_overrides
 
 local override_map = { _slim = true, ["967"] = { classic = ">6+P" } }
 local merged_overrides, applied_overrides, override_status =
@@ -96,6 +97,129 @@ assert(aki_override_status == "loaded" and aki_override_count == 4
         and aki_overrides["955"].status == "runtime_verified_override"
         and aki_overrides["957"].status == "runtime_verified_override",
     "AKI's verified Classic Actions must replace only their unverified catalog rows")
+local akuma_catalog = { _slim = true }
+local akuma_override_document = {
+    schema = "xt.command_display_overrides.v1",
+    character = "Akuma",
+    contextual_internal_phases = {
+        ["908"] = {
+            owner_ids = { 903.0 },
+            evidence = "verified 903 to 908 runtime transition",
+        },
+        ["914"] = {
+            owner_ids = { 904 },
+            evidence = "verified 904 to 914 runtime transition",
+        },
+        ["948"] = {
+            owner_ids = { 947, 952 },
+            evidence = "verified air-command runtime transitions",
+        },
+        ["1010"] = {
+            owner_ids = { 998, 999, 1000, 1005, 1006, 1007 },
+            evidence = "verified Demon Raid runtime transitions",
+        },
+        ["1216"] = {
+            owner_ids = { 1213, 1214 },
+            evidence = "verified level-three runtime transitions",
+        },
+    },
+    entries = {},
+}
+local akuma_classic_overrides = {
+    ["622"] = "2+LP",
+    ["627"] = "2+MP",
+    ["661"] = "6+MP",
+    ["975"] = "214+LP",
+    ["977"] = "214+HP",
+    ["982"] = "6+P",
+    ["985"] = "6+P",
+    ["991"] = "236+HK",
+}
+for action_id, classic in pairs(akuma_classic_overrides) do
+    akuma_catalog[action_id] = {
+        classic = classic,
+        status = "route_unverified",
+    }
+    akuma_override_document.entries[action_id] = {
+        classic = classic,
+        replace = true,
+        evidence = "verified Akuma relative raw-input replay",
+    }
+end
+local akuma_overrides, akuma_override_count, akuma_override_status =
+    command_display_overrides.merge(
+        akuma_catalog,
+        "Akuma",
+        akuma_override_document
+    )
+assert(akuma_override_status == "loaded" and akuma_override_count == 8,
+    "Akuma's eight verified Classic Actions must replace their unverified catalog rows")
+for _, pair in ipairs({
+    { 903, 908 },
+    { 904, 914 },
+    { 947, 948 },
+    { 952, 948 },
+    { 998, 1010 },
+    { 999, 1010 },
+    { 1000, 1010 },
+    { 1005, 1010 },
+    { 1006, 1010 },
+    { 1007, 1010 },
+    { 1213, 1216 },
+    { 1214, 1216 },
+}) do
+    assert(command_display_overrides.is_contextual_internal_phase(
+            akuma_overrides, pair[1], pair[2]) == true,
+        "validated Akuma display metadata must preserve every exact owner-child pair")
+end
+assert(command_display_overrides.is_contextual_internal_phase(
+        akuma_overrides, 997, 1010) == false
+        and command_display_overrides.is_contextual_internal_phase(
+            akuma_overrides, nil, 1010) == false,
+    "contextual display metadata must reject missing and undeclared owners")
+for action_id, classic in pairs(akuma_classic_overrides) do
+    assert(akuma_overrides[action_id].classic == classic
+            and akuma_overrides[action_id].commands == nil
+            and akuma_overrides[action_id].status == "runtime_verified_override",
+        "Akuma Classic overrides must resolve without inventing Modern commands")
+end
+for _, malformed_phases in ipairs({
+    "908",
+    {},
+    { ["bad"] = { owner_ids = { 903 }, evidence = "test" } },
+    { ["908"] = { owner_ids = {}, evidence = "test" } },
+    { ["908"] = { owner_ids = { 908 }, evidence = "test" } },
+    { ["908"] = { owner_ids = { 903.5 }, evidence = "test" } },
+    { ["908"] = { owner_ids = { 903, 903 }, evidence = "test" } },
+    { ["908"] = { owner_ids = { 903 } } },
+}) do
+    local malformed_map = {
+        _slim = true,
+        ["622"] = { classic = "catalog", status = "route_unverified" },
+    }
+    local merged, count, status = command_display_overrides.merge(
+        malformed_map,
+        "Akuma",
+        {
+            schema = "xt.command_display_overrides.v1",
+            character = "Akuma",
+            contextual_internal_phases = malformed_phases,
+            entries = {
+                ["622"] = {
+                    classic = "2+LP",
+                    replace = true,
+                    evidence = "would otherwise apply",
+                },
+            },
+        }
+    )
+    assert(status == "invalid_contextual_internal_phases"
+            and count == 0
+            and merged["622"].classic == "catalog"
+            and command_display_overrides.is_contextual_internal_phase(
+                merged, 903, 908) == false,
+        "malformed contextual display metadata must fail closed without partial overrides")
+end
 local ryu_with_aki_overrides, ryu_aki_override_count, ryu_aki_override_status =
     command_display_overrides.merge({ _slim = true }, "Ryu", aki_override_document)
 assert(ryu_aki_override_status == "invalid_override_document"
@@ -156,6 +280,11 @@ assert(malformed_modern_count == 0 and malformed_modern_override["856"] == nil,
 -- Load only the pure resolver functions from the active ImGui renderer; do not
 -- boot REFramework globals or exercise backend-specific drawing code.
 local renderer_source = read_all("autorun/func/ComboTrials_ImGui.lua")
+assert(not renderer_source:find("CharacterRules", 1, true),
+    "command display must consume cached display metadata without a CharacterRules hot path")
+assert(renderer_source:find("resolve_live_log_command_displays", 1, true)
+        and renderer_source:find("oldest_source_index + 1", 1, true),
+    "live display must resolve from one real predecessor before the visible window")
 local classic_block = assert(renderer_source:match(
     "(local function get_player_visible_transition_motion.-)\nlocal function get_command_display"))
 trim_string = function(value)
@@ -168,13 +297,16 @@ assert(load(semantic_block .. "\n_G.resolve_classic_common_semantic = resolve_cl
     "classic-common-semantic", "t", _G))()
 
 assert(load(classic_block .. "\n_G.get_classic_display_motion = get_classic_display_motion"
-    .. "\n_G.get_modern_display_motion = get_modern_display_motion",
+    .. "\n_G.get_modern_display_motion = get_modern_display_motion"
+    .. "\n_G.get_player_visible_transition_motion = get_player_visible_transition_motion",
     "classic-command-resolution", "t", _G))()
 local validation_block = assert(renderer_source:match(
     "(local function select_modern_display_motion.-)\nlocal function build_display_lines"
 ))
 assert(load(validation_block
         .. "\n_G.resolve_step_command_display = resolve_step_command_display"
+        .. "\n_G.resolve_contextual_step_command_display = resolve_contextual_step_command_display"
+        .. "\n_G.resolve_live_log_command_displays = resolve_live_log_command_displays"
         .. "\n_G.validate_sequence_command_display = validate_sequence_command_display",
     "command-display-validation", "t", _G))()
 
@@ -370,6 +502,115 @@ assert(aki_classic_validation.ok == true
         and aki_classic_validation.resolved_step_count == 4
         and aki_classic_validation.unresolved_count == 0,
     "AKI's four runtime-verified Classic overrides must pass strict display audit")
+
+for action_id, classic in pairs({
+    ["903"] = "236+HP",
+    ["904"] = "236+PP",
+    ["947"] = "j.236+PP",
+    ["952"] = "j.236+P",
+    ["1000"] = "j.HK",
+    ["1213"] = "214214+P",
+}) do
+    akuma_overrides[action_id] = {
+        classic = classic,
+        status = "strict_route",
+    }
+end
+resolve_modern_display_context = function()
+    return false, akuma_overrides, "Akuma", "loaded", false
+end
+local akuma_runtime_audit_validation = validate_sequence_command_display({
+    { id = 622, motion = "2+LP" },
+    { id = 627, motion = "2+MP" },
+    { id = 661, motion = "6+MP" },
+    { id = 975, motion = "214+LP" },
+    { id = 977, motion = "214+HP" },
+    { id = 982, motion = "6+P" },
+    { id = 985, motion = "6+P" },
+    { id = 991, motion = "236+HK" },
+    { id = 903, motion = "236+HP" },
+    { id = 908, motion = "HP" },
+    { id = 904, motion = "236+PP" },
+    { id = 914, motion = "4+LP+MP" },
+    { id = 952, motion = "j.236+P" },
+    { id = 948, motion = "4+LP" },
+    { id = 952, motion = "j.236+P" },
+    { id = 948, motion = "HP" },
+    { id = 1000, motion = "j.HK" },
+    { id = 1010, motion = "HK" },
+    { id = 1213, motion = "214214+P" },
+    { id = 1216, motion = "4+LP+MP+HP" },
+})
+assert(akuma_runtime_audit_validation.ok == true
+        and akuma_runtime_audit_validation.total_steps == 20
+        and akuma_runtime_audit_validation.resolved_step_count == 14
+        and akuma_runtime_audit_validation.suppressed_step_count == 6
+        and akuma_runtime_audit_validation.unresolved_count == 0,
+    "Akuma's runtime-audit routes and six contextual internal phases must validate exactly as rendered")
+local repeated_akuma_internal_validation = validate_sequence_command_display({
+    { id = 947, motion = "j.236+PP" },
+    { id = 948, motion = "HP" },
+    { id = 948, motion = "4+LP" },
+})
+assert(repeated_akuma_internal_validation.ok == false
+        and repeated_akuma_internal_validation.resolved_step_count == 1
+        and repeated_akuma_internal_validation.suppressed_step_count == 1
+        and repeated_akuma_internal_validation.unresolved_count == 1
+        and repeated_akuma_internal_validation.unresolved[1].action_id == 948,
+    "contextual suppression must not inherit an older owner across a real child Action")
+akuma_overrides["906"] = {
+    classic = "Normal",
+    status = "suppress_transition",
+}
+local intervening_suppressed_action_validation = validate_sequence_command_display({
+    { id = 947, motion = "j.236+PP" },
+    { id = 906, motion = "Normal" },
+    { id = 948, motion = "HP" },
+})
+assert(intervening_suppressed_action_validation.ok == false
+        and intervening_suppressed_action_validation.resolved_step_count == 1
+        and intervening_suppressed_action_validation.suppressed_step_count == 1
+        and intervening_suppressed_action_validation.unresolved_count == 1
+        and intervening_suppressed_action_validation.unresolved[1].action_id == 948,
+    "contextual suppression must not cross a different catalog-suppressed Action")
+local standalone_akuma_internal = validate_sequence_command_display({
+    { id = 948, motion = "HP" },
+})
+assert(standalone_akuma_internal.ok == false
+        and standalone_akuma_internal.suppressed_step_count == 0
+        and standalone_akuma_internal.unresolved_count == 1
+        and standalone_akuma_internal.unresolved[1].route_status
+            == "action_id_missing",
+    "a standalone internal Action must remain unresolved without its declared predecessor")
+local wrong_akuma_internal_owner = validate_sequence_command_display({
+    { id = 903, motion = "236+HP" },
+    { id = 948, motion = "HP" },
+})
+assert(wrong_akuma_internal_owner.ok == false
+        and wrong_akuma_internal_owner.resolved_step_count == 1
+        and wrong_akuma_internal_owner.suppressed_step_count == 0
+        and wrong_akuma_internal_owner.unresolved_count == 1,
+    "an internal Action after the wrong owner must fail closed")
+local visible_akuma_transition = validate_sequence_command_display({
+    { id = 947, motion = "j.236+PP" },
+    { id = 948, motion = ">HP", player_input_transition = true },
+})
+assert(visible_akuma_transition.ok == true
+        and visible_akuma_transition.resolved_step_count == 2
+        and visible_akuma_transition.suppressed_step_count == 0,
+    "an explicitly player-triggered transition must remain visible after a contextual owner")
+
+local boundary_child = { id = 948, motion = "HP", intentional = true }
+local boundary_owner = { id = 947, motion = "j.236+PP", intentional = false }
+local live_boundary_resolutions = resolve_live_log_command_displays(
+    akuma_overrides,
+    { boundary_child, boundary_owner },
+    { boundary_child },
+    false
+)
+assert(live_boundary_resolutions[boundary_child].suppressed == true
+        and live_boundary_resolutions[boundary_owner].suppressed == false,
+    "live contextual resolution must see an owner outside the filtered or truncated display window")
 
 resolve_modern_display_context = function()
     return true, aki_overrides, "AKI", "loaded", true

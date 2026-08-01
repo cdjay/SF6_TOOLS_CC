@@ -1937,6 +1937,106 @@ local function resolve_step_command_display(command_map, step, is_modern)
     }
 end
 
+-- Resolve one step with presentation-only, predecessor-scoped phase metadata.
+-- The compiler and runtime keep both real Actions; only the command display
+-- hides a verified child after one of its exact, immediately preceding owners.
+-- The child then becomes the next predecessor; a longer phase chain must
+-- declare every adjacent edge instead of inheriting an older owner.
+local function resolve_contextual_step_command_display(
+    command_map,
+    step,
+    is_modern,
+    previous_effective_owner_id
+)
+    local resolution = resolve_step_command_display(command_map, step, is_modern)
+    local declared_internal =
+        CommandDisplayOverrides.is_contextual_internal_phase(
+        command_map,
+        previous_effective_owner_id,
+        type(step) == "table" and step.id or nil
+    )
+    local player_transition = declared_internal
+        and get_player_visible_transition_motion(step) or nil
+    if player_transition ~= nil then
+        local normalized_transition =
+            normalize_resolved_command_motion(player_transition)
+        return {
+            motion = normalized_transition,
+            raw_motion = player_transition,
+            route_status = "player_input_transition",
+            catalog_route_status = get_catalog_route_status(command_map, step),
+            failure_status = normalized_transition == nil
+                and "invalid_display_motion" or nil,
+            suppressed = false,
+            unresolved = normalized_transition == nil,
+        }, type(step) == "table" and tonumber(step.id) or nil
+    end
+    if declared_internal then
+        return {
+            motion = nil,
+            raw_motion = nil,
+            route_status = "declared_internal_phase",
+            catalog_route_status = get_catalog_route_status(command_map, step),
+            failure_status = nil,
+            suppressed = true,
+            unresolved = false,
+        }, type(step) == "table" and tonumber(step.id) or nil
+    end
+
+    if resolution.suppressed then
+        return resolution, type(step) == "table" and tonumber(step.id) or nil
+    end
+
+    -- Any ordinary numeric Action cuts the prior relationship, even when its
+    -- display route is currently unresolved. This prevents a later child from
+    -- hiding across an unrelated step while still allowing an unresolved
+    -- owner to retain only its own immediately declared phases.
+    local effective_owner_id = type(step) == "table" and tonumber(step.id) or nil
+    return resolution, effective_owner_id
+end
+
+local function resolve_live_log_command_displays(
+    command_map,
+    full_logs,
+    logs_to_draw,
+    is_modern
+)
+    local resolutions = {}
+    local previous_effective_owner_id = nil
+    local history = type(full_logs) == "table" and full_logs or {}
+    local visible = type(logs_to_draw) == "table" and logs_to_draw or {}
+    local oldest_visible = visible[#visible]
+    if oldest_visible == nil then return resolutions end
+
+    local oldest_source_index = nil
+    for index, log in ipairs(history) do
+        if log == oldest_visible then
+            oldest_source_index = index
+            break
+        end
+    end
+    if oldest_source_index == nil then return resolutions end
+
+    -- Live history is newest-first. Begin one real Action before the oldest
+    -- visible row, then resolve oldest-to-newest through index 1. This retains
+    -- the boundary predecessor and any ignore-auto rows in between without
+    -- reprocessing the whole 100-entry history every frame.
+    local start_index = math.min(#history, oldest_source_index + 1)
+    for log_index = start_index, 1, -1 do
+        local log = history[log_index]
+        local resolution
+        resolution, previous_effective_owner_id =
+            resolve_contextual_step_command_display(
+                command_map,
+                log,
+                is_modern,
+                previous_effective_owner_id
+            )
+        resolutions[log] = resolution
+    end
+    return resolutions
+end
+
 local function effective_command_display_status(map_status, route_status)
     if map_status ~= nil and map_status ~= "loaded" then return map_status end
     return route_status or map_status or "command_unavailable"
@@ -1984,8 +2084,16 @@ local function validate_sequence_command_display(sequence)
         unresolved = {},
     }
 
+    local previous_effective_owner_id = nil
     for index, step in ipairs(sequence) do
-        local resolution = resolve_step_command_display(command_map, step, is_modern)
+        local resolution
+        resolution, previous_effective_owner_id =
+            resolve_contextual_step_command_display(
+                command_map,
+                step,
+                is_modern,
+                previous_effective_owner_id
+            )
         if resolution.suppressed then
             result.suppressed_step_count = result.suppressed_step_count + 1
         elseif resolution.unresolved then
@@ -2039,11 +2147,19 @@ local function build_display_lines(sequence)
     local source_file = audit_context == "loaded" and state
         and (state.current_file_path or state.current_file) or nil
 
+    local previous_effective_owner_id = nil
     for i, raw_step in ipairs(sequence) do
         local step = raw_step
         local include_step = true
         local modern_unavailable = false
-        local resolution = resolve_step_command_display(modern_map, raw_step, is_modern)
+        local resolution
+        resolution, previous_effective_owner_id =
+            resolve_contextual_step_command_display(
+                modern_map,
+                raw_step,
+                is_modern,
+                previous_effective_owner_id
+            )
         if is_modern then
             local modern_motion = resolution.motion
             if resolution.suppressed then
@@ -2953,13 +3069,21 @@ local function imgui_draw_inner()
 
     local function draw_player_icons(p_idx, base_x, base_y, align_right, max_count, reverse_layout,
         is_modern, modern_map, modern_character, modern_status, audit_context)
-        local logs_to_draw = get_render_logs(players[p_idx].log, max_count)
+        local full_logs = players[p_idx].log or {}
+        local logs_to_draw = get_render_logs(full_logs, max_count)
+        local contextual_resolutions = resolve_live_log_command_displays(
+            modern_map,
+            full_logs,
+            logs_to_draw,
+            is_modern
+        )
         local draw_row = 0
         for i, log in ipairs(logs_to_draw) do
             local should_flip = log.facing_left or false
             local display_log = log
             local suppress_log = false
-            local resolution = resolve_step_command_display(modern_map, log, is_modern)
+            local resolution = contextual_resolutions[log]
+                or resolve_step_command_display(modern_map, log, is_modern)
             if is_modern then
                 local modern_motion = resolution.motion
                 if resolution.suppressed then

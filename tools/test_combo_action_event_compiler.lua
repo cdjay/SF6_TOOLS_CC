@@ -1450,6 +1450,145 @@ assert(type(aki_owner_rule) == "table"
         and aki_action_event_projection_rules[999].owner_id == 998,
     "loaded character rules must compile exact Action-event projection ownership")
 
+local function finalize_unprojected_akuma_transition(owner_id, child_id)
+    local session = compiler.new({
+        character = "Akuma",
+        frame = 0,
+    })
+    session.events = {
+        {
+            id = owner_id,
+            frame = 100,
+            expected_combo = 0,
+            damage_at_step = 0,
+            has_hit = false,
+            has_contact = false,
+            anchor = { kind = "button_press", pressed_buttons = 512 },
+        },
+        {
+            id = child_id,
+            frame = 136,
+            expected_combo = 3,
+            damage_at_step = 1200,
+            has_hit = true,
+            has_contact = true,
+            anchor = { kind = "action_transition", pressed_buttons = 0 },
+        },
+    }
+    session.current_damage = 1200
+    session.max_combo = 3
+    return compiler.finalize(session, {
+        motion_resolver = function(action_id)
+            if action_id == owner_id then return "OWNER", "strict_route" end
+            if action_id == child_id then return "INTERNAL", "strict_route" end
+            return nil, "action_id_missing"
+        end,
+    })
+end
+for _, pair in ipairs({
+    { 903, 908 },
+    { 904, 914 },
+    { 947, 948 },
+    { 952, 948 },
+    { 998, 1010 },
+    { 999, 1010 },
+    { 1000, 1010 },
+    { 1005, 1010 },
+    { 1006, 1010 },
+    { 1007, 1010 },
+    { 1213, 1216 },
+    { 1214, 1216 },
+}) do
+    local owner_id, child_id = pair[1], pair[2]
+    local result = finalize_unprojected_akuma_transition(owner_id, child_id)
+    assert(#result.steps == 2
+            and result.steps[1].id == owner_id
+            and result.steps[1].expected_combo == 0
+            and result.steps[1].damage_at_step == 0
+            and result.steps[1].has_hit == false
+            and result.steps[1].has_contact == false
+            and result.steps[2].id == child_id
+            and result.steps[2].expected_combo == 3
+            and result.steps[2].damage_at_step == 1200
+            and result.steps[2].has_hit == true
+            and result.steps[2].has_contact == true
+            and result.steps[2].delay_from_prev == 36
+            and #result.trace.suppressed_events == 0,
+        "Akuma display-only phase metadata must not fold either real runtime Action")
+end
+
+local akuma_replay_compiled = finalize_unprojected_akuma_transition(903, 908)
+local akuma_replay_candidate = transcriber.deep_copy(akuma_replay_compiled.steps)
+akuma_replay_candidate[1].relative_raw_inputs = { 512, 0 }
+local akuma_replay_runtime = {
+    raw_inputs = akuma_replay_candidate[1].relative_raw_inputs,
+    input_source = "relative_raw_inputs",
+    input_completed = true,
+}
+local akuma_replay_verified = transcriber.verify_candidate(
+    akuma_replay_candidate,
+    akuma_replay_compiled,
+    akuma_replay_runtime
+)
+assert(akuma_replay_verified.ok == true,
+    "the retained Akuma owner then child sequence must pass strict raw replay verification: "
+        .. table.concat(akuma_replay_verified.reasons or {}, ","))
+
+local function verification_reasons_match(evaluation, pattern)
+    return type(evaluation) == "table"
+        and table.concat(evaluation.reasons or {}, ","):match(pattern) ~= nil
+end
+
+local missing_child_replay = transcriber.deep_copy(akuma_replay_compiled)
+table.remove(missing_child_replay.steps, 2)
+local missing_child_verified = transcriber.verify_candidate(
+    akuma_replay_candidate,
+    missing_child_replay,
+    akuma_replay_runtime
+)
+assert(missing_child_verified.ok == false
+        and verification_reasons_match(
+            missing_child_verified, "raw_replay_action_count_mismatch"),
+    "raw replay must reject a missing contextual child Action")
+
+local wrong_child_replay = transcriber.deep_copy(akuma_replay_compiled)
+wrong_child_replay.steps[2].id = 909
+local wrong_child_verified = transcriber.verify_candidate(
+    akuma_replay_candidate,
+    wrong_child_replay,
+    akuma_replay_runtime
+)
+assert(wrong_child_verified.ok == false
+        and verification_reasons_match(
+            wrong_child_verified, "raw_replay_action_id_mismatch"),
+    "raw replay must reject a different contextual child Action")
+
+local reversed_replay = transcriber.deep_copy(akuma_replay_compiled)
+reversed_replay.steps[1], reversed_replay.steps[2] =
+    reversed_replay.steps[2], reversed_replay.steps[1]
+local reversed_verified = transcriber.verify_candidate(
+    akuma_replay_candidate,
+    reversed_replay,
+    akuma_replay_runtime
+)
+assert(reversed_verified.ok == false
+        and verification_reasons_match(
+            reversed_verified, "raw_replay_action_id_mismatch"),
+    "raw replay must reject child-before-owner ordering")
+
+local late_child_replay = transcriber.deep_copy(akuma_replay_compiled)
+late_child_replay.steps[2].delay_from_prev =
+    late_child_replay.steps[2].delay_from_prev + 3
+local late_child_verified = transcriber.verify_candidate(
+    akuma_replay_candidate,
+    late_child_replay,
+    akuma_replay_runtime
+)
+assert(late_child_verified.ok == false
+        and verification_reasons_match(
+            late_child_verified, "raw_replay_action_timing_mismatch"),
+    "raw replay must reject an out-of-tolerance contextual child timing")
+
 local function new_aki_projection_session()
     return compiler.new({
         character = "AKI",

@@ -75,3 +75,11 @@ BCM 条件距离和 Assist Combo 强度取得可审计的经典投影。每条�
 motion 作为证据。每条覆盖必须提供非空 `classic`、`evidence`；若支持现代模式，还必须同时
 提供 `commands.simple` 与 `commands.motion`。覆盖默认只能补齐缺失 Action，不能替换已生成
 条目；加载后统一标记为 `runtime_verified_override`，继续经过与正式指令表相同的严格审计门。
+
+同一文档可选的 `contextual_internal_phases` 只用于声明指令表的上下文内部阶段。
+每个 child Action 必须提供非空 `owner_ids` 与 `evidence`；仅当它紧邻其中一个已验证
+owner Action 时，绘制与指令完整性审计才能隐藏该 child。单独出现、前驱错误、
+配置畸形或明确标记为玩家输入的派生仍必须显示或审计失败。该字段不得写入
+`absorb_ids`，不得参与 ActionEventCompiler 折叠或训练匹配；使用该字段时，V2 必须
+保留 owner 与 child 两个真实 Action step，以便 raw input 二次回放继续核对数量、
+ID、顺序、时序与结果。
