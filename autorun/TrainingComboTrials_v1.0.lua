@@ -20,6 +20,7 @@ local ComboTrialsModules = {
     Telemetry = require("func/ComboTrials/Telemetry"),
     CommandResolver = require("func/ComboTrials/CommandResolver"),
     ActionEventCompiler = require("func/ComboTrials/ActionEventCompiler"),
+    RawInputCodec = require("func/ComboTrials/RawInputCodec"),
     Transcriber = require("func/ComboTrials/Transcriber"),
     RuntimeAuditor = require("func/ComboTrials/RuntimeAuditor")
 }
@@ -27,6 +28,7 @@ local DebugTrace = ComboTrialsModules.DebugTrace
 local ActionMatcher = ComboTrialsModules.ActionMatcher
 local ActionRestartDetector = ComboTrialsModules.ActionRestartDetector
 local CharacterRules = ComboTrialsModules.CharacterRules
+local RawInputCodec = ComboTrialsModules.RawInputCodec
 local SequenceGrouping = ComboTrialsModules.SequenceGrouping
 local Validator = ComboTrialsModules.Validator
 
@@ -334,6 +336,7 @@ local trial_state = {
     _pending_block_outcome = nil,
     _demo_backup_slot = nil,
     _raw_rec_active = false,
+    -- Stored facing-relative; the legacy name remains runtime-local only.
     _raw_rec_buffer = {}
 }
 
@@ -635,6 +638,7 @@ local demo_state = {
     sequence = {},
     p1_mask = 0,
     raw_buffer = nil,
+    raw_input_source = nil,
     play_index = 1,
     auto_playlist_enabled = false,
     playlist_active = false,
@@ -1168,6 +1172,7 @@ ctx.stop_demo_playback = function(reason, old_file, new_file, stop_trial, keep_p
     demo_state.sequence = {}
     demo_state.p1_mask = 0
     demo_state.raw_buffer = nil
+    demo_state.raw_input_source = nil
     demo_state.play_index = 1
     demo_state._last_tick_frame = nil
     demo_state._state_reinjected = false
@@ -6970,6 +6975,7 @@ local function ct_player_init(p_idx, p_state)
                 demo_state.is_playing = false
                 demo_state.p1_mask = 0
                 demo_state.raw_buffer = nil
+                demo_state.raw_input_source = nil
                 demo_state.play_index = 1
                 demo_state.playlist_active = false
                 demo_state.playlist_index = 0
@@ -9952,7 +9958,15 @@ function save_trial_sequence(meta)
         end
         trial_state.sequence[1]._xt_meta = apply_recording_environment_to_meta(meta)
         if type(trial_state._raw_rec_buffer) == "table" and #trial_state._raw_rec_buffer > 0 then
-            trial_state.sequence[1].raw_inputs = trial_state._raw_rec_buffer
+            -- New recordings keep a portable, facing-relative raw stream.
+            -- The timeline remains alongside it so older WTT builds that do
+            -- not know this extension can continue replaying the JSON.
+            RawInputCodec.invalidate_stream_cache(trial_state.sequence[1])
+            trial_state.sequence[1].relative_raw_inputs =
+                trial_state._raw_rec_buffer
+            trial_state.sequence[1].raw_inputs = nil
+            trial_state.sequence[1]._xt_meta.input_stream =
+                RawInputCodec.describe_relative_stream()
         end
     end
     -- Counter state is a fixed training-menu rule for the entire recording.
@@ -10101,6 +10115,7 @@ end
 -- DEMO ENGINE LOGIC & EXPORTS
 -- =========================================================
 local function parse_timeline_line(line)
+    if type(line) ~= "string" then return nil end
     local frames_str, rest = line:match("^(%d+)f%s*:%s*(.*)")
     if not frames_str then return nil end
     local frames = tonumber(frames_str)
@@ -10117,14 +10132,14 @@ local function parse_timeline_line(line)
 end
 
 function CTJsonInterop.normalize_raw_inputs(raw_inputs)
-    if type(raw_inputs) ~= "table" or #raw_inputs == 0 then return nil end
-    local normalized = {}
-    for index = 1, #raw_inputs do
-        local value = tonumber(raw_inputs[index])
-        if value == nil then return nil end
-        normalized[index] = math.floor(value) & 0xFFFF
-    end
-    return normalized
+    return RawInputCodec.normalize_stream(raw_inputs)
+end
+
+function CTJsonInterop.select_transcription_input(first_step, runtime_audit)
+    return RawInputCodec.select_transcription_stream(
+        first_step,
+        runtime_audit
+    )
 end
 
 CTStunDemoRuntime = CTStunDemoRuntime or {}
@@ -10266,27 +10281,51 @@ local function start_demo(opts)
     end
     if not trial_state.sequence or #trial_state.sequence == 0 then return false end
     local first_stun_step = trial_state.sequence[1]
-    local raw_inputs = CTJsonInterop.normalize_raw_inputs(type(first_stun_step) == "table" and first_stun_step.raw_inputs or nil)
+    local input_stream, input_source =
+        RawInputCodec.select_stream(first_stun_step)
     local timeline = type(first_stun_step) == "table" and first_stun_step.timeline or nil
-    local raw_mode_mismatch = false
-    if raw_inputs then
-        raw_mode_mismatch = CTJsonInterop.warn_control_mode_mismatch(trial_state.sequence, 0)
+    local has_usable_timeline = RawInputCodec.has_usable_timeline(timeline)
+    local input_mode_mismatch = false
+    if input_stream then
+        input_mode_mismatch =
+            CTJsonInterop.warn_control_mode_mismatch(trial_state.sequence, 0)
     end
-    local use_raw_inputs = raw_inputs ~= nil and not (raw_mode_mismatch and type(timeline) == "table" and #timeline > 0)
+    local force_timeline_capture = opts.transcribe == true
+        and demo_state.transcription_run
+        and demo_state.transcription_run.input_source == "timeline"
+        and has_usable_timeline
+    local strict_selected_stream = opts.transcribe == true
+        and demo_state.transcription_run
+        and demo_state.transcription_run.input_source ~= "timeline"
+    local use_input_stream = input_stream ~= nil
+        and not force_timeline_capture
+        and not (not strict_selected_stream
+            and input_mode_mismatch
+            and has_usable_timeline)
     if opts.transcribe == true and demo_state.transcription_run then
-        demo_state.transcription_run.input_source =
-            use_raw_inputs and "raw_inputs" or "timeline"
+        local run = demo_state.transcription_run
+        local previous_source = run.input_source
+        local resolved_source = use_input_stream and input_source or "timeline"
+        run.input_source = resolved_source
+        if resolved_source == "timeline" and previous_source ~= "timeline" then
+            -- Never append a timeline capture to a preloaded raw stream.
+            run.captured_raw_inputs = {}
+        end
+        if run.phase == "capture" then
+            run.capture_input_source = resolved_source
+        end
     end
     local manual_stun_demo_required = type(first_stun_step) == "table"
         and first_stun_step.has_piyo == true
-        and not use_raw_inputs
+        and not use_input_stream
         and not ComboTrialsModules.SceneState.defender_is_burnout(first_stun_step)
     if manual_stun_demo_required and opts.transcribe ~= true and not _G._allow_stun_demo then
         return false
     end
 
-    if use_raw_inputs then
-        demo_state.raw_buffer = raw_inputs
+    if use_input_stream then
+        demo_state.raw_buffer = input_stream
+        demo_state.raw_input_source = input_source
         demo_state.sequence = {}
     else
         -- Legacy and cross-control-mode fallback: timeline stays a supported source.
@@ -10300,6 +10339,7 @@ local function start_demo(opts)
         end
 
         demo_state.raw_buffer = nil
+        demo_state.raw_input_source = nil
         demo_state.sequence = {}
         for _, line in ipairs(timeline) do
             local parsed = parse_timeline_line(line)
@@ -10359,7 +10399,10 @@ local function start_demo(opts)
     if opts.transcribe ~= true then ctx.begin_trial_telemetry_attempt("auto_demo") end
 
     print("[ComboTrials] " .. (opts.transcribe == true and "TRANSCRIBE" or "DEMO")
-        .. " Started" .. (use_raw_inputs and " (RAW native)" or " (LEGACY timeline)"))
+        .. " Started" .. (use_input_stream
+            and (input_source == RawInputCodec.RELATIVE_FIELD
+                and " (RAW facing-relative)" or " (RAW native)")
+            or " (LEGACY timeline)"))
     return true
 end
 
@@ -10454,14 +10497,17 @@ ctx.persist_transcription_report = function(run)
 end
 
 ctx.read_transcription_environment = function()
+    local action = ct_read_dummy_action_settings()
     local counter = ct_read_dummy_counter_settings()
     local guard = ct_read_dummy_guard_settings()
     return {
+        dummy_action_type = tonumber(action.action_type),
         dummy_counter_type = tonumber(counter.counter_type),
         dummy_guard_type = tonumber(guard.guard_type),
         dummy_guard_count = tonumber(guard.guard_count),
         counter_runtime = counter,
         guard_runtime = guard,
+        action_runtime = action,
     }
 end
 
@@ -10635,7 +10681,10 @@ ctx.begin_raw_transcription_verification = function(run, candidate, compiled, ev
     )
     if loaded then
         start_trial(0)
-        run.input_source = "raw_inputs"
+        local verification_inputs, verification_source =
+            CTJsonInterop.select_transcription_input(candidate[1], true)
+        run.input_source = verification_source
+        run.captured_raw_inputs = verification_inputs or {}
         run.input_finished_frame = nil
         run.session = ctx.new_action_event_session(0, "transcription_raw_verify")
         run.status = string.format(
@@ -10659,6 +10708,60 @@ ctx.begin_raw_transcription_verification = function(run, candidate, compiled, ev
     }, {
         verification_observed = {},
     })
+end
+
+ctx.begin_guardless_transcription_retry = function(run, retry_source, adjustments)
+    if not run or type(retry_source) ~= "table" then return false end
+
+    ctx.stop_demo_playback(
+        "transcription_guard_retry",
+        demo_state.current_file_path or trial_state.current_file_path or trial_state.current_file,
+        run.current_path,
+        true
+    )
+    trial_state.is_playing = false
+    ctx.reset_transcription_environment()
+
+    run.current_source = retry_source
+    run.capture_guard_retry_attempted = true
+    run.input_finished_frame = nil
+    run.phase = "capture"
+    run.capture_compiled = nil
+    run.capture_evaluation = nil
+    run.verification_candidate = nil
+    run.capture_environment_adjustments =
+        type(run.capture_environment_adjustments) == "table"
+            and run.capture_environment_adjustments or {}
+    for _, adjustment in ipairs(type(adjustments) == "table" and adjustments or {}) do
+        run.capture_environment_adjustments[#run.capture_environment_adjustments + 1] =
+            adjustment
+    end
+
+    local replay_inputs, replay_source =
+        CTJsonInterop.select_transcription_input(retry_source[1], false)
+    run.input_source = replay_source
+    run.capture_input_source = run.input_source
+    run.captured_raw_inputs = replay_inputs or {}
+    run.session = ctx.new_action_event_session(0, "transcription_guard_retry")
+    run.status = string.format(
+        "首次回放被防御截断，正在自动关闭防御重试 %d/%d：%s",
+        run.index,
+        run.total,
+        run.current_name
+    )
+
+    local loaded = ComboTrials_Files.load_combo_sequence(
+        ComboTrialsModules.Transcriber.deep_copy(retry_source),
+        run.current_path,
+        true
+    )
+    if loaded then
+        start_trial(0)
+        if start_demo({ transcribe = true, countdown_frames = 20 }) then
+            return true
+        end
+    end
+    return false
 end
 
 ctx.finish_current_transcription_file = function(timed_out)
@@ -10701,6 +10804,7 @@ ctx.finish_current_transcription_file = function(timed_out)
             compiled,
             {
                 raw_inputs = run.captured_raw_inputs,
+                input_source = run.input_source,
                 input_completed = run.input_finished_frame ~= nil,
                 timed_out = timed_out == true,
                 action_ids_equivalent = runtime_action_ids_equivalent,
@@ -10725,6 +10829,7 @@ ctx.finish_current_transcription_file = function(timed_out)
             compiled,
             {
                 raw_inputs = run.captured_raw_inputs,
+                input_source = run.input_source,
                 input_completed = run.input_finished_frame ~= nil,
                 timed_out = timed_out == true,
                 action_ids_equivalent = runtime_action_ids_equivalent,
@@ -10800,6 +10905,24 @@ ctx.finish_current_transcription_file = function(timed_out)
             )
         end
     end
+    if not evaluation.ok and run.capture_guard_retry_attempted ~= true then
+        local retry_source, retry_adjustments =
+            ComboTrialsModules.Transcriber.prepare_guard_retry(
+                run.current_source,
+                evaluation
+            )
+        if retry_source then
+            if ctx.begin_guardless_transcription_retry(
+                run,
+                retry_source,
+                retry_adjustments
+            ) then
+                return true
+            end
+            evaluation.reasons[#evaluation.reasons + 1] =
+                "guard_retry_demo_start_failed"
+        end
+    end
     if evaluation.ok then
         local candidate, candidate_error = ComboTrialsModules.Transcriber.build_candidate(
             run.current_source,
@@ -10814,7 +10937,11 @@ ctx.finish_current_transcription_file = function(timed_out)
             CTJsonInterop.iso8601_now(),
             {
                 input_source = run.input_source,
-                raw_inputs = run.captured_raw_inputs,
+                raw_inputs = run.input_source == "raw_inputs"
+                    and run.captured_raw_inputs or nil,
+                relative_raw_inputs = (run.input_source == "timeline"
+                        or run.input_source == RawInputCodec.RELATIVE_FIELD)
+                    and run.captured_raw_inputs or nil,
                 source_advisories = evaluation.advisories,
                 environment_adjustments =
                     run.capture_environment_adjustments,
@@ -10867,18 +10994,17 @@ ctx.start_next_transcription_file = function()
                 audit_mode = run.mode,
             })
         else
-            local raw_inputs = CTJsonInterop.normalize_raw_inputs(source[1].raw_inputs)
-            local timeline = source[1].timeline
-            local has_timeline = type(timeline) == "table" and #timeline > 0
             local is_audit = run.mode == "runtime_audit"
-            if is_audit and not raw_inputs then
+            local replay_inputs, replay_source, has_timeline =
+                CTJsonInterop.select_transcription_input(source[1], is_audit)
+            if is_audit and not replay_inputs then
                 ctx.transcription_item(path, "failed", {
-                    reasons = { "runtime_audit_raw_inputs_missing" },
+                    reasons = { "runtime_audit_input_stream_missing" },
                     suspected_causes =
                         ComboTrialsModules.Transcriber.suspected_causes(source),
                     audit_mode = run.mode,
                 })
-            elseif not is_audit and not raw_inputs and not has_timeline then
+            elseif not is_audit and not replay_inputs and not has_timeline then
                 ctx.transcription_item(path, "failed", {
                     reasons = { "missing_input_stream" },
                     suspected_causes =
@@ -10896,16 +11022,16 @@ ctx.start_next_transcription_file = function()
                 run.current_path = path
                 run.current_name = tostring(path):match("([^/\\]+)$") or ("combo_" .. tostring(run.index) .. ".json")
                 run.current_source = source
-                run.input_source = is_audit and "raw_inputs"
-                    or (raw_inputs and "raw_inputs" or "timeline")
+                run.input_source = replay_source
                 run.capture_input_source = run.input_source
-                run.captured_raw_inputs = raw_inputs or {}
+                run.captured_raw_inputs = replay_inputs or {}
                 run.input_finished_frame = nil
                 run.phase = is_audit and "audit_raw" or "capture"
                 run.capture_compiled = nil
                 run.capture_evaluation = nil
                 run.capture_environment_adjustments =
                     environment_adjustments
+                run.capture_guard_retry_attempted = false
                 run.verification_candidate = nil
                 run.session = ctx.new_action_event_session(
                     0,
@@ -10996,25 +11122,41 @@ ctx.tick_transcription = function()
     end
 end
 
-ctx.get_transcription_resume_state = function()
-    if demo_state.transcription_run
-        and demo_state.transcription_run.mode == "runtime_audit" then
-        return nil
+local function is_full_transcription_run(run)
+    if type(run) ~= "table" or run.mode == "runtime_audit" then return false end
+    local scope = run.transcription_scope
+    return scope == nil or scope == "all"
+end
+
+local function remember_resumable_transcription_run(run)
+    if is_full_transcription_run(run) and run.active ~= true then
+        demo_state.resumable_transcription_run = run
     end
+end
+
+local function transcription_resume_source()
+    local current = demo_state.transcription_run
+    if is_full_transcription_run(current) then return current end
+    local remembered = demo_state.resumable_transcription_run
+    if is_full_transcription_run(remembered) then return remembered end
+    return nil
+end
+
+ctx.get_transcription_resume_state = function()
     local character = players[0] and players[0].profile_name or "Unknown"
     local paths = file_system.saved_combos_all_paths_p1
         or file_system.saved_combos_paths_p1
         or {}
     return ComboTrialsModules.Transcriber.resume_info(
-        demo_state.transcription_run,
+        transcription_resume_source(),
         character,
         paths
     )
 end
 
 ctx.start_transcription = function(force_new)
-    local existing_run = demo_state.transcription_run
-    if existing_run and existing_run.active == true then return false end
+    local displayed_run = demo_state.transcription_run
+    if displayed_run and displayed_run.active == true then return false end
     if trial_state.is_recording or trial_state.is_playing or demo_state.is_playing then
         ct_ticker("请先停止录制、训练或演示")
         return false
@@ -11032,9 +11174,12 @@ ctx.start_transcription = function(force_new)
     end
 
     local now = CTJsonInterop.iso8601_now()
+    local existing_run = transcription_resume_source()
     local run = nil
     if force_new ~= true
-        and (not existing_run or existing_run.mode ~= "runtime_audit") then
+        and (not existing_run
+            or (existing_run.mode ~= "runtime_audit"
+                and existing_run.transcription_scope ~= "current")) then
         run = ComboTrialsModules.Transcriber.resume_run(
             existing_run,
             character,
@@ -11047,6 +11192,7 @@ ctx.start_transcription = function(force_new)
         run = ComboTrialsModules.Transcriber.new_run(character, paths, now)
     end
     demo_state.transcription_run = run
+    demo_state.resumable_transcription_run = nil
     run.return_path = trial_state.current_file_path or trial_state.current_file
     if not resumed then
         run.run_id = os.date("%Y%m%d_%H%M%S")
@@ -11069,6 +11215,67 @@ ctx.start_transcription = function(force_new)
     else
         ct_ticker(string.format("开始转录 %s 的 %d 个连段", character, #paths))
     end
+    return ctx.start_next_transcription_file()
+end
+
+ctx.start_transcription_current = function()
+    local existing_run = demo_state.transcription_run
+    if existing_run and existing_run.active == true then return false end
+    if trial_state.is_recording or trial_state.is_playing or demo_state.is_playing then
+        ct_ticker("请先停止录制、训练或演示")
+        return false
+    end
+    if file_system.refresh_combo_list_preserve_selection then
+        file_system.refresh_combo_list_preserve_selection(false)
+    end
+
+    local character = players[0] and players[0].profile_name or "Unknown"
+    local all_paths = file_system.saved_combos_all_paths_p1
+        or file_system.saved_combos_paths_p1
+        or {}
+    local requested_path = trial_state.current_file_path or trial_state.current_file
+    if not requested_path then
+        local selected_index = file_system.selected_file_idx_p1 or 1
+        requested_path = file_system.saved_combos_paths_p1
+            and file_system.saved_combos_paths_p1[selected_index] or nil
+    end
+    local paths = ComboTrialsModules.RuntimeAuditor.select_single_path(
+        all_paths,
+        requested_path
+    )
+    if character == "Unknown" or #paths == 0 then
+        ct_ticker("请先在当前角色列表中载入或选中一个连段")
+        return false
+    end
+
+    remember_resumable_transcription_run(existing_run)
+
+    local run_id = os.date("%Y%m%d_%H%M%S")
+    local run = ComboTrialsModules.Transcriber.new_run(
+        character,
+        paths,
+        CTJsonInterop.iso8601_now(),
+        {
+            scope = "current",
+            requested_path = requested_path,
+        }
+    )
+    run.run_id = run_id
+    run.return_path = requested_path
+    run.output_dir = ComboTrialsModules.Transcriber.OUTPUT_ROOT
+        .. "/" .. file_system.sanitize_filename_component(character, 32, "Unknown")
+        .. "/" .. run_id .. "_single"
+    run.report_path = ComboTrialsModules.Transcriber.REPORT_ROOT
+        .. "/" .. file_system.sanitize_filename_component(character, 32, "Unknown")
+        .. "_single_" .. run_id .. ".json"
+    demo_state.transcription_run = run
+    ctx.create_transcription_directories(run)
+    ctx.persist_transcription_report(run)
+    ct_ticker(string.format(
+        "开始单条转录 %s：%s",
+        character,
+        tostring(paths[1]):match("([^/\\]+)$") or tostring(paths[1])
+    ))
     return ctx.start_next_transcription_file()
 end
 
@@ -11207,6 +11414,8 @@ ctx.start_runtime_audit = function(options)
         return false
     end
 
+    remember_resumable_transcription_run(existing_run)
+
     local run_id = os.date("%Y%m%d_%H%M%S")
     local run = ComboTrialsModules.RuntimeAuditor.new_run(
         character,
@@ -11301,7 +11510,13 @@ ctx.start_transcription_from_audit_failures = function()
     local run = ComboTrialsModules.Transcriber.new_run(
         character,
         paths,
-        CTJsonInterop.iso8601_now()
+        CTJsonInterop.iso8601_now(),
+        {
+            scope = audit_run.audit_scope == "current"
+                and "current" or "audit_failures",
+            requested_path = audit_run.audit_scope == "current"
+                and audit_run.requested_path or nil,
+        }
     )
     run.run_id = run_id
     run.source_audit_report = audit_run.report_path
@@ -11360,6 +11575,7 @@ ctx.load_latest_runtime_audit_report = function()
             tonumber(report.passed) or 0,
             tonumber(report.failed) or 0
         )
+        remember_resumable_transcription_run(demo_state.transcription_run)
         demo_state.transcription_run = report
         return true
     end
@@ -11388,6 +11604,23 @@ ctx.load_latest_transcription_report = function()
     if not report then
         ct_ticker("最近的转录报告无法读取")
         return false
+    end
+    remember_resumable_transcription_run(demo_state.transcription_run)
+    local full_report_path, full_report =
+        ComboTrialsModules.Transcriber.select_latest_report(
+            paths,
+            json.load_file,
+            ComboTrialsModules.Transcriber.REPORT_SCHEMA,
+            function(candidate)
+                return candidate.transcription_scope == nil
+                    or candidate.transcription_scope == "all"
+            end
+        )
+    if full_report then
+        full_report.active = false
+        full_report.report_path = full_report_path
+        full_report.output_dir = full_report.candidate_root
+        demo_state.resumable_transcription_run = full_report
     end
     report.active = false
     report.report_path = report_path
@@ -11894,14 +12127,10 @@ end
 
 local function _ct_demo_inject_mask()
     local p1 = _td_gBattle:get_field("Player"):get_data(nil).mcPlayer[0]
-    local final_mask = demo_state.p1_mask
-    if not p1:get_field("rl_dir") then
-        local has_right = (final_mask & 4) ~= 0
-        local has_left  = (final_mask & 8) ~= 0
-        final_mask = final_mask & ~12
-        if has_right then final_mask = final_mask | 8 end
-        if has_left  then final_mask = final_mask | 4 end
-    end
+    local final_mask = RawInputCodec.relative_to_native(
+        demo_state.p1_mask,
+        p1:get_field("rl_dir") ~= false
+    )
     if demo_state.transcribing == true then
         -- Batch transcription must be deterministic. Do not merge accidental
         -- physical input into the replay stream being captured.
@@ -11926,7 +12155,11 @@ function CTRawInputRuntime.capture(p_id)
         buffer = {}
         trial_state._raw_rec_buffer = buffer
     end
-    buffer[#buffer + 1] = ((input and tonumber(tostring(input))) or 0) & 0xFFFF
+    local facing_right = player:get_field("rl_dir") ~= false
+    buffer[#buffer + 1] = RawInputCodec.native_to_relative(
+        (input and tonumber(tostring(input))) or 0,
+        facing_right
+    )
 end
 
 function CTRawInputRuntime.play()
@@ -11977,6 +12210,7 @@ function CTRawInputRuntime.play()
         elseif demo_state.playlist_active == true then
             demo_state.is_playing = false
             demo_state.raw_buffer = nil
+            demo_state.raw_input_source = nil
             demo_state.play_index = 1
             demo_state.countdown = 0
             demo_state._state_reinjected = false
@@ -11998,6 +12232,12 @@ function CTRawInputRuntime.play()
     local p1 = GS.p1
     if not p1 then return end
     local mask = buffer[index]
+    if demo_state.raw_input_source == RawInputCodec.RELATIVE_FIELD then
+        mask = RawInputCodec.relative_to_native(
+            mask,
+            p1:get_field("rl_dir") ~= false
+        )
+    end
     p1:set_field("pl_input_new", mask)
     p1:set_field("pl_sw_new", mask)
     demo_state.play_index = index + 1
@@ -12020,10 +12260,11 @@ table.insert(_G._shared_input_post, function(p_id, retval)
         and demo_state.transcribing == true
         and demo_state._transcription_capture_frame == true then
         local run = demo_state.transcription_run
-        local player = GS.p1
-        if run and type(run.captured_raw_inputs) == "table" and player then
-            local value = 0
-            pcall(function() value = tonumber(player:get_field("pl_input_new")) or 0 end)
+        if run and type(run.captured_raw_inputs) == "table" then
+            -- Timeline masks are already facing-relative. Capturing the
+            -- injected native value here would freeze the current screen side
+            -- and break any route that crosses through the opponent.
+            local value = tonumber(demo_state.p1_mask) or 0
             run.captured_raw_inputs[#run.captured_raw_inputs + 1] =
                 math.floor(value) & 0xFFFF
         end

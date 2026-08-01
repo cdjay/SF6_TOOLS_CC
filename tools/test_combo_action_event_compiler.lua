@@ -10,6 +10,17 @@ local SceneState = require("func/ComboTrials/SceneState")
 
 assert(compiler.BIND_WINDOW == ActionMatcher.PLAYER_ACTION_BIND_WINDOW,
     "compiler and runtime validator must share one physical-input bind window")
+assert(ActionMatcher.sequence_uses_input_truth({
+        { relative_raw_inputs = { 0, 16, 0 } },
+    }),
+    "facing-relative raw input must enable strict input-truth matching")
+assert(not ActionMatcher.sequence_uses_input_truth({
+        {
+            relative_raw_inputs = { "invalid" },
+            timeline = { "1f : 5", "1f : LP" },
+        },
+    }),
+    "a malformed extension that falls back to timeline must not enable strict input-truth matching")
 
 local session = compiler.new({ character = "Ryu", frame = 0 })
 
@@ -1928,6 +1939,23 @@ assert(regressed_combo.ok == false
     )
     and regressed_combo.environment_validation.matches == true,
     "a reproducible blocked drop must not rebuild a smaller combo as success")
+local guard_retry_source, guard_retry_adjustments =
+    transcriber.prepare_guard_retry(regressed_combo_source, regressed_combo)
+assert(type(guard_retry_source) == "table"
+    and #guard_retry_adjustments == 1
+    and guard_retry_adjustments[1].reason
+        == "runtime_blocked_before_expected_combo_completion"
+    and guard_retry_source[1].dummy_guard_type == 0
+    and guard_retry_source[1]._xt_meta.dummy_guard_type == 0
+    and guard_retry_source[1]._xt_meta.environment.dummy_guard_type == 0
+    and regressed_combo_source[1]._xt_meta.environment.dummy_guard_type == 2,
+    "a runtime-proven obsolete after-first-hit guard must prepare one guardless retry copy")
+local no_guard_retry = transcriber.prepare_guard_retry(regressed_combo_source, {
+    ok = false,
+    reasons = { "combo_count_regressed:expected=3:observed=2" },
+})
+assert(no_guard_retry == nil,
+    "combo regression without observed guard truncation must not disable defense")
 
 local segmented_legacy_source = {
     {
@@ -2033,6 +2061,104 @@ assert(segmented_legacy_rebuild.ok == true
     ),
     "a complete segmented legacy route may rebuild cumulative combo and net Super fields")
 
+local folded_segmented_source = transcriber.deep_copy(segmented_legacy_source)
+folded_segmented_source[3].id = 921
+folded_segmented_source[3].motion = "236+MK"
+table.insert(folded_segmented_source, 4, {
+    id = 926,
+    motion = ">6HK",
+    expected_combo = 3,
+    damage_at_step = 750,
+    has_hit = true,
+    has_contact = true,
+})
+local folded_segmented_steps = {
+    transcriber.deep_copy(segmented_legacy_steps[1]),
+    transcriber.deep_copy(segmented_legacy_steps[2]),
+    transcriber.deep_copy(segmented_legacy_steps[3]),
+    {
+        id = 1001,
+        motion = "214+MK",
+        expected_combo = 1,
+        damage_at_step = 700,
+        has_hit = true,
+        has_contact = true,
+    },
+    transcriber.deep_copy(segmented_legacy_steps[5]),
+}
+local folded_segmented_rebuild = transcriber.evaluate(folded_segmented_source, {
+    steps = folded_segmented_steps,
+    stats = {
+        damage = 1200,
+        max_combo = 2,
+        super_used = 30000,
+        unresolved_anchors = 0,
+        block_contacts = 0,
+    },
+}, {
+    input_source = "timeline",
+    raw_inputs = { 16, 0, 288, 0, 256, 0, 64, 0 },
+    input_completed = true,
+    allow_legacy_outcome_rebuild = true,
+})
+assert(folded_segmented_rebuild.ok == true
+    and folded_segmented_rebuild.source_action_subsequence_match == false
+    and folded_segmented_rebuild.legacy_authored_action_subsequence_match == true
+    and folded_segmented_rebuild.legacy_segmented_outcome == true
+    and table.concat(folded_segmented_rebuild.advisories, ","):match(
+        "source_segmented_action_stream_rebuilt"
+    ),
+    "a mirrored current Action may replace a folded legacy derived follow-up in a complete segmented route")
+
+local traced_segmented_source = transcriber.deep_copy(folded_segmented_source)
+table.insert(traced_segmented_source, 3, {
+    id = 480,
+    motion = "PARRY",
+    expected_combo = 0,
+    damage_at_step = 300,
+    has_hit = false,
+    has_contact = false,
+})
+table.insert(traced_segmented_source, 4, {
+    id = 500,
+    motion = "RAW DR",
+    expected_combo = 0,
+    damage_at_step = 300,
+    has_hit = false,
+    has_contact = false,
+})
+local traced_segmented_rebuild = transcriber.evaluate(traced_segmented_source, {
+    steps = folded_segmented_steps,
+    trace = {
+        observed_actions = {
+            { id = 600, frame = 10 },
+            { id = 700, frame = 15 },
+            { id = 500, frame = 20 },
+            { id = 480, frame = 25 },
+            { id = 500, frame = 30 },
+            { id = 1001, frame = 40 },
+            { id = 1221, frame = 50 },
+        },
+    },
+    stats = {
+        damage = 1200,
+        max_combo = 2,
+        super_used = 30000,
+        unresolved_anchors = 0,
+        block_contacts = 0,
+    },
+}, {
+    input_source = "timeline",
+    raw_inputs = { 16, 0, 288, 0, 256, 0, 64, 0 },
+    input_completed = true,
+    allow_legacy_outcome_rebuild = true,
+})
+assert(traced_segmented_rebuild.ok == true
+    and traced_segmented_rebuild.source_action_subsequence_match == false
+    and traced_segmented_rebuild.legacy_authored_action_subsequence_match == true
+    and traced_segmented_rebuild.legacy_segmented_outcome == true,
+    "a complete observed Action trace may prove legacy transient states omitted from command rows")
+
 local incomplete_segmented_steps = transcriber.deep_copy(segmented_legacy_steps)
 table.remove(incomplete_segmented_steps, 4)
 local incomplete_segmented_rebuild = transcriber.evaluate(segmented_legacy_source, {
@@ -2137,6 +2263,36 @@ assert(environment_mismatch.ok == false
             .. "dummy_counter_type:expected=2:actual=0"
     and environment_mismatch.environment_validation.matches == false,
     "transcription must reject a punish-counter menu write that did not apply")
+
+local crouch_environment_source = transcriber.deep_copy(regressed_combo_source)
+crouch_environment_source[1].dummy_action_type = 1
+crouch_environment_source[1].requires_dummy_crouch = true
+crouch_environment_source[1]._xt_meta.environment.dummy_action_type = 1
+local crouch_environment_mismatch = transcriber.evaluate(crouch_environment_source, {
+    steps = crouch_environment_source,
+    stats = {
+        damage = 2600,
+        max_combo = 3,
+        unresolved_anchors = 0,
+        block_contacts = 0,
+    },
+}, {
+    input_source = "timeline",
+    raw_inputs = { 768, 0, 64, 0, 64, 0 },
+    input_completed = true,
+    verify_environment = true,
+    environment_observed = {
+        dummy_action_type = 0,
+        dummy_counter_type = 2,
+        dummy_guard_type = 2,
+        dummy_guard_count = 10,
+    },
+})
+assert(crouch_environment_mismatch.ok == false
+    and crouch_environment_mismatch.reasons[1]
+        == "training_environment_mismatch:"
+            .. "dummy_action_type:expected=1:actual=0",
+    "transcription must reject a crouch requirement that remained standing")
 
 local action_variant_drift = transcriber.evaluate({
     {
@@ -2402,6 +2558,9 @@ assert(#runtime_buff_adjustments == 0
     and prepared_runtime_buff[1].scene_state.players.p1.unique.stock_0_020 == 0,
     "a replay that establishes Honda stock before the enhanced Action must retain stock zero")
 
+-- A legacy file can contain both a correct timeline and a screen-absolute raw
+-- stream. Conversion must discard the latter so old WTT falls back to timeline.
+source[1].raw_inputs = { 8, 0 }
 local candidate = assert(transcriber.build_candidate(source, result, {
     schema = 2,
     product_id = "sf6cc",
@@ -2410,17 +2569,22 @@ local candidate = assert(transcriber.build_candidate(source, result, {
     json_version = "2",
 }, "2026-07-30T00:00:00+08:00", {
     input_source = "timeline",
-    raw_inputs = { 0, 2, 18, 18, 2, 0 },
+    relative_raw_inputs = { 0, 2, 18, 18, 2, 0 },
     environment_adjustments = oki_adjustments,
 }))
 assert(candidate[1].id == 600 and candidate[1].motion == "2+LP",
     "candidate steps must come from the new runtime compiler")
 assert(candidate[1].timeline[2] == "1f : 2+LP",
     "the input truth must be copied without rewriting")
-assert(#candidate[1].raw_inputs == 6 and candidate[1].raw_inputs[3] == 18,
-    "timeline transcription must emit a frame-accurate raw input stream")
-assert(candidate[1]._xt_meta.transcription.raw_inputs_origin == "captured_timeline_replay",
-    "candidate metadata must disclose how raw input was obtained")
+assert(candidate[1].raw_inputs == nil
+    and #candidate[1].relative_raw_inputs == 6
+    and candidate[1].relative_raw_inputs[3] == 18,
+    "timeline transcription must emit only a facing-portable raw input stream")
+assert(candidate[1]._xt_meta.transcription.input_stream_origin
+        == "captured_timeline_replay"
+    and candidate[1]._xt_meta.transcription.portable_input.encoding
+        == "facing_relative_v1",
+    "candidate metadata must disclose how portable raw input was obtained")
 assert(candidate[1]._xt_meta.transcription.environment_adjustments[1].reason
         == "expected_hit_reconnect_after_combo_reset",
     "candidate metadata must disclose derived training-environment changes")
@@ -2458,7 +2622,7 @@ local synchronized_candidate = assert(transcriber.build_candidate({
     json_version = "2",
 }, "2026-07-30T00:00:00+08:00", {
     input_source = "timeline",
-    raw_inputs = { 16 },
+    relative_raw_inputs = { 16 },
     source_advisories = { "source_damage_rebuilt:expected=300:observed=360" },
 }))
 assert(synchronized_candidate[1].snapshot_gauges.attacker.current_hp == 10000
@@ -2472,7 +2636,8 @@ assert(synchronized_candidate[1]._xt_meta.transcription.synchronized_legacy_scen
     "candidate metadata must disclose compatibility rewrites and source drift")
 
 local verified = transcriber.verify_candidate(candidate, result, {
-    raw_inputs = candidate[1].raw_inputs,
+    raw_inputs = candidate[1].relative_raw_inputs,
+    input_source = "relative_raw_inputs",
     input_completed = true,
 })
 assert(verified.ok == true,
@@ -2493,7 +2658,8 @@ local verification_failure = transcriber.verify_candidate(candidate, {
         block_contacts = 0,
     },
 }, {
-    raw_inputs = candidate[1].raw_inputs,
+    raw_inputs = candidate[1].relative_raw_inputs,
+    input_source = "relative_raw_inputs",
     input_completed = true,
 })
 assert(verification_failure.ok == false
@@ -2507,7 +2673,8 @@ local honda_variant_verified = transcriber.verify_candidate(
     honda_variant_candidate,
     honda_variant_compiled,
     {
-        raw_inputs = honda_variant_candidate[1].raw_inputs,
+        raw_inputs = honda_variant_candidate[1].relative_raw_inputs,
+        input_source = "relative_raw_inputs",
         input_completed = true,
         action_ids_equivalent = function(expected_id, observed_id)
             local rule = CharacterRules.get_match_rule(
@@ -2614,6 +2781,48 @@ assert(resumed.output_dir:match("run1$")
     and resumed.report_path:match("Ryu_run1%.json$"),
     "resume must append to the original candidate directory and report")
 
+do
+local single_run = transcriber.new_run(
+    "Ken",
+    { "TrainingComboTrials_data\\CustomCombos\\Ken\\A.json" },
+    "2026-08-01T12:30:00+08:00",
+    {
+        scope = "current",
+        requested_path = "TrainingComboTrials_data\\CustomCombos\\Ken\\A.json",
+    }
+)
+single_run.active = false
+local single_report = transcriber.report(single_run)
+assert(single_report.transcription_scope == "current"
+    and single_report.requested_path:match("A%.json$")
+    and transcriber.resume_info(single_report, "Ken", {
+        "TrainingComboTrials_data\\CustomCombos\\Ken\\A.json",
+        "TrainingComboTrials_data\\CustomCombos\\Ken\\B.json",
+    }) == nil,
+    "single transcription reports must round-trip scope without offering a character-wide resume")
+
+local single_retry = transcriber.failure_retry_run({
+    character = "Ken",
+    transcription_scope = "current",
+    requested_path = single_report.requested_path,
+    items = {
+        {
+            source_file = single_report.requested_path,
+            status = "failed",
+            raw_replay_verified = false,
+        },
+    },
+}, "Ken", { single_report.requested_path }, "2026-08-01T12:35:00+08:00")
+single_retry.active = false
+assert(single_retry.transcription_scope == "current"
+    and single_retry.requested_path == single_report.requested_path
+    and transcriber.resume_info(single_retry, "Ken", {
+        single_report.requested_path,
+        "TrainingComboTrials_data\\CustomCombos\\Ken\\B.json",
+    }) == nil,
+    "retrying a single transcription must not become a character-wide resumable run")
+end
+
 local unverified_remaining, retained_count = transcriber.remaining_paths({
     items = {
         {
@@ -2701,6 +2910,7 @@ local reports_by_path = {
     [report_paths[3]] = {
         schema = transcriber.REPORT_SCHEMA,
         started_at = "2026-07-31T13:07:01+08:00",
+        transcription_scope = "current",
         items = { { status = "passed", source = "started_at" } },
     },
 }
@@ -2712,6 +2922,19 @@ local latest_report_path, latest_report = transcriber.select_latest_report(
 assert(latest_report_path == report_paths[3]
     and latest_report.items[1].source == "started_at",
     "latest report loading must use started_at when finished_at is not available")
+do
+local latest_full_path = transcriber.select_latest_report(
+    report_paths,
+    function(path) return reports_by_path[path] end,
+    transcriber.REPORT_SCHEMA,
+    function(report)
+        return report.transcription_scope == nil
+            or report.transcription_scope == "all"
+    end
+)
+assert(latest_full_path == report_paths[2],
+    "single reports must not hide the latest resumable character-wide report")
+end
 
 local explicit_failure_retry = transcriber.failed_source_paths({
     character = "Guile",

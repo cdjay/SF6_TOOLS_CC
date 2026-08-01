@@ -18,8 +18,8 @@ A combo file is a JSON **array of steps**. Step 1 additionally carries the
 file-level payloads:
 
 ```
-[ step1 = { <step fields> + _xt_meta + scene_state? + raw_inputs? + combo_stats
-            + start_pos_* + timeline? + recorded_by },
+[ step1 = { <step fields> + _xt_meta + scene_state? + relative_raw_inputs?
+            + raw_inputs? + combo_stats + start_pos_* + timeline? + recorded_by },
   step2 = { <step fields> },
   ... ]
 ```
@@ -82,11 +82,12 @@ uses different internal units in different detail menus.
 |---|---|
 | `_xt_meta` | Authoring metadata + versioning — see §3 |
 | `scene_state` | Playback preconditions snapshot — see §3c |
-| `raw_inputs` | uint16[] — raw per-frame input stream for native-fidelity DEMO playback. **Optional** (§5) |
+| `relative_raw_inputs` | uint16[] — optional SF6CC extension for facing-relative per-frame input. Horizontal bits are projected through the actor's live facing on every playback frame; all other uint16 mask bits retain native semantics (§5) |
+| `raw_inputs` | uint16[] — optional legacy screen-relative/native per-frame stream. It remains byte-for-byte compatible with WTT (§5) |
 | `combo_stats` | Result analytics ONLY: `{ damage, drive_used, super_used }` — consumption/outcome, never starting state (§3c) |
 | `start_pos_p1/p2` (+`_raw`) | Recorded positions |
 | `recorded_by` | 0/1 — recording side (orients `scene_state.players`) |
-| `timeline` | Step-timeline DEMO data — supported playback source when `raw_inputs` is absent (§5) |
+| `timeline` | Step-timeline DEMO data — supported playback and legacy-WTT fallback when no recognized embedded input stream is selected (§5) |
 
 ## 3. `_xt_meta` — authoring metadata and versioning carrier
 
@@ -214,16 +215,25 @@ able to declare equivalences explicitly:
 5. Runtime fields (`actual_combo`, `has_hit`, …) are never meaningful on disk.
 6. Sidecar runtime files (e.g. `CompletedTrials.json`) MUST live outside the
    per-character combo directories.
-7. **`raw_inputs` is optional.** A file without it is fully v2-compliant;
-   `timeline` remains a supported playback source (not deprecated). When both
-   are present, `raw_inputs` takes precedence for DEMO fidelity.
+7. **All embedded input streams are optional.** A file without
+   `relative_raw_inputs` or `raw_inputs` is fully v2-compliant; `timeline`
+   remains a supported playback source (not deprecated). Supporting SF6CC
+   readers select `relative_raw_inputs`, then legacy `raw_inputs`, then
+   `timeline`. A usable timeline SHOULD be preferred after warning when the
+   recorded `control_mode` is incompatible with the current mode.
 8. **No batch conversion required.** Existing community JSONs (schema 1 /
    scene.v1) stay valid forever; tools upgrade files opportunistically when
    re-saving.
-9. Raw input portability caveat: `raw_inputs` streams are only guaranteed
-   meaningful for the same `control_mode` and may drift across `versions.game`
-   — players SHOULD be warned when either differs, and `timeline` used as the
-   fallback source.
+9. Input portability caveat: both embedded stream forms are only guaranteed
+   meaningful for the same `control_mode` and may drift across `versions.game`.
+   `relative_raw_inputs` additionally removes dependence on the actor's initial
+   side and later side switches by storing horizontal bits relative to the
+   actor's per-frame facing (`_xt_meta.input_stream.encoding` =
+   `facing_relative_v1`).
+10. Older WTT readers ignore `relative_raw_inputs`. Writers that depend on this
+    extension MUST retain a usable `timeline` and MUST NOT also emit a known-bad
+    native `raw_inputs`; this makes old WTT fall back to timeline. Legacy files
+    whose only replay fact is a valid native `raw_inputs` remain unchanged.
 
 ## 5. Remaining open questions
 
@@ -242,3 +252,4 @@ able to declare equivalences explicitly:
 | 2 rev 1 | 2026-07-13 | `versions` block, `language`, `control_mode`, `environment`, `raw_inputs`, `scene_state`, `motion_aliases`, explicit-preconditions principle, compat rules |
 | 2 rev 2 | 2026-07-14 | Review pass 1: `resources`/`status` in scene_state (start state ≠ consumption), `step_notes`, ISO 8601 + `updated_at`, structured `versions` objects, raw_inputs optionality + timeline status + no-batch-conversion rules |
 | 2.0.0 errata | 2026-07-26 | Freeze status; clarify actual `expected_hp` actor semantics; document optional REFramework host version, numeric `dummy_guard_type`, count guard, and the additive native Dummy Settings environment fields (including `T` detail weights). No JSON layout change. |
+| 2.0.0 errata | 2026-08-01 | Document the additive `relative_raw_inputs` / `facing_relative_v1` extension, playback priority, and retained-timeline fallback required for older WTT readers. Schema remains 2. |

@@ -7,7 +7,7 @@ local RuntimeAuditor = {
     name = "ComboTrials.RuntimeAuditor",
     REPORT_SCHEMA = "sf6cc.combo_runtime_audit.v1",
     REPORT_ROOT = "TrainingComboTrials_data/RuntimeAuditReports",
-    VALIDATION_REVISION = 27,
+    VALIDATION_REVISION = 28,
 }
 
 local function deep_copy(value)
@@ -108,7 +108,11 @@ function RuntimeAuditor.report(run)
         status = run.status,
         report_path = run.report_path,
         verifier = {
-            input = "raw_inputs",
+            input = "relative_raw_inputs_or_raw_inputs",
+            input_priority = {
+                "relative_raw_inputs",
+                "raw_inputs",
+            },
             action_truth = "runtime_action_id",
             timing_tolerance = 2,
             outcome_checks = {

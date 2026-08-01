@@ -4,7 +4,7 @@
 local Transcriber = {
     name = "ComboTrials.Transcriber",
     REPORT_SCHEMA = "sf6cc.combo_transcription_report.v1",
-    VALIDATION_REVISION = 27,
+    VALIDATION_REVISION = 30,
     OUTPUT_ROOT = "TrainingComboTrials_data/TranscribedCandidates",
     REPORT_ROOT = "TrainingComboTrials_data/TranscriptionReports",
 }
@@ -35,14 +35,15 @@ end
 -- Report variants use different filename infixes (single/failure_retry/etc.),
 -- so lexical path order is not chronological. Select by persisted report time
 -- and use the path only as a deterministic tie-breaker.
-function Transcriber.select_latest_report(paths, loader, expected_schema)
+function Transcriber.select_latest_report(paths, loader, expected_schema, predicate)
     if type(paths) ~= "table" or type(loader) ~= "function" then return nil end
     local best_path, best_report, best_key = nil, nil, nil
     for _, path in ipairs(paths) do
         local ok, report = pcall(loader, path)
         if ok and type(report) == "table"
             and (expected_schema == nil or report.schema == expected_schema)
-            and type(report.items) == "table" then
+            and type(report.items) == "table"
+            and (type(predicate) ~= "function" or predicate(report) == true) then
             local key = report_time_key(path, report)
             if best_report == nil or key > best_key
                 or (key == best_key and tostring(path) > tostring(best_path)) then
@@ -58,6 +59,7 @@ end
 local Validator = require("func/ComboTrials/Validator")
 local SceneState = require("func/ComboTrials/SceneState")
 local TrainingEnvironment = require("func/ComboTrials/TrainingEnvironment")
+local RawInputCodec = require("func/ComboTrials/RawInputCodec")
 
 local DERIVED_STEP_KEYS = {
     actual_combo = true,
@@ -316,7 +318,57 @@ function Transcriber.prepare_capture_sequence(source_sequence)
     return prepared, adjustments
 end
 
+local function has_reason_prefix(evaluation, prefix)
+    for _, reason in ipairs(
+        type(evaluation) == "table" and type(evaluation.reasons) == "table"
+            and evaluation.reasons or {}
+    ) do
+        if tostring(reason):sub(1, #prefix) == prefix then return true end
+    end
+    return false
+end
+
+-- A continuous legacy route does not expose enough static information to
+-- distinguish a deliberate pressure tail from an obsolete "guard after first
+-- hit" setting. Runtime contact does: when the copied scene applied that guard
+-- successfully and it blocks before the recorded combo can finish, retry the
+-- same input once with guard disabled. The caller owns the one-retry limit.
+function Transcriber.prepare_guard_retry(source_sequence, evaluation)
+    local first = first_step(source_sequence)
+    local expected = expected_outcome(source_sequence)
+    local guard_type = TrainingEnvironment.resolve_dummy_guard_type(first, nil)
+    if next(first) == nil
+        or type(evaluation) ~= "table"
+        or evaluation.ok == true
+        or expected.block_contacts > 0
+        or guard_type ~= TrainingEnvironment.DUMMY_GUARD.AFTER_FIRST_HIT
+        or not has_reason_prefix(
+            evaluation,
+            "unexpected_block_before_combo_completion:"
+        ) then
+        return nil, {}
+    end
+
+    local prepared = deep_copy(source_sequence)
+    local prepared_first = first_step(prepared)
+    set_prepared_environment_field(
+        prepared_first,
+        "dummy_guard_type",
+        TrainingEnvironment.DUMMY_GUARD.NONE
+    )
+    set_prepared_environment_field(prepared_first, "dummy_guard_switching", false)
+    return prepared, {
+        {
+            field = "dummy_guard_type",
+            from = guard_type,
+            to = TrainingEnvironment.DUMMY_GUARD.NONE,
+            reason = "runtime_blocked_before_expected_combo_completion",
+        },
+    }
+end
+
 local ENVIRONMENT_READBACK_FIELDS = {
+    "dummy_action_type",
     "dummy_counter_type",
     "dummy_guard_type",
     "dummy_guard_count",
@@ -486,6 +538,129 @@ local function action_sequence_is_subsequence(sequence, compiled_steps, action_i
     return true
 end
 
+local function normalized_motion(value)
+    local motion = tostring(value or ""):upper():gsub("%s+", "")
+    return motion ~= "" and motion or nil
+end
+
+local function mirrored_motion(value)
+    local motion = normalized_motion(value)
+    if motion == nil then return nil end
+    local mirror = {
+        ["1"] = "3",
+        ["3"] = "1",
+        ["4"] = "6",
+        ["6"] = "4",
+        ["7"] = "9",
+        ["9"] = "7",
+    }
+    return (motion:gsub("[134679]", mirror))
+end
+
+local function legacy_motion_matches(expected_motion, observed_motion)
+    local expected = normalized_motion(expected_motion)
+    local observed = normalized_motion(observed_motion)
+    if expected == nil or observed == nil then return false end
+    local mirrored = mirrored_motion(expected)
+    -- Same notation with a different Action ID can mean a missing character
+    -- resource or buff and must stay a failure. Only an actual left/right
+    -- mirror proves the known side-switch representation drift.
+    return mirrored ~= expected and mirrored == observed
+end
+
+local function is_legacy_derived_step(step)
+    local motion = normalized_motion(type(step) == "table" and step.motion)
+    return motion ~= nil and motion:sub(1, 1) == ">"
+end
+
+-- Old recorders sometimes emitted an internal follow-up as its own ">..."
+-- row, while the current Action stream folds that follow-up into the owning
+-- Action. They also stored directions before a side switch in the old facing.
+-- For segmented legacy routes, compare only authored rows and allow a mirrored
+-- motion to prove a changed Action ID. This remains weaker than normal Action
+-- matching and is used only together with complete input and terminal contact.
+local function legacy_authored_action_sequence_is_subsequence(
+    sequence,
+    compiled_steps,
+    action_ids_equivalent
+)
+    if type(sequence) ~= "table" or type(compiled_steps) ~= "table"
+        or #sequence == 0 or #compiled_steps == 0 then
+        return false
+    end
+
+    local observed_index = 1
+    local authored_count = 0
+    for expected_index, expected in ipairs(sequence) do
+        if not is_legacy_derived_step(expected) then
+            authored_count = authored_count + 1
+            local expected_id = tonumber(type(expected) == "table" and expected.id)
+            if expected_id == nil then return false end
+            local matched = false
+            while observed_index <= #compiled_steps do
+                local observed = compiled_steps[observed_index]
+                local observed_id = tonumber(
+                    type(observed) == "table" and observed.id
+                )
+                if observed_id ~= nil
+                    and (action_ids_match(
+                            expected_id,
+                            observed_id,
+                            action_ids_equivalent,
+                            expected_index
+                        )
+                        or legacy_motion_matches(
+                            expected.motion,
+                            observed.motion
+                        )) then
+                    matched = true
+                    observed_index = observed_index + 1
+                    break
+                end
+                observed_index = observed_index + 1
+            end
+            if not matched then return false end
+        end
+    end
+    return authored_count > 0
+end
+
+local function legacy_action_evidence(compiled, compiled_steps)
+    local trace = type(compiled) == "table" and compiled.trace or nil
+    local observed_actions = type(trace) == "table"
+        and trace.observed_actions or nil
+    if type(observed_actions) ~= "table" or #observed_actions == 0 then
+        return compiled_steps
+    end
+
+    local evidence = deep_copy(observed_actions)
+    -- The transition trace contains every real Action, including transient
+    -- noncontact states that intentionally receive no command row. Enrich its
+    -- input-bound Actions with the resolved motion so a post-side-switch ID can
+    -- still be proven by mirrored notation.
+    for _, observed in ipairs(evidence) do
+        local observed_id = tonumber(type(observed) == "table" and observed.id)
+        local observed_frame = tonumber(type(observed) == "table" and observed.frame)
+        if observed_id ~= nil then
+            local fallback = nil
+            for _, step in ipairs(type(compiled_steps) == "table" and compiled_steps or {}) do
+                if tonumber(type(step) == "table" and step.id) == observed_id then
+                    fallback = fallback or step
+                    if observed_frame ~= nil
+                        and tonumber(step.frame) == observed_frame then
+                        fallback = step
+                        break
+                    end
+                end
+            end
+            if type(fallback) == "table" then
+                observed.motion = fallback.motion
+            end
+        end
+    end
+    return evidence
+end
+
 local function terminal_action_contact_matches(sequence, compiled_steps, action_ids_equivalent)
     local expected = type(sequence) == "table" and sequence[#sequence] or nil
     local observed = type(compiled_steps) == "table" and compiled_steps[#compiled_steps] or nil
@@ -603,16 +778,27 @@ function Transcriber.evaluate(sequence, compiled, runtime)
         steps,
         runtime.action_ids_equivalent
     )
+    local legacy_evidence_steps = legacy_action_evidence(compiled, steps)
+    local legacy_authored_action_subsequence_match =
+        legacy_authored_action_sequence_is_subsequence(
+            sequence,
+            legacy_evidence_steps,
+            runtime.action_ids_equivalent
+        )
     local legacy_segmented_outcome = runtime.allow_legacy_outcome_rebuild == true
         and expected_hit_reconnect_reason(sequence) ~= nil
-        and source_action_subsequence_match
+        and legacy_authored_action_subsequence_match
+        and runtime.input_completed == true
+        and runtime.timed_out ~= true
         and terminal_action_contact_matches(
             sequence,
             steps,
             runtime.action_ids_equivalent
         )
 
-    if runtime.input_source ~= "raw_inputs" and runtime.input_source ~= "timeline" then
+    if runtime.input_source ~= "raw_inputs"
+        and runtime.input_source ~= RawInputCodec.RELATIVE_FIELD
+        and runtime.input_source ~= "timeline" then
         reasons[#reasons + 1] = "missing_input_stream"
     end
     if type(runtime.raw_inputs) ~= "table" or #runtime.raw_inputs == 0 then
@@ -696,6 +882,10 @@ function Transcriber.evaluate(sequence, compiled, runtime)
             "input_refined_followup_motion:%d",
             input_refined_motion_actions
         )
+    end
+    if legacy_segmented_outcome and not source_action_subsequence_match then
+        advisories[#advisories + 1] =
+            "source_segmented_action_stream_rebuilt"
     end
     if (tonumber(stats.resolver_error_actions) or 0) > 0 then
         reasons[#reasons + 1] = "motion_resolver_error"
@@ -783,6 +973,8 @@ function Transcriber.evaluate(sequence, compiled, runtime)
         observed = deep_copy(stats),
         source_action_match = source_action_match,
         source_action_subsequence_match = source_action_subsequence_match,
+        legacy_authored_action_subsequence_match =
+            legacy_authored_action_subsequence_match,
         legacy_segmented_outcome = legacy_segmented_outcome,
         environment_validation = environment_validation,
     }
@@ -799,8 +991,17 @@ end
 function Transcriber.verify_candidate(candidate, compiled, runtime)
     runtime = type(runtime) == "table" and runtime or {}
     compiled = type(compiled) == "table" and compiled or {}
+    local candidate_first = first_step(candidate)
+    local replay_source = runtime.input_source
+    if replay_source ~= "raw_inputs"
+        and replay_source ~= RawInputCodec.RELATIVE_FIELD then
+        replay_source = type(candidate_first.relative_raw_inputs) == "table"
+            and #candidate_first.relative_raw_inputs > 0
+            and RawInputCodec.RELATIVE_FIELD
+            or "raw_inputs"
+    end
     local evaluation = Transcriber.evaluate(candidate, compiled, {
-        input_source = "raw_inputs",
+        input_source = replay_source,
         raw_inputs = runtime.raw_inputs,
         input_completed = runtime.input_completed,
         timed_out = runtime.timed_out,
@@ -940,14 +1141,43 @@ function Transcriber.build_candidate(source_sequence, compiled, version_info, no
         version = version_info and version_info.json_version or "2",
     }
     transcription = type(transcription) == "table" and transcription or {}
-    if type(transcription.raw_inputs) == "table" and #transcription.raw_inputs > 0 then
-        candidate[1].raw_inputs = deep_copy(transcription.raw_inputs)
+    local source_input = transcription.input_source
+    local input_origin = source_input == "timeline"
+        and "captured_timeline_replay" or "source_recording"
+    if source_input == "timeline"
+        or source_input == RawInputCodec.RELATIVE_FIELD then
+        local relative = RawInputCodec.normalize_stream(
+            transcription.relative_raw_inputs
+        )
+        if not relative then
+            return nil, "transcribed_relative_raw_inputs_missing"
+        end
+        candidate[1].relative_raw_inputs = deep_copy(relative)
+        -- Never leave a native stream beside a timeline-derived portable
+        -- stream. Older WTT builds prioritize raw_inputs and would replay the
+        -- same side-switch bug instead of falling back to the retained timeline.
+        candidate[1].raw_inputs = nil
+    elseif source_input == "raw_inputs" then
+        local native = RawInputCodec.normalize_stream(transcription.raw_inputs)
+        if not native then return nil, "transcribed_raw_inputs_missing" end
+        candidate[1].raw_inputs = deep_copy(native)
+        candidate[1].relative_raw_inputs = nil
     end
     meta.transcription = type(meta.transcription) == "table" and meta.transcription or {}
     meta.transcription.schema = "sf6cc.combo_transcription.v1"
-    meta.transcription.source_input = transcription.input_source
-    meta.transcription.raw_inputs_origin =
-        transcription.input_source == "timeline" and "captured_timeline_replay" or "source_recording"
+    meta.transcription.source_input = source_input
+    meta.transcription.input_stream_origin = input_origin
+    if source_input == "timeline"
+        or source_input == RawInputCodec.RELATIVE_FIELD then
+        meta.transcription.portable_input =
+            RawInputCodec.describe_relative_stream()
+        meta.transcription.raw_inputs_origin = nil
+        meta.input_stream = RawInputCodec.describe_relative_stream()
+    elseif source_input == "raw_inputs" then
+        meta.transcription.portable_input = nil
+        meta.transcription.raw_inputs_origin = input_origin
+        meta.input_stream = nil
+    end
     if type(transcription.source_advisories) == "table"
         and #transcription.source_advisories > 0 then
         meta.transcription.source_advisories =
@@ -989,7 +1219,8 @@ function Transcriber.build_candidate(source_sequence, compiled, version_info, no
     return candidate
 end
 
-function Transcriber.new_run(character, paths, now)
+function Transcriber.new_run(character, paths, now, options)
+    options = type(options) == "table" and options or {}
     local copied_paths = {}
     for _, path in ipairs(type(paths) == "table" and paths or {}) do
         copied_paths[#copied_paths + 1] = path
@@ -998,6 +1229,8 @@ function Transcriber.new_run(character, paths, now)
         active = true,
         cancel_requested = false,
         character = character or "Unknown",
+        transcription_scope = options.scope or "all",
+        requested_path = options.requested_path,
         paths = copied_paths,
         path_index = 0,
         resume_processed = 0,
@@ -1068,6 +1301,8 @@ end
 
 function Transcriber.resume_info(previous_run, character, paths)
     if type(previous_run) ~= "table" or previous_run.active == true then return nil end
+    local scope = previous_run.transcription_scope
+    if scope ~= nil and scope ~= "all" then return nil end
     if type(previous_run.items) ~= "table" or #previous_run.items == 0 then return nil end
     if tostring(previous_run.character or ""):lower() ~= tostring(character or ""):lower() then
         return nil
@@ -1102,12 +1337,16 @@ function Transcriber.failed_source_paths(previous_run)
     return paths
 end
 
--- A failure-only retry still represents the same character-wide conversion.
--- Retain previously verified passes in the new run so its report and candidate
--- browser remain a complete install set instead of exposing only the retried
--- subset from a separate output directory.
+-- A failure-only retry retains the source report's scope. For character-wide
+-- runs, keep previously verified passes so the new report and candidate browser
+-- remain a complete install set; current/subset runs stay narrow.
 function Transcriber.failure_retry_run(previous_run, character, paths, now)
-    local run = Transcriber.new_run(character, paths, now)
+    local run = Transcriber.new_run(character, paths, now, {
+        scope = type(previous_run) == "table"
+            and (previous_run.transcription_scope or "all") or "all",
+        requested_path = type(previous_run) == "table"
+            and previous_run.requested_path or nil,
+    })
     local retained = {}
     local items = type(previous_run) == "table"
         and type(previous_run.items) == "table" and previous_run.items or {}
@@ -1170,6 +1409,8 @@ function Transcriber.report(run)
         schema = Transcriber.REPORT_SCHEMA,
         validation_revision = Transcriber.VALIDATION_REVISION,
         character = run.character,
+        transcription_scope = run.transcription_scope or "all",
+        requested_path = run.requested_path,
         started_at = run.started_at,
         finished_at = run.finished_at,
         canceled = run.cancel_requested == true,

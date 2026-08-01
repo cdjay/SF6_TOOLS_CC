@@ -28,6 +28,20 @@ action_type, jump_type, action_source = TrainingEnvironment.resolve_dummy_action
 assert(action_type == 2 and jump_type == 3 and action_source == "environment",
     "v2 environment action/jump pair must be restored")
 
+action_type, jump_type, action_source = TrainingEnvironment.resolve_dummy_action({
+    dummy_action_type = 0,
+    requires_dummy_crouch = true,
+    _xt_meta = {
+        environment = {
+            dummy_action_type = 0,
+            dummy_stance = "stand",
+        },
+    },
+})
+assert(action_type == 1 and jump_type == 0
+        and action_source == "step_requires_crouch",
+    "an explicit crouch requirement must override stale legacy stand fields")
+
 local runtime_jump, was_random = TrainingEnvironment.resolve_runtime_jump_type(3, 0)
 assert(runtime_jump == 0 and was_random == true, "random jump must resolve to vertical when rolled")
 runtime_jump, was_random = TrainingEnvironment.resolve_runtime_jump_type(3, 1)

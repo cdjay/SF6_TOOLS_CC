@@ -29,7 +29,7 @@ node tools\combo_json_editor\server.mjs
 - 角色特殊资源：按 Fighter ID 显示语义化控件，例如“电刃炼气 (Denjin Charge)”开/关、“刃焰 (Flame Stock)”库存；布兰卡、韩蛛俐和杰米会同时显示两项资源。双方为同一角色时，训练模式共享同一个 `UniqueData` 资源键，两侧控件会自动同步。未知扩展资源保留在单独的 JSON 区域。
 - 安全批量编辑：可统一写入游戏、MOD/录制器、REFramework、JSON 格式版本，以及明确确认过的语言和控制模式。
 
-动作 ID、指令、延迟、连击数、`timeline`、`raw_inputs` 等机制字段只读。唯一例外是打康规则规范化：保存菜单值时会删除旧 `motion` 标签和步骤级 `counter_type`，避免它们再次覆盖固定菜单。
+动作 ID、指令、延迟、连击数、`timeline`、`raw_inputs`、`relative_raw_inputs` 等机制字段只读。唯一例外是打康规则规范化：保存菜单值时会删除旧 `motion` 标签和步骤级 `counter_type`，避免它们再次覆盖固定菜单。
 作者、角色、创建时间、资源和木人状态不提供全库批量覆盖。
 
 ## 批量迁移

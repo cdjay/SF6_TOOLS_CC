@@ -4,7 +4,7 @@
 
 连段数据分成三层，优先级不可颠倒：
 
-1. `raw_inputs` 或 `timeline`：玩家实际输入，是可重放的事实。
+1. `relative_raw_inputs`、旧版 `raw_inputs` 或 `timeline`：玩家实际输入，是可重放的事实。
 2. 游戏运行时 Action 事件：重放输入后，由游戏实际产生的 Action ID、命中、连击数和伤害。
 3. V2 steps：为 SF6CC、WTT 和指令表 UI 生成的兼容产物。
 
@@ -52,9 +52,12 @@ Action。编译器允许同一个输入锚点沿运行时 Action 轨迹向后提
 游戏内菜单的“转录当前角色全部连段”会：
 
 1. 扫描当前 P1 角色的全部连段 JSON；
-2. 每个文件先按 `raw_inputs`（优先）或 `timeline` 回放一次；
-3. 旧 timeline 回放期间逐帧捕获实际注入游戏的输入，统一写成内嵌
-   `raw_inputs`；已有 raw input 的文件原样保留该输入事实；
+2. 每个文件先选择真实输入来源：已有 `relative_raw_inputs` 时直接使用；旧文件同时有
+   native `raw_inputs` 与可用 `timeline` 时优先重放 timeline，以重建不受换边影响的输入；
+   只有 native raw 而没有可用 timeline 时才原样使用 native raw；
+3. timeline 回放期间逐帧捕获实际注入游戏的输入，并按当帧角色朝向转换为内嵌
+   `relative_raw_inputs`；已有相对输入继续保持相对语义，raw-only 文件则保留其原生输入
+   事实；
 4. 输入结束后保留最多 360 帧结算窗口，等待末尾命中和 combo count 归零；
 5. 用新编译器重新生成完整 V2 steps；
 6. 原文件的 Action steps、伤害和最大连击只用于生成差异提示；它们是旧录制器的派生
@@ -62,7 +65,7 @@ Action。编译器允许同一个输入锚点沿运行时 Action 轨迹向后提
    未解析输入、未解析 motion、超时、资源消耗和必要格挡接触仍会中止本次候选；
 7. 加载源文件后进入完整训练启动流程，应用该连段记录的位置、血量、斗气、SA、角色
    资源和防御设置；位置/资源重注入以及训练场刷新完成后，才开始稳定预滚倒计时；
-8. 候选生成后再次恢复训练环境，并只使用刚生成的 `raw_inputs` 重放一遍；
+8. 候选生成后再次恢复训练环境，并只使用刚生成或保留的内嵌输入流重放一遍；
 9. 第二遍逐项核对实际 Action ID、动作数量、相邻动作时序、每一步连击数和累计伤害，
    同时再次核对整条连段的伤害、最大连击、格挡接触、斗气和 SA 消耗；
 10. 两遍都通过才写候选文件，并在候选元数据及报告中写入
@@ -73,15 +76,21 @@ V2 `scene_state` 是新文件的场景权威。只有旧 WTT 文件缺少对应 
 已有旧字段同步为 `scene_state` 的值，并在保留虚损差值的同时记录同步数量，避免 SF6CC
 与 WTT 对同一 JSON 应用不同初始状态。
 
-新版直接录制和转录候选都以内嵌 `raw_inputs` 作为首选回放事实。为兼容旧 WTTmod，
-timeline 可以继续保留，但不会覆盖或反向推导 Action ID。
+新版直接录制和 timeline 转录候选以内嵌 `relative_raw_inputs` 作为首选回放事实。它和
+native `raw_inputs` 使用同一 uint16 mask；只有左右方向位会在录制时按当帧朝向归一化，
+播放时再按实时朝向投影，因此换边前后的“前/后”语义保持不变。`_xt_meta.input_stream`
+记录 `{ field: "relative_raw_inputs", encoding: "facing_relative_v1" }`。
 
-训练检测也遵守同一边界：含 `raw_inputs` 的文件使用输入事实严格模式，只有 JSON 中
-记录的 Action ID（或明确声明的版本变体 ID）才能完成对应 step。没有新输入锚点的游戏
-内部 Action 只进入观察日志，不会触发“错误动作”；旧 `absorb_ids` 也不能代替已转录的
-Action step。按键松开只在紧邻窗口内保留负缘触发语义，陈旧松键不能绑定几十帧后的
-低编号移动/系统 Action；否则蓄力技输入过程中的跳跃启动会被错误绘制成独立的“上”。
-只有 timeline-only 的旧 WTT 文件继续走历史兼容规则。
+为兼容尚未识别该扩展的旧 WTTmod，相对输入候选保留 timeline 且不并存已知错误的 native
+`raw_inputs`：旧 WTT 会忽略未知字段并自然回退 timeline。只有 raw input、没有可用
+timeline 的旧文件仍保留 native `raw_inputs`，不会被猜测转换。V2 schema 继续保持 2。
+
+训练检测也遵守同一边界：含有效 `relative_raw_inputs` 或 `raw_inputs` 的文件使用输入事实
+严格模式，只有 JSON 中记录的 Action ID（或明确声明的版本变体 ID）才能完成对应 step。
+没有新输入锚点的游戏内部 Action 只进入观察日志，不会触发“错误动作”；旧 `absorb_ids`
+也不能代替已转录的 Action step。按键松开只在紧邻窗口内保留负缘触发语义，陈旧松键
+不能绑定几十帧后的低编号移动/系统 Action；否则蓄力技输入过程中的跳跃启动会被错误
+绘制成独立的“上”。只有 timeline-only 的旧 WTT 文件继续走历史兼容规则。
 
 源文件永远不会被覆盖。每次运行使用独立目录：
 
@@ -113,11 +122,12 @@ TrainingComboTrials_data/TranscriptionReports/<Character>_<timestamp>.json
 录制菜单中的“审计当前角色全部连段”用于检查已经安装到运行目录的最终 JSON，不再生成
 候选，也不会覆盖任何连段文件。
 
-每个文件都会经过完整训练启动、场景恢复、稳定预滚和 `raw_inputs` 自动演示。输入结束
-后，审计器使用同一个 Action 编译器核对实际 Action ID、动作数量、相邻动作时序、每步
-连击数与累计伤害，以及整条连段的伤害、最大连击、格挡接触、斗气和 SA 消耗。每条结束
-前还必须确认训练 UI 已推进到序列末尾且没有失败状态。随后先清理训练环境，再加载下一
-条，因此也能暴露首轮启动、指令表完成判定和跨文件状态污染。
+每个文件都会经过完整训练启动、场景恢复、稳定预滚，并按
+`relative_raw_inputs` > `raw_inputs` 的顺序选择内嵌输入自动演示。输入结束后，审计器使用
+同一个 Action 编译器核对实际 Action ID、动作数量、相邻动作时序、每步连击数与累计
+伤害，以及整条连段的伤害、最大连击、格挡接触、斗气和 SA 消耗。每条结束前还必须确认
+训练 UI 已推进到序列末尾且没有失败状态。随后先清理训练环境，再加载下一条，因此也能
+暴露首轮启动、指令表完成判定和跨文件状态污染。
 
 报告写入：
 
@@ -125,15 +135,18 @@ TrainingComboTrials_data/TranscriptionReports/<Character>_<timestamp>.json
 TrainingComboTrials_data/RuntimeAuditReports/<Character>_<timestamp>.json
 ```
 
-报告只接受内嵌 `raw_inputs`。如果安装目录仍混有只有 timeline 的旧文件，会明确记录
-`runtime_audit_raw_inputs_missing`，而不是临时转录或猜测 Action。
+报告只接受有效的内嵌 `relative_raw_inputs` 或 `raw_inputs`。如果安装目录仍混有只有
+timeline 的旧文件，会明确记录 `runtime_audit_input_stream_missing`，而不是临时转录或
+猜测 Action。
 
 ## 失败分类
 
 报告的 `reasons` 是直接观测到的失败，例如：
 
 - `missing_input_stream`
+- `transcribed_relative_raw_inputs_missing`
 - `transcribed_raw_inputs_missing`
+- `runtime_audit_input_stream_missing`
 - `no_action_steps`
 - `unresolved_input_actions`
 - `unresolved_action_motion`

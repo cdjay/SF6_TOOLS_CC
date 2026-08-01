@@ -63,6 +63,31 @@ local passed = RuntimeAuditor.evaluate(candidate, compiled, {
 assert(passed.ok == true,
     "runtime audit must accept an installed combo that reproduces its Action truth")
 
+local relative_candidate = {
+    {
+        id = 600,
+        motion = "LP",
+        expected_combo = 1,
+        damage_at_step = 300,
+        delay_from_prev = 0,
+        relative_raw_inputs = { 16, 0 },
+        combo_stats = {
+            damage = 300,
+            drive_used = 0,
+            super_used = 0,
+        },
+    },
+}
+local relative_passed = RuntimeAuditor.evaluate(relative_candidate, compiled, {
+    raw_inputs = relative_candidate[1].relative_raw_inputs,
+    input_source = "relative_raw_inputs",
+    input_completed = true,
+    timing_tolerance = 2,
+    trial_completed = true,
+})
+assert(relative_passed.ok == true,
+    "runtime audit must accept facing-relative input truth")
+
 compiled.steps[1].id = 601
 local failed = RuntimeAuditor.evaluate(candidate, compiled, {
     raw_inputs = candidate[1].raw_inputs,
@@ -107,7 +132,8 @@ run.items = {
 }
 local report = RuntimeAuditor.report(run)
 assert(report.schema == RuntimeAuditor.REPORT_SCHEMA
-    and report.verifier.input == "raw_inputs"
+    and report.verifier.input == "relative_raw_inputs_or_raw_inputs"
+    and report.verifier.input_priority[1] == "relative_raw_inputs"
     and report.verifier.action_truth == "runtime_action_id",
     "runtime audit reports must disclose their truth source and validation policy")
 

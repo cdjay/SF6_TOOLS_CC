@@ -13,6 +13,7 @@ local UIKit = require("func/UIKit")
 local TrainingMenuRegistry = require("func/Training_MenuRegistry")
 local SharedUI = require("func/Training_SharedUI")
 local SceneState = require("func/ComboTrials/SceneState")
+local RawInputCodec = require("func/ComboTrials/RawInputCodec")
 
 local M = {}
 local ctx
@@ -985,9 +986,8 @@ local function draw_single_line_content()
             end
             imgui.same_line(0, sp)
             local first_stun_step = trial_state.sequence and trial_state.sequence[1]
-            local has_raw_inputs = type(first_stun_step) == "table"
-                and type(first_stun_step.raw_inputs) == "table"
-                and #first_stun_step.raw_inputs > 0
+            local has_raw_inputs =
+                RawInputCodec.select_stream(first_stun_step) ~= nil
             local manual_stun_demo_required = type(first_stun_step) == "table"
                 and first_stun_step.has_piyo == true
                 and not has_raw_inputs
@@ -1153,9 +1153,8 @@ local function draw_combo_trials_content(is_floating)
         end
         if mode_all_stacked then imgui.spacing() end
         local first_stun_step = trial_state.sequence and trial_state.sequence[1]
-        local has_raw_inputs = type(first_stun_step) == "table"
-            and type(first_stun_step.raw_inputs) == "table"
-            and #first_stun_step.raw_inputs > 0
+        local has_raw_inputs =
+            RawInputCodec.select_stream(first_stun_step) ~= nil
         local manual_stun_demo_required = type(first_stun_step) == "table"
             and first_stun_step.has_piyo == true
             and not has_raw_inputs
@@ -1738,7 +1737,7 @@ local function draw_combo_trials_menu_ui()
         imgui.separator()
         imgui.text_colored("输入驱动的 V2 转录", COLORS.Orange)
         imgui.text_colored(
-            "每条先回放源输入，再重置并验证生成的 raw input；不会覆盖原文件。",
+            "每条先回放源输入，再重置并验证朝向兼容的 raw input；不会覆盖原文件。",
             COLORS.DarkGrey
         )
         local transcription = ctx.get_transcription_state and ctx.get_transcription_state() or nil
@@ -1769,15 +1768,23 @@ local function draw_combo_trials_menu_ui()
                 ctx.start_transcription(false)
                 transcription = ctx.get_transcription_state and ctx.get_transcription_state() or transcription
             end
-            if resume and ctx.start_transcription then
+            if ctx.start_transcription_current then
                 imgui.same_line()
+                if imgui.button("仅转录当前连段") then
+                    ctx.start_transcription_current()
+                    transcription = ctx.get_transcription_state
+                        and ctx.get_transcription_state()
+                        or transcription
+                end
+            end
+            if resume and ctx.start_transcription then
                 if imgui.button("重新转录全部") then
                     ctx.start_transcription(true)
                     transcription = ctx.get_transcription_state and ctx.get_transcription_state() or transcription
                 end
             end
             if ctx.load_latest_transcription_report then
-                imgui.same_line()
+                if resume then imgui.same_line() end
                 if imgui.button("载入最近转录报告") then
                     ctx.load_latest_transcription_report()
                     transcription = ctx.get_transcription_state and ctx.get_transcription_state() or transcription
@@ -1802,7 +1809,7 @@ local function draw_combo_trials_menu_ui()
             imgui.spacing()
             imgui.text_colored("运行目录批量演示审计", COLORS.Orange)
             imgui.text_colored(
-                "逐条加载已安装 JSON，以 raw input 自动演示并严格核对实际 Action 与结果；只生成报告。",
+                "逐条加载已安装 JSON，以输入流自动演示并严格核对实际 Action 与结果；只生成报告。",
                 COLORS.DarkGrey
             )
             if imgui.button("仅审计当前连段")

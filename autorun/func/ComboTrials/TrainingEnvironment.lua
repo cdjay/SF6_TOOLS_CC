@@ -448,6 +448,22 @@ function TrainingEnvironment.resolve_dummy_action(first_step)
     local meta = type(first_step._xt_meta) == "table" and first_step._xt_meta or nil
     local env = meta and type(meta.environment) == "table" and meta.environment or nil
 
+    -- This semantic flag exists specifically for hitbox-dependent routes. It
+    -- must outrank a stale numeric action type from an older recorder; otherwise
+    -- a file can say "requires crouch" while the menu is restored to stand.
+    for _, candidate in ipairs({
+        { value = first_step, source = "step_requires_crouch" },
+        { value = meta, source = "meta_requires_crouch" },
+        { value = env, source = "environment_requires_crouch" },
+    }) do
+        if type(candidate.value) == "table"
+            and candidate.value.requires_dummy_crouch == true then
+            return TrainingEnvironment.DUMMY_ACTION.CROUCH,
+                TrainingEnvironment.DUMMY_JUMP.VERTICAL,
+                candidate.source
+        end
+    end
+
     for _, candidate in ipairs({
         { value = first_step, source = "step" },
         { value = meta, source = "meta" },

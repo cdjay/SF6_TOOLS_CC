@@ -6,6 +6,8 @@ local ActionMatcher = {
     DRIVE_PARRY_TRANSITION_WINDOW = 12,
 }
 
+local RawInputCodec = require("func/ComboTrials/RawInputCodec")
+
 local DRIVE_PARRY_INPUT_ACTIONS = {
     [480] = true,
 }
@@ -96,15 +98,13 @@ function ActionMatcher.is_drive_rush_motion(motion)
     return normalized == "RAWDR" or normalized == "DRC"
 end
 
--- raw_inputs is the portable input truth produced by the current recorder and
--- transcriber. Its generated steps already contain the Action IDs that were
--- actually observed during that exact replay, so legacy absorb/substitution
--- rules must not be allowed to replace those steps.
+-- Current recordings use facing-relative raw input; older recordings may use
+-- native raw input. Both are direct input truth whose generated steps contain
+-- the Action IDs observed during that exact replay, so legacy
+-- absorb/substitution rules must not replace those steps.
 function ActionMatcher.sequence_uses_input_truth(sequence)
     local first = type(sequence) == "table" and sequence[1] or nil
-    return type(first) == "table"
-        and type(first.raw_inputs) == "table"
-        and #first.raw_inputs > 0
+    return RawInputCodec.has_valid_stream(first)
 end
 
 -- A physical frame has one input intent. When an attack button changes on the
