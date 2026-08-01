@@ -6,6 +6,15 @@
     "absorb_ids": "936,941,945",
     "action_required": true,
     "absorb_requires_combo": false,
-    "record_absorb_as_parent": true
+    "record_absorb_as_parent": true,
+    "action_event_projection": {
+      "canonical_owner_ids": "945",
+      "max_fold_delay_frames": 1,
+      "require_same_anchor": true
+    }
+  },
+  "998": {
+    "absorb_ids": "999",
+    "action_event_projection": {}
   }
 }

@@ -4712,6 +4712,7 @@ local function reset_player_action_buffers(p_state)
     p_state.buffer_combo_count = _pf.current_combo or 0
     p_state.recording_block_contact_active = false
     p_state.recording_last_victim_hp = nil
+    p_state.recording_contact_state = {}
     p_state.buffer_start_frame = engine_frame_count
     p_state.buffer_flags = _pf.flags or 0
     p_state.buffer_action_code = _pf.action_code or 0
@@ -4948,6 +4949,11 @@ ctx.new_action_event_session = function(player_idx, source)
         control_mode = control_type_from_input_type(read_player_input_type(player_idx)),
         source = source,
         frame = engine_frame_count,
+        action_event_projection_rules =
+            CharacterRules.build_action_event_projection_rules(
+                p_state and p_state.exceptions or nil,
+                common_exceptions
+            ),
     })
 end
 
@@ -4989,6 +4995,7 @@ local function start_recording(player_idx)
     players[player_idx].buffer_combo_count = 0
     players[player_idx].recording_block_contact_active = false
     players[player_idx].recording_last_victim_hp = nil
+    players[player_idx].recording_contact_state = {}
     players[player_idx].last_direct_input = 0
     players[player_idx].last_direction_input = 0
     reset_combo_visual_runtime()
@@ -5053,6 +5060,7 @@ local function start_trial(player_idx)
     trial_state.is_recording = false
     players[trial_state.recording_player].recording_block_contact_active = false
     players[trial_state.recording_player].recording_last_victim_hp = nil
+    players[trial_state.recording_player].recording_contact_state = {}
     invalidate_recording_display_context()
     trial_state._raw_rec_active = false
     trial_state._action_event_session = nil
@@ -5104,6 +5112,7 @@ local function cancel_recording()
     trial_state.is_recording = false
     players[canceled_player].recording_block_contact_active = false
     players[canceled_player].recording_last_victim_hp = nil
+    players[canceled_player].recording_contact_state = {}
     trial_state.is_playing = false
     invalidate_recording_display_context()
     trial_state.sequence = {}
@@ -5193,6 +5202,7 @@ local function stop_recording_and_save()
     trial_state.is_recording = false
     players[saved_player].recording_block_contact_active = false
     players[saved_player].recording_last_victim_hp = nil
+    players[saved_player].recording_contact_state = {}
     trial_state._raw_rec_active = false
 
     -- MERGE LOGGER TIMELINE IN MEMORY (no intermediate file)
@@ -6644,6 +6654,8 @@ local function cleanup_combo_trials_runtime_on_scene_exit(reason)
     players[1].recording_block_contact_active = false
     players[0].recording_last_victim_hp = nil
     players[1].recording_last_victim_hp = nil
+    players[0].recording_contact_state = {}
+    players[1].recording_contact_state = {}
     trial_state._raw_rec_active = false
     trial_state._raw_rec_buffer = {}
     trial_state._was_playing = false
@@ -6954,6 +6966,7 @@ local function ct_player_init(p_idx, p_state)
         p_state.buffer_combo_count = 0
         p_state.recording_block_contact_active = false
         p_state.recording_last_victim_hp = nil
+        p_state.recording_contact_state = {}
         p_state.trigger_mask_cache = {}
         p_state.trigger_cache_built = false
         p_state._trigger_cache_build = nil
@@ -7058,8 +7071,27 @@ local function ct_player_tracking(p_idx, p_state)
         local hit_stop_ok, captured_hit_stop =
             pcall(_G.CTRecordingRepeat.read_live_hit_stop, _pf.victim_obj)
         if hit_stop_ok then victim_hit_stop = captured_hit_stop or 0 end
-        local block_contact = ActionRestartDetector.evaluate_block_contact(
-            victim_damage_type, p_state.recording_block_contact_active)
+        p_state.recording_contact_state =
+            type(p_state.recording_contact_state) == "table"
+                and p_state.recording_contact_state or {}
+        local current_victim_hp = nil
+        pcall(function()
+            current_victim_hp = tonumber(_pf.victim_obj and _pf.victim_obj.vital_new)
+        end)
+        local contact_truth = ActionRestartDetector.observe_recording_contacts(
+            p_state.recording_contact_state,
+            {
+                frame = engine_frame_count,
+                current_combo = _pf.current_combo or 0,
+                previous_combo = p_state.last_combo_count or 0,
+                current_hp = current_victim_hp,
+                previous_hp = p_state.recording_last_victim_hp,
+                damage_type = victim_damage_type,
+                hit_stop = victim_hit_stop,
+                contact_candidate = true,
+            }
+        )
+        local block_contact = contact_truth.block_contact
         if block_contact.started then
             if #trial_state.sequence > 0 then
                 local step = trial_state.sequence[#trial_state.sequence]
@@ -7068,24 +7100,12 @@ local function ct_player_tracking(p_idx, p_state)
             end
         end
         p_state.recording_block_contact_active = block_contact.active
-
-        local current_victim_hp = nil
-        pcall(function()
-            current_victim_hp = tonumber(_pf.victim_obj and _pf.victim_obj.vital_new)
-        end)
-        recording_hit_contact = ActionRestartDetector.evaluate_recording_hit_contact({
-            current_combo = _pf.current_combo or 0,
-            previous_combo = p_state.last_combo_count or 0,
-            current_hp = current_victim_hp,
-            previous_hp = p_state.recording_last_victim_hp,
-            damage_type = victim_damage_type,
-            hit_stop = victim_hit_stop,
-            blocked = block_contact.active
-        })
+        recording_hit_contact = contact_truth.hit_contact
         p_state.recording_last_victim_hp = current_victim_hp
     else
         p_state.recording_block_contact_active = false
         p_state.recording_last_victim_hp = nil
+        p_state.recording_contact_state = {}
     end
 
     -- Hit detection for visual display (has_hit + actual_combo + projectile)
@@ -8875,10 +8895,13 @@ local function ct_player_process_actions(p_idx, p_state, actions_to_process)
                             end
                             if expected and not action_match.matched then
                                 local recent_absorb = input_truth_mode
-                                    and {
-                                        matched = false,
-                                        block_reason = "input_truth_requires_recorded_action_id",
-                                    }
+                                    and CharacterRules.find_recent_canonical_confirmation(
+                                        p_state.exceptions,
+                                        common_exceptions,
+                                        expected,
+                                        p_state.log,
+                                        p_state.profile_name
+                                    )
                                     or CharacterRules.find_recent_absorb_confirmation(
                                         p_state.exceptions,
                                         common_exceptions,
@@ -9303,10 +9326,14 @@ local function ct_player_process_actions(p_idx, p_state, actions_to_process)
                 and not (trial_state.fail_timer and trial_state.fail_timer > 0) then
                 local expected = trial_state.sequence[trial_state.current_step]
                 local current_absorb = input_truth_mode
-                    and {
-                        matched = false,
-                        block_reason = "input_truth_requires_recorded_action_id",
-                    }
+                    and CharacterRules.match_current_canonical_confirmation(
+                        p_state.exceptions,
+                        common_exceptions,
+                        expected,
+                        act_id,
+                        _pf.current_combo or 0,
+                        p_state.profile_name
+                    )
                     or CharacterRules.match_current_absorb_confirmation(
                         p_state.exceptions,
                         common_exceptions,
@@ -9609,7 +9636,7 @@ ctx.observe_runtime_action_truth = function(p_idx)
     if type(session) ~= "table" then return end
 
     local actor_hp, actor_drive, actor_super = nil, nil, nil
-    local victim_hp, victim_damage_type = nil, 0
+    local victim_hp, victim_damage_type, victim_hit_stop = nil, 0, 0
     pcall(function() actor_hp = tonumber(_pf.p_char and _pf.p_char.vital_new) end)
     pcall(function() actor_drive = tonumber(_pf.p_char and _pf.p_char.focus_new) end)
     pcall(function()
@@ -9622,6 +9649,13 @@ ctx.observe_runtime_action_truth = function(p_idx)
         victim_damage_type = tonumber(
             _pf.victim_obj and _pf.victim_obj:get_field("damage_type")
         ) or 0
+    end)
+    pcall(function()
+        local reader = _G.CTRecordingRepeat
+            and _G.CTRecordingRepeat.read_live_hit_stop
+        if type(reader) == "function" then
+            victim_hit_stop = tonumber(reader(_pf.victim_obj)) or 0
+        end
     end)
     local event_count_before = #session.events
     pcall(ComboTrialsModules.ActionEventCompiler.observe, session, {
@@ -9637,6 +9671,7 @@ ctx.observe_runtime_action_truth = function(p_idx)
         actor_super = actor_super,
         victim_hp = victim_hp,
         victim_damage_type = victim_damage_type,
+        victim_hit_stop = victim_hit_stop,
     })
     if trial_state.is_recording and p_idx == trial_state.recording_player
         and event_count_before == 0 and #session.events > 0
@@ -10447,6 +10482,7 @@ ctx.transcription_item = function(path, status, details)
         verification_action_trace = details.verification_action_trace,
         action_comparison = details.action_comparison,
         trial_completion = details.trial_completion,
+        command_display_validation = details.command_display_validation,
         raw_replay_verified = details.raw_replay_verified == true,
         audit_mode = details.audit_mode,
         validation_revision =
@@ -10619,6 +10655,7 @@ ctx.complete_transcription_item = function(run, evaluation, details)
         verification_action_trace = details.verification_action_trace,
         action_comparison = evaluation.action_comparison,
         trial_completion = evaluation.trial_completion,
+        command_display_validation = evaluation.command_display_validation,
         raw_replay_verified = details.raw_replay_verified == true,
         audit_mode = run.mode,
     })
@@ -10783,6 +10820,18 @@ ctx.finish_current_transcription_file = function(timed_out)
             match_rule
         )
     end
+    local function source_action_ids_equivalent(expected_id, observed_id)
+        if runtime_action_ids_equivalent(expected_id, observed_id) then
+            return true
+        end
+        local player_state = players[trial_state.playing_player or 0]
+        local owner_id = CharacterRules.find_recording_absorb_owner(
+            player_state and player_state.exceptions or nil,
+            common_exceptions,
+            observed_id
+        )
+        return tonumber(owner_id) == tonumber(expected_id)
+    end
     if run.phase == "audit_raw" then
         local sequence_count = #(trial_state.sequence or {})
         local current_step = tonumber(trial_state.current_step) or 0
@@ -10799,6 +10848,27 @@ ctx.finish_current_transcription_file = function(timed_out)
             fail_timer = fail_timer,
             fail_reason = trial_state.fail_reason,
         }
+        local command_display_validation = nil
+        if ComboTrials_Renderer
+            and type(ComboTrials_Renderer.validate_sequence_command_display)
+                == "function" then
+            local validation_ok, validation_result = pcall(
+                ComboTrials_Renderer.validate_sequence_command_display,
+                type(trial_state.sequence) == "table"
+                    and trial_state.sequence or run.current_source
+            )
+            if validation_ok and type(validation_result) == "table" then
+                command_display_validation = validation_result
+            else
+                command_display_validation = {
+                    ok = false,
+                    status = validation_ok
+                        and "invalid_validator_result" or "validator_error",
+                    error = validation_ok and nil or tostring(validation_result),
+                    unresolved = {},
+                }
+            end
+        end
         local evaluation = ComboTrialsModules.RuntimeAuditor.evaluate(
             run.current_source,
             compiled,
@@ -10811,6 +10881,8 @@ ctx.finish_current_transcription_file = function(timed_out)
                 timing_tolerance = 2,
                 trial_completed = trial_completion.completed,
                 trial_completion = trial_completion,
+                character = run.character,
+                command_display_validation = command_display_validation,
                 verify_environment = true,
                 environment_observed = ctx.read_transcription_environment(),
             }
@@ -10877,6 +10949,10 @@ ctx.finish_current_transcription_file = function(timed_out)
         input_completed = run.input_finished_frame ~= nil,
         timed_out = timed_out == true,
         action_ids_equivalent = runtime_action_ids_equivalent,
+        -- This bridge is used only to compare an old derived V2 source with
+        -- current runtime truth. Generated candidates and their second raw
+        -- replay continue to require the captured real Action ID.
+        source_action_ids_equivalent = source_action_ids_equivalent,
         -- Legacy drive totals are not a stable replay oracle because Drive
         -- regenerates during a combo and old recorders used different sampling
         -- windows. The generated candidate is still checked strictly against
@@ -11480,7 +11556,7 @@ ctx.get_runtime_audit_retry_state = function()
         ComboTrialsModules.RuntimeAuditor.failed_source_paths(run)
     if #paths == 0 then return nil end
     local item_label = counts.stale > 0
-        and (counts.failed > 0 and "失败/过期项" or "过期项")
+        and (counts.failed > 0 and "失败/待复审项" or "待复审项")
         or "失败项"
     return {
         count = #paths,
@@ -11567,13 +11643,17 @@ ctx.load_latest_runtime_audit_report = function()
             ComboTrialsModules.RuntimeAuditor.REPORT_SCHEMA
         )
     if report then
+        local effective_report, counts =
+            ComboTrialsModules.RuntimeAuditor.recompute_loaded_report_state(report)
+        report = effective_report
         report.active = false
         report.mode = "runtime_audit"
         report.report_path = report_path
         report.status = string.format(
-            "已载入审计报告：成功 %d，失败 %d",
-            tonumber(report.passed) or 0,
-            tonumber(report.failed) or 0
+            "已载入审计报告：有效通过 %d，失败 %d，待复审 %d",
+            counts.passed,
+            counts.failed,
+            counts.stale
         )
         remember_resumable_transcription_run(demo_state.transcription_run)
         demo_state.transcription_run = report

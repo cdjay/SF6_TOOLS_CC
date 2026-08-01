@@ -94,17 +94,103 @@ function CharacterRules.has_character_exception(character_rules, action_id)
     return character_rules and character_rules[tostring(action_id)] and true or false
 end
 
-local function parse_absorb_ids(exception)
-    if not exception or type(exception.absorb_ids) ~= "string" or exception.absorb_ids == "" then
+local function parse_id_set(value)
+    if type(value) ~= "string" or value == "" then
         return nil
     end
 
     local ids = {}
-    for absorb_str in string.gmatch(exception.absorb_ids, "([^,]+)") do
+    for absorb_str in string.gmatch(value, "([^,]+)") do
         local absorb_num = tonumber(absorb_str:match("^%s*(.-)%s*$"))
         if absorb_num then ids[absorb_num] = true end
     end
     return ids
+end
+
+local function parse_absorb_ids(exception)
+    return type(exception) == "table"
+        and parse_id_set(exception.absorb_ids) or nil
+end
+
+-- Build the pure runtime projection table consumed by ActionEventCompiler.
+-- JSON loading stays in the caller; this function only interprets already
+-- loaded product rules. An explicit action_event_projection object opts an
+-- owner in, while absorb_ids remains the sole internal-phase membership list.
+function CharacterRules.build_action_event_projection_rules(
+    character_rules,
+    common_rules
+)
+    local effective_owners = {}
+    for owner_id, exception in pairs(common_rules or {}) do
+        effective_owners[tostring(owner_id)] = exception
+    end
+    for owner_id, exception in pairs(character_rules or {}) do
+        effective_owners[tostring(owner_id)] = exception
+    end
+
+    local result = {}
+    local ambiguous = {}
+    for owner_id, exception in pairs(effective_owners) do
+        local owner_num = tonumber(owner_id)
+        local projection = type(exception) == "table"
+            and exception.action_event_projection or nil
+        local absorb_ids = parse_absorb_ids(exception)
+        if owner_num ~= nil and type(projection) == "table"
+            and type(absorb_ids) == "table" then
+            local canonical_ids = parse_id_set(projection.canonical_owner_ids) or {}
+            for child_id in pairs(absorb_ids) do
+                local rule = {
+                    kind = canonical_ids[child_id]
+                        and "canonical_owner" or "internal_phase",
+                    owner_id = owner_num,
+                }
+                if rule.kind == "canonical_owner" then
+                    rule.max_fold_delay_frames = math.max(
+                        0,
+                        tonumber(projection.max_fold_delay_frames) or 0
+                    )
+                    rule.require_same_anchor =
+                        projection.require_same_anchor == true
+                end
+                local existing = result[child_id]
+                if type(existing) == "table"
+                    and tonumber(existing.owner_id) ~= owner_num then
+                    result[child_id] = nil
+                    ambiguous[child_id] = true
+                elseif not ambiguous[child_id] then
+                    result[child_id] = rule
+                end
+            end
+        end
+    end
+    return result
+end
+
+-- Use the compiler's effective projection table instead of interpreting one
+-- owner in isolation. This preserves its ambiguity guard when two owners claim
+-- the same runtime Action ID.
+local function canonical_owner_ids_for_expected(
+    character_rules,
+    common_rules,
+    expected_id
+)
+    local expected_owner = tonumber(expected_id)
+    if expected_owner == nil then return nil end
+
+    local accepted = {}
+    local projection_rules =
+        CharacterRules.build_action_event_projection_rules(
+            character_rules,
+            common_rules
+        )
+    for action_id, rule in pairs(projection_rules) do
+        if type(rule) == "table" and rule.kind == "canonical_owner"
+            and tonumber(rule.owner_id) == expected_owner then
+            local action_num = tonumber(action_id)
+            if action_num ~= nil then accepted[action_num] = true end
+        end
+    end
+    return next(accepted) ~= nil and accepted or nil
 end
 
 function CharacterRules.find_recording_absorb_owner(character_rules, common_rules, action_id)
@@ -115,7 +201,11 @@ function CharacterRules.find_recording_absorb_owner(character_rules, common_rule
     local function collect(rules)
         for owner_id, exception in pairs(rules or {}) do
             if type(exception) == "table" and exception.record_absorb_as_parent == true then
-                local absorb_ids = parse_absorb_ids(exception)
+                local projection = type(exception.action_event_projection) == "table"
+                    and exception.action_event_projection or nil
+                local absorb_ids = projection
+                    and parse_id_set(projection.canonical_owner_ids)
+                    or parse_absorb_ids(exception)
                 local owner_num = tonumber(owner_id)
                 if owner_num and absorb_ids and absorb_ids[actual_id] then
                     matches[#matches + 1] = owner_num
@@ -141,6 +231,172 @@ local function absorb_requires_combo(exception)
     if type(exception) ~= "table" then return true end
     if exception.absorb_requires_combo == false then return false end
     return not CharacterRules.is_action_required(exception)
+end
+
+-- Raw-input playback normally rejects legacy absorb substitutions because the
+-- recorded Action ID is its truth. The explicit canonical-owner projection is
+-- narrower: ActionEventCompiler already maps this runtime ID to the authored
+-- owner, so the live validator must admit the same identity and no other
+-- internal phase from absorb_ids.
+function CharacterRules.find_recent_canonical_confirmation(
+    character_rules,
+    common_rules,
+    expected,
+    recent_inputs,
+    character_name
+)
+    if not expected then return { matched = false, block_reason = "missing_expected" } end
+
+    local exception = CharacterRules.get_exception(
+        character_rules,
+        common_rules,
+        expected.id
+    )
+    local canonical_ids = canonical_owner_ids_for_expected(
+        character_rules,
+        common_rules,
+        expected.id
+    )
+    local projection = type(exception) == "table"
+        and type(exception.action_event_projection) == "table"
+        and exception.action_event_projection or nil
+    local declared_ids = projection and projection.canonical_owner_ids or nil
+    if type(canonical_ids) ~= "table" then
+        return {
+            matched = false,
+            block_reason = "canonical_owner_projection_missing",
+            canonical_owner_ids = declared_ids,
+        }
+    end
+
+    local expected_combo = tonumber(expected.expected_combo)
+    if expected_combo == nil then
+        return {
+            matched = false,
+            block_reason = "missing_expected_combo",
+            canonical_owner_ids = declared_ids,
+        }
+    end
+
+    for i = 1, math.min(10, #(recent_inputs or {})) do
+        local recent = recent_inputs[i]
+        local recent_id = recent and tonumber(recent.id)
+        if recent_id and canonical_ids[recent_id] then
+            local combo_count = tonumber(recent.combo_count) or 0
+            local combo_ok = (not absorb_requires_combo(exception))
+                or combo_count >= expected_combo
+            if combo_ok then
+                return {
+                    matched = true,
+                    actual_action_id = recent_id,
+                    match_reason = "action_event_projection_recent_canonical_owner",
+                    recent_index = i,
+                    combo_count = combo_count,
+                    start_frame = recent.start_frame,
+                    action_instance = recent.action_instance,
+                    motion = recent.motion,
+                    real_input = recent.real_input,
+                    intentional = recent.intentional,
+                    expected_id = expected.id,
+                    expected_combo = expected_combo,
+                    canonical_owner_ids = declared_ids,
+                    absorb_ids = declared_ids,
+                    source = "action_event_projection",
+                    ignore_combo_check = not absorb_requires_combo(exception),
+                }
+            end
+            return {
+                matched = false,
+                block_reason = "combo_not_reached",
+                actual_action_id = recent_id,
+                recent_index = i,
+                combo_count = combo_count,
+                expected_combo = expected_combo,
+                canonical_owner_ids = declared_ids,
+            }
+        end
+    end
+
+    return {
+        matched = false,
+        block_reason = "canonical_owner_id_not_recent",
+        canonical_owner_ids = declared_ids,
+    }
+end
+
+function CharacterRules.match_current_canonical_confirmation(
+    character_rules,
+    common_rules,
+    expected,
+    action_id,
+    combo_count,
+    character_name
+)
+    if not expected then return { matched = false, block_reason = "missing_expected" } end
+
+    local exception = CharacterRules.get_exception(
+        character_rules,
+        common_rules,
+        expected.id
+    )
+    local canonical_ids = canonical_owner_ids_for_expected(
+        character_rules,
+        common_rules,
+        expected.id
+    )
+    local projection = type(exception) == "table"
+        and type(exception.action_event_projection) == "table"
+        and exception.action_event_projection or nil
+    local declared_ids = projection and projection.canonical_owner_ids or nil
+    local current_id = tonumber(action_id)
+    if not current_id or type(canonical_ids) ~= "table"
+        or not canonical_ids[current_id] then
+        return {
+            matched = false,
+            block_reason = type(canonical_ids) == "table"
+                and "current_id_not_canonical_owner"
+                or "canonical_owner_projection_missing",
+            canonical_owner_ids = declared_ids,
+        }
+    end
+
+    local expected_combo = tonumber(expected.expected_combo)
+    if expected_combo == nil then
+        return {
+            matched = false,
+            block_reason = "missing_expected_combo",
+            canonical_owner_ids = declared_ids,
+        }
+    end
+
+    local current_combo = tonumber(combo_count) or 0
+    local combo_ok = (not absorb_requires_combo(exception))
+        or current_combo >= expected_combo
+    if not combo_ok then
+        return {
+            matched = false,
+            block_reason = "combo_not_reached",
+            actual_action_id = current_id,
+            combo_count = current_combo,
+            expected_combo = expected_combo,
+            canonical_owner_ids = declared_ids,
+        }
+    end
+
+    return {
+        matched = true,
+        actual_action_id = current_id,
+        match_reason = "action_event_projection_current_canonical_owner",
+        combo_count = current_combo,
+        expected_id = expected.id,
+        expected_combo = expected_combo,
+        canonical_owner_ids = declared_ids,
+        absorb_ids = declared_ids,
+        source = "action_event_projection",
+        motion = "Unknown",
+        real_input = "None",
+        ignore_combo_check = not absorb_requires_combo(exception),
+    }
 end
 
 function CharacterRules.find_recent_absorb_confirmation(character_rules, common_rules, expected, recent_inputs, character_name)

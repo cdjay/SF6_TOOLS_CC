@@ -6,6 +6,7 @@
 -- data and must not decide which runtime Action happened.
 
 local ActionMatcher = require("func/ComboTrials/ActionMatcher")
+local ActionRestartDetector = require("func/ComboTrials/ActionRestartDetector")
 
 local Compiler = {
     name = "ComboTrials.ActionEventCompiler",
@@ -120,6 +121,112 @@ local function shallow_copy(value)
         result[key] = child
     end
     return result
+end
+
+local function anchor_button_mask(anchor)
+    if type(anchor) ~= "table" then return 0 end
+    local pressed = tonumber(anchor.pressed_buttons) or 0
+    local released = tonumber(anchor.released_buttons) or 0
+    local held = tonumber(anchor.held_buttons) or 0
+    if pressed ~= 0 then return pressed & Compiler.BUTTON_MASK end
+    if released ~= 0 then return released & Compiler.BUTTON_MASK end
+    return held & Compiler.BUTTON_MASK
+end
+
+local function action_event_projection_rule(session, action_id)
+    local rules = type(session) == "table"
+        and session.action_event_projection_rules or nil
+    if type(rules) ~= "table" then return nil end
+    return rules[tonumber(action_id)] or rules[tostring(action_id)]
+end
+
+local function project_character_action_owner(event, session)
+    if type(event) ~= "table" then return event, nil end
+    -- Projection must never mutate the source event retained in
+    -- trace.input_bound_events. Every event gets its own table and anchor,
+    -- including command owners that later receive merged contact truth.
+    local projected = shallow_copy(event)
+    if type(event.anchor) == "table" then
+        projected.anchor = shallow_copy(event.anchor)
+    end
+    local rule = action_event_projection_rule(session, event.id)
+    if type(rule) ~= "table" or rule.kind ~= "canonical_owner"
+        or tonumber(rule.owner_id) == nil
+        or tonumber(rule.owner_id) == tonumber(event.id) then
+        return projected, rule
+    end
+
+    projected.id = tonumber(rule.owner_id)
+    projected.normalized_from_action_id = tonumber(event.id)
+    return projected, rule
+end
+
+local function character_rule_fold_reason(
+    previous,
+    source_event,
+    session
+)
+    if type(previous) ~= "table" or type(previous.event) ~= "table"
+        or type(source_event) ~= "table" then
+        return nil
+    end
+    local rule = action_event_projection_rule(session, source_event.id)
+    if type(rule) ~= "table"
+        or tonumber(rule.owner_id) ~= tonumber(previous.event.id) then
+        return nil
+    end
+    if rule.kind == "internal_phase" then
+        return "character_internal_action_phase"
+    end
+    if rule.kind == "canonical_owner" then
+        local current_frame = tonumber(source_event.frame)
+        local previous_frame = tonumber(previous.event.frame)
+        if current_frame == nil or previous_frame == nil then
+            return nil
+        end
+        local delay = current_frame - previous_frame
+        if delay < 0
+            or delay > (tonumber(rule.max_fold_delay_frames) or 0) then
+            return nil
+        end
+        if rule.require_same_anchor == true then
+            local previous_anchor = type(previous.event.anchor) == "table"
+                and previous.event.anchor or nil
+            local current_anchor = type(source_event.anchor) == "table"
+                and source_event.anchor or nil
+            local previous_anchor_frame = tonumber(
+                previous_anchor and previous_anchor.frame
+            )
+            local current_anchor_frame = tonumber(
+                current_anchor and current_anchor.frame
+            )
+            local previous_buttons = anchor_button_mask(previous_anchor)
+            local current_buttons = anchor_button_mask(current_anchor)
+            local same_anchor_frame = previous_anchor_frame ~= nil
+                and current_anchor_frame ~= nil
+                and previous_anchor_frame == current_anchor_frame
+            -- Runtime can expose the canonical owner on the press frame and
+            -- its projected child Action on the following release frame. That
+            -- release is still the same physical command even though the
+            -- anchor frame and partial-PP button mask differ.
+            local release_continuation = type(current_anchor) == "table"
+                and current_anchor.kind == "button_release"
+                and previous_buttons ~= 0
+                and current_buttons ~= 0
+                and (previous_buttons & current_buttons) ~= 0
+            if previous_anchor_frame ~= nil and current_anchor_frame ~= nil
+                and not same_anchor_frame and not release_continuation then
+                return nil
+            end
+            if previous_buttons ~= 0 and current_buttons ~= 0
+                and previous_buttons ~= current_buttons
+                and not release_continuation then
+                return nil
+            end
+        end
+        return "character_canonical_owner_variant"
+    end
+    return nil
 end
 
 local function relative_direction(input_mask, facing_right)
@@ -253,6 +360,30 @@ local function update_damage(session, sample)
     session.current_damage = math.max(0, tonumber(session.cumulative_damage) or 0)
 end
 
+local function record_passive_damage(session, sample)
+    if type(session) ~= "table" or type(sample) ~= "table" then return end
+    local frame = tonumber(sample.frame)
+    local delta = math.max(0, tonumber(sample.delta) or 0)
+    if frame == nil or delta <= 0 then return end
+    session.passive_damage_ticks =
+        (tonumber(session.passive_damage_ticks) or 0) + 1
+    session.passive_damage_total =
+        (tonumber(session.passive_damage_total) or 0) + delta
+    session.passive_damage_max_tick = math.max(
+        tonumber(session.passive_damage_max_tick) or 0,
+        delta
+    )
+    session.passive_damage_frames = type(session.passive_damage_frames) == "table"
+        and session.passive_damage_frames or {}
+    session.passive_damage_frames[#session.passive_damage_frames + 1] = frame
+    session.passive_damage_samples = type(session.passive_damage_samples) == "table"
+        and session.passive_damage_samples or {}
+    session.passive_damage_samples[#session.passive_damage_samples + 1] = {
+        frame = frame,
+        delta = delta,
+    }
+end
+
 local function update_actor_resources(session, sample)
     local drive = rounded(sample.actor_drive)
     local super = rounded(sample.actor_super)
@@ -326,20 +457,40 @@ local function update_button_hold_state(session, frame, pressed, released)
     return longest_release
 end
 
+local function recorded_event_projection_owner_id(session, event)
+    if type(event) ~= "table" then return nil end
+    local owners = type(session) == "table"
+        and session.event_projection_owners or nil
+    local cached = type(owners) == "table" and owners[event] or nil
+    if tonumber(cached) ~= nil then return tonumber(cached) end
+    local rule = action_event_projection_rule(session, event.id)
+    if type(rule) == "table" and rule.kind == "canonical_owner"
+        and tonumber(rule.owner_id) ~= nil then
+        return tonumber(rule.owner_id)
+    end
+    return tonumber(event.id)
+end
+
 local function add_event(session, sample, anchor, reason)
     local action_id = tonumber(sample.action_id)
     if not action_is_recordable(action_id) then return nil end
 
     local frame = tonumber(sample.frame) or 0
     local previous = session.events[#session.events]
+    local consumed_pending_anchor = type(session.pending_anchor) == "table"
+        and session.pending_anchor == anchor
     local event = {
         id = action_id,
         frame = frame,
         action_frame = tonumber(sample.action_frame) or 0,
         actor_hp = rounded(sample.actor_hp),
         facing_right = sample.facing_right ~= false,
+        combo_at_start = math.max(0, tonumber(sample.combo_count) or 0),
         expected_combo = 0,
-        damage_at_step = session.current_damage or 0,
+        -- Passive damage may continue after the last real contact (A.K.I.
+        -- poison is the common case). New commands inherit only damage that
+        -- has been confirmed by combat contact, not arbitrary HP loss.
+        damage_at_step = session.confirmed_damage or 0,
         has_hit = false,
         has_contact = false,
         was_blocked = false,
@@ -347,9 +498,36 @@ local function add_event(session, sample, anchor, reason)
         bind_reason = reason,
         delay_from_prev = previous and math.max(0, frame - previous.frame) or 0,
     }
+    local projection_fold_reason
+    local previous_projection_owner =
+        recorded_event_projection_owner_id(session, previous)
+    if previous_projection_owner ~= nil then
+        local projected_previous = shallow_copy(previous)
+        projected_previous.id = previous_projection_owner
+        projection_fold_reason = character_rule_fold_reason(
+            { event = projected_previous },
+            event,
+            session
+        )
+    end
     session.events[#session.events + 1] = event
+    if projection_fold_reason then
+        session.event_projection_owners =
+            type(session.event_projection_owners) == "table"
+                and session.event_projection_owners or {}
+        session.event_projection_owners[event] = previous_projection_owner
+    end
     session.current_event = event
     session.pending_anchor = nil
+    if projection_fold_reason == "character_internal_action_phase"
+        and consumed_pending_anchor then
+        -- An internal runtime phase may become visible before the durable
+        -- Action that the pending physical input actually launches. Keep the
+        -- raw phase event, but return a private copy of that anchor to the
+        -- binder. A canonical-owner release already belongs to its owner and
+        -- must not be reused by a later ordinary Action.
+        session.pending_anchor = shallow_copy(anchor)
+    end
     session.recent_direction_anchor = nil
     session.started = true
     session.started_frame = session.started_frame or frame
@@ -359,21 +537,23 @@ end
 
 local function event_button_mask(event)
     local anchor = type(event) == "table" and event.anchor or nil
-    if type(anchor) ~= "table" then return 0 end
-    local pressed = tonumber(anchor.pressed_buttons) or 0
-    local released = tonumber(anchor.released_buttons) or 0
-    local held = tonumber(anchor.held_buttons) or 0
-    if pressed ~= 0 then return pressed & Compiler.BUTTON_MASK end
-    if released ~= 0 then return released & Compiler.BUTTON_MASK end
-    return held & Compiler.BUTTON_MASK
+    return anchor_button_mask(anchor)
 end
 
-local function merge_event_truth(target, source)
+local function merge_event_outcome_truth(target, source)
     if type(target) ~= "table" or type(source) ~= "table" then return end
     target.expected_combo = math.max(
         tonumber(target.expected_combo) or 0,
         tonumber(source.expected_combo) or 0
     )
+    if target.first_contact_frame == nil then
+        target.first_contact_frame = source.first_contact_frame
+    elseif source.first_contact_frame ~= nil then
+        target.first_contact_frame = math.min(
+            tonumber(target.first_contact_frame) or source.first_contact_frame,
+            tonumber(source.first_contact_frame) or target.first_contact_frame
+        )
+    end
     target.damage_at_step = math.max(
         tonumber(target.damage_at_step) or 0,
         tonumber(source.damage_at_step) or 0
@@ -381,6 +561,11 @@ local function merge_event_truth(target, source)
     target.has_hit = target.has_hit == true or source.has_hit == true
     target.has_contact = target.has_contact == true or source.has_contact == true
     target.was_blocked = target.was_blocked == true or source.was_blocked == true
+end
+
+local function merge_event_truth(target, source)
+    if type(target) ~= "table" or type(source) ~= "table" then return end
+    merge_event_outcome_truth(target, source)
     target.hold_frames = math.max(
         tonumber(target.hold_frames) or 0,
         tonumber(source.hold_frames)
@@ -817,6 +1002,9 @@ function Compiler.new(options)
         character = options.character or "Unknown",
         control_mode = options.control_mode or "classic",
         source = options.source or "recording",
+        action_event_projection_rules =
+            type(options.action_event_projection_rules) == "table"
+                and options.action_event_projection_rules or {},
         created_frame = tonumber(options.frame) or 0,
         previous_input = 0,
         previous_direction = "5",
@@ -824,7 +1012,7 @@ function Compiler.new(options)
         previous_action_frame = nil,
         previous_combo = 0,
         previous_victim_hp = nil,
-        block_active = false,
+        recording_contact_state = {},
         started = false,
         input_started = false,
         started_frame = nil,
@@ -837,12 +1025,20 @@ function Compiler.new(options)
         direction_history = {},
         observed_actions = {},
         events = {},
+        event_projection_owners = {},
         current_event = nil,
         max_combo = 0,
         hit_contacts = 0,
         block_contacts = 0,
         current_damage = 0,
         cumulative_damage = 0,
+        confirmed_damage = 0,
+        passive_damage_ticks = 0,
+        passive_damage_total = 0,
+        passive_damage_max_tick = 0,
+        passive_damage_frames = {},
+        passive_damage_samples = {},
+        combo_reset_frames = {},
         previous_damage_hp = nil,
         initial_victim_hp = nil,
         min_victim_hp = nil,
@@ -1067,35 +1263,80 @@ function Compiler.observe(session, sample)
     local combo = math.max(0, tonumber(sample.combo_count) or 0)
     session.max_combo = math.max(session.max_combo or 0, combo)
     local victim_hp = rounded(sample.victim_hp)
-    local hp_decreased = victim_hp ~= nil and session.previous_victim_hp ~= nil
-        and victim_hp < session.previous_victim_hp
-    local block_active = tonumber(sample.victim_damage_type) == 30
-    local block_started = block_active and not session.block_active
-    local combo_increased = combo > (session.previous_combo or 0)
+    local contact_truth = ActionRestartDetector.observe_recording_contacts(
+        session.recording_contact_state,
+        {
+            frame = frame,
+            current_combo = combo,
+            previous_combo = session.previous_combo,
+            current_hp = victim_hp,
+            previous_hp = session.previous_victim_hp,
+            damage_type = sample.victim_damage_type,
+            hit_stop = sample.victim_hit_stop,
+            contact_candidate = current ~= nil and current.has_hit ~= true,
+        }
+    )
+    local hit_contact = contact_truth.hit_contact
+    local hit_confirmed = hit_contact.accepted == true
+    local block_active = contact_truth.block_contact.active == true
+    local block_started = contact_truth.block_contact.started == true
+    local block_damage_confirmed = contact_truth.block_damage_confirmed == true
+    local hit_damage_confirmed = contact_truth.hit_damage_confirmed == true
+    for _, passive_sample in ipairs(
+        type(contact_truth.passive_damage_samples) == "table"
+            and contact_truth.passive_damage_samples or {}
+    ) do
+        record_passive_damage(session, passive_sample)
+    end
+    if hit_confirmed or hit_damage_confirmed or block_damage_confirmed then
+        session.confirmed_damage = math.max(
+            tonumber(session.confirmed_damage) or 0,
+            tonumber(session.current_damage) or 0
+        )
+    end
 
     if current then
-        if combo_increased or hp_decreased then
+        if hit_confirmed then
+            current.first_contact_frame = current.first_contact_frame or frame
             current.has_hit = true
             current.has_contact = true
             current.expected_combo = math.max(current.expected_combo or 0, combo)
             current.damage_at_step = math.max(
                 current.damage_at_step or 0,
-                session.current_damage or 0
+                session.confirmed_damage or 0
             )
             session.hit_contacts = session.hit_contacts + 1
             session.last_activity_frame = frame
         elseif combo > 0 and current.has_hit then
             current.expected_combo = math.max(current.expected_combo or 0, combo)
         end
-        if block_started then
+        if block_damage_confirmed then
+            current.damage_at_step = math.max(
+                current.damage_at_step or 0,
+                session.confirmed_damage or 0
+            )
+        end
+        if hit_damage_confirmed then
+            current.damage_at_step = math.max(
+                current.damage_at_step or 0,
+                session.confirmed_damage or 0
+            )
+        end
+        if block_started and current.was_blocked ~= true then
             current.has_contact = true
             current.was_blocked = true
             session.block_contacts = session.block_contacts + 1
             session.last_activity_frame = frame
+        elseif block_started then
+            session.last_activity_frame = frame
         end
     end
 
-    session.block_active = block_active
+    if (tonumber(session.previous_combo) or 0) > 0 and combo == 0 then
+        session.combo_reset_frames = type(session.combo_reset_frames) == "table"
+            and session.combo_reset_frames or {}
+        session.combo_reset_frames[#session.combo_reset_frames + 1] = frame
+    end
     session.previous_input = input
     session.previous_direction = direction
     session.previous_action_id = action_id
@@ -1107,6 +1348,15 @@ end
 
 function Compiler.finalize(session, options)
     options = type(options) == "table" and options or {}
+    if type(session) == "table" then
+        for _, passive_sample in ipairs(
+            ActionRestartDetector.flush_recording_contact_state(
+                session.recording_contact_state
+            )
+        ) do
+            record_passive_damage(session, passive_sample)
+        end
+    end
     local resolver = options.motion_resolver
     local steps = {}
     local projected = {}
@@ -1129,10 +1379,24 @@ function Compiler.finalize(session, options)
 
     local source_events = type(session) == "table" and session.events or {}
     for event_index, source_event in ipairs(source_events) do
-        local event = source_event
-        local motion, resolution_status, resolution_metadata =
-            resolve_motion(resolver, event, session)
-        if type(resolver) == "function"
+        local event = project_character_action_owner(
+            source_event,
+            session
+        )
+        local previous_before_projection = projected[#projected]
+        local character_rule_fold =
+            character_rule_fold_reason(
+                previous_before_projection,
+                source_event,
+                session
+            )
+        local motion, resolution_status, resolution_metadata
+        if not character_rule_fold then
+            motion, resolution_status, resolution_metadata =
+                resolve_motion(resolver, event, session)
+        end
+        if not character_rule_fold
+            and type(resolver) == "function"
             and resolution_status == "route_unverified" then
             local promoted, promoted_motion, promoted_status, promoted_metadata =
                 promote_unverified_direction_precursor(
@@ -1164,7 +1428,8 @@ function Compiler.finalize(session, options)
                 }
             end
         end
-        if type(resolver) == "function"
+        if not character_rule_fold
+            and type(resolver) == "function"
             and motion == nil
             and resolution_status ~= "resolver_error"
             and resolution_status ~= "suppress_transition" then
@@ -1202,6 +1467,19 @@ function Compiler.finalize(session, options)
             and event.anchor.kind == "button_release"
             and previous ~= nil
             and (resolution_status == "suppress_transition" or motion == nil)
+        if character_rule_fold then
+            -- Character phase rules merge only combat outcome. The child
+            -- Action's coincident input/release and hold classification do not
+            -- belong to the command owner.
+            merge_event_outcome_truth(previous.event, event)
+            suppressed_events[#suppressed_events + 1] = {
+                id = source_event.id,
+                frame = event.frame,
+                merged_into = previous.event.id,
+                reason = character_rule_fold,
+            }
+            goto continue_projection
+        end
         if resolution_status == "suppress_transition" or release_transition then
             if previous then merge_event_truth(previous.event, event) end
             suppressed_events[#suppressed_events + 1] = {
@@ -1391,10 +1669,14 @@ function Compiler.finalize(session, options)
         projected_events[#projected_events + 1] = {
             id = event.id,
             frame = event.frame,
+            first_contact_frame = event.first_contact_frame,
+            combo_at_start = math.max(0, tonumber(event.combo_at_start) or 0),
+            expected_combo = math.max(0, tonumber(event.expected_combo) or 0),
             motion = motion,
             resolution_status = resolved.resolution_status,
             bind_reason = event.bind_reason,
             promoted_from_id = event.promoted_from_id,
+            normalized_from_action_id = event.normalized_from_action_id,
             anchor_kind = type(event.anchor) == "table" and event.anchor.kind or nil,
             anchor_buttons = event_button_mask(event),
             has_hit = event.has_hit == true,
@@ -1405,10 +1687,27 @@ function Compiler.finalize(session, options)
     end
 
     local last_sample = type(session) == "table" and session.last_sample or nil
+    local reported_damage = type(session) == "table" and math.max(
+        tonumber(session.confirmed_damage) or 0,
+        tonumber(cumulative_damage) or 0
+    ) or 0
     return {
         steps = steps,
         stats = {
-            damage = type(session) == "table" and (session.current_damage or 0) or 0,
+            damage = reported_damage,
+            observed_hp_loss = type(session) == "table"
+                and (session.current_damage or 0) or 0,
+            unconfirmed_hp_loss = type(session) == "table" and math.max(
+                0,
+                (tonumber(session.current_damage) or 0)
+                    - reported_damage
+            ) or 0,
+            passive_damage_ticks = type(session) == "table"
+                and (tonumber(session.passive_damage_ticks) or 0) or 0,
+            passive_damage_total = type(session) == "table"
+                and (tonumber(session.passive_damage_total) or 0) or 0,
+            passive_damage_max_tick = type(session) == "table"
+                and (tonumber(session.passive_damage_max_tick) or 0) or 0,
             max_combo = type(session) == "table" and (session.max_combo or 0) or 0,
             hit_contacts = type(session) == "table" and (session.hit_contacts or 0) or 0,
             block_contacts = type(session) == "table" and (session.block_contacts or 0) or 0,
@@ -1447,6 +1746,12 @@ function Compiler.finalize(session, options)
             projected_events = projected_events,
             suppressed_events = suppressed_events,
             promoted_events = promoted_events,
+            passive_damage_frames = type(session) == "table"
+                and shallow_copy(session.passive_damage_frames) or {},
+            passive_damage_samples = type(session) == "table"
+                and shallow_copy(session.passive_damage_samples) or {},
+            combo_reset_frames = type(session) == "table"
+                and shallow_copy(session.combo_reset_frames) or {},
             pending_anchor = type(session) == "table"
                 and session.pending_anchor or nil,
             expired_anchor_count = type(session) == "table"

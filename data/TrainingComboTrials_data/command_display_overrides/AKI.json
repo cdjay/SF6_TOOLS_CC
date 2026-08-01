@@ -1,0 +1,26 @@
+{
+  "schema": "xt.command_display_overrides.v1",
+  "character": "AKI",
+  "entries": {
+    "623": {
+      "classic": "2+MP",
+      "replace": true,
+      "evidence": "Capcom identifies Action 623 as crouching MP; two preserved timelines, verified relative raw-input transcriptions, and revision 31 capture/verification traces bind a fresh MP press to Action 623 with hit contact"
+    },
+    "672": {
+      "classic": "6+HP",
+      "replace": true,
+      "evidence": "Capcom identifies Action 672 as 6+HP; the preserved timeline, verified relative raw-input transcription, and revision 31 capture/verification traces bind a fresh HP press to Action 672 with hit contact"
+    },
+    "955": {
+      "classic": "214+LK",
+      "replace": true,
+      "evidence": "Capcom identifies Action 955 as 214+LK; two preserved timelines, verified relative raw-input transcriptions, and revision 31 capture/verification traces bind a fresh LK press to Action 955 with hit contact"
+    },
+    "957": {
+      "classic": "214+MK",
+      "replace": true,
+      "evidence": "Capcom identifies Action 957 as 214+MK; three preserved timelines, verified relative raw-input transcriptions, and revision 31 capture/verification traces bind a fresh MK press to Action 957 with hit contact"
+    }
+  }
+}

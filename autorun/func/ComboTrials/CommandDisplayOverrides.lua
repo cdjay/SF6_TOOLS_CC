@@ -8,6 +8,31 @@ local function trim(value)
     return type(value) == "string" and value:match("^%s*(.-)%s*$") or ""
 end
 
+local function valid_display(value)
+    local display = trim(value)
+    if display == "" then return nil end
+    local upper = display:upper()
+    if display:find("未识别", 1, true) ~= nil
+        or upper:find("UNKNOWN", 1, true) ~= nil
+        or upper:find("ACTION_", 1, true) ~= nil then
+        return nil
+    end
+    return display
+end
+
+local function read_modern_commands(entry)
+    if type(entry) ~= "table" or entry.commands == nil then return nil, true end
+    if type(entry.commands) ~= "table" then return nil, false end
+    local simple = valid_display(entry.commands.simple)
+    local motion = valid_display(entry.commands.motion)
+    if simple == nil or motion == nil then return nil, false end
+    return {
+        simple = simple,
+        motion = motion,
+        all = simple == motion and simple or (simple .. "/" .. motion),
+    }, true
+end
+
 local function character_key(value)
     return tostring(value or ""):gsub("[^%w_]", "")
 end
@@ -32,18 +57,22 @@ function CommandDisplayOverrides.merge(slim, character, document)
     local applied = 0
     for action_id, entry in pairs(document.entries) do
         local id = tostring(action_id or "")
-        local classic = type(entry) == "table" and trim(entry.classic) or ""
+        local classic = type(entry) == "table" and valid_display(entry.classic) or nil
         local evidence = type(entry) == "table" and trim(entry.evidence) or ""
+        local commands, commands_ok = read_modern_commands(entry)
         local existing = slim[id]
         local may_replace = type(entry) == "table" and entry.replace == true
-        if id:match("^%d+$") and classic ~= "" and evidence ~= ""
+        if id:match("^%d+$") and classic ~= nil and evidence ~= ""
+            and commands_ok
             and (existing == nil or may_replace) then
             slim[id] = {
                 classic = classic,
+                commands = commands,
                 status = "runtime_verified_override",
                 metadata = {
                     source = "command_display_override",
                     evidence = evidence,
+                    control_support = commands and "classic_modern" or "classic_only",
                     replaced_existing = existing ~= nil,
                 },
             }

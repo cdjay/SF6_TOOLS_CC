@@ -83,7 +83,9 @@ local hit_contact = detector.evaluate_recording_hit_contact({
     current_hp = 8400,
     previous_hp = 9000,
     damage_type = 3,
-    hit_stop = 4
+    hit_stop = 4,
+    previous_damage_type = 0,
+    previous_hit_stop = 0,
 })
 assert(hit_contact.accepted == true and hit_contact.reason == "victim_hp_decreased_hit_signal",
     "a second normal hit must create a contact even when combo_cnt remains 1")
@@ -106,11 +108,723 @@ hit_contact = detector.evaluate_recording_hit_contact({
     current_hp = 8993,
     previous_hp = 9000,
     damage_type = 3,
-    hit_stop = 4
+    hit_stop = 4,
+    previous_damage_type = 3,
+    previous_hit_stop = 4,
 })
 assert(hit_contact.accepted == false
-        and hit_contact.reason == "hp_decrease_below_contact_threshold",
+        and hit_contact.reason == "hp_decreased_without_new_hit_cycle",
     "A.K.I. poison damage must stay rejected even while a stale hit signal is visible")
+
+for _, stale_delta in ipairs({ 10, 20 }) do
+    hit_contact = detector.evaluate_recording_hit_contact({
+        current_combo = 4,
+        previous_combo = 4,
+        current_hp = 9000 - stale_delta,
+        previous_hp = 9000,
+        damage_type = 3,
+        hit_stop = 4,
+        previous_damage_type = 3,
+        previous_hit_stop = 4,
+        contact_candidate = true,
+    })
+    assert(hit_contact.accepted == false
+            and hit_contact.reason == "hp_decreased_without_new_hit_cycle",
+        "a 10-20 HP persistent tick must not become contact while the hit signal is unchanged")
+end
+
+local contact_state = {}
+local first_cycle = detector.observe_recording_contacts(contact_state, {
+    frame = 1,
+    current_combo = 1,
+    previous_combo = 0,
+    current_hp = 9000,
+    previous_hp = 9500,
+    damage_type = 3,
+    hit_stop = 4,
+})
+assert(first_cycle.hit_contact.accepted == true,
+    "combo growth must consume the first hit-signal cycle")
+local same_cycle_poison = detector.observe_recording_contacts(contact_state, {
+    frame = 2,
+    current_combo = 1,
+    previous_combo = 1,
+    current_hp = 8980,
+    previous_hp = 9000,
+    damage_type = 3,
+    hit_stop = 4,
+})
+local same_cycle_flush = detector.observe_recording_contacts(contact_state, {
+    frame = 3,
+    current_combo = 1,
+    previous_combo = 1,
+    current_hp = 8980,
+    previous_hp = 8980,
+    damage_type = 0,
+    hit_stop = 0,
+})
+assert(same_cycle_poison.hit_contact.accepted == false
+        and same_cycle_flush.passive_damage_samples[1].delta == 20,
+    "a consumed signal cycle must not turn a later 20 HP tick into a second hit")
+local second_cycle = detector.observe_recording_contacts(contact_state, {
+    frame = 4,
+    current_combo = 1,
+    previous_combo = 1,
+    current_hp = 8400,
+    previous_hp = 8980,
+    damage_type = 3,
+    hit_stop = 4,
+})
+assert(second_cycle.hit_contact.accepted == true,
+    "a fresh hit-stop cycle must confirm a real second hit when combo count stays at one")
+
+local hp_first_state = {}
+local hp_first = detector.observe_recording_contacts(hp_first_state, {
+    frame = 1,
+    current_combo = 1,
+    previous_combo = 1,
+    current_hp = 8400,
+    previous_hp = 9000,
+    damage_type = 0,
+    hit_stop = 0,
+    contact_candidate = true,
+})
+assert(hp_first.hit_contact.accepted == false
+        and #hp_first.passive_damage_samples == 0,
+    "an unattributed HP edge must wait one frame before becoming passive")
+local hp_first_signal = detector.observe_recording_contacts(hp_first_state, {
+    frame = 2,
+    current_combo = 1,
+    previous_combo = 1,
+    current_hp = 8400,
+    previous_hp = 8400,
+    damage_type = 3,
+    hit_stop = 4,
+    contact_candidate = true,
+})
+assert(hp_first_signal.hit_contact.accepted == true
+        and hp_first_signal.hit_damage_confirmed == true
+        and #hp_first_signal.passive_damage_samples == 0,
+    "a hit signal one frame after HP must recover the real same-combo contact")
+
+for _, persistent_delta in ipairs({ 10, 20 }) do
+    local current_small_state = {}
+    local current_small = detector.observe_recording_contacts(
+        current_small_state,
+        {
+            frame = 1,
+            current_combo = 1,
+            previous_combo = 1,
+            current_hp = 9000 - persistent_delta,
+            previous_hp = 9000,
+            damage_type = 3,
+            hit_stop = 4,
+            contact_candidate = true,
+        }
+    )
+    assert(current_small.hit_contact.accepted == false
+            and current_small.hit_damage_confirmed == false
+            and current_small.passive_damage_samples[1].delta
+                == persistent_delta,
+        "a fresh hit edge must not attribute a supported persistent-damage tick")
+
+    local pending_small_state = {}
+    detector.observe_recording_contacts(pending_small_state, {
+        frame = 1,
+        current_combo = 1,
+        previous_combo = 1,
+        current_hp = 9000 - persistent_delta,
+        previous_hp = 9000,
+        damage_type = 0,
+        hit_stop = 0,
+        contact_candidate = true,
+    })
+    local pending_small = detector.observe_recording_contacts(
+        pending_small_state,
+        {
+            frame = 2,
+            current_combo = 1,
+            previous_combo = 1,
+            current_hp = 9000 - persistent_delta,
+            previous_hp = 9000 - persistent_delta,
+            damage_type = 3,
+            hit_stop = 4,
+            contact_candidate = true,
+        }
+    )
+    assert(pending_small.hit_contact.accepted == false
+            and pending_small.hit_damage_confirmed == false
+            and pending_small.passive_damage_samples[1].delta
+                == persistent_delta,
+        "a 10-20 HP early tick must not bind to a next-frame hit signal")
+end
+
+local signal_small_then_hit_state = {}
+local signal_small_tick = detector.observe_recording_contacts(
+    signal_small_then_hit_state,
+    {
+        frame = 1,
+        current_combo = 1,
+        previous_combo = 1,
+        current_hp = 9993,
+        previous_hp = 10000,
+        damage_type = 3,
+        hit_stop = 4,
+        contact_candidate = true,
+    }
+)
+local signal_then_real_hit = detector.observe_recording_contacts(
+    signal_small_then_hit_state,
+    {
+        frame = 2,
+        current_combo = 1,
+        previous_combo = 1,
+        current_hp = 9693,
+        previous_hp = 9993,
+        damage_type = 3,
+        hit_stop = 4,
+        contact_candidate = true,
+    }
+)
+assert(signal_small_tick.hit_contact.accepted == false
+        and signal_small_tick.passive_damage_samples[1].delta == 7
+        and signal_then_real_hit.hit_contact.accepted == true
+        and signal_then_real_hit.hit_damage_confirmed == true,
+    "a small DOT on a fresh signal must not consume the next-frame real same-combo hit")
+
+local signal_clear_then_hit_state = {}
+detector.observe_recording_contacts(signal_clear_then_hit_state, {
+    frame = 1,
+    current_combo = 1,
+    previous_combo = 1,
+    current_hp = 10000,
+    previous_hp = 10000,
+    damage_type = 3,
+    hit_stop = 4,
+    contact_candidate = true,
+})
+local signal_clear_then_hit = detector.observe_recording_contacts(
+    signal_clear_then_hit_state,
+    {
+        frame = 2,
+        current_combo = 1,
+        previous_combo = 1,
+        current_hp = 9700,
+        previous_hp = 10000,
+        damage_type = 0,
+        hit_stop = 0,
+        contact_candidate = true,
+    }
+)
+assert(signal_clear_then_hit.hit_contact.accepted == true
+        and signal_clear_then_hit.hit_damage_confirmed == true,
+    "a next-frame HP update must consume a pending hit cycle after its signal clears")
+
+local poison_before_hit_state = {}
+detector.observe_recording_contacts(poison_before_hit_state, {
+    frame = 1,
+    current_combo = 0,
+    previous_combo = 0,
+    current_hp = 9993,
+    previous_hp = 10000,
+    damage_type = 0,
+    hit_stop = 0,
+})
+local poison_before_hit_signal = detector.observe_recording_contacts(
+    poison_before_hit_state,
+    {
+        frame = 2,
+        current_combo = 1,
+        previous_combo = 0,
+        current_hp = 9993,
+        previous_hp = 9993,
+        damage_type = 3,
+        hit_stop = 4,
+        contact_candidate = true,
+    }
+)
+local poison_before_real_damage = detector.observe_recording_contacts(
+    poison_before_hit_state,
+    {
+        frame = 3,
+        current_combo = 1,
+        previous_combo = 1,
+        current_hp = 9693,
+        previous_hp = 9993,
+        damage_type = 3,
+        hit_stop = 4,
+        contact_candidate = false,
+    }
+)
+assert(poison_before_hit_signal.hit_contact.accepted == true
+        and poison_before_hit_signal.passive_damage_samples[1].delta == 7
+        and poison_before_real_damage.hit_damage_confirmed == true
+        and #poison_before_real_damage.passive_damage_samples == 0,
+    "poison before a combo edge must stay passive while the next-frame real damage is confirmed")
+
+for _, combo_growth in ipairs({ false, true }) do
+    local hp_then_poison_state = {}
+    detector.observe_recording_contacts(hp_then_poison_state, {
+        frame = 1,
+        current_combo = combo_growth and 0 or 1,
+        previous_combo = combo_growth and 0 or 1,
+        current_hp = 9700,
+        previous_hp = 10000,
+        damage_type = 0,
+        hit_stop = 0,
+        contact_candidate = true,
+    })
+    local hp_then_poison = detector.observe_recording_contacts(
+        hp_then_poison_state,
+        {
+            frame = 2,
+            current_combo = 1,
+            previous_combo = combo_growth and 0 or 1,
+            current_hp = 9693,
+            previous_hp = 9700,
+            damage_type = 3,
+            hit_stop = 4,
+            contact_candidate = true,
+        }
+    )
+    assert(hp_then_poison.hit_contact.accepted == true
+            and hp_then_poison.hit_damage_confirmed == true
+            and hp_then_poison.passive_damage_samples[1].delta == 7,
+        "a large HP-first hit must bind to the next signal while its concurrent poison tick stays passive")
+end
+
+local settling_hit_state = {}
+detector.observe_recording_contacts(settling_hit_state, {
+    frame = 1,
+    current_combo = 1,
+    previous_combo = 1,
+    current_hp = 9000,
+    previous_hp = 9000,
+    damage_type = 0,
+    hit_stop = 0,
+})
+local settling_hit = detector.observe_recording_contacts(settling_hit_state, {
+    frame = 2,
+    current_combo = 1,
+    previous_combo = 1,
+    current_hp = 8400,
+    previous_hp = 9000,
+    damage_type = 3,
+    hit_stop = 1,
+    contact_candidate = true,
+})
+assert(settling_hit.hit_contact.accepted == true,
+    "the first edge of a same-combo hit must be accepted")
+local settling_poison = detector.observe_recording_contacts(settling_hit_state, {
+    frame = 3,
+    current_combo = 1,
+    previous_combo = 1,
+    current_hp = 8380,
+    previous_hp = 8400,
+    damage_type = 3,
+    hit_stop = 4,
+    contact_candidate = true,
+})
+local settling_flush = detector.observe_recording_contacts(settling_hit_state, {
+    frame = 4,
+    current_combo = 1,
+    previous_combo = 1,
+    current_hp = 8380,
+    previous_hp = 8380,
+    damage_type = 3,
+    hit_stop = 4,
+    contact_candidate = true,
+})
+assert(settling_poison.hit_contact.accepted == false
+        and settling_poison.hit_damage_confirmed == false
+        and settling_flush.passive_damage_samples[1].delta == 20,
+    "a hit-stop value settling upward must not reopen a consumed hit cycle")
+
+local no_candidate_state = {}
+detector.observe_recording_contacts(no_candidate_state, {
+    frame = 1,
+    current_combo = 1,
+    previous_combo = 1,
+    current_hp = 9000,
+    previous_hp = 9000,
+    damage_type = 0,
+    hit_stop = 0,
+})
+local no_candidate_hit = detector.observe_recording_contacts(no_candidate_state, {
+    frame = 2,
+    current_combo = 1,
+    previous_combo = 1,
+    current_hp = 8400,
+    previous_hp = 9000,
+    damage_type = 3,
+    hit_stop = 4,
+    contact_candidate = false,
+})
+local next_event_poison = detector.observe_recording_contacts(no_candidate_state, {
+    frame = 3,
+    current_combo = 1,
+    previous_combo = 1,
+    current_hp = 8380,
+    previous_hp = 8400,
+    damage_type = 3,
+    hit_stop = 4,
+    contact_candidate = true,
+})
+local next_event_flush = detector.observe_recording_contacts(no_candidate_state, {
+    frame = 4,
+    current_combo = 1,
+    previous_combo = 1,
+    current_hp = 8380,
+    previous_hp = 8380,
+    damage_type = 3,
+    hit_stop = 4,
+    contact_candidate = true,
+})
+assert(no_candidate_hit.hit_contact.accepted == false
+        and no_candidate_hit.hit_damage_confirmed == true
+        and next_event_poison.hit_contact.accepted == false
+        and next_event_flush.passive_damage_samples[1].delta == 20,
+    "a fresh hit cycle must be consumed even when the current Action already owns contact")
+
+local block_cycle_state = {}
+local first_block_cycle = detector.observe_recording_contacts(block_cycle_state, {
+    frame = 1,
+    current_combo = 0,
+    previous_combo = 0,
+    current_hp = 9000,
+    previous_hp = 9000,
+    damage_type = 30,
+    hit_stop = 4,
+})
+assert(first_block_cycle.block_contact.started == true
+        and first_block_cycle.block_damage_confirmed == false,
+    "a real block signal must create contact even before HP updates")
+local delayed_chip = detector.observe_recording_contacts(block_cycle_state, {
+    frame = 2,
+    current_combo = 0,
+    previous_combo = 0,
+    current_hp = 8900,
+    previous_hp = 9000,
+    damage_type = 30,
+    hit_stop = 4,
+})
+assert(delayed_chip.block_contact.started == false
+        and delayed_chip.block_damage_confirmed == true,
+    "the first HP update in a fresh block cycle must confirm chip once")
+detector.observe_recording_contacts(block_cycle_state, {
+    frame = 3,
+    current_combo = 0,
+    previous_combo = 0,
+    current_hp = 8900,
+    previous_hp = 8900,
+    damage_type = 30,
+    hit_stop = 0,
+})
+local second_block_cycle = detector.observe_recording_contacts(block_cycle_state, {
+    frame = 4,
+    current_combo = 0,
+    previous_combo = 0,
+    current_hp = 8800,
+    previous_hp = 8900,
+    damage_type = 30,
+    hit_stop = 4,
+})
+assert(second_block_cycle.block_contact.started == true
+        and second_block_cycle.block_damage_confirmed == true,
+    "a renewed block hit-stop edge must create and consume a second block cycle")
+
+local block_hp_first_state = {}
+detector.observe_recording_contacts(block_hp_first_state, {
+    frame = 1,
+    current_combo = 0,
+    previous_combo = 0,
+    current_hp = 8900,
+    previous_hp = 9000,
+    damage_type = 0,
+    hit_stop = 0,
+})
+local block_hp_first = detector.observe_recording_contacts(block_hp_first_state, {
+    frame = 2,
+    current_combo = 0,
+    previous_combo = 0,
+    current_hp = 8900,
+    previous_hp = 8900,
+    damage_type = 30,
+    hit_stop = 4,
+})
+assert(block_hp_first.block_contact.started == true
+        and block_hp_first.block_damage_confirmed == true
+        and #block_hp_first.passive_damage_samples == 0,
+    "a block signal one frame after HP must recover the block chip")
+
+for _, persistent_delta in ipairs({ 10, 20 }) do
+    local current_block_small_state = {}
+    local current_block_small = detector.observe_recording_contacts(
+        current_block_small_state,
+        {
+            frame = 1,
+            current_combo = 0,
+            previous_combo = 0,
+            current_hp = 9000 - persistent_delta,
+            previous_hp = 9000,
+            damage_type = 30,
+            hit_stop = 4,
+        }
+    )
+    assert(current_block_small.block_contact.started == true
+            and current_block_small.block_damage_confirmed == false
+            and current_block_small.passive_damage_samples[1].delta
+                == persistent_delta,
+        "a fresh block edge must not attribute a supported persistent-damage tick as chip")
+
+    local pending_block_small_state = {}
+    detector.observe_recording_contacts(pending_block_small_state, {
+        frame = 1,
+        current_combo = 0,
+        previous_combo = 0,
+        current_hp = 9000 - persistent_delta,
+        previous_hp = 9000,
+        damage_type = 0,
+        hit_stop = 0,
+    })
+    local pending_block_small = detector.observe_recording_contacts(
+        pending_block_small_state,
+        {
+            frame = 2,
+            current_combo = 0,
+            previous_combo = 0,
+            current_hp = 9000 - persistent_delta,
+            previous_hp = 9000 - persistent_delta,
+            damage_type = 30,
+            hit_stop = 4,
+        }
+    )
+    assert(pending_block_small.block_damage_confirmed == false
+            and pending_block_small.passive_damage_samples[1].delta
+                == persistent_delta,
+        "a 10-20 HP early tick must not bind to a next-frame block signal")
+end
+
+
+local signal_small_then_block_state = {}
+local signal_small_block_tick = detector.observe_recording_contacts(
+    signal_small_then_block_state,
+    {
+        frame = 1,
+        current_combo = 0,
+        previous_combo = 0,
+        current_hp = 9993,
+        previous_hp = 10000,
+        damage_type = 30,
+        hit_stop = 4,
+    }
+)
+local signal_then_real_chip = detector.observe_recording_contacts(
+    signal_small_then_block_state,
+    {
+        frame = 2,
+        current_combo = 0,
+        previous_combo = 0,
+        current_hp = 9893,
+        previous_hp = 9993,
+        damage_type = 30,
+        hit_stop = 4,
+    }
+)
+assert(signal_small_block_tick.block_contact.started == true
+        and signal_small_block_tick.block_damage_confirmed == false
+        and signal_small_block_tick.passive_damage_samples[1].delta == 7
+        and signal_then_real_chip.block_damage_confirmed == true,
+    "a small DOT on a fresh block signal must not consume next-frame real chip")
+
+local signal_clear_then_block_state = {}
+local signal_clear_block_start = detector.observe_recording_contacts(
+    signal_clear_then_block_state,
+    {
+        frame = 1,
+        current_combo = 0,
+        previous_combo = 0,
+        current_hp = 10000,
+        previous_hp = 10000,
+        damage_type = 30,
+        hit_stop = 4,
+    }
+)
+local signal_clear_then_block = detector.observe_recording_contacts(
+    signal_clear_then_block_state,
+    {
+        frame = 2,
+        current_combo = 0,
+        previous_combo = 0,
+        current_hp = 9900,
+        previous_hp = 10000,
+        damage_type = 0,
+        hit_stop = 0,
+    }
+)
+assert(signal_clear_block_start.block_contact.started == true
+        and signal_clear_then_block.block_damage_confirmed == true,
+    "a next-frame HP update must consume a pending block cycle after its signal clears")
+
+local conflicting_fields_state = {}
+local conflicting_fields = detector.observe_recording_contacts(
+    conflicting_fields_state,
+    {
+        frame = 1,
+        current_combo = 1,
+        previous_combo = 0,
+        current_hp = 9700,
+        previous_hp = 10000,
+        damage_type = 30,
+        hit_stop = 4,
+        contact_candidate = true,
+    }
+)
+assert(conflicting_fields.hit_contact.accepted == true
+        and conflicting_fields.block_contact.started == false
+        and conflicting_fields.block_damage_confirmed == false,
+    "combo growth must win over a stale block type so one sample cannot be hit and block")
+
+local cross_frame_conflict_state = {}
+detector.observe_recording_contacts(cross_frame_conflict_state, {
+    frame = 1,
+    current_combo = 1,
+    previous_combo = 0,
+    current_hp = 10000,
+    previous_hp = 10000,
+    damage_type = 3,
+    hit_stop = 4,
+    contact_candidate = true,
+})
+local cross_frame_conflict = detector.observe_recording_contacts(
+    cross_frame_conflict_state,
+    {
+        frame = 2,
+        current_combo = 1,
+        previous_combo = 1,
+        current_hp = 9700,
+        previous_hp = 10000,
+        damage_type = 30,
+        hit_stop = 4,
+        contact_candidate = false,
+    }
+)
+assert(cross_frame_conflict.hit_damage_confirmed == true
+        and cross_frame_conflict.block_contact.active == false
+        and cross_frame_conflict.block_contact.started == false
+        and cross_frame_conflict.block_damage_confirmed == false,
+    "a pending combo-hit HP update must win over a next-frame stale block type")
+
+local poison_before_block_state = {}
+detector.observe_recording_contacts(poison_before_block_state, {
+    frame = 1,
+    current_combo = 0,
+    previous_combo = 0,
+    current_hp = 9993,
+    previous_hp = 10000,
+    damage_type = 0,
+    hit_stop = 0,
+})
+local poison_before_block_signal = detector.observe_recording_contacts(
+    poison_before_block_state,
+    {
+        frame = 2,
+        current_combo = 0,
+        previous_combo = 0,
+        current_hp = 9993,
+        previous_hp = 9993,
+        damage_type = 30,
+        hit_stop = 4,
+    }
+)
+local poison_before_block_damage = detector.observe_recording_contacts(
+    poison_before_block_state,
+    {
+        frame = 3,
+        current_combo = 0,
+        previous_combo = 0,
+        current_hp = 9693,
+        previous_hp = 9993,
+        damage_type = 30,
+        hit_stop = 4,
+    }
+)
+assert(poison_before_block_signal.passive_damage_samples[1].delta == 7
+        and poison_before_block_damage.block_damage_confirmed == true
+        and #poison_before_block_damage.passive_damage_samples == 0,
+    "poison before a block edge must stay passive while next-frame real chip is confirmed")
+
+local block_hp_then_poison_state = {}
+detector.observe_recording_contacts(block_hp_then_poison_state, {
+    frame = 1,
+    current_combo = 0,
+    previous_combo = 0,
+    current_hp = 9700,
+    previous_hp = 10000,
+    damage_type = 0,
+    hit_stop = 0,
+})
+local block_hp_then_poison = detector.observe_recording_contacts(
+    block_hp_then_poison_state,
+    {
+        frame = 2,
+        current_combo = 0,
+        previous_combo = 0,
+        current_hp = 9693,
+        previous_hp = 9700,
+        damage_type = 30,
+        hit_stop = 4,
+    }
+)
+assert(block_hp_then_poison.block_damage_confirmed == true
+        and block_hp_then_poison.passive_damage_samples[1].delta == 7,
+    "a large HP-first block chip must bind while its concurrent poison tick stays passive")
+
+local type_first_block_state = {}
+local type_first_block = detector.observe_recording_contacts(type_first_block_state, {
+    frame = 1,
+    current_combo = 0,
+    previous_combo = 0,
+    current_hp = 9000,
+    previous_hp = 9000,
+    damage_type = 30,
+    hit_stop = 0,
+})
+local type_first_hitstop = detector.observe_recording_contacts(type_first_block_state, {
+    frame = 2,
+    current_combo = 0,
+    previous_combo = 0,
+    current_hp = 9000,
+    previous_hp = 9000,
+    damage_type = 30,
+    hit_stop = 4,
+})
+assert(type_first_block.block_contact.started == true
+        and type_first_hitstop.block_contact.started == false,
+    "type-first then hit-stop block fields must emit only one contact cycle")
+
+local hitstop_first_block_state = {}
+local hitstop_first = detector.observe_recording_contacts(hitstop_first_block_state, {
+    frame = 1,
+    current_combo = 0,
+    previous_combo = 0,
+    current_hp = 9000,
+    previous_hp = 9000,
+    damage_type = 0,
+    hit_stop = 4,
+})
+local hitstop_then_type = detector.observe_recording_contacts(hitstop_first_block_state, {
+    frame = 2,
+    current_combo = 0,
+    previous_combo = 0,
+    current_hp = 9000,
+    previous_hp = 9000,
+    damage_type = 30,
+    hit_stop = 4,
+})
+assert(hitstop_first.block_contact.started == false
+        and hitstop_then_type.block_contact.started == true,
+    "hit-stop-first then type block fields must emit one contact when type arrives")
 
 hit_contact = detector.evaluate_recording_hit_contact({
     current_combo = 4,

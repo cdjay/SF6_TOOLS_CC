@@ -1809,7 +1809,7 @@ local function draw_combo_trials_menu_ui()
             imgui.spacing()
             imgui.text_colored("运行目录批量演示审计", COLORS.Orange)
             imgui.text_colored(
-                "逐条加载已安装 JSON，以输入流自动演示并严格核对实际 Action 与结果；只生成报告。",
+                "逐条加载已安装 JSON，以输入流自动演示并严格核对实际 Action、结果与指令表完整性；只生成报告。",
                 COLORS.DarkGrey
             )
             if imgui.button("仅审计当前连段")

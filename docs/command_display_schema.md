@@ -69,3 +69,9 @@ BCM 条件距离和 Assist Combo 强度取得可审计的经典投影。每条�
 
 经典、现代简化和现代搓招显示均以统一角色表为唯一权威。exception 文件禁止保存显示文本，
 只保留蓄力、吸收、强制识别、忽略帧等检测行为。
+
+少量已由 raw input 与运行时 Action ID 共同验证、但尚未进入生成图的动作，可暂存于
+`command_display_overrides/<Character>.json`。这是角色产品数据，不读取连段 JSON 中保存的
+motion 作为证据。每条覆盖必须提供非空 `classic`、`evidence`；若支持现代模式，还必须同时
+提供 `commands.simple` 与 `commands.motion`。覆盖默认只能补齐缺失 Action，不能替换已生成
+条目；加载后统一标记为 `runtime_verified_override`，继续经过与正式指令表相同的严格审计门。

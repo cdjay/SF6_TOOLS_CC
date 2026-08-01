@@ -4,10 +4,18 @@
 local Transcriber = {
     name = "ComboTrials.Transcriber",
     REPORT_SCHEMA = "sf6cc.combo_transcription_report.v1",
-    VALIDATION_REVISION = 30,
+    VALIDATION_REVISION = 34,
     OUTPUT_ROOT = "TrainingComboTrials_data/TranscribedCandidates",
     REPORT_ROOT = "TrainingComboTrials_data/TranscriptionReports",
 }
+
+local PERSISTENT_DAMAGE_MIN_TICKS = 3
+local ActionRestartDetector = require("func/ComboTrials/ActionRestartDetector")
+-- Legacy outcome correction intentionally recognizes only the known small
+-- poison-tick range. Larger unconfirmed losses remain telemetry but are not
+-- strong enough to rewrite an authored combo count.
+local PERSISTENT_DAMAGE_MAX_TICK =
+    ActionRestartDetector.PERSISTENT_DAMAGE_MAX_TICK
 
 local function report_time_key(path, report)
     local report_times = {
@@ -168,6 +176,205 @@ local function expected_hit_reconnect_reason(sequence)
         end
     end
     return nil
+end
+
+-- Poison damage made one legacy recorder carry the previous string's combo
+-- count across a real reset. It could also attribute a multi-hit follow-up to
+-- the preceding Action, so the source count may temporarily lead the runtime
+-- count before both meet again. Correcting that source is safe only when each
+-- runtime segment starts and ends on the authored cumulative count, no source
+-- contact ever trails runtime truth, and all segment peaks reconstruct the
+-- authored total exactly. Sample-level reset frames avoid mistaking non-contact
+-- cancels (whose V2 expected_combo is zero) for a real combo break.
+local function observed_segmented_combo_structure(
+    sequence,
+    compiled,
+    source_action_match,
+    expected_max_combo,
+    observed_max_combo
+)
+    if source_action_match ~= true or type(sequence) ~= "table"
+        or type(compiled) ~= "table" then
+        return nil
+    end
+    local steps = type(compiled.steps) == "table" and compiled.steps or {}
+    local trace = type(compiled.trace) == "table" and compiled.trace or {}
+    local events = type(trace.projected_events) == "table"
+        and trace.projected_events or {}
+    local reset_frames = type(trace.combo_reset_frames) == "table"
+        and trace.combo_reset_frames or {}
+    if #sequence == 0 or #sequence ~= #steps or #events ~= #steps
+        or #reset_frames == 0 then
+        return nil
+    end
+
+    local completed_combo = 0
+    local active_peak = 0
+    local segment_peaks = {}
+    local windows = {}
+    local pending_reset_frame = nil
+    local reset_index = 1
+    local previous_contact_frame = nil
+    local contact_count = 0
+    local segment_first_contact = true
+    local segment_last_source_combo = nil
+    local attribution_lead_steps = 0
+    local max_attribution_lead = 0
+    local previous_source_row_combo = 0
+
+    for index, event in ipairs(events) do
+        local step = steps[index]
+        local source = sequence[index]
+        local combo = math.max(0, tonumber(step and step.expected_combo) or 0)
+        local contact = type(step) == "table"
+            and (step.has_hit == true or step.has_contact == true)
+            and combo > 0
+        local source_row_combo = tonumber(
+            type(source) == "table" and source.expected_combo
+        )
+        -- A temporary lead is only an attribution shift when the runtime row
+        -- still made contact. If the source count rises on an Action that the
+        -- runtime proves did not connect, accepting a later catch-up could hide
+        -- a genuinely missed authored hit.
+        if not contact and source_row_combo ~= nil
+            and source_row_combo > previous_source_row_combo then
+            return nil
+        end
+        if source_row_combo ~= nil then
+            previous_source_row_combo = source_row_combo
+        end
+        if contact then
+            local contact_frame = tonumber(event.first_contact_frame)
+                or tonumber(event.frame)
+            if contact_frame == nil then return nil end
+            while reset_index <= #reset_frames
+                and (tonumber(reset_frames[reset_index]) or math.huge)
+                    <= contact_frame do
+                local reset_frame = tonumber(reset_frames[reset_index])
+                if reset_frame ~= nil
+                    and active_peak > 0
+                    and (previous_contact_frame == nil
+                        or reset_frame > previous_contact_frame) then
+                    if segment_last_source_combo
+                        ~= completed_combo + active_peak then
+                        return nil
+                    end
+                    segment_peaks[#segment_peaks + 1] = active_peak
+                    completed_combo = completed_combo + active_peak
+                    active_peak = 0
+                    pending_reset_frame = reset_frame
+                    segment_first_contact = true
+                    segment_last_source_combo = nil
+                end
+                reset_index = reset_index + 1
+            end
+
+            if active_peak > 0 and combo < active_peak then
+                return nil
+            end
+
+            local source_combo = source_row_combo
+            local reconstructed_combo = completed_combo + combo
+            if source_combo == nil or source_combo < reconstructed_combo
+                or (segment_first_contact
+                    and source_combo ~= reconstructed_combo)
+                or (segment_last_source_combo ~= nil
+                    and source_combo < segment_last_source_combo) then
+                return nil
+            end
+            local attribution_lead = source_combo - reconstructed_combo
+            if attribution_lead > 0 then
+                attribution_lead_steps = attribution_lead_steps + 1
+                max_attribution_lead = math.max(
+                    max_attribution_lead,
+                    attribution_lead
+                )
+            end
+            if pending_reset_frame ~= nil then
+                windows[#windows + 1] = {
+                    reset_frame = pending_reset_frame,
+                    reconnect_frame = contact_frame,
+                }
+                pending_reset_frame = nil
+            end
+            active_peak = math.max(active_peak, combo)
+            segment_first_contact = false
+            segment_last_source_combo = source_combo
+            previous_contact_frame = contact_frame
+            contact_count = contact_count + 1
+        end
+    end
+
+    if active_peak > 0 then
+        if segment_last_source_combo ~= completed_combo + active_peak then
+            return nil
+        end
+        segment_peaks[#segment_peaks + 1] = active_peak
+        completed_combo = completed_combo + active_peak
+    end
+    if #segment_peaks < 2 or #windows ~= #segment_peaks - 1
+        or contact_count < 2
+        or completed_combo ~= math.max(0, tonumber(expected_max_combo) or 0) then
+        return nil
+    end
+    local largest_segment = 0
+    for _, peak in ipairs(segment_peaks) do
+        largest_segment = math.max(largest_segment, peak)
+    end
+    if largest_segment ~= math.max(0, tonumber(observed_max_combo) or 0) then
+        return nil
+    end
+    return {
+        reason = "observed_hit_reconnect_after_combo_reset",
+        segment_peaks = segment_peaks,
+        reconstructed_combo = completed_combo,
+        windows = windows,
+        attribution_lead_steps = attribution_lead_steps,
+        max_attribution_lead = max_attribution_lead,
+    }
+end
+
+local function has_persistent_damage_evidence(stats, trace, structure)
+    stats = type(stats) == "table" and stats or {}
+    trace = type(trace) == "table" and trace or {}
+    local ticks = math.max(0, tonumber(stats.passive_damage_ticks) or 0)
+    local total = math.max(0, tonumber(stats.passive_damage_total) or 0)
+    local max_tick = math.max(0, tonumber(stats.passive_damage_max_tick) or 0)
+    if ticks < PERSISTENT_DAMAGE_MIN_TICKS or total <= 0 or max_tick <= 0
+        or type(structure) ~= "table"
+        or type(structure.windows) ~= "table"
+        or #structure.windows == 0 then
+        return false, {}
+    end
+    local samples = type(trace.passive_damage_samples) == "table"
+        and trace.passive_damage_samples or {}
+    local window_ticks = {}
+    for window_index, window in ipairs(structure.windows) do
+        local reset_frame = tonumber(window.reset_frame)
+        local reconnect_frame = tonumber(window.reconnect_frame)
+        if reset_frame == nil or reconnect_frame == nil
+            or reconnect_frame < reset_frame then
+            return false, window_ticks
+        end
+        local count = 0
+        for _, sample in ipairs(samples) do
+            local sample_frame = tonumber(type(sample) == "table" and sample.frame)
+            local delta = tonumber(type(sample) == "table" and sample.delta)
+            if sample_frame ~= nil and delta ~= nil
+                and sample_frame >= reset_frame
+                and sample_frame <= reconnect_frame then
+                if delta <= 0 or delta > PERSISTENT_DAMAGE_MAX_TICK then
+                    return false, window_ticks
+                end
+                count = count + 1
+            end
+        end
+        window_ticks[window_index] = count
+        if count < PERSISTENT_DAMAGE_MIN_TICKS then
+            return false, window_ticks
+        end
+    end
+    return true, window_ticks
 end
 
 local function set_prepared_environment_field(first, field_name, value)
@@ -436,6 +643,91 @@ local function expects_terminal_contact(sequence)
         and terminal_damage > previous_damage
 end
 
+-- A legacy row may explicitly say "not hit" while its cumulative combo and
+-- damage were copied from a contact that completed on the preceding Action.
+-- Treat that row as a pressure/setup tail only when runtime proves the entire
+-- positive combo before it and the terminal Action adds neither combo nor
+-- damage. This keeps the default false field from hiding a genuinely missed
+-- terminal hit or a zero-combo damage action such as a throw.
+local function observed_terminal_noncontact_proves_delayed_source_counters(
+    sequence,
+    compiled_steps
+)
+    if type(sequence) ~= "table" or type(compiled_steps) ~= "table"
+        or #sequence < 2 or #sequence ~= #compiled_steps then
+        return false
+    end
+    local source_terminal = sequence[#sequence]
+    local observed_terminal = compiled_steps[#compiled_steps]
+    local observed_previous = compiled_steps[#compiled_steps - 1]
+    if type(source_terminal) ~= "table"
+        or type(observed_terminal) ~= "table"
+        or type(observed_previous) ~= "table" then
+        return false
+    end
+    local source_explicit_noncontact =
+        (source_terminal.has_hit == false
+            or source_terminal.has_contact == false)
+        and source_terminal.has_hit ~= true
+        and source_terminal.has_contact ~= true
+        and source_terminal.hit_result ~= "block"
+        and source_terminal.was_blocked ~= true
+    if not source_explicit_noncontact
+        or observed_terminal.has_hit == true
+        or observed_terminal.has_contact == true
+        or observed_terminal.hit_result == "block"
+        or observed_terminal.was_blocked == true
+        or math.max(0, tonumber(observed_terminal.expected_combo) or 0) > 0 then
+        return false
+    end
+
+    local previous_damage = tonumber(observed_previous.damage_at_step)
+    local terminal_damage = tonumber(observed_terminal.damage_at_step)
+    if previous_damage == nil or terminal_damage == nil
+        or previous_damage <= 0 or terminal_damage ~= previous_damage then
+        return false
+    end
+
+    local source_terminal_combo = tonumber(source_terminal.expected_combo)
+    local source_prefix_max = 0
+    for index = 1, #sequence - 1 do
+        source_prefix_max = math.max(
+            source_prefix_max,
+            tonumber(type(sequence[index]) == "table"
+                and sequence[index].expected_combo) or 0
+        )
+    end
+    if source_terminal_combo == nil
+        or source_terminal_combo < source_prefix_max then
+        return false
+    end
+
+    local expected_max_combo = expected_outcome(sequence).max_combo
+    if expected_max_combo <= 0
+        or source_terminal_combo ~= expected_max_combo then
+        return false
+    end
+    local observed_prefix_max = 0
+    for index = 1, #compiled_steps - 1 do
+        observed_prefix_max = math.max(
+            observed_prefix_max,
+            tonumber(type(compiled_steps[index]) == "table"
+                and compiled_steps[index].expected_combo) or 0
+        )
+    end
+    return observed_prefix_max >= expected_max_combo
+end
+
+local function terminal_contact_is_required(sequence, compiled_steps)
+    if observed_terminal_noncontact_proves_delayed_source_counters(
+        sequence,
+        compiled_steps
+    ) then
+        return false
+    end
+    return expects_terminal_contact(sequence)
+end
+
 local function block_before_expected_combo_completion(steps, expected_combo)
     local max_combo_before = 0
     local saw_block = false
@@ -675,7 +967,7 @@ local function terminal_action_contact_matches(sequence, compiled_steps, action_
         ) then
         return false
     end
-    if not expects_terminal_contact(sequence) then return true end
+    if not terminal_contact_is_required(sequence, compiled_steps) then return true end
     return observed.has_hit == true or observed.has_contact == true
         or observed.hit_result == "block" or observed.was_blocked == true
 end
@@ -768,32 +1060,56 @@ function Transcriber.evaluate(sequence, compiled, runtime)
     local expected = expected_outcome(sequence)
     local reasons = {}
     local advisories = {}
+    -- Old V2 source rows may use an explicitly declared recording owner for a
+    -- runtime follow-up Action. Keep that compatibility bridge separate from
+    -- current candidate/raw-replay Action equivalence, which remains strict.
+    local source_action_ids_equivalent =
+        runtime.source_action_ids_equivalent
+            or runtime.action_ids_equivalent
     local source_action_match = action_sequence_matches(
         sequence,
         steps,
-        runtime.action_ids_equivalent
+        source_action_ids_equivalent
     )
     local source_action_subsequence_match = action_sequence_is_subsequence(
         sequence,
         steps,
-        runtime.action_ids_equivalent
+        source_action_ids_equivalent
     )
     local legacy_evidence_steps = legacy_action_evidence(compiled, steps)
     local legacy_authored_action_subsequence_match =
         legacy_authored_action_sequence_is_subsequence(
             sequence,
             legacy_evidence_steps,
-            runtime.action_ids_equivalent
+            source_action_ids_equivalent
+        )
+    local expected_reconnect_reason = expected_hit_reconnect_reason(sequence)
+    local observed_combo_rebuild = observed_segmented_combo_structure(
+        sequence,
+        compiled,
+        source_action_match,
+        expected.max_combo,
+        stats.max_combo
+    )
+    local observed_reconnect_reason = observed_combo_rebuild
+        and observed_combo_rebuild.reason or nil
+    local persistent_damage_evidence, persistent_damage_window_ticks =
+        has_persistent_damage_evidence(
+            stats,
+            compiled.trace,
+            observed_combo_rebuild
         )
     local legacy_segmented_outcome = runtime.allow_legacy_outcome_rebuild == true
-        and expected_hit_reconnect_reason(sequence) ~= nil
+        and (expected_reconnect_reason ~= nil
+            or (observed_combo_rebuild ~= nil
+                and persistent_damage_evidence))
         and legacy_authored_action_subsequence_match
         and runtime.input_completed == true
         and runtime.timed_out ~= true
         and terminal_action_contact_matches(
             sequence,
             steps,
-            runtime.action_ids_equivalent
+            source_action_ids_equivalent
         )
 
     if runtime.input_source ~= "raw_inputs"
@@ -808,7 +1124,7 @@ function Transcriber.evaluate(sequence, compiled, runtime)
     if runtime.timed_out == true then reasons[#reasons + 1] = "replay_tail_timeout" end
     if #steps == 0 then reasons[#reasons + 1] = "no_action_steps" end
     local observed_terminal = steps[#steps]
-    if source_action_match and expects_terminal_contact(sequence)
+    if source_action_match and terminal_contact_is_required(sequence, steps)
         and type(observed_terminal) == "table"
         and observed_terminal.has_hit ~= true
         and observed_terminal.has_contact ~= true then
@@ -886,6 +1202,20 @@ function Transcriber.evaluate(sequence, compiled, runtime)
     if legacy_segmented_outcome and not source_action_subsequence_match then
         advisories[#advisories + 1] =
             "source_segmented_action_stream_rebuilt"
+    end
+    if legacy_segmented_outcome and expected_reconnect_reason == nil
+        and observed_reconnect_reason ~= nil then
+        advisories[#advisories + 1] =
+            "source_combo_reset_rebuilt_from_runtime"
+    end
+    if legacy_segmented_outcome
+        and type(observed_combo_rebuild) == "table"
+        and (tonumber(observed_combo_rebuild.attribution_lead_steps) or 0) > 0 then
+        advisories[#advisories + 1] = string.format(
+            "source_contact_attribution_rebuilt:steps=%d:max_lead=%d",
+            tonumber(observed_combo_rebuild.attribution_lead_steps) or 0,
+            tonumber(observed_combo_rebuild.max_attribution_lead) or 0
+        )
     end
     if (tonumber(stats.resolver_error_actions) or 0) > 0 then
         reasons[#reasons + 1] = "motion_resolver_error"
@@ -976,6 +1306,11 @@ function Transcriber.evaluate(sequence, compiled, runtime)
         legacy_authored_action_subsequence_match =
             legacy_authored_action_subsequence_match,
         legacy_segmented_outcome = legacy_segmented_outcome,
+        expected_reconnect_reason = expected_reconnect_reason,
+        observed_reconnect_reason = observed_reconnect_reason,
+        persistent_damage_evidence = persistent_damage_evidence,
+        persistent_damage_window_ticks = persistent_damage_window_ticks,
+        observed_combo_rebuild = deep_copy(observed_combo_rebuild),
         environment_validation = environment_validation,
     }
 end

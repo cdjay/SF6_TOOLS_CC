@@ -784,6 +784,11 @@ end
 
 local function get_recorded_universal_motion(step)
     if type(step) ~= "table" then return nil end
+    -- Historical DI compatibility is an explicit Action-ID variant
+    -- (854 -> 855), not permission to trust arbitrary saved motion text for
+    -- an unmapped Action.
+    local action_id = tonumber(step.id)
+    if action_id ~= 854 and action_id ~= 855 then return nil end
     local motion = trim_string(step.motion):upper():gsub("%s+", "")
     if motion == "DI" or motion == "HP+HK" then return "DI" end
     return nil
@@ -1855,6 +1860,169 @@ local function select_modern_display_motion(motion)
     return variants[1]
 end
 
+local ACCEPTED_COMMAND_DISPLAY_ROUTE_STATUSES = {
+    strict_route = true,
+    runtime_verified_override = true,
+    recorded_universal_command = true,
+    player_input_transition = true,
+}
+
+local ACCEPTED_RECORDED_CONTEXT_CATALOG_STATUSES = {
+    strict_route = true,
+    runtime_verified_override = true,
+}
+
+local function normalize_resolved_command_motion(motion)
+    if type(motion) ~= "string" then return nil end
+    local normalized = trim_string(motion)
+    if normalized == "" then return nil end
+    local upper = normalized:upper()
+    if normalized:find("未识别", 1, true) ~= nil
+        or upper:find("UNKNOWN", 1, true) ~= nil
+        or upper:find("ACTION_", 1, true) ~= nil then
+        return nil
+    end
+    return normalized
+end
+
+local function get_catalog_route_status(command_map, step)
+    if type(command_map) ~= "table" or type(step) ~= "table" then return nil end
+    local entry = command_map[tostring(step.id or "")]
+    if type(entry) ~= "table" then return nil end
+    return entry.status
+end
+
+-- Resolve the semantic command-display state before any localized placeholder,
+-- display clone or unresolved-action audit is produced. Keeping this decision
+-- in one helper makes programmatic validation agree with the trial table:
+-- modern mode treats every non-suppressed missing motion as unresolved, while
+-- classic mode only shows the placeholder after a command map was loaded.
+local function resolve_step_command_display(command_map, step, is_modern)
+    local motion, route_status
+    if is_modern then
+        motion, route_status = get_modern_display_motion(command_map, step)
+    else
+        motion, route_status = get_classic_display_motion(command_map, step)
+    end
+
+    local suppressed = route_status == "suppress_transition"
+    if is_modern then motion = select_modern_display_motion(motion) end
+    local catalog_route_status = get_catalog_route_status(command_map, step)
+    local route_accepted = ACCEPTED_COMMAND_DISPLAY_ROUTE_STATUSES[route_status] == true
+    if route_status == "recorded_context" then
+        route_accepted = ACCEPTED_RECORDED_CONTEXT_CATALOG_STATUSES[catalog_route_status] == true
+    end
+    local normalized_motion = normalize_resolved_command_motion(motion)
+    local resolved = not suppressed and route_accepted and normalized_motion ~= nil
+    local unresolved = not suppressed and not resolved
+        and (is_modern or type(command_map) == "table")
+    local failure_status = nil
+    if not route_accepted then
+        if route_status == "recorded_context" then
+            failure_status = catalog_route_status or "invalid_recorded_context_route"
+        else
+            failure_status = route_status or "command_unavailable"
+        end
+    elseif normalized_motion == nil then
+        failure_status = "invalid_display_motion"
+    end
+    return {
+        motion = resolved and normalized_motion or nil,
+        raw_motion = motion,
+        route_status = route_status,
+        catalog_route_status = catalog_route_status,
+        failure_status = failure_status,
+        suppressed = suppressed,
+        unresolved = unresolved,
+    }
+end
+
+local function effective_command_display_status(map_status, route_status)
+    if map_status ~= nil and map_status ~= "loaded" then return map_status end
+    return route_status or map_status or "command_unavailable"
+end
+
+-- Structured, non-rendering validation for the exact sequence/context that the
+-- trial table would render. `unresolved` contains only steps that would receive
+-- the localized unresolved placeholder. A missing/invalid command map is also
+-- fail-closed through `ok=false`, but remains distinct in `map_status`; in
+-- classic mode the renderer preserves recorded text instead of manufacturing a
+-- placeholder when the whole map is unavailable.
+local function validate_sequence_command_display(sequence)
+    if type(sequence) ~= "table" or type(sequence[1]) ~= "table" then
+        return {
+            ok = false,
+            status = "invalid_sequence",
+            mode = "unknown",
+            character = "Unknown",
+            map_available = false,
+            map_status = "invalid_sequence",
+            total_steps = type(sequence) == "table" and #sequence or 0,
+            resolved_step_count = 0,
+            preserved_step_count = 0,
+            suppressed_step_count = 0,
+            unresolved_count = 0,
+            unresolved = {},
+        }
+    end
+
+    local is_modern, command_map, character, map_status, classic_modern_projection =
+        resolve_modern_display_context(sequence)
+    local result = {
+        ok = false,
+        status = nil,
+        mode = is_modern and "modern" or "classic",
+        character = character or "Unknown",
+        map_available = type(command_map) == "table",
+        map_status = map_status or "map_unavailable",
+        classic_modern_projection = classic_modern_projection == true,
+        total_steps = #sequence,
+        resolved_step_count = 0,
+        preserved_step_count = 0,
+        suppressed_step_count = 0,
+        unresolved_count = 0,
+        unresolved = {},
+    }
+
+    for index, step in ipairs(sequence) do
+        local resolution = resolve_step_command_display(command_map, step, is_modern)
+        if resolution.suppressed then
+            result.suppressed_step_count = result.suppressed_step_count + 1
+        elseif resolution.unresolved then
+            local route_status = resolution.failure_status
+                or resolution.route_status or "command_unavailable"
+            result.unresolved[#result.unresolved + 1] = {
+                index = index,
+                action_id = tonumber(step.id),
+                action_id_raw = step.id,
+                recorded_motion = type(step.motion) == "string" and step.motion or nil,
+                mode = result.mode,
+                status = effective_command_display_status(result.map_status, route_status),
+                route_status = route_status,
+                resolved_route_status = resolution.route_status,
+                catalog_route_status = resolution.catalog_route_status,
+            }
+        elseif resolution.motion then
+            result.resolved_step_count = result.resolved_step_count + 1
+        else
+            -- This is the classic renderer's whole-map-unavailable fallback:
+            -- the saved motion remains visible, but it was not catalog-resolved.
+            result.preserved_step_count = result.preserved_step_count + 1
+        end
+    end
+
+    result.unresolved_count = #result.unresolved
+    if not result.map_available then
+        result.status = result.map_status
+    elseif result.unresolved_count > 0 then
+        result.status = "unresolved_action_commands"
+    else
+        result.ok = true
+        result.status = "resolved"
+    end
+    return result
+end
+
 local function build_display_lines(sequence)
     local lines = {}
     local counter_policy = TrainingEnvironment.resolve_counter_policy(sequence, false)
@@ -1875,27 +2043,29 @@ local function build_display_lines(sequence)
         local step = raw_step
         local include_step = true
         local modern_unavailable = false
+        local resolution = resolve_step_command_display(modern_map, raw_step, is_modern)
         if is_modern then
-            local modern_motion, route_status = get_modern_display_motion(modern_map, raw_step)
-            if route_status == "suppress_transition" then
+            local modern_motion = resolution.motion
+            if resolution.suppressed then
                 include_step = false
-            elseif not modern_motion then
+            elseif resolution.unresolved then
                 modern_unavailable = classic_modern_projection == true
                 modern_motion = unresolved_action_placeholder(raw_step)
                 audit_unresolved_action(modern_character, raw_step, audit_context, "modern",
-                    modern_status ~= "loaded" and modern_status or route_status,
+                    effective_command_display_status(modern_status,
+                        resolution.failure_status or resolution.route_status),
                     source_file, audit_context .. ":" .. tostring(i))
             end
-            modern_motion = select_modern_display_motion(modern_motion)
             step = clone_step_for_display(raw_step, modern_motion, true)
         else
-            local classic_motion, route_status = get_classic_display_motion(modern_map, raw_step)
-            if route_status == "suppress_transition" then
+            local classic_motion = resolution.motion
+            if resolution.suppressed then
                 include_step = false
-            elseif not classic_motion and type(modern_map) == "table" then
+            elseif resolution.unresolved then
                 classic_motion = unresolved_action_placeholder(raw_step)
                 audit_unresolved_action(modern_character, raw_step, audit_context, "classic",
-                    modern_status ~= "loaded" and modern_status or route_status,
+                    effective_command_display_status(modern_status,
+                        resolution.failure_status or resolution.route_status),
                     source_file, audit_context .. ":" .. tostring(i))
             end
             step = clone_step_for_display(raw_step, classic_motion, false)
@@ -2789,26 +2959,28 @@ local function imgui_draw_inner()
             local should_flip = log.facing_left or false
             local display_log = log
             local suppress_log = false
+            local resolution = resolve_step_command_display(modern_map, log, is_modern)
             if is_modern then
-                local modern_motion, route_status = get_modern_display_motion(modern_map, log)
-                if route_status == "suppress_transition" then
+                local modern_motion = resolution.motion
+                if resolution.suppressed then
                     suppress_log = true
-                elseif not modern_motion then
+                elseif resolution.unresolved then
                     modern_motion = unresolved_action_placeholder(log)
                     audit_unresolved_action(modern_character, log, audit_context or "live", "modern",
-                        modern_status ~= "loaded" and modern_status or route_status,
+                        effective_command_display_status(modern_status,
+                            resolution.failure_status or resolution.route_status),
                         nil, (audit_context or "live") .. ":" .. tostring(p_idx) .. ":" .. tostring(i))
                 end
-                modern_motion = select_modern_display_motion(modern_motion)
                 if not suppress_log then display_log = clone_step_for_display(log, modern_motion, true) end
             else
-                local classic_motion, route_status = get_classic_display_motion(modern_map, log)
-                if route_status == "suppress_transition" then
+                local classic_motion = resolution.motion
+                if resolution.suppressed then
                     suppress_log = true
-                elseif not classic_motion and type(modern_map) == "table" then
+                elseif resolution.unresolved then
                     classic_motion = unresolved_action_placeholder(log)
                     audit_unresolved_action(modern_character, log, audit_context or "live", "classic",
-                        modern_status ~= "loaded" and modern_status or route_status,
+                        effective_command_display_status(modern_status,
+                            resolution.failure_status or resolution.route_status),
                         nil, (audit_context or "live") .. ":" .. tostring(p_idx) .. ":" .. tostring(i))
                 end
                 if not suppress_log then display_log = clone_step_for_display(log, classic_motion, false) end
@@ -3310,6 +3482,10 @@ function M.get_command_display(character, action_id, mode)
     local command_map, status = load_command_display_map(character)
     if not command_map then return nil, status end
     return get_command_display(command_map, action_id, mode)
+end
+
+function M.validate_sequence_command_display(sequence)
+    return validate_sequence_command_display(sequence)
 end
 
 function M.parse_starter_icons(starter)

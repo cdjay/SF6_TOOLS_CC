@@ -1,0 +1,14 @@
+{
+  "schema": "xt.command_display_overrides.v1",
+  "character": "Elena",
+  "entries": {
+    "856": {
+      "classic": "DI",
+      "commands": {
+        "simple": "DI",
+        "motion": "DI"
+      },
+      "evidence": "Elena raw-input replay selects Action 856 from HP+HK and records the command as Drive Impact"
+    }
+  }
+}

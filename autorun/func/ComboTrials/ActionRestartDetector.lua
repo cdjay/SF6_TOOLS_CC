@@ -10,7 +10,12 @@ local REPEATABLE_COMMON_ACTIONS = {
 
 local DEFAULT_DASH_TAP_WINDOW = 12
 local DASH_ACTION_BIND_WINDOW = 12
-local MIN_HIT_CONTACT_HP_DELTA = 10
+local CONTACT_SIGNAL_SETTLE_FRAMES = 1
+M.PERSISTENT_DAMAGE_MAX_TICK = 20
+-- Combo growth is sufficient contact truth at any damage. When combo count is
+-- unchanged, fallback HP attribution stays above the supported persistent
+-- damage envelope (A.K.I. poison can tick for 7, 10 or 20).
+local MIN_UNCOUNTED_HIT_HP_DELTA = M.PERSISTENT_DAMAGE_MAX_TICK + 1
 -- Match the player-action transition lookup window. A repeated command can be
 -- buffered several frames before the engine would expose its next action start;
 -- Sagat's recorded consecutive OD projectile reaches the physical edge 5f
@@ -130,9 +135,10 @@ end
 
 -- Separate normal hits can both expose combo_cnt == 1 when the polling sample
 -- misses the brief reset between them. In that case an HP decrease is accepted
--- only with a normal hit signal and a meaningful single-frame damage delta.
--- Persistent damage (for example A.K.I. poison) must not confirm a repeated
--- action candidate even if an unrelated hit signal is still visible.
+-- only once per fresh normal-hit signal cycle. The fallback delta must also be
+-- above the supported 7/10/20 HP persistent-damage envelope. A one-frame token
+-- lets HP and hit-stop fields settle in either order without accepting the
+-- continued signal level more than once.
 function M.evaluate_recording_hit_contact(params)
     params = type(params) == "table" and params or {}
     local result = {
@@ -144,8 +150,12 @@ function M.evaluate_recording_hit_contact(params)
         previous_hp = tonumber(params.previous_hp),
         damage_type = tonumber(params.damage_type) or 0,
         hit_stop = tonumber(params.hit_stop) or 0,
-        minimum_hp_delta = tonumber(params.minimum_hp_delta) or MIN_HIT_CONTACT_HP_DELTA,
-        blocked = params.blocked == true
+        previous_damage_type = tonumber(params.previous_damage_type),
+        previous_hit_stop = tonumber(params.previous_hit_stop),
+        minimum_hp_delta = tonumber(params.minimum_hp_delta)
+            or MIN_UNCOUNTED_HIT_HP_DELTA,
+        blocked = params.blocked == true,
+        contact_candidate = params.contact_candidate ~= false,
     }
     result.combo_increased = result.current_combo > result.previous_combo
     result.hp_delta = result.current_hp ~= nil
@@ -155,6 +165,19 @@ function M.evaluate_recording_hit_contact(params)
         and result.previous_hp ~= nil
         and result.current_hp < result.previous_hp
     result.has_hit_signal = result.damage_type == 3 and result.hit_stop > 0
+    local has_signal_history = result.previous_damage_type ~= nil
+        or result.previous_hit_stop ~= nil
+    result.fresh_hit_signal = result.has_hit_signal and (
+        not has_signal_history
+        or result.previous_damage_type ~= 3
+        or (result.previous_hit_stop or 0) <= 0
+        or result.hit_stop > (result.previous_hit_stop or 0)
+    )
+    if params.contact_cycle_available == nil then
+        result.contact_cycle_available = result.fresh_hit_signal
+    else
+        result.contact_cycle_available = params.contact_cycle_available == true
+    end
 
     if result.combo_increased then
         result.accepted = true
@@ -163,8 +186,12 @@ function M.evaluate_recording_hit_contact(params)
         result.reason = "blocked_hp_decrease"
     elseif result.hp_decreased and not result.has_hit_signal then
         result.reason = "hp_decreased_without_hit_signal"
+    elseif result.hp_decreased and not result.contact_cycle_available then
+        result.reason = "hp_decreased_without_new_hit_cycle"
+    elseif result.hp_decreased and not result.contact_candidate then
+        result.reason = "hp_decreased_without_unconfirmed_action"
     elseif result.hp_decreased and result.hp_delta < result.minimum_hp_delta then
-        result.reason = "hp_decrease_below_contact_threshold"
+        result.reason = "hp_decrease_within_persistent_damage_range"
     elseif result.hp_decreased then
         result.accepted = true
         result.reason = "victim_hp_decreased_hit_signal"
@@ -172,6 +199,237 @@ function M.evaluate_recording_hit_contact(params)
         result.reason = "no_new_hit_contact"
     end
     return result
+end
+
+-- Stateful contact observation shared by the legacy recorder and the V2
+-- compiler. Each hit/block signal edge creates a short-lived token. Combo
+-- growth or the first HP decrease consumes the hit token; the first HP
+-- decrease consumes the block-damage token. All later HP drops in the same
+-- signal period are passive damage rather than duplicate contacts/chip.
+function M.observe_recording_contacts(state, params)
+    state = type(state) == "table" and state or {}
+    params = type(params) == "table" and params or {}
+    local frame = tonumber(params.frame) or 0
+    local damage_type = tonumber(params.damage_type) or 0
+    local hit_stop = tonumber(params.hit_stop) or 0
+    local combo_increased = (tonumber(params.current_combo) or 0)
+        > (tonumber(params.previous_combo) or 0)
+    local previous_damage_type = tonumber(state.previous_damage_type)
+    local previous_hit_stop = tonumber(state.previous_hit_stop)
+    if state.suppress_hit_cycle_until ~= nil
+        and frame > state.suppress_hit_cycle_until then
+        state.suppress_hit_cycle_until = nil
+    end
+    local hit_signal = damage_type == 3 and hit_stop > 0
+    local hit_cycle_started = hit_signal and (
+        previous_damage_type ~= 3
+        or (previous_hit_stop or 0) <= 0
+        or hit_stop > (previous_hit_stop or 0)
+    )
+    if hit_cycle_started then
+        state.hit_cycle_expires = frame + CONTACT_SIGNAL_SETTLE_FRAMES
+        state.hit_cycle_consumed = state.suppress_hit_cycle_until ~= nil
+            and frame <= state.suppress_hit_cycle_until or false
+        if state.hit_cycle_consumed then
+            state.suppress_hit_cycle_until =
+                frame + CONTACT_SIGNAL_SETTLE_FRAMES
+        end
+    end
+    local hit_cycle_available = state.hit_cycle_consumed ~= true
+        and state.hit_cycle_expires ~= nil
+        and frame <= state.hit_cycle_expires
+
+    -- Combo growth is stronger hit truth than a one-frame-late block type.
+    -- Keep hit/block mutually exclusive when runtime fields settle out of order.
+    local block_active = damage_type == 30 and not combo_increased
+    local block_edge_observed = block_active and (
+        previous_damage_type ~= 30
+        or (hit_stop > 0 and hit_stop > (previous_hit_stop or 0))
+    )
+    local block_cycle_started = false
+    if block_edge_observed then
+        local same_settling_cycle = state.last_block_contact_frame ~= nil
+            and frame - state.last_block_contact_frame
+                <= CONTACT_SIGNAL_SETTLE_FRAMES
+        if same_settling_cycle then
+            state.last_block_contact_frame = frame
+            state.block_cycle_expires = math.max(
+                tonumber(state.block_cycle_expires) or frame,
+                frame + CONTACT_SIGNAL_SETTLE_FRAMES
+            )
+        else
+            block_cycle_started = true
+            state.last_block_contact_frame = frame
+            state.block_cycle_expires = frame + CONTACT_SIGNAL_SETTLE_FRAMES
+            state.block_cycle_consumed = false
+        end
+    end
+    local block_cycle_available = state.block_cycle_consumed ~= true
+        and state.block_cycle_expires ~= nil
+        and frame <= state.block_cycle_expires
+
+    local hit_contact = M.evaluate_recording_hit_contact({
+        current_combo = params.current_combo,
+        previous_combo = params.previous_combo,
+        current_hp = params.current_hp,
+        previous_hp = params.previous_hp,
+        damage_type = damage_type,
+        hit_stop = hit_stop,
+        previous_damage_type = previous_damage_type,
+        previous_hit_stop = previous_hit_stop,
+        blocked = block_active,
+        contact_candidate = params.contact_candidate,
+        contact_cycle_available = hit_cycle_available,
+    })
+    local current_hp_decreased = hit_contact.hp_decreased == true
+    local current_delta = math.max(0, tonumber(hit_contact.hp_delta) or 0)
+    local passive_damage_samples = {}
+    local pending_hp_drop = state.pending_hp_drop
+    state.pending_hp_drop = nil
+    local pending_hit_damage_confirmed = false
+    local pending_hit_cycle_consumed = false
+    local pending_block_damage_confirmed = false
+    if type(pending_hp_drop) == "table" then
+        local pending_age = frame - (tonumber(pending_hp_drop.frame) or frame)
+        local pending_delta = math.max(
+            0,
+            tonumber(pending_hp_drop.delta) or 0
+        )
+        if pending_age == 1
+            and (not current_hp_decreased
+                or current_delta < MIN_UNCOUNTED_HIT_HP_DELTA)
+            and not block_active
+            and (hit_contact.combo_increased or hit_cycle_available)
+            and pending_delta >= MIN_UNCOUNTED_HIT_HP_DELTA then
+            pending_hit_cycle_consumed = true
+            pending_hit_damage_confirmed = true
+            if hit_contact.accepted ~= true
+                and params.contact_candidate ~= false then
+                hit_contact.accepted = true
+                hit_contact.reason = "previous_hp_decrease_new_hit_cycle"
+                hit_contact.hp_decreased = true
+                hit_contact.hp_delta = tonumber(pending_hp_drop.delta) or 0
+            end
+        elseif pending_age == 1
+            and (not current_hp_decreased
+                or current_delta < MIN_UNCOUNTED_HIT_HP_DELTA)
+            and block_active and block_cycle_available
+            and pending_delta >= MIN_UNCOUNTED_HIT_HP_DELTA then
+            pending_block_damage_confirmed = true
+        else
+            passive_damage_samples[#passive_damage_samples + 1] =
+                pending_hp_drop
+        end
+    end
+
+    local delayed_hit_damage_confirmed = false
+    if current_hp_decreased
+        and state.pending_hit_damage_until ~= nil
+        and frame <= state.pending_hit_damage_until
+        and current_delta >= MIN_UNCOUNTED_HIT_HP_DELTA then
+        delayed_hit_damage_confirmed = true
+        state.pending_hit_damage_until = nil
+    elseif state.pending_hit_damage_until ~= nil
+        and frame > state.pending_hit_damage_until then
+        state.pending_hit_damage_until = nil
+    end
+    if delayed_hit_damage_confirmed then
+        -- A combo edge from the previous sample already proved this HP update
+        -- belongs to a hit. A late block type on the HP sample must not create
+        -- a second, mutually contradictory contact for the same damage.
+        block_active = false
+        block_cycle_started = false
+        block_cycle_available = false
+        state.block_cycle_consumed = true
+    end
+    local current_hit_cycle_consumed = current_hp_decreased
+        and not block_active
+        and hit_cycle_available
+        and current_delta >= MIN_UNCOUNTED_HIT_HP_DELTA
+    local current_hit_damage_confirmed = current_hp_decreased
+        and not block_active
+        and current_delta >= MIN_UNCOUNTED_HIT_HP_DELTA
+        and (hit_cycle_available or hit_contact.combo_increased)
+    if current_hit_damage_confirmed
+        and hit_contact.accepted ~= true
+        and params.contact_candidate ~= false then
+        hit_contact.accepted = true
+        hit_contact.reason = "hp_decrease_pending_hit_cycle"
+    end
+    local hit_damage_confirmed = current_hit_damage_confirmed
+        or delayed_hit_damage_confirmed
+        or pending_hit_damage_confirmed
+    if hit_contact.accepted or hit_damage_confirmed
+        or current_hit_cycle_consumed or pending_hit_cycle_consumed then
+        state.hit_cycle_consumed = true
+        state.suppress_hit_cycle_until = frame + CONTACT_SIGNAL_SETTLE_FRAMES
+        if hit_contact.combo_increased then
+            -- Some fields expose combo growth one sample before a fresh
+            -- hit-stop edge. Consume that immediately-following cycle too.
+            if not hit_damage_confirmed then
+                state.pending_hit_damage_until =
+                    frame + CONTACT_SIGNAL_SETTLE_FRAMES
+            end
+        end
+    end
+
+    local current_block_damage_confirmed = current_hp_decreased
+        and block_cycle_available
+        and not current_hit_damage_confirmed
+        and current_delta >= MIN_UNCOUNTED_HIT_HP_DELTA
+    local block_damage_confirmed = pending_block_damage_confirmed
+        or current_block_damage_confirmed
+    local block_cycle_hp_observed = current_hp_decreased
+        and block_cycle_available
+        and not current_hit_damage_confirmed
+        and current_delta >= MIN_UNCOUNTED_HIT_HP_DELTA
+    if block_damage_confirmed or block_cycle_hp_observed then
+        state.block_cycle_consumed = true
+    end
+    if current_hp_decreased
+        and not current_hit_damage_confirmed
+        and not delayed_hit_damage_confirmed
+        and not current_block_damage_confirmed then
+        local supported_persistent_tick = current_delta > 0
+            and current_delta < MIN_UNCOUNTED_HIT_HP_DELTA
+            and (hit_cycle_available or block_cycle_available)
+        if current_hit_cycle_consumed or block_cycle_hp_observed
+            or hit_contact.combo_increased or supported_persistent_tick then
+            passive_damage_samples[#passive_damage_samples + 1] = {
+                frame = frame,
+                delta = current_delta,
+            }
+        else
+            state.pending_hp_drop = {
+                frame = frame,
+                delta = current_delta,
+            }
+        end
+    end
+
+    state.previous_damage_type = damage_type
+    state.previous_hit_stop = hit_stop
+    return {
+        hit_contact = hit_contact,
+        block_contact = {
+            active = block_active,
+            started = block_cycle_started,
+        },
+        block_damage_confirmed = block_damage_confirmed,
+        hit_damage_confirmed = hit_damage_confirmed,
+        passive_damage_samples = passive_damage_samples,
+        hp_delta = hit_contact.hp_delta,
+        hit_cycle_started = hit_cycle_started,
+    }
+end
+
+function M.flush_recording_contact_state(state)
+    if type(state) ~= "table" or type(state.pending_hp_drop) ~= "table" then
+        return {}
+    end
+    local pending = state.pending_hp_drop
+    state.pending_hp_drop = nil
+    return { pending }
 end
 
 function M.evaluate_block_contact(damage_type, was_active)

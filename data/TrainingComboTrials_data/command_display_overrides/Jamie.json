@@ -1,0 +1,14 @@
+{
+  "schema": "xt.command_display_overrides.v1",
+  "character": "Jamie",
+  "entries": {
+    "860": {
+      "classic": "DI",
+      "commands": {
+        "simple": "DI",
+        "motion": "DI"
+      },
+      "evidence": "Jamie raw-input timeline begins with HP+HK while runtime Action 860 is recorded as Drive Impact"
+    }
+  }
+}

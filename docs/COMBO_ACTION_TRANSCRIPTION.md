@@ -19,22 +19,50 @@ Action”。V2 格式保持冻结，不增加 WTT 无法识别的新顶层结构
 - 游戏实际暴露的 Action ID 与 ActionFrame；
 - 实际 HP、combo count 和格挡接触。
 
+HP 下降只参与伤害累计，不能单独证明一次新命中。接触事实必须来自 combo count 增长，
+或来自一次尚未消费的受击类型 / hit stop 新周期，并超过已支持的持续伤害单次范围；
+格挡使用独立且同样只消费一次的周期。
+因此持续毒伤仍保留在原始 HP 损失遥测中，但不会制造 Action 命中、刷新尾部结算时间，
+也不会把最后一次真实接触之后的无限 DOT 写进连段总伤害。
+只有在真实 combo reset 到重新命中的时间窗口内，同时观察到多次、小额、无接触信号
+的持续伤害，而且各段 combo 峰值能够精确重构源文件总数（例如 `1 + 27 = 28`），
+系统才允许修正旧录制器被 DOT 掩盖的计数；普通掉连后再次命中仍按失败处理。
+旧录制器还可能把后续派生招式的多段命中提前记到前一个 Action。此时只允许源计数在
+同一运行时连段分段内暂时领先：每段首尾必须与运行时累计值完全相等、运行时计数不得
+回退、源计数途中不得落后，且非接触 Action 不能承接新增计数；Action 序列与最终重构
+总数仍须完全一致。源文件明确写为未接触的末尾设置动作，只有在运行时已于前一 Action
+达到全部正数连击、末行既不接触也不增加伤害时，才不会因延迟写入的累计值被误判为
+“必须命中的最后一招”。
+
 只有输入锚点与随后发生的运行时 Action 绑定后，才生成一个 V2 step。保存时继续输出
 `id`、`motion`、`expected_combo`、`expected_hp`、`delay_from_prev` 和命中字段，因此
 WTT 不需要修改。`motion` 优先由当前 Action 指令目录生成；目录缺项时退回输入记号。
-无论哪种显示路径，都不能改写已经观察到的 Action ID。
+普通玩家指令保留实际 Action ID；只有经过 ActionGraph 证实的帧零 command-owner 分支才会
+在 V2 step 中规范化为可执行指令的 owner。规范化不能改写下面的原始观察轨迹。
 
 每次 Action ID 变化或同 ID 的 ActionFrame 回卷也会原样进入转录报告的
 `action_trace.observed_actions`，用于核对“游戏实际发生了什么”；没有对应新输入的内部
 过渡只进入审计轨迹，不会伪造成玩家需要执行的 V2 step。
 
+旧 V2 若按例外数据库的 `record_absorb_as_parent` 把帧零派生或内部命中 Action 记在父
+Action 名下，编译器只在角色规则明确声明且相邻 Action 关系匹配时规范化为同一个可见
+command owner。`action_event_projection` 中仍由 `absorb_ids` 定义该 owner 的阶段成员；
+`canonical_owner_ids` 只是允许 owner 缺席时独立规范化的子集，其余成员只能紧邻已出现的
+owner 折叠，canonical 的时间窗口与同锚要求也必须由该产品数据明确声明。第二次 raw replay
+必须用同一输入重现相同的规范化指令序列、时序和结果；
+状态选择允许同一 command owner 在两次回放中经过不同的已验证内部分支。捕获与验证报告
+各自用 `observed_actions` 保留实际子 Action ID，`projected_events` 同时记录
+`normalized_from_action_id`，供人工比较真实分支。这不是宽泛 Action 别名，关系不匹配时
+仍然严格失败。
+
 Action ID 对应的经典指令优先由已审计的角色指令表解析。解析器报错仍会使批量转录失败。
-如果目录缺少某个 Action，但它绑定了明确按键并在运行时真实命中或格挡，则 Action ID
-与接触结果已经证明这是玩家动作；系统会保留该 ID，并从完整输入方向序列生成兼容
-motion，同时在报告中写入 `input_derived_contact_motion` 提示。没有接触结果的目录缺项
-仍按 `unresolved_action_motion` 严格失败，避免把蓄力失败后出现的普通技误当成原计划
-招式。按键松开触发的内部 Action 阶段会合并回原输入；快速出现的 Drive Parry 前置阶段
-会提升为实际 `RAW DR` Action，而有明确停留时间的 `PARRY > RAW DR` 仍保留为两个指令。
+如果目录缺少某个 Action，但它绑定了明确按键并在运行时真实命中、格挡或形成明确的
+非接触设置动作，转录阶段可以保留该 ID，并从完整输入方向序列生成待验证 motion，同时
+在报告中写入 `input_derived_contact_motion` 或 `input_derived_noncontact_motion` 提示。
+这只用于保留诊断证据，不代表最终通过：运行目录审计仍会按实际连段表判定，任何
+“指令未识别”都必须先补齐 command owner、折叠内部阶段或提供严格指令映射。按键松开
+触发的内部 Action 阶段会合并回原输入；快速出现的 Drive Parry 前置阶段会提升为实际
+`RAW DR` Action，而有明确停留时间的 `PARRY > RAW DR` 仍保留为两个指令。
 
 部分招式会先暴露没有指令表语义的内部 Action，几十帧后才进入可持久显示的真实
 Action。编译器允许同一个输入锚点沿运行时 Action 轨迹向后提升最多 60 帧，但绝不跨越
@@ -129,6 +157,18 @@ TrainingComboTrials_data/TranscriptionReports/<Character>_<timestamp>.json
 训练 UI 已推进到序列末尾且没有失败状态。随后先清理训练环境，再加载下一条，因此也能
 暴露首轮启动、指令表完成判定和跨文件状态污染。
 
+运行审计还会调用与连段表绘制完全相同的逐步指令解析器。只要任一步在实际连段表中会
+显示“指令未识别”（包括有真实 Action ID、且 raw input 能完整复演的步骤），该文件仍必须
+审计失败；运行时 Action 与结果正确不能替代面向玩家的指令完整性。失败报告会保存
+`command_display_validation.unresolved` 中的步骤序号、Action ID、原始 motion 与解析状态，
+以便补齐严格指令表或有复演证据的角色 override 后重新审计。
+
+运行审计 revision 31 还会核对整份指令验证载荷的结构不变量：角色与本轮角色一致、模式
+有效、指令表状态为 `loaded`、声明与实际未解析数都为 0、步骤分类计数完整且与本次序列
+长度一致。载入历史审计报告时不会再信任报告中持久化的成功/失败汇总，而会按当前规则
+重算“有效通过 / 失败 / 待复审”；revision 29、30 或缺少完整验证上下文的旧成功项只进入
+待复审队列，不会被“仅转录审计失败项”误选。
+
 报告写入：
 
 ```text
@@ -147,6 +187,9 @@ timeline 的旧文件，会明确记录 `runtime_audit_input_stream_missing`，�
 - `transcribed_relative_raw_inputs_missing`
 - `transcribed_raw_inputs_missing`
 - `runtime_audit_input_stream_missing`
+- `runtime_command_display_validation_missing`
+- `runtime_command_display_validation_invalid:*`
+- `runtime_command_display_unresolved:count=N`
 - `no_action_steps`
 - `unresolved_input_actions`
 - `unresolved_action_motion`

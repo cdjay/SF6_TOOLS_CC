@@ -58,6 +58,328 @@ assert(result.stats.drive_used == 10000 and result.stats.super_used == 10000,
 assert(result.trace.observed_actions[1].id == 600,
     "the audit trace must retain runtime Action transitions before V2 projection")
 
+do
+local poison_tail = compiler.new({ character = "AKI", frame = 0 })
+local function poison_tail_observe(
+    frame, action_id, input, combo, victim_hp, damage_type, hit_stop
+)
+    compiler.observe(poison_tail, {
+        frame = frame,
+        action_id = action_id,
+        action_frame = frame,
+        direct_input = input,
+        facing_right = true,
+        combo_count = combo or 0,
+        actor_hp = 10000,
+        victim_hp = victim_hp,
+        victim_damage_type = damage_type or 0,
+        victim_hit_stop = hit_stop or 0,
+    })
+end
+poison_tail_observe(1, 10, 0, 0, 10000)
+poison_tail_observe(2, 10, 16, 0, 10000)
+poison_tail_observe(3, 600, 16, 0, 10000)
+poison_tail_observe(4, 600, 16, 1, 9700, 3, 4)
+poison_tail_observe(5, 600, 0, 0, 9700)
+for frame = 6, 80 do
+    -- The first few ticks deliberately retain a stale hit signal. Their 7 HP
+    -- delta still identifies them as passive poison rather than a new contact.
+    local stale_signal = frame <= 20
+    poison_tail_observe(
+        frame,
+        600,
+        0,
+        0,
+        9700 - ((frame - 5) * 7),
+        stale_signal and 3 or 0,
+        stale_signal and 4 or 0
+    )
+end
+local poison_tail_result = compiler.finalize(poison_tail)
+assert(poison_tail_result.stats.hit_contacts == 1
+        and poison_tail_result.trace.last_activity_frame == 4,
+    "passive poison must not create contacts or keep the replay tail active")
+assert(poison_tail_result.stats.damage == 300
+        and poison_tail_result.stats.observed_hp_loss > 300
+        and poison_tail_result.stats.unconfirmed_hp_loss > 0
+        and poison_tail_result.stats.passive_damage_ticks == 75
+        and poison_tail_result.stats.passive_damage_max_tick == 7
+        and poison_tail_result.steps[1].damage_at_step == 300,
+    "damage truth must stop at the last confirmed contact while retaining raw HP-loss telemetry")
+end
+
+do
+local same_combo_hit = compiler.new({ character = "Ryu", frame = 0 })
+local function same_combo_observe(
+    frame, action_id, input, combo, victim_hp, damage_type, hit_stop
+)
+    compiler.observe(same_combo_hit, {
+        frame = frame,
+        action_id = action_id,
+        action_frame = frame,
+        direct_input = input,
+        facing_right = true,
+        combo_count = combo or 0,
+        actor_hp = 10000,
+        victim_hp = victim_hp,
+        victim_damage_type = damage_type or 0,
+        victim_hit_stop = hit_stop or 0,
+    })
+end
+same_combo_observe(1, 10, 0, 0, 10000)
+same_combo_observe(2, 10, 16, 0, 10000)
+same_combo_observe(3, 600, 16, 1, 9700)
+same_combo_observe(4, 600, 0, 1, 9700)
+same_combo_observe(5, 600, 32, 1, 9700)
+same_combo_observe(6, 601, 32, 1, 9100, 3, 4)
+local same_combo_result = compiler.finalize(same_combo_hit)
+assert(#same_combo_result.steps == 2
+        and same_combo_result.steps[2].has_hit == true
+        and same_combo_result.stats.hit_contacts == 2
+        and same_combo_result.stats.damage == 900,
+    "a real hit signal must confirm a second contact when combo count stays unchanged")
+end
+
+do
+local delayed_hit_damage = compiler.new({ character = "Ryu", frame = 0 })
+local delayed_rows = {
+    { 1, 10, 0, 0, 10000, 0, 0 },
+    { 2, 10, 16, 0, 10000, 0, 0 },
+    { 3, 600, 16, 0, 10000, 0, 0 },
+    { 4, 600, 16, 1, 10000, 3, 4 },
+    { 5, 600, 0, 1, 9700, 3, 4 },
+}
+for _, row in ipairs(delayed_rows) do
+    compiler.observe(delayed_hit_damage, {
+        frame = row[1],
+        action_id = row[2],
+        action_frame = row[1],
+        direct_input = row[3],
+        facing_right = true,
+        combo_count = row[4],
+        actor_hp = 10000,
+        victim_hp = row[5],
+        victim_damage_type = row[6],
+        victim_hit_stop = row[7],
+    })
+end
+local delayed_damage_result = compiler.finalize(delayed_hit_damage)
+assert(delayed_damage_result.stats.hit_contacts == 1
+        and delayed_damage_result.stats.damage == 300
+        and delayed_damage_result.stats.passive_damage_ticks == 0
+        and delayed_damage_result.steps[1].damage_at_step == 300,
+    "an HP field that settles one frame after combo growth must confirm damage without duplicating contact")
+end
+
+do
+local poison_direction = compiler.new({ character = "AKI", frame = 0 })
+local poison_direction_rows = {
+    { 1, 10, 0, 0, 10000 },
+    { 2, 10, 16, 0, 10000 },
+    { 3, 600, 16, 1, 9700 },
+    { 4, 600, 0, 0, 9700 },
+    { 5, 600, 2, 0, 9700 },
+    { 6, 512, 10, 0, 9699 },
+    { 7, 516, 8, 0, 9698 },
+}
+for _, row in ipairs(poison_direction_rows) do
+    compiler.observe(poison_direction, {
+        frame = row[1],
+        action_id = row[2],
+        action_frame = row[1],
+        direct_input = row[3],
+        facing_right = true,
+        combo_count = row[4],
+        actor_hp = 10000,
+        victim_hp = row[5],
+        victim_damage_type = 0,
+        victim_hit_stop = 0,
+    })
+end
+local poison_direction_result = compiler.finalize(poison_direction, {
+    motion_resolver = function(action_id)
+        if action_id == 600 then return "LP", "strict_route" end
+        return nil, "action_id_missing"
+    end,
+})
+assert(#poison_direction_result.steps == 1
+        and poison_direction_result.steps[1].id == 600
+        and poison_direction_result.stats.unresolved_motion_actions == 0
+        and #poison_direction_result.trace.suppressed_events == 2,
+    "poison ticks must not turn unmapped direction transitions into visible contact Actions")
+end
+
+do
+local poison_drive_rush = compiler.new({ character = "AKI", frame = 0 })
+local poison_drive_rows = {
+    { 1, 10, 0, 10000, 0, 0 },
+    { 2, 10, 32 | 256, 10000, 3, 4 },
+    { 3, 480, 32 | 256, 10000, 3, 4 },
+    { 4, 480, 32 | 256, 9993, 3, 4 },
+    { 5, 740, 4, 9986, 0, 0 },
+}
+for _, row in ipairs(poison_drive_rows) do
+    compiler.observe(poison_drive_rush, {
+        frame = row[1],
+        action_id = row[2],
+        action_frame = row[1],
+        direct_input = row[3],
+        facing_right = true,
+        combo_count = 0,
+        actor_hp = 10000,
+        victim_hp = row[4],
+        victim_damage_type = row[5],
+        victim_hit_stop = row[6],
+    })
+end
+local poison_drive_result = compiler.finalize(poison_drive_rush, {
+    motion_resolver = function(action_id)
+        if action_id == 740 then return "RAW DR", "strict_route" end
+        if action_id == 480 then return "PARRY", "strict_route" end
+        return nil, "action_id_missing"
+    end,
+})
+assert(#poison_drive_result.steps == 1
+        and poison_drive_result.steps[1].id == 740
+        and poison_drive_result.steps[1].has_contact ~= true,
+    "a poison tick must not prevent the short 480 precursor from promoting to RAW DR")
+end
+
+do
+local block_chip = compiler.new({ character = "Ryu", frame = 0 })
+local block_rows = {
+    { 1, 10, 0, 10000, 0, 0 },
+    { 2, 10, 16, 10000, 0, 0 },
+    { 3, 600, 16, 10000, 0, 0 },
+    { 4, 600, 16, 9900, 30, 4 },
+}
+for _, row in ipairs(block_rows) do
+    compiler.observe(block_chip, {
+        frame = row[1],
+        action_id = row[2],
+        action_frame = row[1],
+        direct_input = row[3],
+        facing_right = true,
+        combo_count = 0,
+        actor_hp = 10000,
+        victim_hp = row[4],
+        victim_damage_type = row[5],
+        victim_hit_stop = row[6],
+    })
+end
+local block_result = compiler.finalize(block_chip)
+assert(block_result.stats.damage == 100
+        and block_result.stats.block_contacts == 1
+        and block_result.steps[1].has_hit ~= true
+        and block_result.steps[1].has_contact == true
+        and block_result.steps[1].was_blocked == true,
+    "real block chip must remain confirmed damage without becoming a hit")
+end
+
+do
+local poison_block = compiler.new({ character = "AKI", frame = 0 })
+local poison_block_rows = {
+    { 1, 10, 0, 10000, 0, 0 },
+    { 2, 10, 16, 10000, 0, 0 },
+    { 3, 600, 16, 10000, 0, 0 },
+    { 4, 600, 16, 10000, 30, 4 },
+    { 5, 600, 0, 10000, 30, 4 },
+    { 6, 600, 0, 9990, 30, 4 },
+    { 7, 600, 0, 9970, 30, 4 },
+}
+for _, row in ipairs(poison_block_rows) do
+    compiler.observe(poison_block, {
+        frame = row[1],
+        action_id = row[2],
+        action_frame = row[1],
+        direct_input = row[3],
+        facing_right = true,
+        combo_count = 0,
+        actor_hp = 10000,
+        victim_hp = row[4],
+        victim_damage_type = row[5],
+        victim_hit_stop = row[6],
+    })
+end
+local poison_block_result = compiler.finalize(poison_block)
+assert(poison_block_result.stats.damage == 0
+        and poison_block_result.stats.block_contacts == 1
+        and poison_block_result.stats.passive_damage_ticks == 2
+        and poison_block_result.stats.passive_damage_total == 30
+        and poison_block_result.stats.passive_damage_max_tick == 20
+        and poison_block_result.steps[1].has_contact == true
+        and poison_block_result.steps[1].was_blocked == true,
+    "poison during continued blockstun must stay passive rather than becoming chip damage")
+end
+
+do
+local multi_block_same_action = compiler.new({ character = "Ryu", frame = 0 })
+local multi_block_rows = {
+    { 1, 10, 0, 10000, 0, 0 },
+    { 2, 10, 16, 10000, 0, 0 },
+    { 3, 600, 16, 10000, 0, 0 },
+    { 4, 600, 16, 10000, 30, 4 },
+    { 5, 600, 0, 10000, 30, 0 },
+    { 6, 600, 0, 10000, 30, 4 },
+}
+for _, row in ipairs(multi_block_rows) do
+    compiler.observe(multi_block_same_action, {
+        frame = row[1],
+        action_id = row[2],
+        action_frame = row[1],
+        direct_input = row[3],
+        facing_right = true,
+        combo_count = 0,
+        actor_hp = 10000,
+        victim_hp = row[4],
+        victim_damage_type = row[5],
+        victim_hit_stop = row[6],
+    })
+end
+local multi_block_result = compiler.finalize(multi_block_same_action)
+assert(multi_block_result.stats.block_contacts == 1
+        and multi_block_result.steps[1].was_blocked == true,
+    "multiple block hit-stop cycles owned by one V2 Action must count as one blocked step")
+end
+
+do
+local stale_large_poison = compiler.new({ character = "AKI", frame = 0 })
+local stale_large_rows = {
+    { 1, 10, 0, 0, 10000, 0, 0 },
+    { 2, 10, 16, 0, 10000, 0, 0 },
+    { 3, 600, 16, 0, 10000, 0, 0 },
+    { 4, 600, 16, 1, 9700, 3, 4 },
+    { 5, 600, 0, 0, 9690, 3, 4 },
+    { 6, 512, 2, 0, 9670, 3, 4 },
+}
+for _, row in ipairs(stale_large_rows) do
+    compiler.observe(stale_large_poison, {
+        frame = row[1],
+        action_id = row[2],
+        action_frame = row[1],
+        direct_input = row[3],
+        facing_right = true,
+        combo_count = row[4],
+        actor_hp = 10000,
+        victim_hp = row[5],
+        victim_damage_type = row[6],
+        victim_hit_stop = row[7],
+    })
+end
+local stale_large_result = compiler.finalize(stale_large_poison, {
+    motion_resolver = function(action_id)
+        if action_id == 600 then return "LP", "strict_route" end
+        return nil, "action_id_missing"
+    end,
+})
+assert(stale_large_result.stats.hit_contacts == 1
+        and stale_large_result.stats.passive_damage_ticks == 2
+        and stale_large_result.stats.passive_damage_max_tick == 20
+        and #stale_large_result.steps == 1
+        and stale_large_result.steps[1].id == 600,
+    "10-20 HP poison with a continuous stale hit signal must not manufacture contacts")
+end
+
 local multi_string = compiler.new({ character = "Ryu", frame = 0 })
 local function multi_string_observe(frame, action_id, input, combo, victim_hp)
     compiler.observe(multi_string, {
@@ -1103,6 +1425,506 @@ assert(#cammy_air_throw_result.steps == 1
         == "character_internal_action_phase",
     "Cammy's staggered air-throw chord must produce only the durable throw command")
 
+do
+local aki_action_event_projection_rules =
+    CharacterRules.build_action_event_projection_rules({
+        ["944"] = {
+            absorb_ids = "936,941,945",
+            record_absorb_as_parent = true,
+            action_event_projection = {
+                canonical_owner_ids = "945",
+                max_fold_delay_frames = 1,
+                require_same_anchor = true,
+            },
+        },
+        ["998"] = {
+            absorb_ids = "999",
+            action_event_projection = {},
+        },
+    }, {})
+local aki_owner_rule = aki_action_event_projection_rules[945]
+assert(type(aki_owner_rule) == "table"
+        and aki_owner_rule.kind == "canonical_owner"
+        and aki_owner_rule.owner_id == 944
+        and aki_action_event_projection_rules[936].kind == "internal_phase"
+        and aki_action_event_projection_rules[999].owner_id == 998,
+    "loaded character rules must compile exact Action-event projection ownership")
+
+local function new_aki_projection_session()
+    return compiler.new({
+        character = "AKI",
+        frame = 0,
+        action_event_projection_rules = aki_action_event_projection_rules,
+    })
+end
+
+do
+local uninjected_aki_projection = compiler.new({ character = "AKI", frame = 0 })
+uninjected_aki_projection.events = {
+    {
+        id = 945,
+        frame = 100,
+        anchor = { kind = "button_press", pressed_buttons = 16 | 32 },
+    },
+}
+local uninjected_aki_result = compiler.finalize(uninjected_aki_projection, {
+    motion_resolver = function(action_id)
+        if action_id == 944 then return "236+PP", "strict_route" end
+        return nil, "action_id_missing"
+    end,
+})
+assert(uninjected_aki_result.steps[1].id == 945
+        and uninjected_aki_result.trace.projected_events[1]
+            .normalized_from_action_id == nil,
+    "the compiler must fail closed instead of loading character JSON itself")
+end
+
+local aki_od_snake_lash = new_aki_projection_session()
+aki_od_snake_lash.events = {
+    {
+        id = 945,
+        frame = 100,
+        expected_combo = 0,
+        damage_at_step = 0,
+        has_hit = false,
+        has_contact = false,
+        hold_frames = 6,
+        anchor = {
+            kind = "button_press",
+            pressed_buttons = 16 | 32,
+            held_buttons = 16 | 32,
+            hold_frames = 6,
+        },
+    },
+    {
+        id = 936,
+        frame = 126,
+        expected_combo = 1,
+        damage_at_step = 480,
+        has_hit = true,
+        has_contact = true,
+        hold_frames = 80,
+        is_holdable = true,
+        hold_partial_check = true,
+        -- A coincident MP+MK release must not relabel this internal hit as
+        -- Parry or transfer its hold classification to the PP command owner.
+        anchor = {
+            kind = "button_release",
+            released_buttons = 32 | 256,
+            hold_frames = 80,
+        },
+    },
+    {
+        id = 941,
+        frame = 129,
+        expected_combo = 2,
+        damage_at_step = 920,
+        has_hit = true,
+        has_contact = true,
+        anchor = { kind = "direction_action", direction = "2" },
+    },
+}
+aki_od_snake_lash.observed_actions = {
+    { id = 945, frame = 100 },
+    { id = 936, frame = 126 },
+    { id = 941, frame = 129 },
+}
+aki_od_snake_lash.current_damage = 920
+aki_od_snake_lash.max_combo = 2
+local aki_od_snake_lash_result = compiler.finalize(aki_od_snake_lash, {
+    motion_resolver = function(action_id)
+        if action_id == 944 then return "236+PP", "strict_route" end
+        return nil, "action_id_missing"
+    end,
+})
+assert(#aki_od_snake_lash_result.steps == 1
+        and aki_od_snake_lash_result.steps[1].id == 944
+        and aki_od_snake_lash_result.steps[1].motion == "236+PP"
+        and aki_od_snake_lash_result.steps[1].expected_combo == 2
+        and aki_od_snake_lash_result.steps[1].damage_at_step == 920
+        and aki_od_snake_lash_result.steps[1].has_hit == true
+        and aki_od_snake_lash_result.steps[1].has_contact == true
+        and aki_od_snake_lash_result.steps[1].hold_frames == 6
+        and aki_od_snake_lash_result.steps[1].is_holdable ~= true
+        and aki_od_snake_lash_result.steps[1].hold_partial_check ~= true
+        and aki_od_snake_lash_result.stats.fallback_motion_actions == 0,
+    "AKI 945 must project as owner 944 while 936/941 contribute only hit truth")
+assert(aki_od_snake_lash_result.trace.observed_actions[1].id == 945
+        and aki_od_snake_lash_result.trace.input_bound_events[1].id == 945
+        and aki_od_snake_lash_result.trace.projected_events[1].id == 944
+        and aki_od_snake_lash_result.trace.projected_events[1]
+            .normalized_from_action_id == 945
+        and aki_od_snake_lash_result.trace.projected_events[1].anchor_buttons
+            == (16 | 32)
+        and aki_od_snake_lash_result.trace.suppressed_events[1].id == 936
+        and aki_od_snake_lash_result.trace.suppressed_events[1].merged_into == 944
+        and aki_od_snake_lash_result.trace.suppressed_events[2].id == 941
+        and aki_od_snake_lash_result.trace.suppressed_events[2].merged_into == 944,
+    "AKI owner projection must preserve raw Action truth and expose normalization in trace")
+assert(aki_od_snake_lash.events[1].id == 945
+        and aki_od_snake_lash.events[1].expected_combo == 0
+        and aki_od_snake_lash.events[1].damage_at_step == 0
+        and aki_od_snake_lash.events[1].hold_frames == 6
+        and aki_od_snake_lash.events[1].anchor.pressed_buttons == (16 | 32),
+    "projected outcome truth must not mutate the source owner event")
+
+local aki_duplicate_owner = new_aki_projection_session()
+aki_duplicate_owner.events = {
+    {
+        id = 944,
+        frame = 100,
+        action_frame = 19717.944824,
+        expected_combo = 0,
+        damage_at_step = 0,
+        has_hit = false,
+        has_contact = false,
+        hold_frames = 4,
+        anchor = {
+            kind = "button_press",
+            pressed_buttons = 32 | 64,
+            frame = 99,
+            hold_frames = 4,
+        },
+    },
+    {
+        id = 945,
+        frame = 100,
+        action_frame = 19717.944824,
+        expected_combo = 1,
+        damage_at_step = 400,
+        has_hit = true,
+        has_contact = true,
+        hold_frames = 90,
+        is_holdable = true,
+        anchor = {
+            kind = "button_release",
+            released_buttons = 32 | 64,
+            frame = 99,
+            hold_frames = 90,
+        },
+    },
+}
+aki_duplicate_owner.observed_actions = {
+    { id = 944, frame = 100 },
+    { id = 945, frame = 100 },
+}
+aki_duplicate_owner.current_damage = 400
+local aki_duplicate_owner_result = compiler.finalize(aki_duplicate_owner, {
+    motion_resolver = function(action_id)
+        if action_id == 944 then return "236+PP", "strict_route" end
+        return nil, "action_id_missing"
+    end,
+})
+assert(#aki_duplicate_owner_result.steps == 1
+        and aki_duplicate_owner_result.steps[1].id == 944
+        and aki_duplicate_owner_result.steps[1].expected_combo == 1
+        and aki_duplicate_owner_result.steps[1].damage_at_step == 400
+        and aki_duplicate_owner_result.steps[1].hold_frames == 4
+        and aki_duplicate_owner_result.steps[1].is_holdable ~= true
+        and aki_duplicate_owner_result.trace.observed_actions[2].id == 945
+        and aki_duplicate_owner_result.trace.input_bound_events[2].id == 945
+        and aki_duplicate_owner_result.trace.suppressed_events[1].id == 945
+        and aki_duplicate_owner_result.trace.suppressed_events[1].reason
+            == "character_canonical_owner_variant",
+    "a runtime 944-to-945 owner variant must not emit duplicate 236+PP steps")
+assert(aki_duplicate_owner.events[1].expected_combo == 0
+        and aki_duplicate_owner.events[1].damage_at_step == 0
+        and aki_duplicate_owner.events[1].hold_frames == 4
+        and aki_duplicate_owner.events[1].anchor.kind == "button_press",
+    "folding a canonical owner variant must leave the raw owner facts unchanged")
+
+local function observe_aki_owner_transition(session, frame, action_id, input)
+    compiler.observe(session, {
+        frame = frame,
+        action_id = action_id,
+        -- Production reports can expose this non-frame counter value. Owner
+        -- folding must use observed transition timing and physical input edges.
+        action_frame = 19717.944824,
+        direct_input = input,
+        facing_right = true,
+        combo_count = 0,
+        actor_hp = 10000,
+        victim_hp = 10000,
+        victim_damage_type = 0,
+        victim_hit_stop = 0,
+    })
+end
+
+local aki_observed_owner_release = new_aki_projection_session()
+observe_aki_owner_transition(aki_observed_owner_release, 1, 10, 0)
+observe_aki_owner_transition(aki_observed_owner_release, 2, 944, 16 | 32)
+observe_aki_owner_transition(aki_observed_owner_release, 3, 945, 32)
+observe_aki_owner_transition(aki_observed_owner_release, 4, 10, 32)
+observe_aki_owner_transition(aki_observed_owner_release, 5, 609, 32)
+local aki_observed_owner_release_result = compiler.finalize(
+    aki_observed_owner_release,
+    {
+        motion_resolver = function(action_id)
+            if action_id == 944 then return "236+PP", "strict_route" end
+            if action_id == 609 then return "LP", "strict_route" end
+            return nil, "action_id_missing"
+        end,
+    }
+)
+assert(#aki_observed_owner_release.events == 2
+        and aki_observed_owner_release.events[1].id == 944
+        and aki_observed_owner_release.events[2].id == 945
+        and aki_observed_owner_release.events[1].anchor.kind == "button_press"
+        and aki_observed_owner_release.events[1].anchor.frame == 2
+        and aki_observed_owner_release.events[2].anchor.kind == "button_release"
+        and aki_observed_owner_release.events[2].anchor.released_buttons == 16
+        and aki_observed_owner_release.events[2].anchor.frame == 3
+        and #aki_observed_owner_release.observed_actions == 4
+        and aki_observed_owner_release.observed_actions[4].id == 609,
+    "observe must retain raw Action transitions without rebinding the 945 release")
+assert(#aki_observed_owner_release_result.steps == 1
+        and aki_observed_owner_release_result.steps[1].id == 944
+        and aki_observed_owner_release_result.steps[1].motion == "236+PP"
+        and #aki_observed_owner_release_result.trace.suppressed_events == 1
+        and aki_observed_owner_release_result.trace.suppressed_events[1].id == 945
+        and aki_observed_owner_release_result.trace.suppressed_events[1].reason
+            == "character_canonical_owner_variant",
+    "a next-frame 945 button release must fold into its observed 944 owner")
+
+local aki_observed_fresh_press = new_aki_projection_session()
+observe_aki_owner_transition(aki_observed_fresh_press, 1, 10, 0)
+observe_aki_owner_transition(aki_observed_fresh_press, 2, 944, 16 | 32)
+observe_aki_owner_transition(aki_observed_fresh_press, 3, 945, 16 | 32 | 64)
+local aki_observed_fresh_press_result = compiler.finalize(
+    aki_observed_fresh_press,
+    {
+        motion_resolver = function(action_id)
+            if action_id == 944 then return "236+PP", "strict_route" end
+            return nil, "action_id_missing"
+        end,
+    }
+)
+assert(#aki_observed_fresh_press.events == 2
+        and aki_observed_fresh_press.events[2].id == 945
+        and aki_observed_fresh_press.events[2].anchor.kind == "button_press"
+        and aki_observed_fresh_press.events[2].anchor.pressed_buttons == 64
+        and aki_observed_fresh_press.events[2].anchor.frame == 3,
+    "observe must distinguish a fresh press from the owner's release phase")
+assert(#aki_observed_fresh_press_result.steps == 2
+        and aki_observed_fresh_press_result.steps[1].id == 944
+        and aki_observed_fresh_press_result.steps[2].id == 944
+        and aki_observed_fresh_press_result.steps[2].delay_from_prev == 1
+        and #aki_observed_fresh_press_result.trace.suppressed_events == 0,
+    "an adjacent 945 backed by a fresh button press must remain visible")
+
+local aki_later_owner_variant = new_aki_projection_session()
+aki_later_owner_variant.events = {
+    {
+        id = 944,
+        frame = 100,
+        action_frame = 0,
+        anchor = { kind = "button_press", pressed_buttons = 16 | 32 },
+    },
+    {
+        id = 945,
+        frame = 300,
+        action_frame = 0,
+        anchor = { kind = "button_press", pressed_buttons = 32 | 64 },
+    },
+}
+local aki_later_owner_variant_result = compiler.finalize(
+    aki_later_owner_variant,
+    {
+        motion_resolver = function(action_id)
+            if action_id == 944 then return "236+PP", "strict_route" end
+            return nil, "action_id_missing"
+        end,
+    }
+)
+assert(#aki_later_owner_variant_result.steps == 2
+        and aki_later_owner_variant_result.steps[1].id == 944
+        and aki_later_owner_variant_result.steps[2].id == 944
+        and aki_later_owner_variant_result.steps[2].motion == "236+PP"
+        and aki_later_owner_variant_result.steps[2].delay_from_prev == 200
+        and aki_later_owner_variant_result.trace.projected_events[2]
+            .normalized_from_action_id == 945
+        and #aki_later_owner_variant_result.trace.suppressed_events == 0,
+    "a later 945 with a fresh PP press must remain a second visible command")
+
+local aki_snake_step_phase = new_aki_projection_session()
+aki_snake_step_phase.events = {
+    {
+        id = 998,
+        frame = 100,
+        expected_combo = 1,
+        damage_at_step = 600,
+        has_hit = true,
+        has_contact = true,
+        hold_frames = 3,
+        anchor = {
+            kind = "button_press",
+            pressed_buttons = 512,
+            hold_frames = 3,
+        },
+    },
+    {
+        id = 999,
+        frame = 146,
+        expected_combo = 1,
+        damage_at_step = 600,
+        has_hit = false,
+        has_contact = false,
+        hold_frames = 72,
+        is_holdable = true,
+        hold_partial_check = true,
+        anchor = {
+            kind = "button_press",
+            pressed_buttons = 512,
+            direction = "2",
+        },
+    },
+}
+aki_snake_step_phase.current_damage = 600
+local function aki_phase_motion_resolver(action_id)
+    if action_id == 998 then return "K", "strict_route" end
+    return nil, "action_id_missing"
+end
+local aki_snake_step_phase_result = compiler.finalize(aki_snake_step_phase, {
+    motion_resolver = aki_phase_motion_resolver,
+})
+assert(#aki_snake_step_phase_result.steps == 1
+        and aki_snake_step_phase_result.steps[1].id == 998
+        and aki_snake_step_phase_result.steps[1].motion == "K"
+        and aki_snake_step_phase_result.steps[1].hold_frames == 3
+        and aki_snake_step_phase_result.steps[1].is_holdable ~= true
+        and aki_snake_step_phase_result.steps[1].hold_partial_check ~= true
+        and aki_snake_step_phase_result.trace.projected_events[1].anchor_buttons
+            == 512
+        and aki_snake_step_phase_result.stats.fallback_motion_actions == 0
+        and aki_snake_step_phase_result.trace.suppressed_events[1].id == 999
+        and aki_snake_step_phase_result.trace.suppressed_events[1].merged_into == 998
+        and aki_snake_step_phase_result.trace.suppressed_events[1].reason
+            == "character_internal_action_phase",
+    "AKI's fixed 998-to-999 internal phase must not consume a buffered 2+HK edge")
+assert(aki_snake_step_phase.events[1].expected_combo == 1
+        and aki_snake_step_phase.events[1].damage_at_step == 600
+        and aki_snake_step_phase.events[1].hold_frames == 3
+        and aki_snake_step_phase.events[1].anchor.pressed_buttons == 512,
+    "folding 999 must not mutate the raw 998 owner event")
+
+local aki_pending_internal_phase = new_aki_projection_session()
+local function observe_aki_pending_phase(frame, action_id, input)
+    compiler.observe(aki_pending_internal_phase, {
+        frame = frame,
+        action_id = action_id,
+        -- Production reports can expose this non-frame counter value. Runtime
+        -- phase ownership must rely on observed transition timing instead.
+        action_frame = 19717.944824,
+        direct_input = input,
+        facing_right = true,
+        combo_count = 0,
+        actor_hp = 10000,
+        victim_hp = 10000,
+        victim_damage_type = 0,
+        victim_hit_stop = 0,
+    })
+end
+observe_aki_pending_phase(1, 10, 0)
+observe_aki_pending_phase(2, 10, 512)
+observe_aki_pending_phase(3, 998, 512)
+observe_aki_pending_phase(4, 998, 0)
+observe_aki_pending_phase(5, 998, 16)
+observe_aki_pending_phase(6, 999, 16)
+observe_aki_pending_phase(7, 609, 16)
+local aki_pending_internal_result = compiler.finalize(
+    aki_pending_internal_phase,
+    {
+        motion_resolver = function(action_id)
+            if action_id == 998 then return "K", "strict_route" end
+            if action_id == 609 then return "LP", "strict_route" end
+            return nil, "action_id_missing"
+        end,
+    }
+)
+assert(#aki_pending_internal_phase.observed_actions == 3
+        and aki_pending_internal_phase.observed_actions[1].id == 998
+        and aki_pending_internal_phase.observed_actions[2].id == 999
+        and aki_pending_internal_phase.observed_actions[3].id == 609
+        and #aki_pending_internal_phase.events == 3
+        and aki_pending_internal_phase.events[2].id == 999
+        and aki_pending_internal_phase.events[3].id == 609
+        and aki_pending_internal_phase.events[2].anchor.frame == 5
+        and aki_pending_internal_phase.events[3].anchor.frame == 5
+        and aki_pending_internal_phase.events[2].anchor.pressed_buttons == 16
+        and aki_pending_internal_phase.events[3].anchor.pressed_buttons == 16,
+    "an internal 999 event must return its temporarily bound LP anchor to the durable Action")
+assert(#aki_pending_internal_result.steps == 2
+        and aki_pending_internal_result.steps[1].id == 998
+        and aki_pending_internal_result.steps[2].id == 609
+        and aki_pending_internal_result.steps[2].motion == "LP"
+        and aki_pending_internal_result.trace.projected_events[2].anchor_buttons == 16
+        and aki_pending_internal_result.trace.suppressed_events[1].id == 999,
+    "final projection must fold 999 while retaining the LP-bound durable 609 step")
+
+do
+local aki_replaced_pending_phase = new_aki_projection_session()
+local function observe_replaced_pending(frame, action_id, input)
+    compiler.observe(aki_replaced_pending_phase, {
+        frame = frame,
+        action_id = action_id,
+        action_frame = 19717.944824,
+        direct_input = input,
+        facing_right = true,
+        combo_count = 0,
+        actor_hp = 10000,
+        victim_hp = 10000,
+        victim_damage_type = 0,
+        victim_hit_stop = 0,
+    })
+end
+observe_replaced_pending(1, 10, 0)
+observe_replaced_pending(2, 10, 512)
+observe_replaced_pending(3, 998, 512)
+observe_replaced_pending(4, 998, 0)
+observe_replaced_pending(5, 998, 16)
+observe_replaced_pending(6, 999, 16)
+observe_replaced_pending(7, 999, 32)
+observe_replaced_pending(8, 609, 32)
+assert(aki_replaced_pending_phase.events[3].id == 609
+        and aki_replaced_pending_phase.events[3].anchor.frame == 7
+        and aki_replaced_pending_phase.events[3].anchor.pressed_buttons == 32,
+    "a fresh input edge must replace an anchor restored by an internal phase")
+end
+
+local non_aki_snake_step_ids = compiler.new({ character = "Ryu", frame = 0 })
+non_aki_snake_step_ids.events = aki_snake_step_phase.events
+local non_aki_snake_step_result = compiler.finalize(non_aki_snake_step_ids, {
+    motion_resolver = aki_phase_motion_resolver,
+})
+assert(#non_aki_snake_step_result.steps == 2
+        and non_aki_snake_step_result.steps[2].id == 999
+        and non_aki_snake_step_result.steps[2].motion == "2+HK",
+    "AKI phase IDs must not be suppressed for other characters")
+
+local aki_wrong_snake_step_owner = new_aki_projection_session()
+aki_wrong_snake_step_owner.events = {
+    {
+        id = 997,
+        frame = 100,
+        anchor = { kind = "button_press", pressed_buttons = 16 },
+    },
+    aki_snake_step_phase.events[2],
+}
+local aki_wrong_snake_step_result = compiler.finalize(
+    aki_wrong_snake_step_owner,
+    {
+        motion_resolver = function(action_id)
+            if action_id == 997 then return "LP", "strict_route" end
+            return nil, "action_id_missing"
+        end,
+    }
+)
+assert(#aki_wrong_snake_step_result.steps == 2
+        and aki_wrong_snake_step_result.steps[2].id == 999
+        and aki_wrong_snake_step_result.steps[2].motion == "2+HK",
+    "AKI 999 must fold only after its exact 998 owner")
+end
+
 local noncontact_fallback = compiler.new({ character = "MBison", frame = 0 })
 noncontact_fallback.events = {
     {
@@ -1722,7 +2544,8 @@ local legacy_damage_source = {
         combo_stats = { damage = 300 },
     },
 }
-local missing_terminal_contact = transcriber.evaluate({
+do
+local missing_terminal_source = {
     {
         id = 970,
         motion = "214+LP",
@@ -1738,7 +2561,8 @@ local missing_terminal_contact = transcriber.evaluate({
         has_hit = true,
         has_contact = true,
     },
-}, {
+}
+local missing_terminal_contact = transcriber.evaluate(missing_terminal_source, {
     steps = {
         {
             id = 970,
@@ -1773,6 +2597,196 @@ local missing_terminal_contact = transcriber.evaluate({
 assert(missing_terminal_contact.ok == false
     and missing_terminal_contact.reasons[1] == "terminal_expected_contact_missing",
     "an earlier max combo must not hide a missing terminal OKI hit")
+local false_default_terminal_source =
+    transcriber.deep_copy(missing_terminal_source)
+false_default_terminal_source[2].has_hit = false
+false_default_terminal_source[2].has_contact = nil
+local false_default_terminal = transcriber.evaluate(
+    false_default_terminal_source,
+    {
+        steps = {
+            {
+                id = 970,
+                motion = "214+LP",
+                expected_combo = 9,
+                damage_at_step = 1890,
+                has_hit = true,
+                has_contact = true,
+            },
+            {
+                id = 660,
+                motion = "j.HK",
+                expected_combo = 0,
+                damage_at_step = 1890,
+                has_hit = false,
+                has_contact = false,
+            },
+        },
+        stats = {
+            damage = 1890,
+            max_combo = 9,
+            unresolved_anchors = 0,
+            block_contacts = 0,
+        },
+    },
+    {
+        input_source = "timeline",
+        raw_inputs = { 0, 512, 0 },
+        input_completed = true,
+        allow_legacy_damage_drift = true,
+        allow_legacy_outcome_rebuild = true,
+    }
+)
+assert(false_default_terminal.ok == false
+        and false_default_terminal.reasons[1]
+            == "terminal_expected_contact_missing",
+    "a default false must not hide a missed terminal below the source prefix max")
+do
+local explicit_terminal_noncontact_source = {
+    {
+        id = 994,
+        motion = ">P",
+        expected_combo = 5,
+        damage_at_step = 2000,
+        has_hit = true,
+        has_contact = true,
+        combo_stats = { damage = 2119 },
+    },
+    {
+        id = 904,
+        motion = "214+MP",
+        expected_combo = 6,
+        damage_at_step = 2119,
+        has_hit = false,
+    },
+}
+local explicit_terminal_noncontact = transcriber.evaluate(
+    explicit_terminal_noncontact_source,
+{
+    steps = {
+        {
+            id = 994,
+            motion = ">P",
+            expected_combo = 6,
+            damage_at_step = 2616,
+            has_hit = true,
+            has_contact = true,
+        },
+        {
+            id = 904,
+            motion = "214+MP",
+            expected_combo = 0,
+            damage_at_step = 2616,
+            has_hit = false,
+            has_contact = false,
+        },
+    },
+    stats = {
+        damage = 2616,
+        max_combo = 6,
+        unresolved_anchors = 0,
+        block_contacts = 0,
+    },
+}, {
+    input_source = "timeline",
+    raw_inputs = { 64, 0, 32, 0 },
+    input_completed = true,
+    allow_legacy_damage_drift = true,
+})
+assert(explicit_terminal_noncontact.ok == true
+    and explicit_terminal_noncontact.source_action_match == true,
+    "an explicit terminal noncontact must outrank delayed legacy damage counters")
+local growing_terminal_damage = transcriber.evaluate(
+    explicit_terminal_noncontact_source,
+{
+    steps = {
+        {
+            id = 994,
+            motion = ">P",
+            expected_combo = 6,
+            damage_at_step = 2616,
+            has_hit = true,
+            has_contact = true,
+        },
+        {
+            id = 904,
+            motion = "214+MP",
+            expected_combo = 0,
+            damage_at_step = 2716,
+            has_hit = false,
+            has_contact = false,
+        },
+    },
+    stats = {
+        damage = 2716,
+        max_combo = 6,
+        unresolved_anchors = 0,
+        block_contacts = 0,
+    },
+}, {
+    input_source = "timeline",
+    raw_inputs = { 64, 0, 32, 0 },
+    input_completed = true,
+    allow_legacy_damage_drift = true,
+})
+assert(growing_terminal_damage.ok == false
+        and growing_terminal_damage.reasons[1]
+            == "terminal_expected_contact_missing",
+    "an explicit false must not excuse an observed terminal damage increase")
+local zero_combo_terminal = transcriber.evaluate({
+    {
+        id = 700,
+        motion = "THROW",
+        expected_combo = 0,
+        damage_at_step = 1000,
+        has_hit = true,
+        has_contact = true,
+        combo_stats = { damage = 2000 },
+    },
+    {
+        id = 701,
+        motion = "THROW",
+        expected_combo = 0,
+        damage_at_step = 2000,
+        has_hit = false,
+    },
+}, {
+    steps = {
+        {
+            id = 700,
+            motion = "THROW",
+            expected_combo = 0,
+            damage_at_step = 1000,
+            has_hit = true,
+            has_contact = true,
+        },
+        {
+            id = 701,
+            motion = "THROW",
+            expected_combo = 0,
+            damage_at_step = 1000,
+            has_hit = false,
+            has_contact = false,
+        },
+    },
+    stats = {
+        damage = 1000,
+        max_combo = 0,
+        unresolved_anchors = 0,
+        block_contacts = 0,
+    },
+}, {
+    input_source = "timeline",
+    raw_inputs = { 80, 0, 80, 0 },
+    input_completed = true,
+    allow_legacy_damage_drift = true,
+})
+assert(zero_combo_terminal.ok == false
+        and zero_combo_terminal.reasons[1]
+            == "terminal_expected_contact_missing",
+    "zero-combo damage must not use the delayed-counter terminal exemption")
+end
+end
 local legacy_damage_drift = transcriber.evaluate(legacy_damage_source, {
     steps = {
         {
@@ -1956,6 +2970,348 @@ local no_guard_retry = transcriber.prepare_guard_retry(regressed_combo_source, {
 })
 assert(no_guard_retry == nil,
     "combo regression without observed guard truncation must not disable defense")
+
+do
+local poison_masked_reset_source = {
+    {
+        id = 855,
+        motion = "DI",
+        expected_combo = 1,
+        damage_at_step = 800,
+        has_hit = true,
+        has_contact = true,
+        combo_stats = { damage = 6699 },
+    },
+    {
+        id = 904,
+        motion = "214+MP",
+        expected_combo = 1,
+        damage_at_step = 829,
+        has_hit = true,
+        has_contact = true,
+    },
+    {
+        id = 37,
+        motion = "9",
+        expected_combo = 1,
+        damage_at_step = 854,
+        has_hit = true,
+        has_contact = true,
+    },
+    {
+        id = 652,
+        motion = "j.HP",
+        expected_combo = 2,
+        damage_at_step = 1527,
+        has_hit = true,
+        has_contact = true,
+    },
+    {
+        id = 1260,
+        motion = "236236+P",
+        expected_combo = 28,
+        damage_at_step = 6699,
+        has_hit = true,
+        has_contact = true,
+    },
+}
+local poison_masked_compiled = {
+    steps = {
+        {
+            id = 855,
+            motion = "DI",
+            expected_combo = 1,
+            damage_at_step = 800,
+            has_hit = true,
+            has_contact = true,
+        },
+        {
+            id = 904,
+            motion = "214+MP",
+            expected_combo = 0,
+            damage_at_step = 800,
+            has_hit = false,
+            has_contact = false,
+        },
+        {
+            id = 37,
+            motion = "9",
+            expected_combo = 0,
+            damage_at_step = 800,
+            has_hit = false,
+            has_contact = false,
+        },
+        {
+            id = 652,
+            motion = "j.HP",
+            expected_combo = 1,
+            damage_at_step = 1673,
+            has_hit = true,
+            has_contact = true,
+        },
+        {
+            id = 1260,
+            motion = "236236+P",
+            expected_combo = 27,
+            damage_at_step = 7792,
+            has_hit = true,
+            has_contact = true,
+        },
+    },
+    stats = {
+        damage = 7792,
+        max_combo = 27,
+        unresolved_anchors = 0,
+        unresolved_motion_actions = 0,
+        block_contacts = 0,
+        passive_damage_ticks = 12,
+        passive_damage_total = 84,
+        passive_damage_max_tick = 7,
+    },
+    trace = {
+        observed_actions = {
+            { id = 855, frame = 10 },
+            { id = 904, frame = 20 },
+            { id = 37, frame = 30 },
+            { id = 652, frame = 40 },
+            { id = 1260, frame = 50 },
+        },
+        projected_events = {
+            {
+                id = 855,
+                frame = 10,
+                first_contact_frame = 12,
+                expected_combo = 1,
+                has_hit = true,
+                has_contact = true,
+            },
+            { id = 904, frame = 20, expected_combo = 0 },
+            { id = 37, frame = 30, expected_combo = 0 },
+            {
+                id = 652,
+                frame = 40,
+                first_contact_frame = 42,
+                expected_combo = 1,
+                has_hit = true,
+                has_contact = true,
+            },
+            {
+                id = 1260,
+                frame = 50,
+                first_contact_frame = 52,
+                expected_combo = 27,
+                has_hit = true,
+                has_contact = true,
+            },
+        },
+        combo_reset_frames = { 18 },
+        passive_damage_frames = { 20, 24, 28, 32, 36 },
+        passive_damage_samples = {
+            { frame = 20, delta = 7 },
+            { frame = 24, delta = 7 },
+            { frame = 28, delta = 7 },
+            { frame = 32, delta = 7 },
+            { frame = 36, delta = 7 },
+        },
+    },
+}
+local poison_masked_runtime = {
+    input_source = "timeline",
+    raw_inputs = { 576, 0, 32, 0, 64, 0, 16, 0 },
+    input_completed = true,
+    timed_out = false,
+    allow_legacy_damage_drift = true,
+    allow_legacy_outcome_rebuild = true,
+}
+local poison_masked_reset = transcriber.evaluate(
+    poison_masked_reset_source,
+    poison_masked_compiled,
+    poison_masked_runtime
+)
+local poison_reset_advisories = table.concat(
+    poison_masked_reset.advisories,
+    ","
+)
+assert(poison_masked_reset.ok == true
+        and poison_masked_reset.legacy_segmented_outcome == true
+        and poison_masked_reset.expected_reconnect_reason == nil
+        and poison_masked_reset.observed_reconnect_reason
+            == "observed_hit_reconnect_after_combo_reset"
+        and poison_masked_reset.observed_combo_rebuild.reconstructed_combo == 28
+        and poison_masked_reset.observed_combo_rebuild.segment_peaks[1] == 1
+        and poison_masked_reset.observed_combo_rebuild.segment_peaks[2] == 27
+        and poison_masked_reset.persistent_damage_window_ticks[1] == 5
+        and poison_reset_advisories:match(
+            "source_combo_reset_rebuilt_from_runtime"
+        )
+        and poison_reset_advisories:match(
+            "source_segmented_combo_count_rebuilt:expected=28:observed=27"
+        ),
+    "runtime Action truth must rebuild a legacy combo count whose reset was masked by poison")
+do
+local shifted_contact_source = transcriber.deep_copy(poison_masked_reset_source)
+table.insert(shifted_contact_source, 5, {
+    id = 612,
+    motion = "MK",
+    expected_combo = 4,
+    damage_at_step = 2200,
+    has_hit = true,
+    has_contact = true,
+})
+table.insert(shifted_contact_source, 6, {
+    id = 603,
+    motion = "MP",
+    expected_combo = 4,
+    damage_at_step = 2500,
+    has_hit = true,
+    has_contact = true,
+})
+local shifted_contact_compiled = transcriber.deep_copy(poison_masked_compiled)
+table.insert(shifted_contact_compiled.steps, 5, {
+    id = 612,
+    motion = "MK",
+    expected_combo = 2,
+    damage_at_step = 2200,
+    has_hit = true,
+    has_contact = true,
+})
+table.insert(shifted_contact_compiled.steps, 6, {
+    id = 603,
+    motion = "MP",
+    expected_combo = 3,
+    damage_at_step = 2500,
+    has_hit = true,
+    has_contact = true,
+})
+table.insert(shifted_contact_compiled.trace.projected_events, 5, {
+    id = 612,
+    frame = 45,
+    first_contact_frame = 47,
+    expected_combo = 2,
+    has_hit = true,
+    has_contact = true,
+})
+table.insert(shifted_contact_compiled.trace.projected_events, 6, {
+    id = 603,
+    frame = 51,
+    first_contact_frame = 53,
+    expected_combo = 3,
+    has_hit = true,
+    has_contact = true,
+})
+shifted_contact_compiled.trace.projected_events[7].frame = 60
+shifted_contact_compiled.trace.projected_events[7].first_contact_frame = 62
+table.insert(shifted_contact_compiled.trace.observed_actions, 5, {
+    id = 612,
+    frame = 45,
+})
+table.insert(shifted_contact_compiled.trace.observed_actions, 6, {
+    id = 603,
+    frame = 51,
+})
+shifted_contact_compiled.trace.observed_actions[7].frame = 60
+local shifted_contact = transcriber.evaluate(
+    shifted_contact_source,
+    shifted_contact_compiled,
+    poison_masked_runtime
+)
+local shifted_contact_advisories = table.concat(
+    shifted_contact.advisories,
+    ","
+)
+assert(shifted_contact.ok == true
+        and shifted_contact.legacy_segmented_outcome == true
+        and shifted_contact.observed_combo_rebuild.attribution_lead_steps == 1
+        and shifted_contact.observed_combo_rebuild.max_attribution_lead == 1
+        and shifted_contact_advisories:match(
+            "source_contact_attribution_rebuilt:steps=1:max_lead=1"
+        ),
+    "a source multi-hit count may lead temporarily when the same segment catches up exactly")
+local missed_source_contact_compiled =
+    transcriber.deep_copy(shifted_contact_compiled)
+missed_source_contact_compiled.steps[5].expected_combo = 0
+missed_source_contact_compiled.steps[5].has_hit = false
+missed_source_contact_compiled.steps[5].has_contact = false
+missed_source_contact_compiled.trace.projected_events[5].expected_combo = 0
+missed_source_contact_compiled.trace.projected_events[5].has_hit = false
+missed_source_contact_compiled.trace.projected_events[5].has_contact = false
+missed_source_contact_compiled.trace.projected_events[5].first_contact_frame = nil
+local missed_source_contact = transcriber.evaluate(
+    shifted_contact_source,
+    missed_source_contact_compiled,
+    poison_masked_runtime
+)
+assert(missed_source_contact.ok == false
+        and missed_source_contact.observed_combo_rebuild == nil
+        and table.concat(missed_source_contact.reasons, ","):match(
+            "combo_count_regressed:expected=28:observed=27"
+        ),
+    "a later catch-up must not hide an authored contact that runtime missed")
+local regressing_segment_compiled =
+    transcriber.deep_copy(shifted_contact_compiled)
+regressing_segment_compiled.steps[6].expected_combo = 1
+regressing_segment_compiled.trace.projected_events[6].expected_combo = 1
+local regressing_segment = transcriber.evaluate(
+    shifted_contact_source,
+    regressing_segment_compiled,
+    poison_masked_runtime
+)
+assert(regressing_segment.ok == false
+        and regressing_segment.observed_combo_rebuild == nil
+        and table.concat(regressing_segment.reasons, ","):match(
+            "combo_count_regressed:expected=28:observed=27"
+        ),
+    "runtime contact combo must not regress inside one reconstructed segment")
+local cross_segment_lead_source = transcriber.deep_copy(shifted_contact_source)
+cross_segment_lead_source[4].expected_combo = 3
+local cross_segment_lead = transcriber.evaluate(
+    cross_segment_lead_source,
+    shifted_contact_compiled,
+    poison_masked_runtime
+)
+assert(cross_segment_lead.ok == false
+        and cross_segment_lead.observed_combo_rebuild == nil
+        and table.concat(cross_segment_lead.reasons, ","):match(
+            "combo_count_regressed:expected=28:observed=27"
+        ),
+    "source contact attribution drift must not cross a runtime combo reset")
+end
+local ordinary_drop_compiled = transcriber.deep_copy(poison_masked_compiled)
+ordinary_drop_compiled.trace.passive_damage_frames = { 2, 3, 4, 60, 61 }
+ordinary_drop_compiled.trace.passive_damage_samples = {
+    { frame = 2, delta = 7 },
+    { frame = 3, delta = 7 },
+    { frame = 4, delta = 7 },
+    { frame = 60, delta = 7 },
+    { frame = 61, delta = 7 },
+}
+local ordinary_drop = transcriber.evaluate(
+    poison_masked_reset_source,
+    ordinary_drop_compiled,
+    poison_masked_runtime
+)
+assert(ordinary_drop.ok == false
+        and ordinary_drop.persistent_damage_evidence == false
+        and table.concat(ordinary_drop.reasons, ","):match(
+            "combo_count_regressed:expected=28:observed=27"
+        ),
+    "a normal dropped combo must not be reclassified as a legacy DOT-masked reset")
+local large_regression_compiled = transcriber.deep_copy(poison_masked_compiled)
+large_regression_compiled.steps[5].expected_combo = 1
+large_regression_compiled.stats.max_combo = 1
+large_regression_compiled.trace.projected_events[5].expected_combo = 1
+local large_regression = transcriber.evaluate(
+    poison_masked_reset_source,
+    large_regression_compiled,
+    poison_masked_runtime
+)
+assert(large_regression.ok == false
+        and large_regression.observed_combo_rebuild == nil
+        and table.concat(large_regression.reasons, ","):match(
+            "combo_count_regressed:expected=28:observed=1"
+        ),
+    "persistent damage must not excuse a large combo regression that cannot reconstruct the source total")
+end
 
 local segmented_legacy_source = {
     {
@@ -2334,6 +3690,127 @@ local action_variant_drift = transcriber.evaluate({
 assert(action_variant_drift.ok == true
     and action_variant_drift.source_action_match == true,
     "explicit Action aliases must preserve structural matching across game versions")
+do
+local legacy_owner_rules = {
+    ["944"] = {
+        absorb_ids = "936,941,945",
+        record_absorb_as_parent = true,
+    },
+}
+local legacy_owner_source = {
+    {
+        id = 944,
+        motion = "236+PP",
+        expected_combo = 2,
+        damage_at_step = 600,
+        has_hit = true,
+        has_contact = true,
+        combo_stats = { damage = 600 },
+    },
+}
+local legacy_owner_compiled = {
+    steps = {
+        {
+            id = 945,
+            motion = "214+MP+HP",
+            expected_combo = 2,
+            damage_at_step = 600,
+            has_hit = true,
+            has_contact = true,
+        },
+    },
+    stats = {
+        damage = 600,
+        max_combo = 2,
+        unresolved_anchors = 0,
+        block_contacts = 0,
+    },
+}
+local function legacy_owner_equivalent(expected_id, observed_id)
+    return CharacterRules.find_recording_absorb_owner(
+        legacy_owner_rules,
+        nil,
+        observed_id
+    ) == expected_id
+end
+local legacy_owner_evaluation = transcriber.evaluate(
+    legacy_owner_source,
+    legacy_owner_compiled,
+    {
+        input_source = "timeline",
+        raw_inputs = { 96, 0 },
+        input_completed = true,
+        action_ids_equivalent = function() return false end,
+        source_action_ids_equivalent = legacy_owner_equivalent,
+    }
+)
+assert(legacy_owner_evaluation.ok == true
+        and legacy_owner_evaluation.source_action_match == true,
+    "an explicit recording owner may bridge only the old derived source comparison")
+assert(legacy_owner_equivalent(945, 944) == false
+        and legacy_owner_equivalent(944, 946) == false,
+    "recording-owner compatibility must be one-way and fail closed for unrelated Actions")
+local legacy_owner_candidate = assert(transcriber.build_candidate(
+    legacy_owner_source,
+    legacy_owner_compiled,
+    {
+        schema = 2,
+        product_id = "sf6cc",
+        product_version = "1.0.4",
+        json_id = "xt.combo_trial",
+        json_version = "2",
+    },
+    "2026-08-01T00:00:00+08:00",
+    {
+        input_source = "timeline",
+        relative_raw_inputs = { 96, 0 },
+    }
+))
+assert(legacy_owner_candidate[1].id == 945,
+    "a bridged legacy owner must compile to the observed runtime child Action")
+local real_child_verified = transcriber.verify_candidate(
+    legacy_owner_candidate,
+    legacy_owner_compiled,
+    {
+        raw_inputs = { 96, 0 },
+        input_source = "relative_raw_inputs",
+        input_completed = true,
+    }
+)
+assert(real_child_verified.ok == true,
+    "the generated real child Action must verify against the same runtime ID")
+local owner_instead_of_child = transcriber.deep_copy(legacy_owner_compiled)
+owner_instead_of_child.steps[1].id = 944
+local owner_instead_of_child_verified = transcriber.verify_candidate(
+    legacy_owner_candidate,
+    owner_instead_of_child,
+    {
+        raw_inputs = { 96, 0 },
+        input_source = "relative_raw_inputs",
+        input_completed = true,
+    }
+)
+assert(owner_instead_of_child_verified.ok == false
+        and table.concat(owner_instead_of_child_verified.reasons, ","):match(
+            "raw_replay_action_id_mismatch"
+        ),
+    "raw replay must reject the old owner when the candidate captured its real child")
+local strict_owner_verification = transcriber.verify_candidate(
+    legacy_owner_source,
+    legacy_owner_compiled,
+    {
+        raw_inputs = { 96, 0 },
+        input_source = "raw_inputs",
+        input_completed = true,
+        source_action_ids_equivalent = legacy_owner_equivalent,
+    }
+)
+assert(strict_owner_verification.ok == false
+        and table.concat(strict_owner_verification.reasons, ","):match(
+            "raw_replay_action_id_mismatch"
+        ),
+    "the legacy owner bridge must not weaken generated candidate raw replay IDs")
+end
 for _, pair in ipairs({ { 970, 971 }, { 971, 970 }, { 972, 973 }, { 973, 972 } }) do
     local rule = CharacterRules.get_match_rule(nil, nil, "EHonda", pair[1])
     assert(ActionMatcher.matches_expected_action_id(
