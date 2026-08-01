@@ -4,7 +4,7 @@
 local Transcriber = {
     name = "ComboTrials.Transcriber",
     REPORT_SCHEMA = "sf6cc.combo_transcription_report.v1",
-    VALIDATION_REVISION = 38,
+    VALIDATION_REVISION = 39,
     OUTPUT_ROOT = "TrainingComboTrials_data/TranscribedCandidates",
     REPORT_ROOT = "TrainingComboTrials_data/TranscriptionReports",
 }
@@ -547,48 +547,41 @@ local function prepare_legacy_counter_policy(first, sequence, adjustments)
     }
 end
 
-local LEGACY_UNIQUE_ACTION_REQUIREMENTS = {
-    [20] = {
-        resource_id = "stock_0_020",
-        value = 1,
-        -- [Shoulder Stance] Hundred Hand Slap Actions. These cannot occur
-        -- without E. Honda's stored Sumo Spirit stock.
-        required_action_ids = {
-            [925] = true,
-            [926] = true,
-            [927] = true,
-            [928] = true,
-            [929] = true,
-        },
-        -- 22K establishes the stock during the replay, so a later enhanced
-        -- Action does not prove that stock was required at frame zero.
-        producer_action_ids = {
-            [970] = true,
-            [971] = true,
-        },
-    },
-}
-
-local function required_initial_unique_rule(first, sequence)
+local function required_initial_unique_rule(first, sequence, transcription_rules)
     local roles = SceneState.resolve_roles(first, 0)
     local actor_state = roles and roles.actor and roles.actor.state or nil
     local fighter_id = tonumber(type(actor_state) == "table" and actor_state.fighter_id)
-    local rule = fighter_id and LEGACY_UNIQUE_ACTION_REQUIREMENTS[fighter_id] or nil
-    if type(rule) ~= "table" then return nil, nil end
-
-    local produced = false
-    for _, step in ipairs(type(sequence) == "table" and sequence or {}) do
-        local action_id = tonumber(type(step) == "table" and step.id)
-        if action_id and rule.producer_action_ids[action_id] then produced = true end
-        if action_id and rule.required_action_ids[action_id] and not produced then
-            return rule, actor_state
+    local requirements = type(transcription_rules) == "table"
+        and transcription_rules.initial_unique_requirements or nil
+    for _, rule in ipairs(type(requirements) == "table" and requirements or {}) do
+        if rule.fighter_id == nil or rule.fighter_id == fighter_id then
+            local produced = false
+            for _, step in ipairs(type(sequence) == "table" and sequence or {}) do
+                local action_id = tonumber(type(step) == "table" and step.id)
+                if action_id and rule.producer_action_ids[action_id] then
+                    produced = true
+                end
+                if action_id and rule.required_action_ids[action_id]
+                    and not produced then
+                    return rule, actor_state
+                end
+            end
         end
     end
     return nil, actor_state
 end
 
-local function prepare_legacy_unique_state(first, sequence, adjustments)
-    local rule, actor_state = required_initial_unique_rule(first, sequence)
+local function prepare_legacy_unique_state(
+    first,
+    sequence,
+    adjustments,
+    transcription_rules
+)
+    local rule, actor_state = required_initial_unique_rule(
+        first,
+        sequence,
+        transcription_rules
+    )
     if type(rule) ~= "table" or type(actor_state) ~= "table" then return end
     actor_state.unique = type(actor_state.unique) == "table"
         and actor_state.unique or {}
@@ -609,11 +602,9 @@ local function prepare_legacy_wall_stun_scene(first, adjustments)
     local scene = type(first.scene_state) == "table" and first.scene_state or nil
     local recorded_by = tonumber(first.recorded_by
         or (type(scene) == "table" and scene.recorded_by))
-    local action_id = tonumber(first.id)
     local motion = tostring(first.motion or ""):upper():gsub("%s+", "")
     if first.has_piyo ~= true or piyo_frame == nil or piyo_frame <= 0
         or recorded_by ~= 0
-        or (action_id ~= 854 and action_id ~= 855)
         or motion ~= "DI" then
         return
     end
@@ -731,7 +722,7 @@ end
 -- guards the entire second string. Prepare an in-memory transcription copy
 -- with guard disabled, preserve the source file, and persist the derivation
 -- in the generated candidate/report.
-function Transcriber.prepare_capture_sequence(source_sequence)
+function Transcriber.prepare_capture_sequence(source_sequence, transcription_rules)
     local prepared = deep_copy(source_sequence)
     local first = first_step(prepared)
     local adjustments = {}
@@ -740,7 +731,12 @@ function Transcriber.prepare_capture_sequence(source_sequence)
     prepare_stable_legacy_actor_hp(first, prepared, adjustments)
     prepare_legacy_actor_gauges(first, adjustments)
     prepare_legacy_counter_policy(first, prepared, adjustments)
-    prepare_legacy_unique_state(first, prepared, adjustments)
+    prepare_legacy_unique_state(
+        first,
+        prepared,
+        adjustments,
+        transcription_rules
+    )
     prepare_legacy_wall_stun_scene(first, adjustments)
     local expected = expected_outcome(prepared)
     local guard_type =
@@ -1064,11 +1060,9 @@ local function legacy_blocked_wall_stun_shift(
     local scene = type(first.scene_state) == "table" and first.scene_state or nil
     local recorded_by = tonumber(first.recorded_by
         or (type(scene) == "table" and scene.recorded_by))
-    local action_id = tonumber(first.id)
     local motion = tostring(first.motion or ""):upper():gsub("%s+", "")
     if first.has_piyo ~= true or (tonumber(first.piyo_frame) or 0) <= 0
         or recorded_by ~= 0
-        or (action_id ~= 854 and action_id ~= 855)
         or motion ~= "DI"
         or not action_sequence_matches(sequence, steps, nil)
         or source_terminal_contact_match ~= true
@@ -1367,7 +1361,7 @@ local function scene_roles(first)
         players[recorded_by == 1 and "p1" or "p2"]
 end
 
-function Transcriber.suspected_causes(sequence)
+function Transcriber.suspected_causes(sequence, transcription_rules)
     local first = first_step(sequence)
     local causes = {}
     local meta = type(first._xt_meta) == "table" and first._xt_meta or {}
@@ -1396,7 +1390,11 @@ function Transcriber.suspected_causes(sequence)
                 or legacy_actor_hp <= 2500)) then
         append_unique(causes, "actor_low_health")
     end
-    local required_unique_rule = required_initial_unique_rule(first, sequence)
+    local required_unique_rule = required_initial_unique_rule(
+        first,
+        sequence,
+        transcription_rules
+    )
     if nonzero_resource(actor_unique) or required_unique_rule ~= nil then
         append_unique(causes, "actor_character_resource_required")
     end
@@ -1750,7 +1748,9 @@ function Transcriber.evaluate(sequence, compiled, runtime)
         ok = #reasons == 0,
         reasons = reasons,
         advisories = advisories,
-        suspected_causes = #reasons > 0 and Transcriber.suspected_causes(sequence) or {},
+        suspected_causes = #reasons > 0
+            and Transcriber.suspected_causes(sequence, runtime.transcription_rules)
+            or {},
         expected = expected,
         observed = deep_copy(stats),
         source_action_match = source_action_match,
@@ -1796,6 +1796,7 @@ function Transcriber.verify_candidate(candidate, compiled, runtime)
         action_ids_equivalent = runtime.action_ids_equivalent,
         verify_environment = runtime.verify_environment,
         environment_observed = runtime.environment_observed,
+        transcription_rules = runtime.transcription_rules,
     })
     local reasons = prefix_reasons(evaluation.reasons, "raw_replay_")
     local expected_steps = type(candidate) == "table" and candidate or {}
@@ -1880,7 +1881,12 @@ function Transcriber.verify_candidate(candidate, compiled, runtime)
     return {
         ok = #reasons == 0,
         reasons = reasons,
-        suspected_causes = #reasons > 0 and Transcriber.suspected_causes(candidate) or {},
+        suspected_causes = #reasons > 0
+            and Transcriber.suspected_causes(
+                candidate,
+                runtime.transcription_rules
+            )
+            or {},
         expected = evaluation.expected,
         observed = evaluation.observed,
         environment_validation = evaluation.environment_validation,

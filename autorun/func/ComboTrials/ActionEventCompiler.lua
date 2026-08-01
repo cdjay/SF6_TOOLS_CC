@@ -78,34 +78,6 @@ local JUMP_STARTUP_TRANSITIONS = {
     [35] = { [38] = true },
 }
 
--- Some moves expose a separate contact or recovery Action even though the
--- player issued only the preceding command. These exact, runtime-verified
--- transitions must fold into the command-owning Action. The destination may
--- also be a valid standalone command in another context, so suppression is
--- limited to the listed predecessor/destination pair.
-local INTERNAL_ACTION_PHASE_TRANSITIONS = {
-    alex = {
-        [608] = { [610] = true },
-        [976] = { [977] = true },
-        [1208] = { [1209] = true },
-    },
-    cammy = {
-        [652] = { [653] = true },
-        [916] = { [933] = true },
-        [979] = { [980] = true, [981] = true },
-        [1022] = { [1023] = true },
-    },
-    ehonda = {
-        [1215] = { [1216] = true },
-        [1221] = { [1222] = true },
-    },
-}
-
--- Shared with ActionMatcher so live raw-input trial validation ignores the
--- same transient precursor instead of turning it into a second instruction.
-local TRANSIENT_INPUT_PRECURSOR_TRANSITIONS =
-    ActionMatcher.TRANSIENT_INPUT_PRECURSOR_TRANSITIONS
-
 local DASH_ACTIONS = {
     [17] = true,
     [18] = true,
@@ -139,6 +111,11 @@ local function action_event_projection_rule(session, action_id)
         and session.action_event_projection_rules or nil
     if type(rules) ~= "table" then return nil end
     return rules[tonumber(action_id)] or rules[tostring(action_id)]
+end
+
+local function session_action_event_rules(session)
+    return type(session) == "table" and type(session.action_event_rules) == "table"
+        and session.action_event_rules or {}
 end
 
 local function project_character_action_owner(event, session)
@@ -824,21 +801,7 @@ local function is_unmapped_contact_continuation(previous, current)
     return tonumber(anchor.initial_action_id) == tonumber(previous.event.id)
 end
 
-local function is_character_internal_action_phase(previous, current, character)
-    if type(previous) ~= "table" or type(current) ~= "table"
-        or type(previous.event) ~= "table"
-        or type(current.event) ~= "table" then
-        return false
-    end
-    local key = tostring(character or ""):lower():gsub("[^%w]", "")
-    local character_rules = INTERNAL_ACTION_PHASE_TRANSITIONS[key]
-    local destinations = type(character_rules) == "table"
-        and character_rules[tonumber(previous.event.id)] or nil
-    return type(destinations) == "table"
-        and destinations[tonumber(current.event.id)] == true
-end
-
-local function is_character_transient_input_precursor(previous, current, character)
+local function is_character_transient_input_precursor(previous, current, rules)
     if type(previous) ~= "table" or type(current) ~= "table"
         or type(previous.event) ~= "table"
         or type(current.event) ~= "table"
@@ -846,10 +809,10 @@ local function is_character_transient_input_precursor(previous, current, charact
         or previous.event.has_hit == true then
         return false
     end
-    local key = tostring(character or ""):lower():gsub("[^%w]", "")
-    local character_rules = TRANSIENT_INPUT_PRECURSOR_TRANSITIONS[key]
-    local destinations = type(character_rules) == "table"
-        and character_rules[tonumber(previous.event.id)] or nil
+    local transitions = type(rules) == "table"
+        and rules.transient_input_precursor_transitions or nil
+    local destinations = type(transitions) == "table"
+        and transitions[tonumber(previous.event.id)] or nil
     if type(destinations) ~= "table"
         or destinations[tonumber(current.event.id)] ~= true then
         return false
@@ -1014,28 +977,31 @@ local function is_redundant_dash_transition(previous, current)
     return delay > 0 and delay <= Compiler.GHOST_FILTER_FRAMES
 end
 
--- Jamie's j.HP releases can briefly surface a 7+HK Action with no attack
--- button press and no contact. That release edge belongs to the j.HP command
--- and must not become an extra step after the final hit.
-local function is_jump_attack_release_tail(previous, current, character)
+-- Character JSON may declare a current Action as a non-command tail after an
+-- exact predecessor. The compiler owns the generic timing/contact semantics;
+-- JSON owns only the Action identities and configured window.
+local function is_mapped_suppressed_transition(previous, current, rules)
     if type(previous) ~= "table" or type(current) ~= "table"
         or type(previous.event) ~= "table" or type(current.event) ~= "table" then
         return false
     end
-    local key = tostring(character or ""):lower():gsub("[^%w]", "")
-    if key ~= "jamie" then return false end
-    if tonumber(previous.event.id) ~= 652
-        or tonumber(current.event.id) ~= 657
-        or current.event.has_contact == true
-        or current.event.has_hit == true then
+    local suppressions = type(rules) == "table" and rules.suppress_after or nil
+    local rule = type(suppressions) == "table"
+        and suppressions[tonumber(current.event.id)] or nil
+    if type(rule) ~= "table" or type(rule.previous_ids) ~= "table"
+        or rule.previous_ids[tonumber(previous.event.id)] ~= true then
         return false
     end
     local anchor = type(current.event.anchor) == "table"
         and current.event.anchor or {}
-    if anchor.kind ~= "button_release" then return false end
+    if anchor.kind ~= rule.anchor_kind then return false end
+    if rule.require_no_contact == true
+        and (current.event.has_contact == true or current.event.has_hit == true) then
+        return false
+    end
     local delay = (tonumber(current.event.frame) or 0)
         - (tonumber(previous.event.frame) or 0)
-    return delay > 0 and delay <= 64
+    return delay > 0 and delay <= (tonumber(rule.max_delay_frames) or 0)
 end
 
 -- The live validator debounces a short non-contact Action that starts on a
@@ -1151,6 +1117,8 @@ function Compiler.new(options)
         action_event_projection_rules =
             type(options.action_event_projection_rules) == "table"
                 and options.action_event_projection_rules or {},
+        action_event_rules = type(options.action_event_rules) == "table"
+                and options.action_event_rules or {},
         created_frame = tonumber(options.frame) or 0,
         previous_input = 0,
         previous_direction = "5",
@@ -1700,7 +1668,7 @@ function Compiler.finalize(session, options)
             goto continue_projection
         end
         if resolution_status == "suppress_transition" or release_transition then
-            if previous then merge_event_truth(previous.event, event) end
+            if previous then merge_event_outcome_truth(previous.event, event) end
             suppressed_events[#suppressed_events + 1] = {
                 id = event.id,
                 frame = event.frame,
@@ -1721,24 +1689,15 @@ function Compiler.finalize(session, options)
                 is_redundant_drive_rush_phase(previous, current)
             local contact_continuation =
                 is_unmapped_contact_continuation(previous, current)
-            local internal_action_phase =
-                is_character_internal_action_phase(
-                    previous,
-                    current,
-                    session and session.character
-                )
-            if redundant_drive_rush or contact_continuation
-                or internal_action_phase then
-                merge_event_truth(previous.event, event)
+            if redundant_drive_rush or contact_continuation then
+                merge_event_outcome_truth(previous.event, event)
                 suppressed_events[#suppressed_events + 1] = {
                     id = event.id,
                     frame = event.frame,
                     merged_into = previous.event.id,
                     reason = redundant_drive_rush
                             and "redundant_drive_rush_phase"
-                        or (internal_action_phase
-                            and "character_internal_action_phase"
-                            or "unmapped_contact_continuation"),
+                        or "unmapped_contact_continuation",
                 }
                 goto continue_projection
             end
@@ -1769,10 +1728,10 @@ function Compiler.finalize(session, options)
                 is_redundant_inherited_action_phase(previous, current)
             local redundant_dash =
                 is_redundant_dash_transition(previous, current)
-            local jump_release_tail = is_jump_attack_release_tail(
+            local mapped_suppression = is_mapped_suppressed_transition(
                 previous,
                 current,
-                session and session.character
+                session_action_event_rules(session)
             )
             local quick_drive_parry =
                 is_quick_drive_parry_precursor(previous, current)
@@ -1784,17 +1743,17 @@ function Compiler.finalize(session, options)
                 is_character_transient_input_precursor(
                     previous,
                     current,
-                    session and session.character
+                    session_action_event_rules(session)
                 )
-            if redundant_action_phase or redundant_dash or jump_release_tail then
-                merge_event_truth(previous.event, event)
+            if redundant_action_phase or redundant_dash or mapped_suppression then
+                merge_event_outcome_truth(previous.event, event)
                 suppressed_events[#suppressed_events + 1] = {
                     id = event.id,
                     frame = event.frame,
                     merged_into = previous.event.id,
                     reason = redundant_dash
                             and "redundant_dash_transition"
-                        or (jump_release_tail and "jump_attack_release_tail"
+                        or (mapped_suppression and "character_action_event_suppression"
                             or "redundant_inherited_action_phase"),
                 }
             else

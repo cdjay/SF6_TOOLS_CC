@@ -395,10 +395,10 @@ function PendingAbsorb.check(ctx, phase)
         frame = pending.frame,
         combo_count = current_combo,
         actual_hp = current_hp,
-        match_reason = "ehonda_pending_current_absorb",
+        match_reason = "pending_current_absorb",
         match_details = {
             actual_action_id = pending.actual_action_id,
-            match_reason = "ehonda_pending_current_absorb",
+            match_reason = "pending_current_absorb",
             combo_count = current_combo,
             start_frame = pending.frame,
             motion = pending.actual_motion,
@@ -425,7 +425,7 @@ function PendingAbsorb.store(ctx, expected, current_absorb, match_probe, actual_
     local state = ctx.state
     if not expected or not current_absorb or current_absorb.block_reason ~= "combo_not_reached" then return false end
     if current_absorb.ignore_combo_check ~= true
-        and ctx.p_state.profile_name ~= "EHonda" and ctx.p_state.profile_name ~= "Honda" then return false end
+        and current_absorb.allow_pending_absorb ~= true then return false end
     if state.success_timer and state.success_timer > 0 then return false end
     if state.fail_timer and state.fail_timer > 0 then return false end
     if state.manual_reset_pending then return false end

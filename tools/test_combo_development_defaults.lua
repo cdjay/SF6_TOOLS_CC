@@ -6,6 +6,10 @@ local function read_all(path)
 end
 
 local main_source = read_all("autorun/TrainingComboTrials_v1.0.lua")
+local main_chunk, main_compile_error = loadfile(
+    "autorun/TrainingComboTrials_v1.0.lua"
+)
+assert(main_chunk ~= nil, main_compile_error)
 assert(main_source:find("show_trial_notes = true", 1, true),
     "trial notes must default to enabled")
 assert(main_source:find("auto_next_trial = false", 1, true),

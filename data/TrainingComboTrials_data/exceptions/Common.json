@@ -56,5 +56,8 @@
   },
   "719": {
     "ignore": true
+  },
+  "854": {
+    "action_alias_ids": "855"
   }
 }

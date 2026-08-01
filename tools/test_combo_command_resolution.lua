@@ -38,7 +38,10 @@ local _, invalid_override_count, invalid_override_status =
 assert(invalid_override_count == 0 and invalid_override_status == "invalid_override_document",
     "command overrides for another character must fail closed")
 local cammy_overrides, cammy_override_count, cammy_override_status =
-    command_display_overrides.merge({ _slim = true }, "Cammy", {
+    command_display_overrides.merge({
+        _slim = true,
+        ["979"] = { classic = "j.Throw", status = "route_unverified" },
+    }, "Cammy", {
         schema = "xt.command_display_overrides.v1",
         character = "Cammy",
         entries = {
@@ -46,12 +49,40 @@ local cammy_overrides, cammy_override_count, cammy_override_status =
                 classic = ">HK",
                 evidence = "verified 4+MP follow-up HK",
             },
+            ["979"] = {
+                classic = "j.LP+LK",
+                replace = true,
+                evidence = "verified airborne LP+LK raw input",
+            },
         },
     })
-assert(cammy_override_status == "loaded" and cammy_override_count == 1
+assert(cammy_override_status == "loaded" and cammy_override_count == 2
     and cammy_overrides["908"].classic == ">HK"
-    and cammy_overrides["908"].status == "runtime_verified_override",
-    "Cammy's verified target-combo follow-up must override the missing strict route")
+    and cammy_overrides["908"].status == "runtime_verified_override"
+    and cammy_overrides["979"].classic == "j.LP+LK"
+    and cammy_overrides["979"].status == "runtime_verified_override"
+    and cammy_overrides["979"].metadata.replaced_existing == true,
+    "Cammy's verified follow-up and air throw must resolve through data overrides")
+local honda_overrides, honda_override_count, honda_override_status =
+    command_display_overrides.merge({
+        _slim = true,
+        ["660"] = { classic = "3+HK", status = "route_unverified" },
+    }, "EHonda", {
+        schema = "xt.command_display_overrides.v1",
+        character = "EHonda",
+        entries = {
+            ["660"] = {
+                classic = "3+HK",
+                replace = true,
+                evidence = "verified directional HK runtime audit",
+            },
+        },
+    })
+assert(honda_override_status == "loaded" and honda_override_count == 1
+        and honda_overrides["660"].classic == "3+HK"
+        and honda_overrides["660"].status == "runtime_verified_override"
+        and honda_overrides["660"].metadata.replaced_existing == true,
+    "E. Honda's verified 3+HK must replace its unverified catalog row")
 local aki_catalog = {
     _slim = true,
     ["623"] = { classic = "2+MP", status = "route_unverified" },
@@ -899,7 +930,30 @@ assert(idless_legacy_match.matched == true and idless_legacy_match.match_reason 
     "motion fallback must remain available only for legacy steps without an Action ID")
 
 local character_rules = dofile("autorun/func/ComboTrials/CharacterRules.lua")
-local legacy_di_rule = character_rules.get_match_rule({}, {}, "ChunLi", 854)
+assert(character_rules.should_preserve_short_action(
+        { ["976"] = { preserve_short_action = true } },
+        {},
+        976
+    ) == true
+    and character_rules.should_preserve_short_action({}, {}, 976) == false,
+    "short Action preservation must come from exception data")
+local common_variant_rules = {
+    ["854"] = { action_alias_ids = "855" },
+}
+local deejay_variant_rules = {
+    ["1268"] = {
+        action_alias_ids = "1272",
+        action_alias_combo_deltas = { ["1272"] = 23 },
+        finish_on_first_hit = true,
+    },
+    ["1272"] = {
+        action_alias_ids = "1268",
+        action_alias_combo_deltas = { ["1268"] = 32 },
+        finish_on_first_hit = true,
+    },
+}
+local legacy_di_rule = character_rules.get_match_rule(
+    {}, common_variant_rules, "ChunLi", 854)
 local legacy_di_match = action_matcher.match_expected_action(
     { id = 854, motion = "DI" },
     855,
@@ -909,7 +963,8 @@ local legacy_di_match = action_matcher.match_expected_action(
 )
 assert(legacy_di_match.matched == true and legacy_di_match.match_reason == "action_alias_id",
     "a legacy Action ID 854 DI step must admit the current runtime Action ID 855")
-local current_di_rule = character_rules.get_match_rule({}, {}, "ChunLi", 855)
+local current_di_rule = character_rules.get_match_rule(
+    {}, common_variant_rules, "ChunLi", 855)
 local reverse_di_match = action_matcher.match_expected_action(
     { id = 855, motion = "DI" },
     854,
@@ -921,13 +976,30 @@ assert(reverse_di_match.matched == false,
     "current Action ID 855 DI recordings must not gain an unsupported reverse alias")
 local jamie_di_rule = character_rules.get_match_rule(
     { ["854"] = { force = true } },
-    {},
+    common_variant_rules,
     "Jamie",
     854
 )
 assert(jamie_di_rule.force == true
         and action_matcher.matches_expected_action_id({ id = 854 }, 855, jamie_di_rule) == true,
     "the universal DI alias must merge with character-specific Action ID 854 rules")
+local cammy_force_rule = { runtime_force_after_ids = "652,653,926" }
+local resolved_cammy_force = character_rules.apply_runtime_overrides(
+    "AnyCharacter",
+    908,
+    cammy_force_rule,
+    { { id = 653 } }
+)
+assert(resolved_cammy_force.force == true
+        and cammy_force_rule.force == nil,
+    "runtime force transitions must come from exception data without mutating it")
+assert(character_rules.apply_runtime_overrides(
+        "Cammy",
+        908,
+        cammy_force_rule,
+        { { id = 700 } }
+    ).force ~= true,
+    "runtime force mappings must reject an undeclared predecessor")
 do
 local aki_recording_rules = {
         ["944"] = {
@@ -1087,8 +1159,37 @@ assert(character_rules.find_recording_absorb_owner({
 local lily_930_rules = {
     ["930"] = {
         absorb_ids = "929",
+        action_event_rules = {
+            transient_precursor_ids = "929",
+        },
     },
 }
+local lily_action_event_rules =
+    character_rules.build_action_event_rules(lily_930_rules, {})
+assert(lily_action_event_rules.transient_input_precursor_transitions[929][930]
+        == true,
+    "exception data must compile transient precursor mappings for compiler and runtime")
+assert(next(character_rules.build_action_event_rules({
+        ["930"] = { action_event_rules = { transient_precursor_ids = "bad" } },
+    }, {}).transient_input_precursor_transitions) == nil,
+    "malformed transient precursor mappings must fail closed")
+local jamie_tail_rules = character_rules.build_action_event_rules({
+    ["657"] = {
+        action_event_rules = {
+            suppress_after = {
+                previous_ids = "652",
+                anchor_kind = "button_release",
+                max_delay_frames = 64,
+                require_no_contact = true,
+            },
+        },
+    },
+}, {})
+assert(jamie_tail_rules.suppress_after[657].previous_ids[652] == true
+        and jamie_tail_rules.suppress_after[657].anchor_kind == "button_release"
+        and jamie_tail_rules.suppress_after[657].max_delay_frames == 64
+        and jamie_tail_rules.suppress_after[657].require_no_contact == true,
+    "exception data must compile exact Action-event suppression predicates")
 local lily_930_expected = { id = 930, expected_combo = 6 }
 local lily_930_canonical = character_rules.match_current_canonical_confirmation(
     lily_930_rules, {}, lily_930_expected, 929, 6, "Lily")
@@ -1103,6 +1204,7 @@ local lily_transient_ignore = action_matcher.classify_runtime_transition({
     expected_step = lily_930_expected,
     expected_action_matches_current = false,
     actual_action_id = 929,
+    action_event_rules = lily_action_event_rules,
     input_anchor_kind = "button_press",
     input_truth_mode = true,
 })
@@ -1114,6 +1216,7 @@ local lily_transient_wrong_step = action_matcher.classify_runtime_transition({
     expected_step = { id = 941, expected_combo = 8 },
     expected_action_matches_current = false,
     actual_action_id = 929,
+    action_event_rules = lily_action_event_rules,
     input_anchor_kind = "button_press",
     input_truth_mode = true,
 })
@@ -1124,6 +1227,7 @@ local ryu_transient_mismatch = action_matcher.classify_runtime_transition({
     expected_step = lily_930_expected,
     expected_action_matches_current = false,
     actual_action_id = 929,
+    action_event_rules = {},
     input_anchor_kind = "button_press",
     input_truth_mode = true,
 })
@@ -1149,14 +1253,31 @@ local lily_930_recent = character_rules.find_recent_absorb_confirmation(
 assert(lily_930_recent.matched == true
         and lily_930_recent.actual_action_id == 929,
     "recent-input playback must retain the same Lily 929 absorb confirmation")
+local honda_pending_policy = character_rules.match_current_absorb_confirmation(
+    {
+        _character = { allow_pending_absorb = true },
+        ["605"] = { absorb_ids = "606" },
+    },
+    {},
+    { id = 605, expected_combo = 3 },
+    606,
+    1,
+    "AnyCharacter"
+)
+assert(honda_pending_policy.matched == false
+        and honda_pending_policy.block_reason == "combo_not_reached"
+        and honda_pending_policy.allow_pending_absorb == true,
+    "pending absorb permission must come from character exception data")
 local lily_exception_source = read_all(
     "data/TrainingComboTrials_data/exceptions/Lily.json")
 assert(lily_exception_source:find('"930"', 1, true)
         and lily_exception_source:find('"absorb_ids": "929"', 1, true)
+        and lily_exception_source:find('"transient_precursor_ids": "929"', 1, true)
         and not lily_exception_source:find('"action_alias_ids": "929"', 1, true)
         and not lily_exception_source:find('"canonical_owner_ids": "929"', 1, true),
     "the shipped Lily exception must keep 929 as an absorb-only transient precursor")
-local deejay_sa3_exception = character_rules.get_match_rule({}, {}, "DeeJay", 1268)
+local deejay_sa3_exception = character_rules.get_match_rule(
+    deejay_variant_rules, {}, "DeeJay", 1268)
 assert(deejay_sa3_exception ~= nil,
     "Dee Jay SA3/CA compatibility must live in character rules, not legacy combo JSON")
 assert(action_matcher.matches_expected_action_id({ id = 1268 }, 1272, deejay_sa3_exception) == true,
@@ -1201,7 +1322,8 @@ effective_combo, combo_source = action_matcher.effective_expected_combo(
 )
 assert(effective_combo == 46 and combo_source == "recorded_expected_combo",
     "the normal SA3 runtime variant must retain the old file's recorded target")
-local deejay_ca_exception = character_rules.get_match_rule({}, {}, "DeeJay", 1272)
+local deejay_ca_exception = character_rules.get_match_rule(
+    deejay_variant_rules, {}, "DeeJay", 1272)
 local legacy_ca_step = {
     id = 1272,
     expected_combo = 37,

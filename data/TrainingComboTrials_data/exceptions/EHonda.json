@@ -1,4 +1,18 @@
 {
+  "_character": {
+    "allow_pending_absorb": true,
+    "transcription_rules": {
+      "initial_unique_requirements": [
+        {
+          "fighter_id": 20,
+          "resource_id": "stock_0_020",
+          "value": 1,
+          "required_action_ids": "925,926,927,928,929",
+          "producer_action_ids": "970,971"
+        }
+      ]
+    }
+  },
   "605": {
     "absorb_ids": "606"
   },
@@ -54,15 +68,27 @@
     "absorb_ids": "921"
   },
   "970": {
-    "absorb_ids": "971"
+    "absorb_ids": "971",
+    "action_alias_ids": "971"
   },
   "971": {
-    "force": true
+    "force": true,
+    "action_alias_ids": "970"
   },
   "972": {
-    "absorb_ids": "973"
+    "absorb_ids": "973",
+    "action_alias_ids": "973"
   },
   "973": {
-    "force": true
+    "force": true,
+    "action_alias_ids": "972"
+  },
+  "1215": {
+    "absorb_ids": "1216",
+    "action_event_projection": {}
+  },
+  "1221": {
+    "absorb_ids": "1222",
+    "action_event_projection": {}
   }
 }

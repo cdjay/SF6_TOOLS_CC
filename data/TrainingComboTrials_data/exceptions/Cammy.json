@@ -4,6 +4,10 @@
       615
     ]
   },
+  "652": {
+    "absorb_ids": "653",
+    "action_event_projection": {}
+  },
   "720": {
     "force": true
   },
@@ -12,10 +16,20 @@
     "charge_min": 15,
     "charge_max": 15
   },
+  "908": {
+    "runtime_force_after_ids": "652,653,926"
+  },
   "919": {
     "is_holdable": true,
     "charge_min": 14,
     "charge_max": 14
+  },
+  "922": {
+    "runtime_force_after_ids": "652,653,926"
+  },
+  "916": {
+    "absorb_ids": "933",
+    "action_event_projection": {}
   },
   "947": {
     "is_holdable": true,
@@ -24,8 +38,16 @@
   },
   "979": {
     "absorb_ids": "980,981",
+    "action_event_projection": {},
+    "action_event_rules": {
+      "transient_precursor_ids": "966"
+    },
     "optional_parent_ids": [
       966
     ]
+  },
+  "1022": {
+    "absorb_ids": "1023",
+    "action_event_projection": {}
   }
 }

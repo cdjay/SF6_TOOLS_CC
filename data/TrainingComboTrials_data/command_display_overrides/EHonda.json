@@ -1,0 +1,11 @@
+{
+  "schema": "xt.command_display_overrides.v1",
+  "character": "EHonda",
+  "entries": {
+    "660": {
+      "classic": "3+HK",
+      "replace": true,
+      "evidence": "Runtime audit reproduced Action 660 from the recorded directional HK input with matching contact, combo count, damage and timing"
+    }
+  }
+}

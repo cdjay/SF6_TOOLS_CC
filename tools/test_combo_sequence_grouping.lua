@@ -1,4 +1,21 @@
 local grouping = dofile("autorun/func/ComboTrials/SequenceGrouping.lua")
+local character_rules = dofile("autorun/func/ComboTrials/CharacterRules.lua")
+
+local deejay_grouping_rules = character_rules.build_sequence_grouping_rules({
+    _character = {
+        sequence_grouping = {
+            structural_followup_chains = {
+                { 1219, 1220, 1221, 1222, 1223, 1224, 1225 },
+                { 1230, 1231, 1232, 1233, 1234, 1235, 1236 },
+            },
+        },
+    },
+}, {})
+local juri_grouping_rules = character_rules.build_sequence_grouping_rules({
+    _character = {
+        sequence_grouping = { break_followup_after_ids = "1218" },
+    },
+}, {})
 
 local function group_ids(sequence)
     local ids = {}
@@ -16,7 +33,7 @@ local sa2_hp = {
     { id = 1235, motion = "HK" },
     { id = 1236, motion = "HK" }
 }
-grouping.assign_groups(sa2_hp)
+grouping.assign_groups(sa2_hp, nil, deejay_grouping_rules)
 assert(group_ids(sa2_hp) == "1,2,2,2,2,2,2,2",
     "Dee Jay HP SA2 rhythm inputs must share one row after the first LP")
 assert(sa2_hp[3].motion == "MP",
@@ -32,7 +49,7 @@ local sa2_mp = {
     { id = 1224, motion = "HK" },
     { id = 1225, motion = "HK" }
 }
-grouping.assign_groups(sa2_mp, "Dee Jay")
+grouping.assign_groups(sa2_mp, "Dee Jay", deejay_grouping_rules)
 assert(group_ids(sa2_mp) == "1,2,2,2,2,2,2,2",
     "Dee Jay MP SA2 rhythm inputs must support normalized character names")
 
@@ -41,7 +58,7 @@ local interrupted = {
     { id = 700, motion = "2+MP" },
     { id = 1231, motion = "MP" }
 }
-grouping.assign_groups(interrupted, "DeeJay")
+grouping.assign_groups(interrupted, "DeeJay", deejay_grouping_rules)
 assert(group_ids(interrupted) == "1,2,3",
     "an interrupted SA2 action list must not merge unrelated steps")
 
@@ -70,7 +87,7 @@ local juri = {
     { id = 1218, motion = "236236+K", _xt_meta = { character = "Juri" } },
     { id = 999, motion = ">K" }
 }
-grouping.assign_groups(juri)
+grouping.assign_groups(juri, nil, juri_grouping_rules)
 assert(group_ids(juri) == "1,2" and juri[2].motion == "K",
     "the legacy Juri false-follow-up exception must remain intact")
 

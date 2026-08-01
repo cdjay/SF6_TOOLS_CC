@@ -424,4 +424,37 @@ assert(pressure_applied == true
     and pressure_runtime.success_timer == 120,
     "the exact terminal pressure Action must finish immediately without a hit")
 
+do
+    local pending_state = {
+        sequence = {
+            { id = 605, expected_combo = 3 },
+            { id = 700, delay_from_prev = 20 },
+        },
+        current_step = 1,
+        success_timer = 0,
+        fail_timer = 0,
+    }
+    local pending_probe = {
+        step = 1,
+        frame = 100,
+        frame_diff = 0,
+        current_combo = 1,
+        action_instance = 9,
+    }
+    local stored = PendingAbsorb.store({
+        state = pending_state,
+        p_state = { profile_name = "AnyCharacter" },
+        pf = { current_combo = 1 },
+        frame = 100,
+    }, pending_state.sequence[1], {
+        block_reason = "combo_not_reached",
+        allow_pending_absorb = true,
+        actual_action_id = 606,
+        absorb_ids = "606",
+    }, pending_probe, 9000)
+    assert(stored == true
+            and pending_state._pending_current_absorb.actual_action_id == 606,
+        "pending absorb storage must use the data policy instead of a character name")
+end
+
 print("combo validator tests passed")

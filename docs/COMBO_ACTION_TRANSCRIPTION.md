@@ -55,6 +55,28 @@ owner 折叠，canonical 的时间窗口与同锚要求也必须由该产品数�
 `normalized_from_action_id`，供人工比较真实分支。这不是宽泛 Action 别名，关系不匹配时
 仍然严格失败。
 
+所有角色 Action ID 关系必须保存在 `exceptions/<Character>.json`，通用 Lua 不得按角色名
+或角色 Action ID 分支。`action_event_projection` 描述 command owner 与内部阶段；
+`action_event_rules.transient_precursor_ids` 描述同一物理输入短暂产生的前驱 Action；
+`action_event_rules.suppress_after` 描述只在指定前驱、锚点类型、时间窗口和接触条件下抑制的
+尾部 Action。`CharacterRules` 只把这些产品数据编译成纯运行时关系表，
+`ActionEventCompiler` 与实时验证器消费同一张表。
+
+实时检测中的角色条件同样必须数据化：Action 条目的 `runtime_force_after_ids` 只在声明的
+前驱 Action 后启用强制识别；角色根级 `_character.allow_pending_absorb` 控制该角色能否在
+连击数尚未到达时暂存内部命中阶段；`preserve_short_action` 控制短 Action 是否绕过通用幽灵
+过滤。Lua 只执行这些布尔策略，不识别角色名或角色 Action ID。
+
+展示分组和旧文件环境修复也遵守相同边界：
+`_character.sequence_grouping.structural_followup_chains` 与
+`break_followup_after_ids` 保存 Action 间的分组关系；
+`_character.transcription_rules.initial_unique_requirements` 保存“哪些 Action 证明起始角色资源
+必需”的映射。`SequenceGrouping` 和 `Transcriber` 只实现通用关系解析与事实推导。
+
+被抑制或折叠的 Action 默认只向 command owner 合并命中、格挡、连击数和累计伤害等结果
+事实。它的按钮边沿、松键掩码、蓄力帧和 `is_holdable` 分类不属于 owner，不得传播；只有
+通用机制明确把一个输入前驱提升为真实 command owner 时，才允许迁移输入锚点事实。
+
 Action ID 对应的经典指令优先由已审计的角色指令表解析。解析器报错仍会使批量转录失败。
 如果目录缺少某个 Action，但它绑定了明确按键并在运行时真实命中、格挡或形成明确的
 非接触设置动作，转录阶段可以保留该 ID，并从完整输入方向序列生成待验证 motion，同时

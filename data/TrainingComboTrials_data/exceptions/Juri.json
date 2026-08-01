@@ -1,4 +1,9 @@
 {
+  "_character": {
+    "sequence_grouping": {
+      "break_followup_after_ids": "1218"
+    }
+  },
   "569": {
     "ignore": true
   },

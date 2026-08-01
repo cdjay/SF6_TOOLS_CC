@@ -8,6 +8,84 @@ local CharacterRules = require("func/ComboTrials/CharacterRules")
 local ActionMatcher = require("func/ComboTrials/ActionMatcher")
 local SceneState = require("func/ComboTrials/SceneState")
 
+ACTION_EVENT_FIXTURES = {
+    Alex = {
+        ["608"] = { absorb_ids = "610", action_event_projection = {} },
+        ["976"] = { absorb_ids = "977", action_event_projection = {} },
+        ["1208"] = { absorb_ids = "1209", action_event_projection = {} },
+    },
+    Cammy = {
+        ["652"] = { absorb_ids = "653", action_event_projection = {} },
+        ["916"] = { absorb_ids = "933", action_event_projection = {} },
+        ["979"] = {
+            absorb_ids = "980,981",
+            action_event_projection = {},
+            action_event_rules = { transient_precursor_ids = "966" },
+        },
+        ["1022"] = { absorb_ids = "1023", action_event_projection = {} },
+    },
+    EHonda = {
+        _character = {
+            transcription_rules = {
+                initial_unique_requirements = {
+                    {
+                        fighter_id = 20,
+                        resource_id = "stock_0_020",
+                        value = 1,
+                        required_action_ids = "925,926,927,928,929",
+                        producer_action_ids = "970,971",
+                    },
+                },
+            },
+        },
+        ["1215"] = { absorb_ids = "1216", action_event_projection = {} },
+        ["1221"] = { absorb_ids = "1222", action_event_projection = {} },
+    },
+    Lily = {
+        ["930"] = {
+            action_event_rules = { transient_precursor_ids = "929" },
+        },
+    },
+    Jamie = {
+        ["608"] = { action_event_rules = { transient_precursor_ids = "657" } },
+        ["610"] = { action_event_rules = { transient_precursor_ids = "657" } },
+        ["620"] = { action_event_rules = { transient_precursor_ids = "513" } },
+        ["628"] = { action_event_rules = { transient_precursor_ids = "512" } },
+        ["657"] = {
+            action_event_rules = {
+                suppress_after = {
+                    previous_ids = "652",
+                    anchor_kind = "button_release",
+                    max_delay_frames = 64,
+                    require_no_contact = true,
+                },
+            },
+        },
+    },
+}
+
+COMMON_ACTION_VARIANT_FIXTURES = {
+    ["854"] = { action_alias_ids = "855" },
+}
+
+HONDA_ACTION_VARIANT_FIXTURES = {
+    ["970"] = { action_alias_ids = "971" },
+    ["971"] = { action_alias_ids = "970" },
+    ["972"] = { action_alias_ids = "973" },
+    ["973"] = { action_alias_ids = "972" },
+}
+
+function new_character_rule_session(character, frame)
+    local exceptions = ACTION_EVENT_FIXTURES[character] or {}
+    return compiler.new({
+        character = character,
+        frame = frame or 0,
+        action_event_projection_rules =
+            CharacterRules.build_action_event_projection_rules(exceptions, {}),
+        action_event_rules = CharacterRules.build_action_event_rules(exceptions, {}),
+    })
+end
+
 assert(compiler.BIND_WINDOW == ActionMatcher.PLAYER_ACTION_BIND_WINDOW,
     "compiler and runtime validator must share one physical-input bind window")
 assert(ActionMatcher.sequence_uses_input_truth({
@@ -1102,7 +1180,7 @@ assert(contact_fallback_evaluation.ok == true
         == "input_derived_contact_motion:1",
     "a contact-proven input-derived motion must be auditable without blocking transcription")
 
-local honda_super_contact_phase = compiler.new({ character = "EHonda", frame = 0 })
+local honda_super_contact_phase = new_character_rule_session("EHonda")
 honda_super_contact_phase.events = {
     {
         id = 1221,
@@ -1152,7 +1230,7 @@ assert(#honda_super_contact_result.steps == 1
         == "character_internal_action_phase",
     "Honda's unmapped super contact phase must merge into the real super command")
 
-local alex_super_recovery_phase = compiler.new({ character = "Alex", frame = 0 })
+local alex_super_recovery_phase = new_character_rule_session("Alex")
 alex_super_recovery_phase.events = {
     {
         id = 1208,
@@ -1212,7 +1290,7 @@ assert(#alex_super_recovery_result.steps == 2
         == "character_internal_action_phase",
     "Alex's unmapped super recovery phase must merge into the real super command")
 
-local alex_hp_contact_phase = compiler.new({ character = "Alex", frame = 0 })
+local alex_hp_contact_phase = new_character_rule_session("Alex")
 alex_hp_contact_phase.events = {
     {
         id = 608,
@@ -1267,7 +1345,7 @@ assert(#alex_hp_contact_result.steps == 2
         == "character_internal_action_phase",
     "Alex's unmapped HP contact phase must merge into the real HP command")
 
-local alex_hp_release_phase = compiler.new({ character = "Alex", frame = 0 })
+local alex_hp_release_phase = new_character_rule_session("Alex")
 alex_hp_release_phase.events = {
     {
         id = 976,
@@ -1313,7 +1391,7 @@ assert(#alex_hp_release_result.steps == 1
         == "character_internal_action_phase",
     "Alex's mapped HP release phase must merge only after Action 976")
 
-local cammy_target_combo_phase = compiler.new({ character = "Cammy", frame = 0 })
+local cammy_target_combo_phase = new_character_rule_session("Cammy")
 cammy_target_combo_phase.events = {
     {
         id = 652,
@@ -1362,7 +1440,7 @@ assert(#cammy_target_combo_result.steps == 2
         == "character_internal_action_phase",
     "Cammy's second target-combo contact Action must merge into its command owner")
 
-local cammy_internal_recovery = compiler.new({ character = "Cammy", frame = 0 })
+local cammy_internal_recovery = new_character_rule_session("Cammy")
 cammy_internal_recovery.events = {
     {
         id = 916,
@@ -1428,7 +1506,7 @@ assert(#cammy_internal_recovery_result.steps == 3
     and cammy_internal_recovery_result.trace.suppressed_events[2].id == 1023,
     "Cammy's grounded and aerial recovery phases must not become instructions")
 
-local cammy_air_throw_chord = compiler.new({ character = "Cammy", frame = 0 })
+local cammy_air_throw_chord = new_character_rule_session("Cammy")
 cammy_air_throw_chord.events = {
     {
         id = 966,
@@ -1482,7 +1560,7 @@ assert(#cammy_air_throw_result.steps == 1
 
 do
 local function finalize_lily_staggered_kicks(first_contact, delay, projection_rules)
-    local session = compiler.new({ character = "Lily", frame = 0 })
+    local session = new_character_rule_session("Lily")
     if projection_rules then
         session.action_event_projection_rules = projection_rules
     end
@@ -4612,7 +4690,12 @@ local action_variant_drift = transcriber.evaluate({
     input_completed = true,
     allow_legacy_damage_drift = true,
     action_ids_equivalent = function(expected_id, observed_id)
-        local rule = CharacterRules.get_match_rule(nil, nil, "Ryu", expected_id)
+        local rule = CharacterRules.get_match_rule(
+            nil,
+            COMMON_ACTION_VARIANT_FIXTURES,
+            "Ryu",
+            expected_id
+        )
         return ActionMatcher.matches_expected_action_id(
             { id = expected_id },
             observed_id,
@@ -4800,7 +4883,12 @@ assert(strict_owner_verification.ok == false
     "the legacy owner bridge must not weaken generated candidate raw replay IDs")
 end
 for _, pair in ipairs({ { 970, 971 }, { 971, 970 }, { 972, 973 }, { 973, 972 } }) do
-    local rule = CharacterRules.get_match_rule(nil, nil, "EHonda", pair[1])
+    local rule = CharacterRules.get_match_rule(
+        HONDA_ACTION_VARIANT_FIXTURES,
+        nil,
+        "EHonda",
+        pair[1]
+    )
     assert(ActionMatcher.matches_expected_action_id(
             { id = pair[1] },
             pair[2],
@@ -5200,8 +5288,15 @@ local honda_legacy_buff_source = {
         },
     },
 }
+local honda_transcription_rules = CharacterRules.build_transcription_rules(
+    ACTION_EVENT_FIXTURES.EHonda,
+    {}
+)
 local prepared_honda_buff, honda_buff_adjustments =
-    transcriber.prepare_capture_sequence(honda_legacy_buff_source)
+    transcriber.prepare_capture_sequence(
+        honda_legacy_buff_source,
+        honda_transcription_rules
+    )
 local prepared_honda_roles = SceneState.resolve_roles(prepared_honda_buff[1], 0)
 assert(#honda_buff_adjustments == 1
     and honda_buff_adjustments[1].field
@@ -5211,7 +5306,10 @@ assert(#honda_buff_adjustments == 1
     and prepared_honda_roles.actor.state.unique.stock_0_020 == 1
     and honda_legacy_buff_source[1].scene_state.players.p1.unique.stock_0_020 == 0,
     "an enhanced Honda Action must repair missing initial Sumo Spirit on the copied scene")
-local honda_buff_causes = transcriber.suspected_causes(honda_legacy_buff_source)
+local honda_buff_causes = transcriber.suspected_causes(
+    honda_legacy_buff_source,
+    honda_transcription_rules
+)
 assert(table.concat(honda_buff_causes, ","):match(
         "actor_character_resource_required"
     ),
@@ -5222,7 +5320,10 @@ honda_runtime_buff_source[1].id = 970
 honda_runtime_buff_source[1].scene_state.players.p1.unique.stock_0_020 = 0
 honda_runtime_buff_source[2] = { id = 926, motion = "214+HP", expected_hp = 10500 }
 local prepared_runtime_buff, runtime_buff_adjustments =
-    transcriber.prepare_capture_sequence(honda_runtime_buff_source)
+    transcriber.prepare_capture_sequence(
+        honda_runtime_buff_source,
+        honda_transcription_rules
+    )
 assert(#runtime_buff_adjustments == 0
     and prepared_runtime_buff[1].scene_state.players.p1.unique.stock_0_020 == 0,
     "a replay that establishes Honda stock before the enhanced Action must retain stock zero")
@@ -5269,6 +5370,13 @@ assert(#wall_stun_adjustments == 3
         and legacy_wall_stun_source[1].scene_state.players.p2.resources.drive == 60000
         and legacy_wall_stun_source[1].scene_state.players.p2.status.burnout == false,
     "runtime-proven opening wall stun must repair burnout and Guard All only on the copied pseudo-V2 scene")
+local alternate_di_id_source = transcriber.deep_copy(legacy_wall_stun_source)
+alternate_di_id_source[1].id = 9999
+local prepared_alternate_di, alternate_di_adjustments =
+    transcriber.prepare_capture_sequence(alternate_di_id_source)
+assert(#alternate_di_adjustments == 3
+        and prepared_alternate_di[1].scene_state.players.p2.resources.drive == 0,
+    "wall-stun repair must follow recorded DI facts instead of hardcoded Action IDs")
 local prepared_wall_stun_again, repeated_wall_stun_adjustments =
     transcriber.prepare_capture_sequence(prepared_wall_stun)
 assert(#repeated_wall_stun_adjustments == 0
@@ -5537,7 +5645,7 @@ local honda_variant_verified = transcriber.verify_candidate(
         input_completed = true,
         action_ids_equivalent = function(expected_id, observed_id)
             local rule = CharacterRules.get_match_rule(
-                nil,
+                HONDA_ACTION_VARIANT_FIXTURES,
                 nil,
                 "EHonda",
                 expected_id
@@ -5888,5 +5996,192 @@ assert(table.concat(causes, ",")
         == "first_hit_punish_counter,actor_low_health,actor_character_resource_required,"
             .. "defender_burnout,defender_virtual_damage,defender_guard_state_change",
     "failed reports must identify all known scene prerequisites without changing Action truth")
+
+function test_data_driven_recent_regressions()
+    local jamie_transient = new_character_rule_session("Jamie")
+    jamie_transient.events = {
+        {
+            id = 512,
+            frame = 100,
+            expected_combo = 0,
+            damage_at_step = 0,
+            has_hit = false,
+            has_contact = false,
+            anchor = { kind = "button_press", pressed_buttons = 32 },
+        },
+        {
+            id = 628,
+            frame = 101,
+            expected_combo = 1,
+            damage_at_step = 600,
+            has_hit = true,
+            has_contact = true,
+            anchor = { kind = "button_press", pressed_buttons = 32 },
+        },
+    }
+    jamie_transient.current_damage = 600
+    jamie_transient.max_combo = 1
+    local jamie_transient_result = compiler.finalize(jamie_transient, {
+        motion_resolver = function(action_id)
+            if action_id == 512 then return "MP", "strict_route" end
+            if action_id == 628 then return "2+MP", "strict_route" end
+            return nil, "action_id_missing"
+        end,
+    })
+    assert(#jamie_transient_result.steps == 1
+            and jamie_transient_result.steps[1].id == 628
+            and jamie_transient_result.trace.suppressed_events[1].id == 512
+            and jamie_transient_result.trace.suppressed_events[1].reason
+                == "character_transient_input_precursor",
+        "Jamie transient input mappings must come from injected exception data")
+
+    local runtime_transient = ActionMatcher.classify_runtime_transition({
+        expected_step = { id = 628 },
+        actual_action_id = 512,
+        input_anchor_kind = "button_press",
+        input_truth_mode = true,
+        action_event_rules = jamie_transient.action_event_rules,
+    })
+    assert(runtime_transient.ignored == true
+            and runtime_transient.reason == "transient_input_precursor",
+        "live validation must consume the same injected transient mapping")
+
+    local jamie_release_tail = new_character_rule_session("Jamie")
+    jamie_release_tail.events = {
+        {
+            id = 652,
+            frame = 100,
+            expected_combo = 1,
+            damage_at_step = 800,
+            has_hit = true,
+            has_contact = true,
+            anchor = { kind = "button_press", pressed_buttons = 64 },
+        },
+        {
+            id = 657,
+            frame = 140,
+            expected_combo = 0,
+            damage_at_step = 800,
+            has_hit = false,
+            has_contact = false,
+            anchor = { kind = "button_release", released_buttons = 64 },
+        },
+    }
+    jamie_release_tail.current_damage = 800
+    jamie_release_tail.max_combo = 1
+    local jamie_release_result = compiler.finalize(jamie_release_tail, {
+        motion_resolver = function(action_id)
+            if action_id == 652 then return "j.HP", "strict_route" end
+            if action_id == 657 then return "7+HK", "runtime_verified_override" end
+            return nil, "action_id_missing"
+        end,
+    })
+    assert(#jamie_release_result.steps == 1
+            and jamie_release_result.steps[1].id == 652
+            and jamie_release_result.trace.suppressed_events[1].id == 657
+            and jamie_release_result.trace.suppressed_events[1].reason
+                == "character_action_event_suppression",
+        "Jamie release tails must be suppressed only by injected exception data")
+
+    local late_tail = new_character_rule_session("Jamie")
+    late_tail.events = transcriber.deep_copy(jamie_release_tail.events)
+    late_tail.events[2].frame = 165
+    late_tail.current_damage = 800
+    late_tail.max_combo = 1
+    local late_tail_result = compiler.finalize(late_tail, {
+        motion_resolver = function(action_id)
+            if action_id == 652 then return "j.HP", "strict_route" end
+            if action_id == 657 then return "7+HK", "runtime_verified_override" end
+            return nil, "action_id_missing"
+        end,
+    })
+    assert(#late_tail_result.steps == 2,
+        "a mapped release tail outside its JSON window must remain visible")
+
+    local dash_jitter = compiler.new({ character = "Ryu", frame = 0 })
+    dash_jitter.events = {
+        {
+            id = 17,
+            frame = 100,
+            anchor = { kind = "double_tap", direction = "6" },
+        },
+        {
+            id = 17,
+            frame = 101,
+            anchor = { kind = "double_tap", direction = "6" },
+        },
+    }
+    local dash_result = compiler.finalize(dash_jitter, {
+        motion_resolver = function(action_id)
+            if action_id == 17 then return "66", "strict_route" end
+            return nil, "action_id_missing"
+        end,
+    })
+    assert(#dash_result.steps == 1
+            and dash_result.trace.suppressed_events[1].reason
+                == "redundant_dash_transition",
+        "a same-Action double-tap jitter must not create a second Dash step")
+
+    local long_delay_candidate = {
+        {
+            id = 600,
+            motion = "LP",
+            expected_combo = 1,
+            damage_at_step = 500,
+            has_hit = true,
+            has_contact = true,
+            relative_raw_inputs = { 16, 0, 32, 0 },
+            combo_stats = { damage = 1000, drive_used = 0, super_used = 0 },
+        },
+        {
+            id = 601,
+            motion = "MP",
+            expected_combo = 2,
+            damage_at_step = 1000,
+            has_hit = true,
+            has_contact = true,
+            delay_from_prev = 700,
+        },
+    }
+    local long_delay_compiled = {
+        steps = transcriber.deep_copy(long_delay_candidate),
+        stats = {
+            damage = 1000,
+            max_combo = 2,
+            unresolved_anchors = 0,
+            block_contacts = 0,
+            drive_used = 0,
+            super_used = 0,
+        },
+    }
+    long_delay_compiled.steps[2].delay_from_prev = 711
+    local long_delay_runtime = {
+        raw_inputs = long_delay_candidate[1].relative_raw_inputs,
+        input_source = "relative_raw_inputs",
+        input_completed = true,
+        timed_out = false,
+        timing_tolerance = 2,
+    }
+    assert(transcriber.verify_candidate(
+            long_delay_candidate,
+            long_delay_compiled,
+            long_delay_runtime
+        ).ok == true,
+        "a 700-frame delay must accept the documented 1.5 percent boundary")
+    long_delay_compiled.steps[2].delay_from_prev = 712
+    local outside_long_delay = transcriber.verify_candidate(
+        long_delay_candidate,
+        long_delay_compiled,
+        long_delay_runtime
+    )
+    assert(outside_long_delay.ok == false
+            and table.concat(outside_long_delay.reasons, ","):match(
+                "raw_replay_action_timing_mismatch"
+            ),
+        "a 700-frame delay must reject drift beyond the 1.5 percent boundary")
+end
+
+test_data_driven_recent_regressions()
+test_data_driven_recent_regressions = nil
 
 print("combo action event compiler tests passed")

@@ -7,42 +7,6 @@ local CharacterRules = {
 local EXCEPTION_DIR = "TrainingComboTrials_data/exceptions"
 local COMMON_EXCEPTIONS_FILE = EXCEPTION_DIR .. "/Common.json"
 
--- Some commands select a different runtime Action ID according to game version
--- or runtime state. Keep this compatibility outside recorded combo JSON so
--- legacy files remain portable and immutable.
-local UNIVERSAL_ACTION_VARIANT_RULES = {
-    -- Older recordings use 854 for Drive Impact. Current command data and
-    -- runtime use 855 for the same DI command.
-    ["854"] = {
-        action_alias_ids = "855"
-    }
-}
-
-local ACTION_VARIANT_RULES = {
-    DeeJay = {
-        ["1268"] = {
-            action_alias_ids = "1272",
-            action_alias_combo_deltas = { ["1272"] = 23 },
-            finish_on_first_hit = true
-        },
-        ["1272"] = {
-            action_alias_ids = "1268",
-            action_alias_combo_deltas = { ["1268"] = 32 },
-            finish_on_first_hit = true
-        }
-    },
-    EHonda = {
-        -- These pairs are verified inherited variants of the same physical
-        -- command. The game can select either member on two identical raw
-        -- replays, so matching must be symmetric while the captured real ID
-        -- remains in the candidate JSON.
-        ["970"] = { action_alias_ids = "971" },
-        ["971"] = { action_alias_ids = "970" },
-        ["972"] = { action_alias_ids = "973" },
-        ["973"] = { action_alias_ids = "972" }
-    }
-}
-
 local function merge_match_rule(base, overlay)
     if not overlay then return base end
     if not base then return overlay end
@@ -80,14 +44,9 @@ function CharacterRules.get_exception(character_rules, common_rules, action_id)
 end
 
 function CharacterRules.get_match_rule(character_rules, common_rules, character_name, action_id)
-    local exception = CharacterRules.get_exception(character_rules, common_rules, action_id)
-    local universal_variant = UNIVERSAL_ACTION_VARIANT_RULES[tostring(action_id)]
-    local character_variants = ACTION_VARIANT_RULES[tostring(character_name or "")]
-    local character_variant = character_variants and character_variants[tostring(action_id)] or nil
-    return merge_match_rule(
-        merge_match_rule(exception, universal_variant),
-        character_variant
-    )
+    local _, character_exception, common_exception =
+        CharacterRules.get_exception(character_rules, common_rules, action_id)
+    return merge_match_rule(common_exception, character_exception)
 end
 
 function CharacterRules.has_character_exception(character_rules, action_id)
@@ -107,9 +66,155 @@ local function parse_id_set(value)
     return ids
 end
 
+local function character_policy(character_rules, common_rules)
+    local common_policy = type(common_rules) == "table"
+        and type(common_rules._character) == "table"
+        and common_rules._character or nil
+    local specific_policy = type(character_rules) == "table"
+        and type(character_rules._character) == "table"
+        and character_rules._character or nil
+    return merge_match_rule(common_policy, specific_policy) or {}
+end
+
+-- Compile product-data mappings into a pure grouping rule table. The grouping
+-- module only understands predecessor and break relations; character identity
+-- and Action IDs stay in exception JSON.
+function CharacterRules.build_sequence_grouping_rules(character_rules, common_rules)
+    local policy = character_policy(character_rules, common_rules)
+    local config = type(policy.sequence_grouping) == "table"
+        and policy.sequence_grouping or {}
+    local result = {
+        predecessor_by_action = {},
+        break_after_ids = parse_id_set(config.break_followup_after_ids) or {},
+    }
+
+    for _, chain in ipairs(
+        type(config.structural_followup_chains) == "table"
+            and config.structural_followup_chains or {}
+    ) do
+        if type(chain) == "table" then
+            for index = 2, #chain do
+                local previous_id = tonumber(chain[index - 1])
+                local action_id = tonumber(chain[index])
+                if previous_id ~= nil and action_id ~= nil then
+                    result.predecessor_by_action[action_id] = previous_id
+                end
+            end
+        end
+    end
+    return result
+end
+
+-- Compile legacy transcription requirements from product data. These rules
+-- describe which character resource a set of Actions proves was required at
+-- frame zero; the transcriber owns the generic inference algorithm.
+function CharacterRules.build_transcription_rules(character_rules, common_rules)
+    local policy = character_policy(character_rules, common_rules)
+    local config = type(policy.transcription_rules) == "table"
+        and policy.transcription_rules or {}
+    local result = { initial_unique_requirements = {} }
+
+    for _, requirement in ipairs(
+        type(config.initial_unique_requirements) == "table"
+            and config.initial_unique_requirements or {}
+    ) do
+        if type(requirement) == "table"
+            and type(requirement.resource_id) == "string"
+            and requirement.resource_id ~= "" then
+            result.initial_unique_requirements[#result.initial_unique_requirements + 1] = {
+                fighter_id = tonumber(requirement.fighter_id),
+                resource_id = requirement.resource_id,
+                value = tonumber(requirement.value) or 0,
+                required_action_ids = parse_id_set(requirement.required_action_ids) or {},
+                producer_action_ids = parse_id_set(requirement.producer_action_ids) or {},
+            }
+        end
+    end
+    return result
+end
+
+function CharacterRules.should_preserve_short_action(
+    character_rules,
+    common_rules,
+    action_id
+)
+    local exception = CharacterRules.get_exception(
+        character_rules,
+        common_rules,
+        action_id
+    )
+    return type(exception) == "table"
+        and exception.preserve_short_action == true
+end
+
 local function parse_absorb_ids(exception)
     return type(exception) == "table"
         and parse_id_set(exception.absorb_ids) or nil
+end
+
+local function effective_exception_rules(character_rules, common_rules)
+    local effective = {}
+    for action_id, exception in pairs(common_rules or {}) do
+        effective[tostring(action_id)] = exception
+    end
+    for action_id, exception in pairs(character_rules or {}) do
+        effective[tostring(action_id)] = merge_match_rule(
+            effective[tostring(action_id)],
+            exception
+        )
+    end
+    return effective
+end
+
+-- Build data-only Action-event behavior consumed by both the compiler and
+-- live input-truth validation. Character/action identity stays in exception
+-- JSON; runtime modules only interpret these generic relations.
+function CharacterRules.build_action_event_rules(character_rules, common_rules)
+    local result = {
+        transient_input_precursor_transitions = {},
+        suppress_after = {},
+    }
+
+    for action_id, exception in pairs(
+        effective_exception_rules(character_rules, common_rules)
+    ) do
+        local action_num = tonumber(action_id)
+        local config = type(exception) == "table"
+            and exception.action_event_rules or nil
+        if action_num ~= nil and type(config) == "table" then
+            local precursors = parse_id_set(config.transient_precursor_ids)
+            for precursor_id in pairs(precursors or {}) do
+                local destinations =
+                    result.transient_input_precursor_transitions[precursor_id]
+                if type(destinations) ~= "table" then
+                    destinations = {}
+                    result.transient_input_precursor_transitions[precursor_id] =
+                        destinations
+                end
+                destinations[action_num] = true
+            end
+
+            local suppression = type(config.suppress_after) == "table"
+                and config.suppress_after or nil
+            local previous_ids = suppression
+                and parse_id_set(suppression.previous_ids) or nil
+            local anchor_kind = suppression
+                and tostring(suppression.anchor_kind or "") or ""
+            if type(previous_ids) == "table" and anchor_kind ~= "" then
+                result.suppress_after[action_num] = {
+                    previous_ids = previous_ids,
+                    anchor_kind = anchor_kind,
+                    max_delay_frames = math.max(
+                        0,
+                        tonumber(suppression.max_delay_frames) or 0
+                    ),
+                    require_no_contact = suppression.require_no_contact ~= false,
+                }
+            end
+        end
+    end
+
+    return result
 end
 
 -- Build the pure runtime projection table consumed by ActionEventCompiler.
@@ -120,17 +225,11 @@ function CharacterRules.build_action_event_projection_rules(
     character_rules,
     common_rules
 )
-    local effective_owners = {}
-    for owner_id, exception in pairs(common_rules or {}) do
-        effective_owners[tostring(owner_id)] = exception
-    end
-    for owner_id, exception in pairs(character_rules or {}) do
-        effective_owners[tostring(owner_id)] = exception
-    end
-
     local result = {}
     local ambiguous = {}
-    for owner_id, exception in pairs(effective_owners) do
+    for owner_id, exception in pairs(
+        effective_exception_rules(character_rules, common_rules)
+    ) do
         local owner_num = tonumber(owner_id)
         local projection = type(exception) == "table"
             and exception.action_event_projection or nil
@@ -419,8 +518,7 @@ function CharacterRules.find_recent_absorb_confirmation(character_rules, common_
 
     local exception = CharacterRules.get_exception(character_rules, common_rules, expected.id)
     local absorb_ids = parse_absorb_ids(exception)
-    local is_honda = character_name == "EHonda" or character_name == "Honda"
-    local match_reason = is_honda and "ehonda_recent_absorb" or "exception_recent_absorb"
+    local match_reason = "exception_recent_absorb"
 
     local expected_combo = tonumber(expected.expected_combo)
     if expected_combo == nil then return { matched = false, block_reason = "missing_expected_combo" } end
@@ -471,8 +569,11 @@ function CharacterRules.match_current_absorb_confirmation(character_rules, commo
 
     local exception = CharacterRules.get_exception(character_rules, common_rules, expected.id)
     local absorb_ids = parse_absorb_ids(exception)
-    local is_honda = character_name == "EHonda" or character_name == "Honda"
-    local match_reason = is_honda and "ehonda_current_absorb" or "exception_current_absorb"
+    local match_reason = "exception_current_absorb"
+    local character_policy = type(character_rules) == "table"
+        and type(character_rules._character) == "table"
+        and character_rules._character or {}
+    local allow_pending_absorb = character_policy.allow_pending_absorb == true
 
     local current_id = tonumber(action_id)
     local is_exception_absorb = current_id and absorb_ids and absorb_ids[current_id]
@@ -492,7 +593,8 @@ function CharacterRules.match_current_absorb_confirmation(character_rules, commo
             actual_action_id = current_id,
             combo_count = current_combo,
             expected_combo = expected_combo,
-            absorb_ids = exception and exception.absorb_ids or nil
+            absorb_ids = exception and exception.absorb_ids or nil,
+            allow_pending_absorb = allow_pending_absorb,
         }
     end
 
@@ -507,16 +609,22 @@ function CharacterRules.match_current_absorb_confirmation(character_rules, commo
         source = "current_non_intentional_absorb",
         motion = "Unknown",
         real_input = "None",
-        ignore_combo_check = not absorb_requires_combo(exception)
+        ignore_combo_check = not absorb_requires_combo(exception),
+        allow_pending_absorb = allow_pending_absorb,
     }
 end
 
 function CharacterRules.apply_runtime_overrides(character_name, action_id, exception, log)
-    if character_name == "Cammy" and (action_id == 908 or action_id == 922) then
-        if #log > 0 and (log[1].id == 652 or log[1].id == 653 or log[1].id == 926) then
-            if not exception then exception = {} end
-            exception.force = true
-        end
+    local predecessors = type(exception) == "table"
+        and parse_id_set(exception.runtime_force_after_ids) or nil
+    local previous_id = type(log) == "table" and type(log[1]) == "table"
+        and tonumber(log[1].id) or nil
+    if type(predecessors) == "table" and previous_id ~= nil
+        and predecessors[previous_id] == true then
+        local resolved = {}
+        for key, value in pairs(exception) do resolved[key] = value end
+        resolved.force = true
+        return resolved
     end
     return exception
 end

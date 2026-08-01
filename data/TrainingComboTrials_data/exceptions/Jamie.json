@@ -9,6 +9,26 @@
       604
     ]
   },
+  "608": {
+    "action_event_rules": {
+      "transient_precursor_ids": "657"
+    }
+  },
+  "610": {
+    "action_event_rules": {
+      "transient_precursor_ids": "657"
+    }
+  },
+  "620": {
+    "action_event_rules": {
+      "transient_precursor_ids": "513"
+    }
+  },
+  "628": {
+    "action_event_rules": {
+      "transient_precursor_ids": "512"
+    }
+  },
   "641": {
     "optional_parent_ids": [
       620
@@ -22,6 +42,16 @@
   },
   "643": {
     "force": true
+  },
+  "657": {
+    "action_event_rules": {
+      "suppress_after": {
+        "previous_ids": "652",
+        "anchor_kind": "button_release",
+        "max_delay_frames": 64,
+        "require_no_contact": true
+      }
+    }
   },
   "661": {
     "optional_parent_ids": [

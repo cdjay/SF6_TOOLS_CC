@@ -1,5 +1,7 @@
 {
   "608": {
+    "absorb_ids": "610",
+    "action_event_projection": {},
     "is_holdable": true,
     "charge_min": 7,
     "charge_max": 16
@@ -29,6 +31,8 @@
   },
   "976": {
     "absorb_ids": "977",
+    "action_event_projection": {},
+    "preserve_short_action": true,
     "is_holdable": true,
     "hold_partial_check": false,
     "charge_min": 5,
@@ -36,6 +40,10 @@
   },
   "977": {
     "force": true
+  },
+  "1208": {
+    "absorb_ids": "1209",
+    "action_event_projection": {}
   },
   "1495": {
     "absorb_ids": "1498"

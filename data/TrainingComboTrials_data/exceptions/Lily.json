@@ -22,7 +22,10 @@
     "charge_max": 89
   },
   "930": {
-    "absorb_ids": "929"
+    "absorb_ids": "929",
+    "action_event_rules": {
+      "transient_precursor_ids": "929"
+    }
   },
   "976": {
     "absorb_ids": "974,983,984",

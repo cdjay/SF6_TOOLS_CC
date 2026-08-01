@@ -5,6 +5,11 @@
     "908": {
       "classic": ">HK",
       "evidence": "Raw input reaches Action 908 from 4+MP with a distinct HK press; the legacy combo counter also contains the follow-up hit"
+    },
+    "979": {
+      "classic": "j.LP+LK",
+      "replace": true,
+      "evidence": "Runtime audit reproduced Action 979 from a simultaneous airborne LP+LK input and folded its 980/981 contact phases into the same command owner"
     }
   }
 }

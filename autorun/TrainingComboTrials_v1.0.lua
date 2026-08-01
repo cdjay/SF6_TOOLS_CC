@@ -47,7 +47,6 @@ ct_default_global_flag("CT_HP_RESTORE_TRACE", false)
 ct_default_global_flag("CT_UNIQUE_TRACE", false)
 ct_default_global_flag("CT_DEMO_TRACE", false)
 ct_default_global_flag("CT_VERIFY_TRACE", false)
-ct_default_global_flag("CT_HONDA_NORMAL_DUMP", false)
 ct_default_global_flag("CT_SAME_ACTION_TRACE", false)
 ct_default_global_flag("CT_SAME_ACTION_TRACE_FILE", false)
 ct_default_global_flag("CT_AUTO_FILE_SCAN", false)
@@ -256,6 +255,7 @@ local players = {
         last_bcm_ptr = "", last_direct_input = 0, last_direction_input = 0,
         input_history_queue = {}, dash_tap_state = {},
         profile_name = "Unknown", last_profile_name = "", exceptions = {},
+        action_event_rules = {}, sequence_grouping_rules = {},
         editing_id = -1, edit_ignore = false, edit_force = false,
 		edit_is_common = false, edit_holdable = false, edit_absorb_ids = "",
         edit_charge_min = "", edit_charge_max = "", enable_deep_logging = false,
@@ -269,6 +269,7 @@ local players = {
         last_bcm_ptr = "", last_direct_input = 0, last_direction_input = 0,
         input_history_queue = {}, dash_tap_state = {},
         profile_name = "Unknown", last_profile_name = "", exceptions = {},
+        action_event_rules = {}, sequence_grouping_rules = {},
         editing_id = -1, edit_ignore = false, edit_force = false,
 		edit_is_common = false, edit_holdable = false, edit_absorb_ids = "",
         edit_charge_min = "", edit_charge_max = "", enable_deep_logging = false,
@@ -4061,8 +4062,39 @@ local function apply_current_position_refresh()
 end
 
 
-local function assign_groups(sequence, character_name)
-    return SequenceGrouping.assign_groups(sequence, character_name)
+local function assign_groups(sequence, character_name, grouping_rules)
+    local resolved_character = SequenceGrouping.character_from_sequence(
+        sequence,
+        character_name
+    )
+    if type(grouping_rules) ~= "table" then
+        grouping_rules = CharacterRules.build_sequence_grouping_rules(
+            CharacterRules.load_for_character(resolved_character),
+            common_exceptions
+        )
+    end
+    return SequenceGrouping.assign_groups(
+        sequence,
+        resolved_character,
+        grouping_rules
+    )
+end
+
+ctx.ensure_run_product_rules = function(run)
+    if type(run) ~= "table" then return end
+    if type(run.transcription_rules) == "table"
+        and type(run.sequence_grouping_rules) == "table" then
+        return
+    end
+    local character_rules = CharacterRules.load_for_character(run.character)
+    run.transcription_rules = CharacterRules.build_transcription_rules(
+        character_rules,
+        common_exceptions
+    )
+    run.sequence_grouping_rules = CharacterRules.build_sequence_grouping_rules(
+        character_rules,
+        common_exceptions
+    )
 end
 
 CTTimelineSequenceNormalizer = CTTimelineSequenceNormalizer or {}
@@ -4979,6 +5011,8 @@ ctx.new_action_event_session = function(player_idx, source)
                 p_state and p_state.exceptions or nil,
                 common_exceptions
             ),
+        action_event_rules = p_state and p_state.action_event_rules
+            or CharacterRules.build_action_event_rules(nil, common_exceptions),
     })
 end
 
@@ -7039,6 +7073,15 @@ local function ct_player_init(p_idx, p_state)
         end
         if p_state.profile_name ~= "Unknown" then
             p_state.exceptions = CharacterRules.load_for_character(p_state.profile_name)
+            p_state.action_event_rules = CharacterRules.build_action_event_rules(
+                p_state.exceptions,
+                common_exceptions
+            )
+            p_state.sequence_grouping_rules =
+                CharacterRules.build_sequence_grouping_rules(
+                    p_state.exceptions,
+                    common_exceptions
+                )
         end
     end
 
@@ -7863,8 +7906,12 @@ local function ct_player_input_buffer(p_state)
             local duration = engine_frame_count - p_state.buffer_start_frame
             local is_ghost = false
 
-            -- Bypass ghost filtering for Alex's action 976
-            local is_alex_exempt = (p_state.profile_name == "Alex" and p_state.buffer_act_id == 976)
+            local preserve_short_action =
+                CharacterRules.should_preserve_short_action(
+                    p_state.exceptions,
+                    common_exceptions,
+                    p_state.buffer_act_id
+                )
             -- A buffered action with both a physical attack input and a BCM
             -- command owner is a real player command. State/resource branches
             -- can replace it within the ghost window (for example, a status-
@@ -7874,7 +7921,7 @@ local function ct_player_input_buffer(p_state)
                 p_state.buffer_newly_pressed, ComboTrials_Renderer)
 
             if duration > 0 and duration < ghost_wait and p_state.buffer_act_id > 50
-                and not is_alex_exempt and not buffered_is_catalog_command then
+                and not preserve_short_action and not buffered_is_catalog_command then
                 -- EXACT EVALUATION OF THE NEW ACTION
                 -- We must know if the game triggered it automatically or if the player pressed a button
                 local new_is_intentional = false
@@ -8289,6 +8336,7 @@ local function ct_player_process_actions(p_idx, p_state, actions_to_process)
                     expected_action_matches_current = expected_action_matches_current == true,
                     actual_action_id = act_id,
                     character = p_state.profile_name,
+                    action_event_rules = p_state.action_event_rules,
                     input_anchor_kind = process_act.input_anchor_kind,
                     input_anchor_motion = process_act.input_anchor_motion,
                     input_truth_mode = input_truth_mode,
@@ -8673,7 +8721,11 @@ local function ct_player_process_actions(p_idx, p_state, actions_to_process)
                         facing_left = is_facing_left,
                         next_auto_id = nil -- Will be filled if the next action is automatic
                     })
-                    assign_groups(trial_state.sequence, p_state.profile_name)
+                    assign_groups(
+                        trial_state.sequence,
+                        p_state.profile_name,
+                        p_state.sequence_grouping_rules
+                    )
                     trial_step_idx = #trial_state.sequence
                 elseif trial_state.is_playing and p_idx == trial_state.playing_player and #trial_state.sequence > 0 then
 
@@ -9047,7 +9099,7 @@ local function ct_player_process_actions(p_idx, p_state, actions_to_process)
 
                                             local chain_details = {
                                                 actual_action_id = chain_absorb.actual_action_id,
-                                                match_reason = "ehonda_recent_absorb_chain",
+                                                match_reason = "recent_absorb_chain",
                                                 recent_index = chain_absorb.recent_index,
                                                 combo_count = chain_absorb.combo_count,
                                                 start_frame = chain_absorb.start_frame,
@@ -9069,7 +9121,7 @@ local function ct_player_process_actions(p_idx, p_state, actions_to_process)
                                                 chain_frame,
                                                 chain_combo,
                                                 process_act.current_hp,
-                                                "ehonda_recent_absorb_chain",
+                                                "recent_absorb_chain",
                                                 chain_details
                                             )
                                             chain_record.chain_result = chain_confirmed and "confirmed" or "failed"
@@ -9118,7 +9170,7 @@ local function ct_player_process_actions(p_idx, p_state, actions_to_process)
                             end
 
                             if skip_current_action then
-                                -- EHonda recent absorb already consumed the pending expected step.
+                                -- A recent absorbed phase already consumed the pending expected step.
                                 match_probe.reject_reason = "skip_after_recent_absorb"
                                 DebugTrace.record_match_probe(trial_state, match_probe)
                             elseif consumed_for_step and consumed_for_step < (trial_state.current_step or 1) then
@@ -9464,36 +9516,6 @@ local function ct_player_process_actions(p_idx, p_state, actions_to_process)
                 is_ignored = is_ignored,
                 ignore_reason = ignore_reason
             })
-
-            if trial_state.is_recording and p_idx == trial_state.recording_player
-                and (p_state.profile_name == "EHonda" or p_state.profile_name == "Honda") then
-                local json_step = trial_step_idx and trial_state.sequence[trial_step_idx] or nil
-                DebugTrace.record_honda_normal_input(trial_state, {
-                    frame = engine_frame_count,
-                    character = p_state.profile_name,
-                    trial_file = trial_state.current_file_name or trial_state.current_file or "",
-                    recording = true,
-                    recording_step = #trial_state.sequence,
-                    action_id = act_id,
-                    motion = motion_str,
-                    real_input = real_input_str,
-                    intentional = is_intentional,
-                    trackable = is_trackable,
-                    combo_count = _pf.current_combo or 0,
-                    is_unknown = motion_str == "Unknown" or act_name == "Unknown",
-                    json_step_written = json_step ~= nil,
-                    json_step_motion = json_step and json_step.motion or nil,
-                    json_step_id = json_step and json_step.id or nil,
-                    display_name = act_name,
-                    raw_input = direct_input,
-                    flags = flags,
-                    action_code = action_code,
-                    branch_type = b_type,
-                    input = "",
-                    expected_motion = "",
-                    notes = ""
-                })
-            end
 
             if #p_state.log > 100 then table.remove(p_state.log) end
         end -- END OF "if not is_continuation" block
@@ -10646,7 +10668,10 @@ ctx.complete_transcription_item = function(run, evaluation, details)
         and evaluation.suspected_causes or {}
     if not evaluation.ok and #evaluation.suspected_causes == 0 then
         evaluation.suspected_causes =
-            ComboTrialsModules.Transcriber.suspected_causes(run.current_source)
+            ComboTrialsModules.Transcriber.suspected_causes(
+                run.current_source,
+                run.transcription_rules
+            )
     end
     local final_is_verification =
         run.phase == "verify_raw" or run.phase == "audit_raw"
@@ -10773,7 +10798,10 @@ ctx.begin_raw_transcription_verification = function(run, candidate, compiled, ev
         ok = false,
         reasons = { "raw_replay_demo_start_failed" },
         suspected_causes =
-            ComboTrialsModules.Transcriber.suspected_causes(run.current_source),
+            ComboTrialsModules.Transcriber.suspected_causes(
+                run.current_source,
+                run.transcription_rules
+            ),
         expected = evaluation.expected,
         observed = {},
     }, {
@@ -10919,6 +10947,7 @@ ctx.finish_current_transcription_file = function(timed_out)
                 command_display_validation = command_display_validation,
                 verify_environment = true,
                 environment_observed = ctx.read_transcription_environment(),
+                transcription_rules = run.transcription_rules,
             }
         )
         return ctx.complete_transcription_item(run, evaluation, {
@@ -11004,6 +11033,7 @@ ctx.finish_current_transcription_file = function(timed_out)
         environment_adjustments = run.capture_environment_adjustments,
         verify_environment = true,
         environment_observed = ctx.read_transcription_environment(),
+        transcription_rules = run.transcription_rules,
     })
     if type(run.capture_environment_adjustments) == "table" then
         for _, adjustment in ipairs(run.capture_environment_adjustments) do
@@ -11061,7 +11091,11 @@ ctx.finish_current_transcription_file = function(timed_out)
         if candidate then
             local prepared, prepare_error = pcall(function()
                 normalize_sequence_counter_types(candidate, false)
-                assign_groups(candidate, run.character)
+                assign_groups(
+                    candidate,
+                    run.character,
+                    run.sequence_grouping_rules
+                )
             end)
             if prepared then
                 return ctx.begin_raw_transcription_verification(
@@ -11090,6 +11124,7 @@ end
 ctx.start_next_transcription_file = function()
     local run = demo_state.transcription_run
     if not run or run.active ~= true then return false end
+    ctx.ensure_run_product_rules(run)
 
     run.path_index = tonumber(run.path_index) or 0
     run.resume_processed = tonumber(run.resume_processed) or 0
@@ -11112,14 +11147,20 @@ ctx.start_next_transcription_file = function()
                 ctx.transcription_item(path, "failed", {
                     reasons = { "runtime_audit_input_stream_missing" },
                     suspected_causes =
-                        ComboTrialsModules.Transcriber.suspected_causes(source),
+                        ComboTrialsModules.Transcriber.suspected_causes(
+                            source,
+                            run.transcription_rules
+                        ),
                     audit_mode = run.mode,
                 })
             elseif not is_audit and not replay_inputs and not has_timeline then
                 ctx.transcription_item(path, "failed", {
                     reasons = { "missing_input_stream" },
                     suspected_causes =
-                        ComboTrialsModules.Transcriber.suspected_causes(source),
+                        ComboTrialsModules.Transcriber.suspected_causes(
+                            source,
+                            run.transcription_rules
+                        ),
                     audit_mode = run.mode,
                 })
             else
@@ -11127,7 +11168,8 @@ ctx.start_next_transcription_file = function()
                 if not is_audit then
                     source, environment_adjustments =
                         ComboTrialsModules.Transcriber.prepare_capture_sequence(
-                            source
+                            source,
+                            run.transcription_rules
                         )
                 end
                 run.current_path = path
@@ -11182,7 +11224,10 @@ ctx.start_next_transcription_file = function()
                             or "demo_start_failed",
                     },
                     suspected_causes =
-                        ComboTrialsModules.Transcriber.suspected_causes(source),
+                        ComboTrialsModules.Transcriber.suspected_causes(
+                            source,
+                            run.transcription_rules
+                        ),
                     expected = ComboTrialsModules.Transcriber.expected_outcome(source),
                     observed = {},
                 }, {
