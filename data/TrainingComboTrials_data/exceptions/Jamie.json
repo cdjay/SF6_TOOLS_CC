@@ -121,10 +121,12 @@
     "absorb_ids": "982,983,984"
   },
   "982": {
-    "force": true
+    "force": true,
+    "action_alias_ids": "983"
   },
   "983": {
-    "force": true
+    "force": true,
+    "action_alias_ids": "982"
   },
   "984": {
     "force": true
