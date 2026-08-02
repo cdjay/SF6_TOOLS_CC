@@ -3797,6 +3797,31 @@ local function apply_trial_training_environment(skip_refresh_settings)
     })
     local dummy_guard_type = ct_trial_dummy_guard_type()
     local dummy_guard_count = ct_trial_dummy_guard_count()
+    -- 标题声明“被防连段”且整条连段只包含被防接触时，强制全防御。
+    -- 避免防御值缺失或录制为“第 1 击后防御”时首段命中，从而中断录制的输入序列。
+    if dummy_guard_type ~= ComboTrialsModules.TrainingEnvironment.DUMMY_GUARD.ALL then
+        local first_step = trial_state.sequence and trial_state.sequence[1]
+        local meta = type(first_step) == "table" and first_step._xt_meta or nil
+        local title = type(meta) == "table" and tostring(meta.title or "") or ""
+        if title:find("被防连段", 1, true) and title:find("命中", 1, true) == nil then
+            local contact_count = 0
+            local blocked_count = 0
+            for _, step in ipairs(trial_state.sequence or {}) do
+                if step.has_contact == true or step.hit_result == "block" then
+                    contact_count = contact_count + 1
+                    if step.hit_result == "block" or step.was_blocked == true then
+                        blocked_count = blocked_count + 1
+                    end
+                end
+            end
+            if contact_count > 0 and blocked_count == contact_count then
+                dummy_guard_type = ComboTrialsModules.TrainingEnvironment.DUMMY_GUARD.ALL
+                trial_state._dummy_guard_type_source =
+                    tostring(trial_state._dummy_guard_type_source or "recorded")
+                    .. ":blocked_title_override"
+            end
+        end
+    end
     _G.CT_COMBO_TRIALS_DUMMY_GUARD_TYPE = dummy_guard_type
     ct_apply_recorded_defense_settings(first_step)
     -- Guard must be the final training-setting write. Defense cleanup applies
@@ -9130,7 +9155,10 @@ local function ct_player_process_actions(p_idx, p_state, actions_to_process)
                                 match_probe.action_instance = process_act.action_instance
                                 DebugTrace.record_match_probe(trial_state, match_probe)
                             elseif action_match.matched and expected
-                                and Validator.requires_block_outcome(expected) then
+                                and Validator.requires_block_outcome(expected)
+                                and not (demo_state and demo_state.is_playing) then
+                                -- 演示回放以录制的输入事实为准，被防接触由运行审计的
+                                -- block_contacts 统计独立校验，不再等待 15 帧防御确认。
                                 _pf.ct_block_action_frame = process_act.synthetic
                                     and (process_act.engine_frame or engine_frame_count) or engine_frame_count
                                 trial_state._pending_block_outcome = {

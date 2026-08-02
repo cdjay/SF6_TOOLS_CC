@@ -134,6 +134,50 @@ assert(lily_override_status == "loaded" and lily_override_count == 3
         and lily_overrides["612"].status == "runtime_verified_override"
         and lily_overrides["651"].status == "runtime_verified_override",
     "Lily's verified Classic Actions must replace only their unverified catalog rows")
+local juri_catalog = {
+    _slim = true,
+    ["600"] = { classic = "LP", status = "route_unverified" },
+    ["612"] = { classic = "MK", status = "route_unverified" },
+    ["665"] = { classic = "8", status = "route_unverified" },
+}
+local juri_override_document = {
+    schema = "xt.command_display_overrides.v1",
+    character = "Juri",
+    entries = {
+        ["600"] = {
+            classic = "LP",
+            replace = true,
+            evidence = "two verified relative raw-input runtime replays",
+        },
+        ["612"] = {
+            classic = "MK",
+            replace = true,
+            evidence = "one verified relative raw-input runtime replay",
+        },
+        ["613"] = {
+            classic = "MK",
+            replace = true,
+            evidence = "five verified relative raw-input runtime replay events across four trials",
+        },
+        ["665"] = {
+            classic = "8",
+            replace = true,
+            evidence = "verified relative raw-input runtime replays for the jump-start Action",
+        },
+    },
+}
+local juri_overrides, juri_override_count, juri_override_status =
+    command_display_overrides.merge(juri_catalog, "Juri", juri_override_document)
+assert(juri_override_status == "loaded" and juri_override_count == 4
+        and juri_overrides["600"].classic == "LP"
+        and juri_overrides["612"].classic == "MK"
+        and juri_overrides["613"].classic == "MK"
+        and juri_overrides["665"].classic == "8"
+        and juri_overrides["600"].status == "runtime_verified_override"
+        and juri_overrides["612"].status == "runtime_verified_override"
+        and juri_overrides["613"].status == "runtime_verified_override"
+        and juri_overrides["665"].status == "runtime_verified_override",
+    "Juri's verified Classic Actions must fill missing rows and replace unverified catalog rows")
 local akuma_catalog = { _slim = true }
 local akuma_override_document = {
     schema = "xt.command_display_overrides.v1",

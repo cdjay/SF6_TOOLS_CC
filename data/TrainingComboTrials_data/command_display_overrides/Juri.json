@@ -1,0 +1,26 @@
+{
+  "schema": "xt.command_display_overrides.v1",
+  "character": "Juri",
+  "entries": {
+    "600": {
+      "classic": "LP",
+      "replace": true,
+      "evidence": "Two verified relative raw-input runtime replays bind a fresh LP press and hit contact to Juri Action 600; the generated catalog independently records the same Classic command"
+    },
+    "612": {
+      "classic": "MK",
+      "replace": true,
+      "evidence": "A verified relative raw-input runtime replay binds a fresh MK press and hit contact to Juri Action 612; the generated catalog independently records the same Classic command"
+    },
+    "613": {
+      "classic": "MK",
+      "replace": true,
+      "evidence": "Five verified relative raw-input runtime replay events across four trials bind fresh MK presses and hit contact to Juri Action 613"
+    },
+    "665": {
+      "classic": "8",
+      "replace": true,
+      "evidence": "Verified relative raw-input runtime replays bind the jump-start Action 665 to the recorded 8 command; the generated catalog independently records the same Classic command"
+    }
+  }
+}
