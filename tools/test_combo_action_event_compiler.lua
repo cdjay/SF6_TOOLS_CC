@@ -172,6 +172,61 @@ assert(delayed_damage_result.stats.hit_contacts == 1
 end
 
 do
+local delayed_command_throw = compiler.new({ character = "Lily", frame = 0 })
+local delayed_throw_rows = {
+    -- frame, Action, input, combo, victim HP, damage type, hit stop
+    { 1, 1, 0, 0, 10000, 0, 0 },
+    { 2, 1, 64, 0, 10000, 0, 0 },
+    { 3, 606, 64, 0, 10000, 0, 0 },
+    { 4, 606, 64, 1, 8920, 3, 4 },
+    { 5, 606, 0, 1, 8920, 0, 0 },
+    { 10, 606, 64, 1, 8920, 0, 0 },
+    { 11, 1005, 64, 1, 8920, 0, 0 },
+    { 12, 1005, 0, 1, 8920, 0, 0 },
+    { 13, 1006, 0, 1, 8920, 0, 0 },
+    -- Lily's command throw reports neither an ordinary hit signal nor combo
+    -- growth when its delayed damage becomes visible.
+    { 120, 1006, 0, 1, 6400, 0, 0 },
+    { 121, 1006, 0, 1, 6400, 0, 0 },
+}
+for _, row in ipairs(delayed_throw_rows) do
+    compiler.observe(delayed_command_throw, {
+        frame = row[1],
+        action_id = row[2],
+        action_frame = row[1],
+        direct_input = row[3],
+        facing_right = true,
+        combo_count = row[4],
+        actor_hp = 10000,
+        victim_hp = row[5],
+        victim_damage_type = row[6],
+        victim_hit_stop = row[7],
+    })
+end
+local delayed_throw_result = compiler.finalize(delayed_command_throw, {
+    motion_resolver = function(action_id)
+        if action_id == 606 then return "HP", "strict_route" end
+        if action_id == 1005 then return "360+HP", "strict_route" end
+        return nil, "action_id_missing"
+    end,
+})
+assert(#delayed_command_throw.events == 3
+        and delayed_command_throw.events[3].id == 1006
+        and #delayed_throw_result.steps == 2
+        and delayed_throw_result.steps[1].id == 606
+        and delayed_throw_result.steps[2].id == 1005
+        and delayed_throw_result.steps[2].has_hit == true
+        and delayed_throw_result.steps[2].has_contact == true
+        and delayed_throw_result.steps[2].expected_combo == 1
+        and delayed_throw_result.steps[2].damage_at_step == 3600
+        and delayed_throw_result.stats.damage == 3600
+        and delayed_throw_result.stats.unconfirmed_hp_loss == 0
+        and delayed_throw_result.stats.passive_damage_ticks == 0
+        and delayed_throw_result.trace.suppressed_events[1].id == 1006,
+    "a large HP drop during the same input-bound throw Action must remain contact truth even without ordinary hit signals")
+end
+
+do
 local poison_direction = compiler.new({ character = "AKI", frame = 0 })
 local poison_direction_rows = {
     { 1, 10, 0, 0, 10000 },
@@ -1426,6 +1481,105 @@ assert(#cammy_air_throw_result.steps == 1
     "Cammy's staggered air-throw chord must produce only the durable throw command")
 
 do
+local function finalize_lily_staggered_kicks(first_contact, delay, projection_rules)
+    local session = compiler.new({ character = "Lily", frame = 0 })
+    if projection_rules then
+        session.action_event_projection_rules = projection_rules
+    end
+    session.events = {
+        {
+            id = 929,
+            frame = 100,
+            expected_combo = first_contact and 1 or 0,
+            damage_at_step = first_contact and 700 or 0,
+            has_hit = first_contact == true,
+            has_contact = first_contact == true,
+            anchor = { kind = "button_press", pressed_buttons = 512 },
+        },
+        {
+            id = 930,
+            frame = 100 + (delay or 1),
+            expected_combo = 3,
+            damage_at_step = 816,
+            has_hit = true,
+            has_contact = true,
+            anchor = { kind = "button_press", pressed_buttons = 256,
+                held_buttons = 768 },
+        },
+    }
+    session.current_damage = 816
+    session.confirmed_damage = 816
+    session.max_combo = 3
+    return session, compiler.finalize(session, {
+        motion_resolver = function(action_id)
+            if action_id == 929 then return "236+HK", "strict_route" end
+            if action_id == 930 then return "236+MK+HK", "strict_route" end
+            return nil, "action_id_missing"
+        end,
+    })
+end
+
+local lily_staggered_session, lily_staggered_result =
+    finalize_lily_staggered_kicks(false, 1)
+assert(#lily_staggered_session.events == 2
+        and #lily_staggered_result.trace.input_bound_events == 2
+        and #lily_staggered_result.steps == 1
+        and lily_staggered_result.steps[1].id == 930
+        and lily_staggered_result.steps[1].motion == "236+MK+HK"
+        and lily_staggered_result.steps[1].has_contact == true
+        and lily_staggered_result.trace.suppressed_events[1].id == 929
+        and lily_staggered_result.trace.suppressed_events[1].merged_into == 930
+        and lily_staggered_result.trace.suppressed_events[1].reason
+            == "character_transient_input_precursor",
+    "Lily's one-frame HK precursor must fold into the completed MK+HK chord while preserving the raw Action trace")
+
+local standalone_lily_kick = compiler.new({ character = "Lily", frame = 0 })
+standalone_lily_kick.events = {
+    {
+        id = 929,
+        frame = 100,
+        expected_combo = 1,
+        damage_at_step = 700,
+        has_hit = true,
+        has_contact = true,
+        anchor = { kind = "button_press", pressed_buttons = 512 },
+    },
+}
+standalone_lily_kick.current_damage = 700
+standalone_lily_kick.confirmed_damage = 700
+standalone_lily_kick.max_combo = 1
+local standalone_lily_result = compiler.finalize(standalone_lily_kick, {
+    motion_resolver = function(action_id)
+        if action_id == 929 then return "236+HK", "strict_route" end
+        return nil, "action_id_missing"
+    end,
+})
+assert(#standalone_lily_result.steps == 1
+        and standalone_lily_result.steps[1].id == 929,
+    "Lily's standalone 236+HK must remain a real instruction")
+
+local _, contacted_lily_result = finalize_lily_staggered_kicks(true, 1)
+local _, late_lily_result = finalize_lily_staggered_kicks(false, 21)
+assert(#contacted_lily_result.steps == 2 and #late_lily_result.steps == 2,
+    "a contacted or late Lily 929 Action must never be mistaken for a transient chord precursor")
+
+local lily_absorb_only_projection =
+    CharacterRules.build_action_event_projection_rules({
+        ["930"] = { absorb_ids = "929" },
+    }, {})
+assert(lily_absorb_only_projection[929] == nil,
+    "Lily's absorb-only 930 rule must not canonicalize the transient 929 precursor")
+local _, product_lily_result =
+    finalize_lily_staggered_kicks(false, 1, lily_absorb_only_projection)
+assert(#product_lily_result.steps == 1
+        and product_lily_result.steps[1].id == 930
+        and product_lily_result.trace.suppressed_events[1].id == 929
+        and product_lily_result.trace.suppressed_events[1].reason
+            == "character_transient_input_precursor",
+    "Lily's shipped absorb-only rule must preserve the 929 transient fold into 930")
+end
+
+do
 local aki_action_event_projection_rules =
     CharacterRules.build_action_event_projection_rules({
         ["944"] = {
@@ -1439,7 +1593,7 @@ local aki_action_event_projection_rules =
         },
         ["998"] = {
             absorb_ids = "999",
-            action_event_projection = {},
+            action_event_projection = { carry_input_anchor = true },
         },
     }, {})
 local aki_owner_rule = aki_action_event_projection_rules[945]
@@ -1447,8 +1601,33 @@ assert(type(aki_owner_rule) == "table"
         and aki_owner_rule.kind == "canonical_owner"
         and aki_owner_rule.owner_id == 944
         and aki_action_event_projection_rules[936].kind == "internal_phase"
-        and aki_action_event_projection_rules[999].owner_id == 998,
+        and aki_action_event_projection_rules[999].owner_id == 998
+        and aki_action_event_projection_rules[999].carry_input_anchor == true,
     "loaded character rules must compile exact Action-event projection ownership")
+local lily_action_event_projection_rules =
+    CharacterRules.build_action_event_projection_rules({
+        ["905"] = {
+            absorb_ids = "906,907",
+            action_event_projection = {},
+        },
+        ["976"] = {
+            absorb_ids = "974,983,984",
+            action_event_projection = {},
+        },
+    }, {})
+assert(lily_action_event_projection_rules[906].kind == "internal_phase"
+        and lily_action_event_projection_rules[906].owner_id == 905
+        and lily_action_event_projection_rules[907].kind == "internal_phase"
+        and lily_action_event_projection_rules[907].owner_id == 905
+        and lily_action_event_projection_rules[974].kind == "internal_phase"
+        and lily_action_event_projection_rules[974].owner_id == 976
+        and lily_action_event_projection_rules[983].kind == "internal_phase"
+        and lily_action_event_projection_rules[983].owner_id == 976
+        and lily_action_event_projection_rules[984].kind == "internal_phase"
+        and lily_action_event_projection_rules[984].owner_id == 976
+        and lily_action_event_projection_rules[907].carry_input_anchor == false
+        and lily_action_event_projection_rules[984].carry_input_anchor == false,
+    "Lily's loaded product rules must project only the declared phases without implicit input passthrough")
 
 local function finalize_unprojected_akuma_transition(owner_id, child_id)
     local session = compiler.new({
@@ -1595,6 +1774,163 @@ local function new_aki_projection_session()
         frame = 0,
         action_event_projection_rules = aki_action_event_projection_rules,
     })
+end
+
+local function new_lily_projection_session()
+    return compiler.new({
+        character = "Lily",
+        frame = 0,
+        action_event_projection_rules = lily_action_event_projection_rules,
+    })
+end
+
+local function observe_lily_projection(
+    session,
+    frame,
+    action_id,
+    input,
+    combo_count,
+    victim_hp
+)
+    compiler.observe(session, {
+        frame = frame,
+        action_id = action_id,
+        action_frame = 19717.944824,
+        direct_input = input,
+        facing_right = true,
+        combo_count = combo_count or 0,
+        actor_hp = 10000,
+        victim_hp = victim_hp or 10000,
+        victim_damage_type = (combo_count or 0) > 0 and 1 or 0,
+        victim_hit_stop = 0,
+    })
+end
+
+do
+local lily_wind_buffer = new_lily_projection_session()
+observe_lily_projection(lily_wind_buffer, 1, 10, 0, 0, 10000)
+observe_lily_projection(lily_wind_buffer, 2, 10, 32, 0, 10000)
+observe_lily_projection(lily_wind_buffer, 3, 905, 32, 0, 10000)
+observe_lily_projection(lily_wind_buffer, 4, 905, 0, 0, 10000)
+observe_lily_projection(lily_wind_buffer, 5, 905, 32, 0, 10000)
+observe_lily_projection(lily_wind_buffer, 6, 907, 32, 4, 9280)
+observe_lily_projection(lily_wind_buffer, 7, 907, 0, 4, 9280)
+observe_lily_projection(lily_wind_buffer, 8, 907, 64, 4, 9280)
+observe_lily_projection(lily_wind_buffer, 9, 1216, 64, 4, 9280)
+local lily_wind_buffer_result = compiler.finalize(lily_wind_buffer, {
+    motion_resolver = function(action_id)
+        if action_id == 905 then return "214+MP", "strict_route" end
+        if action_id == 1216 then return "214214+P", "strict_route" end
+        return nil, "action_id_missing"
+    end,
+})
+assert(#lily_wind_buffer.events == 3
+        and lily_wind_buffer.events[1].id == 905
+        and lily_wind_buffer.events[2].id == 907
+        and lily_wind_buffer.events[3].id == 1216
+        and lily_wind_buffer.events[2].anchor.frame == 5
+        and lily_wind_buffer.events[3].anchor.frame == 8
+        and lily_wind_buffer.events[2].anchor.pressed_buttons == 32
+        and lily_wind_buffer.events[3].anchor.pressed_buttons == 64,
+    "Lily 907 must consume only its own buffered punch while a fresh SA punch binds the durable super Action")
+assert(#lily_wind_buffer_result.steps == 2
+        and lily_wind_buffer_result.steps[1].id == 905
+        and lily_wind_buffer_result.steps[1].motion == "214+MP"
+        and lily_wind_buffer_result.steps[1].expected_combo == 4
+        and lily_wind_buffer_result.steps[1].damage_at_step == 720
+        and lily_wind_buffer_result.steps[1].has_hit == true
+        and lily_wind_buffer_result.steps[2].id == 1216
+        and lily_wind_buffer_result.steps[2].motion == "214214+P"
+        and lily_wind_buffer_result.trace.input_bound_events[2].id == 907
+        and lily_wind_buffer_result.trace.suppressed_events[1].id == 907
+        and lily_wind_buffer_result.trace.suppressed_events[1].merged_into == 905
+        and lily_wind_buffer_result.trace.suppressed_events[1].reason
+            == "character_internal_action_phase",
+    "Lily 907 must contribute only contact truth to 905 without becoming a V2 instruction")
+
+local lily_dive_buffer = new_lily_projection_session()
+observe_lily_projection(lily_dive_buffer, 1, 10, 0, 0, 10000)
+observe_lily_projection(lily_dive_buffer, 2, 10, 112, 0, 10000)
+observe_lily_projection(lily_dive_buffer, 3, 976, 112, 7, 9880)
+observe_lily_projection(lily_dive_buffer, 4, 976, 0, 7, 9880)
+observe_lily_projection(lily_dive_buffer, 5, 974, 0, 8, 9040)
+observe_lily_projection(lily_dive_buffer, 6, 974, 256, 8, 9040)
+observe_lily_projection(lily_dive_buffer, 7, 983, 256, 8, 9040)
+observe_lily_projection(lily_dive_buffer, 8, 983, 0, 8, 9040)
+observe_lily_projection(lily_dive_buffer, 9, 984, 0, 8, 9040)
+observe_lily_projection(lily_dive_buffer, 10, 984, 128, 8, 9040)
+observe_lily_projection(lily_dive_buffer, 11, 1207, 128, 8, 9040)
+local lily_dive_buffer_result = compiler.finalize(lily_dive_buffer, {
+    motion_resolver = function(action_id)
+        if action_id == 976 then return "j.PPP", "strict_route" end
+        if action_id == 1207 then return "236236+K", "strict_route" end
+        return nil, "action_id_missing"
+    end,
+})
+assert(#lily_dive_buffer.events == 5
+        and lily_dive_buffer.events[1].id == 976
+        and lily_dive_buffer.events[2].id == 974
+        and lily_dive_buffer.events[3].id == 983
+        and lily_dive_buffer.events[4].id == 984
+        and lily_dive_buffer.events[5].id == 1207
+        and lily_dive_buffer.events[2].anchor.frame == 4
+        and lily_dive_buffer.events[3].anchor.frame == 6
+        and lily_dive_buffer.events[4].anchor.frame == 8
+        and lily_dive_buffer.events[5].anchor.frame == 10
+        and lily_dive_buffer.events[2].anchor.released_buttons == 112
+        and lily_dive_buffer.events[3].anchor.pressed_buttons == 256
+        and lily_dive_buffer.events[4].anchor.released_buttons == 256
+        and lily_dive_buffer.events[5].anchor.pressed_buttons == 128,
+    "Lily's complete 974/983/984 phase chain must consume its own edges while a fresh SA2 kick binds the durable super Action")
+assert(#lily_dive_buffer_result.steps == 2
+        and lily_dive_buffer_result.steps[1].id == 976
+        and lily_dive_buffer_result.steps[1].motion == "j.PPP"
+        and lily_dive_buffer_result.steps[1].expected_combo == 8
+        and lily_dive_buffer_result.steps[1].damage_at_step == 960
+        and lily_dive_buffer_result.steps[1].has_hit == true
+        and lily_dive_buffer_result.steps[2].id == 1207
+        and lily_dive_buffer_result.steps[2].motion == "236236+K"
+        and lily_dive_buffer_result.trace.input_bound_events[2].id == 974
+        and lily_dive_buffer_result.trace.suppressed_events[1].id == 974
+        and lily_dive_buffer_result.trace.suppressed_events[1].merged_into == 976
+        and lily_dive_buffer_result.trace.suppressed_events[1].reason
+            == "character_internal_action_phase"
+        and lily_dive_buffer_result.trace.suppressed_events[2].id == 983
+        and lily_dive_buffer_result.trace.suppressed_events[2].merged_into == 976
+        and lily_dive_buffer_result.trace.suppressed_events[3].id == 984
+        and lily_dive_buffer_result.trace.suppressed_events[3].merged_into == 976,
+    "Lily's later dive phases must contribute only outcome truth to 976 without becoming V2 instructions")
+
+local lily_redundant_dive_press = new_lily_projection_session()
+observe_lily_projection(lily_redundant_dive_press, 1, 10, 0, 0, 10000)
+observe_lily_projection(lily_redundant_dive_press, 2, 10, 112, 0, 10000)
+observe_lily_projection(lily_redundant_dive_press, 3, 976, 112, 7, 9880)
+observe_lily_projection(lily_redundant_dive_press, 4, 976, 0, 7, 9880)
+observe_lily_projection(lily_redundant_dive_press, 5, 976, 112, 7, 9880)
+observe_lily_projection(lily_redundant_dive_press, 6, 974, 112, 8, 9040)
+observe_lily_projection(lily_redundant_dive_press, 7, 974, 112, 8, 9040)
+observe_lily_projection(lily_redundant_dive_press, 8, 983, 112, 8, 9040)
+observe_lily_projection(lily_redundant_dive_press, 9, 984, 112, 8, 9040)
+observe_lily_projection(lily_redundant_dive_press, 50, 984, 112, 8, 9040)
+local lily_redundant_dive_result = compiler.finalize(
+    lily_redundant_dive_press,
+    {
+        motion_resolver = function(action_id)
+            if action_id == 976 then return "j.PPP", "strict_route" end
+            return nil, "action_id_missing"
+        end,
+    }
+)
+assert(#lily_redundant_dive_press.events == 2
+        and lily_redundant_dive_press.events[1].id == 976
+        and lily_redundant_dive_press.events[2].id == 974
+        and lily_redundant_dive_press.unresolved_anchor_count == 0
+        and #lily_redundant_dive_result.steps == 1
+        and lily_redundant_dive_result.steps[1].id == 976
+        and lily_redundant_dive_result.steps[1].expected_combo == 8
+        and lily_redundant_dive_result.steps[1].damage_at_step == 960
+        and #lily_redundant_dive_result.trace.suppressed_events == 1,
+    "a redundant PPP press consumed by Lily's first internal phase must not leak into later recovery Actions")
 end
 
 do
@@ -1999,6 +2335,80 @@ assert(#aki_pending_internal_result.steps == 2
         and aki_pending_internal_result.trace.projected_events[2].anchor_buttons == 16
         and aki_pending_internal_result.trace.suppressed_events[1].id == 999,
     "final projection must fold 999 while retaining the LP-bound durable 609 step")
+
+do
+local function build_aki_continuation_session(include_locomotion, expire_only)
+    local continuation_session = new_aki_projection_session()
+    local rows = {
+        { 1, 10, 0 },
+        { 2, 10, 512 },
+        { 3, 998, 512 },
+        { 4, 998, 0 },
+        { 5, 998, 16 },
+        { 6, 999, 16 },
+    }
+    if include_locomotion then
+        rows[#rows + 1] = { 7, 17, 16 }
+        rows[#rows + 1] = { 8, 609, 16 }
+    elseif expire_only then
+        rows[#rows + 1] = { 60, 999, 16 }
+    end
+    for _, row in ipairs(rows) do
+        compiler.observe(continuation_session, {
+            frame = row[1],
+            action_id = row[2],
+            action_frame = row[1],
+            direct_input = row[3],
+            facing_right = true,
+            combo_count = 0,
+            actor_hp = 10000,
+            victim_hp = 10000,
+            victim_damage_type = 0,
+            victim_hit_stop = 0,
+        })
+    end
+    return continuation_session
+end
+
+local aki_pending_at_finalize = build_aki_continuation_session(false, false)
+local aki_pending_at_finalize_result = compiler.finalize(
+    aki_pending_at_finalize,
+    { motion_resolver = aki_phase_motion_resolver }
+)
+assert(aki_pending_at_finalize_result.stats.unresolved_anchors == 0
+        and aki_pending_at_finalize_result.trace.pending_anchor
+            .is_internal_phase_continuation == true,
+    "an explicitly carried internal continuation must be non-failing even when capture finalizes before it expires")
+
+local aki_locomotion_between = build_aki_continuation_session(true, false)
+local aki_locomotion_between_result = compiler.finalize(
+    aki_locomotion_between,
+    {
+        motion_resolver = function(action_id)
+            if action_id == 998 then return "K", "strict_route" end
+            if action_id == 609 then return "LP", "strict_route" end
+            return nil, "action_id_missing"
+        end,
+    }
+)
+assert(#aki_locomotion_between.events == 3
+        and aki_locomotion_between.events[1].id == 998
+        and aki_locomotion_between.events[2].id == 999
+        and aki_locomotion_between.events[3].id == 609
+        and #aki_locomotion_between_result.steps == 2
+        and aki_locomotion_between_result.steps[2].id == 609,
+    "a common locomotion Action must not steal an explicitly carried attack edge")
+
+local aki_expired_continuation = build_aki_continuation_session(false, true)
+local aki_expired_continuation_result = compiler.finalize(
+    aki_expired_continuation,
+    { motion_resolver = aki_phase_motion_resolver }
+)
+assert(aki_expired_continuation_result.stats.unresolved_anchors == 0
+        and aki_expired_continuation_result.trace
+            .expired_internal_continuation_count == 1,
+    "an unused carried internal edge must expire visibly without becoming an unresolved command")
+end
 
 do
 local aki_replaced_pending_phase = new_aki_projection_session()
@@ -2564,6 +2974,90 @@ assert(#parry_back_result.steps == 1
     and parry_back_result.steps[1].id == 480,
     "4+PARRY followed by another 4 is not a 44 anchor: the button command owns the first frame")
 
+do
+local meter_confirmed_parry_rush = compiler.new({ character = "Lily", frame = 0 })
+local meter_rush_rows = {
+    { 1, 10, 0, 60000 },
+    { 2, 10, 32 | 256, 60000 },
+    { 3, 480, 32 | 256, 59900 },
+    { 4, 480, 32 | 256, 59900 },
+    { 5, 480, 32 | 256, 59900 },
+    { 6, 480, 32 | 256, 59900 },
+    { 7, 480, 32 | 256, 59900 },
+    { 8, 740, 32 | 256, 49900 },
+}
+for _, row in ipairs(meter_rush_rows) do
+    compiler.observe(meter_confirmed_parry_rush, {
+        frame = row[1],
+        action_id = row[2],
+        action_frame = row[1],
+        direct_input = row[3],
+        facing_right = true,
+        combo_count = 0,
+        actor_hp = 10000,
+        actor_drive = row[4],
+        victim_hp = 10000,
+    })
+end
+local meter_rush_result = compiler.finalize(meter_confirmed_parry_rush, {
+    motion_resolver = test_motion_resolver,
+})
+assert(#meter_rush_result.steps == 2
+        and meter_rush_result.steps[1].id == 480
+        and meter_rush_result.steps[2].id == 740
+        and meter_rush_result.steps[2].delay_from_prev == 5
+        and meter_rush_result.trace.input_bound_events[2].bind_reason
+            == "drive_cost_confirmed_raw_dr_transition",
+    "a late anchorless 480-to-740 transition with a local one-bar Drive spend must preserve the real RAW DR step")
+end
+
+do
+local deferred_meter_parry_rush = compiler.new({ character = "Lily", frame = 0 })
+local deferred_meter_rows = {
+    { 1, 10, 0, 30480 },
+    { 2, 10, 32 | 256, 30480 },
+    { 3, 480, 32 | 256, 30480 },
+    { 4, 480, 32 | 256, 30480 },
+    { 5, 480, 32 | 256, 30480 },
+    { 6, 480, 32 | 256, 30480 },
+    { 7, 480, 32 | 256, 30480 },
+    -- Action 740 is already real here, but the engine has not committed its
+    -- one-bar cost to the live gauge yet.
+    { 8, 740, 32 | 256, 30420 },
+    { 9, 740, 32 | 256, 30420 },
+    -- The report showed the settled cost for the first time on the following
+    -- attack frame. That attack must keep its own physical input anchor.
+    { 23, 651, 64, 20420 },
+}
+for _, row in ipairs(deferred_meter_rows) do
+    compiler.observe(deferred_meter_parry_rush, {
+        frame = row[1],
+        action_id = row[2],
+        action_frame = row[1],
+        direct_input = row[3],
+        facing_right = true,
+        combo_count = 0,
+        actor_hp = 10000,
+        actor_drive = row[4],
+        victim_hp = 10000,
+    })
+end
+local deferred_meter_result = compiler.finalize(deferred_meter_parry_rush, {
+    motion_resolver = test_motion_resolver,
+})
+assert(#deferred_meter_result.steps == 3
+        and deferred_meter_result.steps[1].id == 480
+        and deferred_meter_result.steps[2].id == 740
+        and deferred_meter_result.steps[2].delay_from_prev == 5
+        and deferred_meter_result.steps[3].id == 651
+        and deferred_meter_result.steps[3].delay_from_prev == 15
+        and deferred_meter_result.trace.input_bound_events[2].frame == 8
+        and deferred_meter_result.trace.input_bound_events[2].bind_reason
+            == "deferred_drive_cost_confirmed_raw_dr_transition"
+        and deferred_meter_result.trace.expired_meter_raw_dr_count == 0,
+    "a delayed local Drive cost must preserve Action 740 at its real frame without stealing the next attack anchor")
+end
+
 local resolver_failure = compiler.finalize(session, {
     motion_resolver = function() error("synthetic resolver failure") end,
 })
@@ -2673,6 +3167,218 @@ local legacy_resource_evaluation = transcriber.evaluate(resource_source, {
 assert(table.concat(legacy_resource_evaluation.reasons, ",")
         == "super_consumption_mismatch",
     "legacy Drive totals may be advisory while Super consumption remains strict")
+
+do
+local malformed_source_ok, malformed_source_evaluation = pcall(
+    transcriber.evaluate,
+    nil,
+    { steps = {}, stats = {} },
+    {
+        input_source = "timeline",
+        raw_inputs = { 0 },
+        input_completed = true,
+    }
+)
+assert(malformed_source_ok
+        and malformed_source_evaluation.ok == false
+        and malformed_source_evaluation.reasons[1] == "no_action_steps",
+    "a malformed source sequence must report failure instead of raising")
+
+local partial_super_cases = {
+    { source = 6900, observed = 10000 },
+    { source = 17000, observed = 20000 },
+    { source = 14800, observed = 20000 },
+}
+local partial_super_source = {
+    {
+        id = 1200,
+        motion = "236236+P",
+        expected_combo = 20,
+        damage_at_step = 4080,
+        has_hit = true,
+        has_contact = true,
+        combo_stats = { damage = 4080, super_used = 6900 },
+        timeline = { "1f : 5+LP" },
+    },
+}
+local function partial_super_compiled(super_used)
+    return {
+        steps = {
+            {
+                id = 1200,
+                motion = "236236+P",
+                expected_combo = 20,
+                damage_at_step = 4080,
+                has_hit = true,
+                has_contact = true,
+            },
+        },
+        stats = {
+            damage = 4080,
+            max_combo = 20,
+            super_used = super_used,
+            unresolved_anchors = 0,
+            block_contacts = 0,
+        },
+    }
+end
+local partial_super_runtime = {
+    input_source = "timeline",
+    raw_inputs = { 16, 0 },
+    input_completed = true,
+    allow_legacy_outcome_rebuild = true,
+}
+for _, case in ipairs(partial_super_cases) do
+    local source_case = transcriber.deep_copy(partial_super_source)
+    source_case[1].combo_stats.super_used = case.source
+    local evaluation_case = transcriber.evaluate(
+        source_case,
+        partial_super_compiled(case.observed),
+        partial_super_runtime
+    )
+    assert(evaluation_case.ok == true
+        and table.concat(evaluation_case.advisories, ",") == string.format(
+            "source_partial_super_usage_rebuilt:expected=%d:observed=%d",
+            case.source,
+            case.observed
+        ),
+        "a proven legacy partial Super sample must rebuild to its next exact whole level")
+end
+
+local zero_super_observed = transcriber.evaluate(
+    partial_super_source,
+    partial_super_compiled(0),
+    partial_super_runtime
+)
+assert(zero_super_observed.ok == false
+        and table.concat(zero_super_observed.reasons, ","):match(
+            "super_consumption_mismatch"
+        )
+        and #zero_super_observed.advisories == 0,
+    "missing runtime Super consumption must never use the legacy partial-value bridge")
+local wrong_partial_action = partial_super_compiled(10000)
+wrong_partial_action.steps[1].id = 1201
+local wrong_partial_action_evaluation = transcriber.evaluate(
+    partial_super_source,
+    wrong_partial_action,
+    partial_super_runtime
+)
+assert(wrong_partial_action_evaluation.ok == false
+        and table.concat(wrong_partial_action_evaluation.reasons, ","):match(
+            "super_consumption_mismatch"
+        )
+        and #wrong_partial_action_evaluation.advisories == 0,
+    "a different Action must keep partial Super metadata strict")
+local regressed_partial_combo = partial_super_compiled(10000)
+regressed_partial_combo.steps[1].expected_combo = 19
+regressed_partial_combo.stats.max_combo = 19
+local regressed_partial_evaluation = transcriber.evaluate(
+    partial_super_source,
+    regressed_partial_combo,
+    partial_super_runtime
+)
+assert(regressed_partial_evaluation.ok == false
+        and table.concat(regressed_partial_evaluation.reasons, ","):match(
+            "combo_count_regressed"
+        )
+        and table.concat(regressed_partial_evaluation.reasons, ","):match(
+            "super_consumption_mismatch"
+        ),
+    "a smaller combo must not be hidden by partial Super reconstruction")
+local canonical_super_source = transcriber.deep_copy(partial_super_source)
+canonical_super_source[1].combo_stats.super_used = 10000
+local canonical_super_drift = transcriber.evaluate(
+    canonical_super_source,
+    partial_super_compiled(20000),
+    partial_super_runtime
+)
+assert(canonical_super_drift.ok == false
+        and table.concat(canonical_super_drift.reasons, ","):match(
+            "super_consumption_mismatch"
+        ),
+    "a canonical whole-level source cost must remain strict")
+local skipped_super_level = transcriber.evaluate(
+    partial_super_source,
+    partial_super_compiled(20000),
+    partial_super_runtime
+)
+assert(skipped_super_level.ok == false
+        and table.concat(skipped_super_level.reasons, ","):match(
+            "super_consumption_mismatch"
+        ),
+    "a partial source cost may rebuild only to its immediate whole level")
+local mismatched_partial_damage = partial_super_compiled(10000)
+mismatched_partial_damage.stats.damage = 4000
+mismatched_partial_damage.steps[1].damage_at_step = 4000
+local mismatched_partial_damage_evaluation = transcriber.evaluate(
+    partial_super_source,
+    mismatched_partial_damage,
+    partial_super_runtime
+)
+assert(mismatched_partial_damage_evaluation.ok == false
+        and table.concat(mismatched_partial_damage_evaluation.reasons, ","):match(
+            "super_consumption_mismatch"
+        ),
+    "damage drift must keep partial Super metadata strict")
+local disabled_partial_bridge_runtime = transcriber.deep_copy(partial_super_runtime)
+disabled_partial_bridge_runtime.allow_legacy_outcome_rebuild = false
+local disabled_partial_bridge = transcriber.evaluate(
+    partial_super_source,
+    partial_super_compiled(10000),
+    disabled_partial_bridge_runtime
+)
+assert(disabled_partial_bridge.ok == false
+        and table.concat(disabled_partial_bridge.reasons, ","):match(
+            "super_consumption_mismatch"
+        ),
+    "partial Super reconstruction must stay disabled outside legacy source capture")
+local missing_super_contact = partial_super_compiled(10000)
+missing_super_contact.steps[1].has_hit = false
+missing_super_contact.steps[1].has_contact = false
+local missing_super_contact_evaluation = transcriber.evaluate(
+    partial_super_source,
+    missing_super_contact,
+    partial_super_runtime
+)
+assert(missing_super_contact_evaluation.ok == false
+        and table.concat(missing_super_contact_evaluation.reasons, ","):match(
+            "terminal_expected_contact_missing"
+        )
+        and table.concat(missing_super_contact_evaluation.reasons, ","):match(
+            "super_consumption_mismatch"
+        ),
+    "missing terminal contact must keep partial Super metadata strict")
+
+local partial_super_candidate = assert(transcriber.build_candidate(
+    partial_super_source,
+    partial_super_compiled(10000),
+    {
+        schema = 2,
+        product_id = "sf6cc",
+        product_version = "1.0.4",
+        json_id = "xt.combo_trial",
+        json_version = "2",
+    },
+    "2026-08-01T00:00:00+08:00",
+    {
+        input_source = "timeline",
+        relative_raw_inputs = { 16, 0 },
+    }
+))
+assert(partial_super_candidate[1].combo_stats.super_used == 10000,
+    "a rebuilt candidate must persist runtime whole-level Super truth")
+local partial_super_verified = transcriber.verify_candidate(
+    partial_super_candidate,
+    partial_super_compiled(10000),
+    {
+        raw_inputs = { 16, 0 },
+        input_source = "relative_raw_inputs",
+        input_completed = true,
+    }
+)
+assert(partial_super_verified.ok == true,
+    "the second raw replay must strictly verify the rebuilt whole-level Super cost")
+end
 
 local legacy_damage_source = {
     {
@@ -2835,6 +3541,94 @@ local explicit_terminal_noncontact = transcriber.evaluate(
 assert(explicit_terminal_noncontact.ok == true
     and explicit_terminal_noncontact.source_action_match == true,
     "an explicit terminal noncontact must outrank delayed legacy damage counters")
+
+local lily_command_throw_source = {
+    {
+        id = 606,
+        motion = "HP",
+        expected_combo = 1,
+        damage_at_step = 1080,
+        has_hit = true,
+        has_contact = true,
+        combo_stats = { damage = 3600 },
+        relative_raw_inputs = { 64, 0, 64, 0 },
+    },
+    {
+        id = 1005,
+        motion = "360+HP",
+        expected_combo = 1,
+        damage_at_step = 3600,
+        has_hit = false,
+        has_contact = false,
+    },
+}
+local unattributed_throw_compiled = {
+    steps = {
+        {
+            id = 606,
+            motion = "HP",
+            expected_combo = 1,
+            damage_at_step = 1080,
+            has_hit = true,
+            has_contact = true,
+        },
+        {
+            id = 1005,
+            motion = "360+HP",
+            expected_combo = 0,
+            damage_at_step = 1080,
+            has_hit = false,
+            has_contact = false,
+        },
+    },
+    stats = {
+        damage = 1080,
+        observed_hp_loss = 3600,
+        unconfirmed_hp_loss = 2520,
+        passive_damage_ticks = 1,
+        passive_damage_total = 2520,
+        passive_damage_max_tick = 2520,
+        max_combo = 1,
+        unresolved_anchors = 0,
+        block_contacts = 0,
+    },
+}
+local unattributed_throw_capture = transcriber.evaluate(
+    lily_command_throw_source,
+    unattributed_throw_compiled,
+    {
+        input_source = "relative_raw_inputs",
+        raw_inputs = { 64, 0, 64, 0 },
+        input_completed = true,
+        allow_legacy_damage_drift = true,
+        allow_legacy_outcome_rebuild = true,
+    }
+)
+assert(unattributed_throw_capture.ok == false
+        and table.concat(unattributed_throw_capture.reasons, ","):match(
+            "unattributed_damage_tick:max=2520:unconfirmed=2520"
+        ),
+    "legacy damage tolerance must fail closed when a real large damage sample remains unattributed")
+
+local polluted_throw_candidate = transcriber.deep_copy(lily_command_throw_source)
+polluted_throw_candidate[1].combo_stats.damage = 1080
+polluted_throw_candidate[2].expected_combo = 0
+polluted_throw_candidate[2].damage_at_step = 1080
+local polluted_throw_verification = transcriber.verify_candidate(
+    polluted_throw_candidate,
+    unattributed_throw_compiled,
+    {
+        input_source = "relative_raw_inputs",
+        raw_inputs = { 64, 0, 64, 0 },
+        input_completed = true,
+    }
+)
+assert(polluted_throw_verification.ok == false
+        and table.concat(polluted_throw_verification.reasons, ","):match(
+            "raw_replay_unattributed_damage_tick:max=2520:unconfirmed=2520"
+        ),
+    "a second raw replay must reject an already polluted low-damage throw candidate")
+
 local growing_terminal_damage = transcriber.evaluate(
     explicit_terminal_noncontact_source,
 {
@@ -3907,6 +4701,61 @@ local legacy_owner_candidate = assert(transcriber.build_candidate(
 ))
 assert(legacy_owner_candidate[1].id == 945,
     "a bridged legacy owner must compile to the observed runtime child Action")
+
+local legacy_pc_candidate = assert(transcriber.build_candidate(
+    {
+        {
+            id = 606,
+            motion = "HP",
+            counter_type = 2,
+            expected_combo = 1,
+            damage_at_step = 1080,
+            has_hit = true,
+            has_contact = true,
+            combo_stats = { damage = 1080, hit_type = "PC" },
+            timeline = { "1f : HP", "1f : 5" },
+            _xt_meta = { schema = 2 },
+        },
+    },
+    {
+        steps = {
+            {
+                id = 606,
+                motion = "HP",
+                expected_combo = 1,
+                damage_at_step = 1080,
+                has_hit = true,
+                has_contact = true,
+            },
+        },
+        stats = { damage = 1080, drive_used = 0, super_used = 0 },
+    },
+    {
+        schema = 2,
+        product_id = "sf6cc",
+        product_version = "1.0.4",
+        json_id = "xt.combo_trial",
+        json_version = "2",
+    },
+    "2026-08-02T00:00:00+08:00",
+    {
+        input_source = "timeline",
+        relative_raw_inputs = { 64, 0 },
+    }
+))
+assert(legacy_pc_candidate[1].dummy_counter_type == 2
+        and legacy_pc_candidate[1]._xt_meta.dummy_counter_type == 2
+        and legacy_pc_candidate[1]._xt_meta.environment.dummy_counter_type == 2
+        and legacy_pc_candidate[1].combo_stats.hit_type == "PC"
+        and legacy_pc_candidate[1].counter_type == nil,
+    "candidate construction must persist a legacy punish-counter policy before deleting derived step fields")
+require("func/ComboTrials/TrainingEnvironment").normalize_counter_policy(
+    legacy_pc_candidate,
+    false
+)
+assert(legacy_pc_candidate[1].dummy_counter_type == 2
+        and legacy_pc_candidate[1].combo_stats.hit_type == "PC",
+    "strict later normalization must retain the candidate's canonical punish-counter policy")
 local real_child_verified = transcriber.verify_candidate(
     legacy_owner_candidate,
     legacy_owner_compiled,
@@ -4117,6 +4966,187 @@ assert(#low_health_adjustments == 1
     and SceneState.resources(prepared_low_health_roles.actor).heal_hp == 2100
     and legacy_low_health_source[1].scene_state.players.p1.resources.hp == 10000,
     "a stable legacy low-health snapshot must repair only the copied actor scene for CA playback")
+do
+local missing_health_scene_source = {
+    {
+        id = 1216,
+        motion = "236236+P",
+        expected_hp = 10000,
+        recorded_by = 0,
+        scene_state = {
+            schema = "xt.combo_trial.scene.v1",
+            recorded_by = 0,
+            players = {
+                p1 = { fighter_id = 12, unique = { stock_0_012 = 0 } },
+                p2 = { fighter_id = 1 },
+            },
+        },
+    },
+}
+local prepared_missing_health, missing_health_adjustments =
+    transcriber.prepare_capture_sequence(missing_health_scene_source)
+local prepared_missing_health_roles =
+    SceneState.resolve_roles(prepared_missing_health[1], 0)
+assert(#missing_health_adjustments == 1
+        and missing_health_adjustments[1].from == nil
+        and missing_health_adjustments[1].to == 10000
+        and SceneState.resources(prepared_missing_health_roles.actor).hp == 10000
+        and SceneState.resources(prepared_missing_health_roles.actor).heal_hp == 10000
+        and missing_health_scene_source[1].scene_state.players.p1.resources == nil,
+    "stable legacy expected_hp must materialize a missing actor resource block on the transcription copy")
+local leaked_health_evaluation = transcriber.evaluate(
+    missing_health_scene_source,
+    {
+        steps = missing_health_scene_source,
+        stats = {
+            damage = 0,
+            max_combo = 0,
+            unresolved_anchors = 0,
+            block_contacts = 0,
+            actor_hp = 2000,
+        },
+    },
+    {
+        input_source = "timeline",
+        raw_inputs = { 16, 0 },
+        input_completed = true,
+    }
+)
+assert(leaked_health_evaluation.ok == false
+        and leaked_health_evaluation.reasons[1]
+            == "actor_hp_mismatch:expected=10000:observed=2000",
+    "a leaked training-menu HP value must fail before it can rewrite a self-consistent candidate")
+end
+
+do
+local legacy_meter_source = {
+    {
+        id = 740,
+        motion = "RAW DR",
+        recorded_by = 0,
+        combo_stats = {
+            damage = 5800,
+            drive_used = 60000,
+            super_used = 14800,
+        },
+        scene_state = {
+            schema = "xt.combo_trial.scene.v1",
+            recorded_by = 0,
+            players = {
+                p1 = { fighter_id = 12, unique = { stock_0_012 = 2 } },
+                p2 = { fighter_id = 1 },
+            },
+        },
+    },
+}
+local prepared_meter, meter_adjustments =
+    transcriber.prepare_capture_sequence(legacy_meter_source)
+local prepared_meter_actor =
+    SceneState.resolve_roles(prepared_meter[1], 0).actor.state
+assert(#meter_adjustments == 3
+        and meter_adjustments[1].field
+            == "scene_state.actor.resources.drive"
+        and meter_adjustments[1].reason
+            == "legacy_combo_usage_requires_full_drive"
+        and meter_adjustments[2].field
+            == "scene_state.actor.status.burnout"
+        and meter_adjustments[3].field
+            == "scene_state.actor.resources.super"
+        and prepared_meter_actor.resources.drive == 60000
+        and prepared_meter_actor.resources.super == 30000
+        and prepared_meter_actor.status.burnout == false
+        and prepared_meter_actor.unique.stock_0_012 == 2
+        and legacy_meter_source[1].scene_state.players.p1.resources == nil
+        and legacy_meter_source[1].scene_state.players.p1.status == nil,
+    "legacy meter-consuming routes must materialize full active gauges only on the transcription copy")
+
+local prepared_meter_again, repeated_meter_adjustments =
+    transcriber.prepare_capture_sequence(prepared_meter)
+assert(#repeated_meter_adjustments == 0
+        and prepared_meter_again[1].scene_state.players.p1.resources.drive == 60000
+        and prepared_meter_again[1].scene_state.players.p1.resources.super == 30000,
+    "legacy full-gauge reconstruction must be idempotent")
+
+local low_usage_meter_source = transcriber.deep_copy(legacy_meter_source)
+low_usage_meter_source[1].combo_stats.drive_used = 10000
+low_usage_meter_source[1].combo_stats.super_used = 6900
+local prepared_low_usage_meter, low_usage_meter_adjustments =
+    transcriber.prepare_capture_sequence(low_usage_meter_source)
+assert(#low_usage_meter_adjustments == 3
+        and prepared_low_usage_meter[1].scene_state.players.p1.resources.drive == 60000
+        and prepared_low_usage_meter[1].scene_state.players.p1.resources.super == 30000,
+    "lower legacy meter consumption must still restore the recorder's full-gauge default")
+
+local p2_meter_source = transcriber.deep_copy(legacy_meter_source)
+p2_meter_source[1].recorded_by = 1
+p2_meter_source[1].scene_state.recorded_by = 1
+p2_meter_source[1].scene_state.players.p1 = { fighter_id = 1 }
+p2_meter_source[1].scene_state.players.p2 = {
+    fighter_id = 12,
+    unique = { stock_0_012 = 2 },
+}
+local prepared_p2_meter, p2_meter_adjustments =
+    transcriber.prepare_capture_sequence(p2_meter_source)
+assert(#p2_meter_adjustments == 3
+        and prepared_p2_meter[1].scene_state.players.p1.resources == nil
+        and prepared_p2_meter[1].scene_state.players.p2.resources.drive == 60000
+        and prepared_p2_meter[1].scene_state.players.p2.resources.super == 30000,
+    "legacy gauge reconstruction must follow recorded_by and repair only the actor side")
+
+local authoritative_meter_source = transcriber.deep_copy(legacy_meter_source)
+authoritative_meter_source[1].scene_state.schema = "xt.combo_trial.scene.v2"
+local prepared_authoritative_meter, authoritative_meter_adjustments =
+    transcriber.prepare_capture_sequence(authoritative_meter_source)
+assert(#authoritative_meter_adjustments == 0
+        and prepared_authoritative_meter[1].scene_state.players.p1.resources == nil,
+    "a V2 scene must never receive inferred attacker gauges")
+
+local explicit_legacy_meter_source = transcriber.deep_copy(legacy_meter_source)
+explicit_legacy_meter_source[1].scene_state.players.p1.resources = {
+    drive = 25000,
+    super = 20000,
+}
+explicit_legacy_meter_source[1].scene_state.players.p1.status = { burnout = false }
+local prepared_explicit_meter, explicit_meter_adjustments =
+    transcriber.prepare_capture_sequence(explicit_legacy_meter_source)
+assert(#explicit_meter_adjustments == 0
+        and prepared_explicit_meter[1].scene_state.players.p1.resources.drive == 25000
+        and prepared_explicit_meter[1].scene_state.players.p1.resources.super == 20000,
+    "explicit legacy attacker gauges must outrank inferred full-gauge defaults")
+
+local explicit_zero_meter_source = transcriber.deep_copy(legacy_meter_source)
+explicit_zero_meter_source[1].scene_state.players.p1.resources = {
+    drive = 0,
+    super = 0,
+}
+explicit_zero_meter_source[1].scene_state.players.p1.status = { burnout = false }
+local prepared_zero_meter, zero_meter_adjustments =
+    transcriber.prepare_capture_sequence(explicit_zero_meter_source)
+assert(#zero_meter_adjustments == 0
+        and prepared_zero_meter[1].scene_state.players.p1.resources.drive == 0
+        and prepared_zero_meter[1].scene_state.players.p1.resources.super == 0,
+    "explicit legacy zero gauges must not be mistaken for missing values")
+
+local explicit_burnout_source = transcriber.deep_copy(legacy_meter_source)
+explicit_burnout_source[1].combo_stats.super_used = 0
+explicit_burnout_source[1].scene_state.players.p1.status = { burnout = true }
+local prepared_burnout_meter, burnout_meter_adjustments =
+    transcriber.prepare_capture_sequence(explicit_burnout_source)
+assert(#burnout_meter_adjustments == 0
+        and prepared_burnout_meter[1].scene_state.players.p1.resources.drive == nil
+        and prepared_burnout_meter[1].scene_state.players.p1.status.burnout == true,
+    "an explicit legacy burnout state must block inferred active Drive")
+
+local invalid_meter_source = transcriber.deep_copy(legacy_meter_source)
+invalid_meter_source[1].combo_stats.drive_used = 60001
+invalid_meter_source[1].combo_stats.super_used = 30001
+local prepared_invalid_meter, invalid_meter_adjustments =
+    transcriber.prepare_capture_sequence(invalid_meter_source)
+assert(#invalid_meter_adjustments == 0
+        and next(prepared_invalid_meter[1].scene_state.players.p1.resources) == nil,
+    "out-of-range legacy meter telemetry must not become an inferred scene")
+end
+
 local unstable_low_health_source = transcriber.deep_copy(legacy_low_health_source)
 unstable_low_health_source[2].expected_hp = 2000
 local prepared_unstable_health, unstable_health_adjustments =
@@ -4127,6 +5157,29 @@ assert(#unstable_health_adjustments == 0
 local low_health_causes = transcriber.suspected_causes(legacy_low_health_source)
 assert(table.concat(low_health_causes, ","):match("actor_low_health"),
     "legacy expected_hp must identify a missing low-health environment in failure reports")
+
+do
+local legacy_step_counter_source = {
+    {
+        id = 606,
+        motion = "HP",
+        counter_type = 2,
+        expected_combo = 1,
+        damage_at_step = 1080,
+        has_hit = true,
+        has_contact = true,
+    },
+}
+local prepared_step_counter, step_counter_adjustments =
+    transcriber.prepare_capture_sequence(legacy_step_counter_source)
+assert(#step_counter_adjustments == 1
+        and step_counter_adjustments[1].reason
+            == "legacy_counter_policy_canonicalized:legacy_step"
+        and prepared_step_counter[1].dummy_counter_type == 2
+        and prepared_step_counter[1]._xt_meta.environment.dummy_counter_type == 2
+        and legacy_step_counter_source[1].dummy_counter_type == nil,
+    "the capture copy must persist a legacy step-level punish counter before derived fields are removed")
+end
 
 local honda_legacy_buff_source = {
     {
@@ -4173,6 +5226,196 @@ local prepared_runtime_buff, runtime_buff_adjustments =
 assert(#runtime_buff_adjustments == 0
     and prepared_runtime_buff[1].scene_state.players.p1.unique.stock_0_020 == 0,
     "a replay that establishes Honda stock before the enhanced Action must retain stock zero")
+
+do
+local legacy_wall_stun_source = {
+    {
+        id = 855,
+        motion = "DI",
+        expected_combo = 1,
+        damage_at_step = 800,
+        has_hit = true,
+        has_contact = true,
+        has_piyo = true,
+        piyo_frame = 149,
+        recorded_by = 0,
+        dummy_guard_type = 2,
+        scene_state = {
+            schema = "xt.combo_trial.scene.v2",
+            recorded_by = 0,
+            players = {
+                p1 = {
+                    resources = { drive = 60000 },
+                    status = { burnout = false },
+                },
+                p2 = {
+                    resources = { drive = 60000 },
+                    status = { burnout = false },
+                },
+            },
+        },
+        _xt_meta = {
+            dummy_guard_type = 2,
+            environment = { dummy_guard_type = 2 },
+        },
+    },
+}
+local prepared_wall_stun, wall_stun_adjustments =
+    transcriber.prepare_capture_sequence(legacy_wall_stun_source)
+assert(#wall_stun_adjustments == 3
+        and prepared_wall_stun[1].scene_state.players.p2.resources.drive == 0
+        and prepared_wall_stun[1].scene_state.players.p2.status.burnout == true
+        and prepared_wall_stun[1].dummy_guard_type == 3
+        and legacy_wall_stun_source[1].scene_state.players.p2.resources.drive == 60000
+        and legacy_wall_stun_source[1].scene_state.players.p2.status.burnout == false,
+    "runtime-proven opening wall stun must repair burnout and Guard All only on the copied pseudo-V2 scene")
+local prepared_wall_stun_again, repeated_wall_stun_adjustments =
+    transcriber.prepare_capture_sequence(prepared_wall_stun)
+assert(#repeated_wall_stun_adjustments == 0
+        and prepared_wall_stun_again[1].scene_state.players.p2.resources.drive == 0
+        and prepared_wall_stun_again[1].scene_state.players.p2.status.burnout == true,
+    "legacy wall-stun scene repair must be idempotent")
+
+local blocked_wall_stun_source = transcriber.deep_copy(legacy_wall_stun_source)
+blocked_wall_stun_source[1].has_hit = false
+blocked_wall_stun_source[1].has_contact = false
+blocked_wall_stun_source[1].expected_combo = 0
+local prepared_blocked_wall_stun, blocked_wall_stun_adjustments =
+    transcriber.prepare_capture_sequence(blocked_wall_stun_source)
+assert(#blocked_wall_stun_adjustments == 3
+        and prepared_blocked_wall_stun[1].dummy_guard_type == 3
+        and prepared_blocked_wall_stun[1]._xt_meta.dummy_guard_type == 3
+        and prepared_blocked_wall_stun[1]._xt_meta.environment.dummy_guard_type == 3
+        and blocked_wall_stun_source[1].dummy_guard_type == 2,
+    "a runtime-proven blocked wall stun must restore Guard All on the copied environment")
+
+local ordinary_di_source = transcriber.deep_copy(legacy_wall_stun_source)
+ordinary_di_source[1].has_piyo = false
+local prepared_ordinary_di, ordinary_di_adjustments =
+    transcriber.prepare_capture_sequence(ordinary_di_source)
+assert(#ordinary_di_adjustments == 0
+        and prepared_ordinary_di[1].scene_state.players.p2.resources.drive == 60000,
+    "an ordinary opening DI must never infer defender burnout")
+local incomplete_piyo_source = transcriber.deep_copy(legacy_wall_stun_source)
+incomplete_piyo_source[1].piyo_frame = nil
+local prepared_incomplete_piyo, incomplete_piyo_adjustments =
+    transcriber.prepare_capture_sequence(incomplete_piyo_source)
+assert(#incomplete_piyo_adjustments == 0
+        and prepared_incomplete_piyo[1].scene_state.players.p2.resources.drive == 60000,
+    "a legacy piyo flag without its runtime frame must not rewrite the scene")
+local p2_recorded_stun = transcriber.deep_copy(legacy_wall_stun_source)
+p2_recorded_stun[1].recorded_by = 1
+p2_recorded_stun[1].scene_state.recorded_by = 1
+local prepared_p2_stun, p2_stun_adjustments =
+    transcriber.prepare_capture_sequence(p2_recorded_stun)
+assert(#p2_stun_adjustments == 0
+        and prepared_p2_stun[1].scene_state.players.p1.resources.drive == 60000,
+    "the old P2-only stun detector must not infer roles for a P2 recording")
+local authoritative_v2_stun = transcriber.deep_copy(legacy_wall_stun_source)
+authoritative_v2_stun[1].scene_state.players.p2.status.stunned = false
+authoritative_v2_stun[1].scene_state.players.p2.status.stance = "standing"
+authoritative_v2_stun[1].snapshot_gauges = {
+    defender_drive = 0,
+    defender_burnout = true,
+}
+local prepared_authoritative_stun, authoritative_stun_adjustments =
+    transcriber.prepare_capture_sequence(authoritative_v2_stun)
+assert(#authoritative_stun_adjustments == 0
+        and prepared_authoritative_stun[1].scene_state.players.p2.resources.drive == 60000,
+    "a complete live-captured V2 scene must outrank inferred legacy stun state")
+end
+
+do
+local wall_stun_outcome_source = {
+    {
+        id = 855,
+        motion = "DI",
+        expected_combo = 1,
+        damage_at_step = 800,
+        expected_hp = 10000,
+        has_hit = true,
+        has_contact = true,
+        has_piyo = true,
+        piyo_frame = 149,
+        recorded_by = 0,
+        combo_stats = { damage = 3060, drive_used = 10000, super_used = 0 },
+        scene_state = {
+            schema = "xt.combo_trial.scene.v1",
+            recorded_by = 0,
+            players = {
+                p1 = { fighter_id = 12 },
+                p2 = { fighter_id = 1 },
+            },
+        },
+    },
+    { id = 900, motion = "214+LP", expected_combo = 1, damage_at_step = 800, expected_hp = 10000, has_hit = true, has_contact = true },
+    { id = 606, motion = "HP", expected_combo = 2, damage_at_step = 1520, expected_hp = 10000, has_hit = true, has_contact = true },
+    { id = 929, motion = "236+HK", expected_combo = 5, damage_at_step = 2360, expected_hp = 10000, has_hit = true, has_contact = true },
+    { id = 941, motion = "623+HP", expected_combo = 7, damage_at_step = 3060, expected_hp = 10000, has_hit = true, has_contact = true },
+}
+local prepared_wall_stun_outcome, wall_stun_outcome_adjustments =
+    transcriber.prepare_capture_sequence(wall_stun_outcome_source)
+local wall_stun_runtime_steps = {
+    { id = 855, motion = "DI", expected_combo = 0, damage_at_step = 200, expected_hp = 10000, has_hit = true, has_contact = true, delay_from_prev = 0 },
+    { id = 900, motion = "214+LP", expected_combo = 0, damage_at_step = 200, expected_hp = 10000, has_hit = true, has_contact = true, delay_from_prev = 160 },
+    { id = 606, motion = "HP", expected_combo = 1, damage_at_step = 920, expected_hp = 10000, has_hit = true, has_contact = true, delay_from_prev = 30 },
+    { id = 929, motion = "236+HK", expected_combo = 4, damage_at_step = 1760, expected_hp = 10000, has_hit = true, has_contact = true, delay_from_prev = 20 },
+    { id = 941, motion = "623+HP", expected_combo = 6, damage_at_step = 2460, expected_hp = 10000, has_hit = true, has_contact = true, delay_from_prev = 20 },
+}
+local wall_stun_compiled = {
+    steps = wall_stun_runtime_steps,
+    stats = {
+        damage = 2460,
+        max_combo = 6,
+        block_contacts = 0,
+        drive_used = 10000,
+        super_used = 0,
+        actor_hp = 10000,
+        unresolved_anchors = 0,
+        fallback_motion_actions = 0,
+        unresolved_motion_actions = 0,
+        resolver_error_actions = 0,
+        unconfirmed_hp_loss = 0,
+        passive_damage_ticks = 0,
+        passive_damage_total = 0,
+    },
+}
+local wall_stun_outcome_evaluation = transcriber.evaluate(
+    prepared_wall_stun_outcome,
+    wall_stun_compiled,
+    {
+        input_source = "timeline",
+        raw_inputs = { 64 | 512, 0, 16, 0, 64, 0, 512, 0, 64, 0 },
+        input_completed = true,
+        allow_legacy_outcome_rebuild = true,
+        environment_adjustments = wall_stun_outcome_adjustments,
+        verify_environment = true,
+        environment_observed = { dummy_guard_type = 3 },
+    }
+)
+assert(wall_stun_outcome_evaluation.ok == true
+        and wall_stun_outcome_evaluation.blocked_wall_stun_shift.damage_shift == 600
+        and table.concat(wall_stun_outcome_evaluation.advisories, ","):find(
+            "source_blocked_wall_stun_combo_rebuilt:expected=7:observed=6",
+            1,
+            true
+        ) ~= nil,
+    "an exact blocked wall-stun trace may correct the legacy recorder's constant one-hit offset once")
+local wall_stun_without_proof = transcriber.evaluate(
+    prepared_wall_stun_outcome,
+    wall_stun_compiled,
+    {
+        input_source = "timeline",
+        raw_inputs = { 64 | 512, 0, 16, 0, 64, 0, 512, 0, 64, 0 },
+        input_completed = true,
+        allow_legacy_outcome_rebuild = true,
+        verify_environment = true,
+        environment_observed = { dummy_guard_type = 3 },
+    }
+)
+assert(wall_stun_without_proof.ok == false,
+    "the same combo regression must fail without a recorded legacy wall-stun scene adjustment")
+end
 
 -- A legacy file can contain both a correct timeline and a screen-absolute raw
 -- stream. Conversion must discard the latter so old WTT falls back to timeline.

@@ -97,6 +97,43 @@ assert(aki_override_status == "loaded" and aki_override_count == 4
         and aki_overrides["955"].status == "runtime_verified_override"
         and aki_overrides["957"].status == "runtime_verified_override",
     "AKI's verified Classic Actions must replace only their unverified catalog rows")
+local lily_catalog = {
+    _slim = true,
+    ["600"] = { classic = "LP", status = "route_unverified" },
+    ["612"] = { classic = "MK", status = "route_unverified" },
+    ["651"] = { classic = "3+HP", status = "route_unverified" },
+}
+local lily_override_document = {
+    schema = "xt.command_display_overrides.v1",
+    character = "Lily",
+    entries = {
+        ["600"] = {
+            classic = "LP",
+            replace = true,
+            evidence = "four verified raw-input runtime replays",
+        },
+        ["612"] = {
+            classic = "MK",
+            replace = true,
+            evidence = "two verified raw-input runtime replays",
+        },
+        ["651"] = {
+            classic = "3+HP",
+            replace = true,
+            evidence = "one verified facing-relative raw-input runtime replay",
+        },
+    },
+}
+local lily_overrides, lily_override_count, lily_override_status =
+    command_display_overrides.merge(lily_catalog, "Lily", lily_override_document)
+assert(lily_override_status == "loaded" and lily_override_count == 3
+        and lily_overrides["600"].classic == "LP"
+        and lily_overrides["612"].classic == "MK"
+        and lily_overrides["651"].classic == "3+HP"
+        and lily_overrides["600"].status == "runtime_verified_override"
+        and lily_overrides["612"].status == "runtime_verified_override"
+        and lily_overrides["651"].status == "runtime_verified_override",
+    "Lily's verified Classic Actions must replace only their unverified catalog rows")
 local akuma_catalog = { _slim = true }
 local akuma_override_document = {
     schema = "xt.command_display_overrides.v1",
@@ -502,6 +539,21 @@ assert(aki_classic_validation.ok == true
         and aki_classic_validation.resolved_step_count == 4
         and aki_classic_validation.unresolved_count == 0,
     "AKI's four runtime-verified Classic overrides must pass strict display audit")
+
+resolve_modern_display_context = function()
+    return false, lily_overrides, "Lily", "loaded", false
+end
+local lily_runtime_audit_validation = validate_sequence_command_display({
+    { id = 600, motion = "LP" },
+    { id = 612, motion = "MK" },
+    { id = 651, motion = "3+HP" },
+})
+assert(lily_runtime_audit_validation.ok == true
+        and lily_runtime_audit_validation.total_steps == 3
+        and lily_runtime_audit_validation.resolved_step_count == 3
+        and lily_runtime_audit_validation.suppressed_step_count == 0
+        and lily_runtime_audit_validation.unresolved_count == 0,
+    "Lily's three runtime-verified Classic overrides must pass strict display audit")
 
 for action_id, classic in pairs({
     ["903"] = "236+HP",
@@ -988,6 +1040,78 @@ assert(character_rules.find_recording_absorb_owner({
         ["970"] = { absorb_ids = "975", record_absorb_as_parent = true }
     }, {}, 975) == nil,
     "ambiguous absorb parents must fail closed instead of choosing an arbitrary command")
+local lily_930_rules = {
+    ["930"] = {
+        absorb_ids = "929",
+    },
+}
+local lily_930_expected = { id = 930, expected_combo = 6 }
+local lily_930_canonical = character_rules.match_current_canonical_confirmation(
+    lily_930_rules, {}, lily_930_expected, 929, 6, "Lily")
+assert(lily_930_canonical.matched == false
+        and lily_930_canonical.block_reason == "canonical_owner_projection_missing",
+    "Lily must not canonicalize 929 through the absorb-only exception")
+assert(action_matcher.matches_expected_action_id(
+        lily_930_expected, 929, lily_930_rules["930"]) == false,
+    "Lily's transient 929 precursor must not advance the 930 step through action_alias_ids")
+local lily_transient_ignore = action_matcher.classify_runtime_transition({
+    character = "Lily",
+    expected_step = lily_930_expected,
+    expected_action_matches_current = false,
+    actual_action_id = 929,
+    input_anchor_kind = "button_press",
+    input_truth_mode = true,
+})
+assert(lily_transient_ignore.ignored == true
+        and lily_transient_ignore.reason == "transient_input_precursor",
+    "the live trial must ignore Lily's 929 precursor while waiting for durable 930")
+local lily_transient_wrong_step = action_matcher.classify_runtime_transition({
+    character = "Lily",
+    expected_step = { id = 941, expected_combo = 8 },
+    expected_action_matches_current = false,
+    actual_action_id = 929,
+    input_anchor_kind = "button_press",
+    input_truth_mode = true,
+})
+assert(lily_transient_wrong_step.ignored == false,
+    "Lily's 929 precursor must not be ignored for a different expected step")
+local ryu_transient_mismatch = action_matcher.classify_runtime_transition({
+    character = "Ryu",
+    expected_step = lily_930_expected,
+    expected_action_matches_current = false,
+    actual_action_id = 929,
+    input_anchor_kind = "button_press",
+    input_truth_mode = true,
+})
+assert(ryu_transient_mismatch.ignored == false,
+    "transient precursor ignoring must stay character-scoped")
+local lily_930_early = character_rules.match_current_absorb_confirmation(
+    lily_930_rules, {}, lily_930_expected, 929, 3, "Lily")
+assert(lily_930_early.matched == false
+        and lily_930_early.block_reason == "combo_not_reached",
+    "Lily 929 chord precursor must wait for the durable 930 before combo is reached")
+local lily_930_absorb = character_rules.match_current_absorb_confirmation(
+    lily_930_rules, {}, lily_930_expected, 929, 6, "Lily")
+assert(lily_930_absorb.matched == true
+        and lily_930_absorb.actual_action_id == 929,
+    "input-truth playback must admit Lily's transient 929 precursor through absorb_ids")
+local lily_930_recent = character_rules.find_recent_absorb_confirmation(
+    lily_930_rules,
+    {},
+    lily_930_expected,
+    { { id = 929, combo_count = 6, start_frame = 100 } },
+    "Lily"
+)
+assert(lily_930_recent.matched == true
+        and lily_930_recent.actual_action_id == 929,
+    "recent-input playback must retain the same Lily 929 absorb confirmation")
+local lily_exception_source = read_all(
+    "data/TrainingComboTrials_data/exceptions/Lily.json")
+assert(lily_exception_source:find('"930"', 1, true)
+        and lily_exception_source:find('"absorb_ids": "929"', 1, true)
+        and not lily_exception_source:find('"action_alias_ids": "929"', 1, true)
+        and not lily_exception_source:find('"canonical_owner_ids": "929"', 1, true),
+    "the shipped Lily exception must keep 929 as an absorb-only transient precursor")
 local deejay_sa3_exception = character_rules.get_match_rule({}, {}, "DeeJay", 1268)
 assert(deejay_sa3_exception ~= nil,
     "Dee Jay SA3/CA compatibility must live in character rules, not legacy combo JSON")

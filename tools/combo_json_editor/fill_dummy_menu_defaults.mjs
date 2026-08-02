@@ -261,7 +261,7 @@ function ensureScenePlayer(scene, side, report) {
     return scene.players[side];
 }
 
-function fillPlayerBasics(player, side, defaultFighterId, report) {
+function fillPlayerBasics(player, side, defaultFighterId, report, defaults = {}) {
     fillEmpty(player, "fighter_id", defaultFighterId, report, `${side}.fighter_id`);
 
     if (!isObject(player.resources)) {
@@ -271,7 +271,11 @@ function fillPlayerBasics(player, side, defaultFighterId, report) {
         player.resources = {};
         markInsertion(report, `${side}.resources`);
     }
-    for (const [field, value] of Object.entries(SCENE_RESOURCE_DEFAULTS)) {
+    const resourceDefaults = {
+        ...SCENE_RESOURCE_DEFAULTS,
+        ...(isObject(defaults.resources) ? defaults.resources : {})
+    };
+    for (const [field, value] of Object.entries(resourceDefaults)) {
         fillEmpty(player.resources, field, value, report, `${side}.resources.${field}`);
     }
 
@@ -282,7 +286,29 @@ function fillPlayerBasics(player, side, defaultFighterId, report) {
         player.status = {};
         markInsertion(report, `${side}.status`);
     }
-    fillEmpty(player.status, "burnout", false, report, `${side}.status.burnout`);
+    fillEmpty(
+        player.status,
+        "burnout",
+        defaults.burnout ?? false,
+        report,
+        `${side}.status.burnout`
+    );
+}
+
+function legacyOpeningWallStun(first, scene = null) {
+    if (!isObject(first)
+        || first.has_piyo !== true
+        || !Number.isFinite(Number(first.piyo_frame))
+        || Number(first.piyo_frame) <= 0
+        || Number(first.recorded_by ?? scene?.recorded_by) !== 0
+        || ![854, 855].includes(Number(first.id))
+        || String(first.motion || "").trim().toUpperCase() !== "DI") {
+        return null;
+    }
+    return {
+        defenderSide: "p2",
+        blocked: first.has_hit !== true
+    };
 }
 
 function uniqueObject(player, side, report) {
@@ -340,7 +366,7 @@ function fillSharedUnique(players, recordedBy, report) {
     }
 }
 
-function fillSceneDefaults(document, relativePath, report) {
+function fillSceneDefaults(document, relativePath, report, wallStun) {
     const first = document[0];
     const folder = folderFromPath(relativePath);
     const folderCharacter = characterByFolder(folder);
@@ -369,8 +395,23 @@ function fillSceneDefaults(document, relativePath, report) {
 
     const p1 = ensureScenePlayer(scene, "p1", report);
     const p2 = ensureScenePlayer(scene, "p2", report);
-    fillPlayerBasics(p1, "p1", folderCharacter.fighterId, report);
-    fillPlayerBasics(p2, "p2", folderCharacter.fighterId, report);
+    const burnoutDefaults = wallStun
+        ? { resources: { drive: 0 }, burnout: true }
+        : {};
+    fillPlayerBasics(
+        p1,
+        "p1",
+        folderCharacter.fighterId,
+        report,
+        wallStun?.defenderSide === "p1" ? burnoutDefaults : {}
+    );
+    fillPlayerBasics(
+        p2,
+        "p2",
+        folderCharacter.fighterId,
+        report,
+        wallStun?.defenderSide === "p2" ? burnoutDefaults : {}
+    );
 
     if (Number(p1.fighter_id) === Number(p2.fighter_id)) {
         fillSharedUnique({ p1, p2 }, recordedBy, report);
@@ -403,6 +444,10 @@ function mutateDocument(document, relativePath) {
         report.changed = true;
     }
     const containers = ensureContainers(document, relativePath);
+    const wallStun = legacyOpeningWallStun(
+        containers.first,
+        isObject(containers.first.scene_state) ? containers.first.scene_state : null
+    );
 
     for (const field of [
         "dummy_action_type",
@@ -416,7 +461,10 @@ function mutateDocument(document, relativePath) {
 
     fillAction(containers, report);
     for (const [field, defaultValue] of Object.entries(MENU_DEFAULTS)) {
-        fillReplicas(containers, field, defaultValue, report);
+        const resolvedDefault = field === "dummy_guard_type" && wallStun?.blocked
+            ? 3
+            : defaultValue;
+        fillReplicas(containers, field, resolvedDefault, report);
     }
 
     if (containers.environment.schema !== ENVIRONMENT_SCHEMA) {
@@ -432,7 +480,7 @@ function mutateDocument(document, relativePath) {
             });
         }
     }
-    fillSceneDefaults(document, relativePath, report);
+    fillSceneDefaults(document, relativePath, report, wallStun);
     return report;
 }
 

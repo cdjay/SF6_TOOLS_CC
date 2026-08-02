@@ -1,0 +1,21 @@
+{
+  "schema": "xt.command_display_overrides.v1",
+  "character": "Lily",
+  "entries": {
+    "600": {
+      "classic": "LP",
+      "replace": true,
+      "evidence": "Four verified relative raw-input runtime replays bind a fresh neutral LP press and hit contact to Lily Action 600; the generated catalog independently records the same Classic command"
+    },
+    "612": {
+      "classic": "MK",
+      "replace": true,
+      "evidence": "Two verified relative raw-input runtime replays bind a fresh neutral MK press and hit contact to Lily Action 612; the generated catalog independently records the same Classic command"
+    },
+    "651": {
+      "classic": "3+HP",
+      "replace": true,
+      "evidence": "A verified facing-relative raw-input runtime replay binds down-forward HP and hit contact to Lily Action 651; the generated catalog independently records the same Classic command"
+    }
+  }
+}

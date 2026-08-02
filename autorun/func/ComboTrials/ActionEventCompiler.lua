@@ -24,6 +24,12 @@ local Compiler = {
     GHOST_FILTER_FRAMES = 4,
     DIRECTION_ACTION_BIND_WINDOW = 4,
     DASH_TAP_WINDOW = 12,
+    RAW_DRIVE_RUSH_EVIDENCE_WINDOW = 12,
+    RAW_DRIVE_RUSH_MIN_LOCAL_COST = 9000,
+    -- The game exposes Action 740 before its one-bar cost is guaranteed to be
+    -- visible in the player gauge. Keep the transition briefly and confirm it
+    -- from the same local meter spend before the next Action is bound.
+    RAW_DRIVE_RUSH_COST_SETTLE_WINDOW = 30,
     BUTTON_MASK = 0xFFF0,
 }
 
@@ -95,15 +101,10 @@ local INTERNAL_ACTION_PHASE_TRANSITIONS = {
     },
 }
 
--- A chord can briefly launch a normal before the remaining button arrives.
--- These exact transitions replace the transient precursor with the durable
--- command Action; unlike INTERNAL_ACTION_PHASE_TRANSITIONS, truth belongs to
--- the destination rather than the precursor.
-local TRANSIENT_INPUT_PRECURSOR_TRANSITIONS = {
-    cammy = {
-        [966] = { [979] = true },
-    },
-}
+-- Shared with ActionMatcher so live raw-input trial validation ignores the
+-- same transient precursor instead of turning it into a second instruction.
+local TRANSIENT_INPUT_PRECURSOR_TRANSITIONS =
+    ActionMatcher.TRANSIENT_INPUT_PRECURSOR_TRANSITIONS
 
 local DASH_ACTIONS = {
     [17] = true,
@@ -477,6 +478,10 @@ local function add_event(session, sample, anchor, reason)
 
     local frame = tonumber(sample.frame) or 0
     local previous = session.events[#session.events]
+    local current_projection_rule = action_event_projection_rule(
+        session,
+        action_id
+    )
     local consumed_pending_anchor = type(session.pending_anchor) == "table"
         and session.pending_anchor == anchor
     local event = {
@@ -484,6 +489,7 @@ local function add_event(session, sample, anchor, reason)
         frame = frame,
         action_frame = tonumber(sample.action_frame) or 0,
         actor_hp = rounded(sample.actor_hp),
+        actor_drive = rounded(sample.actor_drive),
         facing_right = sample.facing_right ~= false,
         combo_at_start = math.max(0, tonumber(sample.combo_count) or 0),
         expected_combo = 0,
@@ -520,19 +526,78 @@ local function add_event(session, sample, anchor, reason)
     session.current_event = event
     session.pending_anchor = nil
     if projection_fold_reason == "character_internal_action_phase"
-        and consumed_pending_anchor then
+        and consumed_pending_anchor
+        and type(current_projection_rule) == "table"
+        and current_projection_rule.carry_input_anchor == true then
         -- An internal runtime phase may become visible before the durable
         -- Action that the pending physical input actually launches. Keep the
         -- raw phase event, but return a private copy of that anchor to the
         -- binder. A canonical-owner release already belongs to its owner and
         -- must not be reused by a later ordinary Action.
-        session.pending_anchor = shallow_copy(anchor)
+        local continuation = shallow_copy(anchor)
+        continuation.initial_action_id = action_id
+        continuation.initial_action_frame = tonumber(sample.action_frame) or 0
+        continuation.is_internal_phase_continuation = true
+        continuation.internal_phase_owner_id =
+            tonumber(current_projection_rule.owner_id)
+        session.pending_anchor = continuation
     end
     session.recent_direction_anchor = nil
     session.started = true
     session.started_frame = session.started_frame or frame
     session.last_activity_frame = frame
     return event
+end
+
+local function raw_drive_rush_transition_anchor(current_event, sample, input)
+    local anchor = shallow_copy(
+        type(current_event) == "table" and current_event.anchor or nil
+    )
+    anchor.frame = tonumber(sample and sample.frame) or 0
+    anchor.kind = "drive_cost_confirmed_transition"
+    anchor.initial_action_id = tonumber(current_event and current_event.id)
+    anchor.initial_action_frame = tonumber(current_event and current_event.action_frame)
+    anchor.pressed_buttons = 0
+    anchor.released_buttons = 0
+    anchor.held_buttons = (tonumber(input) or 0) & Compiler.BUTTON_MASK
+    return anchor
+end
+
+local function confirm_pending_meter_raw_drive_rush(session, sample)
+    local pending = type(session) == "table"
+        and session.pending_meter_confirmed_raw_dr or nil
+    if type(pending) ~= "table" then return false end
+
+    local frame = tonumber(sample and sample.frame) or 0
+    local transition_frame = tonumber(pending.frame) or frame
+    local age = frame - transition_frame
+    local baseline_drive = tonumber(pending.baseline_drive)
+    local current_drive = rounded(sample and sample.actor_drive)
+    local local_drive_cost = baseline_drive ~= nil and current_drive ~= nil
+        and math.max(0, baseline_drive - current_drive) or 0
+
+    if age >= 0 and age <= Compiler.RAW_DRIVE_RUSH_COST_SETTLE_WINDOW
+        and local_drive_cost >= Compiler.RAW_DRIVE_RUSH_MIN_LOCAL_COST then
+        session.pending_meter_confirmed_raw_dr = nil
+        add_event(
+            session,
+            pending.sample,
+            pending.anchor,
+            "deferred_drive_cost_confirmed_raw_dr_transition"
+        )
+        return true
+    end
+
+    local current_action_id = tonumber(sample and sample.action_id)
+    local left_raw_drive_rush = current_action_id ~= nil
+        and not ActionMatcher.is_raw_drive_rush_action_id(current_action_id)
+    if age > Compiler.RAW_DRIVE_RUSH_COST_SETTLE_WINDOW
+        or left_raw_drive_rush then
+        session.pending_meter_confirmed_raw_dr = nil
+        session.expired_meter_raw_dr_count =
+            (tonumber(session.expired_meter_raw_dr_count) or 0) + 1
+    end
+    return false
 end
 
 local function event_button_mask(event)
@@ -1018,7 +1083,10 @@ function Compiler.new(options)
         started_frame = nil,
         input_anchor_count = 0,
         unresolved_anchor_count = 0,
+        expired_internal_continuation_count = 0,
+        expired_meter_raw_dr_count = 0,
         pending_anchor = nil,
+        pending_meter_confirmed_raw_dr = nil,
         recent_direction_anchor = nil,
         button_press_frames = {},
         last_direction_tap = {},
@@ -1093,6 +1161,11 @@ function Compiler.observe(session, sample)
 
     update_damage(session, sample)
     update_actor_resources(session, sample)
+    -- Resolve a delayed one-bar spend before observing this frame's new input
+    -- edge. If the cost first becomes visible on the following attack frame,
+    -- Action 740 is inserted at its original transition frame and the attack's
+    -- physical anchor remains available for its own Action.
+    confirm_pending_meter_raw_drive_rush(session, sample)
 
     local anchor
     if pressed ~= 0 or released ~= 0 then
@@ -1178,12 +1251,58 @@ function Compiler.observe(session, sample)
         action_start_absorbed = true
     end
 
+    -- A few raw Drive Rush recordings expose PARRY long enough to miss the
+    -- immediate four-frame precursor fold, yet do not provide another physical
+    -- edge for RAW DR to bind. A real local one-bar Drive spend is independent
+    -- runtime proof that this later Action is a separate rush, while a held or
+    -- re-pressed parry phase without the cost remains ignored.
+    if actual_action_start
+        and not action_start_absorbed
+        and session.pending_anchor == nil
+        and type(session.current_event) == "table"
+        and ActionMatcher.is_drive_parry_action_id(session.current_event.id)
+        and ActionMatcher.is_raw_drive_rush_action_id(action_id)
+        and frame - (tonumber(session.current_event.frame) or frame) > 4
+        and frame - (tonumber(session.current_event.frame) or frame)
+            <= Compiler.RAW_DRIVE_RUSH_EVIDENCE_WINDOW
+        and session.current_event.has_contact ~= true then
+        local parry_drive = tonumber(session.current_event.actor_drive)
+        local current_drive = rounded(sample.actor_drive)
+        local local_drive_cost = parry_drive ~= nil and current_drive ~= nil
+            and math.max(0, parry_drive - current_drive) or 0
+        local rush_anchor = raw_drive_rush_transition_anchor(
+            session.current_event,
+            sample,
+            input
+        )
+        if local_drive_cost >= Compiler.RAW_DRIVE_RUSH_MIN_LOCAL_COST then
+            add_event(
+                session,
+                sample,
+                rush_anchor,
+                "drive_cost_confirmed_raw_dr_transition"
+            )
+            action_start_absorbed = true
+        elseif parry_drive ~= nil and current_drive ~= nil then
+            session.pending_meter_confirmed_raw_dr = {
+                frame = frame,
+                baseline_drive = parry_drive,
+                sample = shallow_copy(sample),
+                anchor = rush_anchor,
+            }
+            action_start_absorbed = true
+        end
+    end
+
     local pending = session.pending_anchor
     if pending and frame - pending.frame > Compiler.BIND_WINDOW then
         -- Every ordinary button release is still captured because negative-edge
         -- actions can bind to it. An unbound release is not itself evidence that
         -- transcription failed.
-        if pending.kind ~= "button_release"
+        if pending.is_internal_phase_continuation == true then
+            session.expired_internal_continuation_count =
+                (tonumber(session.expired_internal_continuation_count) or 0) + 1
+        elseif pending.kind ~= "button_release"
             and pending.is_movement_continuation ~= true then
             session.unresolved_anchor_count = session.unresolved_anchor_count + 1
         end
@@ -1202,7 +1321,22 @@ function Compiler.observe(session, sample)
         local restarted_after_anchor = action_restarted and frame >= pending.frame
         local dash_already_active = pending.kind == "double_tap"
             and DASH_ACTIONS[action_id] == true
+        local continuation_target_allowed = true
+        if pending.is_internal_phase_continuation == true then
+            local target_rule = action_event_projection_rule(session, action_id)
+            if type(target_rule) == "table"
+                and target_rule.kind == "internal_phase" then
+                continuation_target_allowed =
+                    tonumber(target_rule.owner_id)
+                        == tonumber(pending.internal_phase_owner_id)
+            else
+                -- Common locomotion/system Actions must never steal an attack
+                -- edge that an internal phase temporarily consumed.
+                continuation_target_allowed = action_id > 50
+            end
+        end
         if not stale_release_low_action
+            and continuation_target_allowed
             and (actual_action_start or changed_after_anchor
                 or restarted_after_anchor or dash_already_active) then
             local bound_anchor = pending
@@ -1274,6 +1408,9 @@ function Compiler.observe(session, sample)
             damage_type = sample.victim_damage_type,
             hit_stop = sample.victim_hit_stop,
             contact_candidate = current ~= nil and current.has_hit ~= true,
+            action_owned_hp_decrease = current ~= nil
+                and current.has_hit ~= true
+                and tonumber(current.id) == action_id,
         }
     )
     local hit_contact = contact_truth.hit_contact
@@ -1373,7 +1510,8 @@ function Compiler.finalize(session, options)
     local unresolved_anchors = type(session) == "table"
         and (session.unresolved_anchor_count or 0) or 0
     if type(session) == "table" and type(session.pending_anchor) == "table"
-        and session.pending_anchor.kind ~= "button_release" then
+        and session.pending_anchor.kind ~= "button_release"
+        and session.pending_anchor.is_internal_phase_continuation ~= true then
         unresolved_anchors = unresolved_anchors + 1
     end
 
@@ -1756,6 +1894,10 @@ function Compiler.finalize(session, options)
                 and session.pending_anchor or nil,
             expired_anchor_count = type(session) == "table"
                 and (session.unresolved_anchor_count or 0) or 0,
+            expired_internal_continuation_count = type(session) == "table"
+                and (session.expired_internal_continuation_count or 0) or 0,
+            expired_meter_raw_dr_count = type(session) == "table"
+                and (session.expired_meter_raw_dr_count or 0) or 0,
         },
     }
 end

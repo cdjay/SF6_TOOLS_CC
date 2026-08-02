@@ -164,6 +164,15 @@ function M.evaluate_recording_hit_contact(params)
     result.hp_decreased = result.current_hp ~= nil
         and result.previous_hp ~= nil
         and result.current_hp < result.previous_hp
+    -- Command throws can keep the victim's ordinary hit-stop/damage-type
+    -- signals clear while the game is still executing the input-bound Action.
+    -- The caller may opt in to treating a large HP drop in that exact Action as
+    -- contact truth. Small drops remain inside the supported persistent-damage
+    -- envelope and can never use this bridge.
+    result.action_owned_hp_decrease = params.action_owned_hp_decrease == true
+        and result.hp_decreased
+        and result.hp_delta >= result.minimum_hp_delta
+        and not result.blocked
     result.has_hit_signal = result.damage_type == 3 and result.hit_stop > 0
     local has_signal_history = result.previous_damage_type ~= nil
         or result.previous_hit_stop ~= nil
@@ -184,9 +193,11 @@ function M.evaluate_recording_hit_contact(params)
         result.reason = "combo_increased"
     elseif result.hp_decreased and result.blocked then
         result.reason = "blocked_hp_decrease"
-    elseif result.hp_decreased and not result.has_hit_signal then
+    elseif result.hp_decreased and not result.has_hit_signal
+        and not result.action_owned_hp_decrease then
         result.reason = "hp_decreased_without_hit_signal"
-    elseif result.hp_decreased and not result.contact_cycle_available then
+    elseif result.hp_decreased and not result.contact_cycle_available
+        and not result.action_owned_hp_decrease then
         result.reason = "hp_decreased_without_new_hit_cycle"
     elseif result.hp_decreased and not result.contact_candidate then
         result.reason = "hp_decreased_without_unconfirmed_action"
@@ -194,7 +205,9 @@ function M.evaluate_recording_hit_contact(params)
         result.reason = "hp_decrease_within_persistent_damage_range"
     elseif result.hp_decreased then
         result.accepted = true
-        result.reason = "victim_hp_decreased_hit_signal"
+        result.reason = result.action_owned_hp_decrease
+            and "victim_hp_decreased_during_bound_action"
+            or "victim_hp_decreased_hit_signal"
     else
         result.reason = "no_new_hit_contact"
     end
@@ -280,6 +293,7 @@ function M.observe_recording_contacts(state, params)
         blocked = block_active,
         contact_candidate = params.contact_candidate,
         contact_cycle_available = hit_cycle_available,
+        action_owned_hp_decrease = params.action_owned_hp_decrease,
     })
     local current_hp_decreased = hit_contact.hp_decreased == true
     local current_delta = math.max(0, tonumber(hit_contact.hp_delta) or 0)
@@ -349,7 +363,8 @@ function M.observe_recording_contacts(state, params)
     local current_hit_damage_confirmed = current_hp_decreased
         and not block_active
         and current_delta >= MIN_UNCOUNTED_HIT_HP_DELTA
-        and (hit_cycle_available or hit_contact.combo_increased)
+        and (hit_cycle_available or hit_contact.combo_increased
+            or hit_contact.action_owned_hp_decrease)
     if current_hit_damage_confirmed
         and hit_contact.accepted ~= true
         and params.contact_candidate ~= false then

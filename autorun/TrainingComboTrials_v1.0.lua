@@ -8263,6 +8263,7 @@ local function ct_player_process_actions(p_idx, p_state, actions_to_process)
                     expected_step = expected_for_ignore,
                     expected_action_matches_current = expected_action_matches_current == true,
                     actual_action_id = act_id,
+                    character = p_state.profile_name,
                     input_anchor_kind = process_act.input_anchor_kind,
                     input_anchor_motion = process_act.input_anchor_motion,
                     input_truth_mode = input_truth_mode,
@@ -8271,7 +8272,9 @@ local function ct_player_process_actions(p_idx, p_state, actions_to_process)
                 })
                 if transition_policy.ignored then
                     is_ignored = true
-                    ignore_reason = "[输入事实：无新输入的内部状态跳转]"
+                    ignore_reason = transition_policy.reason == "transient_input_precursor"
+                        and "[输入事实：瞬态前驱，等待完整指令]"
+                        or "[输入事实：无新输入的内部状态跳转]"
                 end
 
                 if not is_ignored and not expected_action_matches_current then
@@ -10466,6 +10469,7 @@ ctx.transcription_item = function(path, status, details)
         advisories = details.advisories or {},
         suspected_causes = details.suspected_causes or {},
         expected = details.expected,
+        capture_expected = details.capture_expected,
         observed = details.observed,
         capture_observed = details.capture_observed,
         capture_advisories = details.capture_advisories,
@@ -10636,6 +10640,8 @@ ctx.complete_transcription_item = function(run, evaluation, details)
         advisories = evaluation.advisories,
         suspected_causes = evaluation.suspected_causes,
         expected = evaluation.expected,
+        capture_expected = run.capture_evaluation
+            and run.capture_evaluation.expected or nil,
         observed = evaluation.observed,
         capture_observed = run.capture_evaluation and run.capture_evaluation.observed or nil,
         capture_advisories =
@@ -10967,6 +10973,7 @@ ctx.finish_current_transcription_file = function(timed_out)
         -- adds hits, but a smaller maximum combo remains a hard failure.
         -- Every accepted capture must then survive an exact second raw replay.
         allow_legacy_outcome_rebuild = true,
+        environment_adjustments = run.capture_environment_adjustments,
         verify_environment = true,
         environment_observed = ctx.read_transcription_environment(),
     })

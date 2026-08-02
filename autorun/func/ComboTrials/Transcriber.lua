@@ -4,12 +4,15 @@
 local Transcriber = {
     name = "ComboTrials.Transcriber",
     REPORT_SCHEMA = "sf6cc.combo_transcription_report.v1",
-    VALIDATION_REVISION = 34,
+    VALIDATION_REVISION = 38,
     OUTPUT_ROOT = "TrainingComboTrials_data/TranscribedCandidates",
     REPORT_ROOT = "TrainingComboTrials_data/TranscriptionReports",
 }
 
 local PERSISTENT_DAMAGE_MIN_TICKS = 3
+local MAX_DRIVE_GAUGE = 60000
+local SUPER_GAUGE_PER_LEVEL = 10000
+local MAX_SUPER_GAUGE = 30000
 local ActionRestartDetector = require("func/ComboTrials/ActionRestartDetector")
 -- Legacy outcome correction intentionally recognizes only the known small
 -- poison-tick range. Larger unconfirmed losses remain telemetry but are not
@@ -134,6 +137,27 @@ local function expected_outcome(sequence)
         drive_used = tonumber(stats.drive_used) or 0,
         super_used = tonumber(stats.super_used) or 0,
     }
+end
+
+-- Early recorders sampled the Super gauge again after the combo had already
+-- earned meter. Their derived `super_used` can therefore be a partial value
+-- such as 6900 for an SA1 or 17000 for an SA2. Current runtime truth measures
+-- initial minus minimum gauge and produces the real whole-level cost. This
+-- helper deliberately recognizes only the next exact whole level; canonical
+-- source values and larger jumps remain strict failures.
+local function is_legacy_partial_super_usage(expected_value, observed_value)
+    local expected = tonumber(expected_value)
+    local observed = tonumber(observed_value)
+    if expected == nil or observed == nil then return false end
+    expected = math.floor(expected + 0.5)
+    observed = math.floor(observed + 0.5)
+    if expected <= 0 or expected >= MAX_SUPER_GAUGE
+        or expected % SUPER_GAUGE_PER_LEVEL == 0 then
+        return false
+    end
+    local whole_level_cost = math.ceil(expected / SUPER_GAUGE_PER_LEVEL)
+        * SUPER_GAUGE_PER_LEVEL
+    return observed == whole_level_cost
 end
 
 local function expected_hit_reconnect_reason(sequence)
@@ -400,18 +424,36 @@ local function stable_legacy_actor_hp(sequence)
     return stable
 end
 
+local function ensure_prepared_actor_state(first)
+    first.scene_state = type(first.scene_state) == "table"
+        and first.scene_state or {}
+    local scene = first.scene_state
+    scene.recorded_by = tonumber(first.recorded_by or scene.recorded_by) == 1
+        and 1 or 0
+    scene.players = type(scene.players) == "table" and scene.players or {}
+    local actor_side = scene.recorded_by == 1 and "p2" or "p1"
+    scene.players[actor_side] = type(scene.players[actor_side]) == "table"
+        and scene.players[actor_side] or {}
+    return scene, scene.players[actor_side]
+end
+
 local function prepare_stable_legacy_actor_hp(first, sequence, adjustments)
     local legacy_hp = stable_legacy_actor_hp(sequence)
-    local roles = SceneState.resolve_roles(first, 0)
-    local actor_state = roles and roles.actor and roles.actor.state or nil
-    local actor_resources = type(actor_state) == "table"
-        and type(actor_state.resources) == "table"
-        and actor_state.resources or nil
+    if legacy_hp == nil or legacy_hp <= 0 then return end
+
+    -- V1 portable scenes often retained fighter/unique state but omitted the
+    -- resource block entirely. In that format, expected_hp repeated on every
+    -- Action is the only persisted truth for the attacking player's starting
+    -- health. Materialize only that one resource on the in-memory transcription
+    -- copy so a prior low-health training-menu setting cannot leak into the next
+    -- file. Do not promote the partial scene to V2: the other V2 fields were not
+    -- actually recorded.
+    local _, actor_state = ensure_prepared_actor_state(first)
+    actor_state.resources = type(actor_state.resources) == "table"
+        and actor_state.resources or {}
+    local actor_resources = actor_state.resources
     local scene_hp = tonumber(actor_resources and actor_resources.hp)
-    if legacy_hp == nil or legacy_hp <= 0 or scene_hp == nil or scene_hp <= 0
-        or legacy_hp == scene_hp then
-        return
-    end
+    if scene_hp == legacy_hp then return end
 
     -- Older V2 recorders stored the real attacking HP in expected_hp but wrote
     -- a generic 10000 into scene_state. Characters do not all have 10000 max
@@ -420,7 +462,7 @@ local function prepare_stable_legacy_actor_hp(first, sequence, adjustments)
     -- evidence. During transcription only, repair the copied scene from it;
     -- the original JSON remains untouched.
     actor_resources.hp = legacy_hp
-    if actor_resources.heal_hp ~= nil then
+    if actor_resources.heal_hp ~= nil or scene_hp == nil then
         actor_resources.heal_hp = legacy_hp
     end
     adjustments[#adjustments + 1] = {
@@ -428,6 +470,80 @@ local function prepare_stable_legacy_actor_hp(first, sequence, adjustments)
         from = scene_hp,
         to = legacy_hp,
         reason = "stable_legacy_expected_hp",
+    }
+end
+
+local function prepare_legacy_actor_gauges(first, adjustments)
+    local scene = type(first.scene_state) == "table" and first.scene_state or nil
+    -- A complete V2 recording owns its exact starting gauges, including an
+    -- intentionally low value. Gauge synthesis is only a compatibility repair
+    -- for older portable scenes that never recorded attacker Drive or Super.
+    if type(scene) == "table" and scene.schema == SceneState.SCHEMA_V2 then return end
+
+    local stats = type(first.combo_stats) == "table" and first.combo_stats or {}
+    local drive_used = math.max(0, tonumber(stats.drive_used) or 0)
+    local super_used = math.max(0, tonumber(stats.super_used) or 0)
+    if drive_used <= 0 and super_used <= 0 then return end
+
+    local _, actor_state = ensure_prepared_actor_state(first)
+    actor_state.resources = type(actor_state.resources) == "table"
+        and actor_state.resources or {}
+    local resources = actor_state.resources
+
+    -- Legacy combo_stats records how much meter the authored route consumed,
+    -- not the exact starting amount. The recorder's historical default was a
+    -- full gauge. Reconstruct that default instead of using the current menu's
+    -- partly depleted gauge, which otherwise makes DRC/OD/SA Actions disappear
+    -- depending on which combo ran immediately before this file.
+    local status = type(actor_state.status) == "table" and actor_state.status or nil
+    if drive_used > 0 and drive_used <= MAX_DRIVE_GAUGE
+        and resources.drive == nil
+        and not (status and status.burnout == true) then
+        resources.drive = MAX_DRIVE_GAUGE
+        adjustments[#adjustments + 1] = {
+            field = "scene_state.actor.resources.drive",
+            from = nil,
+            to = MAX_DRIVE_GAUGE,
+            reason = "legacy_combo_usage_requires_full_drive",
+        }
+        if status == nil then
+            status = {}
+            actor_state.status = status
+        end
+        if status.burnout == nil then
+            status.burnout = false
+            adjustments[#adjustments + 1] = {
+                field = "scene_state.actor.status.burnout",
+                from = nil,
+                to = false,
+                reason = "legacy_combo_usage_requires_active_drive",
+            }
+        end
+    end
+
+    if super_used > 0 and super_used <= MAX_SUPER_GAUGE
+        and resources.super == nil then
+        resources.super = MAX_SUPER_GAUGE
+        adjustments[#adjustments + 1] = {
+            field = "scene_state.actor.resources.super",
+            from = nil,
+            to = MAX_SUPER_GAUGE,
+            reason = "legacy_combo_usage_requires_full_super",
+        }
+    end
+end
+
+local function prepare_legacy_counter_policy(first, sequence, adjustments)
+    local counter_type, source =
+        TrainingEnvironment.resolve_counter_policy(sequence, true)
+    if source ~= "legacy_combo_stats" and source ~= "legacy_step" then return end
+
+    set_prepared_environment_field(first, "dummy_counter_type", counter_type)
+    adjustments[#adjustments + 1] = {
+        field = "dummy_counter_type",
+        from = nil,
+        to = counter_type,
+        reason = "legacy_counter_policy_canonicalized:" .. source,
     }
 end
 
@@ -488,6 +604,127 @@ local function prepare_legacy_unique_state(first, sequence, adjustments)
     }
 end
 
+local function prepare_legacy_wall_stun_scene(first, adjustments)
+    local piyo_frame = tonumber(first.piyo_frame)
+    local scene = type(first.scene_state) == "table" and first.scene_state or nil
+    local recorded_by = tonumber(first.recorded_by
+        or (type(scene) == "table" and scene.recorded_by))
+    local action_id = tonumber(first.id)
+    local motion = tostring(first.motion or ""):upper():gsub("%s+", "")
+    if first.has_piyo ~= true or piyo_frame == nil or piyo_frame <= 0
+        or recorded_by ~= 0
+        or (action_id ~= 854 and action_id ~= 855)
+        or motion ~= "DI" then
+        return
+    end
+
+    local snapshot = type(first.snapshot_gauges) == "table"
+        and first.snapshot_gauges or nil
+    local snapshot_proves_burnout = snapshot ~= nil
+        and tonumber(snapshot.defender_drive) == 0
+        and snapshot.defender_burnout == true
+    local existing_scene = scene
+    local existing_players = type(existing_scene) == "table"
+        and type(existing_scene.players) == "table"
+        and existing_scene.players or nil
+    local existing_defender = existing_players
+        and type(existing_players.p2) == "table" and existing_players.p2 or nil
+    local existing_resources = type(existing_defender) == "table"
+        and type(existing_defender.resources) == "table"
+        and existing_defender.resources or nil
+    local existing_status = type(existing_defender) == "table"
+        and type(existing_defender.status) == "table"
+        and existing_defender.status or nil
+    local authoritative_v2_scene = type(existing_scene) == "table"
+        and existing_scene.schema == SceneState.SCHEMA_V2
+        and existing_status ~= nil
+        and type(existing_status.stunned) == "boolean"
+        and existing_status.stance ~= nil
+    local pseudo_v2_defaults = type(existing_scene) == "table"
+        and existing_scene.schema == SceneState.SCHEMA_V2
+        and tonumber(existing_resources and existing_resources.drive) == 60000
+        and existing_status and existing_status.burnout == false
+        -- The real V2 recorder writes stunned and stance as well. A status
+        -- containing only the default burnout=false is the old bulk-fill
+        -- fingerprint, not an authoritative live capture.
+        and existing_status.stunned == nil
+        and existing_status.stance == nil
+    local incomplete_legacy_scene = type(existing_scene) ~= "table"
+        or (existing_scene.schema ~= SceneState.SCHEMA_V2
+            and (tonumber(existing_resources and existing_resources.drive) == nil
+                or type(existing_status and existing_status.burnout) ~= "boolean"))
+    if authoritative_v2_scene
+        or (not snapshot_proves_burnout
+        and not pseudo_v2_defaults
+        and not incomplete_legacy_scene) then
+        return
+    end
+
+    scene = type(existing_scene) == "table" and existing_scene or {}
+    first.scene_state = scene
+    local old_schema = scene.schema
+    if old_schema ~= SceneState.SCHEMA_V2 then
+        scene.schema = SceneState.SCHEMA_V2
+        adjustments[#adjustments + 1] = {
+            field = "scene_state.schema",
+            from = old_schema,
+            to = SceneState.SCHEMA_V2,
+            reason = "recorded_wall_stun_restored",
+        }
+    end
+    scene.recorded_by = 0
+    scene.players = type(scene.players) == "table" and scene.players or {}
+    local defender = type(scene.players.p2) == "table" and scene.players.p2 or {}
+    scene.players.p2 = defender
+    defender.resources = type(defender.resources) == "table"
+        and defender.resources or {}
+    defender.status = type(defender.status) == "table" and defender.status or {}
+
+    local old_drive = tonumber(defender.resources.drive)
+    if old_drive ~= 0 then
+        defender.resources.drive = 0
+        adjustments[#adjustments + 1] = {
+            field = "scene_state.defender.resources.drive",
+            from = old_drive,
+            to = 0,
+            reason = "recorded_wall_stun_requires_burnout",
+        }
+    end
+    local old_burnout = defender.status.burnout
+    if old_burnout ~= true then
+        defender.status.burnout = true
+        adjustments[#adjustments + 1] = {
+            field = "scene_state.defender.status.burnout",
+            from = old_burnout,
+            to = true,
+            reason = "recorded_wall_stun_requires_burnout",
+        }
+    end
+
+    -- A DI that produced wall stun necessarily connected on guard. Some old
+    -- files mislabeled its chip-damage row as has_hit=true, so that derived bit
+    -- cannot decide the menu setting. The bulk migration's generic "after first
+    -- hit" default would let the opening DI hit instead; restore Guard All only
+    -- for this already-proven legacy wall-stun scene.
+    local guard_type, guard_source =
+        TrainingEnvironment.resolve_dummy_guard_type(first, nil)
+    local inferred_blocked_wall_stun = guard_source == "legacy_blocked_wall_stun"
+    if guard_type == TrainingEnvironment.DUMMY_GUARD.AFTER_FIRST_HIT
+        or inferred_blocked_wall_stun then
+        set_prepared_environment_field(
+            first,
+            "dummy_guard_type",
+            TrainingEnvironment.DUMMY_GUARD.ALL
+        )
+        adjustments[#adjustments + 1] = {
+            field = "dummy_guard_type",
+            from = inferred_blocked_wall_stun and nil or guard_type,
+            to = TrainingEnvironment.DUMMY_GUARD.ALL,
+            reason = "recorded_blocked_wall_stun_requires_guard_all",
+        }
+    end
+end
+
 -- A legacy OKI recording can explicitly expect a second damaging string
 -- after its combo counter returned to zero while also carrying "guard after
 -- first hit". Those facts cannot both happen under raw input: the defender
@@ -501,7 +738,10 @@ function Transcriber.prepare_capture_sequence(source_sequence)
     if next(first) == nil then return prepared, adjustments end
 
     prepare_stable_legacy_actor_hp(first, prepared, adjustments)
+    prepare_legacy_actor_gauges(first, adjustments)
+    prepare_legacy_counter_policy(first, prepared, adjustments)
     prepare_legacy_unique_state(first, prepared, adjustments)
+    prepare_legacy_wall_stun_scene(first, adjustments)
     local expected = expected_outcome(prepared)
     local guard_type =
         TrainingEnvironment.resolve_dummy_guard_type(first, nil)
@@ -781,6 +1021,141 @@ local function action_sequence_matches(sequence, compiled_steps, action_ids_equi
     return true
 end
 
+local function has_environment_adjustment(runtime, reason)
+    for _, adjustment in ipairs(
+        type(runtime) == "table"
+            and type(runtime.environment_adjustments) == "table"
+            and runtime.environment_adjustments or {}
+    ) do
+        if type(adjustment) == "table" and adjustment.reason == reason then
+            return true
+        end
+    end
+    return false
+end
+
+-- One legacy recorder counted a wall-stun DI as an 800-damage first hit even
+-- though the real game event was a 200-damage blocked contact and the combo
+-- began on the next attack. Accept that one-time metadata correction only when
+-- the entire runtime trace proves the same exact Action sequence and a constant
+-- one-hit/one-damage-offset across every authored step. Generated candidates do
+-- not receive environment_adjustments during verification, so the exception
+-- cannot make a polluted candidate self-consistent.
+local function legacy_blocked_wall_stun_shift(
+    sequence,
+    compiled,
+    runtime,
+    expected,
+    source_terminal_contact_match
+)
+    if runtime.allow_legacy_outcome_rebuild ~= true
+        or runtime.input_completed ~= true
+        or runtime.timed_out == true
+        or not has_environment_adjustment(
+            runtime,
+            "recorded_blocked_wall_stun_requires_guard_all"
+        ) then
+        return nil
+    end
+
+    local first = first_step(sequence)
+    local steps = type(compiled) == "table" and compiled.steps or nil
+    local stats = type(compiled) == "table" and compiled.stats or nil
+    local scene = type(first.scene_state) == "table" and first.scene_state or nil
+    local recorded_by = tonumber(first.recorded_by
+        or (type(scene) == "table" and scene.recorded_by))
+    local action_id = tonumber(first.id)
+    local motion = tostring(first.motion or ""):upper():gsub("%s+", "")
+    if first.has_piyo ~= true or (tonumber(first.piyo_frame) or 0) <= 0
+        or recorded_by ~= 0
+        or (action_id ~= 854 and action_id ~= 855)
+        or motion ~= "DI"
+        or not action_sequence_matches(sequence, steps, nil)
+        or source_terminal_contact_match ~= true
+        or type(stats) ~= "table" then
+        return nil
+    end
+
+    local roles = SceneState.resolve_roles(first, 0)
+    local defender_resources = roles and SceneState.resources(roles.defender) or nil
+    local defender_status = roles and SceneState.status(roles.defender) or nil
+    local guard_type = TrainingEnvironment.resolve_dummy_guard_type(first, nil)
+    local observed_environment = type(runtime.environment_observed) == "table"
+        and runtime.environment_observed or {}
+    if tonumber(defender_resources and defender_resources.drive) ~= 0
+        or not (type(defender_status) == "table"
+            and defender_status.burnout == true)
+        or guard_type ~= TrainingEnvironment.DUMMY_GUARD.ALL
+        or tonumber(observed_environment.dummy_guard_type)
+            ~= TrainingEnvironment.DUMMY_GUARD.ALL then
+        return nil
+    end
+
+    for _, field_name in ipairs({
+        "unresolved_anchors",
+        "fallback_motion_actions",
+        "unresolved_motion_actions",
+        "resolver_error_actions",
+        "unconfirmed_hp_loss",
+        "passive_damage_ticks",
+        "passive_damage_total",
+    }) do
+        if (tonumber(stats[field_name]) or 0) ~= 0 then return nil end
+    end
+
+    local observed_first = steps[1]
+    local source_first_damage = tonumber(first.damage_at_step)
+    local observed_first_damage = tonumber(
+        type(observed_first) == "table" and observed_first.damage_at_step
+    )
+    if type(observed_first) ~= "table"
+        or observed_first.has_contact ~= true
+        or (tonumber(observed_first.expected_combo) or 0) ~= 0
+        or source_first_damage == nil or observed_first_damage == nil
+        or observed_first_damage <= 0
+        or observed_first_damage >= source_first_damage then
+        return nil
+    end
+
+    local damage_shift = nil
+    for index = 1, #sequence do
+        local source_step = sequence[index]
+        local observed_step = steps[index]
+        local source_combo = tonumber(source_step and source_step.expected_combo)
+        local observed_combo = tonumber(observed_step and observed_step.expected_combo)
+        local source_damage = tonumber(source_step and source_step.damage_at_step)
+        local observed_damage = tonumber(observed_step and observed_step.damage_at_step)
+        if source_combo == nil or observed_combo == nil
+            or source_combo - observed_combo ~= 1
+            or source_damage == nil or observed_damage == nil then
+            return nil
+        end
+        local step_shift = source_damage - observed_damage
+        if step_shift <= 0 then return nil end
+        if damage_shift == nil then
+            damage_shift = step_shift
+        elseif damage_shift ~= step_shift then
+            return nil
+        end
+    end
+
+    local observed_damage = tonumber(stats.damage) or 0
+    local observed_combo = tonumber(stats.max_combo) or 0
+    local observed_blocks = tonumber(stats.block_contacts) or 0
+    if observed_combo ~= expected.max_combo - 1
+        or expected.damage - observed_damage ~= damage_shift
+        or observed_blocks > 1 then
+        return nil
+    end
+    return {
+        damage_shift = damage_shift,
+        expected_damage = expected.damage,
+        observed_damage = observed_damage,
+        expected_combo = expected.max_combo,
+        observed_combo = observed_combo,
+    }
+end
+
 local function action_ids_match(expected_id, observed_id, action_ids_equivalent, index)
     if expected_id == observed_id then return true end
     if type(action_ids_equivalent) ~= "function" then return false end
@@ -954,7 +1329,8 @@ local function legacy_action_evidence(compiled, compiled_steps)
 end
 
 local function terminal_action_contact_matches(sequence, compiled_steps, action_ids_equivalent)
-    local expected = type(sequence) == "table" and sequence[#sequence] or nil
+    local sequence_length = type(sequence) == "table" and #sequence or 0
+    local expected = sequence_length > 0 and sequence[sequence_length] or nil
     local observed = type(compiled_steps) == "table" and compiled_steps[#compiled_steps] or nil
     local expected_id = tonumber(type(expected) == "table" and expected.id)
     local observed_id = tonumber(type(observed) == "table" and observed.id)
@@ -963,7 +1339,7 @@ local function terminal_action_contact_matches(sequence, compiled_steps, action_
             expected_id,
             observed_id,
             action_ids_equivalent,
-            #sequence
+            sequence_length
         ) then
         return false
     end
@@ -1058,6 +1434,8 @@ function Transcriber.evaluate(sequence, compiled, runtime)
     local stats = type(compiled.stats) == "table" and compiled.stats or {}
     local steps = type(compiled.steps) == "table" and compiled.steps or {}
     local expected = expected_outcome(sequence)
+    local expected_actor_hp = stable_legacy_actor_hp(sequence)
+    if expected_actor_hp ~= nil then expected.actor_hp = expected_actor_hp end
     local reasons = {}
     local advisories = {}
     -- Old V2 source rows may use an explicitly declared recording owner for a
@@ -1084,6 +1462,18 @@ function Transcriber.evaluate(sequence, compiled, runtime)
             source_action_ids_equivalent
         )
     local expected_reconnect_reason = expected_hit_reconnect_reason(sequence)
+    local source_terminal_contact_match = terminal_action_contact_matches(
+        sequence,
+        steps,
+        source_action_ids_equivalent
+    )
+    local blocked_wall_stun_shift = legacy_blocked_wall_stun_shift(
+        sequence,
+        compiled,
+        runtime,
+        expected,
+        source_terminal_contact_match
+    )
     local observed_combo_rebuild = observed_segmented_combo_structure(
         sequence,
         compiled,
@@ -1106,11 +1496,7 @@ function Transcriber.evaluate(sequence, compiled, runtime)
         and legacy_authored_action_subsequence_match
         and runtime.input_completed == true
         and runtime.timed_out ~= true
-        and terminal_action_contact_matches(
-            sequence,
-            steps,
-            source_action_ids_equivalent
-        )
+        and source_terminal_contact_match
 
     if runtime.input_source ~= "raw_inputs"
         and runtime.input_source ~= RawInputCodec.RELATIVE_FIELD
@@ -1123,6 +1509,15 @@ function Transcriber.evaluate(sequence, compiled, runtime)
     if runtime.input_completed ~= true then reasons[#reasons + 1] = "input_not_completed" end
     if runtime.timed_out == true then reasons[#reasons + 1] = "replay_tail_timeout" end
     if #steps == 0 then reasons[#reasons + 1] = "no_action_steps" end
+    local observed_actor_hp = tonumber(stats.actor_hp)
+    if expected_actor_hp ~= nil and observed_actor_hp ~= nil
+        and math.abs(observed_actor_hp - expected_actor_hp) > 1 then
+        reasons[#reasons + 1] = string.format(
+            "actor_hp_mismatch:expected=%d:observed=%d",
+            expected_actor_hp,
+            observed_actor_hp
+        )
+    end
     local observed_terminal = steps[#steps]
     if source_action_match and terminal_contact_is_required(sequence, steps)
         and type(observed_terminal) == "table"
@@ -1131,7 +1526,8 @@ function Transcriber.evaluate(sequence, compiled, runtime)
         reasons[#reasons + 1] = "terminal_expected_contact_missing"
     end
     local observed_blocks = tonumber(stats.block_contacts) or 0
-    if expected.block_contacts == 0 and observed_blocks > 0 then
+    if expected.block_contacts == 0 and observed_blocks > 0
+        and blocked_wall_stun_shift == nil then
         local blocked_early, block_step, block_action, combo_before, saw_block =
             block_before_expected_combo_completion(steps, expected.max_combo)
         if blocked_early then
@@ -1221,16 +1617,46 @@ function Transcriber.evaluate(sequence, compiled, runtime)
         reasons[#reasons + 1] = "motion_resolver_error"
     end
 
+    -- Never let a candidate become self-consistently polluted after the first
+    -- capture dropped real damage. Supported persistent effects are made of
+    -- small ticks (currently at most 20 HP); a larger still-unconfirmed sample
+    -- means the compiler failed to attribute a real contact and must fail
+    -- closed before build_candidate can overwrite the source outcome.
+    local unconfirmed_hp_loss = math.max(
+        0,
+        tonumber(stats.unconfirmed_hp_loss) or 0
+    )
+    local passive_damage_max_tick = math.max(
+        0,
+        tonumber(stats.passive_damage_max_tick) or 0
+    )
+    if unconfirmed_hp_loss > 0
+        and passive_damage_max_tick > PERSISTENT_DAMAGE_MAX_TICK then
+        reasons[#reasons + 1] = string.format(
+            "unattributed_damage_tick:max=%d:unconfirmed=%d",
+            passive_damage_max_tick,
+            unconfirmed_hp_loss
+        )
+    end
+
     local damage_tolerance = math.max(20, math.floor(expected.damage * 0.01 + 0.5))
     local observed_combo = tonumber(stats.max_combo) or 0
     local allow_legacy_damage_drift = runtime.allow_legacy_damage_drift == true
         and source_action_match
         and observed_combo == expected.max_combo
     local observed_damage = tonumber(stats.damage) or 0
+    local source_damage_matches = math.abs(observed_damage - expected.damage)
+        <= damage_tolerance
     if expected.damage > 0
         and math.abs(observed_damage - expected.damage) > damage_tolerance
         and not allow_legacy_damage_drift then
-        if runtime.allow_legacy_outcome_rebuild == true then
+        if blocked_wall_stun_shift ~= nil then
+            advisories[#advisories + 1] = string.format(
+                "source_blocked_wall_stun_damage_rebuilt:expected=%d:observed=%d",
+                expected.damage,
+                observed_damage
+            )
+        elseif runtime.allow_legacy_outcome_rebuild == true then
             advisories[#advisories + 1] = string.format(
                 "source_damage_rebuilt:expected=%d:observed=%d",
                 expected.damage,
@@ -1241,7 +1667,13 @@ function Transcriber.evaluate(sequence, compiled, runtime)
         end
     end
     if expected.max_combo > 0 and observed_combo ~= expected.max_combo then
-        if runtime.allow_legacy_outcome_rebuild == true
+        if blocked_wall_stun_shift ~= nil then
+            advisories[#advisories + 1] = string.format(
+                "source_blocked_wall_stun_combo_rebuilt:expected=%d:observed=%d",
+                expected.max_combo,
+                observed_combo
+            )
+        elseif runtime.allow_legacy_outcome_rebuild == true
             and observed_combo > expected.max_combo then
             advisories[#advisories + 1] = string.format(
                 "source_combo_count_rebuilt:expected=%d:observed=%d",
@@ -1278,14 +1710,34 @@ function Transcriber.evaluate(sequence, compiled, runtime)
         and math.abs((tonumber(stats.drive_used) or 0) - expected.drive_used) > 100 then
         reasons[#reasons + 1] = "drive_consumption_mismatch"
     end
+    local observed_super_used = tonumber(stats.super_used) or 0
     if expected.super_used > 0
-        and math.abs((tonumber(stats.super_used) or 0) - expected.super_used) > 100 then
+        and math.abs(observed_super_used - expected.super_used) > 100 then
         if legacy_segmented_outcome
             and observed_blocks == expected.block_contacts then
             advisories[#advisories + 1] = string.format(
                 "source_segmented_super_usage_rebuilt:expected=%d:observed=%d",
                 expected.super_used,
-                tonumber(stats.super_used) or 0
+                observed_super_used
+            )
+        elseif runtime.allow_legacy_outcome_rebuild == true
+            and expected.damage > 0
+            and expected.max_combo > 0
+            and is_legacy_partial_super_usage(
+                expected.super_used,
+                observed_super_used
+            )
+            and source_action_match
+            and source_terminal_contact_match
+            and runtime.input_completed == true
+            and runtime.timed_out ~= true
+            and source_damage_matches
+            and observed_combo == expected.max_combo
+            and observed_blocks == expected.block_contacts then
+            advisories[#advisories + 1] = string.format(
+                "source_partial_super_usage_rebuilt:expected=%d:observed=%d",
+                expected.super_used,
+                observed_super_used
             )
         else
             reasons[#reasons + 1] = "super_consumption_mismatch"
@@ -1310,6 +1762,7 @@ function Transcriber.evaluate(sequence, compiled, runtime)
         observed_reconnect_reason = observed_reconnect_reason,
         persistent_damage_evidence = persistent_damage_evidence,
         persistent_damage_window_ticks = persistent_damage_window_ticks,
+        blocked_wall_stun_shift = deep_copy(blocked_wall_stun_shift),
         observed_combo_rebuild = deep_copy(observed_combo_rebuild),
         environment_validation = environment_validation,
     }
@@ -1551,6 +2004,11 @@ function Transcriber.build_candidate(source_sequence, compiled, version_info, no
     source_stats.super_used = tonumber(compiled.stats and compiled.stats.super_used)
         or source_stats.super_used or 0
     candidate[1].combo_stats = source_stats
+    -- build_candidate is the one-way compatibility boundary from legacy V2
+    -- metadata to the canonical environment. Infer old combo_stats.hit_type
+    -- here exactly once; all later playback/audit paths consume the persisted
+    -- dummy_counter_type without guessing again.
+    TrainingEnvironment.normalize_counter_policy(candidate, true)
     return candidate
 end
 

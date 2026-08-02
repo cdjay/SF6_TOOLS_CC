@@ -9,15 +9,23 @@
     "charge_max": 89
   },
   "905": {
-    "absorb_ids": "906",
+    "absorb_ids": "906,907",
     "is_holdable": true,
     "charge_min": 69,
-    "charge_max": 89
+    "charge_max": 89,
+    "action_event_projection": {}
   },
   "910": {
     "absorb_ids": "911",
     "is_holdable": true,
     "charge_min": 69,
     "charge_max": 89
+  },
+  "930": {
+    "absorb_ids": "929"
+  },
+  "976": {
+    "absorb_ids": "974,983,984",
+    "action_event_projection": {}
   }
 }

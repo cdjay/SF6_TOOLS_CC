@@ -151,6 +151,13 @@ function CharacterRules.build_action_event_projection_rules(
                     )
                     rule.require_same_anchor =
                         projection.require_same_anchor == true
+                else
+                    -- Input passthrough is a separate behavior from outcome
+                    -- projection. Most contact/recovery phases should consume
+                    -- their incidental edge; only runtime-proven buffered
+                    -- phases may return it to the binder.
+                    rule.carry_input_anchor =
+                        projection.carry_input_anchor == true
                 end
                 local existing = result[child_id]
                 if type(existing) == "table"

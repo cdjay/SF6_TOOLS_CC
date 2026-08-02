@@ -34,6 +34,21 @@ local DRIVE_RUSH_ACTIONS = {
     [761] = true,
 }
 
+-- A chord can briefly launch a normal before the remaining button arrives.
+-- These exact transitions replace the transient precursor with the durable
+-- command Action; unlike INTERNAL_ACTION_PHASE_TRANSITIONS, truth belongs to
+-- the destination rather than the precursor. ActionEventCompiler and live
+-- raw-input trial validation must share this rule so a precursor is folded or
+-- ignored instead of becoming a second instruction.
+ActionMatcher.TRANSIENT_INPUT_PRECURSOR_TRANSITIONS = {
+    cammy = {
+        [966] = { [979] = true },
+    },
+    lily = {
+        [929] = { [930] = true },
+    },
+}
+
 local function trim(value)
     return tostring(value or ""):match("^%s*(.-)%s*$")
 end
@@ -147,6 +162,20 @@ function ActionMatcher.classify_runtime_transition(params)
 
     if params.expected_action_matches_current == true then
         result.reason = "expected_action"
+        return result
+    end
+
+    local character_key = tostring(params.character or ""):lower():gsub("[^%w]", "")
+    local expected_id = type(params.expected_step) == "table"
+        and tonumber(params.expected_step.id) or nil
+    local transient_rules = ActionMatcher.TRANSIENT_INPUT_PRECURSOR_TRANSITIONS[character_key]
+    local transient_destinations = type(transient_rules) == "table"
+        and transient_rules[tonumber(params.actual_action_id)] or nil
+    if params.input_truth_mode == true and expected_id ~= nil
+        and type(transient_destinations) == "table"
+        and transient_destinations[expected_id] == true then
+        result.ignored = true
+        result.reason = "transient_input_precursor"
         return result
     end
 
