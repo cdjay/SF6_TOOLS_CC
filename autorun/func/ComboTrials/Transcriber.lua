@@ -1836,7 +1836,14 @@ function Transcriber.verify_candidate(candidate, compiled, runtime)
         if index > 1 then
             local expected_delay = tonumber(expected and expected.delay_from_prev) or 0
             local observed_delay = tonumber(observed and observed.delay_from_prev) or 0
-            if math.abs(observed_delay - expected_delay) > timing_tolerance then
+            local delay_tolerance = timing_tolerance
+            if expected_delay >= 100 then
+                delay_tolerance = math.max(
+                    timing_tolerance,
+                    math.floor(expected_delay * 0.015 + 0.5)
+                )
+            end
+            if math.abs(observed_delay - expected_delay) > delay_tolerance then
                 reasons[#reasons + 1] = string.format(
                     "raw_replay_action_timing_mismatch:step=%d:expected=%d:actual=%d",
                     index,

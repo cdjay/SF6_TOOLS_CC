@@ -44,6 +44,11 @@ ActionMatcher.TRANSIENT_INPUT_PRECURSOR_TRANSITIONS = {
     cammy = {
         [966] = { [979] = true },
     },
+    jamie = {
+        [512] = { [628] = true },
+        [513] = { [620] = true },
+        [657] = { [608] = true, [610] = true },
+    },
     lily = {
         [929] = { [930] = true },
     },

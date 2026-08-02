@@ -989,6 +989,55 @@ local function is_redundant_inherited_action_phase(previous, current)
         and compact_motion(previous.motion) == compact_motion(current.motion)
 end
 
+-- Direction jitter can complete another double-tap pair one frame after a
+-- dash Action starts. The game does not restart the dash and the training UI
+-- cannot consume a second dash so soon, so that synthetic event must never
+-- become a separate step.
+local function is_redundant_dash_transition(previous, current)
+    if type(previous) ~= "table" or type(current) ~= "table"
+        or type(previous.event) ~= "table" or type(current.event) ~= "table" then
+        return false
+    end
+    local previous_id = tonumber(previous.event.id)
+    local current_id = tonumber(current.event.id)
+    if previous_id == nil or current_id ~= previous_id
+        or not DASH_ACTIONS[current_id]
+        or current.event.has_contact == true
+        or current.event.has_hit == true then
+        return false
+    end
+    local anchor = type(current.event.anchor) == "table"
+        and current.event.anchor or {}
+    if anchor.kind ~= "double_tap" then return false end
+    local delay = (tonumber(current.event.frame) or 0)
+        - (tonumber(previous.event.frame) or 0)
+    return delay > 0 and delay <= Compiler.GHOST_FILTER_FRAMES
+end
+
+-- Jamie's j.HP releases can briefly surface a 7+HK Action with no attack
+-- button press and no contact. That release edge belongs to the j.HP command
+-- and must not become an extra step after the final hit.
+local function is_jump_attack_release_tail(previous, current, character)
+    if type(previous) ~= "table" or type(current) ~= "table"
+        or type(previous.event) ~= "table" or type(current.event) ~= "table" then
+        return false
+    end
+    local key = tostring(character or ""):lower():gsub("[^%w]", "")
+    if key ~= "jamie" then return false end
+    if tonumber(previous.event.id) ~= 652
+        or tonumber(current.event.id) ~= 657
+        or current.event.has_contact == true
+        or current.event.has_hit == true then
+        return false
+    end
+    local anchor = type(current.event.anchor) == "table"
+        and current.event.anchor or {}
+    if anchor.kind ~= "button_release" then return false end
+    local delay = (tonumber(current.event.frame) or 0)
+        - (tonumber(previous.event.frame) or 0)
+    return delay > 0 and delay <= 64
+end
+
 -- The live validator debounces a short non-contact Action that starts on a
 -- release edge and is replaced by the next deliberate button Action. Apply
 -- the same rule during transcription so a self-consistent compiler replay
@@ -1718,6 +1767,13 @@ function Compiler.finalize(session, options)
             end
             local redundant_action_phase =
                 is_redundant_inherited_action_phase(previous, current)
+            local redundant_dash =
+                is_redundant_dash_transition(previous, current)
+            local jump_release_tail = is_jump_attack_release_tail(
+                previous,
+                current,
+                session and session.character
+            )
             local quick_drive_parry =
                 is_quick_drive_parry_precursor(previous, current)
             local jump_startup = is_jump_startup_precursor(previous, current)
@@ -1730,13 +1786,16 @@ function Compiler.finalize(session, options)
                     current,
                     session and session.character
                 )
-            if redundant_action_phase then
+            if redundant_action_phase or redundant_dash or jump_release_tail then
                 merge_event_truth(previous.event, event)
                 suppressed_events[#suppressed_events + 1] = {
                     id = event.id,
                     frame = event.frame,
                     merged_into = previous.event.id,
-                    reason = "redundant_inherited_action_phase",
+                    reason = redundant_dash
+                            and "redundant_dash_transition"
+                        or (jump_release_tail and "jump_attack_release_tail"
+                            or "redundant_inherited_action_phase"),
                 }
             else
                 if quick_drive_parry or jump_startup or unmapped_input

@@ -9,6 +9,51 @@
         "motion": "DI"
       },
       "evidence": "Jamie raw-input timeline begins with HP+HK while runtime Action 860 is recorded as Drive Impact"
+    },
+    "861": {
+      "classic": "DI",
+      "replace": true,
+      "evidence": "Verified relative raw-input runtime replays bind HP+HK Drive Impact to Jamie Action 861"
+    },
+    "512": {
+      "classic": "MP",
+      "replace": true,
+      "evidence": "Verified relative raw-input runtime replays bind a fresh MP press and hit contact to Jamie Action 512"
+    },
+    "513": {
+      "classic": "MP",
+      "replace": true,
+      "evidence": "Verified relative raw-input runtime replays bind a fresh MP press and hit contact to Jamie Action 513"
+    },
+    "612": {
+      "classic": "LK",
+      "replace": true,
+      "evidence": "Verified relative raw-input runtime replays bind a fresh LK press and hit contact to Jamie Action 612; the generated catalog lists the same Classic command without a verified route"
+    },
+    "626": {
+      "classic": "2+MP",
+      "replace": true,
+      "evidence": "Verified relative raw-input runtime replays bind a fresh 2+MP press and hit contact to Jamie Action 626; the generated catalog lists the same Classic command without a verified route"
+    },
+    "657": {
+      "classic": "7+HK",
+      "replace": true,
+      "evidence": "Verified relative raw-input runtime replays bind a fresh 7+HK press and hit contact to Jamie Action 657"
+    },
+    "667": {
+      "classic": ">8",
+      "replace": true,
+      "evidence": "Verified relative raw-input runtime replays bind an upward transition to Jamie Action 667 after a recorded standing normal"
+    },
+    "999": {
+      "classic": "236+LK",
+      "replace": true,
+      "evidence": "Verified relative raw-input runtime replays bind a 236+LK press and hit contact to Jamie Action 999; the generated catalog lists the same Classic command without a verified route"
+    },
+    "1001": {
+      "classic": "236+HK",
+      "replace": true,
+      "evidence": "Verified relative raw-input runtime replays bind a 236+HK press and hit contact to Jamie Action 1001; the generated catalog lists the same Classic command without a verified route"
     }
   }
 }

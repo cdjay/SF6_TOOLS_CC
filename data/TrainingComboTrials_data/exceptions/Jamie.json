@@ -129,7 +129,8 @@
     "action_alias_ids": "982"
   },
   "984": {
-    "force": true
+    "force": true,
+    "action_alias_ids": "981,983"
   },
   "989": {
     "absorb_ids": "990,991,992"
