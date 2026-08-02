@@ -158,6 +158,14 @@ function CharacterRules.build_action_event_projection_rules(
                     -- phases may return it to the binder.
                     rule.carry_input_anchor =
                         projection.carry_input_anchor == true
+                    rule.max_fold_delay_frames = math.max(
+                        0,
+                        tonumber(projection.max_fold_delay_frames) or 0
+                    )
+                    rule.require_same_anchor =
+                        projection.require_same_anchor == true
+                    rule.allow_same_button_press_fold =
+                        projection.allow_same_button_press_fold == true
                 end
                 local existing = result[child_id]
                 if type(existing) == "table"

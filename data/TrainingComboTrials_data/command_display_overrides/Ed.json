@@ -1,0 +1,21 @@
+{
+  "schema": "xt.command_display_overrides.v1",
+  "character": "Ed",
+  "entries": {
+    "605": {
+      "classic": "HP",
+      "replace": true,
+      "evidence": "Verified relative raw-input runtime replays bind a fresh HP press and hit contact to Ed Action 605; the generated catalog has no Action 605 entry, so the Classic command comes from verified replay motion"
+    },
+    "634": {
+      "classic": "2+LK",
+      "replace": true,
+      "evidence": "Verified relative raw-input runtime replays bind a fresh 2+LK press and hit contact to Ed Action 634; the generated catalog lists the same Classic command without a verified route"
+    },
+    "639": {
+      "classic": "2+MK",
+      "replace": true,
+      "evidence": "Verified relative raw-input runtime replays bind a fresh 2+MK press and hit contact to Ed Action 639; the generated catalog lists the same Classic command without a verified route"
+    }
+  }
+}

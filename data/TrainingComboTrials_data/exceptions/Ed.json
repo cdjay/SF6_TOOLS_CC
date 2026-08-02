@@ -51,5 +51,13 @@
     "is_holdable": true,
     "charge_min": 12,
     "charge_max": 30
+  },
+  "959": {
+    "absorb_ids": "956",
+    "action_event_projection": {
+      "max_fold_delay_frames": 60,
+      "require_same_anchor": true,
+      "allow_same_button_press_fold": true
+    }
   }
 }

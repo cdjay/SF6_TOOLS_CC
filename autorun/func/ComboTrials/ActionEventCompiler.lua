@@ -162,6 +162,55 @@ local function project_character_action_owner(event, session)
     return projected, rule
 end
 
+-- Same-command fold checks shared by canonical owners and release-bound
+-- internal phases. A release of the owner's buttons is still the same
+-- physical command even when the runtime exposes the child on a later frame.
+local function fold_anchor_allows(previous, source_event, rule)
+    if type(rule) ~= "table" or rule.require_same_anchor ~= true then
+        return true
+    end
+    local previous_anchor = type(previous.event.anchor) == "table"
+        and previous.event.anchor or nil
+    local current_anchor = type(source_event.anchor) == "table"
+        and source_event.anchor or nil
+    local previous_anchor_frame = tonumber(
+        previous_anchor and previous_anchor.frame
+    )
+    local current_anchor_frame = tonumber(
+        current_anchor and current_anchor.frame
+    )
+    local previous_buttons = anchor_button_mask(previous_anchor)
+    local current_buttons = anchor_button_mask(current_anchor)
+    local same_anchor_frame = previous_anchor_frame ~= nil
+        and current_anchor_frame ~= nil
+        and previous_anchor_frame == current_anchor_frame
+    local release_continuation = type(current_anchor) == "table"
+        and current_anchor.kind == "button_release"
+        and previous_buttons ~= 0
+        and current_buttons ~= 0
+        and (previous_buttons & current_buttons) ~= 0
+    -- Some multi-phase commands keep exposing their child Action when the
+    -- player presses the same buttons again during the command window. That
+    -- press is part of the same physical command chain, not a fresh move.
+    local press_continuation = rule.allow_same_button_press_fold == true
+        and type(current_anchor) == "table"
+        and current_anchor.kind == "button_press"
+        and previous_buttons ~= 0
+        and current_buttons ~= 0
+        and previous_buttons == current_buttons
+    local continuation = release_continuation or press_continuation
+    if previous_anchor_frame ~= nil and current_anchor_frame ~= nil
+        and not same_anchor_frame and not continuation then
+        return false
+    end
+    if previous_buttons ~= 0 and current_buttons ~= 0
+        and previous_buttons ~= current_buttons
+        and not continuation then
+        return false
+    end
+    return true
+end
+
 local function character_rule_fold_reason(
     previous,
     source_event,
@@ -177,6 +226,21 @@ local function character_rule_fold_reason(
         return nil
     end
     if rule.kind == "internal_phase" then
+        if rule.require_same_anchor == true then
+            local current_frame = tonumber(source_event.frame)
+            local previous_frame = tonumber(previous.event.frame)
+            if current_frame == nil or previous_frame == nil then
+                return nil
+            end
+            local delay = current_frame - previous_frame
+            if delay < 0
+                or delay > (tonumber(rule.max_fold_delay_frames) or 0) then
+                return nil
+            end
+            if not fold_anchor_allows(previous, source_event, rule) then
+                return nil
+            end
+        end
         return "character_internal_action_phase"
     end
     if rule.kind == "canonical_owner" then
@@ -190,40 +254,8 @@ local function character_rule_fold_reason(
             or delay > (tonumber(rule.max_fold_delay_frames) or 0) then
             return nil
         end
-        if rule.require_same_anchor == true then
-            local previous_anchor = type(previous.event.anchor) == "table"
-                and previous.event.anchor or nil
-            local current_anchor = type(source_event.anchor) == "table"
-                and source_event.anchor or nil
-            local previous_anchor_frame = tonumber(
-                previous_anchor and previous_anchor.frame
-            )
-            local current_anchor_frame = tonumber(
-                current_anchor and current_anchor.frame
-            )
-            local previous_buttons = anchor_button_mask(previous_anchor)
-            local current_buttons = anchor_button_mask(current_anchor)
-            local same_anchor_frame = previous_anchor_frame ~= nil
-                and current_anchor_frame ~= nil
-                and previous_anchor_frame == current_anchor_frame
-            -- Runtime can expose the canonical owner on the press frame and
-            -- its projected child Action on the following release frame. That
-            -- release is still the same physical command even though the
-            -- anchor frame and partial-PP button mask differ.
-            local release_continuation = type(current_anchor) == "table"
-                and current_anchor.kind == "button_release"
-                and previous_buttons ~= 0
-                and current_buttons ~= 0
-                and (previous_buttons & current_buttons) ~= 0
-            if previous_anchor_frame ~= nil and current_anchor_frame ~= nil
-                and not same_anchor_frame and not release_continuation then
-                return nil
-            end
-            if previous_buttons ~= 0 and current_buttons ~= 0
-                and previous_buttons ~= current_buttons
-                and not release_continuation then
-                return nil
-            end
+        if not fold_anchor_allows(previous, source_event, rule) then
+            return nil
         end
         return "character_canonical_owner_variant"
     end
