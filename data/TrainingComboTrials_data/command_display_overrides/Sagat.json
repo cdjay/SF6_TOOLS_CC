@@ -11,6 +11,11 @@
       "classic": "MP",
       "replace": true,
       "evidence": "Post-update runtime audit replays repeatedly bind neutral MP presses with hit contact to Sagat Action 604"
+    },
+    "954": {
+      "classic": "214+MK",
+      "replace": true,
+      "evidence": "Five completed post-update runtime audit replays bind recorded 214+MK inputs to Sagat Action 954 with matching final damage and combo count; the generated catalog maps successor Action 953 to the same command"
     }
   }
 }

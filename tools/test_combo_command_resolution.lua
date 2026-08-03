@@ -330,18 +330,26 @@ local sagat_override_document = {
             replace = true,
             evidence = "repeated post-update runtime audit events with hit contact",
         },
+        ["954"] = {
+            classic = "214+MK",
+            replace = true,
+            evidence = "five completed post-update runtime audit replays",
+        },
     },
 }
 local sagat_overrides, sagat_override_count, sagat_override_status =
     command_display_overrides.merge(sagat_catalog, "Sagat", sagat_override_document)
-assert(sagat_override_status == "loaded" and sagat_override_count == 2
+assert(sagat_override_status == "loaded" and sagat_override_count == 3
         and sagat_overrides["600"].classic == "LP"
         and sagat_overrides["604"].classic == "MP"
+        and sagat_overrides["954"].classic == "214+MK"
         and sagat_overrides["600"].status == "runtime_verified_override"
         and sagat_overrides["604"].status == "runtime_verified_override"
+        and sagat_overrides["954"].status == "runtime_verified_override"
         and sagat_overrides["600"].metadata.replaced_existing == true
-        and sagat_overrides["604"].metadata.replaced_existing == true,
-    "Sagat's runtime-audited normals must replace unverified catalog rows")
+        and sagat_overrides["604"].metadata.replaced_existing == true
+        and sagat_overrides["954"].metadata.replaced_existing == false,
+    "Sagat's runtime-audited commands must replace or fill catalog rows")
 local cviper_catalog = {
     _slim = true,
     ["608"] = { classic = "HK", status = "route_unverified" },
@@ -1602,8 +1610,10 @@ local sagat_override_source = read_all(
 assert(sagat_override_source:find('"600"', 1, true)
         and sagat_override_source:find('"classic": "LP"', 1, true)
         and sagat_override_source:find('"604"', 1, true)
-        and sagat_override_source:find('"classic": "MP"', 1, true),
-    "the shipped Sagat command overrides must preserve runtime-verified normals")
+        and sagat_override_source:find('"classic": "MP"', 1, true)
+        and sagat_override_source:find('"954"', 1, true)
+        and sagat_override_source:find('"classic": "214+MK"', 1, true),
+    "the shipped Sagat command overrides must preserve runtime-verified commands")
 local cviper_override_source = read_all(
     "data/TrainingComboTrials_data/command_display_overrides/CViper.json")
 assert(cviper_override_source:find('"608"', 1, true)
