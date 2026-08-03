@@ -3759,7 +3759,10 @@ end
 
 local function apply_trial_training_environment(skip_refresh_settings)
     local apply_refresh_settings = skip_refresh_settings ~= true
-    if apply_refresh_settings then unique_resources.apply_recorded() end
+    -- Training refresh can rebuild UniqueData. Reapply recorded character
+    -- resources during the existing post-refresh pass, but do not request a
+    -- second refresh that would immediately clear them again.
+    unique_resources.apply_recorded()
     local first_step = trial_state.sequence and trial_state.sequence[1]
     local settings =
         ComboTrialsModules.TrainingEnvironment.resolve_recorded_settings(first_step)
@@ -3837,10 +3840,12 @@ local function apply_trial_training_environment(skip_refresh_settings)
         GuardWeight = settings.dummy_guard_weight,
         GuardOnlyType = settings.dummy_guard_only_type
     })
-    pcall(function()
-        local tm = sdk.get_managed_singleton("app.training.TrainingManager")
-        if tm then tm._IsReqRefresh = true end
-    end)
+    if apply_refresh_settings then
+        pcall(function()
+            local tm = sdk.get_managed_singleton("app.training.TrainingManager")
+            if tm then tm._IsReqRefresh = true end
+        end)
+    end
 end
 
 local function capture_current_positions()
@@ -11316,23 +11321,24 @@ ctx.tick_transcription = function()
     end
 end
 
-local function is_full_transcription_run(run)
+local function is_resumable_transcription_run(run)
     if type(run) ~= "table" or run.mode == "runtime_audit" then return false end
-    local scope = run.transcription_scope
-    return scope == nil or scope == "all"
+    return ComboTrialsModules.Transcriber.is_resumable_scope(
+        run.transcription_scope
+    )
 end
 
 local function remember_resumable_transcription_run(run)
-    if is_full_transcription_run(run) and run.active ~= true then
+    if is_resumable_transcription_run(run) and run.active ~= true then
         demo_state.resumable_transcription_run = run
     end
 end
 
 local function transcription_resume_source()
     local current = demo_state.transcription_run
-    if is_full_transcription_run(current) then return current end
+    if is_resumable_transcription_run(current) then return current end
     local remembered = demo_state.resumable_transcription_run
-    if is_full_transcription_run(remembered) then return remembered end
+    if is_resumable_transcription_run(remembered) then return remembered end
     return nil
 end
 
@@ -11498,6 +11504,25 @@ local function available_combo_paths(requested_paths)
     return selected
 end
 
+ctx.restore_transcription_source_paths = function(report)
+    if type(report) ~= "table" or report.transcription_scope ~= "audit_failures" then
+        return
+    end
+    local existing = available_combo_paths(report.source_paths)
+    if #existing > 0 then
+        report.source_paths = existing
+        return
+    end
+
+    local source_report = report.source_audit_report
+    if type(source_report) ~= "string" or source_report == "" then return end
+    local ok, audit_report = pcall(json.load_file, source_report)
+    if not ok or type(audit_report) ~= "table" then return end
+    local requested = ComboTrialsModules.RuntimeAuditor.failed_source_paths(audit_report)
+    local restored = available_combo_paths(requested)
+    if #restored > 0 then report.source_paths = restored end
+end
+
 local function retryable_audit_paths(run)
     if type(run) ~= "table" or run.mode ~= "runtime_audit"
         or type(run.items) ~= "table" then
@@ -11509,9 +11534,38 @@ local function retryable_audit_paths(run)
 end
 
 local function failed_transcription_paths(run)
-    return available_combo_paths(
-        ComboTrialsModules.Transcriber.failed_source_paths(run)
-    )
+    local requested = ComboTrialsModules.Transcriber.failed_source_paths(run)
+    local seen = {}
+    for _, path in ipairs(requested) do
+        seen[normalized_runtime_combo_path(path)] = true
+    end
+    for _, item in ipairs(type(run) == "table" and type(run.items) == "table"
+        and run.items or {}) do
+        local path = item and item.source_file
+        local key = normalized_runtime_combo_path(path)
+        if item and item.status == "passed" and key ~= "" and not seen[key] then
+            local repaired = false
+            for _, adjustment in ipairs(type(item.environment_adjustments) == "table"
+                and item.environment_adjustments or {}) do
+                if adjustment.reason
+                    == "legacy_counter_policy_canonicalized:legacy_consensus" then
+                    repaired = true
+                    break
+                end
+            end
+            if not repaired then
+                local ok, source = pcall(json.load_file, path)
+                local conflict = ok and type(source) == "table"
+                    and ComboTrialsModules.TrainingEnvironment
+                        .has_legacy_counter_conflict(source)
+                if conflict then
+                    requested[#requested + 1] = path
+                    seen[key] = true
+                end
+            end
+        end
+    end
+    return available_combo_paths(requested)
 end
 
 ctx.get_transcription_failure_retry_state = function()
@@ -11803,6 +11857,7 @@ ctx.load_latest_transcription_report = function()
         ct_ticker("最近的转录报告无法读取")
         return false
     end
+    ctx.restore_transcription_source_paths(report)
     remember_resumable_transcription_run(demo_state.transcription_run)
     local full_report_path, full_report =
         ComboTrialsModules.Transcriber.select_latest_report(

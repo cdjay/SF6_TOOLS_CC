@@ -401,11 +401,17 @@ local function record_passive_damage(session, sample)
     }
 end
 
-local function update_actor_resources(session, sample)
+local function update_actor_resources(session, sample, input_edge_started)
     local drive = rounded(sample.actor_drive)
     local super = rounded(sample.actor_super)
     if drive ~= nil then
-        if not session.input_started or session.initial_actor_drive == nil then
+        if session.initial_actor_drive == nil then
+            session.initial_actor_drive = drive
+            session.min_actor_drive = drive
+        elseif not session.input_started and input_edge_started ~= true then
+            -- Keep following environment refreshes until the first physical
+            -- command edge. On the edge itself, gauge cost may already be
+            -- visible, so the prior idle sample must remain the baseline.
             session.initial_actor_drive = drive
             session.min_actor_drive = drive
         else
@@ -413,7 +419,10 @@ local function update_actor_resources(session, sample)
         end
     end
     if super ~= nil then
-        if not session.input_started or session.initial_actor_super == nil then
+        if session.initial_actor_super == nil then
+            session.initial_actor_super = super
+            session.min_actor_super = super
+        elseif not session.input_started and input_edge_started ~= true then
             session.initial_actor_super = super
             session.min_actor_super = super
         else
@@ -1234,7 +1243,7 @@ function Compiler.observe(session, sample)
     end
 
     update_damage(session, sample)
-    update_actor_resources(session, sample)
+    update_actor_resources(session, sample, pressed ~= 0 or released ~= 0)
     -- Resolve a delayed one-bar spend before observing this frame's new input
     -- edge. If the cost first becomes visible on the following attack frame,
     -- Action 740 is inserted at its original transition frame and the attack's

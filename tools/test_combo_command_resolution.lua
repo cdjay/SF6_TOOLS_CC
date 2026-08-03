@@ -50,6 +50,35 @@ assert(override_status == "loaded" and applied_overrides == 4
     and merged_overrides["977"].classic == ">HP (INSTANT)"
     and merged_overrides["978"] == nil,
     "verified command overrides must fill missing Actions without silently replacing catalog rows")
+local ingrid_catalog = {
+    _slim = true,
+    ["609"] = { classic = "HP", status = "route_unverified" },
+    ["622"] = { classic = "2+LP", status = "route_unverified" },
+    ["1202"] = { classic = "236236+K", status = "route_unverified" },
+    ["1219"] = { classic = "214214+MP", status = "route_unverified" },
+    ["1229"] = { classic = "214214+HP", status = "route_unverified" },
+}
+local ingrid_overrides, ingrid_override_count, ingrid_override_status =
+    command_display_overrides.merge(ingrid_catalog, "Ingrid", {
+        schema = "xt.command_display_overrides.v1",
+        character = "Ingrid",
+        entries = {
+            ["609"] = { classic = "HP", replace = true, evidence = "runtime audit" },
+            ["622"] = { classic = "2+LP", replace = true, evidence = "runtime audit" },
+            ["1202"] = { classic = "236236+K", replace = true, evidence = "runtime audit" },
+            ["1219"] = { classic = "214214+MP", replace = true, evidence = "runtime audit" },
+            ["1229"] = { classic = "214214+HP", replace = true, evidence = "runtime audit" },
+        },
+    })
+assert(ingrid_override_status == "loaded" and ingrid_override_count == 5
+        and ingrid_overrides["609"].classic == "HP"
+        and ingrid_overrides["622"].classic == "2+LP"
+        and ingrid_overrides["1202"].classic == "236236+K"
+        and ingrid_overrides["1219"].classic == "214214+MP"
+        and ingrid_overrides["1229"].classic == "214214+HP"
+        and ingrid_overrides["609"].metadata.replaced_existing == true
+        and ingrid_overrides["1229"].metadata.replaced_existing == true,
+    "Ingrid's runtime-verified commands must replace route-unverified catalog rows")
 local _, invalid_override_count, invalid_override_status =
     command_display_overrides.merge({ _slim = true }, "Alex", {
         schema = "xt.command_display_overrides.v1",
@@ -1525,6 +1554,27 @@ assert(alex_override_source:find('"958"', 1, true)
         and alex_override_source:find('"classic": "2+PP"', 1, true)
         and alex_override_source:find('"replace": true', 1, true),
     "the shipped Alex command overrides must preserve the verified 2+PP stance entries")
+local ingrid_override_source = read_all(
+    "data/TrainingComboTrials_data/command_display_overrides/Ingrid.json")
+assert(ingrid_override_source:find('"609"', 1, true)
+        and ingrid_override_source:find('"classic": "HP"', 1, true)
+        and ingrid_override_source:find('"622"', 1, true)
+        and ingrid_override_source:find('"classic": "2+LP"', 1, true)
+        and ingrid_override_source:find('"1202"', 1, true)
+        and ingrid_override_source:find('"classic": "236236+K"', 1, true)
+        and ingrid_override_source:find('"1219"', 1, true)
+        and ingrid_override_source:find('"classic": "214214+MP"', 1, true)
+        and ingrid_override_source:find('"1229"', 1, true)
+        and ingrid_override_source:find('"classic": "214214+HP"', 1, true),
+    "the shipped Ingrid command overrides must preserve runtime-verified commands")
+local ingrid_exception_source = read_all(
+    "data/TrainingComboTrials_data/exceptions/Ingrid.json")
+assert(ingrid_exception_source:find('"945"', 1, true)
+        and ingrid_exception_source:find('"absorb_ids": "953"', 1, true)
+        and ingrid_exception_source:find('"action_event_projection": {}', 1, true)
+        and ingrid_exception_source:find('"949"', 1, true)
+        and ingrid_exception_source:find('"transient_precursor_ids": "906,945"', 1, true),
+    "the shipped Ingrid exceptions must preserve projectile continuation and OD precursor rules")
 local mai_exception_source = read_all(
     "data/TrainingComboTrials_data/exceptions/Mai.json")
 assert(mai_exception_source:find('"604"', 1, true)

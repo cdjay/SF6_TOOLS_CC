@@ -172,17 +172,9 @@ local function sequence_first(sequence_or_first)
     return sequence_or_first, nil
 end
 
-function TrainingEnvironment.resolve_counter_policy(sequence_or_first, infer_legacy)
-    local first, sequence = sequence_first(sequence_or_first)
-    if type(first) ~= "table" then
-        return TrainingEnvironment.DUMMY_COUNTER.NORMAL, "default"
-    end
+local function canonical_counter_policy(first)
     local meta = type(first._xt_meta) == "table" and first._xt_meta or nil
     local env = meta and type(meta.environment) == "table" and meta.environment or nil
-
-    -- The recorded training-menu value is the fixed rule for the whole trial.
-    -- Compatibility mirrors are consulted only when the canonical environment
-    -- field is absent.
     for _, candidate in ipairs({
         { value = env and env.dummy_counter_type, source = "environment" },
         { value = meta and meta.dummy_counter_type, source = "meta" },
@@ -191,25 +183,64 @@ function TrainingEnvironment.resolve_counter_policy(sequence_or_first, infer_leg
         local value = valid_counter_type(candidate.value)
         if value ~= nil then return value, candidate.source end
     end
+    return nil, nil
+end
 
-    if infer_legacy ~= false then
-        local legacy = type(first.combo_stats) == "table"
-            and counter_type_from_hit_type(first.combo_stats.hit_type)
-            or nil
-        if legacy ~= nil then return legacy, "legacy_combo_stats" end
-        if sequence then
-            for _, step in ipairs(sequence) do
-                legacy = type(step) == "table" and valid_counter_type(step.counter_type) or nil
-                if legacy ~= nil and legacy ~= TrainingEnvironment.DUMMY_COUNTER.NORMAL then
-                    return legacy, "legacy_step"
-                end
-            end
-        else
-            legacy = valid_counter_type(first.counter_type)
-            if legacy ~= nil and legacy ~= TrainingEnvironment.DUMMY_COUNTER.NORMAL then
-                return legacy, "legacy_step"
+local function legacy_counter_evidence(first, sequence)
+    local stats_counter = type(first.combo_stats) == "table"
+        and counter_type_from_hit_type(first.combo_stats.hit_type)
+        or nil
+    local step_counter = nil
+    if sequence then
+        for _, step in ipairs(sequence) do
+            local value = type(step) == "table" and valid_counter_type(step.counter_type) or nil
+            if value ~= nil and value ~= TrainingEnvironment.DUMMY_COUNTER.NORMAL then
+                step_counter = value
+                break
             end
         end
+    else
+        local value = valid_counter_type(first.counter_type)
+        if value ~= nil and value ~= TrainingEnvironment.DUMMY_COUNTER.NORMAL then
+            step_counter = value
+        end
+    end
+    return stats_counter, step_counter
+end
+
+function TrainingEnvironment.has_legacy_counter_conflict(sequence_or_first)
+    local first, sequence = sequence_first(sequence_or_first)
+    if type(first) ~= "table" then return false, nil end
+    local canonical = canonical_counter_policy(first)
+    local stats_counter, step_counter = legacy_counter_evidence(first, sequence)
+    local conflict = canonical == TrainingEnvironment.DUMMY_COUNTER.NORMAL
+        and stats_counter ~= nil
+        and stats_counter == step_counter
+    return conflict, conflict and stats_counter or nil
+end
+
+function TrainingEnvironment.resolve_counter_policy(sequence_or_first, infer_legacy)
+    local first, sequence = sequence_first(sequence_or_first)
+    if type(first) ~= "table" then
+        return TrainingEnvironment.DUMMY_COUNTER.NORMAL, "default"
+    end
+    -- The recorded training-menu value is the fixed rule for the whole trial.
+    -- A historical bulk migration wrote NORMAL into all three mirrors before
+    -- consuming the old fields. Override that placeholder only when both
+    -- independent legacy facts agree on the same non-normal policy.
+    local canonical, canonical_source = canonical_counter_policy(first)
+    local stats_counter, step_counter = legacy_counter_evidence(first, sequence)
+    if infer_legacy ~= false
+        and canonical == TrainingEnvironment.DUMMY_COUNTER.NORMAL
+        and stats_counter ~= nil
+        and stats_counter == step_counter then
+        return stats_counter, "legacy_consensus"
+    end
+    if canonical ~= nil then return canonical, canonical_source end
+
+    if infer_legacy ~= false then
+        if stats_counter ~= nil then return stats_counter, "legacy_combo_stats" end
+        if step_counter ~= nil then return step_counter, "legacy_step" end
     end
     return TrainingEnvironment.DUMMY_COUNTER.NORMAL, "default"
 end

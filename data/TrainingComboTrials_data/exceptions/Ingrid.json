@@ -38,6 +38,15 @@
     "charge_min": 14,
     "charge_max": 14
   },
+  "945": {
+    "absorb_ids": "953",
+    "action_event_projection": {}
+  },
+  "949": {
+    "action_event_rules": {
+      "transient_precursor_ids": "906,945"
+    }
+  },
   "969": {
     "absorb_ids": "975",
     "is_holdable": true,

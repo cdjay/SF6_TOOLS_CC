@@ -46,6 +46,15 @@ ACTION_EVENT_FIXTURES = {
             action_event_rules = { transient_precursor_ids = "929" },
         },
     },
+    Ingrid = {
+        ["945"] = {
+            absorb_ids = "953",
+            action_event_projection = {},
+        },
+        ["949"] = {
+            action_event_rules = { transient_precursor_ids = "906,945" },
+        },
+    },
     Jamie = {
         ["608"] = { action_event_rules = { transient_precursor_ids = "657" } },
         ["610"] = { action_event_rules = { transient_precursor_ids = "657" } },
@@ -142,6 +151,83 @@ assert(result.stats.drive_used == 10000 and result.stats.super_used == 10000,
     "resource baselines must freeze on the first input, before Action startup consumes gauges")
 assert(result.trace.observed_actions[1].id == 600,
     "the audit trace must retain runtime Action transitions before V2 projection")
+
+do
+local same_frame_super = compiler.new({ character = "Ingrid", frame = 0 })
+compiler.observe(same_frame_super, {
+    frame = 1,
+    action_id = 10,
+    action_frame = 1,
+    direct_input = 0,
+    facing_right = true,
+    combo_count = 0,
+    actor_hp = 10000,
+    actor_drive = 60000,
+    actor_super = 30000,
+    victim_hp = 10000,
+})
+compiler.observe(same_frame_super, {
+    frame = 2,
+    action_id = 1227,
+    action_frame = 0,
+    direct_input = 512,
+    facing_right = true,
+    combo_count = 0,
+    actor_hp = 10000,
+    actor_drive = 60000,
+    actor_super = 10000,
+    victim_hp = 10000,
+})
+local same_frame_super_result = compiler.finalize(same_frame_super, {
+    motion_resolver = function(action_id)
+        if action_id == 1227 then return "214214+HP", "strict_route" end
+        return nil, "action_id_missing"
+    end,
+})
+assert(same_frame_super_result.stats.super_used == 20000,
+    "a super spent on the first button edge must retain the pre-input gauge baseline")
+end
+
+do
+local ingrid_projectile = new_character_rule_session("Ingrid")
+ingrid_projectile.events = {
+    {
+        id = 945,
+        frame = 100,
+        expected_combo = 2,
+        damage_at_step = 1440,
+        has_hit = true,
+        has_contact = true,
+        anchor = { kind = "button_press", pressed_buttons = 256 },
+    },
+    {
+        id = 953,
+        frame = 185,
+        expected_combo = 4,
+        damage_at_step = 1840,
+        has_hit = true,
+        has_contact = true,
+        anchor = { kind = "direction_action", direction_sequence = "42" },
+    },
+}
+ingrid_projectile.current_damage = 1840
+ingrid_projectile.max_combo = 4
+local ingrid_projectile_result = compiler.finalize(ingrid_projectile, {
+    motion_resolver = function(action_id)
+        if action_id == 945 then return "236+MK", "strict_route" end
+        if action_id == 953 then return "2", "strict_route" end
+        return nil, "action_id_missing"
+    end,
+})
+assert(#ingrid_projectile_result.steps == 1
+        and ingrid_projectile_result.steps[1].id == 945
+        and ingrid_projectile_result.steps[1].expected_combo == 4
+        and ingrid_projectile_result.steps[1].damage_at_step == 1840
+        and ingrid_projectile_result.trace.suppressed_events[1].id == 953
+        and ingrid_projectile_result.trace.suppressed_events[1].reason
+            == "character_internal_action_phase",
+    "Ingrid 953 must merge its hit outcome into the command-owning 945 step")
+end
 
 do
 local cviper_cancel = new_character_rule_session("CViper")
@@ -5336,6 +5422,41 @@ assert(#step_counter_adjustments == 1
         and prepared_step_counter[1]._xt_meta.environment.dummy_counter_type == 2
         and legacy_step_counter_source[1].dummy_counter_type == nil,
     "the capture copy must persist a legacy step-level punish counter before derived fields are removed")
+
+local bulk_default_counter_source = {
+    {
+        id = 606,
+        motion = "HP",
+        counter_type = 2,
+        dummy_counter_type = 0,
+        expected_combo = 1,
+        damage_at_step = 1080,
+        has_hit = true,
+        has_contact = true,
+        combo_stats = { damage = 1080, hit_type = "PC" },
+        _xt_meta = {
+            dummy_counter_type = 0,
+            environment = { dummy_counter_type = 0 },
+        },
+    },
+}
+local prepared_bulk_counter, bulk_counter_adjustments =
+    transcriber.prepare_capture_sequence(bulk_default_counter_source)
+assert(#bulk_counter_adjustments == 1
+        and bulk_counter_adjustments[1].reason
+            == "legacy_counter_policy_canonicalized:legacy_consensus"
+        and bulk_counter_adjustments[1].from == 0
+        and prepared_bulk_counter[1].dummy_counter_type == 2
+        and prepared_bulk_counter[1]._xt_meta.environment.dummy_counter_type == 2,
+    "agreeing legacy counter facts must override bulk-filled NORMAL mirrors")
+
+local stale_stats_only = transcriber.deep_copy(bulk_default_counter_source)
+stale_stats_only[1].counter_type = nil
+local prepared_stale_stats, stale_stats_adjustments =
+    transcriber.prepare_capture_sequence(stale_stats_only)
+assert(#stale_stats_adjustments == 0
+        and prepared_stale_stats[1].dummy_counter_type == 0,
+    "one stale legacy counter field must not override an explicit NORMAL policy")
 end
 
 local honda_legacy_buff_source = {
@@ -5818,6 +5939,75 @@ assert(resumed.output_dir:match("run1$")
     "resume must append to the original candidate directory and report")
 
 do
+local audit_paths = {
+    "TrainingComboTrials_data\\CustomCombos\\Ingrid\\A.json",
+    "TrainingComboTrials_data\\CustomCombos\\Ingrid\\B.json",
+    "TrainingComboTrials_data\\CustomCombos\\Ingrid\\C.json",
+}
+local audit_retry = transcriber.new_run(
+    "Ingrid",
+    audit_paths,
+    "2026-08-03T02:18:09+08:00",
+    { scope = "audit_failures" }
+)
+audit_retry.active = false
+audit_retry.items = {
+    {
+        source_file = audit_paths[1],
+        status = "passed",
+        raw_replay_verified = true,
+        validation_revision = transcriber.VALIDATION_REVISION,
+    },
+    {
+        source_file = audit_paths[2],
+        status = "failed",
+        raw_replay_verified = false,
+        validation_revision = transcriber.VALIDATION_REVISION,
+    },
+}
+audit_retry.passed = 1
+audit_retry.failed = 1
+local audit_report = transcriber.report(audit_retry)
+assert(#audit_report.source_paths == 3,
+    "audit-failure reports must persist their original target subset")
+local audit_resume = assert(transcriber.resume_run(audit_report, "Ingrid", {
+    audit_paths[1],
+    audit_paths[2],
+    audit_paths[3],
+    "TrainingComboTrials_data\\CustomCombos\\Ingrid\\Unrelated.json",
+}, "2026-08-03T02:30:00+08:00"))
+assert(audit_resume.transcription_scope == "audit_failures"
+    and #audit_resume.paths == 1
+    and audit_resume.paths[1]:match("C%.json$")
+    and #audit_resume.source_paths == 3,
+    "audit-failure resume must continue only the original unprocessed subset")
+
+local repair_retry = transcriber.failure_retry_run({
+    character = "Ingrid",
+    transcription_scope = "audit_failures",
+    items = {
+        {
+            source_file = audit_paths[1],
+            candidate_file = "Candidates/Ingrid/A.json",
+            status = "passed",
+            raw_replay_verified = true,
+        },
+        {
+            source_file = audit_paths[2],
+            candidate_file = "Candidates/Ingrid/B.json",
+            status = "passed",
+            raw_replay_verified = true,
+        },
+    },
+}, "Ingrid", { audit_paths[1] }, "2026-08-03T02:35:00+08:00")
+assert(#repair_retry.items == 1
+        and repair_retry.items[1].source_file == audit_paths[2]
+        and #repair_retry.paths == 1
+        and repair_retry.total == 2,
+    "retrying a stale pass must not retain its obsolete report item")
+end
+
+do
 local single_run = transcriber.new_run(
     "Ken",
     { "TrainingComboTrials_data\\CustomCombos\\Ken\\A.json" },
@@ -6114,6 +6304,17 @@ function test_data_driven_recent_regressions()
     assert(runtime_transient.ignored == true
             and runtime_transient.reason == "transient_input_precursor",
         "live validation must consume the same injected transient mapping")
+
+    local timeline_runtime_transient = ActionMatcher.classify_runtime_transition({
+        expected_step = { id = 628 },
+        actual_action_id = 512,
+        input_anchor_kind = "button_press",
+        input_truth_mode = false,
+        action_event_rules = jamie_transient.action_event_rules,
+    })
+    assert(timeline_runtime_transient.ignored == true
+            and timeline_runtime_transient.reason == "transient_input_precursor",
+        "configured transient mappings must also protect legacy timeline playback")
 
     local jamie_release_tail = new_character_rule_session("Jamie")
     jamie_release_tail.events = {

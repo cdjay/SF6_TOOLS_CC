@@ -184,7 +184,11 @@ function ActionMatcher.classify_runtime_transition(params)
     ) == "table" and action_event_rules.transient_input_precursor_transitions or {}
     local transient_destinations = type(transient_rules) == "table"
         and transient_rules[tonumber(params.actual_action_id)] or nil
-    if params.input_truth_mode == true and expected_id ~= nil
+    -- An explicit character rule describes a real runtime Action transition,
+    -- independent of whether playback came from raw input or a legacy timeline.
+    -- Raw-input mode still controls the generic unanchored-transition policy
+    -- below; configured precursor ownership is safe in both playback formats.
+    if expected_id ~= nil
         and type(transient_destinations) == "table"
         and transient_destinations[expected_id] == true then
         result.ignored = true

@@ -4,7 +4,7 @@
 local Transcriber = {
     name = "ComboTrials.Transcriber",
     REPORT_SCHEMA = "sf6cc.combo_transcription_report.v1",
-    VALIDATION_REVISION = 39,
+    VALIDATION_REVISION = 40,
     OUTPUT_ROOT = "TrainingComboTrials_data/TranscribedCandidates",
     REPORT_ROOT = "TrainingComboTrials_data/TranscriptionReports",
 }
@@ -565,12 +565,12 @@ end
 local function prepare_legacy_counter_policy(first, sequence, adjustments)
     local counter_type, source =
         TrainingEnvironment.resolve_counter_policy(sequence, true)
-    if source ~= "legacy_combo_stats" and source ~= "legacy_step" then return end
+    if tostring(source):sub(1, 7) ~= "legacy_" then return end
 
     set_prepared_environment_field(first, "dummy_counter_type", counter_type)
     adjustments[#adjustments + 1] = {
         field = "dummy_counter_type",
-        from = nil,
+        from = source == "legacy_consensus" and 0 or nil,
         to = counter_type,
         reason = "legacy_counter_policy_canonicalized:" .. source,
     }
@@ -2208,6 +2208,7 @@ function Transcriber.new_run(character, paths, now, options)
         transcription_scope = options.scope or "all",
         requested_path = options.requested_path,
         paths = copied_paths,
+        source_paths = deep_copy(copied_paths),
         path_index = 0,
         resume_processed = 0,
         index = 0,
@@ -2238,6 +2239,39 @@ end
 
 local function normalized_source_path(path)
     return tostring(path or ""):gsub("\\", "/"):lower()
+end
+
+function Transcriber.is_resumable_scope(scope)
+    return scope == nil or scope == "all" or scope == "audit_failures"
+end
+
+function Transcriber.resume_source_paths(previous_run, available_paths)
+    if type(previous_run) ~= "table"
+        or not Transcriber.is_resumable_scope(previous_run.transcription_scope) then
+        return {}
+    end
+
+    local scope = previous_run.transcription_scope
+    if scope == nil or scope == "all" then
+        return deep_copy(type(available_paths) == "table" and available_paths or {})
+    end
+
+    local available = {}
+    for _, path in ipairs(type(available_paths) == "table" and available_paths or {}) do
+        available[normalized_source_path(path)] = path
+    end
+    local selected = {}
+    local seen = {}
+    for _, requested in ipairs(type(previous_run.source_paths) == "table"
+        and previous_run.source_paths or {}) do
+        local key = normalized_source_path(requested)
+        local path = available[key]
+        if path and key ~= "" and not seen[key] then
+            selected[#selected + 1] = path
+            seen[key] = true
+        end
+    end
+    return selected
 end
 
 function Transcriber.remaining_paths(previous_run, paths)
@@ -2277,14 +2311,15 @@ end
 
 function Transcriber.resume_info(previous_run, character, paths)
     if type(previous_run) ~= "table" or previous_run.active == true then return nil end
-    local scope = previous_run.transcription_scope
-    if scope ~= nil and scope ~= "all" then return nil end
+    if not Transcriber.is_resumable_scope(previous_run.transcription_scope) then return nil end
     if type(previous_run.items) ~= "table" or #previous_run.items == 0 then return nil end
     if tostring(previous_run.character or ""):lower() ~= tostring(character or ""):lower() then
         return nil
     end
 
-    local remaining, processed = Transcriber.remaining_paths(previous_run, paths)
+    local source_paths = Transcriber.resume_source_paths(previous_run, paths)
+    if #source_paths == 0 then return nil end
+    local remaining, processed = Transcriber.remaining_paths(previous_run, source_paths)
     if #remaining == 0 then return nil end
     return {
         processed = processed,
@@ -2324,13 +2359,18 @@ function Transcriber.failure_retry_run(previous_run, character, paths, now)
             and previous_run.requested_path or nil,
     })
     local retained = {}
+    local retry_sources = {}
+    for _, path in ipairs(type(paths) == "table" and paths or {}) do
+        retry_sources[normalized_source_path(path)] = true
+    end
     local items = type(previous_run) == "table"
         and type(previous_run.items) == "table" and previous_run.items or {}
     for _, item in ipairs(items) do
         if item.status == "passed"
             and item.raw_replay_verified == true
             and type(item.candidate_file) == "string"
-            and item.candidate_file ~= "" then
+            and item.candidate_file ~= ""
+            and not retry_sources[normalized_source_path(item.source_file)] then
             retained[#retained + 1] = deep_copy(item)
         end
     end
@@ -2351,12 +2391,18 @@ function Transcriber.resume_run(previous_run, character, paths, now)
     local info = Transcriber.resume_info(previous_run, character, paths)
     if not info then return nil, "nothing_to_resume" end
 
-    local remaining, _, retained = Transcriber.remaining_paths(previous_run, paths)
+    local source_paths = Transcriber.resume_source_paths(previous_run, paths)
+    local remaining, _, retained = Transcriber.remaining_paths(previous_run, source_paths)
     local run = Transcriber.new_run(
         character,
         remaining,
-        previous_run.started_at or now
+        previous_run.started_at or now,
+        {
+            scope = previous_run.transcription_scope or "all",
+            requested_path = previous_run.requested_path,
+        }
     )
+    run.source_paths = deep_copy(source_paths)
     run.items = retained
     run.resume_processed = #run.items
     run.index = run.resume_processed
@@ -2364,6 +2410,8 @@ function Transcriber.resume_run(previous_run, character, paths, now)
     run.output_dir = previous_run.output_dir or previous_run.candidate_root
     run.report_path = previous_run.report_path
     run.resume_count = (tonumber(previous_run.resume_count) or 0) + 1
+    run.source_audit_report = previous_run.source_audit_report
+    run.source_transcription_report = previous_run.source_transcription_report
     run.resumed = true
     run.status = string.format(
         "准备续转：已处理 %d，剩余 %d",
@@ -2387,6 +2435,7 @@ function Transcriber.report(run)
         character = run.character,
         transcription_scope = run.transcription_scope or "all",
         requested_path = run.requested_path,
+        source_paths = deep_copy(run.source_paths or run.paths or {}),
         started_at = run.started_at,
         finished_at = run.finished_at,
         canceled = run.cancel_requested == true,
