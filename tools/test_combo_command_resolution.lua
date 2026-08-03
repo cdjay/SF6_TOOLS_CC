@@ -229,6 +229,10 @@ local mai_override_document = {
             replace = true,
             evidence = "one timeline runtime audit event with hit contact",
         },
+        ["604"] = {
+            classic = "HP",
+            evidence = "thirty-six legacy Action 604 display failures with an explicit 604 to 605 alias",
+        },
         ["605"] = {
             classic = "HP",
             evidence = "three post-update runtime audit events with hit contact",
@@ -242,15 +246,18 @@ local mai_override_document = {
 }
 local mai_overrides, mai_override_count, mai_override_status =
     command_display_overrides.merge(mai_catalog, "Mai", mai_override_document)
-assert(mai_override_status == "loaded" and mai_override_count == 4
+assert(mai_override_status == "loaded" and mai_override_count == 5
         and mai_overrides["600"].classic == "LP"
         and mai_overrides["603"].classic == "MP"
+        and mai_overrides["604"].classic == "HP"
         and mai_overrides["605"].classic == "HP"
         and mai_overrides["907"].classic == ">6+MP"
         and mai_overrides["600"].status == "runtime_verified_override"
         and mai_overrides["603"].status == "runtime_verified_override"
+        and mai_overrides["604"].status == "runtime_verified_override"
         and mai_overrides["605"].status == "runtime_verified_override"
         and mai_overrides["907"].status == "runtime_verified_override"
+        and mai_overrides["604"].metadata.replaced_existing == false
         and mai_overrides["605"].metadata.replaced_existing == false
         and mai_overrides["907"].metadata.replaced_existing == true,
     "Mai's runtime-audited Classic Actions must replace unverified catalog rows")
@@ -1497,6 +1504,12 @@ assert(mai_exception_source:find('"604"', 1, true)
         and mai_exception_source:find('"715"', 1, true)
         and mai_exception_source:find('"action_alias_ids": "725"', 1, true),
     "the shipped Mai exception must preserve verified post-update Action aliases")
+local mai_override_source = read_all(
+    "data/TrainingComboTrials_data/command_display_overrides/Mai.json")
+assert(mai_override_source:find('"604"', 1, true)
+        and mai_override_source:find('"classic": "HP"', 1, true)
+        and mai_override_source:find('legacy Mai Action 604', 1, true),
+    "the shipped Mai command override must preserve the legacy 604 HP display")
 local sagat_exception_source = read_all(
     "data/TrainingComboTrials_data/exceptions/Sagat.json")
 assert(sagat_exception_source:find('"944"', 1, true)

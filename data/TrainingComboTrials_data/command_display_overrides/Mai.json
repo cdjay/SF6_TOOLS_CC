@@ -12,6 +12,10 @@
       "replace": true,
       "evidence": "A runtime audit replay binds a neutral MP press and hit contact to Mai Action 603; the generated catalog independently records the same Classic command"
     },
+    "604": {
+      "classic": "HP",
+      "evidence": "Thirty-six command-display failures across twenty-five otherwise completed 2026-08-03 runtime audit replays use legacy Mai Action 604; the character exception explicitly aliases it to current HP Action 605"
+    },
     "605": {
       "classic": "HP",
       "evidence": "A post-update runtime audit binds three fresh HP presses with hit contact to Mai Action 605; all three replace legacy Action 604 occurrences in the same reproduced route"
