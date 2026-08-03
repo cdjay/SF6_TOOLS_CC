@@ -13157,8 +13157,8 @@
     "character": "Juri",
     "fighter_id": 16,
     "generated_from": "ac_bcm+capcom_official_semantics",
-    "generated_at": "2026-05-28T00:00:00.000Z",
-    "ac_sha256": "60326b5027b45e0fe1079186f001407de2e29404dd5038cea3f74ab39a7372a2",
+    "generated_at": "2026-08-03T00:00:00.000Z",
+    "ac_sha256": "58905c345ed46631cb36794997051ebbf8a1f7cb190046f55090b7367447512b",
     "bcm_sha256": "81e679302a8b255054bef13002b37e1a5e44155589db3ab6d5d0cda51e78c0d1",
     "modern_profile_order": [
       "easy",
@@ -13181,6 +13181,7 @@
     "type20_directional_route_count": 0,
     "type20_hold_route_count": 0,
     "type20_action_phase_route_count": 0,
+    "type37_followup_execution_phase_route_count": 0,
     "charge_context_route_count": 0,
     "super_shortcut_direction_route_count": 7,
     "ac_charge_context_relation_count": 0,
@@ -13245,7 +13246,7 @@
         "official_move_name": "OD 死連閃"
       }
     ],
-    "official_semantic_source_sha256": "92428c6188ed63a05d6314c3ebd49e5dfb88f91d9830205569504596431b275d",
+    "official_semantic_source_sha256": "6d1649c87d7bf1eb1c15930dec68f9077596e8501c7df408f85136ef6b71bdfe",
     "classic_profile_order": [
       "norm",
       "sprt"
@@ -13515,6 +13516,7 @@
     "type20_directional_relations": [],
     "type20_hold_relations": [],
     "type20_action_phase_relations": [],
+    "type37_followup_execution_phase_relations": [],
     "target_combo_repeat_relations": [],
     "structural_twin_relations": [],
     "assist_combo_relations": [
@@ -15171,6 +15173,8 @@
       "type20_hold_route_count": 0,
       "type20_action_phase_relation_count": 0,
       "type20_action_phase_route_count": 0,
+      "type37_followup_execution_phase_relation_count": 0,
+      "type37_followup_execution_phase_route_count": 0,
       "charge_context_route_count": 0,
       "super_shortcut_direction_route_count": 7,
       "ac_charge_context_relation_count": 0,

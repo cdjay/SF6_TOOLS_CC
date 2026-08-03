@@ -202,6 +202,15 @@ local command_display_runtime = {
 }
 local build_slim_command_display_map
 
+local function reset_command_display_cache()
+    for key in pairs(command_display_cache) do
+        command_display_cache[key] = nil
+    end
+    for key in pairs(command_display_runtime.cache_status) do
+        command_display_runtime.cache_status[key] = nil
+    end
+end
+
 local function get_sequence_meta(sequence)
     if type(sequence) ~= "table" then return nil end
     local first = sequence[1]
@@ -3565,7 +3574,9 @@ end
 
 function M.init(shared_ctx)
     ctx = shared_ctx
+    reset_command_display_cache()
     clear_unresolved_action_audit()
+    ctx.clear_command_display_cache = M.clear_command_display_cache
     ctx.clear_unresolved_action_audit = M.clear_unresolved_action_audit
     ctx.localize_motion_text = function(motion, action_id)
         if action_id == 1231 and is_shun_goku_satsu_motion(motion) then
@@ -3574,6 +3585,10 @@ function M.init(shared_ctx)
         return localize_motion_text(tostring(motion or ""):upper())
     end
     Canvas.register(imgui_init, imgui_draw)
+end
+
+function M.clear_command_display_cache()
+    reset_command_display_cache()
 end
 
 function M.preload_next_font()

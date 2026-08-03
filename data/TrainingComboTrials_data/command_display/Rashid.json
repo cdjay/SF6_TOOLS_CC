@@ -5446,15 +5446,15 @@
     "source": "ac_bcm+capcom_official_semantics",
     "ownership": "direct",
     "simple_command": {
-      "display": "4 + SP",
+      "display": "1 + SP",
       "inputs": [
-        "4 + SP"
+        "1 + SP"
       ]
     },
     "motion_command": null,
     "routes": [
       {
-        "display": "4 + SP",
+        "display": "1 + SP",
         "character": "Rashid",
         "owner_action_id": 938,
         "trigger_index": 82,
@@ -5464,9 +5464,9 @@
         "raw_direction_inputs": [],
         "raw_button_mask": 32,
         "raw_button_condition": 16416,
-        "raw_dc_exc_flags": 4,
-        "raw_ng_key_flags": 2,
-        "visible_direction": "4",
+        "raw_dc_exc_flags": 6,
+        "raw_ng_key_flags": 1073741832,
+        "visible_direction": "1",
         "visible_button": "SP",
         "button_candidates": [],
         "required_button_count": 1,
@@ -5519,28 +5519,28 @@
     "source": "ac_bcm+capcom_official_semantics",
     "ownership": "direct",
     "simple_command": {
-      "display": "4 + AUTO + SP",
+      "display": "2 + SP",
       "inputs": [
-        "4 + AUTO + SP"
+        "2 + SP"
       ]
     },
     "motion_command": null,
     "routes": [
       {
-        "display": "4 + AUTO + SP",
+        "display": "2 + SP",
         "character": "Rashid",
         "owner_action_id": 941,
         "trigger_index": 83,
-        "profile": "supr",
+        "profile": "easy",
         "command_no": -1,
         "command_index": -1,
         "raw_direction_inputs": [],
-        "raw_button_mask": 8192,
+        "raw_button_mask": 32,
         "raw_button_condition": 16416,
-        "raw_dc_exc_flags": 4,
-        "raw_ng_key_flags": 2,
-        "visible_direction": "4",
-        "visible_button": "AUTO + SP",
+        "raw_dc_exc_flags": 2,
+        "raw_ng_key_flags": 12,
+        "visible_direction": "2",
+        "visible_button": "SP",
         "button_candidates": [],
         "required_button_count": 1,
         "source": "bcm_profile",
@@ -5592,28 +5592,28 @@
     "source": "ac_bcm+capcom_official_semantics",
     "ownership": "direct",
     "simple_command": {
-      "display": "4 + AUTO + SP",
+      "display": "3 + SP",
       "inputs": [
-        "4 + AUTO + SP"
+        "3 + SP"
       ]
     },
     "motion_command": null,
     "routes": [
       {
-        "display": "4 + AUTO + SP",
+        "display": "3 + SP",
         "character": "Rashid",
         "owner_action_id": 944,
         "trigger_index": 84,
-        "profile": "supr",
+        "profile": "easy",
         "command_no": -1,
         "command_index": -1,
         "raw_direction_inputs": [],
-        "raw_button_mask": 8192,
+        "raw_button_mask": 32,
         "raw_button_condition": 16416,
-        "raw_dc_exc_flags": 4,
-        "raw_ng_key_flags": 2,
-        "visible_direction": "4",
-        "visible_button": "AUTO + SP",
+        "raw_dc_exc_flags": 10,
+        "raw_ng_key_flags": 1073741828,
+        "visible_direction": "3",
+        "visible_button": "SP",
         "button_candidates": [],
         "required_button_count": 1,
         "source": "bcm_profile",
@@ -5665,28 +5665,28 @@
     "source": "ac_bcm+capcom_official_semantics",
     "ownership": "verified_alias",
     "simple_command": {
-      "display": "4 + AUTO + SP",
+      "display": "3 + SP",
       "inputs": [
-        "4 + AUTO + SP"
+        "3 + SP"
       ]
     },
     "motion_command": null,
     "routes": [
       {
-        "display": "4 + AUTO + SP",
+        "display": "3 + SP",
         "character": "Rashid",
         "owner_action_id": 944,
         "trigger_index": 84,
-        "profile": "supr",
+        "profile": "easy",
         "command_no": -1,
         "command_index": -1,
         "raw_direction_inputs": [],
-        "raw_button_mask": 8192,
+        "raw_button_mask": 32,
         "raw_button_condition": 16416,
-        "raw_dc_exc_flags": 4,
-        "raw_ng_key_flags": 2,
-        "visible_direction": "4",
-        "visible_button": "AUTO + SP",
+        "raw_dc_exc_flags": 10,
+        "raw_ng_key_flags": 1073741828,
+        "visible_direction": "3",
+        "visible_button": "SP",
         "button_candidates": [],
         "required_button_count": 1,
         "source": "ac_verified_alias_variant",
@@ -5815,28 +5815,28 @@
     "source": "ac_bcm+capcom_official_semantics",
     "ownership": "verified_alias",
     "simple_command": {
-      "display": "4 + AUTO + SP",
+      "display": "2 + SP",
       "inputs": [
-        "4 + AUTO + SP"
+        "2 + SP"
       ]
     },
     "motion_command": null,
     "routes": [
       {
-        "display": "4 + AUTO + SP",
+        "display": "2 + SP",
         "character": "Rashid",
         "owner_action_id": 941,
         "trigger_index": 83,
-        "profile": "supr",
+        "profile": "easy",
         "command_no": -1,
         "command_index": -1,
         "raw_direction_inputs": [],
-        "raw_button_mask": 8192,
+        "raw_button_mask": 32,
         "raw_button_condition": 16416,
-        "raw_dc_exc_flags": 4,
-        "raw_ng_key_flags": 2,
-        "visible_direction": "4",
-        "visible_button": "AUTO + SP",
+        "raw_dc_exc_flags": 2,
+        "raw_ng_key_flags": 12,
+        "visible_direction": "2",
+        "visible_button": "SP",
         "button_candidates": [],
         "required_button_count": 1,
         "source": "ac_verified_alias_variant",
@@ -5969,15 +5969,15 @@
     "source": "ac_bcm+capcom_official_semantics",
     "ownership": "verified_alias",
     "simple_command": {
-      "display": "4 + SP",
+      "display": "1 + SP",
       "inputs": [
-        "4 + SP"
+        "1 + SP"
       ]
     },
     "motion_command": null,
     "routes": [
       {
-        "display": "4 + SP",
+        "display": "1 + SP",
         "character": "Rashid",
         "owner_action_id": 938,
         "trigger_index": 82,
@@ -5987,9 +5987,9 @@
         "raw_direction_inputs": [],
         "raw_button_mask": 32,
         "raw_button_condition": 16416,
-        "raw_dc_exc_flags": 4,
-        "raw_ng_key_flags": 2,
-        "visible_direction": "4",
+        "raw_dc_exc_flags": 6,
+        "raw_ng_key_flags": 1073741832,
+        "visible_direction": "1",
         "visible_button": "SP",
         "button_candidates": [],
         "required_button_count": 1,
@@ -6938,9 +6938,9 @@
     "source": "ac_bcm+capcom_official_semantics",
     "ownership": "direct",
     "simple_command": {
-      "display": "2 + SP",
+      "display": "4 + SP",
       "inputs": [
-        "2 + SP"
+        "4 + SP"
       ]
     },
     "motion_command": {
@@ -6951,7 +6951,7 @@
     },
     "routes": [
       {
-        "display": "2 + SP",
+        "display": "4 + SP",
         "character": "Rashid",
         "owner_action_id": 970,
         "trigger_index": 78,
@@ -6961,9 +6961,9 @@
         "raw_direction_inputs": [],
         "raw_button_mask": 32,
         "raw_button_condition": 16416,
-        "raw_dc_exc_flags": 2,
-        "raw_ng_key_flags": 0,
-        "visible_direction": "2",
+        "raw_dc_exc_flags": 4,
+        "raw_ng_key_flags": 2,
+        "visible_direction": "4",
         "visible_button": "SP",
         "button_candidates": [],
         "required_button_count": 1,
@@ -7891,9 +7891,9 @@
     "source": "ac_bcm+capcom_official_semantics",
     "ownership": "verified_alias",
     "simple_command": {
-      "display": "2 + SP",
+      "display": "4 + SP",
       "inputs": [
-        "2 + SP"
+        "4 + SP"
       ]
     },
     "motion_command": {
@@ -7904,7 +7904,7 @@
     },
     "routes": [
       {
-        "display": "2 + SP",
+        "display": "4 + SP",
         "character": "Rashid",
         "owner_action_id": 970,
         "trigger_index": 78,
@@ -7914,9 +7914,9 @@
         "raw_direction_inputs": [],
         "raw_button_mask": 32,
         "raw_button_condition": 16416,
-        "raw_dc_exc_flags": 2,
-        "raw_ng_key_flags": 0,
-        "visible_direction": "2",
+        "raw_dc_exc_flags": 4,
+        "raw_ng_key_flags": 2,
+        "visible_direction": "4",
         "visible_button": "SP",
         "button_candidates": [],
         "required_button_count": 1,
@@ -10329,9 +10329,9 @@
     "character": "Rashid",
     "fighter_id": 14,
     "generated_from": "ac_bcm+capcom_official_semantics",
-    "generated_at": "2026-05-28T00:00:00.000Z",
-    "ac_sha256": "606655cb6d1b7a0249e11a70af349a90fd482ef29fe9d064c7fe3f983b06077b",
-    "bcm_sha256": "a708673e8b25f8c4eb02469b5616c09564891efe902b8c829a1e9feba10963e2",
+    "generated_at": "2026-08-03T00:00:00.000Z",
+    "ac_sha256": "9faa158243bc4e58b99c17eecb2f1f2eee60f6b56c6ac1fe4cd7f250116a854a",
+    "bcm_sha256": "3cfe76d91c024d0cbe5fb0d35d4b4d6526093a935822bd0a315dc1fdcaf7f041",
     "modern_profile_order": [
       "easy",
       "supr",
@@ -10353,6 +10353,7 @@
     "type20_directional_route_count": 0,
     "type20_hold_route_count": 0,
     "type20_action_phase_route_count": 0,
+    "type37_followup_execution_phase_route_count": 0,
     "charge_context_route_count": 0,
     "super_shortcut_direction_route_count": 6,
     "ac_charge_context_relation_count": 0,
@@ -10431,7 +10432,7 @@
     "split_command_action_count": 111,
     "followup_relation_count": 0,
     "followup_relations": [],
-    "official_semantic_source_sha256": "c77f032b1ab53d81a7155a96937fc5235cf2fe21aa951a101f4071ea2545887b",
+    "official_semantic_source_sha256": "baf29dfe1c5c1b46709d3268ff5f30e1f47156021c4b3523d5ef046bb019d4fb",
     "classic_profile_order": [
       "norm",
       "sprt"
@@ -10589,6 +10590,7 @@
     "type20_directional_relations": [],
     "type20_hold_relations": [],
     "type20_action_phase_relations": [],
+    "type37_followup_execution_phase_relations": [],
     "target_combo_repeat_relations": [],
     "structural_twin_relations": [],
     "assist_combo_relations": [
@@ -12772,6 +12774,8 @@
       "type20_hold_route_count": 0,
       "type20_action_phase_relation_count": 0,
       "type20_action_phase_route_count": 0,
+      "type37_followup_execution_phase_relation_count": 0,
+      "type37_followup_execution_phase_route_count": 0,
       "charge_context_route_count": 0,
       "super_shortcut_direction_route_count": 6,
       "ac_charge_context_relation_count": 0,

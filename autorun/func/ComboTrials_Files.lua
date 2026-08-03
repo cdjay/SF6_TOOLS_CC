@@ -12,7 +12,8 @@ local M = {}
 
 local ctx
 local trial_state, players, file_system
-local normalize_sequence_counter_types, normalize_sequence_semantics, assign_groups
+local normalize_sequence_counter_types, normalize_sequence_semantics
+local normalize_sequence_scene_state, assign_groups
 local restore_trial_dummy_action_type
 local XT_SCHEMA_MAX = 2
 local schema_warning_paths = {}
@@ -108,6 +109,9 @@ local function install_combo_sequence(loaded, path, force)
     warn_newer_schema(path, loaded)
 
     local prepared, prepare_error = pcall(function()
+        if normalize_sequence_scene_state then
+            normalize_sequence_scene_state(loaded)
+        end
         normalize_sequence_counter_types(loaded)
         if normalize_sequence_semantics then normalize_sequence_semantics(loaded) end
         assign_groups(loaded)
@@ -746,6 +750,7 @@ function M.init(context, opts)
     file_system = assert(ctx.file_system, "ComboTrials_Files requires ctx.file_system")
     normalize_sequence_counter_types = assert(opts.normalize_sequence_counter_types, "ComboTrials_Files requires normalize_sequence_counter_types")
     normalize_sequence_semantics = opts.normalize_sequence_semantics
+    normalize_sequence_scene_state = opts.normalize_sequence_scene_state
     assign_groups = assert(opts.assign_groups, "ComboTrials_Files requires assign_groups")
     restore_trial_dummy_action_type = opts.restore_trial_dummy_action_type
 

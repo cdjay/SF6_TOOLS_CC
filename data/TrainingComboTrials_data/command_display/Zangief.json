@@ -4095,11 +4095,145 @@
       }
     ]
   },
+  "903": {
+    "classic_command": {
+      "display": "PP",
+      "inputs": [
+        "PP"
+      ]
+    },
+    "control_support": "classic_modern",
+    "source": "ac_bcm+capcom_official_semantics",
+    "ownership": "direct",
+    "simple_command": {
+      "display": "2 + SP",
+      "inputs": [
+        "2 + SP"
+      ]
+    },
+    "motion_command": {
+      "display": "中 + 强",
+      "inputs": [
+        "中 + 强"
+      ]
+    },
+    "routes": [
+      {
+        "display": "2 + SP",
+        "character": "Zangief",
+        "owner_action_id": 903,
+        "trigger_index": 80,
+        "profile": "easy",
+        "command_no": -1,
+        "command_index": -1,
+        "raw_direction_inputs": [],
+        "raw_button_mask": 32,
+        "raw_button_condition": 16416,
+        "raw_dc_exc_flags": 2,
+        "raw_ng_key_flags": 0,
+        "visible_direction": "2",
+        "visible_button": "SP",
+        "button_candidates": [],
+        "required_button_count": 1,
+        "source": "bcm_profile",
+        "ac_relation_type": null,
+        "ac_path": [],
+        "inherited_from_action_id": null,
+        "confidence": "direct_structural",
+        "direct_evidence": true,
+        "inheritance_evidence": false,
+        "inheritance_reason": null,
+        "rebind_evidence": false,
+        "rebind_reason": null,
+        "runtime_common_evidence": false,
+        "runtime_common_reason": null,
+        "official_semantic_evidence": false,
+        "official_semantic_reason": null,
+        "community_semantic_evidence": false,
+        "community_semantic_reason": null,
+        "assist_combo_evidence": false,
+        "assist_combo_reason": null,
+        "charge_context_evidence": false,
+        "charge_context_profile": null,
+        "charge_context_direction": null,
+        "charge_context_manual_direction": null,
+        "charge_context_direction_profile": null,
+        "charge_context_command_no": null,
+        "charge_context_command_index": null,
+        "charge_context_notation": null,
+        "charge_context_source_action_id": null,
+        "charge_context_source_trigger_indices": [],
+        "charge_context_relation": null,
+        "charge_context_reason": null,
+        "super_shortcut_direction_evidence": false,
+        "super_shortcut_direction_profile": null,
+        "super_shortcut_direction": null,
+        "super_shortcut_direction_notation": null,
+        "super_shortcut_direction_reason": null
+      },
+      {
+        "display": "中 + 强",
+        "character": "Zangief",
+        "owner_action_id": 903,
+        "trigger_index": 80,
+        "profile": "sprt",
+        "command_no": -1,
+        "command_index": -1,
+        "raw_direction_inputs": [],
+        "raw_button_mask": 384,
+        "raw_button_condition": 16480,
+        "raw_dc_exc_flags": 0,
+        "raw_ng_key_flags": 0,
+        "visible_direction": null,
+        "visible_button": "中 + 强",
+        "button_candidates": [
+          "中",
+          "强"
+        ],
+        "required_button_count": 2,
+        "source": "bcm_profile",
+        "ac_relation_type": null,
+        "ac_path": [],
+        "inherited_from_action_id": null,
+        "confidence": "direct_structural",
+        "direct_evidence": true,
+        "inheritance_evidence": false,
+        "inheritance_reason": null,
+        "rebind_evidence": false,
+        "rebind_reason": null,
+        "runtime_common_evidence": false,
+        "runtime_common_reason": null,
+        "official_semantic_evidence": false,
+        "official_semantic_reason": null,
+        "community_semantic_evidence": false,
+        "community_semantic_reason": null,
+        "assist_combo_evidence": false,
+        "assist_combo_reason": null,
+        "charge_context_evidence": false,
+        "charge_context_profile": null,
+        "charge_context_direction": null,
+        "charge_context_manual_direction": null,
+        "charge_context_direction_profile": null,
+        "charge_context_command_no": null,
+        "charge_context_command_index": null,
+        "charge_context_notation": null,
+        "charge_context_source_action_id": null,
+        "charge_context_source_trigger_indices": [],
+        "charge_context_relation": null,
+        "charge_context_reason": null,
+        "super_shortcut_direction_evidence": false,
+        "super_shortcut_direction_profile": null,
+        "super_shortcut_direction": null,
+        "super_shortcut_direction_notation": null,
+        "super_shortcut_direction_reason": null
+      }
+    ]
+  },
   "918": {
     "classic_command": {
-      "display": "63214+K",
+      "display": "63214+LK+MK",
       "inputs": [
-        "63214+K"
+        "63214+LK+MK"
       ]
     },
     "control_support": "classic_modern",
@@ -4112,9 +4246,9 @@
       ]
     },
     "motion_command": {
-      "display": "63214 + 任意键",
+      "display": "63214 + THROW",
       "inputs": [
-        "63214 + 任意键"
+        "63214 + THROW"
       ]
     },
     "routes": [
@@ -4186,7 +4320,7 @@
         "ac_trigger_id": -1
       },
       {
-        "display": "63214 + 任意键",
+        "display": "63214 + THROW",
         "character": "Zangief",
         "owner_action_id": 1015,
         "trigger_index": 87,
@@ -4199,16 +4333,15 @@
           6,
           4
         ],
-        "raw_button_mask": 400,
+        "raw_button_mask": 144,
         "raw_button_condition": 81952,
         "raw_dc_exc_flags": 0,
         "raw_ng_key_flags": 0,
         "visible_direction": "63214",
-        "visible_button": "任意键",
+        "visible_button": "THROW",
         "button_candidates": [
           "弱",
-          "中",
-          "强"
+          "中"
         ],
         "required_button_count": 1,
         "source": "ac_command_entry_rebind",
@@ -5268,11 +5401,91 @@
       }
     ]
   },
+  "1010": {
+    "classic_command": {
+      "display": "63214+HK",
+      "inputs": [
+        "63214+HK"
+      ]
+    },
+    "control_support": "classic_modern",
+    "source": "ac_bcm+capcom_official_semantics",
+    "ownership": "direct",
+    "simple_command": null,
+    "motion_command": {
+      "display": "63214 + 强",
+      "inputs": [
+        "63214 + 强"
+      ]
+    },
+    "routes": [
+      {
+        "display": "63214 + 强",
+        "character": "Zangief",
+        "owner_action_id": 1010,
+        "trigger_index": 88,
+        "profile": "sprt",
+        "command_no": 14,
+        "command_index": 3,
+        "raw_direction_inputs": [
+          8,
+          10,
+          6,
+          4
+        ],
+        "raw_button_mask": 256,
+        "raw_button_condition": 81952,
+        "raw_dc_exc_flags": 0,
+        "raw_ng_key_flags": 0,
+        "visible_direction": "63214",
+        "visible_button": "强",
+        "button_candidates": [
+          "强"
+        ],
+        "required_button_count": 1,
+        "source": "bcm_profile",
+        "ac_relation_type": null,
+        "ac_path": [],
+        "inherited_from_action_id": null,
+        "confidence": "direct_structural",
+        "direct_evidence": true,
+        "inheritance_evidence": false,
+        "inheritance_reason": null,
+        "rebind_evidence": false,
+        "rebind_reason": null,
+        "runtime_common_evidence": false,
+        "runtime_common_reason": null,
+        "official_semantic_evidence": false,
+        "official_semantic_reason": null,
+        "community_semantic_evidence": false,
+        "community_semantic_reason": null,
+        "assist_combo_evidence": false,
+        "assist_combo_reason": null,
+        "charge_context_evidence": false,
+        "charge_context_profile": null,
+        "charge_context_direction": null,
+        "charge_context_manual_direction": null,
+        "charge_context_direction_profile": null,
+        "charge_context_command_no": null,
+        "charge_context_command_index": null,
+        "charge_context_notation": null,
+        "charge_context_source_action_id": null,
+        "charge_context_source_trigger_indices": [],
+        "charge_context_relation": null,
+        "charge_context_reason": null,
+        "super_shortcut_direction_evidence": false,
+        "super_shortcut_direction_profile": null,
+        "super_shortcut_direction": null,
+        "super_shortcut_direction_notation": null,
+        "super_shortcut_direction_reason": null
+      }
+    ]
+  },
   "1015": {
     "classic_command": {
-      "display": "63214+K",
+      "display": "63214+LK+MK",
       "inputs": [
-        "63214+K"
+        "63214+LK+MK"
       ]
     },
     "control_support": "classic_only",
@@ -6423,15 +6636,15 @@
     "character": "Zangief",
     "fighter_id": 6,
     "generated_from": "ac_bcm+capcom_official_semantics",
-    "generated_at": "2026-05-28T00:00:00.000Z",
-    "ac_sha256": "53eac1aa59a95045e634a1e83a464dd3e502b30b0c5725156dd6f84d954ffada",
-    "bcm_sha256": "3b70e24f59ce0bcdb7660a44897453f326543b96cce4a3218620d101f20b964e",
+    "generated_at": "2026-08-03T00:00:00.000Z",
+    "ac_sha256": "753d02204cec89c5a885d5748cda2d51bde0769144a15be93f1e717f219006b2",
+    "bcm_sha256": "09e9334a458b4e7073d13c5a0e25255d2b35b0cb71ccdccbd67c8774b62d4053",
     "modern_profile_order": [
       "easy",
       "supr",
       "sprt"
     ],
-    "direct_route_count": 68,
+    "direct_route_count": 71,
     "inherited_route_count": 8,
     "rebind_route_count": 4,
     "runtime_common_route_count": 6,
@@ -6447,6 +6660,7 @@
     "type20_directional_route_count": 0,
     "type20_hold_route_count": 0,
     "type20_action_phase_route_count": 0,
+    "type37_followup_execution_phase_route_count": 0,
     "charge_context_route_count": 0,
     "super_shortcut_direction_route_count": 5,
     "ac_charge_context_relation_count": 0,
@@ -6523,10 +6737,10 @@
     "ac_type13_neutral_relations": [],
     "internal_transition_suppression_count": 0,
     "suppressed_internal_transitions": [],
-    "split_command_action_count": 69,
+    "split_command_action_count": 71,
     "followup_relation_count": 0,
     "followup_relations": [],
-    "official_semantic_source_sha256": "917c632dd0ceef7da821f0d7d5ec3b2d7f338d551f8417c6079a5d5b1aa5cc58",
+    "official_semantic_source_sha256": "cbbd7b729ff515a85e1c58d73781345b1a6350960c6e9013c19d7820077a31fb",
     "classic_profile_order": [
       "norm",
       "sprt"
@@ -6612,6 +6826,7 @@
     "type20_directional_relations": [],
     "type20_hold_relations": [],
     "type20_action_phase_relations": [],
+    "type37_followup_execution_phase_relations": [],
     "target_combo_repeat_relations": [],
     "structural_twin_relations": [],
     "assist_combo_relations": [
@@ -7852,7 +8067,7 @@
         "reason": "profile_disabled_or_missing"
       }
     ],
-    "unmapped_action_count": 289,
+    "unmapped_action_count": 291,
     "unmapped_action_ids": [
       1,
       2,
@@ -8104,6 +8319,8 @@
       967,
       968,
       969,
+      1011,
+      1012,
       1015,
       1016,
       1017,
@@ -8178,6 +8395,8 @@
       "type20_hold_route_count": 0,
       "type20_action_phase_relation_count": 0,
       "type20_action_phase_route_count": 0,
+      "type37_followup_execution_phase_relation_count": 0,
+      "type37_followup_execution_phase_route_count": 0,
       "charge_context_route_count": 0,
       "super_shortcut_direction_route_count": 5,
       "ac_charge_context_relation_count": 0,
@@ -8203,11 +8422,11 @@
       "ac_type13_neutral_relation_count": 0,
       "ac_type13_neutral_route_count": 0,
       "internal_transition_suppression_count": 0,
-      "split_command_action_count": 69,
-      "classic_command_action_count": 78,
-      "shared_command_action_count": 69,
+      "split_command_action_count": 71,
+      "classic_command_action_count": 80,
+      "shared_command_action_count": 71,
       "classic_projection_pending_count": 0,
-      "command_display_action_count": 78,
+      "command_display_action_count": 80,
       "followup_relation_count": 0,
       "command_slot_overflow_count": 0,
       "ac_automatic_transition_route_count": 0,

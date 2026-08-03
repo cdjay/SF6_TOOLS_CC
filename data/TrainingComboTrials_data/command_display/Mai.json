@@ -635,7 +635,7 @@
     "motion_command": null,
     "routes": []
   },
-  "604": {
+  "605": {
     "classic_command": {
       "display": "HP",
       "inputs": [
@@ -655,7 +655,7 @@
     "routes": [
       {
         "character": "Mai",
-        "owner_action_id": 604,
+        "owner_action_id": 605,
         "trigger_index": 9,
         "profile": "norm_identity",
         "command_no": -1,
@@ -707,12 +707,12 @@
         "super_shortcut_direction_notation": null,
         "super_shortcut_direction_reason": null,
         "display": "AUTO + 强",
-        "display_action_id": 604,
-        "bcm_owner_action_id": 604,
+        "display_action_id": 605,
+        "bcm_owner_action_id": 605,
         "official_action_id_hint": 604,
         "official_action_id_hint_kind": "capcom_action_id",
         "official_semantic_row_id": null,
-        "official_action_id_distance": 0,
+        "official_action_id_distance": 1,
         "official_classic_display": "HP",
         "official_modern_display": "AUTO + 強",
         "official_web_id": "104",
@@ -4757,15 +4757,15 @@
     "source": "ac_bcm+capcom_official_semantics",
     "ownership": "direct",
     "simple_command": {
-      "display": "2 + SP",
+      "display": "1 + SP",
       "inputs": [
-        "2 + SP"
+        "1 + SP"
       ]
     },
     "motion_command": null,
     "routes": [
       {
-        "display": "2 + SP",
+        "display": "1 + SP",
         "character": "Mai",
         "owner_action_id": 1012,
         "trigger_index": 60,
@@ -4775,9 +4775,9 @@
         "raw_direction_inputs": [],
         "raw_button_mask": 32,
         "raw_button_condition": 16416,
-        "raw_dc_exc_flags": 2,
+        "raw_dc_exc_flags": 6,
         "raw_ng_key_flags": 0,
-        "visible_direction": "2",
+        "visible_direction": "1",
         "visible_button": "SP",
         "button_candidates": [],
         "required_button_count": 1,
@@ -4830,28 +4830,28 @@
     "source": "ac_bcm+capcom_official_semantics",
     "ownership": "direct",
     "simple_command": {
-      "display": "2 + AUTO + SP",
+      "display": "2 + SP",
       "inputs": [
-        "2 + AUTO + SP"
+        "2 + SP"
       ]
     },
     "motion_command": null,
     "routes": [
       {
-        "display": "2 + AUTO + SP",
+        "display": "2 + SP",
         "character": "Mai",
         "owner_action_id": 1013,
         "trigger_index": 61,
-        "profile": "supr",
+        "profile": "easy",
         "command_no": -1,
         "command_index": -1,
         "raw_direction_inputs": [],
-        "raw_button_mask": 8192,
+        "raw_button_mask": 32,
         "raw_button_condition": 16416,
         "raw_dc_exc_flags": 2,
-        "raw_ng_key_flags": 0,
+        "raw_ng_key_flags": 12,
         "visible_direction": "2",
-        "visible_button": "AUTO + SP",
+        "visible_button": "SP",
         "button_candidates": [],
         "required_button_count": 1,
         "source": "bcm_profile",
@@ -4901,41 +4901,37 @@
     },
     "control_support": "classic_modern",
     "source": "ac_bcm+capcom_official_semantics",
-    "ownership": "assist_combo",
+    "ownership": "direct",
     "simple_command": {
-      "display": "> 强",
+      "display": "3 + SP",
       "inputs": [
-        "> 强"
+        "3 + SP"
       ]
     },
     "motion_command": null,
     "routes": [
       {
-        "display": "> 强",
+        "display": "3 + SP",
         "character": "Mai",
         "owner_action_id": 1014,
-        "display_action_id": 1014,
-        "bcm_owner_action_id": 1014,
         "trigger_index": 62,
-        "profile": "assist_combo",
+        "profile": "easy",
         "command_no": -1,
         "command_index": -1,
         "raw_direction_inputs": [],
-        "raw_button_mask": 0,
-        "raw_button_condition": 0,
-        "raw_dc_exc_flags": 0,
+        "raw_button_mask": 32,
+        "raw_button_condition": 16416,
+        "raw_dc_exc_flags": 10,
         "raw_ng_key_flags": 0,
-        "visible_direction": null,
-        "visible_button": "强",
-        "button_candidates": [
-          "强"
-        ],
+        "visible_direction": "3",
+        "visible_button": "SP",
+        "button_candidates": [],
         "required_button_count": 1,
-        "source": "bcm_assist_combo_recipe",
+        "source": "bcm_profile",
         "ac_relation_type": null,
         "ac_path": [],
         "inherited_from_action_id": null,
-        "confidence": "direct_assist_combo_recipe",
+        "confidence": "direct_structural",
         "direct_evidence": true,
         "inheritance_evidence": false,
         "inheritance_reason": null,
@@ -4947,27 +4943,25 @@
         "official_semantic_reason": null,
         "community_semantic_evidence": false,
         "community_semantic_reason": null,
-        "assist_combo_evidence": true,
-        "assist_combo_reason": "bcm_assist_combo_recipe_direct_input_sequence",
-        "assist_strength": "强",
-        "assist_input_stage": "repeat",
-        "assist_recipe_occurrences": [
-          {
-            "array_index": 91,
-            "strength_index": 1,
-            "recipe_index": 1,
-            "step_index": 1,
-            "trigger_id": 62,
-            "is_end_at_normal": true,
-            "delay": 0,
-            "next_input_delay": 7,
-            "next_input_limit": 11,
-            "condition_flag": 119867,
-            "wt_action_trigger": 0,
-            "wt_action_strength": 0,
-            "wt_action_is_air": false
-          }
-        ]
+        "assist_combo_evidence": false,
+        "assist_combo_reason": null,
+        "charge_context_evidence": false,
+        "charge_context_profile": null,
+        "charge_context_direction": null,
+        "charge_context_manual_direction": null,
+        "charge_context_direction_profile": null,
+        "charge_context_command_no": null,
+        "charge_context_command_index": null,
+        "charge_context_notation": null,
+        "charge_context_source_action_id": null,
+        "charge_context_source_trigger_indices": [],
+        "charge_context_relation": null,
+        "charge_context_reason": null,
+        "super_shortcut_direction_evidence": false,
+        "super_shortcut_direction_profile": null,
+        "super_shortcut_direction": null,
+        "super_shortcut_direction_notation": null,
+        "super_shortcut_direction_reason": null
       }
     ]
   },
@@ -5055,15 +5049,15 @@
     "source": "ac_bcm+capcom_official_semantics",
     "ownership": "direct",
     "simple_command": {
-      "display": "2 + SP",
+      "display": "1 + SP",
       "inputs": [
-        "2 + SP"
+        "1 + SP"
       ]
     },
     "motion_command": null,
     "routes": [
       {
-        "display": "2 + SP",
+        "display": "1 + SP",
         "character": "Mai",
         "owner_action_id": 1018,
         "trigger_index": 63,
@@ -5073,9 +5067,9 @@
         "raw_direction_inputs": [],
         "raw_button_mask": 32,
         "raw_button_condition": 16416,
-        "raw_dc_exc_flags": 2,
+        "raw_dc_exc_flags": 6,
         "raw_ng_key_flags": 0,
-        "visible_direction": "2",
+        "visible_direction": "1",
         "visible_button": "SP",
         "button_candidates": [],
         "required_button_count": 1,
@@ -5128,28 +5122,28 @@
     "source": "ac_bcm+capcom_official_semantics",
     "ownership": "direct",
     "simple_command": {
-      "display": "2 + AUTO + SP",
+      "display": "2 + SP",
       "inputs": [
-        "2 + AUTO + SP"
+        "2 + SP"
       ]
     },
     "motion_command": null,
     "routes": [
       {
-        "display": "2 + AUTO + SP",
+        "display": "2 + SP",
         "character": "Mai",
         "owner_action_id": 1019,
         "trigger_index": 64,
-        "profile": "supr",
+        "profile": "easy",
         "command_no": -1,
         "command_index": -1,
         "raw_direction_inputs": [],
-        "raw_button_mask": 8192,
+        "raw_button_mask": 32,
         "raw_button_condition": 16416,
         "raw_dc_exc_flags": 2,
-        "raw_ng_key_flags": 0,
+        "raw_ng_key_flags": 12,
         "visible_direction": "2",
-        "visible_button": "AUTO + SP",
+        "visible_button": "SP",
         "button_candidates": [],
         "required_button_count": 1,
         "source": "bcm_profile",
@@ -5197,12 +5191,71 @@
         "236+HK"
       ]
     },
-    "control_support": "classic_only",
+    "control_support": "classic_modern",
     "source": "ac_bcm+capcom_official_semantics",
-    "ownership": "classic_runtime",
-    "simple_command": null,
+    "ownership": "direct",
+    "simple_command": {
+      "display": "3 + SP",
+      "inputs": [
+        "3 + SP"
+      ]
+    },
     "motion_command": null,
-    "routes": []
+    "routes": [
+      {
+        "display": "3 + SP",
+        "character": "Mai",
+        "owner_action_id": 1020,
+        "trigger_index": 65,
+        "profile": "easy",
+        "command_no": -1,
+        "command_index": -1,
+        "raw_direction_inputs": [],
+        "raw_button_mask": 32,
+        "raw_button_condition": 16416,
+        "raw_dc_exc_flags": 10,
+        "raw_ng_key_flags": 0,
+        "visible_direction": "3",
+        "visible_button": "SP",
+        "button_candidates": [],
+        "required_button_count": 1,
+        "source": "bcm_profile",
+        "ac_relation_type": null,
+        "ac_path": [],
+        "inherited_from_action_id": null,
+        "confidence": "direct_structural",
+        "direct_evidence": true,
+        "inheritance_evidence": false,
+        "inheritance_reason": null,
+        "rebind_evidence": false,
+        "rebind_reason": null,
+        "runtime_common_evidence": false,
+        "runtime_common_reason": null,
+        "official_semantic_evidence": false,
+        "official_semantic_reason": null,
+        "community_semantic_evidence": false,
+        "community_semantic_reason": null,
+        "assist_combo_evidence": false,
+        "assist_combo_reason": null,
+        "charge_context_evidence": false,
+        "charge_context_profile": null,
+        "charge_context_direction": null,
+        "charge_context_manual_direction": null,
+        "charge_context_direction_profile": null,
+        "charge_context_command_no": null,
+        "charge_context_command_index": null,
+        "charge_context_notation": null,
+        "charge_context_source_action_id": null,
+        "charge_context_source_trigger_indices": [],
+        "charge_context_relation": null,
+        "charge_context_reason": null,
+        "super_shortcut_direction_evidence": false,
+        "super_shortcut_direction_profile": null,
+        "super_shortcut_direction": null,
+        "super_shortcut_direction_notation": null,
+        "super_shortcut_direction_reason": null
+      }
+    ]
   },
   "1021": {
     "classic_command": {
@@ -9850,15 +9903,15 @@
     "character": "Mai",
     "fighter_id": 28,
     "generated_from": "ac_bcm+capcom_official_semantics",
-    "generated_at": "2026-05-28T00:00:00.000Z",
-    "ac_sha256": "f6600f5ffa1ad29f15289829f15fed556f4471c1adc9a10b2017c5f32c73d3e7",
-    "bcm_sha256": "56cb68bc32620fe41a8a2c624ac462b5a79edfb4e0edac196bbfc88ec58528c7",
+    "generated_at": "2026-08-03T00:00:00.000Z",
+    "ac_sha256": "3157a731c060c85a10397a96d99f82d39ef7d3f973e72fac3223e968dc2a3027",
+    "bcm_sha256": "da4486c0529af3bcf86bbb86e04aba590b34d00f2436d9f9a727c707803cf514",
     "modern_profile_order": [
       "easy",
       "supr",
       "sprt"
     ],
-    "direct_route_count": 128,
+    "direct_route_count": 129,
     "inherited_route_count": 1,
     "rebind_route_count": 0,
     "runtime_common_route_count": 6,
@@ -9874,6 +9927,7 @@
     "type20_directional_route_count": 0,
     "type20_hold_route_count": 0,
     "type20_action_phase_route_count": 0,
+    "type37_followup_execution_phase_route_count": 0,
     "charge_context_route_count": 0,
     "super_shortcut_direction_route_count": 8,
     "ac_charge_context_relation_count": 0,
@@ -9882,7 +9936,7 @@
     "charge_compatibility_trigger_suppressions": [],
     "target_combo_repeat_route_count": 0,
     "structural_twin_route_count": 0,
-    "assist_combo_route_count": 5,
+    "assist_combo_route_count": 4,
     "assist_combo_normalized_to_existing_count": 10,
     "classic_projection_relation_count": 0,
     "paired_sprt_sp_route_count": 0,
@@ -9899,10 +9953,10 @@
     "ac_type13_neutral_relations": [],
     "internal_transition_suppression_count": 0,
     "suppressed_internal_transitions": [],
-    "split_command_action_count": 92,
+    "split_command_action_count": 93,
     "followup_relation_count": 0,
     "followup_relations": [],
-    "official_semantic_source_sha256": "ba20df1d2c3087f8913710c911b0b01319860ffaaad499660bb72416858d0807",
+    "official_semantic_source_sha256": "fabf9dc0871edcabba7764ab2efb31d0b3111455154e2f7f0e7ecfd64cb221d8",
     "classic_profile_order": [
       "norm",
       "sprt"
@@ -9948,8 +10002,8 @@
         "official_action_id_hint": 604,
         "official_action_id_hint_kind": "capcom_action_id",
         "official_semantic_row_id": null,
-        "target_action_id": 604,
-        "action_id_distance": 0,
+        "target_action_id": 605,
+        "action_id_distance": 1,
         "classic_identity": "HP",
         "display": "AUTO + 强",
         "qualified_direct_displays": [],
@@ -9985,6 +10039,7 @@
     "type20_directional_relations": [],
     "type20_hold_relations": [],
     "type20_action_phase_relations": [],
+    "type37_followup_execution_phase_relations": [],
     "target_combo_repeat_relations": [],
     "structural_twin_relations": [],
     "assist_combo_relations": [
@@ -10092,30 +10147,6 @@
             "delay": 0,
             "next_input_delay": 2,
             "next_input_limit": -1,
-            "condition_flag": 119867,
-            "wt_action_trigger": 0,
-            "wt_action_strength": 0,
-            "wt_action_is_air": false
-          }
-        ]
-      },
-      {
-        "action_id": 1014,
-        "display": "> 强",
-        "assist_strength": "强",
-        "input_stage": "repeat",
-        "reason": "bcm_assist_combo_recipe_direct_input_sequence",
-        "occurrences": [
-          {
-            "array_index": 91,
-            "strength_index": 1,
-            "recipe_index": 1,
-            "step_index": 1,
-            "trigger_id": 62,
-            "is_end_at_normal": true,
-            "delay": 0,
-            "next_input_delay": 7,
-            "next_input_limit": 11,
             "condition_flag": 119867,
             "wt_action_trigger": 0,
             "wt_action_strength": 0,
@@ -10634,9 +10665,9 @@
         "reason": "profile_disabled_or_missing"
       },
       {
-        "action_id": 604,
+        "action_id": 605,
         "character": "Mai",
-        "owner_action_id": 604,
+        "owner_action_id": 605,
         "trigger_index": 9,
         "profile": "sprt",
         "command_no": 0,
@@ -12505,6 +12536,7 @@
       581,
       600,
       603,
+      604,
       612,
       617,
       625,
@@ -12637,7 +12669,6 @@
       1010,
       1016,
       1017,
-      1020,
       1022,
       1025,
       1029,
@@ -12727,6 +12758,8 @@
       "type20_hold_route_count": 0,
       "type20_action_phase_relation_count": 0,
       "type20_action_phase_route_count": 0,
+      "type37_followup_execution_phase_relation_count": 0,
+      "type37_followup_execution_phase_route_count": 0,
       "charge_context_route_count": 0,
       "super_shortcut_direction_route_count": 8,
       "ac_charge_context_relation_count": 0,
@@ -12735,9 +12768,9 @@
       "target_combo_repeat_route_count": 0,
       "structural_twin_relation_count": 0,
       "structural_twin_route_count": 0,
-      "assist_combo_candidate_count": 18,
-      "assist_combo_relation_count": 5,
-      "assist_combo_route_count": 5,
+      "assist_combo_candidate_count": 17,
+      "assist_combo_relation_count": 4,
+      "assist_combo_route_count": 4,
       "assist_combo_duplicate_display_count": 3,
       "assist_combo_normalized_to_existing_count": 10,
       "classic_projection_relation_count": 0,
@@ -12752,9 +12785,9 @@
       "ac_type13_neutral_relation_count": 0,
       "ac_type13_neutral_route_count": 0,
       "internal_transition_suppression_count": 0,
-      "split_command_action_count": 92,
+      "split_command_action_count": 93,
       "classic_command_action_count": 99,
-      "shared_command_action_count": 92,
+      "shared_command_action_count": 93,
       "classic_projection_pending_count": 0,
       "command_display_action_count": 99,
       "followup_relation_count": 0,

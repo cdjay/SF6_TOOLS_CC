@@ -118,6 +118,13 @@ local function session_action_event_rules(session)
         and session.action_event_rules or {}
 end
 
+local function quick_successor_rule(session, action_id)
+    return ActionMatcher.get_quick_successor_rule(
+        session_action_event_rules(session),
+        action_id
+    )
+end
+
 local function project_character_action_owner(event, session)
     if type(event) ~= "table" then return event, nil end
     -- Projection must never mutate the source event retained in
@@ -491,6 +498,7 @@ local function add_event(session, sample, anchor, reason)
         session,
         action_id
     )
+    local current_quick_successor_rule = quick_successor_rule(session, action_id)
     local consumed_pending_anchor = type(session.pending_anchor) == "table"
         and session.pending_anchor == anchor
     local event = {
@@ -549,6 +557,22 @@ local function add_event(session, sample, anchor, reason)
         continuation.is_internal_phase_continuation = true
         continuation.internal_phase_owner_id =
             tonumber(current_projection_rule.owner_id)
+        session.pending_anchor = continuation
+    elseif consumed_pending_anchor and current_quick_successor_rule then
+        -- Some explicit cancel Actions are a real player-visible step, while
+        -- the attack launched by the same input appears a few frames later as
+        -- another durable Action. Keep the original event and lend its input
+        -- anchor to that immediate successor so contact belongs to the attack.
+        local continuation = shallow_copy(anchor)
+        continuation.frame = frame
+        continuation.initial_action_id = action_id
+        continuation.initial_action_frame = tonumber(sample.action_frame) or 0
+        continuation.is_quick_successor_continuation = true
+        continuation.quick_successor_source_id = action_id
+        continuation.max_delay_frames = math.max(
+            1,
+            tonumber(current_quick_successor_rule.max_delay_frames) or 1
+        )
         session.pending_anchor = continuation
     end
     session.recent_direction_anchor = nil
@@ -728,7 +752,7 @@ local function is_unmapped_input_precursor(previous, current)
 end
 
 -- Pure direction input is necessary evidence for mapped mechanics such as C.
--- Viper's 528 high-jump cancel. An Action with no command-map entry, no
+-- Viper's 28 high-jump cancel. An Action with no command-map entry, no
 -- physical button and no contact is different: it is only a transient stance
 -- or direction-buffer state and must not become an unresolved V2 command.
 local function is_unmapped_direction_transition(current)
@@ -1133,6 +1157,7 @@ function Compiler.new(options)
         input_anchor_count = 0,
         unresolved_anchor_count = 0,
         expired_internal_continuation_count = 0,
+        expired_quick_successor_continuation_count = 0,
         expired_meter_raw_dr_count = 0,
         pending_anchor = nil,
         pending_meter_confirmed_raw_dr = nil,
@@ -1344,13 +1369,21 @@ function Compiler.observe(session, sample)
     end
 
     local pending = session.pending_anchor
-    if pending and frame - pending.frame > Compiler.BIND_WINDOW then
+    local pending_bind_window = pending
+        and pending.is_quick_successor_continuation == true
+        and math.max(1, tonumber(pending.max_delay_frames) or 1)
+        or Compiler.BIND_WINDOW
+    if pending and frame - pending.frame > pending_bind_window then
         -- Every ordinary button release is still captured because negative-edge
         -- actions can bind to it. An unbound release is not itself evidence that
         -- transcription failed.
         if pending.is_internal_phase_continuation == true then
             session.expired_internal_continuation_count =
                 (tonumber(session.expired_internal_continuation_count) or 0) + 1
+        elseif pending.is_quick_successor_continuation == true then
+            session.expired_quick_successor_continuation_count =
+                (tonumber(session.expired_quick_successor_continuation_count) or 0)
+                    + 1
         elseif pending.kind ~= "button_release"
             and pending.is_movement_continuation ~= true then
             session.unresolved_anchor_count = session.unresolved_anchor_count + 1
@@ -1383,6 +1416,9 @@ function Compiler.observe(session, sample)
                 -- edge that an internal phase temporarily consumed.
                 continuation_target_allowed = action_id > 50
             end
+        elseif pending.is_quick_successor_continuation == true then
+            continuation_target_allowed = action_id > 50
+                and action_id ~= tonumber(pending.quick_successor_source_id)
         end
         if not stale_release_low_action
             and continuation_target_allowed
@@ -1393,8 +1429,10 @@ function Compiler.observe(session, sample)
                 session,
                 sample,
                 bound_anchor,
-                action_restarted and "action_frame_rewind"
-                    or (dash_already_active and "double_tap_action" or "action_id_changed")
+                pending.is_quick_successor_continuation == true
+                    and "quick_successor_action_changed"
+                    or (action_restarted and "action_frame_rewind"
+                        or (dash_already_active and "double_tap_action" or "action_id_changed"))
             )
             action_bound = bound_event ~= nil
             -- A jump direction + attack can first expose the jump Action, then
@@ -1560,7 +1598,8 @@ function Compiler.finalize(session, options)
         and (session.unresolved_anchor_count or 0) or 0
     if type(session) == "table" and type(session.pending_anchor) == "table"
         and session.pending_anchor.kind ~= "button_release"
-        and session.pending_anchor.is_internal_phase_continuation ~= true then
+        and session.pending_anchor.is_internal_phase_continuation ~= true
+        and session.pending_anchor.is_quick_successor_continuation ~= true then
         unresolved_anchors = unresolved_anchors + 1
     end
 
@@ -1946,6 +1985,8 @@ function Compiler.finalize(session, options)
                 and (session.unresolved_anchor_count or 0) or 0,
             expired_internal_continuation_count = type(session) == "table"
                 and (session.expired_internal_continuation_count or 0) or 0,
+            expired_quick_successor_continuation_count = type(session) == "table"
+                and (session.expired_quick_successor_continuation_count or 0) or 0,
             expired_meter_raw_dr_count = type(session) == "table"
                 and (session.expired_meter_raw_dr_count or 0) or 0,
         },

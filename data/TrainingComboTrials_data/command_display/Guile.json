@@ -11490,8 +11490,8 @@
     "character": "Guile",
     "fighter_id": 18,
     "generated_from": "ac_bcm+capcom_official_semantics",
-    "generated_at": "2026-05-28T00:00:00.000Z",
-    "ac_sha256": "67422f207664f63b1de2f8103d2a21a4398022cc78ca74098ad4704390a42964",
+    "generated_at": "2026-08-03T00:00:00.000Z",
+    "ac_sha256": "1ca99c13d2d24bff931ea6bb3c8cec6d6b50ad589a806b1f4588d0ac780f62d6",
     "bcm_sha256": "19e1c629dcb6054b7ffeae86213a70eed997d3dee55b773450625f8df0d48c3c",
     "modern_profile_order": [
       "easy",
@@ -11514,6 +11514,7 @@
     "type20_directional_route_count": 0,
     "type20_hold_route_count": 0,
     "type20_action_phase_route_count": 0,
+    "type37_followup_execution_phase_route_count": 0,
     "charge_context_route_count": 19,
     "super_shortcut_direction_route_count": 5,
     "ac_charge_context_relation_count": 1,
@@ -11604,7 +11605,7 @@
     "split_command_action_count": 111,
     "followup_relation_count": 0,
     "followup_relations": [],
-    "official_semantic_source_sha256": "d5b4afdac77e717e5dbb11e40c2d6330b53545c4569529c2472520a77d8f3cd1",
+    "official_semantic_source_sha256": "a811c795cbcfd9c8fd846d68efeafe908d3e84650c70a25dbfffebe6334c2255",
     "classic_profile_order": [
       "norm",
       "sprt"
@@ -11762,6 +11763,7 @@
     "type20_directional_relations": [],
     "type20_hold_relations": [],
     "type20_action_phase_relations": [],
+    "type37_followup_execution_phase_relations": [],
     "target_combo_repeat_relations": [],
     "structural_twin_relations": [],
     "assist_combo_relations": [
@@ -13643,6 +13645,8 @@
       "type20_hold_route_count": 0,
       "type20_action_phase_relation_count": 0,
       "type20_action_phase_route_count": 0,
+      "type37_followup_execution_phase_relation_count": 0,
+      "type37_followup_execution_phase_route_count": 0,
       "charge_context_route_count": 19,
       "super_shortcut_direction_route_count": 5,
       "ac_charge_context_relation_count": 1,

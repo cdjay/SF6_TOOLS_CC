@@ -270,10 +270,10 @@ def run(args: argparse.Namespace) -> int:
     off_root = Path(args.off_root).resolve()
     version = normalize_version(args.version) if args.version else default_version(acbcm_root)
     manifest = read_json(manifest_path)
-    if len(manifest) != 30:
-        raise RuntimeError(f"角色清单必须正好包含30个角色，当前为 {len(manifest)}。")
+    if not manifest:
+        raise RuntimeError("角色清单不能为空。")
     ids = [int(entry["fighter_id"]) for entry in manifest.values()]
-    if len(set(ids)) != 30:
+    if len(set(ids)) != len(manifest):
         raise RuntimeError("角色清单 fighter_id 存在重复。")
 
     target = off_root / version
@@ -354,7 +354,7 @@ def run(args: argparse.Namespace) -> int:
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="抓取并对比 Capcom 官网30角色数据。")
+    parser = argparse.ArgumentParser(description="抓取并对比角色清单中的 Capcom 官网数据。")
     parser.add_argument("--version", help="版本日期；默认取 acbcm 中最新日期，否则取今天")
     parser.add_argument("--manifest", default=str(DEFAULT_MANIFEST))
     parser.add_argument("--acbcm-root", default=str(DEFAULT_ACBCM_ROOT))

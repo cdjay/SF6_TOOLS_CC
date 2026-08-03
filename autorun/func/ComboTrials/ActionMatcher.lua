@@ -116,6 +116,31 @@ function ActionMatcher.should_observe_dash_direction_edge(pressed_buttons, relea
         and ((tonumber(released_buttons) or 0) & 0xFFF0) == 0
 end
 
+function ActionMatcher.get_quick_successor_rule(action_event_rules, action_id)
+    local rules = type(action_event_rules) == "table" and action_event_rules or {}
+    local sources = type(rules.quick_successor_sources) == "table"
+        and rules.quick_successor_sources or nil
+    local rule = type(sources) == "table"
+        and (sources[tonumber(action_id)] or sources[tostring(action_id)]) or nil
+    return type(rule) == "table" and rule or nil
+end
+
+function ActionMatcher.should_preserve_quick_successor(
+    action_event_rules,
+    action_id,
+    elapsed_frames
+)
+    local rule = ActionMatcher.get_quick_successor_rule(
+        action_event_rules,
+        action_id
+    )
+    local elapsed = tonumber(elapsed_frames)
+    local max_delay = type(rule) == "table"
+        and tonumber(rule.max_delay_frames) or nil
+    return elapsed ~= nil and max_delay ~= nil
+        and elapsed > 0 and elapsed <= max_delay
+end
+
 local function is_drive_parry_step(step)
     if type(step) ~= "table" then return false end
     if ActionMatcher.is_drive_parry_action_id(step.id) then return true end

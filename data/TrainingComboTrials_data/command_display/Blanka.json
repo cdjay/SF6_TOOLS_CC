@@ -3613,7 +3613,7 @@
       }
     ]
   },
-  "924": {
+  "926": {
     "classic_command": {
       "display": "214+LP+LK+MK",
       "inputs": [
@@ -3639,7 +3639,7 @@
       {
         "display": "SP",
         "character": "Blanka",
-        "owner_action_id": 924,
+        "owner_action_id": 926,
         "trigger_index": 59,
         "profile": "easy",
         "command_no": -1,
@@ -3692,7 +3692,7 @@
       {
         "display": "214 + 任意键",
         "character": "Blanka",
-        "owner_action_id": 924,
+        "owner_action_id": 926,
         "trigger_index": 59,
         "profile": "sprt",
         "command_no": 2,
@@ -8568,9 +8568,9 @@
     "character": "Blanka",
     "fighter_id": 15,
     "generated_from": "ac_bcm+capcom_official_semantics",
-    "generated_at": "2026-05-28T00:00:00.000Z",
-    "ac_sha256": "ba1f14b9937bfd9265558e798a469014b04ac6d6c31d8d474bf79bb2e9aa0cea",
-    "bcm_sha256": "af64ea5d93517afe40a8afa96c1f13c6cbb4bc48328b98f117266bb73b5a16c0",
+    "generated_at": "2026-08-03T00:00:00.000Z",
+    "ac_sha256": "eea1ed2c62f8c33aeeccc63a8eddd2a4133fa77a648cb0e89427953655b8db02",
+    "bcm_sha256": "1bb40291a7011ce50cd59d7a6e0fd4af3aaa2de4afedc63754bca9fb05dc3a3b",
     "modern_profile_order": [
       "easy",
       "supr",
@@ -8592,6 +8592,7 @@
     "type20_directional_route_count": 0,
     "type20_hold_route_count": 0,
     "type20_action_phase_route_count": 0,
+    "type37_followup_execution_phase_route_count": 0,
     "charge_context_route_count": 6,
     "super_shortcut_direction_route_count": 6,
     "ac_charge_context_relation_count": 0,
@@ -8874,7 +8875,7 @@
     "shadowed_supr_route_count": 3,
     "shadowed_supr_routes": [
       {
-        "action_id": 924,
+        "action_id": 926,
         "display": "AUTO + SP",
         "trigger_index": 103,
         "reason": "direct_non_supr_route_owns_identical_shortcut",
@@ -8914,7 +8915,7 @@
     "split_command_action_count": 80,
     "followup_relation_count": 0,
     "followup_relations": [],
-    "official_semantic_source_sha256": "9c2bf883f44832a166a00cbc20dc2892dd78b2e1187d0a9f12aaa0befe7780e9",
+    "official_semantic_source_sha256": "c7ab75157266377c34b787c7e5d1d83949d32d06cfec597cda096989fd4dd0bb",
     "classic_profile_order": [
       "norm",
       "sprt"
@@ -8994,6 +8995,7 @@
     "type20_directional_relations": [],
     "type20_hold_relations": [],
     "type20_action_phase_relations": [],
+    "type37_followup_execution_phase_relations": [],
     "target_combo_repeat_relations": [],
     "structural_twin_relations": [],
     "assist_combo_relations": [
@@ -9910,9 +9912,9 @@
         "reason": "unsupported_supr_selector_mask"
       },
       {
-        "action_id": 924,
+        "action_id": 926,
         "character": "Blanka",
-        "owner_action_id": 924,
+        "owner_action_id": 926,
         "trigger_index": 103,
         "profile": "sprt",
         "command_no": 0,
@@ -10342,7 +10344,7 @@
         "reason": "profile_disabled_or_missing"
       }
     ],
-    "unmapped_action_count": 375,
+    "unmapped_action_count": 378,
     "unmapped_action_ids": [
       1,
       2,
@@ -10521,6 +10523,7 @@
       627,
       637,
       639,
+      643,
       645,
       719,
       720,
@@ -10580,6 +10583,8 @@
       921,
       922,
       923,
+      924,
+      925,
       928,
       930,
       932,
@@ -10730,7 +10735,7 @@
       "community_route_count": 0,
       "alias_propagation_count": 0,
       "type17_route_count": 0,
-      "ac_type17_relation_count": 1,
+      "ac_type17_relation_count": 2,
       "ac_command_entry_rebind_signature_count": 0,
       "ac_command_entry_rebind_relation_count": 0,
       "ac_command_entry_rebind_route_count": 0,
@@ -10754,6 +10759,8 @@
       "type20_hold_route_count": 0,
       "type20_action_phase_relation_count": 0,
       "type20_action_phase_route_count": 0,
+      "type37_followup_execution_phase_relation_count": 0,
+      "type37_followup_execution_phase_route_count": 0,
       "charge_context_route_count": 6,
       "super_shortcut_direction_route_count": 6,
       "ac_charge_context_relation_count": 0,

@@ -7804,9 +7804,9 @@
     "character": "Alex",
     "fighter_id": 31,
     "generated_from": "ac_bcm+capcom_official_semantics",
-    "generated_at": "2026-05-28T00:00:00.000Z",
-    "ac_sha256": "4891af8b2368ce7477284468d7538f570dc3df63d3a57e47f49add2e4d72c632",
-    "bcm_sha256": "9ac5a82d0347d06ffc28972d7da5e424d399347b3c855166d66d66d022397f60",
+    "generated_at": "2026-08-03T00:00:00.000Z",
+    "ac_sha256": "3f208fbb93b989829c8a5435a8b83ced717c87ebe16020058efba0dcac3d6dda",
+    "bcm_sha256": "73d20f4a8efc2d8042572ac0a4655f4967a4706fa852035aeef127e2c9dc05f2",
     "modern_profile_order": [
       "easy",
       "supr",
@@ -7828,6 +7828,7 @@
     "type20_directional_route_count": 0,
     "type20_hold_route_count": 0,
     "type20_action_phase_route_count": 0,
+    "type37_followup_execution_phase_route_count": 0,
     "charge_context_route_count": 0,
     "super_shortcut_direction_route_count": 6,
     "ac_charge_context_relation_count": 0,
@@ -7902,7 +7903,7 @@
     "split_command_action_count": 81,
     "followup_relation_count": 0,
     "followup_relations": [],
-    "official_semantic_source_sha256": "d072c16bd9ec0788cf2695c074e97798352987d514b1b2ef3702ab714d3a949e",
+    "official_semantic_source_sha256": "1224844c32bcc26ce33276400ad2ae4d7cfc99aabc5c2470a96ad77ddb75ac22",
     "classic_profile_order": [
       "norm",
       "sprt"
@@ -8000,6 +8001,7 @@
     "type20_directional_relations": [],
     "type20_hold_relations": [],
     "type20_action_phase_relations": [],
+    "type37_followup_execution_phase_relations": [],
     "target_combo_repeat_relations": [],
     "structural_twin_relations": [],
     "assist_combo_relations": [
@@ -9318,7 +9320,7 @@
         "reason": "profile_disabled_or_missing"
       }
     ],
-    "unmapped_action_count": 274,
+    "unmapped_action_count": 275,
     "unmapped_action_ids": [
       1,
       2,
@@ -9487,6 +9489,7 @@
       524,
       582,
       605,
+      607,
       609,
       610,
       614,
@@ -9629,6 +9632,8 @@
       "type20_hold_route_count": 0,
       "type20_action_phase_relation_count": 0,
       "type20_action_phase_route_count": 0,
+      "type37_followup_execution_phase_relation_count": 0,
+      "type37_followup_execution_phase_route_count": 0,
       "charge_context_route_count": 0,
       "super_shortcut_direction_route_count": 6,
       "ac_charge_context_relation_count": 0,

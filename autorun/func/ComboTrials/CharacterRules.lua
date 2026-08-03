@@ -173,6 +173,7 @@ function CharacterRules.build_action_event_rules(character_rules, common_rules)
     local result = {
         transient_input_precursor_transitions = {},
         suppress_after = {},
+        quick_successor_sources = {},
     }
 
     for action_id, exception in pairs(
@@ -209,6 +210,17 @@ function CharacterRules.build_action_event_rules(character_rules, common_rules)
                         tonumber(suppression.max_delay_frames) or 0
                     ),
                     require_no_contact = suppression.require_no_contact ~= false,
+                }
+            end
+
+            local quick_successor = type(config.preserve_quick_successor) == "table"
+                and config.preserve_quick_successor or nil
+            if quick_successor then
+                result.quick_successor_sources[action_num] = {
+                    max_delay_frames = math.max(
+                        1,
+                        tonumber(quick_successor.max_delay_frames) or 1
+                    ),
                 }
             end
         end

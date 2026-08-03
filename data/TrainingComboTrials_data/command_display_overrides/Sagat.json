@@ -1,0 +1,16 @@
+{
+  "schema": "xt.command_display_overrides.v1",
+  "character": "Sagat",
+  "entries": {
+    "600": {
+      "classic": "LP",
+      "replace": true,
+      "evidence": "A post-update runtime audit replay binds a neutral LP press with hit contact to Sagat Action 600"
+    },
+    "604": {
+      "classic": "MP",
+      "replace": true,
+      "evidence": "Post-update runtime audit replays repeatedly bind neutral MP presses with hit contact to Sagat Action 604"
+    }
+  }
+}

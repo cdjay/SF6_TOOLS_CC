@@ -62,6 +62,13 @@ ACTION_EVENT_FIXTURES = {
             },
         },
     },
+    CViper = {
+        ["1037"] = {
+            action_event_rules = {
+                preserve_quick_successor = { max_delay_frames = 4 },
+            },
+        },
+    },
 }
 
 COMMON_ACTION_VARIANT_FIXTURES = {
@@ -135,6 +142,68 @@ assert(result.stats.drive_used == 10000 and result.stats.super_used == 10000,
     "resource baselines must freeze on the first input, before Action startup consumes gauges")
 assert(result.trace.observed_actions[1].id == 600,
     "the audit trace must retain runtime Action transitions before V2 projection")
+
+do
+local cviper_cancel = new_character_rule_session("CViper")
+local function cviper_cancel_observe(
+    frame, action_id, input, combo, victim_hp, damage_type, hit_stop
+)
+    compiler.observe(cviper_cancel, {
+        frame = frame,
+        action_id = action_id,
+        action_frame = frame,
+        direct_input = input,
+        facing_right = true,
+        combo_count = combo or 0,
+        actor_hp = 10000,
+        victim_hp = victim_hp,
+        victim_damage_type = damage_type or 0,
+        victim_hit_stop = hit_stop or 0,
+    })
+end
+cviper_cancel_observe(1, 5, 0, 0, 10000)
+cviper_cancel_observe(2, 5, 32, 0, 10000)
+cviper_cancel_observe(3, 1037, 32, 0, 10000)
+cviper_cancel_observe(4, 1037, 32, 0, 10000)
+cviper_cancel_observe(5, 971, 32, 0, 10000)
+cviper_cancel_observe(6, 971, 32, 1, 9300, 3, 4)
+
+local cviper_cancel_result = compiler.finalize(cviper_cancel, {
+    motion_resolver = function(action_id)
+        if action_id == 1037 then return "28", "runtime_verified_override" end
+        if action_id == 971 then return "623+MP", "strict_route" end
+        return nil, "action_id_missing"
+    end,
+})
+assert(#cviper_cancel.events == 2
+        and cviper_cancel.events[1].id == 1037
+        and cviper_cancel.events[1].has_contact == false
+        and cviper_cancel.events[2].id == 971
+        and cviper_cancel.events[2].has_hit == true,
+    "a mapped cancel must lend its input to the immediate durable successor")
+assert(#cviper_cancel_result.steps == 2
+        and cviper_cancel_result.steps[1].id == 1037
+        and cviper_cancel_result.steps[1].motion == "28"
+        and cviper_cancel_result.steps[2].id == 971
+        and cviper_cancel_result.steps[2].delay_from_prev == 2
+        and cviper_cancel_result.steps[2].expected_combo == 1,
+    "the cancel and its same-input successor must remain separate V2 steps")
+assert(cviper_cancel_result.steps[1].has_contact == false
+        and cviper_cancel_result.steps[2].has_contact == true
+        and cviper_cancel_result.stats.unresolved_anchors == 0,
+    "same-input successor contact must not be attributed to the cancel step")
+assert(ActionMatcher.should_preserve_quick_successor(
+        cviper_cancel.action_event_rules,
+        1037,
+        2
+    ) == true
+        and ActionMatcher.should_preserve_quick_successor(
+            cviper_cancel.action_event_rules,
+            1037,
+            5
+        ) == false,
+    "live ghost filtering must consume the compiler's bounded successor rule")
+end
 
 do
 local poison_tail = compiler.new({ character = "AKI", frame = 0 })

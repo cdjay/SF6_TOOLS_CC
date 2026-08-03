@@ -20,6 +20,7 @@ New-Item -ItemType Directory -Path (Join-Path $tempRoot "data\SF6CC") -Force | O
 try {
     $tempVersionPath = Join-Path $tempRoot "data\SF6CC\version.json"
     Copy-Item -LiteralPath $versionPath -Destination $tempVersionPath
+    $originalText = [System.IO.File]::ReadAllText($tempVersionPath)
     & $bumpScript -Workspace $tempRoot -Part Patch | Out-Null
 
     $currentParts = @(([string](Get-Content -Raw -LiteralPath $versionPath | ConvertFrom-Json).product.version).Split("."))
@@ -27,6 +28,26 @@ try {
     $bumpedDocument = Get-Content -Raw -LiteralPath $tempVersionPath | ConvertFrom-Json
     if ([string]$bumpedDocument.product.version -ne $expectedVersion) {
         throw "Version bump did not write the expected patch version."
+    }
+
+    $productVersionPattern = '(?s)("product"\s*:\s*\{(?:(?!\}).)*?"version"\s*:\s*")([^"]+)(")'
+    $replaceVersion = [System.Text.RegularExpressions.MatchEvaluator] {
+        param($match)
+        return $match.Groups[1].Value + $expectedVersion + $match.Groups[3].Value
+    }
+    $expectedText = [regex]::Replace($originalText, $productVersionPattern, $replaceVersion, 1)
+    $bumpedText = [System.IO.File]::ReadAllText($tempVersionPath)
+    if ($bumpedText -cne $expectedText) {
+        throw "Version bump changed content outside the product version field."
+    }
+
+    $bumpedBytes = [System.IO.File]::ReadAllBytes($tempVersionPath)
+    $hasUtf8Bom = $bumpedBytes.Length -ge 3 -and
+        $bumpedBytes[0] -eq 0xEF -and
+        $bumpedBytes[1] -eq 0xBB -and
+        $bumpedBytes[2] -eq 0xBF
+    if ($hasUtf8Bom) {
+        throw "Version bump wrote an unexpected UTF-8 BOM."
     }
 }
 finally {

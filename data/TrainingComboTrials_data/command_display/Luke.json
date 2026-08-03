@@ -2715,6 +2715,231 @@
       }
     ]
   },
+  "683": {
+    "classic_command": {
+      "display": ">MP",
+      "inputs": [
+        ">MP"
+      ]
+    },
+    "control_support": "classic_modern",
+    "source": "ac_bcm+capcom_official_semantics",
+    "ownership": "direct",
+    "simple_command": null,
+    "motion_command": {
+      "display": "> 中",
+      "inputs": [
+        "> 中"
+      ]
+    },
+    "routes": [
+      {
+        "display": "> 中",
+        "character": "Luke",
+        "owner_action_id": 683,
+        "trigger_index": 49,
+        "profile": "sprt",
+        "command_no": -1,
+        "command_index": -1,
+        "raw_direction_inputs": [],
+        "raw_button_mask": 128,
+        "raw_button_condition": 16416,
+        "raw_dc_exc_flags": 0,
+        "raw_ng_key_flags": 0,
+        "visible_direction": null,
+        "visible_button": "中",
+        "button_candidates": [
+          "中"
+        ],
+        "required_button_count": 1,
+        "source": "bcm_profile",
+        "ac_relation_type": null,
+        "ac_path": [],
+        "inherited_from_action_id": null,
+        "confidence": "direct_structural",
+        "direct_evidence": true,
+        "inheritance_evidence": false,
+        "inheritance_reason": null,
+        "rebind_evidence": false,
+        "rebind_reason": null,
+        "runtime_common_evidence": false,
+        "runtime_common_reason": null,
+        "official_semantic_evidence": false,
+        "official_semantic_reason": null,
+        "community_semantic_evidence": false,
+        "community_semantic_reason": null,
+        "assist_combo_evidence": false,
+        "assist_combo_reason": null,
+        "charge_context_evidence": false,
+        "charge_context_profile": null,
+        "charge_context_direction": null,
+        "charge_context_manual_direction": null,
+        "charge_context_direction_profile": null,
+        "charge_context_command_no": null,
+        "charge_context_command_index": null,
+        "charge_context_notation": null,
+        "charge_context_source_action_id": null,
+        "charge_context_source_trigger_indices": [],
+        "charge_context_relation": null,
+        "charge_context_reason": null,
+        "super_shortcut_direction_evidence": false,
+        "super_shortcut_direction_profile": null,
+        "super_shortcut_direction": null,
+        "super_shortcut_direction_notation": null,
+        "super_shortcut_direction_reason": null
+      }
+    ]
+  },
+  "684": {
+    "classic_command": {
+      "display": ">MP",
+      "inputs": [
+        ">MP"
+      ]
+    },
+    "control_support": "classic_modern",
+    "source": "ac_bcm+capcom_official_semantics",
+    "ownership": "direct",
+    "simple_command": null,
+    "motion_command": {
+      "display": "> 中",
+      "inputs": [
+        "> 中"
+      ]
+    },
+    "routes": [
+      {
+        "display": "> 中",
+        "character": "Luke",
+        "owner_action_id": 684,
+        "trigger_index": 50,
+        "profile": "sprt",
+        "command_no": -1,
+        "command_index": -1,
+        "raw_direction_inputs": [],
+        "raw_button_mask": 128,
+        "raw_button_condition": 16416,
+        "raw_dc_exc_flags": 0,
+        "raw_ng_key_flags": 0,
+        "visible_direction": null,
+        "visible_button": "中",
+        "button_candidates": [
+          "中"
+        ],
+        "required_button_count": 1,
+        "source": "bcm_profile",
+        "ac_relation_type": null,
+        "ac_path": [],
+        "inherited_from_action_id": null,
+        "confidence": "direct_structural",
+        "direct_evidence": true,
+        "inheritance_evidence": false,
+        "inheritance_reason": null,
+        "rebind_evidence": false,
+        "rebind_reason": null,
+        "runtime_common_evidence": false,
+        "runtime_common_reason": null,
+        "official_semantic_evidence": false,
+        "official_semantic_reason": null,
+        "community_semantic_evidence": false,
+        "community_semantic_reason": null,
+        "assist_combo_evidence": false,
+        "assist_combo_reason": null,
+        "charge_context_evidence": false,
+        "charge_context_profile": null,
+        "charge_context_direction": null,
+        "charge_context_manual_direction": null,
+        "charge_context_direction_profile": null,
+        "charge_context_command_no": null,
+        "charge_context_command_index": null,
+        "charge_context_notation": null,
+        "charge_context_source_action_id": null,
+        "charge_context_source_trigger_indices": [],
+        "charge_context_relation": null,
+        "charge_context_reason": null,
+        "super_shortcut_direction_evidence": false,
+        "super_shortcut_direction_profile": null,
+        "super_shortcut_direction": null,
+        "super_shortcut_direction_notation": null,
+        "super_shortcut_direction_reason": null
+      }
+    ]
+  },
+  "685": {
+    "classic_command": {
+      "display": ">MP",
+      "inputs": [
+        ">MP"
+      ]
+    },
+    "control_support": "classic_modern",
+    "source": "ac_bcm+capcom_official_semantics",
+    "ownership": "direct",
+    "simple_command": null,
+    "motion_command": {
+      "display": "> 中",
+      "inputs": [
+        "> 中"
+      ]
+    },
+    "routes": [
+      {
+        "display": "> 中",
+        "character": "Luke",
+        "owner_action_id": 685,
+        "trigger_index": 51,
+        "profile": "sprt",
+        "command_no": -1,
+        "command_index": -1,
+        "raw_direction_inputs": [],
+        "raw_button_mask": 128,
+        "raw_button_condition": 16416,
+        "raw_dc_exc_flags": 0,
+        "raw_ng_key_flags": 0,
+        "visible_direction": null,
+        "visible_button": "中",
+        "button_candidates": [
+          "中"
+        ],
+        "required_button_count": 1,
+        "source": "bcm_profile",
+        "ac_relation_type": null,
+        "ac_path": [],
+        "inherited_from_action_id": null,
+        "confidence": "direct_structural",
+        "direct_evidence": true,
+        "inheritance_evidence": false,
+        "inheritance_reason": null,
+        "rebind_evidence": false,
+        "rebind_reason": null,
+        "runtime_common_evidence": false,
+        "runtime_common_reason": null,
+        "official_semantic_evidence": false,
+        "official_semantic_reason": null,
+        "community_semantic_evidence": false,
+        "community_semantic_reason": null,
+        "assist_combo_evidence": false,
+        "assist_combo_reason": null,
+        "charge_context_evidence": false,
+        "charge_context_profile": null,
+        "charge_context_direction": null,
+        "charge_context_manual_direction": null,
+        "charge_context_direction_profile": null,
+        "charge_context_command_no": null,
+        "charge_context_command_index": null,
+        "charge_context_notation": null,
+        "charge_context_source_action_id": null,
+        "charge_context_source_trigger_indices": [],
+        "charge_context_relation": null,
+        "charge_context_reason": null,
+        "super_shortcut_direction_evidence": false,
+        "super_shortcut_direction_profile": null,
+        "super_shortcut_direction": null,
+        "super_shortcut_direction_notation": null,
+        "super_shortcut_direction_reason": null
+      }
+    ]
+  },
   "715": {
     "classic_command": {
       "display": "Throw",
@@ -7198,15 +7423,15 @@
     "character": "Luke",
     "fighter_id": 2,
     "generated_from": "ac_bcm+capcom_official_semantics",
-    "generated_at": "2026-05-28T00:00:00.000Z",
-    "ac_sha256": "0bc90bfb7cb8b09fffbc6dbfd64441b235f3c99b97e2baff4059c03bd9f084d8",
-    "bcm_sha256": "4e028fa979ae9c3739435264e7e3925939b1d2b515858d5f2766c9278ecb8033",
+    "generated_at": "2026-08-03T00:00:00.000Z",
+    "ac_sha256": "24c3454b415d170f911ba87056d50ceb194c350d6ec3e3db985d578bd6a2426d",
+    "bcm_sha256": "cf109be3dc0ea47e6658a620215362348ff9cb9a14859b0dc0c6ff617d20574f",
     "modern_profile_order": [
       "easy",
       "supr",
       "sprt"
     ],
-    "direct_route_count": 87,
+    "direct_route_count": 90,
     "inherited_route_count": 4,
     "rebind_route_count": 0,
     "runtime_common_route_count": 6,
@@ -7285,7 +7510,7 @@
     "ac_type13_neutral_relations": [],
     "internal_transition_suppression_count": 0,
     "suppressed_internal_transitions": [],
-    "split_command_action_count": 70,
+    "split_command_action_count": 73,
     "followup_relation_count": 4,
     "followup_relations": [
       {
@@ -7317,7 +7542,7 @@
         "official_move_name": "スラムダンク"
       }
     ],
-    "official_semantic_source_sha256": "066bd4214117d0a9f04c839b42a12e49eb84ffd29666e2a050b186c1545aac3f",
+    "official_semantic_source_sha256": "a65c00b1fd8711c074e45c7610973828a3313c21b4971aa6f84fb34a7abc4561",
     "classic_profile_order": [
       "norm",
       "sprt"
@@ -8924,7 +9149,7 @@
         "reason": "profile_disabled_or_missing"
       }
     ],
-    "unmapped_action_count": 251,
+    "unmapped_action_count": 253,
     "unmapped_action_ids": [
       1,
       2,
@@ -9089,6 +9314,7 @@
       523,
       524,
       601,
+      604,
       607,
       609,
       612,
@@ -9100,6 +9326,7 @@
       668,
       669,
       671,
+      680,
       720,
       721,
       722,
@@ -9239,11 +9466,11 @@
       "ac_type13_neutral_relation_count": 0,
       "ac_type13_neutral_route_count": 0,
       "internal_transition_suppression_count": 0,
-      "split_command_action_count": 70,
-      "classic_command_action_count": 77,
-      "shared_command_action_count": 70,
+      "split_command_action_count": 73,
+      "classic_command_action_count": 80,
+      "shared_command_action_count": 73,
       "classic_projection_pending_count": 0,
-      "command_display_action_count": 77,
+      "command_display_action_count": 80,
       "followup_relation_count": 4,
       "command_slot_overflow_count": 0,
       "ac_automatic_transition_route_count": 0,

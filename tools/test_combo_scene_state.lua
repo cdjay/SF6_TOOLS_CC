@@ -101,4 +101,50 @@ assert(SceneState.requires_timeline_catch_up({
 assert(SceneState.requires_timeline_catch_up({ has_piyo = true }) == true,
     "legacy stun recordings must retain timeline catch-up compatibility")
 
+local stable_legacy_health = {
+    {
+        recorded_by = 0,
+        expected_hp = 1,
+        scene_state = {
+            schema = SceneState.SCHEMA_V2,
+            players = {
+                p1 = { resources = { hp = 10000, heal_hp = 10000 } },
+                p2 = { resources = { hp = 10000 } },
+            },
+        },
+    },
+    { expected_hp = 1 },
+}
+local hp_adjustment =
+    SceneState.materialize_stable_legacy_actor_hp(stable_legacy_health)
+local stable_roles = SceneState.resolve_roles(stable_legacy_health[1], 0)
+assert(hp_adjustment and hp_adjustment.from == 10000
+        and hp_adjustment.to == 1
+        and hp_adjustment.reason == "stable_legacy_expected_hp"
+        and SceneState.resources(stable_roles.actor).hp == 1
+        and SceneState.resources(stable_roles.actor).heal_hp == 1,
+    "stable expected_hp must repair the in-memory actor scene used by playback")
+
+local incomplete_legacy_health = {
+    {
+        recorded_by = 1,
+        expected_hp = 2000,
+        scene_state = { players = { p1 = {}, p2 = {} } },
+    },
+    { expected_hp = 2000 },
+}
+assert(SceneState.materialize_stable_legacy_actor_hp(incomplete_legacy_health)
+        and incomplete_legacy_health[1].scene_state.players.p2.resources.hp == 2000
+        and incomplete_legacy_health[1].scene_state.players.p1.resources == nil,
+    "legacy actor HP materialization must follow recorded_by and fill only the actor")
+
+local changing_actor_health = {
+    { expected_hp = 2000 },
+    { expected_hp = 1500 },
+}
+assert(SceneState.stable_legacy_actor_hp(changing_actor_health) == nil
+        and SceneState.materialize_stable_legacy_actor_hp(changing_actor_health) == nil
+        and changing_actor_health[1].scene_state == nil,
+    "changing expected_hp values must not synthesize a starting scene")
+
 print("combo scene state tests passed")

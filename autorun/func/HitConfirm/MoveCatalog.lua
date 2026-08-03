@@ -32,7 +32,8 @@ local CHARACTER_BY_KEY = {
     ESF_029 = { id = 29, name = "Elena" },
     ESF_030 = { id = 30, name = "CViper" },
     ESF_031 = { id = 31, name = "Alex" },
-    ESF_032 = { id = 32, name = "Ingrid" }
+    ESF_032 = { id = 32, name = "Ingrid" },
+    ESF_033 = { id = 33, name = "Yasmine" }
 }
 
 local function trim(value)

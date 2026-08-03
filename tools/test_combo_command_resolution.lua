@@ -209,6 +209,113 @@ assert(juri_override_status == "loaded" and juri_override_count == 4
         and juri_overrides["613"].status == "runtime_verified_override"
         and juri_overrides["665"].status == "runtime_verified_override",
     "Juri's verified Classic Actions must fill missing rows and replace unverified catalog rows")
+local mai_catalog = {
+    _slim = true,
+    ["600"] = { classic = "LP", status = "route_unverified" },
+    ["603"] = { classic = "MP", status = "route_unverified" },
+    ["907"] = { classic = "6", status = "route_unverified" },
+}
+local mai_override_document = {
+    schema = "xt.command_display_overrides.v1",
+    character = "Mai",
+    entries = {
+        ["600"] = {
+            classic = "LP",
+            replace = true,
+            evidence = "twenty-two timeline runtime audit events",
+        },
+        ["603"] = {
+            classic = "MP",
+            replace = true,
+            evidence = "one timeline runtime audit event with hit contact",
+        },
+        ["605"] = {
+            classic = "HP",
+            evidence = "three post-update runtime audit events with hit contact",
+        },
+        ["907"] = {
+            classic = ">6+MP",
+            replace = true,
+            evidence = "three relative-forward MP follow-up runtime audit events",
+        },
+    },
+}
+local mai_overrides, mai_override_count, mai_override_status =
+    command_display_overrides.merge(mai_catalog, "Mai", mai_override_document)
+assert(mai_override_status == "loaded" and mai_override_count == 4
+        and mai_overrides["600"].classic == "LP"
+        and mai_overrides["603"].classic == "MP"
+        and mai_overrides["605"].classic == "HP"
+        and mai_overrides["907"].classic == ">6+MP"
+        and mai_overrides["600"].status == "runtime_verified_override"
+        and mai_overrides["603"].status == "runtime_verified_override"
+        and mai_overrides["605"].status == "runtime_verified_override"
+        and mai_overrides["907"].status == "runtime_verified_override"
+        and mai_overrides["605"].metadata.replaced_existing == false
+        and mai_overrides["907"].metadata.replaced_existing == true,
+    "Mai's runtime-audited Classic Actions must replace unverified catalog rows")
+local sagat_catalog = {
+    _slim = true,
+    ["600"] = { classic = "LP", status = "route_unverified" },
+    ["604"] = { classic = "MP", status = "route_unverified" },
+}
+local sagat_override_document = {
+    schema = "xt.command_display_overrides.v1",
+    character = "Sagat",
+    entries = {
+        ["600"] = {
+            classic = "LP",
+            replace = true,
+            evidence = "one post-update runtime audit event with hit contact",
+        },
+        ["604"] = {
+            classic = "MP",
+            replace = true,
+            evidence = "repeated post-update runtime audit events with hit contact",
+        },
+    },
+}
+local sagat_overrides, sagat_override_count, sagat_override_status =
+    command_display_overrides.merge(sagat_catalog, "Sagat", sagat_override_document)
+assert(sagat_override_status == "loaded" and sagat_override_count == 2
+        and sagat_overrides["600"].classic == "LP"
+        and sagat_overrides["604"].classic == "MP"
+        and sagat_overrides["600"].status == "runtime_verified_override"
+        and sagat_overrides["604"].status == "runtime_verified_override"
+        and sagat_overrides["600"].metadata.replaced_existing == true
+        and sagat_overrides["604"].metadata.replaced_existing == true,
+    "Sagat's runtime-audited normals must replace unverified catalog rows")
+local cviper_catalog = {
+    _slim = true,
+    ["608"] = { classic = "HK", status = "route_unverified" },
+    ["1037"] = { classic = "528", status = "route_unverified" },
+}
+local cviper_override_document = {
+    schema = "xt.command_display_overrides.v1",
+    character = "CViper",
+    entries = {
+        ["608"] = {
+            classic = "HK",
+            replace = true,
+            evidence = "three runtime audit hit events",
+        },
+        ["1037"] = {
+            classic = "28",
+            replace = true,
+            evidence = "runtime-audited high-jump cancel",
+        },
+    },
+}
+local cviper_overrides, cviper_override_count, cviper_override_status =
+    command_display_overrides.merge(cviper_catalog, "CViper", cviper_override_document)
+assert(cviper_override_status == "loaded" and cviper_override_count == 2
+        and cviper_overrides["608"].classic == "HK"
+        and cviper_overrides["1037"].classic == "28"
+        and cviper_overrides["608"].status == "runtime_verified_override"
+        and cviper_overrides["1037"].status == "runtime_verified_override"
+        and cviper_overrides["608"].metadata.replaced_existing == true
+        and cviper_overrides["1037"].metadata.replaced_existing == true,
+    "C. Viper's runtime-audited HK and high-jump Actions must replace unverified catalog rows")
 local akuma_catalog = { _slim = true }
 local akuma_override_document = {
     schema = "xt.command_display_overrides.v1",
@@ -963,6 +1070,103 @@ local legacy_di_match = action_matcher.match_expected_action(
 )
 assert(legacy_di_match.matched == true and legacy_di_match.match_reason == "action_alias_id",
     "a legacy Action ID 854 DI step must admit the current runtime Action ID 855")
+local mai_hp_rule = character_rules.get_match_rule(
+    { ["604"] = { action_alias_ids = "605" } }, {}, "Mai", 604)
+local mai_hp_match = action_matcher.match_expected_action(
+    { id = 604, motion = "HP" },
+    605,
+    "HP",
+    "HP",
+    mai_hp_rule
+)
+assert(mai_hp_match.matched == true
+        and mai_hp_match.match_reason == "action_alias_id",
+    "a legacy Mai HP step must admit the post-update Action ID 605")
+local mai_hp_reverse = action_matcher.match_expected_action(
+    { id = 605, motion = "HP" },
+    604,
+    "HP",
+    "HP",
+    character_rules.get_match_rule(
+        { ["604"] = { action_alias_ids = "605" } }, {}, "Mai", 605)
+)
+assert(mai_hp_reverse.matched == false,
+    "Mai's post-update HP Action must not gain an unsupported reverse alias")
+local mai_throw_rule = character_rules.get_match_rule(
+    { ["715"] = { action_alias_ids = "725" } }, {}, "Mai", 715)
+local mai_throw_match = action_matcher.match_expected_action(
+    { id = 715, motion = "THROW" },
+    725,
+    "THROW",
+    "THROW",
+    mai_throw_rule
+)
+assert(mai_throw_match.matched == true
+        and mai_throw_match.match_reason == "action_alias_id",
+    "a legacy Mai throw startup Action must admit the current hit Action ID 725")
+local mai_throw_reverse = action_matcher.match_expected_action(
+    { id = 725, motion = "THROW" },
+    715,
+    "THROW",
+    "THROW",
+    character_rules.get_match_rule(
+        { ["715"] = { action_alias_ids = "725" } }, {}, "Mai", 725)
+)
+assert(mai_throw_reverse.matched == false,
+    "Mai's throw hit Action must not gain an unsupported reverse alias")
+local sagat_nexus_rule = character_rules.get_match_rule(
+    { ["953"] = { action_alias_ids = "951" } }, {}, "Sagat", 953)
+local sagat_nexus_match = action_matcher.match_expected_action(
+    { id = 953, motion = "214+LK" },
+    951,
+    "41236+LK",
+    "LK",
+    sagat_nexus_rule
+)
+assert(sagat_nexus_match.matched == true
+        and sagat_nexus_match.match_reason == "action_alias_id",
+    "a legacy Sagat light Tiger Nexus Action must admit the post-update Action ID 951")
+local sagat_nexus_reverse = action_matcher.match_expected_action(
+    { id = 951, motion = "41236+LK" },
+    953,
+    "214+LK",
+    "LK",
+    character_rules.get_match_rule(
+        { ["953"] = { action_alias_ids = "951" } }, {}, "Sagat", 951)
+)
+assert(sagat_nexus_reverse.matched == false,
+    "Sagat's post-update Tiger Nexus Action must not gain an unsupported reverse alias")
+local sagat_medium_nexus_rule = character_rules.get_match_rule(
+    { ["954"] = { action_alias_ids = "953" } }, {}, "Sagat", 954)
+local sagat_medium_nexus_match = action_matcher.match_expected_action(
+    { id = 954, motion = "214+MK" },
+    953,
+    "214+MK",
+    "MK",
+    sagat_medium_nexus_rule
+)
+assert(sagat_medium_nexus_match.matched == true
+        and sagat_medium_nexus_match.match_reason == "action_alias_id",
+    "a legacy Sagat medium Tiger Nexus Action must admit the post-update Action ID 953")
+local sagat_medium_nexus_reverse = action_matcher.match_expected_action(
+    { id = 953, motion = "214+MK" },
+    954,
+    "214+MK",
+    "MK",
+    character_rules.get_match_rule(
+        { ["954"] = { action_alias_ids = "953" } }, {}, "Sagat", 953)
+)
+assert(sagat_medium_nexus_reverse.matched == false,
+    "Sagat's post-update medium Tiger Nexus Action must not gain an unsupported reverse alias")
+assert(action_matcher.is_optional_parent_for_followup(
+        "236+HK",
+        { id = 944, motion = "236+KK" },
+        943,
+        { optional_parent_ids = { 943 } },
+        { id = 901, motion = "236+MP" },
+        "HK"
+    ) == true,
+    "Sagat's one-frame 943 precursor must not block the expected 236+KK Action 944")
 local current_di_rule = character_rules.get_match_rule(
     {}, common_variant_rules, "ChunLi", 855)
 local reverse_di_match = action_matcher.match_expected_action(
@@ -1190,6 +1394,16 @@ assert(jamie_tail_rules.suppress_after[657].previous_ids[652] == true
         and jamie_tail_rules.suppress_after[657].max_delay_frames == 64
         and jamie_tail_rules.suppress_after[657].require_no_contact == true,
     "exception data must compile exact Action-event suppression predicates")
+local cviper_quick_successor_rules = character_rules.build_action_event_rules({
+    ["1037"] = {
+        action_event_rules = {
+            preserve_quick_successor = { max_delay_frames = 4 },
+        },
+    },
+}, {})
+assert(cviper_quick_successor_rules.quick_successor_sources[1037].max_delay_frames
+        == 4,
+    "exception data must compile bounded same-input successor preservation")
 local lily_930_expected = { id = 930, expected_combo = 6 }
 local lily_930_canonical = character_rules.match_current_canonical_confirmation(
     lily_930_rules, {}, lily_930_expected, 929, 6, "Lily")
@@ -1276,6 +1490,46 @@ assert(lily_exception_source:find('"930"', 1, true)
         and not lily_exception_source:find('"action_alias_ids": "929"', 1, true)
         and not lily_exception_source:find('"canonical_owner_ids": "929"', 1, true),
     "the shipped Lily exception must keep 929 as an absorb-only transient precursor")
+local mai_exception_source = read_all(
+    "data/TrainingComboTrials_data/exceptions/Mai.json")
+assert(mai_exception_source:find('"604"', 1, true)
+        and mai_exception_source:find('"action_alias_ids": "605"', 1, true)
+        and mai_exception_source:find('"715"', 1, true)
+        and mai_exception_source:find('"action_alias_ids": "725"', 1, true),
+    "the shipped Mai exception must preserve verified post-update Action aliases")
+local sagat_exception_source = read_all(
+    "data/TrainingComboTrials_data/exceptions/Sagat.json")
+assert(sagat_exception_source:find('"944"', 1, true)
+        and sagat_exception_source:find('"optional_parent_ids"', 1, true)
+        and sagat_exception_source:find('"953"', 1, true)
+        and sagat_exception_source:find('"action_alias_ids": "951"', 1, true)
+        and sagat_exception_source:find('"954"', 1, true)
+        and sagat_exception_source:find('"action_alias_ids": "953"', 1, true),
+    "the shipped Sagat exception must preserve verified post-update Action transitions")
+local sagat_override_source = read_all(
+    "data/TrainingComboTrials_data/command_display_overrides/Sagat.json")
+assert(sagat_override_source:find('"600"', 1, true)
+        and sagat_override_source:find('"classic": "LP"', 1, true)
+        and sagat_override_source:find('"604"', 1, true)
+        and sagat_override_source:find('"classic": "MP"', 1, true),
+    "the shipped Sagat command overrides must preserve runtime-verified normals")
+local cviper_override_source = read_all(
+    "data/TrainingComboTrials_data/command_display_overrides/CViper.json")
+assert(cviper_override_source:find('"608"', 1, true)
+        and cviper_override_source:find('"classic": "HK"', 1, true)
+        and cviper_override_source:find('"1037"', 1, true)
+        and cviper_override_source:find('"classic": "28"', 1, true),
+    "the shipped C. Viper command overrides must preserve runtime-verified commands")
+local combo_imgui_source = read_all("autorun/func/ComboTrials_ImGui.lua")
+assert(combo_imgui_source:find("local function reset_command_display_cache()", 1, true)
+        and combo_imgui_source:find("ctx.clear_command_display_cache = M.clear_command_display_cache", 1, true)
+        and combo_imgui_source:find("function M.clear_command_display_cache()", 1, true),
+    "renderer initialization must expose and invoke command-display cache invalidation")
+local combo_entry_source = read_all("autorun/TrainingComboTrials_v1.0.lua")
+assert(combo_entry_source:find('package.loaded["func/ComboTrials_ImGui"] = nil', 1, true)
+        and combo_entry_source:find('package.loaded["func/ComboTrials_ImGui"].clear_command_display_cache', 1, true)
+        and not combo_entry_source:find("local cached_combo_trials_renderer", 1, true),
+    "the entry script must upgrade an already-cached legacy renderer exactly once")
 local deejay_sa3_exception = character_rules.get_match_rule(
     deejay_variant_rules, {}, "DeeJay", 1268)
 assert(deejay_sa3_exception ~= nil,

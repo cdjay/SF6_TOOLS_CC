@@ -144,6 +144,11 @@
     "official_name": "terry",
     "url": "https://www.streetfighter.com/6/zh-hant/character/terry/frame"
   },
+  "Yasmine": {
+    "fighter_id": 33,
+    "official_name": "yasmine",
+    "url": "https://www.streetfighter.com/6/zh-hant/character/yasmine/frame"
+  },
   "Zangief": {
     "fighter_id": 6,
     "official_name": "zangief",

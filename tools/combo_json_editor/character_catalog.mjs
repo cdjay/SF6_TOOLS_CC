@@ -28,7 +28,8 @@ export const CHARACTER_CATALOG = Object.freeze([
     { fighterId: 29, folder: "Elena", en: "Elena", zh: "艾莲娜" },
     { fighterId: 30, folder: "CViper", en: "C. Viper", zh: "深红毒蛇" },
     { fighterId: 31, folder: "Alex", en: "Alex", zh: "亚历克斯" },
-    { fighterId: 32, folder: "Ingrid", en: "Ingrid", zh: "英格丽德" }
+    { fighterId: 32, folder: "Ingrid", en: "Ingrid", zh: "英格丽德" },
+    { fighterId: 33, folder: "Yasmine", en: "Yasmine", zh: "亚思敏" }
 ]);
 
 const BY_FOLDER = new Map(CHARACTER_CATALOG.map(character => [character.folder.toLowerCase(), character]));

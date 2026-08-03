@@ -18,8 +18,9 @@ assert.deepStrictEqual(builder.mapDiff({ "1": { x: 1 }, "2": {} }, {
 
 const registry = JSON.parse(fs.readFileSync(path.resolve(
     __dirname, "../modern_display_builder/characters.json"), "utf8"));
-assert.strictEqual(Object.keys(registry).length, 30);
-assert.strictEqual(new Set(Object.values(registry).map(entry => Number(entry.fighter_id))).size, 30);
+assert.strictEqual(Object.keys(registry).length, 31);
+assert.strictEqual(new Set(Object.values(registry).map(entry => Number(entry.fighter_id))).size, 31);
+assert.strictEqual(registry.Yasmine.fighter_id, 33);
 
 const formalRoot = path.resolve(__dirname, "../../data/TrainingComboTrials_data/command_display");
 let formalAlex = null;
@@ -45,6 +46,7 @@ assert.throws(() => builder.validateOutput(incompleteAlex, "Alex", 31), /仍有�
 
 const temporary = fs.mkdtempSync(path.join(os.tmpdir(), "sf6cc-lastjson-test-"));
 try {
+    fs.mkdirSync(path.join(temporary, "_refresh_20260803"));
     fs.mkdirSync(path.join(temporary, "2026.5.28"));
     assert.strictEqual(path.basename(builder.resolveOffDirectory(temporary, "2026-05-28")), "2026.5.28");
     fs.mkdirSync(path.join(temporary, "2026-05-28"));

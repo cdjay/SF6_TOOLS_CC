@@ -113,6 +113,330 @@ local relative_passed = RuntimeAuditor.evaluate(relative_candidate, compiled, {
 assert(relative_passed.ok == true,
     "runtime audit must accept facing-relative input truth")
 
+local timeline_candidate = {
+    {
+        id = 600,
+        motion = "LP",
+        expected_combo = 1,
+        damage_at_step = 300,
+        delay_from_prev = 0,
+        timeline = { "1f : LP", "1f : 5" },
+        combo_stats = {
+            damage = 300,
+            drive_used = 0,
+            super_used = 0,
+        },
+    },
+}
+local timeline_passed = RuntimeAuditor.evaluate(timeline_candidate, compiled, {
+    replay_inputs = { 16, 0 },
+    input_source = "timeline",
+    input_completed = true,
+    timing_tolerance = 2,
+    trial_completed = true,
+    character = "Ryu",
+    command_display_validation = resolved_command_display(),
+})
+assert(timeline_passed.ok == true
+    and timeline_passed.input_source == "timeline"
+    and timeline_passed.action_comparison.strict == false,
+    "runtime audit must validate timeline-only installed combos without conversion")
+
+local timeline_trace_drift = RuntimeAuditor.evaluate(timeline_candidate, {
+    steps = {
+        {
+            id = 601,
+            motion = "MP",
+            expected_combo = 0,
+            damage_at_step = 300,
+            delay_from_prev = 3,
+        },
+    },
+    stats = compiled.stats,
+}, {
+    replay_inputs = { 16, 0 },
+    input_source = "timeline",
+    input_completed = true,
+    timing_tolerance = 2,
+    trial_completed = true,
+    character = "Ryu",
+    command_display_validation = resolved_command_display(),
+})
+assert(timeline_trace_drift.ok == true
+    and #timeline_trace_drift.reasons == 0
+    and timeline_trace_drift.action_comparison.strict == false
+    and timeline_trace_drift.action_comparison.mismatch_count >= 2
+    and table.concat(timeline_trace_drift.advisories, ",")
+        :match("replay_action_id_mismatch"),
+    "legacy timeline trace drift must remain diagnostic when player-visible validation passes")
+
+local guarded_timeline_candidate = {
+    {
+        id = 600,
+        motion = "LP",
+        expected_combo = 1,
+        damage_at_step = 300,
+        delay_from_prev = 0,
+        timeline = { "1f : LP", "1f : 5" },
+        dummy_guard_type = 2,
+        combo_stats = {
+            damage = 800,
+            drive_used = 0,
+            super_used = 0,
+        },
+    },
+    {
+        id = 17,
+        motion = "66",
+        expected_combo = 0,
+        damage_at_step = 300,
+        delay_from_prev = 40,
+        has_hit = false,
+    },
+    {
+        id = 603,
+        motion = "MP",
+        expected_combo = 2,
+        damage_at_step = 800,
+        delay_from_prev = 20,
+        has_hit = true,
+    },
+}
+local guarded_timeline_compiled = {
+    steps = {
+        {
+            id = 600,
+            motion = "LP",
+            expected_combo = 1,
+            damage_at_step = 300,
+            delay_from_prev = 0,
+            frame = 10,
+            first_contact_frame = 12,
+            has_contact = true,
+            has_hit = true,
+        },
+        {
+            id = 17,
+            motion = "66",
+            expected_combo = 0,
+            damage_at_step = 300,
+            delay_from_prev = 40,
+            frame = 50,
+            has_contact = false,
+            has_hit = false,
+        },
+        {
+            id = 603,
+            motion = "MP",
+            expected_combo = 0,
+            damage_at_step = 300,
+            delay_from_prev = 20,
+            frame = 70,
+            has_contact = true,
+            has_hit = false,
+            was_blocked = true,
+            hit_result = "block",
+        },
+        {
+            id = 648,
+            motion = "6+HK",
+            expected_combo = 0,
+            damage_at_step = 300,
+            delay_from_prev = 12,
+            frame = 82,
+            has_contact = false,
+            has_hit = false,
+        },
+    },
+    stats = {
+        damage = 300,
+        max_combo = 1,
+        block_contacts = 1,
+        drive_used = 0,
+        super_used = 0,
+        unresolved_anchors = 0,
+    },
+    trace = {
+        combo_reset_frames = { 60 },
+        projected_events = {
+            {
+                id = 600,
+                frame = 10,
+                first_contact_frame = 12,
+                has_contact = true,
+                has_hit = true,
+            },
+            {
+                id = 17,
+                frame = 50,
+                has_contact = false,
+                has_hit = false,
+            },
+            {
+                id = 603,
+                frame = 70,
+                has_contact = true,
+                has_hit = false,
+                was_blocked = true,
+                hit_result = "block",
+            },
+            {
+                id = 648,
+                frame = 82,
+                has_contact = false,
+                has_hit = false,
+            },
+        },
+    },
+}
+local guarded_timeline_passed = RuntimeAuditor.evaluate(
+    guarded_timeline_candidate,
+    guarded_timeline_compiled,
+    {
+        replay_inputs = { 16, 0 },
+        input_source = "timeline",
+        input_completed = true,
+        timing_tolerance = 2,
+        trial_completed = true,
+        character = "Ryu",
+        command_display_validation = resolved_command_display(3),
+    }
+)
+local guarded_advisories = table.concat(
+    guarded_timeline_passed.advisories or {},
+    ","
+)
+assert(guarded_timeline_passed.ok == true
+    and guarded_advisories:match("timeline_guarded_followup_block")
+    and guarded_advisories:match("timeline_guarded_followup_damage")
+    and guarded_advisories:match("timeline_guarded_followup_combo"),
+    "timeline audit must accept a proven post-reset guarded follow-up without weakening continuous routes")
+
+local pre_reset_block_compiled = RuntimeAuditor.evaluate(
+    guarded_timeline_candidate,
+    {
+        steps = guarded_timeline_compiled.steps,
+        stats = guarded_timeline_compiled.stats,
+        trace = {
+            combo_reset_frames = { 80 },
+            projected_events = guarded_timeline_compiled.trace.projected_events,
+        },
+    },
+    {
+        replay_inputs = { 16, 0 },
+        input_source = "timeline",
+        input_completed = true,
+        timing_tolerance = 2,
+        trial_completed = true,
+        character = "Ryu",
+        command_display_validation = resolved_command_display(3),
+    }
+)
+assert(pre_reset_block_compiled.ok == false
+    and table.concat(pre_reset_block_compiled.reasons, ",")
+        :match("replay_unexpected_block_before_combo_completion"),
+    "a block that occurs before the runtime reset must remain a strict failure")
+
+local combo_count_drift_candidate = {
+    {
+        id = 600,
+        motion = "LP",
+        expected_combo = 2,
+        damage_at_step = 300,
+        delay_from_prev = 0,
+        timeline = { "1f : LP", "1f : 5" },
+        combo_stats = {
+            damage = 300,
+            drive_used = 0,
+            super_used = 0,
+        },
+    },
+}
+local combo_count_drift_compiled = {
+    steps = {
+        {
+            id = 600,
+            motion = "LP",
+            expected_combo = 4,
+            damage_at_step = 300,
+            delay_from_prev = 0,
+            has_contact = true,
+            has_hit = true,
+        },
+    },
+    stats = {
+        damage = 300,
+        max_combo = 4,
+        block_contacts = 0,
+        drive_used = 0,
+        super_used = 0,
+        unresolved_anchors = 0,
+    },
+}
+local combo_count_drift_passed = RuntimeAuditor.evaluate(
+    combo_count_drift_candidate,
+    combo_count_drift_compiled,
+    {
+        replay_inputs = { 16, 0 },
+        input_source = "timeline",
+        input_completed = true,
+        timing_tolerance = 2,
+        trial_completed = true,
+        character = "Ryu",
+        command_display_validation = resolved_command_display(),
+    }
+)
+assert(combo_count_drift_passed.ok == true
+    and table.concat(combo_count_drift_passed.advisories, ",")
+        :match("timeline_combo_count_drift"),
+    "timeline-only combo-count drift may be advisory when damage and contacts still match")
+
+local raw_combo_count_drift_failed = RuntimeAuditor.evaluate(
+    combo_count_drift_candidate,
+    combo_count_drift_compiled,
+    {
+        raw_inputs = { 16, 0 },
+        input_source = "raw_inputs",
+        input_completed = true,
+        timing_tolerance = 2,
+        trial_completed = true,
+        character = "Ryu",
+        command_display_validation = resolved_command_display(),
+    }
+)
+assert(raw_combo_count_drift_failed.ok == false
+    and table.concat(raw_combo_count_drift_failed.reasons, ",")
+        :match("replay_combo_count_mismatch"),
+    "raw replay combo counts must remain strict")
+
+local timeline_damage_regression_failed = RuntimeAuditor.evaluate(
+    timeline_candidate,
+    {
+        steps = compiled.steps,
+        stats = {
+            damage = 200,
+            max_combo = 1,
+            block_contacts = 0,
+            drive_used = 0,
+            super_used = 0,
+            unresolved_anchors = 0,
+        },
+    },
+    {
+        replay_inputs = { 16, 0 },
+        input_source = "timeline",
+        input_completed = true,
+        timing_tolerance = 2,
+        trial_completed = true,
+        character = "Ryu",
+        command_display_validation = resolved_command_display(),
+    }
+)
+assert(timeline_damage_regression_failed.ok == false
+    and table.concat(timeline_damage_regression_failed.reasons, ",")
+        :match("replay_damage_mismatch"),
+    "continuous timeline routes must keep strict final damage validation")
+
 compiled.steps[1].id = 601
 local failed = RuntimeAuditor.evaluate(candidate, compiled, {
     raw_inputs = candidate[1].raw_inputs,
@@ -123,7 +447,7 @@ local failed = RuntimeAuditor.evaluate(candidate, compiled, {
     command_display_validation = resolved_command_display(),
 })
 assert(failed.ok == false
-    and table.concat(failed.reasons, ","):match("raw_replay_action_id_mismatch"),
+    and table.concat(failed.reasons, ","):match("replay_action_id_mismatch"),
     "runtime audit must reject a different runtime Action ID")
 
 compiled.steps[1].id = 600
@@ -547,15 +871,24 @@ run.items = {
         source_file = "A.json",
         source_name = "A.json",
         status = "passed",
+        replay_verified = true,
         raw_replay_verified = true,
     },
 }
 local report = RuntimeAuditor.report(run)
 assert(report.schema == RuntimeAuditor.REPORT_SCHEMA
-    and report.verifier.input == "relative_raw_inputs_or_raw_inputs"
+    and report.verifier.input
+        == "relative_raw_inputs_or_raw_inputs_or_timeline"
     and report.verifier.input_priority[1] == "relative_raw_inputs"
+    and report.verifier.input_priority[3] == "timeline"
     and report.verifier.action_truth
         == "runtime_action_id_or_verified_command_owner"
+    and report.verifier.replay_action_trace
+        == "compiled.trace.observed_actions"
+    and report.verifier.step_trace_policy.timeline
+        == "advisory_with_training_ui_completion_required"
+    and report.verifier.compatible_validation_revisions[35]
+        == "monotonic_timeline_outcome_relaxation"
     and report.verifier.raw_action_trace
         == "compiled.trace.observed_actions"
     and report.verifier.command_display.source
@@ -619,10 +952,78 @@ local revision_30_report = {
 }
 local refreshed_30, refreshed_30_counts =
     RuntimeAuditor.recompute_loaded_report_state(revision_30_report)
-assert(RuntimeAuditor.VALIDATION_REVISION == 32
+assert(RuntimeAuditor.VALIDATION_REVISION == 37
     and refreshed_30_counts.stale == 1
     and refreshed_30.passed == 0,
     "revision 30 reports must be stale after the strict invariant revision")
+
+local revision_35_report = {
+    character = "Ryu",
+    passed = 1,
+    failed = 1,
+    items = {
+        {
+            source_file = "Rev35Passed.json",
+            status = "passed",
+            validation_revision = 35,
+            command_display_validation = resolved_command_display(),
+            trial_completion = { total_steps = 1 },
+        },
+        {
+            source_file = "Rev35Failed.json",
+            status = "failed",
+            validation_revision = 35,
+            command_display_validation = resolved_command_display(),
+            trial_completion = { total_steps = 1 },
+        },
+    },
+}
+local refreshed_35, refreshed_35_counts =
+    RuntimeAuditor.recompute_loaded_report_state(revision_35_report)
+local revision_35_retry_paths, revision_35_retry_counts =
+    RuntimeAuditor.retry_source_paths(refreshed_35)
+assert(refreshed_35_counts.passed == 1
+    and refreshed_35_counts.failed == 1
+    and refreshed_35_counts.stale == 0
+    and #revision_35_retry_paths == 1
+    and revision_35_retry_paths[1] == "Rev35Failed.json"
+    and revision_35_retry_counts.failed == 1
+    and revision_35_retry_counts.stale == 0,
+    "revision 35 must retain its failed-only queue across compatible relaxations")
+
+local revision_36_report = {
+    character = "CViper",
+    passed = 7,
+    failed = 1,
+    items = {
+        {
+            source_file = "Passed.json",
+            status = "passed",
+            validation_revision = 36,
+            command_display_validation = resolved_command_display(1, 0, "CViper"),
+            trial_completion = { total_steps = 1 },
+        },
+        {
+            source_file = "Failed.json",
+            status = "failed",
+            validation_revision = 36,
+            command_display_validation = resolved_command_display(1, 0, "CViper"),
+            trial_completion = { total_steps = 1 },
+        },
+    },
+}
+local refreshed_36, refreshed_36_counts =
+    RuntimeAuditor.recompute_loaded_report_state(revision_36_report)
+local revision_36_retry_paths, revision_36_retry_counts =
+    RuntimeAuditor.retry_source_paths(refreshed_36)
+assert(refreshed_36_counts.passed == 1
+        and refreshed_36_counts.failed == 1
+        and refreshed_36_counts.stale == 0
+        and #revision_36_retry_paths == 1
+        and revision_36_retry_paths[1] == "Failed.json"
+        and revision_36_retry_counts.failed == 1
+        and revision_36_retry_counts.stale == 0,
+    "revision 36 passes must remain valid while quick-successor failures retry")
 
 local current_damaged_report = {
     character = "Ryu",

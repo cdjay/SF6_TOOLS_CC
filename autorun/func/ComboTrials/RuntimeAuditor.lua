@@ -7,7 +7,11 @@ local RuntimeAuditor = {
     name = "ComboTrials.RuntimeAuditor",
     REPORT_SCHEMA = "sf6cc.combo_runtime_audit.v1",
     REPORT_ROOT = "TrainingComboTrials_data/RuntimeAuditReports",
-    VALIDATION_REVISION = 32,
+    VALIDATION_REVISION = 37,
+    COMPATIBLE_VALIDATION_REVISIONS = {
+        [35] = "monotonic_timeline_outcome_relaxation",
+        [36] = "data_driven_quick_successor_live_validation",
+    },
 }
 
 local function deep_copy(value)
@@ -278,7 +282,9 @@ function RuntimeAuditor.classify_report_item(item, context)
     if type(item) ~= "table" then
         return "stale", "runtime_audit_item_invalid"
     end
-    if tonumber(item.validation_revision) ~= RuntimeAuditor.VALIDATION_REVISION then
+    local revision = tonumber(item.validation_revision)
+    if revision ~= RuntimeAuditor.VALIDATION_REVISION
+        and RuntimeAuditor.COMPATIBLE_VALIDATION_REVISIONS[revision] == nil then
         return "stale", "runtime_audit_item_revision_stale"
     end
     if item.status ~= "passed" and item.status ~= "failed" then
@@ -414,7 +420,23 @@ end
 
 function RuntimeAuditor.evaluate(sequence, compiled, runtime)
     runtime = type(runtime) == "table" and runtime or {}
-    local evaluation = Transcriber.verify_candidate(sequence, compiled, runtime)
+    local replay_runtime = {}
+    for key, value in pairs(runtime) do replay_runtime[key] = value end
+    replay_runtime.allow_timeline = true
+    replay_runtime.reason_prefix = "replay_"
+    -- Legacy timeline rows are validated by the same training UI the player
+    -- uses, plus final outcome and command-display checks. Their historical
+    -- step counters and Action grouping are not the strict compiler schema
+    -- used by generated raw candidates, so retain trace drift as diagnostics.
+    replay_runtime.strict_step_validation = runtime.input_source ~= "timeline"
+    replay_runtime.allow_legacy_timeline_outcome_compatibility =
+        runtime.input_source == "timeline"
+            and runtime.trial_completed == true
+    local evaluation = Transcriber.verify_replay(
+        sequence,
+        compiled,
+        replay_runtime
+    )
     validate_command_display(evaluation, runtime, sequence)
     if runtime.trial_completed ~= true then
         append_reason(evaluation, "runtime_trial_not_completed")
@@ -442,14 +464,30 @@ function RuntimeAuditor.report(run)
         status = run.status,
         report_path = run.report_path,
         verifier = {
-            input = "relative_raw_inputs_or_raw_inputs",
+            input = "relative_raw_inputs_or_raw_inputs_or_timeline",
             input_priority = {
                 "relative_raw_inputs",
                 "raw_inputs",
+                "timeline",
             },
             action_truth = "runtime_action_id_or_verified_command_owner",
+            replay_action_trace = "compiled.trace.observed_actions",
             raw_action_trace = "compiled.trace.observed_actions",
             timing_tolerance = 2,
+            step_trace_policy = {
+                relative_raw_inputs = "strict",
+                raw_inputs = "strict",
+                timeline = "advisory_with_training_ui_completion_required",
+            },
+            timeline_outcome_policy = {
+                guarded_followup =
+                    "advisory_when_runtime_reset_and_post_reset_block_are_proven",
+                combo_count_only =
+                    "advisory_when_damage_contacts_and_completion_match",
+                damage_resources_and_terminal_contact = "strict_otherwise",
+            },
+            compatible_validation_revisions =
+                deep_copy(RuntimeAuditor.COMPATIBLE_VALIDATION_REVISIONS),
             command_display = {
                 source = "runtime.command_display_validation",
                 required = true,

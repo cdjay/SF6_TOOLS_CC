@@ -65,7 +65,8 @@ function normalizeVersion(value) {
 function versionDirectories(root) {
     if (!fs.existsSync(root)) return [];
     return fs.readdirSync(root, { withFileTypes: true })
-        .filter(entry => entry.isDirectory() && !entry.name.startsWith("."))
+        .filter(entry => entry.isDirectory()
+            && /^\d{4}[.-]\d{1,2}[.-]\d{1,2}$/.test(entry.name))
         .map(entry => ({ name: entry.name, normalized: normalizeVersion(entry.name) }))
         .sort((left, right) => left.normalized.localeCompare(right.normalized));
 }
@@ -335,7 +336,10 @@ function buildVersion(options) {
     const registry = readJson(CHARACTER_MANIFEST);
     const expected = new Map(Object.entries(registry).map(([character, entry]) =>
         [Number(entry.fighter_id), character]));
-    if (expected.size !== 30) throw new Error(`角色清单不是30个唯一 Fighter ID: ${expected.size}`);
+    const expectedCount = Object.keys(registry).length;
+    if (!expectedCount || expected.size !== expectedCount) {
+        throw new Error(`角色清单为空或 Fighter ID 不唯一: 角色=${expectedCount}，唯一ID=${expected.size}`);
+    }
 
     const scan = archive.scanDumpDirectory(versionDirectory);
     if (scan.incomplete.length) {
@@ -347,7 +351,7 @@ function buildVersion(options) {
         const bcm = readSource(path.join(versionDirectory, pair.bcm));
         const fighterId = Number(ac.value.fighter_id);
         const filenameId = filenameFighterId(pair.stem);
-        if (!expected.has(fighterId)) throw new Error(`${pair.stem} 的 fighter_id=${fighterId} 不在30角色清单。`);
+        if (!expected.has(fighterId)) throw new Error(`${pair.stem} 的 fighter_id=${fighterId} 不在角色清单。`);
         if (filenameId !== null && filenameId !== fighterId) {
             throw new Error(`${pair.stem} 文件名ID=${filenameId} 与 AC fighter_id=${fighterId} 不一致。`);
         }
@@ -358,8 +362,8 @@ function buildVersion(options) {
         pairsById.set(fighterId, { pair, ac, bcm });
     }
     const missing = [...expected.keys()].filter(id => !pairsById.has(id));
-    if (missing.length || pairsById.size !== 30) {
-        throw new Error(`${versionName} 必须包含30角色完整配对；缺少 Fighter ID: ${missing.join(", ") || "无"}。`);
+    if (missing.length || pairsById.size !== expectedCount) {
+        throw new Error(`${versionName} 必须包含${expectedCount}角色完整配对；缺少 Fighter ID: ${missing.join(", ") || "无"}。`);
     }
 
     const target = path.join(versionDirectory, "lastjson");
@@ -424,11 +428,11 @@ function buildVersion(options) {
                 difference
             });
         }
-        if (fs.readdirSync(stage).filter(name => name.endsWith(".json")).length !== 30) {
-            throw new Error("暂存输出不是正好30个角色 JSON。")
+        if (fs.readdirSync(stage).filter(name => name.endsWith(".json")).length !== expectedCount) {
+            throw new Error(`暂存输出不是正好${expectedCount}个角色 JSON。`)
         }
-        if (fs.readdirSync(webStage).filter(name => name.endsWith(".json")).length !== 30) {
-            throw new Error("网页暂存输出不是正好30个角色 JSON。")
+        if (fs.readdirSync(webStage).filter(name => name.endsWith(".json")).length !== expectedCount) {
+            throw new Error(`网页暂存输出不是正好${expectedCount}个角色 JSON。`)
         }
         replaceDirectorySet([
             { stage, target },
@@ -474,7 +478,8 @@ function run(argv) {
         outputs.push(result);
         const changed = result.results.filter(item => item.difference.added.length
             || item.difference.removed.length || item.difference.changed.length).length;
-        console.log(`[${version.name}] 完成：30/30，变化角色 ${changed}，游戏输出 ${result.output}，网页输出 ${result.web_output}`);
+        const completed = result.results.length;
+        console.log(`[${version.name}] 完成：${completed}/${completed}，变化角色 ${changed}，游戏输出 ${result.output}，网页输出 ${result.web_output}`);
     }
     console.log(`\n全部完成：${outputs.length} 个版本。`);
 }

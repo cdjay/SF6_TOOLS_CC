@@ -26,6 +26,59 @@ local function shallow_copy(value)
     return output
 end
 
+function SceneState.stable_legacy_actor_hp(sequence)
+    local stable = nil
+    for _, step in ipairs(type(sequence) == "table" and sequence or {}) do
+        local hp = tonumber(type(step) == "table" and step.expected_hp)
+        if hp ~= nil then
+            hp = math.max(0, math.floor(hp + 0.5))
+            if stable ~= nil and hp ~= stable then return nil end
+            stable = hp
+        end
+    end
+    return stable
+end
+
+-- Older portable recordings may keep the real attacking HP only as a stable
+-- expected_hp value while scene_state contains a generic or incomplete actor
+-- resource block. Materialize that evidence on the in-memory loaded sequence;
+-- callers remain responsible for copying before invoking this on source data.
+function SceneState.materialize_stable_legacy_actor_hp(sequence)
+    local first = type(sequence) == "table" and sequence[1] or nil
+    local legacy_hp = SceneState.stable_legacy_actor_hp(sequence)
+    if type(first) ~= "table" or legacy_hp == nil or legacy_hp <= 0 then
+        return nil
+    end
+
+    first.scene_state = type(first.scene_state) == "table"
+        and first.scene_state or {}
+    local scene = first.scene_state
+    scene.recorded_by = normalized_player_index(
+        first.recorded_by or scene.recorded_by
+    )
+    scene.players = type(scene.players) == "table" and scene.players or {}
+    local actor_side = scene.recorded_by == 1 and "p2" or "p1"
+    scene.players[actor_side] = type(scene.players[actor_side]) == "table"
+        and scene.players[actor_side] or {}
+    local actor_state = scene.players[actor_side]
+    actor_state.resources = type(actor_state.resources) == "table"
+        and actor_state.resources or {}
+    local resources = actor_state.resources
+    local scene_hp = tonumber(resources.hp)
+    if scene_hp == legacy_hp then return nil end
+
+    resources.hp = legacy_hp
+    if resources.heal_hp ~= nil or scene_hp == nil then
+        resources.heal_hp = legacy_hp
+    end
+    return {
+        field = "scene_state.actor.resources.hp",
+        from = scene_hp,
+        to = legacy_hp,
+        reason = "stable_legacy_expected_hp",
+    }
+end
+
 function SceneState.resolve_roles(first_step, playing_player)
     if type(first_step) ~= "table" then return nil end
     local scene = first_step.scene_state

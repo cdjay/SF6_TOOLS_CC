@@ -6287,12 +6287,71 @@
         "214+LK"
       ]
     },
-    "control_support": "classic_only",
+    "control_support": "classic_modern",
     "source": "ac_bcm+capcom_official_semantics",
-    "ownership": "classic_runtime",
-    "simple_command": null,
+    "ownership": "direct",
+    "simple_command": {
+      "display": "1 + SP",
+      "inputs": [
+        "1 + SP"
+      ]
+    },
     "motion_command": null,
-    "routes": []
+    "routes": [
+      {
+        "display": "1 + SP",
+        "character": "ChunLi",
+        "owner_action_id": 935,
+        "trigger_index": 73,
+        "profile": "easy",
+        "command_no": -1,
+        "command_index": -1,
+        "raw_direction_inputs": [],
+        "raw_button_mask": 32,
+        "raw_button_condition": 16416,
+        "raw_dc_exc_flags": 6,
+        "raw_ng_key_flags": 0,
+        "visible_direction": "1",
+        "visible_button": "SP",
+        "button_candidates": [],
+        "required_button_count": 1,
+        "source": "bcm_profile",
+        "ac_relation_type": null,
+        "ac_path": [],
+        "inherited_from_action_id": null,
+        "confidence": "direct_structural",
+        "direct_evidence": true,
+        "inheritance_evidence": false,
+        "inheritance_reason": null,
+        "rebind_evidence": false,
+        "rebind_reason": null,
+        "runtime_common_evidence": false,
+        "runtime_common_reason": null,
+        "official_semantic_evidence": false,
+        "official_semantic_reason": null,
+        "community_semantic_evidence": false,
+        "community_semantic_reason": null,
+        "assist_combo_evidence": false,
+        "assist_combo_reason": null,
+        "charge_context_evidence": false,
+        "charge_context_profile": null,
+        "charge_context_direction": null,
+        "charge_context_manual_direction": null,
+        "charge_context_direction_profile": null,
+        "charge_context_command_no": null,
+        "charge_context_command_index": null,
+        "charge_context_notation": null,
+        "charge_context_source_action_id": null,
+        "charge_context_source_trigger_indices": [],
+        "charge_context_relation": null,
+        "charge_context_reason": null,
+        "super_shortcut_direction_evidence": false,
+        "super_shortcut_direction_profile": null,
+        "super_shortcut_direction": null,
+        "super_shortcut_direction_notation": null,
+        "super_shortcut_direction_reason": null
+      }
+    ]
   },
   "936": {
     "classic_command": {
@@ -6324,7 +6383,7 @@
         "raw_button_mask": 32,
         "raw_button_condition": 16416,
         "raw_dc_exc_flags": 2,
-        "raw_ng_key_flags": 0,
+        "raw_ng_key_flags": 12,
         "visible_direction": "2",
         "visible_button": "SP",
         "button_candidates": [],
@@ -6374,12 +6433,71 @@
         "214+HK"
       ]
     },
-    "control_support": "classic_only",
+    "control_support": "classic_modern",
     "source": "ac_bcm+capcom_official_semantics",
-    "ownership": "classic_runtime",
-    "simple_command": null,
+    "ownership": "direct",
+    "simple_command": {
+      "display": "3 + SP",
+      "inputs": [
+        "3 + SP"
+      ]
+    },
     "motion_command": null,
-    "routes": []
+    "routes": [
+      {
+        "display": "3 + SP",
+        "character": "ChunLi",
+        "owner_action_id": 937,
+        "trigger_index": 75,
+        "profile": "easy",
+        "command_no": -1,
+        "command_index": -1,
+        "raw_direction_inputs": [],
+        "raw_button_mask": 32,
+        "raw_button_condition": 16416,
+        "raw_dc_exc_flags": 10,
+        "raw_ng_key_flags": 0,
+        "visible_direction": "3",
+        "visible_button": "SP",
+        "button_candidates": [],
+        "required_button_count": 1,
+        "source": "bcm_profile",
+        "ac_relation_type": null,
+        "ac_path": [],
+        "inherited_from_action_id": null,
+        "confidence": "direct_structural",
+        "direct_evidence": true,
+        "inheritance_evidence": false,
+        "inheritance_reason": null,
+        "rebind_evidence": false,
+        "rebind_reason": null,
+        "runtime_common_evidence": false,
+        "runtime_common_reason": null,
+        "official_semantic_evidence": false,
+        "official_semantic_reason": null,
+        "community_semantic_evidence": false,
+        "community_semantic_reason": null,
+        "assist_combo_evidence": false,
+        "assist_combo_reason": null,
+        "charge_context_evidence": false,
+        "charge_context_profile": null,
+        "charge_context_direction": null,
+        "charge_context_manual_direction": null,
+        "charge_context_direction_profile": null,
+        "charge_context_command_no": null,
+        "charge_context_command_index": null,
+        "charge_context_notation": null,
+        "charge_context_source_action_id": null,
+        "charge_context_source_trigger_indices": [],
+        "charge_context_relation": null,
+        "charge_context_reason": null,
+        "super_shortcut_direction_evidence": false,
+        "super_shortcut_direction_profile": null,
+        "super_shortcut_direction": null,
+        "super_shortcut_direction_notation": null,
+        "super_shortcut_direction_reason": null
+      }
+    ]
   },
   "938": {
     "classic_command": {
@@ -8284,15 +8402,15 @@
     "character": "ChunLi",
     "fighter_id": 4,
     "generated_from": "ac_bcm+capcom_official_semantics",
-    "generated_at": "2026-05-28T00:00:00.000Z",
-    "ac_sha256": "dbe8804f41692fa244dadeaf46bc2c1c0c2d4bde7733e3e4173f91c34cdeb4de",
-    "bcm_sha256": "f347fe31a68db51b48e8a18950fa82f3abe2e021dc9d024457602a5322e791d4",
+    "generated_at": "2026-08-03T00:00:00.000Z",
+    "ac_sha256": "8dcd21cab1ae11982c8fb011d4ad04beece543d366205552dabedc861c5e24a2",
+    "bcm_sha256": "a98f1bd8ad8d517fbda07a0fb57bea7786d3266ea57f6b1a3a2b613ac7e331d6",
     "modern_profile_order": [
       "easy",
       "supr",
       "sprt"
     ],
-    "direct_route_count": 97,
+    "direct_route_count": 99,
     "inherited_route_count": 8,
     "rebind_route_count": 0,
     "runtime_common_route_count": 6,
@@ -8308,6 +8426,7 @@
     "type20_directional_route_count": 0,
     "type20_hold_route_count": 0,
     "type20_action_phase_route_count": 0,
+    "type37_followup_execution_phase_route_count": 0,
     "charge_context_route_count": 2,
     "super_shortcut_direction_route_count": 4,
     "ac_charge_context_relation_count": 0,
@@ -8530,7 +8649,7 @@
     "ac_type13_neutral_relations": [],
     "internal_transition_suppression_count": 0,
     "suppressed_internal_transitions": [],
-    "split_command_action_count": 88,
+    "split_command_action_count": 90,
     "followup_relation_count": 1,
     "followup_relations": [
       {
@@ -8541,7 +8660,7 @@
         "official_move_name": "百裂連脚"
       }
     ],
-    "official_semantic_source_sha256": "0b0ccd94acecd0b64cd99a5d5b621e2ab81d98ec17c1d6a2acd34c8c49af1a39",
+    "official_semantic_source_sha256": "8933cd67e06b3f7a5fb5cd5ddeb831fbc1a36acb2fd9e2d8cbabb0abdd0bf6c9",
     "classic_profile_order": [
       "norm",
       "sprt"
@@ -8657,6 +8776,7 @@
     "type20_directional_relations": [],
     "type20_hold_relations": [],
     "type20_action_phase_relations": [],
+    "type37_followup_execution_phase_relations": [],
     "target_combo_repeat_relations": [],
     "structural_twin_relations": [],
     "assist_combo_relations": [
@@ -9975,7 +10095,7 @@
         "reason": "profile_disabled_or_missing"
       }
     ],
-    "unmapped_action_count": 259,
+    "unmapped_action_count": 257,
     "unmapped_action_ids": [
       1,
       2,
@@ -10202,8 +10322,6 @@
       930,
       931,
       932,
-      935,
-      937,
       939,
       954,
       955,
@@ -10271,6 +10389,8 @@
       "type20_hold_route_count": 0,
       "type20_action_phase_relation_count": 0,
       "type20_action_phase_route_count": 0,
+      "type37_followup_execution_phase_relation_count": 0,
+      "type37_followup_execution_phase_route_count": 0,
       "charge_context_route_count": 2,
       "super_shortcut_direction_route_count": 4,
       "ac_charge_context_relation_count": 0,
@@ -10296,9 +10416,9 @@
       "ac_type13_neutral_relation_count": 0,
       "ac_type13_neutral_route_count": 0,
       "internal_transition_suppression_count": 0,
-      "split_command_action_count": 88,
+      "split_command_action_count": 90,
       "classic_command_action_count": 96,
-      "shared_command_action_count": 88,
+      "shared_command_action_count": 90,
       "classic_projection_pending_count": 0,
       "command_display_action_count": 96,
       "followup_relation_count": 1,

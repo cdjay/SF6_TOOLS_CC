@@ -6629,8 +6629,8 @@
     "character": "MBison",
     "fighter_id": 26,
     "generated_from": "ac_bcm+capcom_official_semantics",
-    "generated_at": "2026-05-28T00:00:00.000Z",
-    "ac_sha256": "b24e488b6ba07fdabbdcf27c93f9e1f3ac5b47bf1cd529114eda06487a69618e",
+    "generated_at": "2026-08-03T00:00:00.000Z",
+    "ac_sha256": "9436ca0bf5ace2722e4e9ac35c3d5b79cf26f2f2a139a8e0543f37e6701e7785",
     "bcm_sha256": "b3c58bcd979e14bce3abd8550249087000763520963a79c18d9c80a55d5db711",
     "modern_profile_order": [
       "easy",
@@ -6653,6 +6653,7 @@
     "type20_directional_route_count": 0,
     "type20_hold_route_count": 0,
     "type20_action_phase_route_count": 0,
+    "type37_followup_execution_phase_route_count": 0,
     "charge_context_route_count": 4,
     "super_shortcut_direction_route_count": 5,
     "ac_charge_context_relation_count": 0,
@@ -6717,7 +6718,7 @@
         "official_move_name": "サマーソルトスカルダイバー"
       }
     ],
-    "official_semantic_source_sha256": "f6e28f06a621a05689d3db7a760901787bbdc8fd551c4e8c90b09c8e8d40c9ca",
+    "official_semantic_source_sha256": "7487f2e09620b789d7e5b57ee0cf2e8f563613586c22ffc08dea825f0d701488",
     "classic_profile_order": [
       "norm",
       "sprt"
@@ -6800,6 +6801,7 @@
     "type20_directional_relations": [],
     "type20_hold_relations": [],
     "type20_action_phase_relations": [],
+    "type37_followup_execution_phase_relations": [],
     "target_combo_repeat_relations": [],
     "structural_twin_relations": [],
     "assist_combo_relations": [
@@ -8759,6 +8761,8 @@
       "type20_hold_route_count": 0,
       "type20_action_phase_relation_count": 0,
       "type20_action_phase_route_count": 0,
+      "type37_followup_execution_phase_relation_count": 0,
+      "type37_followup_execution_phase_route_count": 0,
       "charge_context_route_count": 4,
       "super_shortcut_direction_route_count": 5,
       "ac_charge_context_relation_count": 0,

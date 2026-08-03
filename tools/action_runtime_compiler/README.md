@@ -1,13 +1,13 @@
 # AC + BCM + OFF Modern 指令生成工具
 
-这套工具把游戏 dump 的 AC/BCM 与 Capcom 官网数据分开版本化，再为每个 AC/BCM 版本一次生成30个角色的统一指令表。
+这套工具把游戏 dump 的 AC/BCM 与 Capcom 官网数据分开版本化，再为每个 AC/BCM 版本一次生成角色清单中的全部统一指令表（当前 31 个角色）。
 
 核心原则：
 
 - 游戏 Action ID 和动作关系只认 AC+BCM；
 - 官网 OFF 只提供招式名称、Classic/Modern 玩家语义，官网 Action ID 不能直接当游戏 Action ID；
 - 每个日期目录是独立版本，不混用其他日期的原始数据；
-- `lastjson` 必须一次成功生成30个角色，任何缺失或 hard audit 失败都不覆盖旧结果。
+- `lastjson` 必须一次成功生成角色清单中的全部角色，任何缺失或 hard audit 失败都不覆盖旧结果。
 
 ## 1. 最终目录
 
@@ -19,21 +19,21 @@ tools/action_runtime_compiler/
 │  ├─ 2026-05-28/
 │  │  ├─ f001-fab-action-catalog-full-classic.json
 │  │  ├─ f001-fab-bcm-full-classic.json
-│  │  ├─ ...共30组...
+│  │  ├─ ...与角色清单等量的完整配对...
 │  │  ├─ lastjson/
 │  │  │  ├─ Ryu.json
 │  │  │  ├─ Luke.json
-│  │  │  └─ ...正好30个角色JSON...
+│  │  │  └─ ...正好与角色清单等量的角色JSON...
 │  │  ├─ lastjson_web/
 │  │  │  ├─ Ryu.json
 │  │  │  ├─ Luke.json
-│  │  │  └─ ...正好30个网页角色资料JSON...
+│  │  │  └─ ...正好与角色清单等量的网页角色资料JSON...
 │  │  └─ lastjson-manifest.json
 │  └─ <下一个日期>/
 ├─ off/
 │  ├─ 2026-05-28/
 │  │  ├─ Ryu.official.generated.json
-│  │  ├─ ...共30个官网快照...
+│  │  ├─ ...与角色清单等量的官网快照...
 │  │  ├─ manifest.json
 │  │  ├─ differences.json
 │  │  └─ differences.md
@@ -75,6 +75,7 @@ Fighter ID 对应关系：
 | 22 | Akuma | 25 | Sagat | 26 | MBison |
 | 27 | Terry | 28 | Mai | 29 | Elena |
 | 30 | CViper | 31 | Alex | 32 | Ingrid |
+| 33 | Yasmine |  |  |  |  |
 
 旧的中文前缀文件名（如 `英格丽德32-...`）仍可读取，方便迁移；新 dump 不需要人工改名。
 
@@ -97,7 +98,7 @@ Fighter ID 对应关系：
 tools\action_runtime_compiler\1_fetch_official_and_diff.bat 2026-05-28
 ```
 
-程序只请求一次 Capcom frame 页面和公共 frame 数据模块，从模块中解析30个角色，写入：
+程序只请求一次 Capcom frame 页面和公共 frame 数据模块，从模块中解析角色清单中的全部角色，写入：
 
 ```text
 off/<版本>/<Character>.official.generated.json
@@ -122,7 +123,7 @@ off/<版本>/<Character>.official.generated.json
 
 - `differences.md`：适合直接阅读，列出变化角色、增加/删除/变化 Action ID 和字段路径；
 - `differences.json`：完整机器可读差异，包含字段修改前后值；
-- `manifest.json`：30角色文件、Fighter ID 和快照哈希。
+- `manifest.json`：全部角色文件、Fighter ID 和快照哈希。
 
 抓取或解析任一角色失败时，本次不会用半套数据覆盖目标版本。
 
@@ -148,14 +149,14 @@ tools\action_runtime_compiler\2_build_lastjson.bat 2026-05-28
 
 生成条件：
 
-1. 该版本必须有30组完整 AC+BCM；
-2. `off` 下必须有同日期的30角色官网快照；
+1. 该版本必须有与角色清单等量的完整 AC+BCM；
+2. `off` 下必须有同日期的全部角色官网快照；
 3. Fighter ID 不能缺失或重复；
 4. AC、BCM和文件名 Fighter ID 必须一致；
 5. 每个角色 AC+BCM 编译必须有效；
 6. 统一指令输出 hard audit 必须通过；
 7. 所有现代指令必须拥有经典投影，`classic_projection_pending_count` 必须为零；
-8. 游戏与网页暂存目录都必须正好得到30个角色 JSON。
+8. 游戏与网页暂存目录都必须正好得到与角色清单等量的 JSON。
 
 全部通过后才同时替换旧 `lastjson` 与 `lastjson_web`；若中途失败，两套旧结果都保持不变。
 
@@ -164,7 +165,7 @@ tools\action_runtime_compiler\2_build_lastjson.bat 2026-05-28
 `moves`、`move_order`、帧数、伤害、取消属性和量表字段。连段起手与角色资料页共享同一个 Action
 指令投影，不需要网站再次解析指令文本。
 
-`lastjson` 与 `lastjson_web` 必须同时正好生成30个角色；任一生成、校验或目录替换失败时，两套旧
+`lastjson` 与 `lastjson_web` 必须同时正好生成角色清单中的全部角色；任一生成、校验或目录替换失败时，两套旧
 结果都会保留。
 
 官网帧数据模块可能把等级蓄力招式的内部候选编码放在 `command` 字段。网页生成器不会直接渲染
@@ -172,7 +173,7 @@ tools\action_runtime_compiler\2_build_lastjson.bat 2026-05-28
 已验证 Action 指令，Modern 使用官网独立招式语义。Action 索引仍保留原有连段或 assist-combo
 投影，避免角色资料页修正影响连段步骤。
 
-`lastjson-manifest.json` 放在版本目录根部，不混入 `lastjson`，因此 `lastjson` 内始终正好30个可全选复制的角色文件。manifest 记录每个角色的输入文件、输出哈希、Action 数和相对覆盖前结果的新增/删除/变化 ID。
+`lastjson-manifest.json` 放在版本目录根部，不混入 `lastjson`，因此 `lastjson` 内始终只有角色清单中的正式角色文件。manifest 记录每个角色的输入文件、输出哈希、Action 数和相对覆盖前结果的新增/删除/变化 ID。
 
 ## 5. 官网文件名与角色名
 

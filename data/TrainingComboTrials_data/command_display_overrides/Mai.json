@@ -1,0 +1,25 @@
+{
+  "schema": "xt.command_display_overrides.v1",
+  "character": "Mai",
+  "entries": {
+    "600": {
+      "classic": "LP",
+      "replace": true,
+      "evidence": "Twenty-two runtime audit events across twenty timeline trials bind an LP press to Mai Action 600; seventeen events also record hit contact, and the generated catalog independently records the same Classic command"
+    },
+    "603": {
+      "classic": "MP",
+      "replace": true,
+      "evidence": "A runtime audit replay binds a neutral MP press and hit contact to Mai Action 603; the generated catalog independently records the same Classic command"
+    },
+    "605": {
+      "classic": "HP",
+      "evidence": "A post-update runtime audit binds three fresh HP presses with hit contact to Mai Action 605; all three replace legacy Action 604 occurrences in the same reproduced route"
+    },
+    "907": {
+      "classic": ">6+MP",
+      "replace": true,
+      "evidence": "Three timeline runtime audit replays bind the relative-forward MP follow-up and hit contact to Mai Action 907 after Action 906"
+    }
+  }
+}

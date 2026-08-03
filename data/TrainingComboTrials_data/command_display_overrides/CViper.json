@@ -1,0 +1,16 @@
+{
+  "schema": "xt.command_display_overrides.v1",
+  "character": "CViper",
+  "entries": {
+    "608": {
+      "classic": "HK",
+      "replace": true,
+      "evidence": "Three runtime audit hit events bind C. Viper Action 608 to a physical HK input"
+    },
+    "1037": {
+      "classic": "28",
+      "replace": true,
+      "evidence": "Runtime audit confirms C. Viper Action 1037 is the player-visible 28 high-jump cancel used before multiple follow-up Actions"
+    }
+  }
+}

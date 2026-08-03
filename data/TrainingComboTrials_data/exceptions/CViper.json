@@ -17,5 +17,12 @@
     "is_holdable": true,
     "charge_min": 10,
     "charge_max": 57
+  },
+  "1037": {
+    "action_event_rules": {
+      "preserve_quick_successor": {
+        "max_delay_frames": 4
+      }
+    }
   }
 }

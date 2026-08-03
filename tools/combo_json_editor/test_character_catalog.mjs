@@ -13,7 +13,7 @@ const source = JSON.parse(fs.readFileSync(
     "utf8"
 ));
 
-assert.equal(CHARACTER_CATALOG.length, 30);
+assert.equal(CHARACTER_CATALOG.length, Object.keys(source).length);
 assert.equal(new Set(CHARACTER_CATALOG.map(item => item.fighterId)).size, CHARACTER_CATALOG.length);
 assert.equal(new Set(CHARACTER_CATALOG.map(item => item.folder.toLowerCase())).size, CHARACTER_CATALOG.length);
 
@@ -27,5 +27,6 @@ for (const item of CHARACTER_CATALOG) {
 assert.equal(folderFromPath("AKI/file.json"), "AKI");
 assert.equal(folderFromPath("AKI\\file.json"), "AKI");
 assert.match(characterLabel(characterByFolder("AKI"), 28), /ID 13.*阿鬼.*A\.K\.I\..*\[AKI\].*28/);
+assert.equal(characterByFighterId(33)?.folder, "Yasmine");
 
 console.log("character_catalog tests passed");

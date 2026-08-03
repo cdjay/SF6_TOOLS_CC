@@ -81,6 +81,14 @@ local audit_stream, audit_source = codec.select_transcription_stream({
 }, true)
 assert(audit_source == "raw_inputs" and audit_stream[1] == 8,
     "runtime audit must test the installed legacy stream")
+local timeline_audit_stream, timeline_audit_source, timeline_audit_available =
+    codec.select_transcription_stream({
+        timeline = { "1f : 4", "1f : 4+LP" },
+    }, true)
+assert(timeline_audit_stream == nil
+    and timeline_audit_source == "timeline"
+    and timeline_audit_available == true,
+    "runtime audit must accept a usable timeline when no raw stream exists")
 local damaged_timeline_stream, damaged_timeline_source =
     codec.select_transcription_stream({
         raw_inputs = { 8, 24, 0 },

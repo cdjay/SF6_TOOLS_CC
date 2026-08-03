@@ -8511,9 +8511,9 @@
     "character": "Ken",
     "fighter_id": 10,
     "generated_from": "ac_bcm+capcom_official_semantics",
-    "generated_at": "2026-05-28T00:00:00.000Z",
-    "ac_sha256": "6881f613c711038a611e90e6e51be5ee2265f5bb4214b0755812d0a0ecc38308",
-    "bcm_sha256": "531a85c2b3bb2997678938519455a9e9a1e299db177663abd45c37b7a7156043",
+    "generated_at": "2026-08-03T00:00:00.000Z",
+    "ac_sha256": "3f8582aecd0f559a3c04f82e837832ccc6ce80a52ceec1edaf6c78fabd41dd57",
+    "bcm_sha256": "5c7217d86f64547ef2771a434a51980e454b9020aa4f54ebbdec9f183ad059a9",
     "modern_profile_order": [
       "easy",
       "supr",
@@ -8535,6 +8535,7 @@
     "type20_directional_route_count": 0,
     "type20_hold_route_count": 0,
     "type20_action_phase_route_count": 0,
+    "type37_followup_execution_phase_route_count": 0,
     "charge_context_route_count": 0,
     "super_shortcut_direction_route_count": 5,
     "ac_charge_context_relation_count": 0,
@@ -8621,7 +8622,7 @@
         "official_move_name": "火砕蹴"
       }
     ],
-    "official_semantic_source_sha256": "0523aa066aae765b9afd645ebdedcbf64da4810f0a7abd432cf9b69a4469a129",
+    "official_semantic_source_sha256": "83b713198f7f923a5535342244b53ea284cc03296951107c847766dde84fb338",
     "classic_profile_order": [
       "norm",
       "sprt"
@@ -8704,6 +8705,7 @@
     "type20_directional_relations": [],
     "type20_hold_relations": [],
     "type20_action_phase_relations": [],
+    "type37_followup_execution_phase_relations": [],
     "target_combo_repeat_relations": [],
     "structural_twin_relations": [],
     "assist_combo_relations": [
@@ -10636,7 +10638,7 @@
         "reason": "profile_disabled_or_missing"
       }
     ],
-    "unmapped_action_count": 219,
+    "unmapped_action_count": 220,
     "unmapped_action_ids": [
       1,
       2,
@@ -10806,6 +10808,7 @@
       624,
       639,
       657,
+      684,
       720,
       721,
       722,
@@ -10892,6 +10895,8 @@
       "type20_hold_route_count": 0,
       "type20_action_phase_relation_count": 0,
       "type20_action_phase_route_count": 0,
+      "type37_followup_execution_phase_relation_count": 0,
+      "type37_followup_execution_phase_route_count": 0,
       "charge_context_route_count": 0,
       "super_shortcut_direction_route_count": 5,
       "ac_charge_context_relation_count": 0,

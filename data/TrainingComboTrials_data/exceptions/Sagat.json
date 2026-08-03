@@ -12,6 +12,17 @@
     "charge_min": 23,
     "charge_max": 23
   },
+  "944": {
+    "optional_parent_ids": [
+      943
+    ]
+  },
+  "953": {
+    "action_alias_ids": "951"
+  },
+  "954": {
+    "action_alias_ids": "953"
+  },
   "1212": {
     "force": true
   },

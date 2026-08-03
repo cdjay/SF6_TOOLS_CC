@@ -358,6 +358,79 @@ local function observed_segmented_combo_structure(
     }
 end
 
+-- Some legacy timeline trials intentionally contain two phases: a real combo,
+-- then a pressure/oki tail played into "guard after first hit". Their authored
+-- damage and combo counters describe the open-hit branch, while runtime truth
+-- correctly records blocks after the first combo has reset. Treat that outcome
+-- drift as compatible only when the runtime trace proves all three facts: a hit
+-- before the reset, a real combo reset, and a blocked contact after the reset.
+local function observed_guarded_followup_structure(
+    sequence,
+    compiled,
+    authored_action_subsequence_match,
+    expected_blocks
+)
+    if authored_action_subsequence_match ~= true
+        or math.max(0, tonumber(expected_blocks) or 0) > 0
+        or type(sequence) ~= "table"
+        or type(compiled) ~= "table" then
+        return nil
+    end
+    local first = first_step(sequence)
+    local guard_type = TrainingEnvironment.resolve_dummy_guard_type(first, nil)
+    if guard_type ~= TrainingEnvironment.DUMMY_GUARD.AFTER_FIRST_HIT then
+        return nil
+    end
+
+    local trace = type(compiled.trace) == "table" and compiled.trace or {}
+    local events = type(trace.projected_events) == "table"
+        and trace.projected_events or {}
+    local reset_frames = type(trace.combo_reset_frames) == "table"
+        and trace.combo_reset_frames or {}
+    if #events == 0 or #reset_frames == 0 then return nil end
+
+    for _, raw_reset_frame in ipairs(reset_frames) do
+        local reset_frame = tonumber(raw_reset_frame)
+        if reset_frame ~= nil then
+            local hit_contacts_before = 0
+            local block_contacts_after = 0
+            local first_block_frame = nil
+            for _, event in ipairs(events) do
+                if type(event) == "table" then
+                    local frame = tonumber(event.first_contact_frame)
+                        or tonumber(event.frame)
+                    local made_contact = event.has_contact == true
+                        or event.has_hit == true
+                        or event.hit_result == "block"
+                        or event.was_blocked == true
+                    local was_blocked = made_contact
+                        and (event.has_hit ~= true
+                            or event.hit_result == "block"
+                            or event.was_blocked == true)
+                    if frame ~= nil and made_contact then
+                        if frame < reset_frame and event.has_hit == true then
+                            hit_contacts_before = hit_contacts_before + 1
+                        elseif frame >= reset_frame and was_blocked then
+                            block_contacts_after = block_contacts_after + 1
+                            first_block_frame = first_block_frame or frame
+                        end
+                    end
+                end
+            end
+            if hit_contacts_before > 0 and block_contacts_after > 0 then
+                return {
+                    reason = "observed_guarded_followup_after_combo_reset",
+                    reset_frame = reset_frame,
+                    first_block_frame = first_block_frame,
+                    hit_contacts_before = hit_contacts_before,
+                    block_contacts_after = block_contacts_after,
+                }
+            end
+        end
+    end
+    return nil
+end
+
 local function has_persistent_damage_evidence(stats, trace, structure)
     stats = type(stats) == "table" and stats or {}
     trace = type(trace) == "table" and trace or {}
@@ -411,19 +484,6 @@ local function set_prepared_environment_field(first, field_name, value)
     first._xt_meta.environment[field_name] = value
 end
 
-local function stable_legacy_actor_hp(sequence)
-    local stable = nil
-    for _, step in ipairs(type(sequence) == "table" and sequence or {}) do
-        local hp = tonumber(type(step) == "table" and step.expected_hp)
-        if hp ~= nil then
-            hp = math.max(0, math.floor(hp + 0.5))
-            if stable ~= nil and hp ~= stable then return nil end
-            stable = hp
-        end
-    end
-    return stable
-end
-
 local function ensure_prepared_actor_state(first)
     first.scene_state = type(first.scene_state) == "table"
         and first.scene_state or {}
@@ -438,39 +498,8 @@ local function ensure_prepared_actor_state(first)
 end
 
 local function prepare_stable_legacy_actor_hp(first, sequence, adjustments)
-    local legacy_hp = stable_legacy_actor_hp(sequence)
-    if legacy_hp == nil or legacy_hp <= 0 then return end
-
-    -- V1 portable scenes often retained fighter/unique state but omitted the
-    -- resource block entirely. In that format, expected_hp repeated on every
-    -- Action is the only persisted truth for the attacking player's starting
-    -- health. Materialize only that one resource on the in-memory transcription
-    -- copy so a prior low-health training-menu setting cannot leak into the next
-    -- file. Do not promote the partial scene to V2: the other V2 fields were not
-    -- actually recorded.
-    local _, actor_state = ensure_prepared_actor_state(first)
-    actor_state.resources = type(actor_state.resources) == "table"
-        and actor_state.resources or {}
-    local actor_resources = actor_state.resources
-    local scene_hp = tonumber(actor_resources and actor_resources.hp)
-    if scene_hp == legacy_hp then return end
-
-    -- Older V2 recorders stored the real attacking HP in expected_hp but wrote
-    -- a generic 10000 into scene_state. Characters do not all have 10000 max
-    -- HP, so a threshold-only repair misses exact CA boundaries such as E.
-    -- Honda's 2625/10500. A value repeated on every Action is stable runtime
-    -- evidence. During transcription only, repair the copied scene from it;
-    -- the original JSON remains untouched.
-    actor_resources.hp = legacy_hp
-    if actor_resources.heal_hp ~= nil or scene_hp == nil then
-        actor_resources.heal_hp = legacy_hp
-    end
-    adjustments[#adjustments + 1] = {
-        field = "scene_state.actor.resources.hp",
-        from = scene_hp,
-        to = legacy_hp,
-        reason = "stable_legacy_expected_hp",
-    }
+    local adjustment = SceneState.materialize_stable_legacy_actor_hp(sequence)
+    if adjustment then adjustments[#adjustments + 1] = adjustment end
 end
 
 local function prepare_legacy_actor_gauges(first, adjustments)
@@ -1342,6 +1371,38 @@ local function terminal_action_contact_matches(sequence, compiled_steps, action_
         or observed.hit_result == "block" or observed.was_blocked == true
 end
 
+-- Timeline playback can expose a trailing non-contact transition after the
+-- authored terminal Action. For audit compatibility, locate the final authored
+-- Action in the complete runtime evidence and validate contact on that Action;
+-- callers must separately prove the whole authored stream is a subsequence.
+local function legacy_terminal_action_contact_matches(
+    sequence,
+    evidence_steps,
+    action_ids_equivalent
+)
+    local sequence_length = type(sequence) == "table" and #sequence or 0
+    local expected = sequence_length > 0 and sequence[sequence_length] or nil
+    local expected_id = tonumber(type(expected) == "table" and expected.id)
+    if expected_id == nil then return false end
+    for index = #(type(evidence_steps) == "table" and evidence_steps or {}), 1, -1 do
+        local observed = evidence_steps[index]
+        local observed_id = tonumber(type(observed) == "table" and observed.id)
+        if observed_id ~= nil and action_ids_match(
+                expected_id,
+                observed_id,
+                action_ids_equivalent,
+                sequence_length
+            ) then
+            if not terminal_contact_is_required(sequence, evidence_steps) then
+                return true
+            end
+            return observed.has_hit == true or observed.has_contact == true
+                or observed.hit_result == "block" or observed.was_blocked == true
+        end
+    end
+    return false
+end
+
 local function nonzero_resource(value)
     if type(value) == "boolean" then return value end
     if type(value) == "number" then return value ~= 0 end
@@ -1377,7 +1438,7 @@ function Transcriber.suspected_causes(sequence, transcription_rules)
     if counter == 2 then append_unique(causes, "first_hit_punish_counter") end
 
     local actor_snapshot = type(snapshot.attacker) == "table" and snapshot.attacker or {}
-    local legacy_actor_hp = stable_legacy_actor_hp(sequence)
+    local legacy_actor_hp = SceneState.stable_legacy_actor_hp(sequence)
     local actor_hp = tonumber(type(actor_resources) == "table" and actor_resources.hp)
         or tonumber(actor_snapshot.current_hp)
     local actor_max_hp = tonumber(actor_snapshot.max_hp)
@@ -1432,7 +1493,7 @@ function Transcriber.evaluate(sequence, compiled, runtime)
     local stats = type(compiled.stats) == "table" and compiled.stats or {}
     local steps = type(compiled.steps) == "table" and compiled.steps or {}
     local expected = expected_outcome(sequence)
-    local expected_actor_hp = stable_legacy_actor_hp(sequence)
+    local expected_actor_hp = SceneState.stable_legacy_actor_hp(sequence)
     if expected_actor_hp ~= nil then expected.actor_hp = expected_actor_hp end
     local reasons = {}
     local advisories = {}
@@ -1465,6 +1526,23 @@ function Transcriber.evaluate(sequence, compiled, runtime)
         steps,
         source_action_ids_equivalent
     )
+    local timeline_outcome_compatibility_requested =
+        runtime.allow_legacy_timeline_outcome_compatibility == true
+        and runtime.input_source == "timeline"
+        and runtime.trial_completed == true
+        and runtime.input_completed == true
+        and runtime.timed_out ~= true
+    local timeline_terminal_contact_match = source_terminal_contact_match
+        or (timeline_outcome_compatibility_requested
+            and legacy_authored_action_subsequence_match
+            and legacy_terminal_action_contact_matches(
+                sequence,
+                steps,
+                source_action_ids_equivalent
+            ))
+    local timeline_outcome_compatibility =
+        timeline_outcome_compatibility_requested
+        and timeline_terminal_contact_match
     local blocked_wall_stun_shift = legacy_blocked_wall_stun_shift(
         sequence,
         compiled,
@@ -1495,6 +1573,13 @@ function Transcriber.evaluate(sequence, compiled, runtime)
         and runtime.input_completed == true
         and runtime.timed_out ~= true
         and source_terminal_contact_match
+    local guarded_followup = timeline_outcome_compatibility
+        and observed_guarded_followup_structure(
+            sequence,
+            compiled,
+            legacy_authored_action_subsequence_match,
+            expected.block_contacts
+        ) or nil
 
     if runtime.input_source ~= "raw_inputs"
         and runtime.input_source ~= RawInputCodec.RELATIVE_FIELD
@@ -1529,14 +1614,26 @@ function Transcriber.evaluate(sequence, compiled, runtime)
         local blocked_early, block_step, block_action, combo_before, saw_block =
             block_before_expected_combo_completion(steps, expected.max_combo)
         if blocked_early then
-            reasons[#reasons + 1] = string.format(
-                "unexpected_block_before_combo_completion:"
-                    .. "step=%d:action=%s:combo=%d:expected=%d",
-                block_step,
-                tostring(block_action),
-                combo_before,
-                expected.max_combo
-            )
+            if guarded_followup ~= nil then
+                advisories[#advisories + 1] = string.format(
+                    "timeline_guarded_followup_block:step=%d:action=%s:"
+                        .. "combo=%d:expected=%d:reset=%d",
+                    block_step,
+                    tostring(block_action),
+                    combo_before,
+                    expected.max_combo,
+                    tonumber(guarded_followup.reset_frame) or 0
+                )
+            else
+                reasons[#reasons + 1] = string.format(
+                    "unexpected_block_before_combo_completion:"
+                        .. "step=%d:action=%s:combo=%d:expected=%d",
+                    block_step,
+                    tostring(block_action),
+                    combo_before,
+                    expected.max_combo
+                )
+            end
         elseif not saw_block then
             reasons[#reasons + 1] =
                 "unexpected_block_contacts_without_action_evidence"
@@ -1645,6 +1742,13 @@ function Transcriber.evaluate(sequence, compiled, runtime)
     local observed_damage = tonumber(stats.damage) or 0
     local source_damage_matches = math.abs(observed_damage - expected.damage)
         <= damage_tolerance
+    local timeline_combo_count_drift = timeline_outcome_compatibility
+        and guarded_followup == nil
+        and legacy_authored_action_subsequence_match
+        and timeline_terminal_contact_match
+        and source_damage_matches
+        and observed_blocks == expected.block_contacts
+        and observed_combo > 0
     if expected.damage > 0
         and math.abs(observed_damage - expected.damage) > damage_tolerance
         and not allow_legacy_damage_drift then
@@ -1653,6 +1757,14 @@ function Transcriber.evaluate(sequence, compiled, runtime)
                 "source_blocked_wall_stun_damage_rebuilt:expected=%d:observed=%d",
                 expected.damage,
                 observed_damage
+            )
+        elseif guarded_followup ~= nil then
+            advisories[#advisories + 1] = string.format(
+                "timeline_guarded_followup_damage:expected=%d:observed=%d:"
+                    .. "blocks=%d",
+                expected.damage,
+                observed_damage,
+                tonumber(guarded_followup.block_contacts_after) or 0
             )
         elseif runtime.allow_legacy_outcome_rebuild == true then
             advisories[#advisories + 1] = string.format(
@@ -1668,6 +1780,18 @@ function Transcriber.evaluate(sequence, compiled, runtime)
         if blocked_wall_stun_shift ~= nil then
             advisories[#advisories + 1] = string.format(
                 "source_blocked_wall_stun_combo_rebuilt:expected=%d:observed=%d",
+                expected.max_combo,
+                observed_combo
+            )
+        elseif guarded_followup ~= nil then
+            advisories[#advisories + 1] = string.format(
+                "timeline_guarded_followup_combo:expected=%d:observed=%d",
+                expected.max_combo,
+                observed_combo
+            )
+        elseif timeline_combo_count_drift then
+            advisories[#advisories + 1] = string.format(
+                "timeline_combo_count_drift:expected=%d:observed=%d",
                 expected.max_combo,
                 observed_combo
             )
@@ -1764,6 +1888,7 @@ function Transcriber.evaluate(sequence, compiled, runtime)
         persistent_damage_window_ticks = persistent_damage_window_ticks,
         blocked_wall_stun_shift = deep_copy(blocked_wall_stun_shift),
         observed_combo_rebuild = deep_copy(observed_combo_rebuild),
+        guarded_followup = deep_copy(guarded_followup),
         environment_validation = environment_validation,
     }
 end
@@ -1776,39 +1901,71 @@ local function prefix_reasons(reasons, prefix)
     return prefixed
 end
 
-function Transcriber.verify_candidate(candidate, compiled, runtime)
+local function verification_input_source(sequence, runtime, allow_timeline)
+    local candidate_first = first_step(sequence)
+    local replay_source = runtime.input_source
+    if replay_source == "raw_inputs"
+        or replay_source == RawInputCodec.RELATIVE_FIELD
+        or (allow_timeline == true and replay_source == "timeline") then
+        return replay_source
+    end
+    if type(candidate_first.relative_raw_inputs) == "table"
+        and #candidate_first.relative_raw_inputs > 0 then
+        return RawInputCodec.RELATIVE_FIELD
+    end
+    if type(candidate_first.raw_inputs) == "table"
+        and #candidate_first.raw_inputs > 0 then
+        return "raw_inputs"
+    end
+    if allow_timeline == true
+        and RawInputCodec.has_usable_timeline(candidate_first.timeline) then
+        return "timeline"
+    end
+    return "raw_inputs"
+end
+
+function Transcriber.verify_replay(sequence, compiled, runtime)
     runtime = type(runtime) == "table" and runtime or {}
     compiled = type(compiled) == "table" and compiled or {}
-    local candidate_first = first_step(candidate)
-    local replay_source = runtime.input_source
-    if replay_source ~= "raw_inputs"
-        and replay_source ~= RawInputCodec.RELATIVE_FIELD then
-        replay_source = type(candidate_first.relative_raw_inputs) == "table"
-            and #candidate_first.relative_raw_inputs > 0
-            and RawInputCodec.RELATIVE_FIELD
-            or "raw_inputs"
-    end
-    local evaluation = Transcriber.evaluate(candidate, compiled, {
+    local replay_source = verification_input_source(
+        sequence,
+        runtime,
+        runtime.allow_timeline == true
+    )
+    local replay_inputs = runtime.replay_inputs or runtime.raw_inputs
+    local reason_prefix = tostring(runtime.reason_prefix or "replay_")
+    local strict_step_validation = runtime.strict_step_validation ~= false
+    local evaluation = Transcriber.evaluate(sequence, compiled, {
         input_source = replay_source,
-        raw_inputs = runtime.raw_inputs,
+        raw_inputs = replay_inputs,
         input_completed = runtime.input_completed,
         timed_out = runtime.timed_out,
         action_ids_equivalent = runtime.action_ids_equivalent,
         verify_environment = runtime.verify_environment,
         environment_observed = runtime.environment_observed,
         transcription_rules = runtime.transcription_rules,
+        allow_legacy_timeline_outcome_compatibility =
+            runtime.allow_legacy_timeline_outcome_compatibility,
+        trial_completed = runtime.trial_completed,
     })
-    local reasons = prefix_reasons(evaluation.reasons, "raw_replay_")
-    local expected_steps = type(candidate) == "table" and candidate or {}
+    local reasons = prefix_reasons(evaluation.reasons, reason_prefix)
+    local advisories = deep_copy(evaluation.advisories or {})
+    local trace_mismatch_count = 0
+    local function append_trace_mismatch(reason)
+        trace_mismatch_count = trace_mismatch_count + 1
+        local target = strict_step_validation and reasons or advisories
+        target[#target + 1] = reason
+    end
+    local expected_steps = type(sequence) == "table" and sequence or {}
     local observed_steps = type(compiled.steps) == "table" and compiled.steps or {}
     local timing_tolerance = math.max(0, tonumber(runtime.timing_tolerance) or 2)
 
     if #observed_steps ~= #expected_steps then
-        reasons[#reasons + 1] = string.format(
-            "raw_replay_action_count_mismatch:expected=%d:actual=%d",
+        append_trace_mismatch(string.format(
+            reason_prefix .. "action_count_mismatch:expected=%d:actual=%d",
             #expected_steps,
             #observed_steps
-        )
+        ))
     end
 
     for index = 1, math.min(#expected_steps, #observed_steps) do
@@ -1826,12 +1983,12 @@ function Transcriber.verify_candidate(candidate, compiled, runtime)
             equivalent = ok and matched == true
         end
         if not equivalent then
-            reasons[#reasons + 1] = string.format(
-                "raw_replay_action_id_mismatch:step=%d:expected=%s:actual=%s",
+            append_trace_mismatch(string.format(
+                reason_prefix .. "action_id_mismatch:step=%d:expected=%s:actual=%s",
                 index,
                 tostring(expected_id),
                 tostring(observed_id)
-            )
+            ))
         end
 
         if index > 1 then
@@ -1845,45 +2002,46 @@ function Transcriber.verify_candidate(candidate, compiled, runtime)
                 )
             end
             if math.abs(observed_delay - expected_delay) > delay_tolerance then
-                reasons[#reasons + 1] = string.format(
-                    "raw_replay_action_timing_mismatch:step=%d:expected=%d:actual=%d",
+                append_trace_mismatch(string.format(
+                    reason_prefix .. "action_timing_mismatch:step=%d:expected=%d:actual=%d",
                     index,
                     expected_delay,
                     observed_delay
-                )
+                ))
             end
         end
 
         local expected_combo = tonumber(expected and expected.expected_combo) or 0
         local observed_combo = tonumber(observed and observed.expected_combo) or 0
         if expected_combo ~= observed_combo then
-            reasons[#reasons + 1] = string.format(
-                "raw_replay_step_combo_mismatch:step=%d:expected=%d:actual=%d",
+            append_trace_mismatch(string.format(
+                reason_prefix .. "step_combo_mismatch:step=%d:expected=%d:actual=%d",
                 index,
                 expected_combo,
                 observed_combo
-            )
+            ))
         end
 
         local expected_damage = tonumber(expected and expected.damage_at_step) or 0
         local observed_damage = tonumber(observed and observed.damage_at_step) or 0
         local damage_tolerance = math.max(20, math.floor(expected_damage * 0.01 + 0.5))
         if math.abs(observed_damage - expected_damage) > damage_tolerance then
-            reasons[#reasons + 1] = string.format(
-                "raw_replay_step_damage_mismatch:step=%d:expected=%d:actual=%d",
+            append_trace_mismatch(string.format(
+                reason_prefix .. "step_damage_mismatch:step=%d:expected=%d:actual=%d",
                 index,
                 expected_damage,
                 observed_damage
-            )
+            ))
         end
     end
 
     return {
         ok = #reasons == 0,
         reasons = reasons,
+        advisories = advisories,
         suspected_causes = #reasons > 0
             and Transcriber.suspected_causes(
-                candidate,
+                sequence,
                 runtime.transcription_rules
             )
             or {},
@@ -1894,8 +2052,20 @@ function Transcriber.verify_candidate(candidate, compiled, runtime)
             expected_count = #expected_steps,
             observed_count = #observed_steps,
             timing_tolerance = timing_tolerance,
+            strict = strict_step_validation,
+            mismatch_count = trace_mismatch_count,
         },
+        input_source = replay_source,
     }
+end
+
+function Transcriber.verify_candidate(candidate, compiled, runtime)
+    runtime = type(runtime) == "table" and runtime or {}
+    local strict_runtime = {}
+    for key, value in pairs(runtime) do strict_runtime[key] = value end
+    strict_runtime.allow_timeline = false
+    strict_runtime.reason_prefix = "raw_replay_"
+    return Transcriber.verify_replay(candidate, compiled, strict_runtime)
 end
 
 function Transcriber.mark_raw_replay_verified(candidate, now)

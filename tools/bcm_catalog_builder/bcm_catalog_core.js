@@ -12,7 +12,8 @@
         7: "JP", 8: "Dhalsim", 9: "Cammy", 10: "Ken", 11: "DeeJay", 12: "Lily",
         13: "AKI", 14: "Rashid", 15: "Blanka", 16: "Juri", 17: "Marisa", 18: "Guile",
         19: "Ed", 20: "EHonda", 21: "Jamie", 22: "Akuma", 25: "Sagat", 26: "MBison",
-        27: "Terry", 28: "Mai", 29: "Elena", 30: "CViper", 31: "Alex", 32: "Ingrid"
+        27: "Terry", 28: "Mai", 29: "Elena", 30: "CViper", 31: "Alex", 32: "Ingrid",
+        33: "Yasmine"
     };
     const DIR_MAP = {
         0: "5", 1: "8", 2: "2", 4: "4", 5: "7",

@@ -123,7 +123,8 @@ local esf_names_map = {
     ["ESF_029"] = "Elena",
     ["ESF_030"] = "CViper",
     ["ESF_031"] = "Alex",
-	["ESF_032"]="Ingrid" 
+    ["ESF_032"] = "Ingrid",
+    ["ESF_033"] = "Yasmine"
 }
 
 
@@ -1235,6 +1236,10 @@ ctx.on_combo_file_change = function(info)
     ctx.stop_demo_playback(reason, old_file, new_file, true)
 end
 
+if type(package.loaded["func/ComboTrials_ImGui"]) == "table"
+    and type(package.loaded["func/ComboTrials_ImGui"].clear_command_display_cache) ~= "function" then
+    package.loaded["func/ComboTrials_ImGui"] = nil
+end
 ComboTrials_Renderer = require("func/ComboTrials_ImGui")
 ComboTrials_Renderer.init(ctx)
 ctx.combo_renderer = ComboTrials_Renderer
@@ -4721,6 +4726,8 @@ local ComboTrials_Files = require("func/ComboTrials_Files")
 ComboTrials_Files.init(ctx, {
     normalize_sequence_counter_types = normalize_sequence_counter_types,
     normalize_sequence_semantics = Validator.annotate_terminal_pressure_tail,
+    normalize_sequence_scene_state =
+        ComboTrialsModules.SceneState.materialize_stable_legacy_actor_hp,
     assign_groups = assign_groups,
     restore_trial_dummy_action_type = restore_dummy_action_type,
 })
@@ -7912,6 +7919,12 @@ local function ct_player_input_buffer(p_state)
                     common_exceptions,
                     p_state.buffer_act_id
                 )
+            local preserve_quick_successor =
+                ActionMatcher.should_preserve_quick_successor(
+                    p_state.action_event_rules,
+                    p_state.buffer_act_id,
+                    duration
+                )
             -- A buffered action with both a physical attack input and a BCM
             -- command owner is a real player command. State/resource branches
             -- can replace it within the ghost window (for example, a status-
@@ -7921,7 +7934,9 @@ local function ct_player_input_buffer(p_state)
                 p_state.buffer_newly_pressed, ComboTrials_Renderer)
 
             if duration > 0 and duration < ghost_wait and p_state.buffer_act_id > 50
-                and not preserve_short_action and not buffered_is_catalog_command then
+                and not preserve_short_action
+                and not preserve_quick_successor
+                and not buffered_is_catalog_command then
                 -- EXACT EVALUATION OF THE NEW ACTION
                 -- We must know if the game triggered it automatically or if the player pressed a button
                 local new_is_intentional = false
@@ -10509,6 +10524,21 @@ ctx.persist_transcription_report = nil
 
 ctx.transcription_item = function(path, status, details)
     details = type(details) == "table" and details or {}
+    local is_runtime_audit = details.audit_mode == "runtime_audit"
+    local replay_verified = nil
+    local raw_replay_verified = nil
+    local timeline_replay_verified = nil
+    if is_runtime_audit then
+        replay_verified = details.replay_verified == true
+        if details.input_source == "timeline" then
+            timeline_replay_verified = replay_verified
+        elseif details.input_source == "raw_inputs"
+            or details.input_source == RawInputCodec.RELATIVE_FIELD then
+            raw_replay_verified = replay_verified
+        end
+    else
+        raw_replay_verified = details.raw_replay_verified == true
+    end
     local item = {
         source_file = path,
         source_name = tostring(path or ""):match("([^/\\]+)$") or tostring(path or ""),
@@ -10532,12 +10562,15 @@ ctx.transcription_item = function(path, status, details)
             details.verification_environment_validation,
         environment_adjustments = details.environment_adjustments,
         raw_input_count = details.raw_input_count,
+        replay_input_count = details.replay_input_count,
         action_trace = details.action_trace,
         verification_action_trace = details.verification_action_trace,
         action_comparison = details.action_comparison,
         trial_completion = details.trial_completion,
         command_display_validation = details.command_display_validation,
-        raw_replay_verified = details.raw_replay_verified == true,
+        replay_verified = replay_verified,
+        raw_replay_verified = raw_replay_verified,
+        timeline_replay_verified = timeline_replay_verified,
         audit_mode = details.audit_mode,
         validation_revision =
             details.audit_mode == "runtime_audit"
@@ -10674,7 +10707,7 @@ ctx.complete_transcription_item = function(run, evaluation, details)
             )
     end
     local final_is_verification =
-        run.phase == "verify_raw" or run.phase == "audit_raw"
+        run.phase == "verify_raw" or run.phase == "audit_replay"
     local capture_environment_validation =
         run.capture_evaluation
             and run.capture_evaluation.environment_validation or nil
@@ -10707,14 +10740,19 @@ ctx.complete_transcription_item = function(run, evaluation, details)
         verification_environment_validation =
             verification_environment_validation,
         environment_adjustments = run.capture_environment_adjustments,
-        raw_input_count = type(run.captured_raw_inputs) == "table"
-            and #run.captured_raw_inputs or 0,
+        raw_input_count = run.mode ~= "runtime_audit"
+            and type(run.captured_raw_inputs) == "table"
+            and #run.captured_raw_inputs or nil,
+        replay_input_count = run.mode == "runtime_audit"
+            and type(run.captured_raw_inputs) == "table"
+            and #run.captured_raw_inputs or nil,
         action_trace = run.capture_compiled and run.capture_compiled.trace
             or (details.compiled and details.compiled.trace or nil),
         verification_action_trace = details.verification_action_trace,
         action_comparison = evaluation.action_comparison,
         trial_completion = evaluation.trial_completion,
         command_display_validation = evaluation.command_display_validation,
+        replay_verified = details.replay_verified,
         raw_replay_verified = details.raw_replay_verified == true,
         audit_mode = run.mode,
     })
@@ -10894,7 +10932,7 @@ ctx.finish_current_transcription_file = function(timed_out)
         )
         return tonumber(owner_id) == tonumber(expected_id)
     end
-    if run.phase == "audit_raw" then
+    if run.phase == "audit_replay" then
         local sequence_count = #(trial_state.sequence or {})
         local current_step = tonumber(trial_state.current_step) or 0
         local fail_timer = tonumber(trial_state.fail_timer) or 0
@@ -10935,7 +10973,7 @@ ctx.finish_current_transcription_file = function(timed_out)
             run.current_source,
             compiled,
             {
-                raw_inputs = run.captured_raw_inputs,
+                replay_inputs = run.captured_raw_inputs,
                 input_source = run.input_source,
                 input_completed = run.input_finished_frame ~= nil,
                 timed_out = timed_out == true,
@@ -10955,7 +10993,7 @@ ctx.finish_current_transcription_file = function(timed_out)
             compiled = compiled,
             verification_observed = evaluation.observed,
             verification_action_trace = compiled and compiled.trace or nil,
-            raw_replay_verified = evaluation.ok == true,
+            replay_verified = evaluation.ok == true,
         })
     end
     if run.phase == "verify_raw" then
@@ -11143,7 +11181,7 @@ ctx.start_next_transcription_file = function()
             local is_audit = run.mode == "runtime_audit"
             local replay_inputs, replay_source, has_timeline =
                 CTJsonInterop.select_transcription_input(source[1], is_audit)
-            if is_audit and not replay_inputs then
+            if is_audit and not replay_inputs and not has_timeline then
                 ctx.transcription_item(path, "failed", {
                     reasons = { "runtime_audit_input_stream_missing" },
                     suspected_causes =
@@ -11179,7 +11217,7 @@ ctx.start_next_transcription_file = function()
                 run.capture_input_source = run.input_source
                 run.captured_raw_inputs = replay_inputs or {}
                 run.input_finished_frame = nil
-                run.phase = is_audit and "audit_raw" or "capture"
+                run.phase = is_audit and "audit_replay" or "capture"
                 run.capture_compiled = nil
                 run.capture_evaluation = nil
                 run.capture_environment_adjustments =

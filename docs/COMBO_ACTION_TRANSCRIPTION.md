@@ -59,7 +59,9 @@ owner 折叠，canonical 的时间窗口与同锚要求也必须由该产品数�
 或角色 Action ID 分支。`action_event_projection` 描述 command owner 与内部阶段；
 `action_event_rules.transient_precursor_ids` 描述同一物理输入短暂产生的前驱 Action；
 `action_event_rules.suppress_after` 描述只在指定前驱、锚点类型、时间窗口和接触条件下抑制的
-尾部 Action。`CharacterRules` 只把这些产品数据编译成纯运行时关系表，
+尾部 Action；`action_event_rules.preserve_quick_successor` 描述一个应保留的取消 Action
+与同一输入随后启动的真实 Action，并用 `max_delay_frames` 限制锚点续传窗口。
+`CharacterRules` 只把这些产品数据编译成纯运行时关系表，
 `ActionEventCompiler` 与实时验证器消费同一张表。
 
 实时检测中的角色条件同样必须数据化：Action 条目的 `runtime_force_after_ids` 只在声明的
@@ -173,9 +175,13 @@ TrainingComboTrials_data/TranscriptionReports/<Character>_<timestamp>.json
 候选，也不会覆盖任何连段文件。
 
 每个文件都会经过完整训练启动、场景恢复、稳定预滚，并按
-`relative_raw_inputs` > `raw_inputs` 的顺序选择内嵌输入自动演示。输入结束后，审计器使用
+`relative_raw_inputs` > `raw_inputs` > `timeline` 的顺序选择可重放输入自动演示。timeline-only
+旧文件会直接走既有 timeline 播放器，不生成 raw 候选，也不修改源 JSON。输入结束后，审计器使用
 同一个 Action 编译器核对实际 Action ID、动作数量、相邻动作时序、每步连击数与累计
-伤害，以及整条连段的伤害、最大连击、格挡接触、斗气和 SA 消耗。每条结束前还必须确认
+伤害，以及整条连段的伤害、最大连击、格挡接触、斗气和 SA 消耗。raw/relative raw 使用
+严格逐步核对；旧 timeline 的 Action 分组和逐步累计字段不是新编译器 schema，因此逐步
+轨迹差异记录为 `advisories`，通过仍以玩家实际使用的训练 UI 完成、最终结果和指令显示为
+边界。每条结束前还必须确认
 训练 UI 已推进到序列末尾且没有失败状态。随后先清理训练环境，再加载下一条，因此也能
 暴露首轮启动、指令表完成判定和跨文件状态污染。
 
@@ -185,11 +191,23 @@ TrainingComboTrials_data/TranscriptionReports/<Character>_<timestamp>.json
 `command_display_validation.unresolved` 中的步骤序号、Action ID、原始 motion 与解析状态，
 以便补齐严格指令表或有复演证据的角色 override 后重新审计。
 
-运行审计 revision 31 还会核对整份指令验证载荷的结构不变量：角色与本轮角色一致、模式
+运行审计 revision 37 还会核对整份指令验证载荷的结构不变量：角色与本轮角色一致、模式
 有效、指令表状态为 `loaded`、声明与实际未解析数都为 0、步骤分类计数完整且与本次序列
 长度一致。载入历史审计报告时不会再信任报告中持久化的成功/失败汇总，而会按当前规则
-重算“有效通过 / 失败 / 待复审”；revision 29、30 或缺少完整验证上下文的旧成功项只进入
+重算“有效通过 / 失败 / 待复审”；revision 32 或更早、或缺少完整验证上下文的旧成功项只进入
 待复审队列，不会被“仅转录审计失败项”误选。
+
+timeline 旧文件还可能同时记录“首段命中结果”和“连击归零后的压起身开放命中分支”。当
+运行时明确观察到首段命中、真实连击重置，以及 `命中后防御` 环境下的后续格挡接触，并且
+训练 UI、末段接触和指令显示均完成时，审计器会把该分段场景的累计伤害/最大连击差异记为
+`advisories`。没有这组运行证据的连续连段仍严格核对最终伤害；斗气、SA、末段接触与训练
+UI 完成状态始终严格。仅最大连击数变化、而伤害与接触结果完全一致的 timeline 旧文件也
+只记录诊断，不要求为了计数器口径变化重新转录。
+
+revision 36 相对 revision 35 只单调放宽上述两类 timeline 误报；revision 37 进一步把
+旧录制中各步骤一致的 `expected_hp` 作为攻击方 HP 证据补入加载后的内存场景，不修改源
+JSON。两次升级都没有撤销既有通过证据，因此载入 revision 35 或 36 报告时会保留原通过
+项，并让“仅审计失败项”继续只选择原失败队列；revision 34 或更早的报告仍按过期处理。
 
 报告写入：
 
@@ -197,9 +215,9 @@ TrainingComboTrials_data/TranscriptionReports/<Character>_<timestamp>.json
 TrainingComboTrials_data/RuntimeAuditReports/<Character>_<timestamp>.json
 ```
 
-报告只接受有效的内嵌 `relative_raw_inputs` 或 `raw_inputs`。如果安装目录仍混有只有
-timeline 的旧文件，会明确记录 `runtime_audit_input_stream_missing`，而不是临时转录或
-猜测 Action。
+报告会记录实际选择的 `input_source`，并使用通用 `replay_verified` 表示本次重放是否通过。
+raw/relative raw 另保留 `raw_replay_verified`，timeline 则记录 `timeline_replay_verified`。
+只有三种输入都不可用时才记录 `runtime_audit_input_stream_missing`。
 
 ## 失败分类
 

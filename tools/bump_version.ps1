@@ -68,7 +68,8 @@ if (-not (Test-Path -LiteralPath $versionPath -PathType Leaf)) {
     throw "Product version file not found: $versionPath"
 }
 
-$document = Get-Content -Raw -LiteralPath $versionPath | ConvertFrom-Json
+$versionText = Get-Content -Raw -LiteralPath $versionPath
+$document = $versionText | ConvertFrom-Json
 $invalidDocument = $document.schema -ne "sf6cc.product_version.v1" -or
     $null -eq $document.product -or
     [string]::IsNullOrWhiteSpace([string]$document.product.version)
@@ -101,11 +102,21 @@ if ($DryRun) {
     return
 }
 
-$document.product.version = $targetVersion
-$jsonText = $document | ConvertTo-Json -Depth 10
+$productVersionPattern = '(?s)("product"\s*:\s*\{(?:(?!\}).)*?"version"\s*:\s*")([^"]+)(")'
+$versionMatches = [regex]::Matches($versionText, $productVersionPattern)
+if ($versionMatches.Count -ne 1 -or $versionMatches[0].Groups[2].Value -ne $currentVersion) {
+    throw "Could not locate the canonical product version field in: $versionPath"
+}
+
+$replaceVersion = [System.Text.RegularExpressions.MatchEvaluator] {
+    param($match)
+    return $match.Groups[1].Value + $targetVersion + $match.Groups[3].Value
+}
+$jsonText = [regex]::Replace($versionText, $productVersionPattern, $replaceVersion, 1)
 $tempPath = Join-Path (Split-Path -Parent $versionPath) (".version-" + [guid]::NewGuid().ToString("N") + ".tmp")
 try {
-    Set-Content -LiteralPath $tempPath -Value $jsonText -Encoding UTF8
+    $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+    [System.IO.File]::WriteAllText($tempPath, $jsonText, $utf8NoBom)
     Move-Item -LiteralPath $tempPath -Destination $versionPath -Force
 }
 finally {

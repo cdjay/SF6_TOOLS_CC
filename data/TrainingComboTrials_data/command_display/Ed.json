@@ -7791,8 +7791,8 @@
     "character": "Ed",
     "fighter_id": 19,
     "generated_from": "ac_bcm+capcom_official_semantics",
-    "generated_at": "2026-05-28T00:00:00.000Z",
-    "ac_sha256": "58a85105bd248af258c37435076cc31a5e3cad6c4168902d02e109fa260369b8",
+    "generated_at": "2026-08-03T00:00:00.000Z",
+    "ac_sha256": "d14a103a006e85bdd8cf04f5f51e0ec1931381127cfe86c3b0b75bbb355a6917",
     "bcm_sha256": "0dcd0071c2e771c5b90ef8503a5c45e5c5effed2af4ba9a0b5d20885e9ecc13f",
     "modern_profile_order": [
       "easy",
@@ -7815,6 +7815,7 @@
     "type20_directional_route_count": 0,
     "type20_hold_route_count": 0,
     "type20_action_phase_route_count": 0,
+    "type37_followup_execution_phase_route_count": 0,
     "charge_context_route_count": 0,
     "super_shortcut_direction_route_count": 7,
     "ac_charge_context_relation_count": 0,
@@ -7880,7 +7881,7 @@
     "split_command_action_count": 74,
     "followup_relation_count": 0,
     "followup_relations": [],
-    "official_semantic_source_sha256": "be0166914a9cb8cbb3fcfe815538ceb677f8a64e27f1c179bead3ccc22ee5659",
+    "official_semantic_source_sha256": "c8a3f247e651b5fe51b86f738c27abd5d676d6cf122afc5113f59b2018191081",
     "classic_profile_order": [
       "norm",
       "sprt"
@@ -7963,6 +7964,7 @@
     "type20_directional_relations": [],
     "type20_hold_relations": [],
     "type20_action_phase_relations": [],
+    "type37_followup_execution_phase_relations": [],
     "target_combo_repeat_relations": [],
     "structural_twin_relations": [],
     "assist_combo_relations": [
@@ -10436,6 +10438,8 @@
       "type20_hold_route_count": 0,
       "type20_action_phase_relation_count": 0,
       "type20_action_phase_route_count": 0,
+      "type37_followup_execution_phase_relation_count": 0,
+      "type37_followup_execution_phase_route_count": 0,
       "charge_context_route_count": 0,
       "super_shortcut_direction_route_count": 7,
       "ac_charge_context_relation_count": 0,
