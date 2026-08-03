@@ -10,19 +10,40 @@ local command_display_overrides =
     dofile("autorun/func/ComboTrials/CommandDisplayOverrides.lua")
 CommandDisplayOverrides = command_display_overrides
 
-local override_map = { _slim = true, ["967"] = { classic = ">6+P" } }
+local override_map = {
+    _slim = true,
+    ["958"] = { classic = "2+PP", status = "route_unverified" },
+    ["959"] = { classic = "2+PP", status = "route_unverified" },
+    ["967"] = { classic = ">6+P" },
+}
 local merged_overrides, applied_overrides, override_status =
     command_display_overrides.merge(override_map, "Alex", {
         schema = "xt.command_display_overrides.v1",
         character = "Alex",
         entries = {
+            ["958"] = {
+                classic = "2+PP",
+                replace = true,
+                evidence = "twenty-seven completed runtime events",
+            },
+            ["959"] = {
+                classic = "2+PP",
+                replace = true,
+                evidence = "one runtime event before a later mismatch",
+            },
             ["967"] = { classic = "bad replacement", evidence = "test" },
             ["968"] = { classic = ">6+MP", evidence = "three raw replays" },
             ["977"] = { classic = ">HP (INSTANT)", evidence = "five raw replays" },
             ["978"] = { classic = ">LK" },
         },
     })
-assert(override_status == "loaded" and applied_overrides == 2
+assert(override_status == "loaded" and applied_overrides == 4
+    and merged_overrides["958"].classic == "2+PP"
+    and merged_overrides["959"].classic == "2+PP"
+    and merged_overrides["958"].status == "runtime_verified_override"
+    and merged_overrides["959"].status == "runtime_verified_override"
+    and merged_overrides["958"].metadata.replaced_existing == true
+    and merged_overrides["959"].metadata.replaced_existing == true
     and merged_overrides["967"].classic == ">6+P"
     and merged_overrides["968"].classic == ">6+MP"
     and merged_overrides["968"].status == "runtime_verified_override"
@@ -1497,6 +1518,13 @@ assert(lily_exception_source:find('"930"', 1, true)
         and not lily_exception_source:find('"action_alias_ids": "929"', 1, true)
         and not lily_exception_source:find('"canonical_owner_ids": "929"', 1, true),
     "the shipped Lily exception must keep 929 as an absorb-only transient precursor")
+local alex_override_source = read_all(
+    "data/TrainingComboTrials_data/command_display_overrides/Alex.json")
+assert(alex_override_source:find('"958"', 1, true)
+        and alex_override_source:find('"959"', 1, true)
+        and alex_override_source:find('"classic": "2+PP"', 1, true)
+        and alex_override_source:find('"replace": true', 1, true),
+    "the shipped Alex command overrides must preserve the verified 2+PP stance entries")
 local mai_exception_source = read_all(
     "data/TrainingComboTrials_data/exceptions/Mai.json")
 assert(mai_exception_source:find('"604"', 1, true)
