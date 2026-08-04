@@ -73,6 +73,9 @@ ACTION_EVENT_FIXTURES = {
             action_event_rules = { transient_precursor_ids = "17" },
         },
     },
+    Manon = {
+        ["1022"] = { absorb_ids = "1041", action_event_projection = {} },
+    },
     Jamie = {
         ["608"] = { action_event_rules = { transient_precursor_ids = "657" } },
         ["610"] = { action_event_rules = { transient_precursor_ids = "657" } },
@@ -246,6 +249,45 @@ assert(#ingrid_projectile_result.steps == 1
             == "character_internal_action_phase",
     "Ingrid 953 must merge its hit outcome into the command-owning 945 step")
 end
+
+local manon_hit_phase = new_character_rule_session("Manon")
+manon_hit_phase.events = {
+    {
+        id = 1022,
+        frame = 100,
+        expected_combo = 0,
+        damage_at_step = 1654,
+        has_hit = false,
+        has_contact = false,
+        anchor = { kind = "button_press", pressed_buttons = 32 },
+    },
+    {
+        id = 1041,
+        frame = 124,
+        expected_combo = 5,
+        damage_at_step = 2480,
+        has_hit = true,
+        has_contact = true,
+        anchor = { kind = "button_press", pressed_buttons = 32 },
+    },
+}
+manon_hit_phase.current_damage = 2480
+manon_hit_phase.max_combo = 5
+local manon_hit_phase_result = compiler.finalize(manon_hit_phase, {
+    motion_resolver = function(action_id)
+        if action_id == 1022 then return "236+MP", "strict_route" end
+        return nil, "action_id_missing"
+    end,
+})
+assert(#manon_hit_phase_result.steps == 1
+        and manon_hit_phase_result.steps[1].id == 1022
+        and manon_hit_phase_result.steps[1].motion == "236+MP"
+        and manon_hit_phase_result.steps[1].expected_combo == 5
+        and manon_hit_phase_result.steps[1].damage_at_step == 2480
+        and manon_hit_phase_result.trace.suppressed_events[1].id == 1041
+        and manon_hit_phase_result.trace.suppressed_events[1].reason
+            == "character_internal_action_phase",
+    "Manon 1041 must merge its hit outcome into the command-owning 1022 step")
 
 do
 local luke_internal_phases = {

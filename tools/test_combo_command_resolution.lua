@@ -377,6 +377,28 @@ assert(luke_override_status == "loaded" and luke_override_count == 3
         and luke_overrides["612"].metadata.replaced_existing == true
         and luke_overrides["669"].metadata.replaced_existing == true,
     "Luke's runtime-audited commands must replace route-unverified catalog rows")
+local manon_catalog = {
+    _slim = true,
+    ["628"] = { classic = "2+MP", status = "route_unverified" },
+    ["1022"] = { classic = "236+MP", status = "route_unverified" },
+}
+local manon_overrides, manon_override_count, manon_override_status =
+    command_display_overrides.merge(manon_catalog, "Manon", {
+        schema = "xt.command_display_overrides.v1",
+        character = "Manon",
+        entries = {
+            ["628"] = { classic = "2+MP", replace = true, evidence = "runtime audit" },
+            ["1022"] = { classic = "236+MP", replace = true, evidence = "runtime audit" },
+        },
+    })
+assert(manon_override_status == "loaded" and manon_override_count == 2
+        and manon_overrides["628"].classic == "2+MP"
+        and manon_overrides["1022"].classic == "236+MP"
+        and manon_overrides["628"].status == "runtime_verified_override"
+        and manon_overrides["1022"].status == "runtime_verified_override"
+        and manon_overrides["628"].metadata.replaced_existing == true
+        and manon_overrides["1022"].metadata.replaced_existing == true,
+    "Manon's runtime-audited commands must replace route-unverified catalog rows")
 local cviper_catalog = {
     _slim = true,
     ["608"] = { classic = "HK", status = "route_unverified" },
@@ -1661,6 +1683,18 @@ assert(luke_exception_source:find('"absorb_ids": "921"', 1, true)
         and luke_exception_source:find('"1210"', 1, true)
         and luke_exception_source:find('"transient_precursor_ids": "17"', 1, true),
     "the shipped Luke exceptions must preserve internal hit phases and the uppercut tail rule")
+local manon_override_source = read_all(
+    "data/TrainingComboTrials_data/command_display_overrides/Manon.json")
+assert(manon_override_source:find('"628"', 1, true)
+        and manon_override_source:find('"classic": "2+MP"', 1, true)
+        and manon_override_source:find('"1022"', 1, true)
+        and manon_override_source:find('"classic": "236+MP"', 1, true),
+    "the shipped Manon command overrides must preserve runtime-verified commands")
+local manon_exception_source = read_all(
+    "data/TrainingComboTrials_data/exceptions/Manon.json")
+assert(manon_exception_source:find('"1022"', 1, true)
+        and manon_exception_source:find('"absorb_ids": "1041"', 1, true),
+    "the shipped Manon exceptions must preserve the 236+MP internal contact phase")
 local cviper_override_source = read_all(
     "data/TrainingComboTrials_data/command_display_overrides/CViper.json")
 assert(cviper_override_source:find('"608"', 1, true)

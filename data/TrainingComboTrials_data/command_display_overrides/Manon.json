@@ -1,0 +1,16 @@
+{
+  "schema": "xt.command_display_overrides.v1",
+  "character": "Manon",
+  "entries": {
+    "628": {
+      "classic": "2+MP",
+      "replace": true,
+      "evidence": "A completed post-update runtime audit replay binds Manon Action 628 to recorded 2+MP input with matching contact, combo count and damage"
+    },
+    "1022": {
+      "classic": "236+MP",
+      "replace": true,
+      "evidence": "Two completed post-update runtime audit replays bind Manon Action 1022 to recorded 236+MP input; the 1041 transition is its internal contact phase"
+    }
+  }
+}
