@@ -38,6 +38,8 @@
     "force": true
   },
   "920": {
+    "absorb_ids": "921",
+    "action_event_projection": {},
     "is_holdable": true,
     "hold_partial_check": false,
     "charge_min": 9,
@@ -45,6 +47,8 @@
     "perfect_max": 20
   },
   "924": {
+    "absorb_ids": "926",
+    "action_event_projection": {},
     "is_holdable": true,
     "hold_partial_check": false,
     "charge_min": 13,
@@ -52,6 +56,8 @@
     "perfect_max": 20
   },
   "929": {
+    "absorb_ids": "930",
+    "action_event_projection": {},
     "is_holdable": true,
     "hold_partial_check": false,
     "charge_min": 13,
@@ -60,6 +66,16 @@
   },
   "936": {
     "force": true
+  },
+  "960": {
+    "action_event_rules": {
+      "suppress_after": {
+        "previous_ids": "955",
+        "anchor_kind": "button_press",
+        "max_delay_frames": 64,
+        "require_no_contact": true
+      }
+    }
   },
   "975": {
     "optional_parent_ids": [
@@ -75,5 +91,10 @@
     "optional_parent_ids": [
       979
     ]
+  },
+  "1210": {
+    "action_event_rules": {
+      "transient_precursor_ids": "17"
+    }
   }
 }

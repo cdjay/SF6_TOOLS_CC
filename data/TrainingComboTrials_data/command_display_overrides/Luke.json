@@ -1,0 +1,21 @@
+{
+  "schema": "xt.command_display_overrides.v1",
+  "character": "Luke",
+  "entries": {
+    "609": {
+      "classic": "LK",
+      "replace": true,
+      "evidence": "Two completed post-update runtime audit replays bind Luke Action 609 to recorded LK inputs with matching combo counts"
+    },
+    "612": {
+      "classic": "MK",
+      "replace": true,
+      "evidence": "A completed post-update runtime audit replay binds Luke Action 612 to a recorded MK input with matching damage and combo count"
+    },
+    "669": {
+      "classic": "4+HK",
+      "replace": true,
+      "evidence": "Twenty-seven completed post-update runtime audit events bind Luke Action 669 to recorded 4+HK inputs; every trial matches its final combo count and twenty-four also retain the recorded final damage"
+    }
+  }
+}

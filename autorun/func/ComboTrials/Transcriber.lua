@@ -1739,6 +1739,14 @@ function Transcriber.evaluate(sequence, compiled, runtime)
     local allow_legacy_damage_drift = runtime.allow_legacy_damage_drift == true
         and source_action_match
         and observed_combo == expected.max_combo
+    local allow_runtime_damage_drift =
+        runtime.allow_runtime_damage_drift == true
+        and source_action_match
+        and source_terminal_contact_match
+        and observed_combo == expected.max_combo
+        and observed_blocks == expected.block_contacts
+        and runtime.input_completed == true
+        and runtime.timed_out ~= true
     local observed_damage = tonumber(stats.damage) or 0
     local source_damage_matches = math.abs(observed_damage - expected.damage)
         <= damage_tolerance
@@ -1765,6 +1773,13 @@ function Transcriber.evaluate(sequence, compiled, runtime)
                 expected.damage,
                 observed_damage,
                 tonumber(guarded_followup.block_contacts_after) or 0
+            )
+        elseif allow_runtime_damage_drift then
+            advisories[#advisories + 1] = string.format(
+                "runtime_version_damage_drift:expected=%d:observed=%d:delta=%+d",
+                expected.damage,
+                observed_damage,
+                observed_damage - expected.damage
             )
         elseif runtime.allow_legacy_outcome_rebuild == true then
             advisories[#advisories + 1] = string.format(
@@ -1944,16 +1959,26 @@ function Transcriber.verify_replay(sequence, compiled, runtime)
         verify_environment = runtime.verify_environment,
         environment_observed = runtime.environment_observed,
         transcription_rules = runtime.transcription_rules,
+        allow_runtime_damage_drift = runtime.allow_runtime_damage_drift,
         allow_legacy_timeline_outcome_compatibility =
             runtime.allow_legacy_timeline_outcome_compatibility,
         trial_completed = runtime.trial_completed,
     })
     local reasons = prefix_reasons(evaluation.reasons, reason_prefix)
     local advisories = deep_copy(evaluation.advisories or {})
+    local runtime_damage_drift_advisory = false
+    for _, advisory in ipairs(advisories) do
+        if tostring(advisory):match("^runtime_version_damage_drift:") then
+            runtime_damage_drift_advisory = true
+            break
+        end
+    end
     local trace_mismatch_count = 0
-    local function append_trace_mismatch(reason)
+    local function append_trace_mismatch(reason, advisory_only)
         trace_mismatch_count = trace_mismatch_count + 1
-        local target = strict_step_validation and reasons or advisories
+        local target = strict_step_validation and not advisory_only
+            and reasons
+            or advisories
         target[#target + 1] = reason
     end
     local expected_steps = type(sequence) == "table" and sequence or {}
@@ -2031,7 +2056,7 @@ function Transcriber.verify_replay(sequence, compiled, runtime)
                 index,
                 expected_damage,
                 observed_damage
-            ))
+            ), runtime_damage_drift_advisory)
         end
     end
 

@@ -55,6 +55,24 @@ ACTION_EVENT_FIXTURES = {
             action_event_rules = { transient_precursor_ids = "906,945" },
         },
     },
+    Luke = {
+        ["920"] = { absorb_ids = "921", action_event_projection = {} },
+        ["924"] = { absorb_ids = "926", action_event_projection = {} },
+        ["929"] = { absorb_ids = "930", action_event_projection = {} },
+        ["960"] = {
+            action_event_rules = {
+                suppress_after = {
+                    previous_ids = "955",
+                    anchor_kind = "button_press",
+                    max_delay_frames = 64,
+                    require_no_contact = true,
+                },
+            },
+        },
+        ["1210"] = {
+            action_event_rules = { transient_precursor_ids = "17" },
+        },
+    },
     Jamie = {
         ["608"] = { action_event_rules = { transient_precursor_ids = "657" } },
         ["610"] = { action_event_rules = { transient_precursor_ids = "657" } },
@@ -227,6 +245,141 @@ assert(#ingrid_projectile_result.steps == 1
         and ingrid_projectile_result.trace.suppressed_events[1].reason
             == "character_internal_action_phase",
     "Ingrid 953 must merge its hit outcome into the command-owning 945 step")
+end
+
+do
+local luke_internal_phases = {
+    { owner = 920, child = 921, motion = "214+LP", combo = 3, damage = 1760 },
+    { owner = 924, child = 926, motion = "214+MP", combo = 9, damage = 3584 },
+    { owner = 929, child = 930, motion = "214+HP", combo = 7, damage = 3719 },
+}
+for _, case in ipairs(luke_internal_phases) do
+    local session = new_character_rule_session("Luke")
+    session.events = {
+        {
+            id = case.owner,
+            frame = 100,
+            expected_combo = 0,
+            damage_at_step = case.damage - 400,
+            has_hit = false,
+            has_contact = false,
+            anchor = { kind = "button_press", pressed_buttons = 16 },
+        },
+        {
+            id = case.child,
+            frame = 113,
+            expected_combo = case.combo,
+            damage_at_step = case.damage,
+            has_hit = true,
+            has_contact = true,
+            anchor = { kind = "direction_action", direction_sequence = "214" },
+        },
+    }
+    session.current_damage = case.damage
+    session.max_combo = case.combo
+    local result = compiler.finalize(session, {
+        motion_resolver = function(action_id)
+            if action_id == case.owner then return case.motion, "strict_route" end
+            return nil, "action_id_missing"
+        end,
+    })
+    assert(#result.steps == 1
+            and result.steps[1].id == case.owner
+            and result.steps[1].motion == case.motion
+            and result.steps[1].expected_combo == case.combo
+            and result.steps[1].damage_at_step == case.damage
+            and result.trace.suppressed_events[1].id == case.child
+            and result.trace.suppressed_events[1].reason
+                == "character_internal_action_phase",
+        "Luke Flash Knuckle hit phases must merge into their command owners")
+end
+
+local luke_uppercut_tail = new_character_rule_session("Luke")
+luke_uppercut_tail.events = {
+    {
+        id = 955,
+        frame = 200,
+        expected_combo = 5,
+        damage_at_step = 1669,
+        has_hit = true,
+        has_contact = true,
+        anchor = { kind = "button_press", pressed_buttons = 16 },
+    },
+    {
+        id = 960,
+        frame = 251,
+        expected_combo = 0,
+        damage_at_step = 1669,
+        has_hit = false,
+        has_contact = false,
+        anchor = { kind = "button_press", pressed_buttons = 16 },
+    },
+}
+luke_uppercut_tail.current_damage = 1669
+luke_uppercut_tail.max_combo = 5
+local luke_uppercut_result = compiler.finalize(luke_uppercut_tail, {
+    motion_resolver = function(action_id)
+        if action_id == 955 then return "623+LP", "strict_route" end
+        return nil, "action_id_missing"
+    end,
+})
+assert(#luke_uppercut_result.steps == 1
+        and luke_uppercut_result.steps[1].id == 955
+        and luke_uppercut_result.steps[1].expected_combo == 5
+        and luke_uppercut_result.steps[1].damage_at_step == 1669
+        and luke_uppercut_result.trace.suppressed_events[1].id == 960
+        and luke_uppercut_result.trace.suppressed_events[1].reason
+            == "character_action_event_suppression",
+    "Luke's non-contact 960 tail must not become an extra command step")
+
+local luke_super_dash_precursor = new_character_rule_session("Luke")
+luke_super_dash_precursor.events = {
+    {
+        id = 17,
+        frame = 300,
+        expected_combo = 0,
+        damage_at_step = 1900,
+        has_hit = false,
+        has_contact = false,
+        anchor = { kind = "double_tap", direction = "6" },
+    },
+    {
+        id = 17,
+        frame = 316,
+        expected_combo = 0,
+        damage_at_step = 1900,
+        has_hit = false,
+        has_contact = false,
+        anchor = { kind = "double_tap", direction = "6" },
+    },
+    {
+        id = 1210,
+        frame = 320,
+        expected_combo = 13,
+        damage_at_step = 4300,
+        has_hit = true,
+        has_contact = true,
+        anchor = { kind = "button_press", pressed_buttons = 16 },
+    },
+}
+luke_super_dash_precursor.current_damage = 4300
+luke_super_dash_precursor.max_combo = 13
+local luke_super_dash_result = compiler.finalize(luke_super_dash_precursor, {
+    motion_resolver = function(action_id)
+        if action_id == 17 then return "66", "strict_route" end
+        if action_id == 1210 then return "214214+P", "strict_route" end
+        return nil, "action_id_missing"
+    end,
+})
+assert(#luke_super_dash_result.steps == 2
+        and luke_super_dash_result.steps[1].id == 17
+        and luke_super_dash_result.steps[2].id == 1210
+        and luke_super_dash_result.steps[2].delay_from_prev == 20
+        and luke_super_dash_result.trace.suppressed_events[1].id == 17
+        and luke_super_dash_result.trace.suppressed_events[1].frame == 316
+        and luke_super_dash_result.trace.suppressed_events[1].reason
+            == "character_transient_input_precursor",
+    "Luke SA2 input must suppress only the duplicate dash immediately before the super")
 end
 
 do

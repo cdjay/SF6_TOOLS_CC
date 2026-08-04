@@ -7,10 +7,12 @@ local RuntimeAuditor = {
     name = "ComboTrials.RuntimeAuditor",
     REPORT_SCHEMA = "sf6cc.combo_runtime_audit.v1",
     REPORT_ROOT = "TrainingComboTrials_data/RuntimeAuditReports",
-    VALIDATION_REVISION = 37,
+    VALIDATION_REVISION = 39,
     COMPATIBLE_VALIDATION_REVISIONS = {
         [35] = "monotonic_timeline_outcome_relaxation",
         [36] = "data_driven_quick_successor_live_validation",
+        [37] = "monotonic_runtime_damage_drift_advisory",
+        [38] = "top_level_runtime_damage_drift_advisory",
     },
 }
 
@@ -432,6 +434,12 @@ function RuntimeAuditor.evaluate(sequence, compiled, runtime)
     replay_runtime.allow_legacy_timeline_outcome_compatibility =
         runtime.input_source == "timeline"
             and runtime.trial_completed == true
+    -- Compatibility audits answer whether the route still executes on the
+    -- current game build. When Action truth, combo count, terminal contact,
+    -- blocks, resources and environment still agree, a damage-only balance
+    -- change is stale derived data rather than a broken route.
+    replay_runtime.allow_runtime_damage_drift =
+        runtime.trial_completed == true
     local evaluation = Transcriber.verify_replay(
         sequence,
         compiled,
@@ -484,7 +492,9 @@ function RuntimeAuditor.report(run)
                     "advisory_when_runtime_reset_and_post_reset_block_are_proven",
                 combo_count_only =
                     "advisory_when_damage_contacts_and_completion_match",
-                damage_resources_and_terminal_contact = "strict_otherwise",
+                damage_only =
+                    "advisory_when_actions_combo_terminal_contact_blocks_and_completion_match",
+                resources_and_terminal_contact = "strict",
             },
             compatible_validation_revisions =
                 deep_copy(RuntimeAuditor.COMPATIBLE_VALIDATION_REVISIONS),

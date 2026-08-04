@@ -409,7 +409,7 @@ assert(raw_combo_count_drift_failed.ok == false
         :match("replay_combo_count_mismatch"),
     "raw replay combo counts must remain strict")
 
-local timeline_damage_regression_failed = RuntimeAuditor.evaluate(
+local timeline_damage_drift_passed = RuntimeAuditor.evaluate(
     timeline_candidate,
     {
         steps = compiled.steps,
@@ -432,10 +432,112 @@ local timeline_damage_regression_failed = RuntimeAuditor.evaluate(
         command_display_validation = resolved_command_display(),
     }
 )
-assert(timeline_damage_regression_failed.ok == false
-    and table.concat(timeline_damage_regression_failed.reasons, ",")
-        :match("replay_damage_mismatch"),
-    "continuous timeline routes must keep strict final damage validation")
+assert(timeline_damage_drift_passed.ok == true
+    and table.concat(timeline_damage_drift_passed.advisories, ",")
+        :match("runtime_version_damage_drift"),
+    "a completed timeline route with matching Action and contact truth may retain stale damage as an advisory")
+
+local raw_damage_drift_passed = RuntimeAuditor.evaluate(candidate, {
+    steps = compiled.steps,
+    stats = {
+        damage = 200,
+        max_combo = 1,
+        block_contacts = 0,
+        drive_used = 0,
+        super_used = 0,
+        unresolved_anchors = 0,
+    },
+}, {
+    raw_inputs = candidate[1].raw_inputs,
+    input_source = "raw_inputs",
+    input_completed = true,
+    timing_tolerance = 2,
+    trial_completed = true,
+    character = "Ryu",
+    command_display_validation = resolved_command_display(),
+})
+assert(raw_damage_drift_passed.ok == true
+    and table.concat(raw_damage_drift_passed.advisories, ",")
+        :match("runtime_version_damage_drift"),
+    "a strict raw replay may pass compatibility audit when only version damage changed")
+
+local raw_step_damage_drift_passed = RuntimeAuditor.evaluate(candidate, {
+    steps = {
+        {
+            id = 600,
+            motion = "LP",
+            expected_combo = 1,
+            damage_at_step = 200,
+            delay_from_prev = 0,
+        },
+    },
+    stats = {
+        damage = 200,
+        max_combo = 1,
+        block_contacts = 0,
+        drive_used = 0,
+        super_used = 0,
+        unresolved_anchors = 0,
+    },
+}, {
+    raw_inputs = candidate[1].raw_inputs,
+    input_source = "raw_inputs",
+    input_completed = true,
+    timing_tolerance = 2,
+    trial_completed = true,
+    character = "Ryu",
+    command_display_validation = resolved_command_display(),
+})
+assert(raw_step_damage_drift_passed.ok == true
+    and table.concat(raw_step_damage_drift_passed.advisories, ",")
+        :match("replay_step_damage_mismatch"),
+    "verified runtime damage drift must also make per-step damage changes advisory")
+
+local missing_terminal_contact_failed = RuntimeAuditor.evaluate({
+    {
+        id = 600,
+        motion = "LP",
+        expected_combo = 1,
+        damage_at_step = 300,
+        delay_from_prev = 0,
+        has_hit = true,
+        has_contact = true,
+        raw_inputs = { 16, 0 },
+        combo_stats = { damage = 300, drive_used = 0, super_used = 0 },
+    },
+}, {
+    steps = {
+        {
+            id = 600,
+            motion = "LP",
+            expected_combo = 1,
+            damage_at_step = 200,
+            delay_from_prev = 0,
+            has_hit = false,
+            has_contact = false,
+        },
+    },
+    stats = {
+        damage = 200,
+        max_combo = 1,
+        block_contacts = 0,
+        drive_used = 0,
+        super_used = 0,
+        unresolved_anchors = 0,
+    },
+}, {
+    raw_inputs = { 16, 0 },
+    input_source = "raw_inputs",
+    input_completed = true,
+    timing_tolerance = 2,
+    trial_completed = true,
+    character = "Ryu",
+    command_display_validation = resolved_command_display(),
+})
+assert(missing_terminal_contact_failed.ok == false
+    and table.concat(missing_terminal_contact_failed.reasons, ",")
+        :match("replay_terminal_expected_contact_missing"),
+    "damage drift must remain strict when the recorded terminal contact disappeared")
 
 compiled.steps[1].id = 601
 local failed = RuntimeAuditor.evaluate(candidate, compiled, {
@@ -952,7 +1054,7 @@ local revision_30_report = {
 }
 local refreshed_30, refreshed_30_counts =
     RuntimeAuditor.recompute_loaded_report_state(revision_30_report)
-assert(RuntimeAuditor.VALIDATION_REVISION == 37
+assert(RuntimeAuditor.VALIDATION_REVISION == 39
     and refreshed_30_counts.stale == 1
     and refreshed_30.passed == 0,
     "revision 30 reports must be stale after the strict invariant revision")

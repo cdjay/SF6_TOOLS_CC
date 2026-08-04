@@ -350,6 +350,33 @@ assert(sagat_override_status == "loaded" and sagat_override_count == 3
         and sagat_overrides["604"].metadata.replaced_existing == true
         and sagat_overrides["954"].metadata.replaced_existing == false,
     "Sagat's runtime-audited commands must replace or fill catalog rows")
+local luke_catalog = {
+    _slim = true,
+    ["609"] = { classic = "LK", status = "route_unverified" },
+    ["612"] = { classic = "MK", status = "route_unverified" },
+    ["669"] = { classic = "4+HK", status = "route_unverified" },
+}
+local luke_overrides, luke_override_count, luke_override_status =
+    command_display_overrides.merge(luke_catalog, "Luke", {
+        schema = "xt.command_display_overrides.v1",
+        character = "Luke",
+        entries = {
+            ["609"] = { classic = "LK", replace = true, evidence = "runtime audit" },
+            ["612"] = { classic = "MK", replace = true, evidence = "runtime audit" },
+            ["669"] = { classic = "4+HK", replace = true, evidence = "runtime audit" },
+        },
+    })
+assert(luke_override_status == "loaded" and luke_override_count == 3
+        and luke_overrides["609"].classic == "LK"
+        and luke_overrides["612"].classic == "MK"
+        and luke_overrides["669"].classic == "4+HK"
+        and luke_overrides["609"].status == "runtime_verified_override"
+        and luke_overrides["612"].status == "runtime_verified_override"
+        and luke_overrides["669"].status == "runtime_verified_override"
+        and luke_overrides["609"].metadata.replaced_existing == true
+        and luke_overrides["612"].metadata.replaced_existing == true
+        and luke_overrides["669"].metadata.replaced_existing == true,
+    "Luke's runtime-audited commands must replace route-unverified catalog rows")
 local cviper_catalog = {
     _slim = true,
     ["608"] = { classic = "HK", status = "route_unverified" },
@@ -1614,6 +1641,26 @@ assert(sagat_override_source:find('"600"', 1, true)
         and sagat_override_source:find('"954"', 1, true)
         and sagat_override_source:find('"classic": "214+MK"', 1, true),
     "the shipped Sagat command overrides must preserve runtime-verified commands")
+local luke_override_source = read_all(
+    "data/TrainingComboTrials_data/command_display_overrides/Luke.json")
+assert(luke_override_source:find('"609"', 1, true)
+        and luke_override_source:find('"classic": "LK"', 1, true)
+        and luke_override_source:find('"612"', 1, true)
+        and luke_override_source:find('"classic": "MK"', 1, true)
+        and luke_override_source:find('"669"', 1, true)
+        and luke_override_source:find('"classic": "4+HK"', 1, true),
+    "the shipped Luke command overrides must preserve runtime-verified commands")
+local luke_exception_source = read_all(
+    "data/TrainingComboTrials_data/exceptions/Luke.json")
+assert(luke_exception_source:find('"absorb_ids": "921"', 1, true)
+        and luke_exception_source:find('"absorb_ids": "926"', 1, true)
+        and luke_exception_source:find('"absorb_ids": "930"', 1, true)
+        and luke_exception_source:find('"960"', 1, true)
+        and luke_exception_source:find('"previous_ids": "955"', 1, true)
+        and luke_exception_source:find('"anchor_kind": "button_press"', 1, true)
+        and luke_exception_source:find('"1210"', 1, true)
+        and luke_exception_source:find('"transient_precursor_ids": "17"', 1, true),
+    "the shipped Luke exceptions must preserve internal hit phases and the uppercut tail rule")
 local cviper_override_source = read_all(
     "data/TrainingComboTrials_data/command_display_overrides/CViper.json")
 assert(cviper_override_source:find('"608"', 1, true)
