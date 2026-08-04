@@ -41,6 +41,11 @@ ACTION_EVENT_FIXTURES = {
         ["1215"] = { absorb_ids = "1216", action_event_projection = {} },
         ["1221"] = { absorb_ids = "1222", action_event_projection = {} },
     },
+    Guile = {
+        ["994"] = {
+            action_event_rules = { transient_precursor_ids = "33" },
+        },
+    },
     Lily = {
         ["930"] = {
             action_event_rules = { transient_precursor_ids = "929" },
@@ -248,6 +253,47 @@ assert(#ingrid_projectile_result.steps == 1
         and ingrid_projectile_result.trace.suppressed_events[1].reason
             == "character_internal_action_phase",
     "Ingrid 953 must merge its hit outcome into the command-owning 945 step")
+end
+
+do
+local guile_flash_kick_precursor = new_character_rule_session("Guile")
+guile_flash_kick_precursor.events = {
+    {
+        id = 33,
+        frame = 400,
+        expected_combo = 0,
+        damage_at_step = 2540,
+        has_hit = false,
+        has_contact = false,
+        anchor = { kind = "button_press", pressed_buttons = 64 },
+    },
+    {
+        id = 994,
+        frame = 402,
+        expected_combo = 4,
+        damage_at_step = 3520,
+        has_hit = true,
+        has_contact = true,
+        anchor = { kind = "button_press", pressed_buttons = 512 },
+    },
+}
+guile_flash_kick_precursor.current_damage = 3520
+guile_flash_kick_precursor.max_combo = 4
+local guile_flash_kick_result = compiler.finalize(guile_flash_kick_precursor, {
+    motion_resolver = function(action_id)
+        if action_id == 33 then return "3+HP", "strict_route" end
+        if action_id == 994 then return "[2]8+HK", "strict_route" end
+        return nil, "action_id_missing"
+    end,
+})
+assert(#guile_flash_kick_result.steps == 1
+        and guile_flash_kick_result.steps[1].id == 994
+        and guile_flash_kick_result.steps[1].expected_combo == 4
+        and guile_flash_kick_result.steps[1].damage_at_step == 3520
+        and guile_flash_kick_result.trace.suppressed_events[1].id == 33
+        and guile_flash_kick_result.trace.suppressed_events[1].reason
+            == "character_transient_input_precursor",
+    "Guile's transient Action 33 must not become an extra step before HK Flash Kick")
 end
 
 local manon_hit_phase = new_character_rule_session("Manon")
@@ -6645,6 +6691,25 @@ function test_data_driven_recent_regressions()
             ),
         "a 700-frame delay must reject drift beyond the 1.5 percent boundary")
 end
+
+(function()
+    local preview_contact_session = compiler.new({ character = "Ryu", frame = 0 })
+    preview_contact_session.recording_contact_state.pending_hp_drop = {
+        frame = 10,
+        delta = 20,
+    }
+    local preview_contact_result = compiler.finalize(preview_contact_session, {
+        flush_recording_contacts = false,
+    })
+    assert(preview_contact_session.recording_contact_state.pending_hp_drop ~= nil
+            and preview_contact_result.stats.passive_damage_ticks == 0,
+        "recording preview compilation must not consume pending contact state")
+    local final_contact_result = compiler.finalize(preview_contact_session)
+    assert(preview_contact_session.recording_contact_state.pending_hp_drop == nil
+            and final_contact_result.stats.passive_damage_ticks == 1
+            and final_contact_result.stats.passive_damage_total == 20,
+        "final recording compilation must flush pending contact state exactly once")
+end)()
 
 test_data_driven_recent_regressions()
 test_data_driven_recent_regressions = nil

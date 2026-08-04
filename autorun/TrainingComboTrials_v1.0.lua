@@ -291,6 +291,10 @@ local trial_state = {
     is_playing = false,
     playing_player = 0,
     sequence = {},
+    _recording_preview_sequence = {},
+    _recording_preview_logs = {},
+    _recording_preview_signature = nil,
+    _recording_preview_error = nil,
     current_step = 1,
     success_timer = 0,
     _success_latched = false,
@@ -5028,11 +5032,75 @@ ctx.new_action_event_session = function(player_idx, source)
     })
 end
 
-ctx.compile_action_event_session = function(session)
+ctx.compile_action_event_session = function(session, options)
     if type(session) ~= "table" then return nil end
-    return ComboTrialsModules.ActionEventCompiler.finalize(session, {
-        motion_resolver = ctx.resolve_compiled_motion,
+    local finalize_options = {}
+    if type(options) == "table" then
+        for key, value in pairs(options) do finalize_options[key] = value end
+    end
+    finalize_options.motion_resolver = ctx.resolve_compiled_motion
+    return ComboTrialsModules.ActionEventCompiler.finalize(session, finalize_options)
+end
+
+ctx.reset_recording_preview = function()
+    trial_state._recording_preview_sequence = {}
+    trial_state._recording_preview_logs = {}
+    trial_state._recording_preview_signature = nil
+    trial_state._recording_preview_error = nil
+end
+
+ctx.recording_preview_signature = function(session)
+    if type(session) ~= "table" then return nil end
+    local events = type(session.events) == "table" and session.events or {}
+    local observed = type(session.observed_actions) == "table" and session.observed_actions or {}
+    local event = events[#events]
+    local anchor = type(event) == "table" and event.anchor or nil
+    local observed_action = observed[#observed]
+    return table.concat({
+        #events,
+        #observed,
+        tonumber(session.input_anchor_count) or 0,
+        tonumber(session.unresolved_anchor_count) or 0,
+        type(event) == "table" and tostring(event.id or "") or "",
+        type(event) == "table" and tostring(event.promoted_from_id or "") or "",
+        type(event) == "table" and tostring(event.bind_reason or "") or "",
+        type(event) == "table" and tostring(event.hold_frames or 0) or "0",
+        type(event) == "table" and tostring(event.has_hit == true) or "false",
+        type(event) == "table" and tostring(event.has_contact == true) or "false",
+        type(event) == "table" and tostring(event.was_blocked == true) or "false",
+        type(event) == "table" and tostring(event.expected_combo or 0) or "0",
+        type(anchor) == "table" and tostring(anchor.kind or "") or "",
+        type(anchor) == "table" and tostring(anchor.pressed_buttons or 0) or "0",
+        type(anchor) == "table" and tostring(anchor.released_buttons or 0) or "0",
+        type(observed_action) == "table" and tostring(observed_action.id or "") or "",
+        type(observed_action) == "table" and tostring(observed_action.frame or "") or "",
+    }, ":")
+end
+
+ctx.refresh_recording_preview = function(session)
+    local signature = ctx.recording_preview_signature(session)
+    if signature == nil or signature == trial_state._recording_preview_signature then return end
+    trial_state._recording_preview_signature = signature
+
+    local ok, compiled = pcall(ctx.compile_action_event_session, session, {
+        flush_recording_contacts = false,
     })
+    if not ok or type(compiled) ~= "table" or type(compiled.steps) ~= "table" then
+        trial_state._recording_preview_error = ok and "invalid_preview" or tostring(compiled)
+        return
+    end
+
+    trial_state._recording_preview_error = nil
+    trial_state._recording_preview_sequence = compiled.steps
+    local logs = {}
+    for index = #compiled.steps, 1, -1 do
+        local source = compiled.steps[index]
+        local log = {}
+        for key, value in pairs(source) do log[key] = value end
+        log.intentional = true
+        logs[#logs + 1] = log
+    end
+    trial_state._recording_preview_logs = logs
 end
 
 
@@ -5045,6 +5113,7 @@ local function start_recording(player_idx)
 
     trial_state.recording_player = player_idx
     trial_state.sequence = {}
+    ctx.reset_recording_preview()
     begin_recording_display_context(player_idx)
     live_display_context.sync_recording()
     trial_state.is_recording = true
@@ -5136,6 +5205,7 @@ local function start_trial(player_idx)
     trial_state._raw_rec_active = false
     trial_state._action_event_session = nil
     trial_state._recording_compiler_used = false
+    ctx.reset_recording_preview()
     trial_state._rec_gauges = nil
     trial_state._rec_hit_type = nil
     trial_state._rec_environment = nil
@@ -5198,6 +5268,7 @@ local function cancel_recording()
     trial_state._action_event_session = nil
     trial_state._recording_compiler_used = false
     trial_state._last_action_compile = nil
+    ctx.reset_recording_preview()
     clear_recording_logger(canceled_player)
     -- Flush displayed input history
     reset_combo_visual_runtime()
@@ -5223,6 +5294,7 @@ local function stop_recording_and_save()
     local saved_player = trial_state.recording_player
     local compiled = ctx.compile_action_event_session(trial_state._action_event_session)
     trial_state._action_event_session = nil
+    ctx.reset_recording_preview()
     trial_state._last_action_compile = compiled
     if compiled and type(compiled.steps) == "table" and #compiled.steps > 0 then
         -- The legacy recorder may still collect its diagnostics while recording,
@@ -6721,6 +6793,7 @@ local function cleanup_combo_trials_runtime_on_scene_exit(reason)
 
     trial_state.is_playing = false
     trial_state.is_recording = false
+    ctx.reset_recording_preview()
     players[0].recording_block_contact_active = false
     players[1].recording_block_contact_active = false
     players[0].recording_last_victim_hp = nil
@@ -7051,6 +7124,7 @@ local function ct_player_init(p_idx, p_state)
                 invalidate_recording_display_context()
                 trial_state._raw_rec_active = false
                 trial_state._raw_rec_buffer = {}
+                ctx.reset_recording_preview()
             end
             if trial_state.is_playing then
                 trial_state.is_playing = false
@@ -9746,6 +9820,9 @@ ctx.observe_runtime_action_truth = function(p_idx)
         victim_damage_type = victim_damage_type,
         victim_hit_stop = victim_hit_stop,
     })
+    if trial_state.is_recording and p_idx == trial_state.recording_player then
+        ctx.refresh_recording_preview(session)
+    end
     if trial_state.is_recording and p_idx == trial_state.recording_player
         and event_count_before == 0 and #session.events > 0
         and trial_state.first_action_pos_p1 == nil then
@@ -10459,6 +10536,7 @@ local function start_demo(opts)
     -- Force Trial mode to stay active on P1
     invalidate_recording_display_context()
     trial_state.is_recording = false
+    ctx.reset_recording_preview()
     trial_state._raw_rec_active = false
     trial_state.is_playing = true
     trial_state.playing_player = 0

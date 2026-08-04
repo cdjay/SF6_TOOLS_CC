@@ -1581,7 +1581,7 @@ end
 
 function Compiler.finalize(session, options)
     options = type(options) == "table" and options or {}
-    if type(session) == "table" then
+    if type(session) == "table" and options.flush_recording_contacts ~= false then
         for _, passive_sample in ipairs(
             ActionRestartDetector.flush_recording_contact_state(
                 session.recording_contact_state

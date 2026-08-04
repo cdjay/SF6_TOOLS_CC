@@ -47,6 +47,11 @@
   "962": {
     "force": true
   },
+  "994": {
+    "action_event_rules": {
+      "transient_precursor_ids": "33"
+    }
+  },
   "1224": {
     "force": true
   },

@@ -399,6 +399,34 @@ assert(manon_override_status == "loaded" and manon_override_count == 2
         and manon_overrides["628"].metadata.replaced_existing == true
         and manon_overrides["1022"].metadata.replaced_existing == true,
     "Manon's runtime-audited commands must replace route-unverified catalog rows")
+local guile_catalog = {
+    _slim = true,
+    ["609"] = { classic = "HP", status = "route_unverified" },
+    ["653"] = { classic = "3+HK", status = "route_unverified" },
+    ["674"] = { classic = "6+HK", status = "route_unverified" },
+}
+local guile_overrides, guile_override_count, guile_override_status =
+    command_display_overrides.merge(guile_catalog, "Guile", {
+        schema = "xt.command_display_overrides.v1",
+        character = "Guile",
+        entries = {
+            ["609"] = { classic = "HP", replace = true, evidence = "runtime audit" },
+            ["653"] = { classic = "3+HK", replace = true, evidence = "runtime audit" },
+            ["674"] = { classic = "6+HK", replace = true, evidence = "runtime audit" },
+            ["922"] = { classic = "236+LP+MP", replace = true, evidence = "runtime audit" },
+            ["923"] = { classic = "214+PP", replace = true, evidence = "runtime audit" },
+        },
+    })
+assert(guile_override_status == "loaded" and guile_override_count == 5
+        and guile_overrides["609"].classic == "HP"
+        and guile_overrides["653"].classic == "3+HK"
+        and guile_overrides["674"].classic == "6+HK"
+        and guile_overrides["922"].classic == "236+LP+MP"
+        and guile_overrides["923"].classic == "214+PP"
+        and guile_overrides["609"].status == "runtime_verified_override"
+        and guile_overrides["922"].metadata.replaced_existing == false
+        and guile_overrides["923"].metadata.replaced_existing == false,
+    "Guile's runtime-audited commands must replace unverified rows and fill missing Actions")
 local cviper_catalog = {
     _slim = true,
     ["608"] = { classic = "HK", status = "route_unverified" },
@@ -1695,6 +1723,24 @@ local manon_exception_source = read_all(
 assert(manon_exception_source:find('"1022"', 1, true)
         and manon_exception_source:find('"absorb_ids": "1041"', 1, true),
     "the shipped Manon exceptions must preserve the 236+MP internal contact phase")
+local guile_override_source = read_all(
+    "data/TrainingComboTrials_data/command_display_overrides/Guile.json")
+assert(guile_override_source:find('"609"', 1, true)
+        and guile_override_source:find('"classic": "HP"', 1, true)
+        and guile_override_source:find('"653"', 1, true)
+        and guile_override_source:find('"classic": "3+HK"', 1, true)
+        and guile_override_source:find('"674"', 1, true)
+        and guile_override_source:find('"classic": "6+HK"', 1, true)
+        and guile_override_source:find('"922"', 1, true)
+        and guile_override_source:find('"classic": "236+LP+MP"', 1, true)
+        and guile_override_source:find('"923"', 1, true)
+        and guile_override_source:find('"classic": "214+PP"', 1, true),
+    "the shipped Guile command overrides must preserve runtime-verified commands")
+local guile_exception_source = read_all(
+    "data/TrainingComboTrials_data/exceptions/Guile.json")
+assert(guile_exception_source:find('"994"', 1, true)
+        and guile_exception_source:find('"transient_precursor_ids": "33"', 1, true),
+    "the shipped Guile exceptions must suppress the transient Flash Kick precursor")
 local cviper_override_source = read_all(
     "data/TrainingComboTrials_data/command_display_overrides/CViper.json")
 assert(cviper_override_source:find('"608"', 1, true)
@@ -1707,11 +1753,18 @@ assert(combo_imgui_source:find("local function reset_command_display_cache()", 1
         and combo_imgui_source:find("ctx.clear_command_display_cache = M.clear_command_display_cache", 1, true)
         and combo_imgui_source:find("function M.clear_command_display_cache()", 1, true),
     "renderer initialization must expose and invoke command-display cache invalidation")
+assert(combo_imgui_source:find("trial_state._recording_preview_logs", 1, true)
+        and combo_imgui_source:find("trial_state._recording_preview_sequence", 1, true),
+    "recording UI must render ActionEvent-compiled live logs and trial steps")
 local combo_entry_source = read_all("autorun/TrainingComboTrials_v1.0.lua")
 assert(combo_entry_source:find('package.loaded["func/ComboTrials_ImGui"] = nil', 1, true)
         and combo_entry_source:find('package.loaded["func/ComboTrials_ImGui"].clear_command_display_cache', 1, true)
         and not combo_entry_source:find("local cached_combo_trials_renderer", 1, true),
     "the entry script must upgrade an already-cached legacy renderer exactly once")
+assert(combo_entry_source:find("ctx.refresh_recording_preview(session)", 1, true)
+        and combo_entry_source:find("flush_recording_contacts = false", 1, true)
+        and combo_entry_source:find("trial_state.sequence = compiled.steps", 1, true),
+    "recording preview must stay separate from the final saved sequence")
 local deejay_sa3_exception = character_rules.get_match_rule(
     deejay_variant_rules, {}, "DeeJay", 1268)
 assert(deejay_sa3_exception ~= nil,

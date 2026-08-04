@@ -3079,6 +3079,10 @@ local function imgui_draw_inner()
     local function draw_player_icons(p_idx, base_x, base_y, align_right, max_count, reverse_layout,
         is_modern, modern_map, modern_character, modern_status, audit_context)
         local full_logs = players[p_idx].log or {}
+        if trial_state.is_recording == true and p_idx == trial_state.recording_player
+            and type(trial_state._recording_preview_logs) == "table" then
+            full_logs = trial_state._recording_preview_logs
+        end
         local logs_to_draw = get_render_logs(full_logs, max_count)
         local contextual_resolutions = resolve_live_log_command_displays(
             modern_map,
@@ -3316,8 +3320,14 @@ local function imgui_draw_inner()
         local b_off_y = (d2d_cfg.bar_img_offset_y or 0) * sh
         local final_rect_x = rect_x + c_off_x
 
-        -- Build display lines (follow-up groups)
-        local display_lines, classic_modern_projection = build_display_lines(trial_state.sequence)
+        -- Recording previews come from the ActionEvent compiler. The saved
+        -- sequence remains untouched until recording is finalized.
+        local display_sequence = trial_state.sequence
+        if mode == "recording"
+            and type(trial_state._recording_preview_sequence) == "table" then
+            display_sequence = trial_state._recording_preview_sequence
+        end
+        local display_lines, classic_modern_projection = build_display_lines(display_sequence)
         local n_lines = #display_lines
         if classic_modern_projection and assets.font then
             -- Calibrated at desktop (2800, 260), i.e. game-local (240, 260)
