@@ -8193,6 +8193,13 @@ local function ct_player_process_actions(p_idx, p_state, actions_to_process)
             end
 
             is_continuation = ActionMatcher.matches_absorb_id(parent_exc, runtime_act_id)
+            if is_continuation
+                and CharacterRules.should_preserve_absorbed_transition(
+                    parent_exc,
+                    process_act.input_anchor_kind
+                ) then
+                is_continuation = false
+            end
         end
 
         -- Some state-dependent commands branch away from their catalog Action

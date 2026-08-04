@@ -305,6 +305,8 @@ function CharacterRules.build_action_event_projection_rules(
                         projection.require_same_anchor == true
                     rule.allow_same_button_press_fold =
                         projection.allow_same_button_press_fold == true
+                    rule.preserve_fresh_button_press =
+                        projection.preserve_fresh_button_press == true
                 end
                 store_rule(child_id, rule)
             end
@@ -372,6 +374,18 @@ function CharacterRules.is_action_required(exception)
     return exception.action_required == true
         or exception.no_combo_auto_advance == true
         or exception.require_absorb == true
+end
+
+function CharacterRules.should_preserve_absorbed_transition(
+    exception,
+    input_anchor_kind
+)
+    local projection = type(exception) == "table"
+        and type(exception.action_event_projection) == "table"
+        and exception.action_event_projection or nil
+    return type(projection) == "table"
+        and projection.preserve_fresh_button_press == true
+        and input_anchor_kind == "button_press"
 end
 
 local function absorb_requires_combo(exception)

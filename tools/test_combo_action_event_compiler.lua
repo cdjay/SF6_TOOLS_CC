@@ -81,6 +81,20 @@ ACTION_EVENT_FIXTURES = {
     Manon = {
         ["1022"] = { absorb_ids = "1041", action_event_projection = {} },
     },
+    Marisa = {
+        ["671"] = {
+            absorb_ids = "672",
+            action_event_projection = { preserve_fresh_button_press = true },
+        },
+        ["686"] = {
+            absorb_ids = "684",
+            action_event_projection = { preserve_fresh_button_press = true },
+        },
+        ["1200"] = {
+            absorb_ids = "1203,1204",
+            action_event_projection = {},
+        },
+    },
     Jamie = {
         ["608"] = { action_event_rules = { transient_precursor_ids = "657" } },
         ["610"] = { action_event_rules = { transient_precursor_ids = "657" } },
@@ -648,6 +662,104 @@ assert(delayed_damage_result.stats.hit_contacts == 1
         and delayed_damage_result.stats.passive_damage_ticks == 0
         and delayed_damage_result.steps[1].damage_at_step == 300,
     "an HP field that settles one frame after combo growth must confirm damage without duplicating contact")
+end
+
+do
+local marisa_sa1 = new_character_rule_session("Marisa")
+local marisa_sa1_rows = {
+    -- frame, Action, input, combo, victim HP, damage type, hit stop
+    { 1, 1, 0, 0, 10000, 0, 0 },
+    { 2, 1, 16, 0, 10000, 0, 0 },
+    { 3, 1200, 16, 1, 9000, 3, 4 },
+    { 4, 1200, 0, 1, 9000, 0, 0 },
+    { 5, 1203, 0, 1, 9000, 0, 0 },
+    { 6, 1204, 0, 1, 8700, 0, 0 },
+    { 51, 1204, 0, 1, 8220, 0, 0 },
+}
+for _, row in ipairs(marisa_sa1_rows) do
+    compiler.observe(marisa_sa1, {
+        frame = row[1],
+        action_id = row[2],
+        action_frame = row[1],
+        direct_input = row[3],
+        facing_right = true,
+        combo_count = row[4],
+        actor_hp = 10000,
+        victim_hp = row[5],
+        victim_damage_type = row[6],
+        victim_hit_stop = row[7],
+    })
+end
+local marisa_sa1_result = compiler.finalize(marisa_sa1, {
+    motion_resolver = function(action_id)
+        if action_id == 1200 then return "236236+P", "strict_route" end
+        return nil, "action_id_missing"
+    end,
+})
+assert(#marisa_sa1_result.steps == 1
+        and marisa_sa1_result.steps[1].id == 1200
+        and marisa_sa1_result.steps[1].expected_combo == 1
+        and marisa_sa1_result.steps[1].damage_at_step == 1780
+        and marisa_sa1_result.stats.damage == 1780
+        and marisa_sa1_result.stats.hit_contacts == 1
+        and marisa_sa1_result.stats.unconfirmed_hp_loss == 0
+        and marisa_sa1_result.stats.passive_damage_ticks == 0,
+    "Marisa SA1 internal phases must extend owner damage without adding contacts")
+end
+
+do
+local function finalize_marisa_charge_child(anchor_kind)
+    local session = new_character_rule_session("Marisa")
+    session.events = {
+        {
+            id = 686,
+            frame = 100,
+            expected_combo = 0,
+            damage_at_step = 0,
+            has_hit = false,
+            has_contact = false,
+            anchor = { kind = "button_press", pressed_buttons = 64 },
+        },
+        {
+            id = 684,
+            frame = 106,
+            first_contact_frame = 108,
+            expected_combo = 1,
+            damage_at_step = 900,
+            has_hit = true,
+            has_contact = true,
+            anchor = anchor_kind == "button_press"
+                and { kind = "button_press", pressed_buttons = 64 }
+                or { kind = anchor_kind, released_buttons = 64 },
+        },
+    }
+    session.current_damage = 900
+    session.max_combo = 1
+    return compiler.finalize(session, {
+        motion_resolver = function(action_id)
+            if action_id == 686 or action_id == 684 then
+                return "4+HP", "strict_route"
+            end
+            return nil, "action_id_missing"
+        end,
+    })
+end
+
+local marisa_release_phase = finalize_marisa_charge_child("button_release")
+assert(#marisa_release_phase.steps == 1
+        and marisa_release_phase.steps[1].id == 686
+        and marisa_release_phase.steps[1].expected_combo == 1
+        and marisa_release_phase.steps[1].damage_at_step == 900
+        and marisa_release_phase.trace.suppressed_events[1].id == 684
+        and marisa_release_phase.trace.suppressed_events[1].reason
+            == "character_internal_action_phase",
+    "Marisa charged 4+HP release phase must fold into its command owner")
+
+local marisa_fresh_press = finalize_marisa_charge_child("button_press")
+assert(#marisa_fresh_press.steps == 2
+        and marisa_fresh_press.steps[1].id == 686
+        and marisa_fresh_press.steps[2].id == 684,
+    "Marisa Action 684 with a fresh HP press must remain a separate command")
 end
 
 do

@@ -69,13 +69,21 @@
     "is_holdable": true,
     "hold_partial_check": false,
     "charge_min": 7,
-    "charge_max": 21
+    "charge_max": 21,
+    "absorb_ids": "672",
+    "action_event_projection": {
+      "preserve_fresh_button_press": true
+    }
   },
   "686": {
     "is_holdable": true,
     "hold_partial_check": false,
     "charge_min": 5,
-    "charge_max": 17
+    "charge_max": 17,
+    "absorb_ids": "684",
+    "action_event_projection": {
+      "preserve_fresh_button_press": true
+    }
   },
   "717": {
     "force": true
@@ -100,5 +108,9 @@
     "is_holdable": true,
     "charge_min": 12,
     "charge_max": 28
+  },
+  "1200": {
+    "absorb_ids": "1203,1204",
+    "action_event_projection": {}
   }
 }

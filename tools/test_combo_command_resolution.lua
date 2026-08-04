@@ -1397,6 +1397,23 @@ assert(character_rules.build_action_event_projection_rules({
         },
     }, {})[999] == nil,
     "ambiguous projection owners must fail closed")
+local contextual_absorb_rule = {
+    absorb_ids = "684",
+    action_event_projection = { preserve_fresh_button_press = true },
+}
+assert(character_rules.should_preserve_absorbed_transition(
+        contextual_absorb_rule,
+        "button_press"
+    ) == true
+        and character_rules.should_preserve_absorbed_transition(
+            contextual_absorb_rule,
+            "button_release"
+        ) == false
+        and character_rules.should_preserve_absorbed_transition(
+            contextual_absorb_rule,
+            "direction_action"
+        ) == false,
+    "runtime absorption must preserve only explicitly configured fresh button presses")
 local aki_expected_owner = { id = 944, expected_combo = 7 }
 local current_canonical = character_rules.match_current_canonical_confirmation(
     aki_recording_rules,

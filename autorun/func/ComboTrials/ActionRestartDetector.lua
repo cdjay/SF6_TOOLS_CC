@@ -297,6 +297,11 @@ function M.observe_recording_contacts(state, params)
     })
     local current_hp_decreased = hit_contact.hp_decreased == true
     local current_delta = math.max(0, tonumber(hit_contact.hp_delta) or 0)
+    local action_owned_damage_continuation =
+        params.action_owned_damage_continuation == true
+        and current_hp_decreased
+        and current_delta >= MIN_UNCOUNTED_HIT_HP_DELTA
+        and not block_active
     local passive_damage_samples = {}
     local pending_hp_drop = state.pending_hp_drop
     state.pending_hp_drop = nil
@@ -364,7 +369,8 @@ function M.observe_recording_contacts(state, params)
         and not block_active
         and current_delta >= MIN_UNCOUNTED_HIT_HP_DELTA
         and (hit_cycle_available or hit_contact.combo_increased
-            or hit_contact.action_owned_hp_decrease)
+            or hit_contact.action_owned_hp_decrease
+            or action_owned_damage_continuation)
     if current_hit_damage_confirmed
         and hit_contact.accepted ~= true
         and params.contact_candidate ~= false then
@@ -432,6 +438,7 @@ function M.observe_recording_contacts(state, params)
         },
         block_damage_confirmed = block_damage_confirmed,
         hit_damage_confirmed = hit_damage_confirmed,
+        action_owned_damage_continuation = action_owned_damage_continuation,
         passive_damage_samples = passive_damage_samples,
         hp_delta = hit_contact.hp_delta,
         hit_cycle_started = hit_cycle_started,

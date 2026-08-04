@@ -991,6 +991,8 @@ assert(report.schema == RuntimeAuditor.REPORT_SCHEMA
         == "advisory_with_training_ui_completion_required"
     and report.verifier.compatible_validation_revisions[35]
         == "monotonic_timeline_outcome_relaxation"
+    and report.verifier.compatible_validation_revisions[40]
+        == "contextual_internal_phase_damage_and_input_projection"
     and report.verifier.raw_action_trace
         == "compiled.trace.observed_actions"
     and report.verifier.command_display.source
@@ -1054,7 +1056,7 @@ local revision_30_report = {
 }
 local refreshed_30, refreshed_30_counts =
     RuntimeAuditor.recompute_loaded_report_state(revision_30_report)
-assert(RuntimeAuditor.VALIDATION_REVISION == 40
+assert(RuntimeAuditor.VALIDATION_REVISION == 41
     and refreshed_30_counts.stale == 1
     and refreshed_30.passed == 0,
     "revision 30 reports must be stale after the strict invariant revision")

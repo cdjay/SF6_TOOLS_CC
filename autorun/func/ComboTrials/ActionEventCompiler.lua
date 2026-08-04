@@ -218,6 +218,13 @@ local function character_rule_fold_reason(
         return nil
     end
     if rule.kind == "internal_phase" then
+        local anchor = type(source_event.anchor) == "table"
+            and source_event.anchor or nil
+        if rule.preserve_fresh_button_press == true
+            and type(anchor) == "table"
+            and anchor.kind == "button_press" then
+            return nil
+        end
         if rule.require_same_anchor == true then
             local current_frame = tonumber(source_event.frame)
             local previous_frame = tonumber(previous.event.frame)
@@ -503,6 +510,29 @@ local function recorded_event_projection_owner_id(session, event)
         return tonumber(rule.owner_id)
     end
     return tonumber(event.id)
+end
+
+local function is_internal_phase_of_event(session, event, action_id)
+    if type(event) ~= "table" then return false end
+    local rule = action_event_projection_rule(session, action_id)
+    return type(rule) == "table"
+        and rule.kind == "internal_phase"
+        and tonumber(rule.owner_id)
+            == recorded_event_projection_owner_id(session, event)
+end
+
+local function projection_chain_has_hit(session, event)
+    local owner_id = recorded_event_projection_owner_id(session, event)
+    if owner_id == nil then return false end
+    local events = type(session) == "table" and session.events or nil
+    for index = type(events) == "table" and #events or 0, 1, -1 do
+        local candidate = events[index]
+        if recorded_event_projection_owner_id(session, candidate) ~= owner_id then
+            break
+        end
+        if candidate.has_hit == true then return true end
+    end
+    return false
 end
 
 local function add_event(session, sample, anchor, reason)
@@ -1501,6 +1531,9 @@ function Compiler.observe(session, sample)
     local combo = math.max(0, tonumber(sample.combo_count) or 0)
     session.max_combo = math.max(session.max_combo or 0, combo)
     local victim_hp = rounded(sample.victim_hp)
+    local internal_phase_damage_continuation = current ~= nil
+        and is_internal_phase_of_event(session, current, action_id)
+        and projection_chain_has_hit(session, current)
     local contact_truth = ActionRestartDetector.observe_recording_contacts(
         session.recording_contact_state,
         {
@@ -1511,10 +1544,14 @@ function Compiler.observe(session, sample)
             previous_hp = session.previous_victim_hp,
             damage_type = sample.victim_damage_type,
             hit_stop = sample.victim_hit_stop,
-            contact_candidate = current ~= nil and current.has_hit ~= true,
+            contact_candidate = current ~= nil
+                and current.has_hit ~= true
+                and not internal_phase_damage_continuation,
             action_owned_hp_decrease = current ~= nil
                 and current.has_hit ~= true
                 and tonumber(current.id) == action_id,
+            action_owned_damage_continuation =
+                internal_phase_damage_continuation,
         }
     )
     local hit_contact = contact_truth.hit_contact
