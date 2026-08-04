@@ -87,6 +87,11 @@ ACTION_EVENT_FIXTURES = {
         ["620"] = { action_event_rules = { transient_precursor_ids = "513" } },
         ["628"] = { action_event_rules = { transient_precursor_ids = "512" } },
         ["657"] = {
+            action_event_projection = {
+                input_anchor_owner_id = 17,
+                required_anchor_kind = "double_tap",
+                require_no_contact = true,
+            },
             action_event_rules = {
                 suppress_after = {
                     previous_ids = "652",
@@ -6608,6 +6613,64 @@ function test_data_driven_recent_regressions()
     })
     assert(#late_tail_result.steps == 2,
         "a mapped release tail outside its JSON window must remain visible")
+
+    local jamie_contextual_dash = new_character_rule_session("Jamie")
+    jamie_contextual_dash.events = {
+        {
+            id = 657,
+            frame = 100,
+            expected_combo = 0,
+            damage_at_step = 0,
+            has_hit = false,
+            has_contact = false,
+            anchor = { kind = "double_tap", direction = "4" },
+        },
+    }
+    local jamie_contextual_dash_result = compiler.finalize(
+        jamie_contextual_dash,
+        {
+            motion_resolver = function(action_id)
+                if action_id == 17 then return "66", "strict_route" end
+                if action_id == 657 then
+                    return "7+HK", "runtime_verified_override"
+                end
+                return nil, "action_id_missing"
+            end,
+        }
+    )
+    assert(#jamie_contextual_dash_result.steps == 1
+            and jamie_contextual_dash_result.steps[1].id == 17
+            and jamie_contextual_dash_result.steps[1].motion == "66"
+            and jamie_contextual_dash_result.trace.projected_events[1]
+                .normalized_from_action_id == 657,
+        "Jamie's contactless double-tap Action 657 must retain the dash input owner")
+
+    local jamie_real_7hk = new_character_rule_session("Jamie")
+    jamie_real_7hk.events = transcriber.deep_copy(jamie_contextual_dash.events)
+    jamie_real_7hk.events[1].anchor = {
+        kind = "button_press",
+        direction = "7",
+        pressed_buttons = 512,
+    }
+    jamie_real_7hk.events[1].expected_combo = 1
+    jamie_real_7hk.events[1].damage_at_step = 800
+    jamie_real_7hk.events[1].has_hit = true
+    jamie_real_7hk.events[1].has_contact = true
+    jamie_real_7hk.current_damage = 800
+    jamie_real_7hk.max_combo = 1
+    local jamie_real_7hk_result = compiler.finalize(jamie_real_7hk, {
+        motion_resolver = function(action_id)
+            if action_id == 17 then return "66", "strict_route" end
+            if action_id == 657 then
+                return "7+HK", "runtime_verified_override"
+            end
+            return nil, "action_id_missing"
+        end,
+    })
+    assert(#jamie_real_7hk_result.steps == 1
+            and jamie_real_7hk_result.steps[1].id == 657
+            and jamie_real_7hk_result.steps[1].motion == "7+HK",
+        "Jamie's real 7+HK press must not be rewritten as a dash")
 
     local dash_jitter = compiler.new({ character = "Ryu", frame = 0 })
     dash_jitter.events = {

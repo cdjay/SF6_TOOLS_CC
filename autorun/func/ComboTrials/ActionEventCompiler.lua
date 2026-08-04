@@ -135,7 +135,15 @@ local function project_character_action_owner(event, session)
         projected.anchor = shallow_copy(event.anchor)
     end
     local rule = action_event_projection_rule(session, event.id)
-    if type(rule) ~= "table" or rule.kind ~= "canonical_owner"
+    local projection_matches = type(rule) == "table"
+        and rule.kind == "canonical_owner"
+    if type(rule) == "table" and rule.kind == "input_anchor_owner" then
+        local anchor = type(event.anchor) == "table" and event.anchor or {}
+        projection_matches = anchor.kind == rule.required_anchor_kind
+            and (rule.require_no_contact ~= true
+                or (event.has_contact ~= true and event.has_hit ~= true))
+    end
+    if not projection_matches
         or tonumber(rule.owner_id) == nil
         or tonumber(rule.owner_id) == tonumber(event.id) then
         return projected, rule

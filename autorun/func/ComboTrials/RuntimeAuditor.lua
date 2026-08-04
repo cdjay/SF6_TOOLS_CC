@@ -7,12 +7,13 @@ local RuntimeAuditor = {
     name = "ComboTrials.RuntimeAuditor",
     REPORT_SCHEMA = "sf6cc.combo_runtime_audit.v1",
     REPORT_ROOT = "TrainingComboTrials_data/RuntimeAuditReports",
-    VALIDATION_REVISION = 39,
+    VALIDATION_REVISION = 40,
     COMPATIBLE_VALIDATION_REVISIONS = {
         [35] = "monotonic_timeline_outcome_relaxation",
         [36] = "data_driven_quick_successor_live_validation",
         [37] = "monotonic_runtime_damage_drift_advisory",
         [38] = "top_level_runtime_damage_drift_advisory",
+        [39] = "contextual_input_anchor_owner_projection",
     },
 }
 

@@ -44,6 +44,11 @@
     "force": true
   },
   "657": {
+    "action_event_projection": {
+      "input_anchor_owner_id": 17,
+      "required_anchor_kind": "double_tap",
+      "require_no_contact": true
+    },
     "action_event_rules": {
       "suppress_after": {
         "previous_ids": "652",

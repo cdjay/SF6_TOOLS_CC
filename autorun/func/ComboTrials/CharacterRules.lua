@@ -231,14 +231,28 @@ end
 
 -- Build the pure runtime projection table consumed by ActionEventCompiler.
 -- JSON loading stays in the caller; this function only interprets already
--- loaded product rules. An explicit action_event_projection object opts an
--- owner in, while absorb_ids remains the sole internal-phase membership list.
+-- loaded product rules. Owner-side projection uses absorb_ids as its sole
+-- internal-phase membership list. A source Action may instead declare a
+-- contextual input-anchor owner when the same runtime ID represents different
+-- physical commands in different anchor contexts.
 function CharacterRules.build_action_event_projection_rules(
     character_rules,
     common_rules
 )
     local result = {}
     local ambiguous = {}
+    local function store_rule(action_id, rule)
+        local existing = result[action_id]
+        if type(existing) == "table"
+            and (tonumber(existing.owner_id) ~= tonumber(rule.owner_id)
+                or existing.kind ~= rule.kind) then
+            result[action_id] = nil
+            ambiguous[action_id] = true
+        elseif not ambiguous[action_id] then
+            result[action_id] = rule
+        end
+    end
+
     for owner_id, exception in pairs(
         effective_exception_rules(character_rules, common_rules)
     ) do
@@ -246,6 +260,20 @@ function CharacterRules.build_action_event_projection_rules(
         local projection = type(exception) == "table"
             and exception.action_event_projection or nil
         local absorb_ids = parse_absorb_ids(exception)
+        local input_anchor_owner_id = type(projection) == "table"
+            and tonumber(projection.input_anchor_owner_id) or nil
+        local required_anchor_kind = type(projection) == "table"
+            and type(projection.required_anchor_kind) == "string"
+            and projection.required_anchor_kind or nil
+        if owner_num ~= nil and input_anchor_owner_id ~= nil
+            and required_anchor_kind ~= nil and required_anchor_kind ~= "" then
+            store_rule(owner_num, {
+                kind = "input_anchor_owner",
+                owner_id = input_anchor_owner_id,
+                required_anchor_kind = required_anchor_kind,
+                require_no_contact = projection.require_no_contact == true,
+            })
+        end
         if owner_num ~= nil and type(projection) == "table"
             and type(absorb_ids) == "table" then
             local canonical_ids = parse_id_set(projection.canonical_owner_ids) or {}
@@ -278,14 +306,7 @@ function CharacterRules.build_action_event_projection_rules(
                     rule.allow_same_button_press_fold =
                         projection.allow_same_button_press_fold == true
                 end
-                local existing = result[child_id]
-                if type(existing) == "table"
-                    and tonumber(existing.owner_id) ~= owner_num then
-                    result[child_id] = nil
-                    ambiguous[child_id] = true
-                elseif not ambiguous[child_id] then
-                    result[child_id] = rule
-                end
+                store_rule(child_id, rule)
             end
         end
     end
