@@ -47,8 +47,8 @@ ACTION_EVENT_FIXTURES = {
         },
     },
     Lily = {
-        ["930"] = {
-            action_event_rules = { transient_precursor_ids = "929" },
+        ["932"] = {
+            action_event_rules = { transient_precursor_ids = "931" },
         },
     },
     Ingrid = {
@@ -2079,7 +2079,7 @@ local function finalize_lily_staggered_kicks(first_contact, delay, projection_ru
     end
     session.events = {
         {
-            id = 929,
+            id = 931,
             frame = 100,
             expected_combo = first_contact and 1 or 0,
             damage_at_step = first_contact and 700 or 0,
@@ -2088,7 +2088,7 @@ local function finalize_lily_staggered_kicks(first_contact, delay, projection_ru
             anchor = { kind = "button_press", pressed_buttons = 512 },
         },
         {
-            id = 930,
+            id = 932,
             frame = 100 + (delay or 1),
             expected_combo = 3,
             damage_at_step = 816,
@@ -2103,8 +2103,8 @@ local function finalize_lily_staggered_kicks(first_contact, delay, projection_ru
     session.max_combo = 3
     return session, compiler.finalize(session, {
         motion_resolver = function(action_id)
-            if action_id == 929 then return "236+HK", "strict_route" end
-            if action_id == 930 then return "236+MK+HK", "strict_route" end
+            if action_id == 931 then return "236+HK", "strict_route" end
+            if action_id == 932 then return "236+MK+HK", "strict_route" end
             return nil, "action_id_missing"
         end,
     })
@@ -2115,11 +2115,11 @@ local lily_staggered_session, lily_staggered_result =
 assert(#lily_staggered_session.events == 2
         and #lily_staggered_result.trace.input_bound_events == 2
         and #lily_staggered_result.steps == 1
-        and lily_staggered_result.steps[1].id == 930
+        and lily_staggered_result.steps[1].id == 932
         and lily_staggered_result.steps[1].motion == "236+MK+HK"
         and lily_staggered_result.steps[1].has_contact == true
-        and lily_staggered_result.trace.suppressed_events[1].id == 929
-        and lily_staggered_result.trace.suppressed_events[1].merged_into == 930
+        and lily_staggered_result.trace.suppressed_events[1].id == 931
+        and lily_staggered_result.trace.suppressed_events[1].merged_into == 932
         and lily_staggered_result.trace.suppressed_events[1].reason
             == "character_transient_input_precursor",
     "Lily's one-frame HK precursor must fold into the completed MK+HK chord while preserving the raw Action trace")
@@ -2127,7 +2127,7 @@ assert(#lily_staggered_session.events == 2
 local standalone_lily_kick = compiler.new({ character = "Lily", frame = 0 })
 standalone_lily_kick.events = {
     {
-        id = 929,
+        id = 931,
         frame = 100,
         expected_combo = 1,
         damage_at_step = 700,
@@ -2141,33 +2141,33 @@ standalone_lily_kick.confirmed_damage = 700
 standalone_lily_kick.max_combo = 1
 local standalone_lily_result = compiler.finalize(standalone_lily_kick, {
     motion_resolver = function(action_id)
-        if action_id == 929 then return "236+HK", "strict_route" end
+        if action_id == 931 then return "236+HK", "strict_route" end
         return nil, "action_id_missing"
     end,
 })
 assert(#standalone_lily_result.steps == 1
-        and standalone_lily_result.steps[1].id == 929,
+        and standalone_lily_result.steps[1].id == 931,
     "Lily's standalone 236+HK must remain a real instruction")
 
 local _, contacted_lily_result = finalize_lily_staggered_kicks(true, 1)
 local _, late_lily_result = finalize_lily_staggered_kicks(false, 21)
 assert(#contacted_lily_result.steps == 2 and #late_lily_result.steps == 2,
-    "a contacted or late Lily 929 Action must never be mistaken for a transient chord precursor")
+    "a contacted or late Lily 931 Action must never be mistaken for a transient chord precursor")
 
 local lily_absorb_only_projection =
     CharacterRules.build_action_event_projection_rules({
-        ["930"] = { absorb_ids = "929" },
+        ["932"] = { absorb_ids = "931" },
     }, {})
-assert(lily_absorb_only_projection[929] == nil,
-    "Lily's absorb-only 930 rule must not canonicalize the transient 929 precursor")
+assert(lily_absorb_only_projection[931] == nil,
+    "Lily's absorb-only 932 rule must not canonicalize the transient 931 precursor")
 local _, product_lily_result =
     finalize_lily_staggered_kicks(false, 1, lily_absorb_only_projection)
 assert(#product_lily_result.steps == 1
-        and product_lily_result.steps[1].id == 930
-        and product_lily_result.trace.suppressed_events[1].id == 929
+        and product_lily_result.steps[1].id == 932
+        and product_lily_result.trace.suppressed_events[1].id == 931
         and product_lily_result.trace.suppressed_events[1].reason
             == "character_transient_input_precursor",
-    "Lily's shipped absorb-only rule must preserve the 929 transient fold into 930")
+    "Lily's shipped absorb-only rule must preserve the 931 transient fold into 932")
 end
 
 do
@@ -2197,27 +2197,27 @@ assert(type(aki_owner_rule) == "table"
     "loaded character rules must compile exact Action-event projection ownership")
 local lily_action_event_projection_rules =
     CharacterRules.build_action_event_projection_rules({
-        ["905"] = {
-            absorb_ids = "906,907",
+        ["907"] = {
+            absorb_ids = "908,909",
             action_event_projection = {},
         },
-        ["976"] = {
-            absorb_ids = "974,983,984",
+        ["978"] = {
+            absorb_ids = "976,985,986",
             action_event_projection = {},
         },
     }, {})
-assert(lily_action_event_projection_rules[906].kind == "internal_phase"
-        and lily_action_event_projection_rules[906].owner_id == 905
-        and lily_action_event_projection_rules[907].kind == "internal_phase"
-        and lily_action_event_projection_rules[907].owner_id == 905
-        and lily_action_event_projection_rules[974].kind == "internal_phase"
-        and lily_action_event_projection_rules[974].owner_id == 976
-        and lily_action_event_projection_rules[983].kind == "internal_phase"
-        and lily_action_event_projection_rules[983].owner_id == 976
-        and lily_action_event_projection_rules[984].kind == "internal_phase"
-        and lily_action_event_projection_rules[984].owner_id == 976
-        and lily_action_event_projection_rules[907].carry_input_anchor == false
-        and lily_action_event_projection_rules[984].carry_input_anchor == false,
+assert(lily_action_event_projection_rules[908].kind == "internal_phase"
+        and lily_action_event_projection_rules[908].owner_id == 907
+        and lily_action_event_projection_rules[909].kind == "internal_phase"
+        and lily_action_event_projection_rules[909].owner_id == 907
+        and lily_action_event_projection_rules[976].kind == "internal_phase"
+        and lily_action_event_projection_rules[976].owner_id == 978
+        and lily_action_event_projection_rules[985].kind == "internal_phase"
+        and lily_action_event_projection_rules[985].owner_id == 978
+        and lily_action_event_projection_rules[986].kind == "internal_phase"
+        and lily_action_event_projection_rules[986].owner_id == 978
+        and lily_action_event_projection_rules[909].carry_input_anchor == false
+        and lily_action_event_projection_rules[986].carry_input_anchor == false,
     "Lily's loaded product rules must project only the declared phases without implicit input passthrough")
 
 local function finalize_unprojected_akuma_transition(owner_id, child_id)
@@ -2401,68 +2401,68 @@ do
 local lily_wind_buffer = new_lily_projection_session()
 observe_lily_projection(lily_wind_buffer, 1, 10, 0, 0, 10000)
 observe_lily_projection(lily_wind_buffer, 2, 10, 32, 0, 10000)
-observe_lily_projection(lily_wind_buffer, 3, 905, 32, 0, 10000)
-observe_lily_projection(lily_wind_buffer, 4, 905, 0, 0, 10000)
-observe_lily_projection(lily_wind_buffer, 5, 905, 32, 0, 10000)
-observe_lily_projection(lily_wind_buffer, 6, 907, 32, 4, 9280)
-observe_lily_projection(lily_wind_buffer, 7, 907, 0, 4, 9280)
-observe_lily_projection(lily_wind_buffer, 8, 907, 64, 4, 9280)
+observe_lily_projection(lily_wind_buffer, 3, 907, 32, 0, 10000)
+observe_lily_projection(lily_wind_buffer, 4, 907, 0, 0, 10000)
+observe_lily_projection(lily_wind_buffer, 5, 907, 32, 0, 10000)
+observe_lily_projection(lily_wind_buffer, 6, 909, 32, 4, 9280)
+observe_lily_projection(lily_wind_buffer, 7, 909, 0, 4, 9280)
+observe_lily_projection(lily_wind_buffer, 8, 909, 64, 4, 9280)
 observe_lily_projection(lily_wind_buffer, 9, 1216, 64, 4, 9280)
 local lily_wind_buffer_result = compiler.finalize(lily_wind_buffer, {
     motion_resolver = function(action_id)
-        if action_id == 905 then return "214+MP", "strict_route" end
+        if action_id == 907 then return "214+MP", "strict_route" end
         if action_id == 1216 then return "214214+P", "strict_route" end
         return nil, "action_id_missing"
     end,
 })
 assert(#lily_wind_buffer.events == 3
-        and lily_wind_buffer.events[1].id == 905
-        and lily_wind_buffer.events[2].id == 907
+        and lily_wind_buffer.events[1].id == 907
+        and lily_wind_buffer.events[2].id == 909
         and lily_wind_buffer.events[3].id == 1216
         and lily_wind_buffer.events[2].anchor.frame == 5
         and lily_wind_buffer.events[3].anchor.frame == 8
         and lily_wind_buffer.events[2].anchor.pressed_buttons == 32
         and lily_wind_buffer.events[3].anchor.pressed_buttons == 64,
-    "Lily 907 must consume only its own buffered punch while a fresh SA punch binds the durable super Action")
+    "Lily 909 must consume only its own buffered punch while a fresh SA punch binds the durable super Action")
 assert(#lily_wind_buffer_result.steps == 2
-        and lily_wind_buffer_result.steps[1].id == 905
+        and lily_wind_buffer_result.steps[1].id == 907
         and lily_wind_buffer_result.steps[1].motion == "214+MP"
         and lily_wind_buffer_result.steps[1].expected_combo == 4
         and lily_wind_buffer_result.steps[1].damage_at_step == 720
         and lily_wind_buffer_result.steps[1].has_hit == true
         and lily_wind_buffer_result.steps[2].id == 1216
         and lily_wind_buffer_result.steps[2].motion == "214214+P"
-        and lily_wind_buffer_result.trace.input_bound_events[2].id == 907
-        and lily_wind_buffer_result.trace.suppressed_events[1].id == 907
-        and lily_wind_buffer_result.trace.suppressed_events[1].merged_into == 905
+        and lily_wind_buffer_result.trace.input_bound_events[2].id == 909
+        and lily_wind_buffer_result.trace.suppressed_events[1].id == 909
+        and lily_wind_buffer_result.trace.suppressed_events[1].merged_into == 907
         and lily_wind_buffer_result.trace.suppressed_events[1].reason
             == "character_internal_action_phase",
-    "Lily 907 must contribute only contact truth to 905 without becoming a V2 instruction")
+    "Lily 909 must contribute only contact truth to 907 without becoming a V2 instruction")
 
 local lily_dive_buffer = new_lily_projection_session()
 observe_lily_projection(lily_dive_buffer, 1, 10, 0, 0, 10000)
 observe_lily_projection(lily_dive_buffer, 2, 10, 112, 0, 10000)
-observe_lily_projection(lily_dive_buffer, 3, 976, 112, 7, 9880)
-observe_lily_projection(lily_dive_buffer, 4, 976, 0, 7, 9880)
-observe_lily_projection(lily_dive_buffer, 5, 974, 0, 8, 9040)
-observe_lily_projection(lily_dive_buffer, 6, 974, 256, 8, 9040)
-observe_lily_projection(lily_dive_buffer, 7, 983, 256, 8, 9040)
-observe_lily_projection(lily_dive_buffer, 8, 983, 0, 8, 9040)
-observe_lily_projection(lily_dive_buffer, 9, 984, 0, 8, 9040)
-observe_lily_projection(lily_dive_buffer, 10, 984, 128, 8, 9040)
+observe_lily_projection(lily_dive_buffer, 3, 978, 112, 7, 9880)
+observe_lily_projection(lily_dive_buffer, 4, 978, 0, 7, 9880)
+observe_lily_projection(lily_dive_buffer, 5, 976, 0, 8, 9040)
+observe_lily_projection(lily_dive_buffer, 6, 976, 256, 8, 9040)
+observe_lily_projection(lily_dive_buffer, 7, 985, 256, 8, 9040)
+observe_lily_projection(lily_dive_buffer, 8, 985, 0, 8, 9040)
+observe_lily_projection(lily_dive_buffer, 9, 986, 0, 8, 9040)
+observe_lily_projection(lily_dive_buffer, 10, 986, 128, 8, 9040)
 observe_lily_projection(lily_dive_buffer, 11, 1207, 128, 8, 9040)
 local lily_dive_buffer_result = compiler.finalize(lily_dive_buffer, {
     motion_resolver = function(action_id)
-        if action_id == 976 then return "j.PPP", "strict_route" end
+        if action_id == 978 then return "j.PPP", "strict_route" end
         if action_id == 1207 then return "236236+K", "strict_route" end
         return nil, "action_id_missing"
     end,
 })
 assert(#lily_dive_buffer.events == 5
-        and lily_dive_buffer.events[1].id == 976
-        and lily_dive_buffer.events[2].id == 974
-        and lily_dive_buffer.events[3].id == 983
-        and lily_dive_buffer.events[4].id == 984
+        and lily_dive_buffer.events[1].id == 978
+        and lily_dive_buffer.events[2].id == 976
+        and lily_dive_buffer.events[3].id == 985
+        and lily_dive_buffer.events[4].id == 986
         and lily_dive_buffer.events[5].id == 1207
         and lily_dive_buffer.events[2].anchor.frame == 4
         and lily_dive_buffer.events[3].anchor.frame == 6
@@ -2472,52 +2472,52 @@ assert(#lily_dive_buffer.events == 5
         and lily_dive_buffer.events[3].anchor.pressed_buttons == 256
         and lily_dive_buffer.events[4].anchor.released_buttons == 256
         and lily_dive_buffer.events[5].anchor.pressed_buttons == 128,
-    "Lily's complete 974/983/984 phase chain must consume its own edges while a fresh SA2 kick binds the durable super Action")
+    "Lily's complete 976/985/986 phase chain must consume its own edges while a fresh SA2 kick binds the durable super Action")
 assert(#lily_dive_buffer_result.steps == 2
-        and lily_dive_buffer_result.steps[1].id == 976
+        and lily_dive_buffer_result.steps[1].id == 978
         and lily_dive_buffer_result.steps[1].motion == "j.PPP"
         and lily_dive_buffer_result.steps[1].expected_combo == 8
         and lily_dive_buffer_result.steps[1].damage_at_step == 960
         and lily_dive_buffer_result.steps[1].has_hit == true
         and lily_dive_buffer_result.steps[2].id == 1207
         and lily_dive_buffer_result.steps[2].motion == "236236+K"
-        and lily_dive_buffer_result.trace.input_bound_events[2].id == 974
-        and lily_dive_buffer_result.trace.suppressed_events[1].id == 974
-        and lily_dive_buffer_result.trace.suppressed_events[1].merged_into == 976
+        and lily_dive_buffer_result.trace.input_bound_events[2].id == 976
+        and lily_dive_buffer_result.trace.suppressed_events[1].id == 976
+        and lily_dive_buffer_result.trace.suppressed_events[1].merged_into == 978
         and lily_dive_buffer_result.trace.suppressed_events[1].reason
             == "character_internal_action_phase"
-        and lily_dive_buffer_result.trace.suppressed_events[2].id == 983
-        and lily_dive_buffer_result.trace.suppressed_events[2].merged_into == 976
-        and lily_dive_buffer_result.trace.suppressed_events[3].id == 984
-        and lily_dive_buffer_result.trace.suppressed_events[3].merged_into == 976,
-    "Lily's later dive phases must contribute only outcome truth to 976 without becoming V2 instructions")
+        and lily_dive_buffer_result.trace.suppressed_events[2].id == 985
+        and lily_dive_buffer_result.trace.suppressed_events[2].merged_into == 978
+        and lily_dive_buffer_result.trace.suppressed_events[3].id == 986
+        and lily_dive_buffer_result.trace.suppressed_events[3].merged_into == 978,
+    "Lily's later dive phases must contribute only outcome truth to 978 without becoming V2 instructions")
 
 local lily_redundant_dive_press = new_lily_projection_session()
 observe_lily_projection(lily_redundant_dive_press, 1, 10, 0, 0, 10000)
 observe_lily_projection(lily_redundant_dive_press, 2, 10, 112, 0, 10000)
-observe_lily_projection(lily_redundant_dive_press, 3, 976, 112, 7, 9880)
-observe_lily_projection(lily_redundant_dive_press, 4, 976, 0, 7, 9880)
-observe_lily_projection(lily_redundant_dive_press, 5, 976, 112, 7, 9880)
-observe_lily_projection(lily_redundant_dive_press, 6, 974, 112, 8, 9040)
-observe_lily_projection(lily_redundant_dive_press, 7, 974, 112, 8, 9040)
-observe_lily_projection(lily_redundant_dive_press, 8, 983, 112, 8, 9040)
-observe_lily_projection(lily_redundant_dive_press, 9, 984, 112, 8, 9040)
-observe_lily_projection(lily_redundant_dive_press, 50, 984, 112, 8, 9040)
+observe_lily_projection(lily_redundant_dive_press, 3, 978, 112, 7, 9880)
+observe_lily_projection(lily_redundant_dive_press, 4, 978, 0, 7, 9880)
+observe_lily_projection(lily_redundant_dive_press, 5, 978, 112, 7, 9880)
+observe_lily_projection(lily_redundant_dive_press, 6, 976, 112, 8, 9040)
+observe_lily_projection(lily_redundant_dive_press, 7, 976, 112, 8, 9040)
+observe_lily_projection(lily_redundant_dive_press, 8, 985, 112, 8, 9040)
+observe_lily_projection(lily_redundant_dive_press, 9, 986, 112, 8, 9040)
+observe_lily_projection(lily_redundant_dive_press, 50, 986, 112, 8, 9040)
 local lily_redundant_dive_result = compiler.finalize(
     lily_redundant_dive_press,
     {
         motion_resolver = function(action_id)
-            if action_id == 976 then return "j.PPP", "strict_route" end
+            if action_id == 978 then return "j.PPP", "strict_route" end
             return nil, "action_id_missing"
         end,
     }
 )
 assert(#lily_redundant_dive_press.events == 2
-        and lily_redundant_dive_press.events[1].id == 976
-        and lily_redundant_dive_press.events[2].id == 974
+        and lily_redundant_dive_press.events[1].id == 978
+        and lily_redundant_dive_press.events[2].id == 976
         and lily_redundant_dive_press.unresolved_anchor_count == 0
         and #lily_redundant_dive_result.steps == 1
-        and lily_redundant_dive_result.steps[1].id == 976
+        and lily_redundant_dive_result.steps[1].id == 978
         and lily_redundant_dive_result.steps[1].expected_combo == 8
         and lily_redundant_dive_result.steps[1].damage_at_step == 960
         and #lily_redundant_dive_result.trace.suppressed_events == 1,

@@ -1519,17 +1519,17 @@ assert(character_rules.find_recording_absorb_owner({
         ["970"] = { absorb_ids = "975", record_absorb_as_parent = true }
     }, {}, 975) == nil,
     "ambiguous absorb parents must fail closed instead of choosing an arbitrary command")
-local lily_930_rules = {
-    ["930"] = {
-        absorb_ids = "929",
+local lily_932_rules = {
+    ["932"] = {
+        absorb_ids = "931",
         action_event_rules = {
-            transient_precursor_ids = "929",
+            transient_precursor_ids = "931",
         },
     },
 }
 local lily_action_event_rules =
-    character_rules.build_action_event_rules(lily_930_rules, {})
-assert(lily_action_event_rules.transient_input_precursor_transitions[929][930]
+    character_rules.build_action_event_rules(lily_932_rules, {})
+assert(lily_action_event_rules.transient_input_precursor_transitions[931][932]
         == true,
     "exception data must compile transient precursor mappings for compiler and runtime")
 assert(next(character_rules.build_action_event_rules({
@@ -1563,27 +1563,27 @@ local cviper_quick_successor_rules = character_rules.build_action_event_rules({
 assert(cviper_quick_successor_rules.quick_successor_sources[1037].max_delay_frames
         == 4,
     "exception data must compile bounded same-input successor preservation")
-local lily_930_expected = { id = 930, expected_combo = 6 }
-local lily_930_canonical = character_rules.match_current_canonical_confirmation(
-    lily_930_rules, {}, lily_930_expected, 929, 6, "Lily")
-assert(lily_930_canonical.matched == false
-        and lily_930_canonical.block_reason == "canonical_owner_projection_missing",
-    "Lily must not canonicalize 929 through the absorb-only exception")
+local lily_932_expected = { id = 932, expected_combo = 6 }
+local lily_932_canonical = character_rules.match_current_canonical_confirmation(
+    lily_932_rules, {}, lily_932_expected, 931, 6, "Lily")
+assert(lily_932_canonical.matched == false
+        and lily_932_canonical.block_reason == "canonical_owner_projection_missing",
+    "Lily must not canonicalize 931 through the absorb-only exception")
 assert(action_matcher.matches_expected_action_id(
-        lily_930_expected, 929, lily_930_rules["930"]) == false,
-    "Lily's transient 929 precursor must not advance the 930 step through action_alias_ids")
+        lily_932_expected, 931, lily_932_rules["932"]) == false,
+    "Lily's transient 931 precursor must not advance the 932 step through action_alias_ids")
 local lily_transient_ignore = action_matcher.classify_runtime_transition({
     character = "Lily",
-    expected_step = lily_930_expected,
+    expected_step = lily_932_expected,
     expected_action_matches_current = false,
-    actual_action_id = 929,
+    actual_action_id = 931,
     action_event_rules = lily_action_event_rules,
     input_anchor_kind = "button_press",
     input_truth_mode = true,
 })
 assert(lily_transient_ignore.ignored == true
         and lily_transient_ignore.reason == "transient_input_precursor",
-    "the live trial must ignore Lily's 929 precursor while waiting for durable 930")
+    "the live trial must ignore Lily's 931 precursor while waiting for durable 932")
 local lily_transient_wrong_step = action_matcher.classify_runtime_transition({
     character = "Lily",
     expected_step = { id = 941, expected_combo = 8 },
@@ -1594,10 +1594,10 @@ local lily_transient_wrong_step = action_matcher.classify_runtime_transition({
     input_truth_mode = true,
 })
 assert(lily_transient_wrong_step.ignored == false,
-    "Lily's 929 precursor must not be ignored for a different expected step")
+    "Lily's 931 precursor must not be ignored for a different expected step")
 local ryu_transient_mismatch = action_matcher.classify_runtime_transition({
     character = "Ryu",
-    expected_step = lily_930_expected,
+    expected_step = lily_932_expected,
     expected_action_matches_current = false,
     actual_action_id = 929,
     action_event_rules = {},
@@ -1606,26 +1606,26 @@ local ryu_transient_mismatch = action_matcher.classify_runtime_transition({
 })
 assert(ryu_transient_mismatch.ignored == false,
     "transient precursor ignoring must stay character-scoped")
-local lily_930_early = character_rules.match_current_absorb_confirmation(
-    lily_930_rules, {}, lily_930_expected, 929, 3, "Lily")
-assert(lily_930_early.matched == false
-        and lily_930_early.block_reason == "combo_not_reached",
-    "Lily 929 chord precursor must wait for the durable 930 before combo is reached")
-local lily_930_absorb = character_rules.match_current_absorb_confirmation(
-    lily_930_rules, {}, lily_930_expected, 929, 6, "Lily")
-assert(lily_930_absorb.matched == true
-        and lily_930_absorb.actual_action_id == 929,
-    "input-truth playback must admit Lily's transient 929 precursor through absorb_ids")
-local lily_930_recent = character_rules.find_recent_absorb_confirmation(
-    lily_930_rules,
+local lily_932_early = character_rules.match_current_absorb_confirmation(
+    lily_932_rules, {}, lily_932_expected, 931, 3, "Lily")
+assert(lily_932_early.matched == false
+        and lily_932_early.block_reason == "combo_not_reached",
+    "Lily 931 chord precursor must wait for the durable 932 before combo is reached")
+local lily_932_absorb = character_rules.match_current_absorb_confirmation(
+    lily_932_rules, {}, lily_932_expected, 931, 6, "Lily")
+assert(lily_932_absorb.matched == true
+        and lily_932_absorb.actual_action_id == 931,
+    "input-truth playback must admit Lily's transient 931 precursor through absorb_ids")
+local lily_932_recent = character_rules.find_recent_absorb_confirmation(
+    lily_932_rules,
     {},
-    lily_930_expected,
-    { { id = 929, combo_count = 6, start_frame = 100 } },
+    lily_932_expected,
+    { { id = 931, combo_count = 6, start_frame = 100 } },
     "Lily"
 )
-assert(lily_930_recent.matched == true
-        and lily_930_recent.actual_action_id == 929,
-    "recent-input playback must retain the same Lily 929 absorb confirmation")
+assert(lily_932_recent.matched == true
+        and lily_932_recent.actual_action_id == 931,
+    "recent-input playback must retain the same Lily 931 absorb confirmation")
 local honda_pending_policy = character_rules.match_current_absorb_confirmation(
     {
         _character = { allow_pending_absorb = true },
@@ -1643,12 +1643,12 @@ assert(honda_pending_policy.matched == false
     "pending absorb permission must come from character exception data")
 local lily_exception_source = read_all(
     "data/TrainingComboTrials_data/exceptions/Lily.json")
-assert(lily_exception_source:find('"930"', 1, true)
-        and lily_exception_source:find('"absorb_ids": "929"', 1, true)
-        and lily_exception_source:find('"transient_precursor_ids": "929"', 1, true)
-        and not lily_exception_source:find('"action_alias_ids": "929"', 1, true)
-        and not lily_exception_source:find('"canonical_owner_ids": "929"', 1, true),
-    "the shipped Lily exception must keep 929 as an absorb-only transient precursor")
+assert(lily_exception_source:find('"932"', 1, true)
+        and lily_exception_source:find('"absorb_ids": "931"', 1, true)
+        and lily_exception_source:find('"transient_precursor_ids": "931"', 1, true)
+        and not lily_exception_source:find('"action_alias_ids": "931"', 1, true)
+        and not lily_exception_source:find('"canonical_owner_ids": "931"', 1, true),
+    "the shipped Lily exception must keep 931 as an absorb-only transient precursor")
 local alex_override_source = read_all(
     "data/TrainingComboTrials_data/command_display_overrides/Alex.json")
 assert(alex_override_source:find('"958"', 1, true)

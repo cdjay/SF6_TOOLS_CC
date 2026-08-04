@@ -8,27 +8,27 @@
     "charge_min": 58,
     "charge_max": 89
   },
-  "905": {
-    "absorb_ids": "906,907",
+  "907": {
+    "absorb_ids": "908,909",
     "is_holdable": true,
     "charge_min": 69,
     "charge_max": 89,
     "action_event_projection": {}
   },
-  "910": {
-    "absorb_ids": "911",
+  "912": {
+    "absorb_ids": "913",
     "is_holdable": true,
     "charge_min": 69,
     "charge_max": 89
   },
-  "930": {
-    "absorb_ids": "929",
+  "932": {
+    "absorb_ids": "931",
     "action_event_rules": {
-      "transient_precursor_ids": "929"
+      "transient_precursor_ids": "931"
     }
   },
-  "976": {
-    "absorb_ids": "974,983,984",
+  "978": {
+    "absorb_ids": "976,985,986",
     "action_event_projection": {}
   }
 }
