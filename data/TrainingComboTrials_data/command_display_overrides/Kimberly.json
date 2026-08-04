@@ -1,0 +1,16 @@
+{
+  "schema": "xt.command_display_overrides.v1",
+  "character": "Kimberly",
+  "entries": {
+    "613": {
+      "classic": "2+MP",
+      "replace": true,
+      "evidence": "Verified facing-relative raw-input runtime replay binds a fresh 2+MP press and hit contact to Kimberly Action 613"
+    },
+    "983": {
+      "classic": ">22+MP+HP",
+      "replace": true,
+      "evidence": "Verified facing-relative raw-input runtime replay binds the two-stock >22+MP+HP bomb command to Kimberly Action 983"
+    }
+  }
+}

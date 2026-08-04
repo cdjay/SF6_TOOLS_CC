@@ -1652,6 +1652,14 @@ assert(ingrid_override_source:find('"609"', 1, true)
         and ingrid_override_source:find('"1229"', 1, true)
         and ingrid_override_source:find('"classic": "214214+HP"', 1, true),
     "the shipped Ingrid command overrides must preserve runtime-verified commands")
+local kimberly_override_source = read_all(
+    "data/TrainingComboTrials_data/command_display_overrides/Kimberly.json")
+assert(kimberly_override_source:find('"613"', 1, true)
+        and kimberly_override_source:find('"classic": "2+MP"', 1, true)
+        and kimberly_override_source:find('"983"', 1, true)
+        and kimberly_override_source:find('"classic": ">22+MP+HP"', 1, true)
+        and kimberly_override_source:find('"replace": true', 1, true),
+    "the shipped Kimberly command overrides must preserve runtime-verified commands")
 local ingrid_exception_source = read_all(
     "data/TrainingComboTrials_data/exceptions/Ingrid.json")
 assert(ingrid_exception_source:find('"945"', 1, true)
