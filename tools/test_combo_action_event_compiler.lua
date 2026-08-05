@@ -2464,6 +2464,8 @@ local aki_action_event_projection_rules =
                 canonical_owner_ids = "945",
                 max_fold_delay_frames = 1,
                 require_same_anchor = true,
+                internal_max_fold_delay_frames = 32,
+                internal_require_same_anchor = false,
             },
         },
         ["998"] = {
@@ -2475,7 +2477,13 @@ local aki_owner_rule = aki_action_event_projection_rules[945]
 assert(type(aki_owner_rule) == "table"
         and aki_owner_rule.kind == "canonical_owner"
         and aki_owner_rule.owner_id == 944
+        and aki_owner_rule.max_fold_delay_frames == 1
+        and aki_owner_rule.require_same_anchor == true
         and aki_action_event_projection_rules[936].kind == "internal_phase"
+        and aki_action_event_projection_rules[936].max_fold_delay_frames == 32
+        and aki_action_event_projection_rules[936].require_same_anchor == false
+        and aki_action_event_projection_rules[941].max_fold_delay_frames == 32
+        and aki_action_event_projection_rules[941].require_same_anchor == false
         and aki_action_event_projection_rules[999].owner_id == 998
         and aki_action_event_projection_rules[999].carry_input_anchor == true,
     "loaded character rules must compile exact Action-event projection ownership")
@@ -3219,8 +3227,12 @@ assert(aki_od_snake_lash_result.trace.observed_actions[1].id == 945
             == (16 | 32)
         and aki_od_snake_lash_result.trace.suppressed_events[1].id == 936
         and aki_od_snake_lash_result.trace.suppressed_events[1].merged_into == 944
+        and aki_od_snake_lash_result.trace.suppressed_events[1].reason
+            == "character_internal_action_phase"
         and aki_od_snake_lash_result.trace.suppressed_events[2].id == 941
-        and aki_od_snake_lash_result.trace.suppressed_events[2].merged_into == 944,
+        and aki_od_snake_lash_result.trace.suppressed_events[2].merged_into == 944
+        and aki_od_snake_lash_result.trace.suppressed_events[2].reason
+            == "character_internal_action_phase",
     "AKI owner projection must preserve raw Action truth and expose normalization in trace")
 assert(aki_od_snake_lash.events[1].id == 945
         and aki_od_snake_lash.events[1].expected_combo == 0
@@ -3228,6 +3240,35 @@ assert(aki_od_snake_lash.events[1].id == 945
         and aki_od_snake_lash.events[1].hold_frames == 6
         and aki_od_snake_lash.events[1].anchor.pressed_buttons == (16 | 32),
     "projected outcome truth must not mutate the source owner event")
+
+local aki_late_internal_phase = new_aki_projection_session()
+aki_late_internal_phase.events = {
+    {
+        id = 945,
+        frame = 100,
+        anchor = { kind = "button_press", pressed_buttons = 16 | 32 },
+    },
+    {
+        id = 936,
+        frame = 133,
+        expected_combo = 1,
+        damage_at_step = 480,
+        has_hit = true,
+        has_contact = true,
+        anchor = { kind = "button_release", released_buttons = 32 | 256 },
+    },
+}
+local aki_late_internal_phase_result = compiler.finalize(aki_late_internal_phase, {
+    motion_resolver = function(action_id)
+        if action_id == 944 then return "236+PP", "strict_route" end
+        if action_id == 936 then return "PARRY", "strict_route" end
+        return nil, "action_id_missing"
+    end,
+})
+assert(#aki_late_internal_phase_result.steps == 2
+        and aki_late_internal_phase_result.steps[1].id == 944
+        and aki_late_internal_phase_result.steps[2].id == 936,
+    "AKI internal phases beyond the verified 32-frame window must remain visible")
 
 local aki_duplicate_owner = new_aki_projection_session()
 aki_duplicate_owner.events = {

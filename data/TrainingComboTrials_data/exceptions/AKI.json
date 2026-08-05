@@ -10,7 +10,9 @@
     "action_event_projection": {
       "canonical_owner_ids": "945",
       "max_fold_delay_frames": 1,
-      "require_same_anchor": true
+      "require_same_anchor": true,
+      "internal_max_fold_delay_frames": 32,
+      "internal_require_same_anchor": false
     }
   },
   "998": {

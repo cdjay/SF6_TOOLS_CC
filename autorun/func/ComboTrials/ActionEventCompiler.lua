@@ -226,7 +226,12 @@ local function character_rule_fold_reason(
             and anchor.kind == "button_press" then
             return nil
         end
-        if rule.require_same_anchor == true then
+        local max_fold_delay_frames = math.max(
+            0,
+            tonumber(rule.max_fold_delay_frames) or 0
+        )
+        if rule.require_same_anchor == true
+            or max_fold_delay_frames > 0 then
             local current_frame = tonumber(source_event.frame)
             local previous_frame = tonumber(previous.event.frame)
             if current_frame == nil or previous_frame == nil then
@@ -234,9 +239,11 @@ local function character_rule_fold_reason(
             end
             local delay = current_frame - previous_frame
             if delay < 0
-                or delay > (tonumber(rule.max_fold_delay_frames) or 0) then
+                or delay > max_fold_delay_frames then
                 return nil
             end
+        end
+        if rule.require_same_anchor == true then
             if not fold_anchor_allows(previous, source_event, rule) then
                 return nil
             end

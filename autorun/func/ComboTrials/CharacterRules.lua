@@ -300,14 +300,26 @@ function CharacterRules.build_action_event_projection_rules(
                     -- projection. Most contact/recovery phases should consume
                     -- their incidental edge; only runtime-proven buffered
                     -- phases may return it to the binder.
+                    local internal_max_fold_delay_frames =
+                        projection.internal_max_fold_delay_frames
+                    if internal_max_fold_delay_frames == nil then
+                        internal_max_fold_delay_frames =
+                            projection.max_fold_delay_frames
+                    end
+                    local internal_require_same_anchor =
+                        projection.internal_require_same_anchor
+                    if internal_require_same_anchor == nil then
+                        internal_require_same_anchor =
+                            projection.require_same_anchor
+                    end
                     rule.carry_input_anchor =
                         projection.carry_input_anchor == true
                     rule.max_fold_delay_frames = math.max(
                         0,
-                        tonumber(projection.max_fold_delay_frames) or 0
+                        tonumber(internal_max_fold_delay_frames) or 0
                     )
                     rule.require_same_anchor =
-                        projection.require_same_anchor == true
+                        internal_require_same_anchor == true
                     rule.allow_same_button_press_fold =
                         projection.allow_same_button_press_fold == true
                     rule.preserve_fresh_button_press =
