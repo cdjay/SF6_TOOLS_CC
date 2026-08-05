@@ -180,6 +180,7 @@ function CommandDisplayOverrides.merge(slim, character, document)
                     evidence = evidence,
                     control_support = commands and "classic_modern" or "classic_only",
                     replaced_existing = existing ~= nil,
+                    require_recorded_motion_match = entry.require_recorded_motion_match == true,
                 },
             }
             if button_masks ~= nil then

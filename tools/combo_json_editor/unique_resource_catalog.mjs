@@ -49,7 +49,11 @@ export const UNIQUE_RESOURCE_CATALOG = Object.freeze({
         })
     ],
     30: [state("timer_0_030", "限制解除", "Limit Break")],
-    32: [stock("stock_0_032", "太阳纹章", "Sun Crest", 4, true)]
+    32: [stock("stock_0_032", "太阳纹章", "Sun Crest", 4, true)],
+    33: [
+        state("timer_0_033", "SA2强化状态", "SA2 Install"),
+        stock("stock_0_033", "巴亚尼模式", "Bayani Mode", 1, true)
+    ]
 });
 
 export function resourceDefinitionsForFighter(fighterId) {

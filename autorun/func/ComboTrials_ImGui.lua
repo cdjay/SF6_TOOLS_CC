@@ -1943,6 +1943,20 @@ local function get_catalog_route_status(command_map, step)
     return entry.status
 end
 
+local function get_catalog_metadata(command_map, step)
+    if type(command_map) ~= "table" or type(step) ~= "table" then return nil end
+    local entry = command_map[tostring(step.id or "")]
+    if type(entry) ~= "table" or type(entry.metadata) ~= "table" then return nil end
+    return entry.metadata
+end
+
+local function normalize_recorded_motion_match(value)
+    local stripped = TrainingEnvironment.strip_counter_tags(value)
+    local normalized = normalize_resolved_command_motion(stripped)
+    if normalized == nil then return nil end
+    return normalized:upper():gsub("%s+", "")
+end
+
 -- Resolve the semantic command-display state before any localized placeholder,
 -- display clone or unresolved-action audit is produced. Keeping this decision
 -- in one helper makes programmatic validation agree with the trial table:
@@ -1961,6 +1975,7 @@ local function resolve_step_command_display(command_map, step, is_modern)
     local suppressed = route_status == "suppress_transition"
     if is_modern then motion = select_modern_display_motion(motion) end
     local catalog_route_status = get_catalog_route_status(command_map, display_step)
+    local metadata = get_catalog_metadata(command_map, display_step)
     local route_accepted = ACCEPTED_COMMAND_DISPLAY_ROUTE_STATUSES[route_status] == true
     if route_status == "recorded_context" then
         route_accepted = ACCEPTED_RECORDED_CONTEXT_CATALOG_STATUSES[catalog_route_status] == true
@@ -1989,6 +2004,7 @@ local function resolve_step_command_display(command_map, step, is_modern)
         unresolved = unresolved,
         effective_action_id = tonumber(display_step and display_step.id),
         projected_action_id = projected_action_id,
+        metadata = metadata,
     }
 end
 
@@ -2026,6 +2042,7 @@ local function resolve_contextual_step_command_display(
             unresolved = normalized_transition == nil,
             effective_action_id = resolution.effective_action_id,
             projected_action_id = resolution.projected_action_id,
+            metadata = resolution.metadata,
         }, resolution.effective_action_id
     end
     if declared_internal then
@@ -2039,6 +2056,7 @@ local function resolve_contextual_step_command_display(
             unresolved = false,
             effective_action_id = resolution.effective_action_id,
             projected_action_id = resolution.projected_action_id,
+            metadata = resolution.metadata,
         }, resolution.effective_action_id
     end
 
@@ -2124,6 +2142,8 @@ local function validate_sequence_command_display(sequence)
             visible_line_count = 0,
             unresolved_count = 0,
             unresolved = {},
+            recorded_motion_drift_count = 0,
+            recorded_motion_drift = {},
             steps = {},
         }
     end
@@ -2146,6 +2166,8 @@ local function validate_sequence_command_display(sequence)
         visible_line_count = 0,
         unresolved_count = 0,
         unresolved = {},
+        recorded_motion_drift_count = 0,
+        recorded_motion_drift = {},
         steps = {},
     }
 
@@ -2194,6 +2216,23 @@ local function validate_sequence_command_display(sequence)
         end
 
         local visible = classification ~= "suppressed"
+        local require_recorded_motion_match = classification == "resolved"
+            and type(resolution.metadata) == "table"
+            and resolution.metadata.require_recorded_motion_match == true
+        local recorded_motion_matches = nil
+        if require_recorded_motion_match then
+            recorded_motion_matches =
+                normalize_recorded_motion_match(step.motion)
+                == normalize_recorded_motion_match(display_motion)
+            if not recorded_motion_matches then
+                result.recorded_motion_drift[#result.recorded_motion_drift + 1] = {
+                    index = index,
+                    action_id = tonumber(step.id),
+                    recorded_motion = type(step.motion) == "string" and step.motion or "",
+                    display_motion = display_motion,
+                }
+            end
+        end
         local group_key = tostring(step.group_id ~= nil
             and step.group_id or ("step:" .. tostring(index)))
         local visible_line_index = nil
@@ -2219,14 +2258,19 @@ local function validate_sequence_command_display(sequence)
             group_key = group_key,
             visible = visible,
             visible_line_index = visible_line_index,
+            require_recorded_motion_match = require_recorded_motion_match,
+            recorded_motion_matches = recorded_motion_matches,
         }
     end
 
     result.unresolved_count = #result.unresolved
+    result.recorded_motion_drift_count = #result.recorded_motion_drift
     if not result.map_available then
         result.status = result.map_status
     elseif result.unresolved_count > 0 then
         result.status = "unresolved_action_commands"
+    elseif result.recorded_motion_drift_count > 0 then
+        result.status = "recorded_motion_drift"
     else
         result.ok = true
         result.status = "resolved"

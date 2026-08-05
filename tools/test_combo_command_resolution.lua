@@ -10,6 +10,7 @@ local command_display_overrides =
     dofile("autorun/func/ComboTrials/CommandDisplayOverrides.lua")
 CommandDisplayOverrides = command_display_overrides
 ActionCompatibility = dofile("autorun/func/ComboTrials/ActionCompatibility.lua")
+TrainingEnvironment = dofile("autorun/func/ComboTrials/TrainingEnvironment.lua")
 do
 local honda_compatibility, honda_compatibility_count,
     honda_compatibility_status = ActionCompatibility.parse({
@@ -120,6 +121,7 @@ local merged_overrides, applied_overrides, override_status =
             ["958"] = {
                 classic = "2+PP",
                 replace = true,
+                require_recorded_motion_match = true,
                 evidence = "twenty-seven completed runtime events",
             },
             ["959"] = {
@@ -139,7 +141,9 @@ assert(override_status == "loaded" and applied_overrides == 4
     and merged_overrides["958"].status == "runtime_verified_override"
     and merged_overrides["959"].status == "runtime_verified_override"
     and merged_overrides["958"].metadata.replaced_existing == true
+    and merged_overrides["958"].metadata.require_recorded_motion_match == true
     and merged_overrides["959"].metadata.replaced_existing == true
+    and merged_overrides["959"].metadata.require_recorded_motion_match == false
     and merged_overrides["967"].classic == ">6+P"
     and merged_overrides["968"].classic == ">6+MP"
     and merged_overrides["968"].status == "runtime_verified_override"
@@ -1150,6 +1154,45 @@ assert(display_validation.ok == false
         and display_validation.unresolved[1].route_status == "action_id_missing",
     "the audit validator must match the classic table's resolved, suppressed and placeholder paths")
 
+do
+    local yasmine_drift_map = select(1, command_display_overrides.merge({
+        _slim = true,
+        ["970"] = { classic = "4+HP", status = "strict_route" },
+    }, "Yasmine", {
+        schema = "xt.command_display_overrides.v1",
+        character = "Yasmine",
+        entries = {
+            ["970"] = {
+                classic = "236+HP",
+                replace = true,
+                require_recorded_motion_match = true,
+                evidence = "verified Yasmine heavy Daloy ng Tubig command",
+            },
+        },
+    }))
+    resolve_modern_display_context = function()
+        return false, yasmine_drift_map, "Yasmine", "loaded", false
+    end
+    local stale_recording = validate_sequence_command_display({
+        { id = 970, motion = "4+HP" },
+    })
+    assert(stale_recording.ok == false
+            and stale_recording.status == "recorded_motion_drift"
+            and stale_recording.recorded_motion_drift_count == 1
+            and stale_recording.recorded_motion_drift[1].index == 1
+            and stale_recording.steps[1].display_motion == "236+HP"
+            and stale_recording.steps[1].require_recorded_motion_match == true
+            and stale_recording.steps[1].recorded_motion_matches == false,
+        "an explicitly guarded override must display the authoritative command but fail stale saved motion")
+    local current_recording = validate_sequence_command_display({
+        { id = 970, motion = "236+HP" },
+    })
+    assert(current_recording.ok == true
+            and current_recording.recorded_motion_drift_count == 0
+            and current_recording.steps[1].recorded_motion_matches == true,
+        "a newly recorded authoritative command must pass the guarded override")
+end
+
 resolve_modern_display_context = function()
     return false, BLANKA_OVERRIDES_TEST, "Blanka", "loaded", false
 end
@@ -2062,6 +2105,59 @@ do
     assert(blanka_exception_source:find('"absorb_ids": "928,929,930"', 1, true)
             and blanka_exception_source:find('"action_event_projection": {}', 1, true),
         "the shipped Blanka rules must fold doll contact Action 930 into owner 931")
+end
+do
+    local yasmine_override_source = read_all(
+        "data/TrainingComboTrials_data/command_display_overrides/Yasmine.json")
+    local yasmine_exception_source = read_all(
+        "data/TrainingComboTrials_data/exceptions/Yasmine.json")
+    local combo_trials_source = read_all("autorun/TrainingComboTrials_v1.0.lua")
+    assert(yasmine_override_source:find('"970"', 1, true)
+            and yasmine_override_source:find('"classic": "236+HP"', 1, true)
+            and yasmine_override_source:find(
+                '"require_recorded_motion_match": true', 1, true)
+            and not yasmine_override_source:find('"classic": "4+HP"', 1, true)
+            and yasmine_override_source:find('"replace": true', 1, true)
+            and not yasmine_override_source:find('"938"', 1, true)
+            and not yasmine_override_source:find('"942"', 1, true)
+            and not yasmine_override_source:find('"972"', 1, true)
+            and not yasmine_override_source:find('"976"', 1, true)
+            and not yasmine_override_source:find('"1058"', 1, true),
+        "the shipped Yasmine overrides must map Action 970 to heavy Daloy ng Tubig and exclude automatic phases")
+    assert(yasmine_exception_source:find('"fighter_id": 33', 1, true)
+            and yasmine_exception_source:find(
+                '"resource_id": "stock_0_033"', 1, true)
+            and yasmine_exception_source:find(
+                '"required_action_ids": "954,955,956"', 1, true)
+            and yasmine_exception_source:find(
+                '"producer_action_ids": "1210"', 1, true),
+        "the shipped Yasmine rules must infer an initial Bayani state only when required")
+    assert(yasmine_exception_source:find('"955"', 1, true)
+            and yasmine_exception_source:find(
+                '"absorb_ids": "956"', 1, true)
+            and yasmine_exception_source:find(
+                '"absorb_ids": "938"', 1, true)
+            and yasmine_exception_source:find(
+                '"absorb_ids": "942"', 1, true)
+            and yasmine_exception_source:find(
+                '"absorb_ids": "961"', 1, true)
+            and yasmine_exception_source:find(
+                '"absorb_ids": "972"', 1, true)
+            and yasmine_exception_source:find(
+                '"absorb_ids": "976"', 1, true)
+            and yasmine_exception_source:find('"1057"', 1, true)
+            and yasmine_exception_source:find(
+                '"absorb_ids": "1058,1060"', 1, true)
+            and not yasmine_exception_source:find(
+                '"preserve_fresh_button_press": true', 1, true),
+        "the shipped Yasmine rules must fold all automatic 1057 finishing phases")
+    assert(combo_trials_source:find('[33] = {', 1, true)
+            and combo_trials_source:find('name = "Yasmine"', 1, true)
+            and combo_trials_source:find(
+                'id = "timer_0_033"', 1, true)
+            and combo_trials_source:find(
+                'id = "stock_0_033"', 1, true),
+        "the runtime unique-resource registry must include both Yasmine resources")
 end
 do
     local ryu_override_source = read_all(

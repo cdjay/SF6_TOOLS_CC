@@ -1,0 +1,12 @@
+{
+  "schema": "xt.command_display_overrides.v1",
+  "character": "Yasmine",
+  "entries": {
+    "970": {
+      "classic": "236+HP",
+      "replace": true,
+      "require_recorded_motion_match": true,
+      "evidence": "Capcom's Yasmine command list identifies the heavy Daloy ng Tubig route as 236+HP followed by Alon; runtime audits bind Action 970 to the parent and Action 971 to the follow-up"
+    }
+  }
+}

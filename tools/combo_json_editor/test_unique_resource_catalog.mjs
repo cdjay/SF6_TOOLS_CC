@@ -19,7 +19,8 @@ const expected = {
     21: ["timer_0_021", "stock_0_021"],
     28: ["stock_0_028"],
     30: ["timer_0_030"],
-    32: ["stock_0_032"]
+    32: ["stock_0_032"],
+    33: ["timer_0_033", "stock_0_033"]
 };
 
 assert.deepEqual(
@@ -37,9 +38,19 @@ assert.deepEqual(
     ["关闭", "开启"]
 );
 assert.deepEqual(resourceOptions(resourceDefinitionsForFighter(16)[1]).map(option => option.value), [0, 1, 2, 3, 7]);
-for (const fighterId of [15, 16, 21]) {
+for (const fighterId of [15, 16, 21, 33]) {
     assert.equal(resourceDefinitionsForFighter(fighterId).length, 2);
 }
+assert.equal(resourceDefinitionsForFighter(33)[0].en, "SA2 Install");
+assert.deepEqual(
+    resourceOptions(resourceDefinitionsForFighter(33)[0]).map(option => option.value),
+    [0, 1]
+);
+assert.equal(resourceDefinitionsForFighter(33)[1].en, "Bayani Mode");
+assert.deepEqual(
+    resourceOptions(resourceDefinitionsForFighter(33)[1]).map(option => option.value),
+    [0, 1, 7]
+);
 assert.deepEqual(
     resourceOptions(resourceDefinitionsForFighter(5)[0]).map(option => option.en),
     ["Level 1", "Level 2", "Level 3", "Level 4", "Level 5"]

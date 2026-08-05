@@ -66,6 +66,49 @@ ACTION_EVENT_FIXTURES = {
             action_event_rules = { transient_precursor_ids = "906,945" },
         },
     },
+    Yasmine = {
+        _character = {
+            transcription_rules = {
+                initial_unique_requirements = {
+                    {
+                        fighter_id = 33,
+                        resource_id = "stock_0_033",
+                        value = 1,
+                        required_action_ids = "954,955,956",
+                        producer_action_ids = "1210",
+                    },
+                },
+            },
+        },
+        ["955"] = {
+            absorb_ids = "956",
+            action_event_projection = {},
+        },
+        ["937"] = {
+            absorb_ids = "938",
+            action_event_projection = {},
+        },
+        ["941"] = {
+            absorb_ids = "942",
+            action_event_projection = {},
+        },
+        ["960"] = {
+            absorb_ids = "961",
+            action_event_projection = {},
+        },
+        ["971"] = {
+            absorb_ids = "972",
+            action_event_projection = {},
+        },
+        ["975"] = {
+            absorb_ids = "976",
+            action_event_projection = {},
+        },
+        ["1057"] = {
+            absorb_ids = "1058,1060",
+            action_event_projection = {},
+        },
+    },
     JP = {
         ["947"] = { absorb_ids = "914", action_event_projection = {} },
     },
@@ -6103,6 +6146,170 @@ local prepared_runtime_buff, runtime_buff_adjustments =
 assert(#runtime_buff_adjustments == 0
     and prepared_runtime_buff[1].scene_state.players.p1.unique.stock_0_020 == 0,
     "a replay that establishes Honda stock before the enhanced Action must retain stock zero")
+
+do
+local yasmine_legacy_bayani_source = {
+    {
+        id = 954,
+        motion = "236+HP",
+        expected_hp = 10000,
+        recorded_by = 0,
+        scene_state = {
+            recorded_by = 0,
+            players = {
+                p1 = {
+                    fighter_id = 33,
+                    resources = { hp = 10000 },
+                },
+                p2 = { fighter_id = 1, resources = { hp = 10000 } },
+            },
+        },
+    },
+    { id = 955, motion = ">6+P", expected_hp = 10000 },
+    { id = 956, motion = "4+HP", expected_hp = 10000 },
+}
+local yasmine_transcription_rules = CharacterRules.build_transcription_rules(
+    ACTION_EVENT_FIXTURES.Yasmine,
+    {}
+)
+local prepared_yasmine_bayani, yasmine_bayani_adjustments =
+    transcriber.prepare_capture_sequence(
+        yasmine_legacy_bayani_source,
+        yasmine_transcription_rules
+    )
+local prepared_yasmine_roles = SceneState.resolve_roles(
+    prepared_yasmine_bayani[1],
+    0
+)
+assert(#yasmine_bayani_adjustments == 1
+    and yasmine_bayani_adjustments[1].field
+        == "scene_state.actor.unique.stock_0_033"
+    and yasmine_bayani_adjustments[1].reason
+        == "source_action_requires_unique_resource"
+    and prepared_yasmine_roles.actor.state.unique.stock_0_033 == 1
+    and yasmine_legacy_bayani_source[1].scene_state.players.p1.unique == nil,
+    "a Bayani-only Yasmine Action must restore the missing initial mode on the copied scene")
+local yasmine_bayani_causes = transcriber.suspected_causes(
+    yasmine_legacy_bayani_source,
+    yasmine_transcription_rules
+)
+assert(table.concat(yasmine_bayani_causes, ","):match(
+        "actor_character_resource_required"
+    ),
+    "Bayani-only Yasmine Actions must diagnose a missing unique resource")
+
+local yasmine_runtime_bayani_source = transcriber.deep_copy(
+    yasmine_legacy_bayani_source
+)
+yasmine_runtime_bayani_source[1].id = 1210
+yasmine_runtime_bayani_source[1].motion = "214214+P"
+yasmine_runtime_bayani_source[2].id = 954
+yasmine_runtime_bayani_source[2].motion = "236+HP"
+local prepared_runtime_bayani, runtime_bayani_adjustments =
+    transcriber.prepare_capture_sequence(
+        yasmine_runtime_bayani_source,
+        yasmine_transcription_rules
+    )
+assert(#runtime_bayani_adjustments == 0
+    and prepared_runtime_bayani[1].scene_state.players.p1.unique == nil,
+    "a replay that activates Bayani Mode before Action 954 must retain the recorded initial state")
+end
+
+do
+local function finalize_yasmine_phases(child_anchor_kind, child_id)
+    local session = new_character_rule_session("Yasmine", 0)
+    local is_1057_phase = child_id == 1058 or child_id == 1060
+    session.events = {
+        {
+            id = is_1057_phase and 1057 or 955,
+            frame = 100,
+            expected_combo = is_1057_phase and 10 or 6,
+            damage_at_step = is_1057_phase and 3552 or 2185,
+            has_hit = true,
+            has_contact = true,
+            anchor = { kind = "button_press", pressed_buttons = 64 },
+        },
+        {
+            id = child_id,
+            frame = 142,
+            expected_combo = is_1057_phase and 12 or 7,
+            damage_at_step = is_1057_phase and 3722 or 2570,
+            has_hit = true,
+            has_contact = true,
+            anchor = {
+                kind = child_anchor_kind,
+                pressed_buttons = child_anchor_kind == "button_press" and 64 or 0,
+                released_buttons = child_anchor_kind == "button_release" and 64 or 0,
+            },
+        },
+    }
+    session.current_damage = is_1057_phase and 3722 or 2570
+    session.confirmed_damage = session.current_damage
+    session.max_combo = is_1057_phase and 12 or 7
+    return compiler.finalize(session, {
+        motion_resolver = function(action_id)
+            local motions = {
+                [955] = ">6+P",
+                [956] = "4+HP",
+                [1057] = "214+HP",
+            }
+            local motion = motions[action_id]
+            return motion, motion and "strict_route" or "action_id_missing"
+        end,
+    })
+end
+
+local yasmine_release_phase = finalize_yasmine_phases("button_release", 956)
+assert(#yasmine_release_phase.steps == 1
+        and yasmine_release_phase.steps[1].id == 955
+        and yasmine_release_phase.steps[1].expected_combo == 7
+        and yasmine_release_phase.trace.suppressed_events[1].id == 956
+        and yasmine_release_phase.trace.suppressed_events[1].reason
+            == "character_internal_action_phase",
+    "Yasmine Action 956 must fold into 955 when it starts from the same released HP")
+
+local yasmine_fresh_phase = finalize_yasmine_phases("button_press", 956)
+assert(#yasmine_fresh_phase.steps == 1
+        and yasmine_fresh_phase.steps[1].id == 955
+        and yasmine_fresh_phase.trace.suppressed_events[1].id == 956,
+    "Yasmine Action 956 must remain an internal phase even when the engine exposes another HP edge")
+
+local yasmine_direction_phase = finalize_yasmine_phases("direction_action", 1060)
+assert(#yasmine_direction_phase.steps == 1
+        and yasmine_direction_phase.steps[1].id == 1057
+        and yasmine_direction_phase.steps[1].expected_combo == 12
+        and yasmine_direction_phase.trace.suppressed_events[1].id == 1060,
+    "Yasmine Action 1060 must fold into the 1057 owner when only its contact phase changes")
+
+local yasmine_repeated_input_phase = finalize_yasmine_phases("button_press", 1058)
+assert(#yasmine_repeated_input_phase.steps == 1
+        and yasmine_repeated_input_phase.steps[1].id == 1057
+        and yasmine_repeated_input_phase.steps[1].expected_combo == 12
+        and yasmine_repeated_input_phase.trace.suppressed_events[1].id == 1058,
+    "Yasmine Action 1058 must remain an internal 1057 phase despite repeated HP input")
+
+local yasmine_family_projection = CharacterRules.build_action_event_projection_rules(
+    ACTION_EVENT_FIXTURES.Yasmine,
+    {}
+)
+for child_id, owner_id in pairs({
+    [938] = 937,
+    [942] = 941,
+    [956] = 955,
+    [961] = 960,
+    [972] = 971,
+    [976] = 975,
+    [1058] = 1057,
+    [1060] = 1057,
+}) do
+    local rule = yasmine_family_projection[child_id]
+    assert(type(rule) == "table"
+            and rule.kind == "internal_phase"
+            and rule.owner_id == owner_id
+            and rule.preserve_fresh_button_press ~= true,
+        "Yasmine finishing phases must remain internal regardless of repeated HP edges")
+end
+end
 
 do
 local legacy_wall_stun_source = {

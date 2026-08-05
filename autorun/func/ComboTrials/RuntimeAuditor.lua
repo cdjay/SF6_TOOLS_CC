@@ -8,7 +8,7 @@ local RuntimeAuditor = {
     name = "ComboTrials.RuntimeAuditor",
     REPORT_SCHEMA = "sf6cc.combo_runtime_audit.v1",
     REPORT_ROOT = "TrainingComboTrials_data/RuntimeAuditReports",
-    VALIDATION_REVISION = 53,
+    VALIDATION_REVISION = 57,
     COMPATIBLE_VALIDATION_REVISIONS = {
         [35] = "monotonic_timeline_outcome_relaxation",
         [36] = "data_driven_quick_successor_live_validation",
@@ -195,9 +195,26 @@ local function strict_raw_replay_proves_completion(evaluation, runtime)
     local input_source = runtime.input_source
     local has_strict_input = input_source == "raw_inputs"
         or input_source == "relative_raw_inputs"
+    local completion = type(runtime.trial_completion) == "table"
+        and runtime.trial_completion or nil
+    local current_step = completion and tonumber(completion.current_step) or nil
+    local total_steps = completion and tonumber(completion.total_steps) or nil
+    local fail_reason = completion and tostring(completion.fail_reason or "") or ""
+    local fail_timer = completion and tonumber(completion.fail_timer) or 0
+    -- An exact Action replay can repair only a missing success banner. The live
+    -- validator must still have consumed the terminal step, and no wrong-move
+    -- state may have occurred. Otherwise a route that stopped in the middle can
+    -- reproduce its aggregate Action trace and be promoted to a false pass.
+    local terminal_step_consumed = current_step ~= nil
+        and total_steps ~= nil
+        and total_steps > 0
+        and current_step > total_steps
+        and not fail_reason:find("%S")
+        and (fail_timer or 0) <= 0
     return has_strict_input
         and runtime.input_completed == true
         and runtime.timed_out ~= true
+        and terminal_step_consumed
         and evaluation.ok == true
 end
 
@@ -225,12 +242,24 @@ local function validate_command_display_shape(validation, context)
         }
     end
 
+    local actual_recorded_motion_drift_count =
+        table_entry_count(validation.recorded_motion_drift)
+    if actual_recorded_motion_drift_count == nil then
+        return {
+            ok = false,
+            reason = "runtime_command_display_validation_invalid:recorded_motion_drift",
+            actual_unresolved_count = actual_unresolved_count,
+            actual_recorded_motion_drift_count = 0,
+        }
+    end
+
     local count_fields = {
         "total_steps",
         "resolved_step_count",
         "preserved_step_count",
         "suppressed_step_count",
         "unresolved_count",
+        "recorded_motion_drift_count",
     }
     for _, field in ipairs(count_fields) do
         if not is_nonnegative_integer(validation[field]) then
@@ -238,6 +267,7 @@ local function validate_command_display_shape(validation, context)
                 ok = false,
                 reason = "runtime_command_display_validation_invalid:" .. field,
                 actual_unresolved_count = actual_unresolved_count,
+                actual_recorded_motion_drift_count = actual_recorded_motion_drift_count,
             }
         end
     end
@@ -247,6 +277,15 @@ local function validate_command_display_shape(validation, context)
             ok = false,
             reason = "runtime_command_display_validation_invalid:unresolved_count_mismatch",
             actual_unresolved_count = actual_unresolved_count,
+        }
+    end
+    if validation.recorded_motion_drift_count
+        ~= actual_recorded_motion_drift_count then
+        return {
+            ok = false,
+            reason = "runtime_command_display_validation_invalid:recorded_motion_drift_count_mismatch",
+            actual_unresolved_count = actual_unresolved_count,
+            actual_recorded_motion_drift_count = actual_recorded_motion_drift_count,
         }
     end
     if validation.resolved_step_count + validation.preserved_step_count
@@ -319,6 +358,7 @@ local function validate_command_display_shape(validation, context)
     return {
         ok = true,
         actual_unresolved_count = actual_unresolved_count,
+        actual_recorded_motion_drift_count = actual_recorded_motion_drift_count,
     }
 end
 
@@ -330,6 +370,57 @@ local function valid_command_display_motion(value)
     return normalized:find("未识别", 1, true) == nil
         and upper:find("UNKNOWN", 1, true) == nil
         and upper:find("ACTION_", 1, true) == nil
+end
+
+local function validate_recorded_motion_drift_proof(validation)
+    local actual_unresolved_count = table_entry_count(validation.unresolved) or 0
+    local actual_recorded_motion_drift_count =
+        table_entry_count(validation.recorded_motion_drift) or 0
+    if actual_recorded_motion_drift_count == 0 then
+        return {
+            ok = true,
+            actual_unresolved_count = actual_unresolved_count,
+            actual_recorded_motion_drift_count = 0,
+        }
+    end
+    if type(validation.steps) ~= "table"
+        or table_entry_count(validation.steps) ~= validation.total_steps
+        or #validation.steps ~= validation.total_steps then
+        return {
+            ok = false,
+            reason = "runtime_command_display_validation_invalid:recorded_motion_drift_steps",
+            actual_unresolved_count = actual_unresolved_count,
+            actual_recorded_motion_drift_count = actual_recorded_motion_drift_count,
+        }
+    end
+
+    local seen = {}
+    for _, drift in ipairs(validation.recorded_motion_drift) do
+        local index = tonumber(type(drift) == "table"
+            and (drift.index or drift.step_index))
+        local proof = index ~= nil and validation.steps[index] or nil
+        if not is_nonnegative_integer(index) or index <= 0
+            or index > validation.total_steps or seen[index]
+            or type(proof) ~= "table" or proof.index ~= index
+            or tonumber(drift.action_id) ~= tonumber(proof.source_action_id)
+            or drift.recorded_motion ~= proof.recorded_motion
+            or drift.display_motion ~= proof.display_motion
+            or proof.require_recorded_motion_match ~= true
+            or proof.recorded_motion_matches ~= false then
+            return {
+                ok = false,
+                reason = "runtime_command_display_validation_invalid:recorded_motion_drift_steps",
+                actual_unresolved_count = actual_unresolved_count,
+                actual_recorded_motion_drift_count = actual_recorded_motion_drift_count,
+            }
+        end
+        seen[index] = true
+    end
+    return {
+        ok = true,
+        actual_unresolved_count = actual_unresolved_count,
+        actual_recorded_motion_drift_count = actual_recorded_motion_drift_count,
+    }
 end
 
 local function validate_command_display_step_proof(validation, context)
@@ -460,6 +551,17 @@ local function validate_command_display_step_proof(validation, context)
                 actual_unresolved_count = actual_unresolved_count,
             }
         end
+        if type(proof.require_recorded_motion_match) ~= "boolean"
+            or (proof.require_recorded_motion_match
+                and proof.recorded_motion_matches ~= true)
+            or (not proof.require_recorded_motion_match
+                and proof.recorded_motion_matches ~= nil) then
+            return {
+                ok = false,
+                reason = "runtime_command_display_validation_invalid:recorded_motion_match_proof",
+                actual_unresolved_count = actual_unresolved_count,
+            }
+        end
 
         if classification == "suppressed" then
             if proof.visible ~= false or proof.visible_line_index ~= nil
@@ -541,6 +643,8 @@ function RuntimeAuditor.validate_command_display_payload(validation, context)
     local shape = validate_command_display_shape(validation, context)
     if not shape.ok then return shape end
     local actual_unresolved_count = shape.actual_unresolved_count
+    local actual_recorded_motion_drift_count =
+        shape.actual_recorded_motion_drift_count
     if actual_unresolved_count > 0 then
         return {
             ok = false,
@@ -549,6 +653,20 @@ function RuntimeAuditor.validate_command_display_payload(validation, context)
                 actual_unresolved_count
             ),
             actual_unresolved_count = actual_unresolved_count,
+            actual_recorded_motion_drift_count = actual_recorded_motion_drift_count,
+        }
+    end
+    if actual_recorded_motion_drift_count > 0 then
+        local drift_proof = validate_recorded_motion_drift_proof(validation)
+        if not drift_proof.ok then return drift_proof end
+        return {
+            ok = false,
+            reason = string.format(
+                "runtime_command_display_recorded_motion_drift:count=%d",
+                actual_recorded_motion_drift_count
+            ),
+            actual_unresolved_count = actual_unresolved_count,
+            actual_recorded_motion_drift_count = actual_recorded_motion_drift_count,
         }
     end
     if validation.ok ~= true then
@@ -600,21 +718,30 @@ function RuntimeAuditor.validate_command_display_payload(validation, context)
 end
 
 -- REFramework serializes an empty Lua table as JSON null. On report reload,
--- that null becomes nil, so recover only the exact persisted proof emitted by
--- a successful live validation. Keep the live validator strict: callers that
--- pass unresolved=nil directly must still fail closed.
-local function normalize_persisted_empty_unresolved(validation)
-    if type(validation) ~= "table"
-        or validation.unresolved ~= nil
-        or validation.unresolved_count ~= 0
-        or validation.actual_unresolved_count ~= 0
-        or validation.ok ~= true
-        or validation.status ~= "resolved" then
-        return validation
-    end
+-- that null becomes nil, so recover only lists whose persisted counters prove
+-- they were empty. Keep the live validator strict: direct callers that pass a
+-- required list as nil must still fail closed.
+local function normalize_persisted_empty_command_display_lists(validation, item_status)
+    if type(validation) ~= "table" then return validation end
+    local successful_proof = validation.ok == true
+        and validation.status == "resolved"
+    local retained_failure = item_status == "failed"
+        and validation.ok == false
+        and type(validation.status) == "string"
+        and validation.status ~= ""
+    if not successful_proof and not retained_failure then return validation end
 
     local normalized = deep_copy(validation)
-    normalized.unresolved = {}
+    if validation.unresolved == nil
+        and validation.unresolved_count == 0
+        and validation.actual_unresolved_count == 0 then
+        normalized.unresolved = {}
+    end
+    if validation.recorded_motion_drift == nil
+        and validation.recorded_motion_drift_count == 0
+        and validation.actual_recorded_motion_drift_count == 0 then
+        normalized.recorded_motion_drift = {}
+    end
     return normalized
 end
 
@@ -629,12 +756,17 @@ local function validate_command_display(evaluation, runtime, sequence)
         evaluation.command_display_validation = deep_copy(validation)
         evaluation.command_display_validation.actual_unresolved_count =
             result.actual_unresolved_count
+        evaluation.command_display_validation.actual_recorded_motion_drift_count =
+            result.actual_recorded_motion_drift_count or 0
     else
         evaluation.command_display_validation = {
             ok = false,
             unresolved = {},
             unresolved_count = 0,
             actual_unresolved_count = 0,
+            recorded_motion_drift = {},
+            recorded_motion_drift_count = 0,
+            actual_recorded_motion_drift_count = 0,
             status = "missing",
         }
     end
@@ -666,8 +798,9 @@ function RuntimeAuditor.classify_report_item(item, context)
         return "stale", "runtime_audit_report_character_invalid"
     end
 
-    local persisted_validation = normalize_persisted_empty_unresolved(
-        item.command_display_validation
+    local persisted_validation = normalize_persisted_empty_command_display_lists(
+        item.command_display_validation,
+        item.status
     )
     local shape = validate_command_display_shape(
         persisted_validation,

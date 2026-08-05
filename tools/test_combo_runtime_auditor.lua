@@ -31,6 +31,7 @@ local function resolved_command_display(
             classification = suppressed and "suppressed" or "resolved",
             group_key = "step:" .. tostring(index),
             visible = not suppressed,
+            require_recorded_motion_match = false,
         }
         if not suppressed then
             proof.display_motion = "LP"
@@ -53,6 +54,8 @@ local function resolved_command_display(
         visible_line_count = visible_step_count,
         unresolved_count = 0,
         unresolved = {},
+        recorded_motion_drift_count = 0,
+        recorded_motion_drift = {},
         steps = steps,
     }
 end
@@ -998,11 +1001,54 @@ local strict_raw_ui_incomplete = RuntimeAuditor.evaluate(candidate, compiled, {
         total_steps = 1,
     },
 })
-assert(strict_raw_ui_incomplete.ok == true
-        and strict_raw_ui_incomplete.trial_completion.effective_completed == true
-        and strict_raw_ui_incomplete.trial_completion.completion_source
+assert(strict_raw_ui_incomplete.ok == false
+        and strict_raw_ui_incomplete.trial_completion.effective_completed == false
+        and strict_raw_ui_incomplete.reasons[#strict_raw_ui_incomplete.reasons]
+            == "runtime_trial_not_completed",
+    "strict raw Action truth must not pass before the live validator consumes the terminal step")
+
+local strict_raw_terminal_ui_incomplete = RuntimeAuditor.evaluate(candidate, compiled, {
+    raw_inputs = candidate[1].raw_inputs,
+    input_source = "raw_inputs",
+    input_completed = true,
+    timing_tolerance = 2,
+    trial_completed = false,
+    character = "Ryu",
+    command_display_validation = resolved_command_display(),
+    trial_completion = {
+        completed = false,
+        current_step = 2,
+        total_steps = 1,
+        fail_timer = 0,
+    },
+})
+assert(strict_raw_terminal_ui_incomplete.ok == true
+        and strict_raw_terminal_ui_incomplete.trial_completion.effective_completed == true
+        and strict_raw_terminal_ui_incomplete.trial_completion.completion_source
             == "strict_raw_replay",
-    "strict raw Action and outcome truth must survive a training UI completion false negative")
+    "strict raw replay may repair only a missing banner after the terminal step was consumed")
+
+local strict_raw_wrong_move = RuntimeAuditor.evaluate(candidate, compiled, {
+    raw_inputs = candidate[1].raw_inputs,
+    input_source = "raw_inputs",
+    input_completed = true,
+    timing_tolerance = 2,
+    trial_completed = false,
+    character = "Ryu",
+    command_display_validation = resolved_command_display(),
+    trial_completion = {
+        completed = false,
+        current_step = 2,
+        total_steps = 1,
+        fail_reason = "WRONG MOVE",
+        fail_timer = 0,
+    },
+})
+assert(strict_raw_wrong_move.ok == false
+        and strict_raw_wrong_move.trial_completion.effective_completed == false
+        and strict_raw_wrong_move.reasons[#strict_raw_wrong_move.reasons]
+            == "runtime_trial_not_completed",
+    "an expired wrong-move banner must still prevent inferred completion")
 
 local restored_timeline_candidate = {
     {
@@ -1150,7 +1196,7 @@ local restored_timeline_passed = RuntimeAuditor.evaluate(
             5, 0, nil, nil, { 600, 601, 500, 602, 603 }),
         trial_completion = {
             completed = false,
-            current_step = 4,
+            current_step = 6,
             total_steps = 5,
         },
     }
@@ -1260,6 +1306,8 @@ local display_validation_failed = RuntimeAuditor.evaluate(candidate, compiled, {
         suppressed_step_count = 0,
         unresolved_count = 0,
         unresolved = {},
+        recorded_motion_drift_count = 0,
+        recorded_motion_drift = {},
     },
 })
 assert(display_validation_failed.ok == false
@@ -1285,6 +1333,8 @@ local unresolved_display = RuntimeAuditor.evaluate(candidate, compiled, {
         preserved_step_count = 0,
         suppressed_step_count = 0,
         unresolved_count = 1,
+        recorded_motion_drift_count = 0,
+        recorded_motion_drift = {},
         unresolved = {
             {
                 step_index = 1,
@@ -1308,6 +1358,29 @@ local suppressed_display = RuntimeAuditor.validate_command_display_payload(
 )
 assert(suppressed_display.ok == true,
     "suppressed renderer-only steps must count toward a complete display payload")
+local recorded_motion_drift = resolved_command_display()
+recorded_motion_drift.ok = false
+recorded_motion_drift.status = "recorded_motion_drift"
+recorded_motion_drift.recorded_motion_drift_count = 1
+recorded_motion_drift.recorded_motion_drift = {
+    {
+        index = 1,
+        action_id = 600,
+        recorded_motion = "4+HP",
+        display_motion = "236+HP",
+    },
+}
+recorded_motion_drift.steps[1].recorded_motion = "4+HP"
+recorded_motion_drift.steps[1].display_motion = "236+HP"
+recorded_motion_drift.steps[1].require_recorded_motion_match = true
+recorded_motion_drift.steps[1].recorded_motion_matches = false
+local recorded_motion_drift_result = RuntimeAuditor.validate_command_display_payload(
+    recorded_motion_drift
+)
+assert(recorded_motion_drift_result.ok == false
+        and recorded_motion_drift_result.reason
+            == "runtime_command_display_recorded_motion_drift:count=1",
+    "guarded saved-motion drift must create a stable retranscription failure")
 local folded_repeated_command = resolved_command_display(2)
 folded_repeated_command.steps[2].visible_line_index = 1
 folded_repeated_command.visible_line_count = 1
@@ -1543,6 +1616,12 @@ local malformed_display_cases = {
     },
 }
 for _, case in ipairs(malformed_display_cases) do
+    if case.payload.recorded_motion_drift == nil then
+        case.payload.recorded_motion_drift = {}
+    end
+    if case.payload.recorded_motion_drift_count == nil then
+        case.payload.recorded_motion_drift_count = 0
+    end
     if case.omit_map_status then
         case.payload.map_status = nil
     else
@@ -1591,6 +1670,23 @@ assert(persisted_null_state == "passed"
     and persisted_null_reason == nil
     and persisted_null_item.command_display_validation.unresolved == nil,
     "report classification must recover a proven persisted empty unresolved table without mutation")
+
+local persisted_drift_failure = recorded_motion_drift
+persisted_drift_failure.unresolved = nil
+persisted_drift_failure.actual_unresolved_count = 0
+persisted_drift_failure.actual_recorded_motion_drift_count = 1
+local persisted_drift_state, persisted_drift_reason =
+    RuntimeAuditor.classify_report_item({
+        source_file = "RecordedMotionDrift.json",
+        status = "failed",
+        validation_revision = RuntimeAuditor.VALIDATION_REVISION,
+        command_display_validation = persisted_drift_failure,
+        trial_completion = { total_steps = 1 },
+    }, {
+        character = "Ryu",
+    })
+assert(persisted_drift_state == "failed" and persisted_drift_reason == nil,
+    "persisted saved-motion drift must remain retryable after an empty list reloads as null")
 
 local persisted_null_fail_closed_cases = {
     {
@@ -1745,7 +1841,7 @@ local revision_30_report = {
 }
 local refreshed_30, refreshed_30_counts =
     RuntimeAuditor.recompute_loaded_report_state(revision_30_report)
-assert(RuntimeAuditor.VALIDATION_REVISION == 53
+assert(RuntimeAuditor.VALIDATION_REVISION == 57
     and RuntimeAuditor.COMPATIBLE_VALIDATION_REVISIONS[46]
         == "timeline_transcription_source_outcome_restore"
     and refreshed_30_counts.stale == 1
@@ -1849,6 +1945,8 @@ local current_damaged_report = {
                 suppressed_step_count = 0,
                 unresolved_count = 0,
                 unresolved = {},
+                recorded_motion_drift_count = 0,
+                recorded_motion_drift = {},
             },
             trial_completion = { total_steps = 1 },
         },
