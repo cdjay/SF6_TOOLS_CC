@@ -70,6 +70,41 @@ local mismatched_honda_compatibility = ActionCompatibility.parse({
 assert(mismatched_honda_compatibility == nil,
     "historical compatibility must fail closed on another game version")
 end
+do
+local blanka_compatibility, blanka_compatibility_count,
+    blanka_compatibility_status = ActionCompatibility.parse({
+        schema = "xt.action_compatibility.v1",
+        character = "Blanka",
+        target_game_version = "2026-08-03",
+        entries = {
+            {
+                recorded_action_id = 924,
+                runtime_action_id = 926,
+                recorded_motions = { "214+LP+LK+MK" },
+                evidence = "verified Blanka runtime migration",
+            },
+        },
+    }, "Blanka", "2026-08-03")
+assert(blanka_compatibility_status == "loaded"
+        and blanka_compatibility_count == 1
+        and ActionCompatibility.matches(
+            blanka_compatibility,
+            { id = 924, motion = "214+LP+LK+MK" },
+            926
+        )
+        and not ActionCompatibility.matches(
+            blanka_compatibility,
+            { id = 924, motion = "214+LP+LK+MK" },
+            931
+        )
+        and not ActionCompatibility.matches(
+            blanka_compatibility,
+            { id = 924, motion = "214+LP+MP+HP" },
+            926
+        ),
+    "Blanka compatibility must accept only the verified 924 to 926 command migration")
+BLANKA_COMPATIBILITY_TEST = blanka_compatibility
+end
 
 local override_map = {
     _slim = true,
@@ -311,6 +346,41 @@ assert(honda_override_status == "loaded" and honda_override_count == 2
         and honda_overrides["660"].status == "runtime_verified_override"
         and honda_overrides["660"].metadata.replaced_existing == true,
     "E. Honda's verified 3+HK must replace its unverified catalog row")
+BLANKA_OVERRIDES_TEST, BLANKA_OVERRIDE_COUNT_TEST, BLANKA_OVERRIDE_STATUS_TEST =
+    command_display_overrides.merge({
+        _slim = true,
+        _action_compatibility = BLANKA_COMPATIBILITY_TEST,
+        ["613"] = { classic = "2+LP", status = "strict_route" },
+        ["614"] = { classic = "2+LP", status = "strict_route" },
+        ["926"] = { classic = "214+LP+LK+MK", status = "strict_route" },
+        ["931"] = { classic = "214+LP+LK+MK", status = "strict_route" },
+    }, "Blanka", {
+        schema = "xt.command_display_overrides.v1",
+        character = "Blanka",
+        entries = {
+            ["613"] = {
+                classic = "2+LP",
+                replace = true,
+                evidence = "verified crouching LP runtime input",
+            },
+            ["926"] = {
+                classic = "214+P",
+                replace = true,
+                evidence = "BCM requires one punch from the allowed set",
+            },
+            ["931"] = {
+                classic = "214+PP",
+                replace = true,
+                evidence = "BCM requires two punches from the allowed set",
+            },
+        },
+    })
+assert(BLANKA_OVERRIDE_STATUS_TEST == "loaded" and BLANKA_OVERRIDE_COUNT_TEST == 3
+        and BLANKA_OVERRIDES_TEST["926"].classic == "214+P"
+        and BLANKA_OVERRIDES_TEST["931"].classic == "214+PP"
+        and BLANKA_OVERRIDES_TEST["926"].metadata.replaced_existing == true
+        and BLANKA_OVERRIDES_TEST["931"].metadata.replaced_existing == true,
+    "Blanka's alternative punch masks must render as 214+P and 214+PP")
 local aki_catalog = {
     _slim = true,
     ["623"] = { classic = "2+MP", status = "route_unverified" },
@@ -1079,6 +1149,32 @@ assert(display_validation.ok == false
         and display_validation.unresolved[1].action_id == 9999
         and display_validation.unresolved[1].route_status == "action_id_missing",
     "the audit validator must match the classic table's resolved, suppressed and placeholder paths")
+
+resolve_modern_display_context = function()
+    return false, BLANKA_OVERRIDES_TEST, "Blanka", "loaded", false
+end
+BLANKA_STRICT_VALIDATION_TEST = validate_sequence_command_display({
+    { id = 613, motion = "2+LP", group_id = 1 },
+    { id = 614, motion = "2+LP", group_id = 2 },
+    { id = 924, motion = "214+LP+LK+MK", group_id = 3 },
+    { id = 931, motion = "214+LP+LK+MK", group_id = 4 },
+})
+assert(BLANKA_STRICT_VALIDATION_TEST.ok == true
+        and BLANKA_STRICT_VALIDATION_TEST.resolved_step_count == 4
+        and BLANKA_STRICT_VALIDATION_TEST.visible_step_count == 4
+        and BLANKA_STRICT_VALIDATION_TEST.visible_line_count == 4
+        and #BLANKA_STRICT_VALIDATION_TEST.steps == 4
+        and BLANKA_STRICT_VALIDATION_TEST.steps[1].source_action_id == 613
+        and BLANKA_STRICT_VALIDATION_TEST.steps[1].visible_line_index == 1
+        and BLANKA_STRICT_VALIDATION_TEST.steps[2].source_action_id == 614
+        and BLANKA_STRICT_VALIDATION_TEST.steps[2].visible_line_index == 2
+        and BLANKA_STRICT_VALIDATION_TEST.steps[3].source_action_id == 924
+        and BLANKA_STRICT_VALIDATION_TEST.steps[3].projected_action_id == 926
+        and BLANKA_STRICT_VALIDATION_TEST.steps[3].effective_action_id == 926
+        and BLANKA_STRICT_VALIDATION_TEST.steps[3].display_motion == "214+P"
+        and BLANKA_STRICT_VALIDATION_TEST.steps[4].effective_action_id == 931
+        and BLANKA_STRICT_VALIDATION_TEST.steps[4].display_motion == "214+PP",
+    "Blanka validation must retain both 2LP rows and project legacy Actions to correct punch notation")
 
 resolve_modern_display_context = function()
     return false, elena_overrides, "Elena", "loaded", false
@@ -1930,6 +2026,42 @@ do
             and honda_compatibility_source:find(
                 '"runtime_action_id": 981', 1, true),
         "the shipped Honda compatibility map must retain verified ID migrations")
+end
+do
+    local blanka_override_source = read_all(
+        "data/TrainingComboTrials_data/command_display_overrides/Blanka.json")
+    local blanka_compatibility_source = read_all(
+        "data/TrainingComboTrials_data/action_compatibility/Blanka.json")
+    local blanka_exception_source = read_all(
+        "data/TrainingComboTrials_data/exceptions/Blanka.json")
+    assert(blanka_override_source:find('"613"', 1, true)
+            and blanka_override_source:find('"classic": "2+LP"', 1, true)
+            and blanka_override_source:find('"926"', 1, true)
+            and blanka_override_source:find('"classic": "214+P"', 1, true)
+            and blanka_override_source:find('"931"', 1, true)
+            and blanka_override_source:find('"classic": "214+PP"', 1, true)
+            and blanka_override_source:find('"930"', 1, true)
+            and blanka_override_source:find(
+                '"classic": "236+LP+MP+HP"', 1, true)
+            and blanka_override_source:find('"972"', 1, true)
+            and blanka_override_source:find('"classic": "4+LK"', 1, true)
+            and blanka_override_source:find('"1093"', 1, true)
+            and blanka_override_source:find('"replace": true', 1, true)
+            and not blanka_override_source:find(
+                '"classic": "214+LP+LK+MK"', 1, true),
+        "the shipped Blanka overrides must preserve all runtime-verified commands")
+    assert(blanka_compatibility_source:find(
+                '"target_game_version": "2026-08-03"', 1, true)
+            and blanka_compatibility_source:find(
+                '"recorded_action_id": 924', 1, true)
+            and blanka_compatibility_source:find(
+                '"runtime_action_id": 926', 1, true)
+            and blanka_compatibility_source:find(
+                '"recorded_motions": ["214+LP+LK+MK"]', 1, true),
+        "the shipped Blanka compatibility map must retain the verified doll Action migration")
+    assert(blanka_exception_source:find('"absorb_ids": "928,929,930"', 1, true)
+            and blanka_exception_source:find('"action_event_projection": {}', 1, true),
+        "the shipped Blanka rules must fold doll contact Action 930 into owner 931")
 end
 do
     local ryu_override_source = read_all(

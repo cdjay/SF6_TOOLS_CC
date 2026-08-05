@@ -4,11 +4,40 @@ package.path = package.path
 
 local RuntimeAuditor = require("func/ComboTrials/RuntimeAuditor")
 
-local function resolved_command_display(total_steps, suppressed_step_count, character, mode)
+local function resolved_command_display(
+    total_steps,
+    suppressed_step_count,
+    character,
+    mode,
+    source_action_ids
+)
     total_steps = total_steps or 1
     suppressed_step_count = suppressed_step_count or 0
     character = character or "Ryu"
     mode = mode or "classic"
+    local steps = {}
+    local visible_step_count = 0
+    for index = 1, total_steps do
+        local suppressed = index > total_steps - suppressed_step_count
+        local source_action_id = type(source_action_ids) == "table"
+            and source_action_ids[index] or (599 + index)
+        if not suppressed then visible_step_count = visible_step_count + 1 end
+        local proof = {
+            index = index,
+            source_action_id = source_action_id,
+            effective_action_id = source_action_id,
+            recorded_motion = "LP",
+            route_status = suppressed and "declared_internal_phase" or "strict_route",
+            classification = suppressed and "suppressed" or "resolved",
+            group_key = "step:" .. tostring(index),
+            visible = not suppressed,
+        }
+        if not suppressed then
+            proof.display_motion = "LP"
+            proof.visible_line_index = visible_step_count
+        end
+        steps[index] = proof
+    end
     return {
         ok = true,
         status = "resolved",
@@ -20,8 +49,11 @@ local function resolved_command_display(total_steps, suppressed_step_count, char
         resolved_step_count = total_steps - suppressed_step_count,
         preserved_step_count = 0,
         suppressed_step_count = suppressed_step_count,
+        visible_step_count = visible_step_count,
+        visible_line_count = visible_step_count,
         unresolved_count = 0,
         unresolved = {},
+        steps = steps,
     }
 end
 
@@ -82,8 +114,18 @@ local passed = RuntimeAuditor.evaluate(candidate, compiled, {
         current_step = 2,
         total_steps = 1,
     },
+    runtime_step_trace = {
+        confirmations = {
+            { step = 1, confirmation_frame = 10 },
+        },
+        visual_steps = {
+            { frame = 10, validation_step = 2, visual_step = 2 },
+        },
+    },
 })
-assert(passed.ok == true,
+assert(passed.ok == true
+        and passed.runtime_step_trace.confirmations[1].step == 1
+        and passed.runtime_step_trace.visual_steps[1].visual_step == 2,
     "runtime audit must accept an installed combo that reproduces its Action truth")
 
 local relative_candidate = {
@@ -299,7 +341,8 @@ local guarded_timeline_passed = RuntimeAuditor.evaluate(
         timing_tolerance = 2,
         trial_completed = true,
         character = "Ryu",
-        command_display_validation = resolved_command_display(3),
+        command_display_validation = resolved_command_display(
+            3, 0, nil, nil, { 600, 17, 603 }),
     }
 )
 local guarded_advisories = table.concat(
@@ -329,7 +372,8 @@ local pre_reset_block_compiled = RuntimeAuditor.evaluate(
         timing_tolerance = 2,
         trial_completed = true,
         character = "Ryu",
-        command_display_validation = resolved_command_display(3),
+        command_display_validation = resolved_command_display(
+            3, 0, nil, nil, { 600, 17, 603 }),
     }
 )
 assert(pre_reset_block_compiled.ok == false
@@ -816,7 +860,8 @@ do
         trial_completed = true,
         character = "Ryu",
         environment_observed = { dummy_guard_type = 3 },
-        command_display_validation = resolved_command_display(),
+        command_display_validation = resolved_command_display(
+            1, 0, nil, nil, { 1233 }),
     }
     local terminal_tail_passed = RuntimeAuditor.evaluate(
         terminal_tail_candidate,
@@ -1101,7 +1146,8 @@ local restored_timeline_passed = RuntimeAuditor.evaluate(
         timing_tolerance = 2,
         trial_completed = false,
         character = "Ryu",
-        command_display_validation = resolved_command_display(5),
+        command_display_validation = resolved_command_display(
+            5, 0, nil, nil, { 600, 601, 500, 602, 603 }),
         trial_completion = {
             completed = false,
             current_step = 4,
@@ -1146,7 +1192,8 @@ local incomplete_restored_compiled = RuntimeAuditor.evaluate(
         timing_tolerance = 2,
         trial_completed = false,
         character = "Ryu",
-        command_display_validation = resolved_command_display(5),
+        command_display_validation = resolved_command_display(
+            5, 0, nil, nil, { 600, 601, 500, 602, 603 }),
         trial_completion = {
             completed = false,
             current_step = 4,
@@ -1261,6 +1308,30 @@ local suppressed_display = RuntimeAuditor.validate_command_display_payload(
 )
 assert(suppressed_display.ok == true,
     "suppressed renderer-only steps must count toward a complete display payload")
+local folded_repeated_command = resolved_command_display(2)
+folded_repeated_command.steps[2].visible_line_index = 1
+folded_repeated_command.visible_line_count = 1
+local folded_repeated_result = RuntimeAuditor.validate_command_display_payload(
+    folded_repeated_command
+)
+assert(folded_repeated_result.ok == false
+        and folded_repeated_result.reason
+            == "runtime_command_display_validation_invalid:visible_line_topology",
+    "two independent Actions with identical text must not collapse into one visible row")
+local mismatched_source_action = resolved_command_display()
+mismatched_source_action.steps[1].source_action_id = 601
+local mismatched_source_result = RuntimeAuditor.evaluate(candidate, compiled, {
+    raw_inputs = candidate[1].raw_inputs,
+    input_completed = true,
+    timing_tolerance = 2,
+    trial_completed = true,
+    character = "Ryu",
+    command_display_validation = mismatched_source_action,
+})
+assert(mismatched_source_result.ok == false
+        and mismatched_source_result.reasons[#mismatched_source_result.reasons]
+            == "runtime_command_display_validation_invalid:source_action_id_context",
+    "runtime audit must bind every displayed command row to its source Action ID")
 assert(RuntimeAuditor.validate_command_display_payload(
         resolved_command_display(1, 0, "AKI"),
         { expected_total_steps = 1, expected_character = "A.K.I." }
@@ -1613,7 +1684,7 @@ assert(report.schema == RuntimeAuditor.REPORT_SCHEMA
         == "runtime.command_display_validation"
     and report.verifier.command_display.required == true
     and report.verifier.command_display.pass_condition
-        == "strict_resolved_step_count_invariants"
+        == "strict_step_and_visible_line_invariants"
     and report.verifier.completion_policy.timeline
         == "training_ui_required"
     and report.verifier.completion_policy.relative_raw_inputs
@@ -1674,7 +1745,7 @@ local revision_30_report = {
 }
 local refreshed_30, refreshed_30_counts =
     RuntimeAuditor.recompute_loaded_report_state(revision_30_report)
-assert(RuntimeAuditor.VALIDATION_REVISION == 47
+assert(RuntimeAuditor.VALIDATION_REVISION == 53
     and RuntimeAuditor.COMPATIBLE_VALIDATION_REVISIONS[46]
         == "timeline_transcription_source_outcome_restore"
     and refreshed_30_counts.stale == 1

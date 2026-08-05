@@ -133,6 +133,79 @@ function M.evaluate_expected_repeat_input(params)
     return result
 end
 
+function M.single_hit_light_button_mask(motion)
+    local normalized = tostring(motion or ""):upper()
+        :gsub("%b()", "")
+        :gsub("%s+", "")
+        :gsub("^>", "")
+    if normalized == "LP" or normalized:match("^[1-9]%+LP$") then return 16 end
+    if normalized == "LK" or normalized:match("^[1-9]%+LK$") then return 128 end
+    return nil
+end
+
+function M.evaluate_playback_light_repeat_contact_gate(params)
+    params = type(params) == "table" and params or {}
+    local expected_mask = M.single_hit_light_button_mask(params.expected_motion)
+    local previous_mask = M.single_hit_light_button_mask(params.previous_motion)
+    local expected_combo = tonumber(params.expected_combo) or 0
+    local previous_combo = tonumber(params.previous_expected_combo) or 0
+    local current_combo = tonumber(params.current_combo) or 0
+    local required = expected_mask ~= nil
+        and previous_mask == expected_mask
+        and tonumber(params.expected_id) ~= nil
+        and tonumber(params.expected_id) == tonumber(params.previous_id)
+        and previous_combo > 0
+        and current_combo >= previous_combo
+        and expected_combo == previous_combo + 1
+        and current_combo < expected_combo
+    return {
+        required = required,
+        reason = required and "same_action_light_repeat_wait_for_contact"
+            or "same_action_light_repeat_contact_not_required",
+        expected_mask = expected_mask,
+        previous_mask = previous_mask,
+        expected_combo = expected_combo,
+        previous_expected_combo = previous_combo,
+        current_combo = current_combo,
+    }
+end
+
+function M.evaluate_recording_light_repeat_input(params)
+    params = type(params) == "table" and params or {}
+    local expected_mask = M.single_hit_light_button_mask(params.motion)
+    local pressed = (tonumber(params.pressed_buttons) or 0) & 0xFFF0
+    local accepted = expected_mask ~= nil
+        and pressed == expected_mask
+        and params.current_has_hit == true
+        and tonumber(params.current_action_id) ~= nil
+        and tonumber(params.current_action_id) == tonumber(params.runtime_action_id)
+        and params.action_changed ~= true
+        and params.action_restarted ~= true
+    return {
+        accepted = accepted,
+        reason = accepted and "single_hit_light_repeat_input"
+            or "recording_light_repeat_not_proven",
+        expected_mask = expected_mask,
+    }
+end
+
+function M.evaluate_recording_light_repeat_contact(params)
+    params = type(params) == "table" and params or {}
+    local accepted = params.hit_confirmed == true
+        and tonumber(params.candidate_action_id) ~= nil
+        and tonumber(params.candidate_action_id) == tonumber(params.runtime_action_id)
+        and tonumber(params.current_event_action_id)
+            == tonumber(params.candidate_action_id)
+        and tonumber(params.current_combo) ~= nil
+        and tonumber(params.current_combo)
+            > (tonumber(params.current_expected_combo) or 0)
+    return {
+        accepted = accepted,
+        reason = accepted and "single_hit_light_repeat_contact"
+            or "recording_light_repeat_contact_not_proven",
+    }
+end
+
 -- Separate normal hits can both expose combo_cnt == 1 when the polling sample
 -- misses the brief reset between them. In that case an HP decrease is accepted
 -- only once per fresh normal-hit signal cycle. The fallback delta must also be

@@ -198,6 +198,20 @@ function PendingAbsorb.apply_matched_step(ctx, params)
             state._consumed_action_instances[action_instance] = matched_step
             state._last_matched_action_instance = action_instance
         end
+        if ctx.DebugTrace and ctx.DebugTrace.record_step_confirmation then
+            ctx.DebugTrace.record_step_confirmation(state, {
+                step = matched_step,
+                action_id = expected.id,
+                motion = expected.motion,
+                validation_frame = validation_frame,
+                confirmation_frame = ctx.frame,
+                combo_count = combo_count,
+                action_instance = action_instance,
+                match_reason = params.match_reason,
+                source = details and details.source or nil,
+                pending_age_frames = details and details.pending_age_frames or nil,
+            })
+        end
         PendingAbsorb.set_timing_ui_result(state, matched_step, raw_frame_diff)
         state.current_step = state.current_step + 1
         PendingAbsorb.clear(state, "step_advanced")
@@ -337,7 +351,10 @@ function PendingAbsorb.check(ctx, phase)
         clear_reason = "action_instance_changed"
     elseif pending.expires_at_frame and ctx.frame > pending.expires_at_frame then
         clear_reason = "expired"
-    elseif math.abs(pending.frame_diff or 999) > 2 then
+    elseif math.abs(PendingAbsorb.effective_timing_frame_diff(
+            state,
+            pending.frame_diff
+        ) or 999) > 2 then
         clear_reason = "timing_window"
     end
 
@@ -395,7 +412,8 @@ function PendingAbsorb.check(ctx, phase)
         frame = pending.frame,
         combo_count = current_combo,
         actual_hp = current_hp,
-        match_reason = "pending_current_absorb",
+        match_reason = pending.match_reason or "pending_current_absorb",
+        action_instance = pending.action_instance,
         match_details = {
             actual_action_id = pending.actual_action_id,
             match_reason = "pending_current_absorb",
@@ -407,7 +425,7 @@ function PendingAbsorb.check(ctx, phase)
             expected_combo = pending.expected_combo,
             absorb_ids = pending.absorb_ids,
             ignore_combo_check = pending.ignore_combo_check,
-            source = "current_absorb_pending",
+            source = pending.source or "current_absorb_pending",
             action_instance = pending.action_instance,
             pending_age_frames = ctx.frame - (pending.created_at_frame or ctx.frame)
         }
@@ -430,7 +448,12 @@ function PendingAbsorb.store(ctx, expected, current_absorb, match_probe, actual_
     if state.fail_timer and state.fail_timer > 0 then return false end
     if state.manual_reset_pending then return false end
     if state.current_step ~= match_probe.step then return false end
-    if math.abs(match_probe.frame_diff or 999) > 2 then
+    local effective_frame_diff = PendingAbsorb.effective_timing_frame_diff(
+        state,
+        match_probe.frame_diff
+    )
+    match_probe.pending_effective_frame_diff = effective_frame_diff
+    if math.abs(effective_frame_diff or 999) > 2 then
         match_probe.pending_reject_reason = "timing_window"
         return false
     end
@@ -464,12 +487,13 @@ function PendingAbsorb.store(ctx, expected, current_absorb, match_probe, actual_
         actual_hp = actual_hp,
         absorb_ids = current_absorb.absorb_ids,
         ignore_combo_check = current_absorb.ignore_combo_check == true,
+        match_reason = current_absorb.match_reason,
         action_instance = match_probe.action_instance,
         created_combo = match_probe.current_combo or 0,
         created_at_frame = ctx.frame,
         expires_at_frame = ctx.frame + window,
         reject_reason = "combo_not_reached",
-        source = "current_absorb_pending"
+        source = current_absorb.source or "current_absorb_pending"
     }
 
     match_probe.pending_current_absorb_created = true

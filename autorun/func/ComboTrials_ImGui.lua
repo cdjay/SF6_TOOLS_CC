@@ -2024,6 +2024,8 @@ local function resolve_contextual_step_command_display(
                 and "invalid_display_motion" or nil,
             suppressed = false,
             unresolved = normalized_transition == nil,
+            effective_action_id = resolution.effective_action_id,
+            projected_action_id = resolution.projected_action_id,
         }, resolution.effective_action_id
     end
     if declared_internal then
@@ -2035,6 +2037,8 @@ local function resolve_contextual_step_command_display(
             failure_status = nil,
             suppressed = true,
             unresolved = false,
+            effective_action_id = resolution.effective_action_id,
+            projected_action_id = resolution.projected_action_id,
         }, resolution.effective_action_id
     end
 
@@ -2116,8 +2120,11 @@ local function validate_sequence_command_display(sequence)
             resolved_step_count = 0,
             preserved_step_count = 0,
             suppressed_step_count = 0,
+            visible_step_count = 0,
+            visible_line_count = 0,
             unresolved_count = 0,
             unresolved = {},
+            steps = {},
         }
     end
 
@@ -2135,11 +2142,15 @@ local function validate_sequence_command_display(sequence)
         resolved_step_count = 0,
         preserved_step_count = 0,
         suppressed_step_count = 0,
+        visible_step_count = 0,
+        visible_line_count = 0,
         unresolved_count = 0,
         unresolved = {},
+        steps = {},
     }
 
     local previous_effective_owner_id = nil
+    local previous_visible_group_key = nil
     for index, step in ipairs(sequence) do
         local resolution
         resolution, previous_effective_owner_id =
@@ -2149,9 +2160,14 @@ local function validate_sequence_command_display(sequence)
                 is_modern,
                 previous_effective_owner_id
             )
+        local classification = nil
+        local display_motion = nil
         if resolution.suppressed then
+            classification = "suppressed"
             result.suppressed_step_count = result.suppressed_step_count + 1
         elseif resolution.unresolved then
+            classification = "unresolved"
+            display_motion = "[指令未识别]"
             local route_status = resolution.failure_status
                 or resolution.route_status or "command_unavailable"
             result.unresolved[#result.unresolved + 1] = {
@@ -2166,12 +2182,44 @@ local function validate_sequence_command_display(sequence)
                 catalog_route_status = resolution.catalog_route_status,
             }
         elseif resolution.motion then
+            classification = "resolved"
+            display_motion = resolution.motion
             result.resolved_step_count = result.resolved_step_count + 1
         else
             -- This is the classic renderer's whole-map-unavailable fallback:
             -- the saved motion remains visible, but it was not catalog-resolved.
+            classification = "preserved"
+            display_motion = type(step.motion) == "string" and step.motion or ""
             result.preserved_step_count = result.preserved_step_count + 1
         end
+
+        local visible = classification ~= "suppressed"
+        local group_key = tostring(step.group_id ~= nil
+            and step.group_id or ("step:" .. tostring(index)))
+        local visible_line_index = nil
+        if visible then
+            result.visible_step_count = result.visible_step_count + 1
+            if previous_visible_group_key ~= group_key then
+                result.visible_line_count = result.visible_line_count + 1
+            end
+            previous_visible_group_key = group_key
+            visible_line_index = result.visible_line_count
+        end
+        result.steps[#result.steps + 1] = {
+            index = index,
+            source_action_id = tonumber(step.id),
+            effective_action_id = resolution.effective_action_id,
+            projected_action_id = resolution.projected_action_id,
+            recorded_motion = type(step.motion) == "string" and step.motion or "",
+            display_motion = display_motion,
+            route_status = resolution.route_status or "command_unavailable",
+            catalog_route_status = resolution.catalog_route_status,
+            failure_status = resolution.failure_status,
+            classification = classification,
+            group_key = group_key,
+            visible = visible,
+            visible_line_index = visible_line_index,
+        }
     end
 
     result.unresolved_count = #result.unresolved

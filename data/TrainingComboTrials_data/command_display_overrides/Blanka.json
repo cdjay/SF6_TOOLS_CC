@@ -1,0 +1,66 @@
+{
+  "schema": "xt.command_display_overrides.v1",
+  "character": "Blanka",
+  "entries": {
+    "613": {
+      "classic": "2+LP",
+      "replace": true,
+      "evidence": "Two completed 2026-08-05 runtime audit routes bind crouching LP input and hit contact to Action 613; the generated catalog independently identifies 2+LP"
+    },
+    "616": {
+      "classic": "2+MP",
+      "replace": true,
+      "evidence": "The completed 2026-08-05 runtime audit binds crouching MP input and hit contact to Action 616; the generated catalog independently identifies 2+MP"
+    },
+    "627": {
+      "classic": "2+HK",
+      "replace": true,
+      "evidence": "The completed 2026-08-05 runtime audit binds crouching HK input and hit contact to Action 627; the generated catalog independently identifies 2+HK"
+    },
+    "926": {
+      "classic": "214+P",
+      "replace": true,
+      "evidence": "The BCM route requires one punch from the allowed punch set; the generated LP+LK+MK text incorrectly expanded an alternative-button mask into simultaneous buttons"
+    },
+    "931": {
+      "classic": "214+PP",
+      "replace": true,
+      "evidence": "The BCM route requires two punches from the allowed punch set; the generated LP+LK+MK text incorrectly expanded an alternative-button mask into simultaneous buttons"
+    },
+    "930": {
+      "classic": "236+LP+MP+HP",
+      "replace": true,
+      "evidence": "The completed 2026-08-05 runtime audit binds the recorded three-punch command and hit contact to Action 930"
+    },
+    "954": {
+      "classic": "63214+LK",
+      "replace": true,
+      "evidence": "The completed 2026-08-05 runtime audit binds the recorded LK command and hit contact to Action 954; the generated catalog independently identifies 63214+LK"
+    },
+    "972": {
+      "classic": "4+LK",
+      "replace": true,
+      "evidence": "The completed 2026-08-05 runtime audit binds back plus LK input and hit contact to Action 972"
+    },
+    "1075": {
+      "classic": ">6+P",
+      "replace": true,
+      "evidence": "The completed 2026-08-05 runtime audit binds the recorded forward punch follow-up and hit contact to Action 1075; the generated catalog independently identifies the same command"
+    },
+    "1082": {
+      "classic": ">3+P",
+      "replace": true,
+      "evidence": "Two contacts in the completed 2026-08-05 runtime audit bind the recorded down-forward punch follow-up to Action 1082; the generated catalog independently identifies the same command"
+    },
+    "1088": {
+      "classic": ">4+P",
+      "replace": true,
+      "evidence": "The completed 2026-08-05 runtime audit binds the recorded back punch follow-up and hit contact to Action 1088; the generated catalog independently identifies the same command"
+    },
+    "1093": {
+      "classic": ">6+P",
+      "replace": true,
+      "evidence": "The completed 2026-08-05 runtime audit binds the recorded forward punch follow-up and hit contact to Action 1093; the generated catalog independently identifies the same command"
+    }
+  }
+}

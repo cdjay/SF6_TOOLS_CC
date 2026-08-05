@@ -34,6 +34,33 @@ function DebugTrace.record_auto_advance(state, data)
     return data
 end
 
+function DebugTrace.record_step_confirmation(state, data)
+    if not state or type(data) ~= "table" then return data end
+    state._step_confirmation_trace = state._step_confirmation_trace or {}
+    table.insert(state._step_confirmation_trace, data)
+    while #state._step_confirmation_trace > 64 do
+        table.remove(state._step_confirmation_trace, 1)
+    end
+    return data
+end
+
+function DebugTrace.record_visual_step_state(state, data)
+    if not state or type(data) ~= "table" then return data end
+    state._visual_step_trace = state._visual_step_trace or {}
+    local previous = state._visual_step_trace[#state._visual_step_trace]
+    if previous
+        and previous.validation_step == data.validation_step
+        and previous.visual_step == data.visual_step
+        and previous.hold_step == data.hold_step then
+        return data
+    end
+    table.insert(state._visual_step_trace, data)
+    while #state._visual_step_trace > 64 do
+        table.remove(state._visual_step_trace, 1)
+    end
+    return data
+end
+
 function DebugTrace.record_match_probe(state, data)
     if not state or type(data) ~= "table" then return data end
     state._match_probe = data
@@ -124,6 +151,8 @@ build_state_summary = function(state)
         previous_verified_step = step_summary(previous, current_step and current_step - 1 or nil),
         validation_debug = state._validation_debug,
         auto_advance_debug = state._auto_advance_debug,
+        step_confirmation_trace = state._step_confirmation_trace,
+        visual_step_trace = state._visual_step_trace,
         pending_current_absorb = state._pending_current_absorb,
         match_probe = state._match_probe,
         match_probe_history = state._match_probe_history
@@ -153,6 +182,8 @@ function DebugTrace.build_fail_dump(state, players)
         previous_verified_step = step_summary(previous, current_step and current_step - 1 or nil),
         validation_debug = state._validation_debug,
         auto_advance_debug = state._auto_advance_debug,
+        step_confirmation_trace = state._step_confirmation_trace,
+        visual_step_trace = state._visual_step_trace,
         pending_current_absorb = state._pending_current_absorb,
         match_probe = state._match_probe,
         match_probe_history = state._match_probe_history,

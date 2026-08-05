@@ -20,7 +20,8 @@
     "ignore": true
   },
   "931": {
-    "absorb_ids": "928,929",
+    "absorb_ids": "928,929,930",
+    "action_event_projection": {},
     "is_holdable": true,
     "hold_partial_check": false
   },

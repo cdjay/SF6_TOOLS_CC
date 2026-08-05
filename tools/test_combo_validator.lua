@@ -5,6 +5,7 @@ package.path = package.path
 local Validator = require("func/ComboTrials/Validator")
 local PendingAbsorb = require("func/ComboTrials/PendingAbsorb")
 local ActionMatcher = require("func/ComboTrials/ActionMatcher")
+local DebugTrace = require("func/ComboTrials/DebugTrace")
 
 assert(ActionMatcher.should_observe_dash_direction_edge(0, 0) == true,
     "a direction-only frame may participate in a dash pair")
@@ -19,6 +20,32 @@ assert(ActionMatcher.sequence_uses_input_truth({
 assert(ActionMatcher.sequence_uses_input_truth({
     { timeline = { { frame = 1, input = 18 } } },
 }) == false, "a legacy timeline-only trial must retain compatibility matching")
+
+do
+    local trace_state = {}
+    DebugTrace.record_step_confirmation(trace_state, {
+        step = 2,
+        confirmation_frame = 100,
+    })
+    DebugTrace.record_visual_step_state(trace_state, {
+        frame = 100,
+        validation_step = 2,
+        visual_step = 2,
+    })
+    DebugTrace.record_visual_step_state(trace_state, {
+        frame = 101,
+        validation_step = 2,
+        visual_step = 2,
+    })
+    DebugTrace.record_visual_step_state(trace_state, {
+        frame = 102,
+        validation_step = 3,
+        visual_step = 3,
+    })
+    assert(#trace_state._step_confirmation_trace == 1
+            and #trace_state._visual_step_trace == 2,
+        "audit step traces must preserve confirmations and deduplicate stable visual frames")
+end
 
 local ignored_kimberly_parent = { ignore = true }
 assert(ActionMatcher.should_admit_ignored_expected_action(
@@ -455,6 +482,83 @@ do
     assert(stored == true
             and pending_state._pending_current_absorb.actual_action_id == 606,
         "pending absorb storage must use the data policy instead of a character name")
+end
+
+do
+    local repeat_state = {
+        sequence = {
+            {
+                id = 614,
+                motion = "2+LP",
+                expected_combo = 2,
+                has_hit = true,
+            },
+            {
+                id = 614,
+                motion = "2+LP",
+                expected_combo = 3,
+                expected_hp = 10000,
+                delay_from_prev = 6,
+            },
+        },
+        current_step = 2,
+        last_played_frame = 100,
+        success_timer = 0,
+        fail_timer = 0,
+        is_playing = true,
+        playing_player = 0,
+        _demo_timing_ui_baseline = true,
+    }
+    local debug_trace = {
+        record_match_probe = function() end,
+        record_validation_debug = function() end,
+    }
+    local repeat_ctx = {
+        state = repeat_state,
+        p_idx = 0,
+        p_state = {
+            profile_name = "Blanka",
+            current_action_instance = 12,
+        },
+        frame = 106,
+        pf = {
+            current_combo = 2,
+            p_char = { vital_new = 10000 },
+            opponent_knocked_down = false,
+        },
+        Validator = Validator,
+        DebugTrace = debug_trace,
+        is_post_hit_setup_step = function() return false end,
+        set_dummy_counter_type = function() end,
+        d2d_cfg = { fail_display_frames = 120 },
+        file_system = {},
+        act_id_reverse_enum = {},
+    }
+    local stored = PendingAbsorb.store(repeat_ctx, repeat_state.sequence[2], {
+        block_reason = "combo_not_reached",
+        allow_pending_absorb = true,
+        actual_action_id = 614,
+        match_reason = "id",
+        source = "same_action_light_repeat_contact",
+    }, {
+        step = 2,
+        frame = 106,
+        frame_diff = 10,
+        current_combo = 2,
+        action_instance = 12,
+        actual_motion = "2+LP",
+        actual_input = "2+LP",
+    }, 10000)
+    assert(stored == true and repeat_state.current_step == 2,
+        "audit replay timing drift must not bypass repeated-light contact confirmation")
+
+    repeat_ctx.frame = 120
+    repeat_ctx.pf.current_combo = 3
+    local confirmed = PendingAbsorb.check(repeat_ctx, "repeat_light_contact")
+    assert(confirmed == true
+            and repeat_state.current_step == 3
+            and repeat_state.sequence[2].action_instance == 12,
+        "the repeated light step must advance only after combo growth confirms contact")
 end
 
 print("combo validator tests passed")

@@ -8,7 +8,7 @@ local RuntimeAuditor = {
     name = "ComboTrials.RuntimeAuditor",
     REPORT_SCHEMA = "sf6cc.combo_runtime_audit.v1",
     REPORT_ROOT = "TrainingComboTrials_data/RuntimeAuditReports",
-    VALIDATION_REVISION = 47,
+    VALIDATION_REVISION = 53,
     COMPATIBLE_VALIDATION_REVISIONS = {
         [35] = "monotonic_timeline_outcome_relaxation",
         [36] = "data_driven_quick_successor_live_validation",
@@ -322,6 +322,221 @@ local function validate_command_display_shape(validation, context)
     }
 end
 
+local function valid_command_display_motion(value)
+    if type(value) ~= "string" then return false end
+    local normalized = value:match("^%s*(.-)%s*$") or ""
+    if normalized == "" then return false end
+    local upper = normalized:upper()
+    return normalized:find("未识别", 1, true) == nil
+        and upper:find("UNKNOWN", 1, true) == nil
+        and upper:find("ACTION_", 1, true) == nil
+end
+
+local function validate_command_display_step_proof(validation, context)
+    context = type(context) == "table" and context or {}
+    local actual_unresolved_count = table_entry_count(validation.unresolved) or 0
+    if not is_nonnegative_integer(validation.visible_step_count) then
+        return {
+            ok = false,
+            reason = "runtime_command_display_validation_invalid:visible_step_count",
+            actual_unresolved_count = actual_unresolved_count,
+        }
+    end
+    if not is_nonnegative_integer(validation.visible_line_count) then
+        return {
+            ok = false,
+            reason = "runtime_command_display_validation_invalid:visible_line_count",
+            actual_unresolved_count = actual_unresolved_count,
+        }
+    end
+    if type(validation.steps) ~= "table"
+        or table_entry_count(validation.steps) ~= validation.total_steps
+        or #validation.steps ~= validation.total_steps then
+        return {
+            ok = false,
+            reason = "runtime_command_display_validation_invalid:steps",
+            actual_unresolved_count = actual_unresolved_count,
+        }
+    end
+
+    local expected_sequence = type(context.expected_sequence) == "table"
+        and context.expected_sequence or nil
+    local proof_counts = {
+        resolved = 0,
+        preserved = 0,
+        suppressed = 0,
+        unresolved = 0,
+    }
+    local unresolved_indexes = {}
+    for _, unresolved in ipairs(validation.unresolved) do
+        local index = tonumber(type(unresolved) == "table"
+            and (unresolved.index or unresolved.step_index))
+        if not is_nonnegative_integer(index) or index <= 0
+            or index > validation.total_steps or unresolved_indexes[index] then
+            return {
+                ok = false,
+                reason = "runtime_command_display_validation_invalid:unresolved_steps",
+                actual_unresolved_count = actual_unresolved_count,
+            }
+        end
+        unresolved_indexes[index] = true
+    end
+
+    local previous_group_key = nil
+    local expected_visible_line = 0
+    for index = 1, validation.total_steps do
+        local proof = validation.steps[index]
+        if type(proof) ~= "table" or proof.index ~= index then
+            return {
+                ok = false,
+                reason = "runtime_command_display_validation_invalid:step_index",
+                actual_unresolved_count = actual_unresolved_count,
+            }
+        end
+        local source_action_id = tonumber(proof.source_action_id)
+        local effective_action_id = tonumber(proof.effective_action_id)
+        if not is_nonnegative_integer(source_action_id) then
+            return {
+                ok = false,
+                reason = "runtime_command_display_validation_invalid:source_action_id",
+                actual_unresolved_count = actual_unresolved_count,
+            }
+        end
+        if expected_sequence ~= nil
+            and source_action_id ~= tonumber(expected_sequence[index]
+                and expected_sequence[index].id) then
+            return {
+                ok = false,
+                reason = "runtime_command_display_validation_invalid:source_action_id_context",
+                actual_unresolved_count = actual_unresolved_count,
+            }
+        end
+        if not is_nonnegative_integer(effective_action_id) then
+            return {
+                ok = false,
+                reason = "runtime_command_display_validation_invalid:effective_action_id",
+                actual_unresolved_count = actual_unresolved_count,
+            }
+        end
+        if proof.projected_action_id ~= nil then
+            local projected_action_id = tonumber(proof.projected_action_id)
+            if not is_nonnegative_integer(projected_action_id)
+                or projected_action_id == source_action_id
+                or effective_action_id ~= projected_action_id then
+                return {
+                    ok = false,
+                    reason = "runtime_command_display_validation_invalid:projected_action_id",
+                    actual_unresolved_count = actual_unresolved_count,
+                }
+            end
+        elseif effective_action_id ~= source_action_id then
+            return {
+                ok = false,
+                reason = "runtime_command_display_validation_invalid:effective_action_id",
+                actual_unresolved_count = actual_unresolved_count,
+            }
+        end
+
+        local classification = proof.classification
+        if proof_counts[classification] == nil then
+            return {
+                ok = false,
+                reason = "runtime_command_display_validation_invalid:classification",
+                actual_unresolved_count = actual_unresolved_count,
+            }
+        end
+        proof_counts[classification] = proof_counts[classification] + 1
+        if type(proof.group_key) ~= "string" or proof.group_key == "" then
+            return {
+                ok = false,
+                reason = "runtime_command_display_validation_invalid:group_key",
+                actual_unresolved_count = actual_unresolved_count,
+            }
+        end
+        if type(proof.route_status) ~= "string" or proof.route_status == "" then
+            return {
+                ok = false,
+                reason = "runtime_command_display_validation_invalid:route_status",
+                actual_unresolved_count = actual_unresolved_count,
+            }
+        end
+
+        if classification == "suppressed" then
+            if proof.visible ~= false or proof.visible_line_index ~= nil
+                or proof.display_motion ~= nil then
+                return {
+                    ok = false,
+                    reason = "runtime_command_display_validation_invalid:suppressed_step_visibility",
+                    actual_unresolved_count = actual_unresolved_count,
+                }
+            end
+        else
+            if proof.visible ~= true then
+                return {
+                    ok = false,
+                    reason = "runtime_command_display_validation_invalid:visible_step",
+                    actual_unresolved_count = actual_unresolved_count,
+                }
+            end
+            if previous_group_key ~= proof.group_key then
+                expected_visible_line = expected_visible_line + 1
+            end
+            previous_group_key = proof.group_key
+            if proof.visible_line_index ~= expected_visible_line then
+                return {
+                    ok = false,
+                    reason = "runtime_command_display_validation_invalid:visible_line_topology",
+                    actual_unresolved_count = actual_unresolved_count,
+                }
+            end
+            if not valid_command_display_motion(proof.display_motion) then
+                return {
+                    ok = false,
+                    reason = "runtime_command_display_validation_invalid:display_motion",
+                    actual_unresolved_count = actual_unresolved_count,
+                }
+            end
+        end
+        if (classification == "unresolved") ~= (unresolved_indexes[index] == true) then
+            return {
+                ok = false,
+                reason = "runtime_command_display_validation_invalid:unresolved_steps",
+                actual_unresolved_count = actual_unresolved_count,
+            }
+        end
+    end
+
+    if proof_counts.resolved ~= validation.resolved_step_count
+        or proof_counts.preserved ~= validation.preserved_step_count
+        or proof_counts.suppressed ~= validation.suppressed_step_count
+        or proof_counts.unresolved ~= validation.unresolved_count then
+        return {
+            ok = false,
+            reason = "runtime_command_display_validation_invalid:step_proof_counts",
+            actual_unresolved_count = actual_unresolved_count,
+        }
+    end
+    if validation.visible_step_count
+        ~= validation.total_steps - validation.suppressed_step_count then
+        return {
+            ok = false,
+            reason = "runtime_command_display_validation_invalid:visible_step_count",
+            actual_unresolved_count = actual_unresolved_count,
+        }
+    end
+    if validation.visible_line_count ~= expected_visible_line then
+        return {
+            ok = false,
+            reason = "runtime_command_display_validation_invalid:visible_line_count",
+            actual_unresolved_count = actual_unresolved_count,
+        }
+    end
+    return {
+        ok = true,
+        actual_unresolved_count = actual_unresolved_count,
+    }
+end
+
 function RuntimeAuditor.validate_command_display_payload(validation, context)
     local shape = validate_command_display_shape(validation, context)
     if not shape.ok then return shape end
@@ -381,10 +596,7 @@ function RuntimeAuditor.validate_command_display_payload(validation, context)
             actual_unresolved_count = 0,
         }
     end
-    return {
-        ok = true,
-        actual_unresolved_count = 0,
-    }
+    return validate_command_display_step_proof(validation, context)
 end
 
 -- REFramework serializes an empty Lua table as JSON null. On report reload,
@@ -411,6 +623,7 @@ local function validate_command_display(evaluation, runtime, sequence)
     local result = RuntimeAuditor.validate_command_display_payload(validation, {
         expected_total_steps = type(sequence) == "table" and #sequence or 0,
         expected_character = runtime.character == nil and "" or runtime.character,
+        expected_sequence = sequence,
     })
     if type(validation) == "table" then
         evaluation.command_display_validation = deep_copy(validation)
@@ -625,6 +838,7 @@ function RuntimeAuditor.evaluate(sequence, compiled, runtime)
         append_reason(evaluation, "runtime_trial_not_completed")
     end
     evaluation.trial_completion = deep_copy(runtime.trial_completion or {})
+    evaluation.runtime_step_trace = deep_copy(runtime.runtime_step_trace or {})
     evaluation.trial_completion.effective_completed = training_ui_completed
         or strict_replay_completed
     if training_ui_completed then
@@ -691,7 +905,7 @@ function RuntimeAuditor.report(run)
             command_display = {
                 source = "runtime.command_display_validation",
                 required = true,
-                pass_condition = "strict_resolved_step_count_invariants",
+                pass_condition = "strict_step_and_visible_line_invariants",
             },
             completion_policy = {
                 timeline = "training_ui_required",

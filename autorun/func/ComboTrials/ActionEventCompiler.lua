@@ -1269,12 +1269,33 @@ local function observe_dash_anchor(session, sample, direction, direction_changed
     return nil
 end
 
+local function resolve_session_motion(session, action_id)
+    local resolver = type(session) == "table" and session.motion_resolver or nil
+    if type(resolver) ~= "function" then return nil end
+    local ok, motion = pcall(
+        resolver,
+        action_id,
+        type(session) == "table" and session.current_event or nil,
+        session
+    )
+    return ok and motion or nil
+end
+
+local function pending_is_same_action_repeat(session, anchor)
+    for _, candidate in ipairs(type(session) == "table"
+        and session.pending_same_action_repeats or {}) do
+        if candidate.anchor == anchor then return true end
+    end
+    return false
+end
+
 function Compiler.new(options)
     options = type(options) == "table" and options or {}
     return {
         character = options.character or "Unknown",
         control_mode = options.control_mode or "classic",
         source = options.source or "recording",
+        motion_resolver = options.motion_resolver,
         action_event_projection_rules =
             type(options.action_event_projection_rules) == "table"
                 and options.action_event_projection_rules or {},
@@ -1297,6 +1318,8 @@ function Compiler.new(options)
         expired_quick_successor_continuation_count = 0,
         expired_meter_raw_dr_count = 0,
         pending_anchor = nil,
+        pending_same_action_repeats = {},
+        same_action_repeat_count = 0,
         pending_meter_confirmed_raw_dr = nil,
         recent_direction_anchor = nil,
         button_press_frames = {},
@@ -1431,6 +1454,30 @@ function Compiler.observe(session, sample)
         and session.previous_action_frame ~= nil
         and action_frame < session.previous_action_frame
     local actual_action_start = action_changed or action_restarted
+    if actual_action_start then
+        session.pending_same_action_repeats = {}
+    elseif pressed ~= 0 and type(anchor) == "table"
+        and anchor.kind == "button_press"
+        and type(session.current_event) == "table" then
+        local repeat_input =
+            ActionRestartDetector.evaluate_recording_light_repeat_input({
+                motion = resolve_session_motion(session, action_id),
+                pressed_buttons = pressed,
+                current_has_hit = session.current_event.has_hit == true,
+                current_action_id = session.current_event.id,
+                runtime_action_id = action_id,
+                action_changed = action_changed,
+                action_restarted = action_restarted,
+            })
+        if repeat_input.accepted then
+            session.pending_same_action_repeats[#session.pending_same_action_repeats + 1] = {
+                action_id = action_id,
+                anchor = anchor,
+                sample = shallow_copy(sample),
+                source_event = session.current_event,
+            }
+        end
+    end
     if actual_action_start
         and (session.input_started or (MOVEMENT_ACTIONS[action_id] and direction ~= "5")) then
         session.observed_actions[#session.observed_actions + 1] = {
@@ -1523,7 +1570,9 @@ function Compiler.observe(session, sample)
                     + 1
         elseif pending.kind ~= "button_release"
             and pending.is_movement_continuation ~= true then
-            session.unresolved_anchor_count = session.unresolved_anchor_count + 1
+            if not pending_is_same_action_repeat(session, pending) then
+                session.unresolved_anchor_count = session.unresolved_anchor_count + 1
+            end
         end
         session.pending_anchor = nil
         pending = nil
@@ -1650,6 +1699,8 @@ function Compiler.observe(session, sample)
     local block_started = contact_truth.block_contact.started == true
     local block_damage_confirmed = contact_truth.block_damage_confirmed == true
     local hit_damage_confirmed = contact_truth.hit_damage_confirmed == true
+    local confirmed_damage_before_contact =
+        tonumber(session.confirmed_damage) or 0
     for _, passive_sample in ipairs(
         type(contact_truth.passive_damage_samples) == "table"
             and contact_truth.passive_damage_samples or {}
@@ -1661,6 +1712,46 @@ function Compiler.observe(session, sample)
             tonumber(session.confirmed_damage) or 0,
             tonumber(session.current_damage) or 0
         )
+    end
+
+    local repeat_candidates = session.pending_same_action_repeats
+    local repeat_candidate = type(repeat_candidates) == "table"
+        and repeat_candidates[1] or nil
+    local repeat_contact =
+        ActionRestartDetector.evaluate_recording_light_repeat_contact({
+            hit_confirmed = hit_confirmed,
+            candidate_action_id = repeat_candidate and repeat_candidate.action_id,
+            runtime_action_id = action_id,
+            current_event_action_id = current and current.id,
+            current_expected_combo = current and current.expected_combo,
+            current_combo = combo,
+        })
+    if repeat_contact.accepted and repeat_candidate.source_event == current then
+        table.remove(repeat_candidates, 1)
+        local saved_pending_anchor = session.pending_anchor
+        local repeated_event = add_event(
+            session,
+            repeat_candidate.sample,
+            repeat_candidate.anchor,
+            "same_action_light_normal_repeat_contact"
+        )
+        if saved_pending_anchor ~= nil
+            and saved_pending_anchor ~= repeat_candidate.anchor
+            and session.pending_anchor == nil then
+            session.pending_anchor = saved_pending_anchor
+        end
+        if repeated_event then
+            repeated_event.damage_at_step = confirmed_damage_before_contact
+            session.same_action_repeat_count =
+                (tonumber(session.same_action_repeat_count) or 0) + 1
+            session.observed_actions[#session.observed_actions + 1] = {
+                id = repeated_event.id,
+                frame = repeated_event.frame,
+                action_frame = repeated_event.action_frame,
+                reason = "same_action_light_normal_repeat_contact",
+            }
+            current = repeated_event
+        end
     end
 
     if current then
@@ -2133,6 +2224,8 @@ function Compiler.finalize(session, options)
             resolver_error_actions = resolver_error_actions,
             suppressed_action_events = #suppressed_events,
             promoted_action_events = #promoted_events,
+            same_action_repeat_events = type(session) == "table"
+                and (tonumber(session.same_action_repeat_count) or 0) or 0,
             drive_used = type(session) == "table" and session.initial_actor_drive
                 and math.max(0, session.initial_actor_drive - (session.min_actor_drive
                     or session.initial_actor_drive)) or 0,
@@ -2168,6 +2261,8 @@ function Compiler.finalize(session, options)
                 and (session.expired_quick_successor_continuation_count or 0) or 0,
             expired_meter_raw_dr_count = type(session) == "table"
                 and (session.expired_meter_raw_dr_count or 0) or 0,
+            same_action_repeat_count = type(session) == "table"
+                and (tonumber(session.same_action_repeat_count) or 0) or 0,
         },
     }
 end

@@ -14,6 +14,12 @@ ACTION_EVENT_FIXTURES = {
         ["976"] = { absorb_ids = "977", action_event_projection = {} },
         ["1208"] = { absorb_ids = "1209", action_event_projection = {} },
     },
+    Blanka = {
+        ["931"] = {
+            absorb_ids = "928,929,930",
+            action_event_projection = {},
+        },
+    },
     Cammy = {
         ["652"] = { absorb_ids = "653", action_event_projection = {} },
         ["916"] = { absorb_ids = "933", action_event_projection = {} },
@@ -275,6 +281,52 @@ assert(#ingrid_projectile_result.steps == 1
         and ingrid_projectile_result.trace.suppressed_events[1].reason
             == "character_internal_action_phase",
     "Ingrid 953 must merge its hit outcome into the command-owning 945 step")
+end
+
+do
+local blanka_doll_activation = new_character_rule_session("Blanka")
+blanka_doll_activation.events = {
+    {
+        id = 931,
+        frame = 25,
+        has_hit = true,
+        has_contact = true,
+        expected_combo = 2,
+        damage_at_step = 1200,
+        anchor = { kind = "button_press", pressed_buttons = 96 },
+    },
+    {
+        id = 930,
+        frame = 50,
+        has_hit = true,
+        has_contact = true,
+        expected_combo = 4,
+        damage_at_step = 2120,
+        anchor = { kind = "direction_action", pressed_buttons = 0 },
+    },
+}
+blanka_doll_activation.max_combo = 4
+local blanka_doll_activation_result = compiler.finalize(
+    blanka_doll_activation,
+    {
+        motion_resolver = function(action_id)
+            if action_id == 931 then return "214+PP", "runtime_verified_override" end
+            if action_id == 930 then
+                return "236+LP+MP+HP", "runtime_verified_override"
+            end
+            return nil, "action_id_missing"
+        end,
+    }
+)
+assert(#blanka_doll_activation_result.steps == 1
+        and blanka_doll_activation_result.steps[1].id == 931
+        and blanka_doll_activation_result.steps[1].motion == "214+PP"
+        and blanka_doll_activation_result.steps[1].expected_combo == 4
+        and blanka_doll_activation_result.steps[1].damage_at_step == 2120
+        and blanka_doll_activation_result.trace.suppressed_events[1].id == 930
+        and blanka_doll_activation_result.trace.suppressed_events[1].reason
+            == "character_internal_action_phase",
+    "Blanka 930 doll contact phase must merge into the command-owning 931 step")
 end
 
 do
@@ -1074,6 +1126,63 @@ local repeated_result = compiler.finalize(repeated)
 assert(#repeated_result.steps == 2, "same-ID ActionFrame rewind must preserve repeated commands")
 assert(repeated_result.steps[1].id == 601 and repeated_result.steps[2].id == 601,
     "repeated commands must retain their observed Action ID")
+
+do
+    local blanka_repeat = compiler.new({
+        character = "Blanka",
+        frame = 0,
+        motion_resolver = function(action_id)
+            if action_id == 622 then return "2+LK", "strict_route" end
+            if action_id == 614 then return "2+LP", "strict_route" end
+            if action_id == 971 then return "[2]8+LK", "strict_route" end
+            return nil, "action_id_missing"
+        end,
+    })
+    local rows = {
+        { 1, 10, 0, 0, 10000 },
+        { 2, 10, 128, 0, 10000 },
+        { 3, 622, 128, 0, 10000 },
+        { 4, 622, 128, 1, 9800 },
+        { 5, 622, 0, 1, 9800 },
+        { 6, 614, 16, 1, 9800 },
+        { 7, 614, 16, 2, 9550 },
+        { 8, 614, 0, 2, 9550 },
+        { 9, 614, 16, 2, 9550 },
+        { 10, 614, 16, 3, 9350 },
+        { 11, 614, 0, 3, 9350 },
+        { 12, 614, 16, 3, 9350 },
+        { 13, 614, 16, 3, 9350 },
+        { 14, 971, 128, 3, 9350 },
+        { 15, 971, 128, 4, 8630 },
+    }
+    for _, row in ipairs(rows) do
+        compiler.observe(blanka_repeat, {
+            frame = row[1],
+            action_id = row[2],
+            action_frame = 19726.790771,
+            direct_input = row[3],
+            facing_right = true,
+            combo_count = row[4],
+            actor_hp = 10000,
+            victim_hp = row[5],
+            victim_damage_type = row[4] > 0 and 3 or 0,
+            victim_hit_stop = row[4] > 0 and 4 or 0,
+        })
+    end
+    local result = compiler.finalize(blanka_repeat, {
+        motion_resolver = blanka_repeat.motion_resolver,
+    })
+    assert(#result.steps == 4
+            and result.steps[1].id == 622
+            and result.steps[2].id == 614
+            and result.steps[3].id == 614
+            and result.steps[4].id == 971
+            and result.steps[2].expected_combo == 2
+            and result.steps[3].expected_combo == 3
+            and result.stats.same_action_repeat_events == 1
+            and result.trace.same_action_repeat_count == 1,
+        "a landed same-ID 2LP repeat must survive a constant ActionFrame while an extra mash stays ignored")
+end
 
 local function test_motion_resolver(action_id)
     local motions = {

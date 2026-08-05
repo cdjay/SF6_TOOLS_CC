@@ -4934,6 +4934,8 @@ local function clear_trial_attempt_state(player_idx, phase)
     trial_state._last_matched_action_instance = nil
     trial_state._ui_step_hold_step = nil
     trial_state._ui_step_hold_until_frame = nil
+    trial_state._step_confirmation_trace = nil
+    trial_state._visual_step_trace = nil
     trial_state.last_played_frame = engine_frame_count
     begin_trial_action_grace()
     init_hp_restore_attempt(phase or "attempt", player_idx or trial_state.playing_player)
@@ -5028,6 +5030,7 @@ ctx.new_action_event_session = function(player_idx, source)
         control_mode = control_type_from_input_type(read_player_input_type(player_idx)),
         source = source,
         frame = engine_frame_count,
+        motion_resolver = ctx.resolve_compiled_motion,
         action_event_projection_rules =
             CharacterRules.build_action_event_projection_rules(
                 p_state and p_state.exceptions or nil,
@@ -6302,6 +6305,12 @@ local function advance_same_action_continuation_steps(combo_count, call_site)
         local prev_step = trial_state.sequence[trial_state.current_step - 1]
         local step = trial_state.sequence[trial_state.current_step]
         local auto_advance_debug = build_same_action_auto_advance_debug(prev_step, step, combo_count, call_site)
+        local pending = trial_state._pending_current_absorb
+        if type(pending) == "table" and pending.step == trial_state.current_step then
+            auto_advance_debug.auto_advance_block_reason = "pending_contact_confirmation"
+            DebugTrace.record_auto_advance(trial_state, auto_advance_debug)
+            break
+        end
         local current_player = players[trial_state.playing_player or 0]
         local current_action_instance = current_player and current_player.current_action_instance or nil
         if not is_same_action_continuation_step(prev_step, step, combo_count, current_action_instance) then
@@ -6323,6 +6332,17 @@ local function advance_same_action_continuation_steps(combo_count, call_site)
             trial_state._last_matched_action_instance = current_action_instance
         end
         step.last_frame_diff = 0
+        DebugTrace.record_step_confirmation(trial_state, {
+            step = trial_state.current_step,
+            action_id = step.id,
+            motion = step.motion,
+            validation_frame = engine_frame_count,
+            confirmation_frame = engine_frame_count,
+            combo_count = combo_count or 0,
+            action_instance = current_action_instance,
+            match_reason = "same_action_continuation_auto_advance",
+            source = call_site,
+        })
         ComboTrialsModules.PendingAbsorb.set_timing_ui_result(trial_state, trial_state.current_step, step.last_frame_diff)
         trial_state.current_step = trial_state.current_step + 1
         trial_state.last_played_frame = engine_frame_count
@@ -8521,8 +8541,7 @@ local function ct_player_process_actions(p_idx, p_state, actions_to_process)
                     end
                 end)
 
-                local function apply_matched_step(matched_expected, matched_act_id, matched_motion, matched_input, matched_frame, matched_combo, matched_hp, match_reason, match_details)
-                    local confirmed, matched_step_idx = ComboTrialsModules.PendingAbsorb.apply_matched_step({
+                local pending_absorb_ctx = {
                         state = trial_state,
                         p_idx = p_idx,
                         p_state = p_state,
@@ -8535,7 +8554,9 @@ local function ct_player_process_actions(p_idx, p_state, actions_to_process)
                         d2d_cfg = d2d_cfg,
                         file_system = file_system,
                         act_id_reverse_enum = act_id_reverse_enum
-                    }, {
+                    }
+                local function apply_matched_step(matched_expected, matched_act_id, matched_motion, matched_input, matched_frame, matched_combo, matched_hp, match_reason, match_details)
+                    local confirmed, matched_step_idx = ComboTrialsModules.PendingAbsorb.apply_matched_step(pending_absorb_ctx, {
                         expected = matched_expected,
                         actual_action_id = matched_act_id,
                         actual_motion = matched_motion,
@@ -8626,20 +8647,10 @@ local function ct_player_process_actions(p_idx, p_state, actions_to_process)
                     }
                 end
 
-                ComboTrialsModules.PendingAbsorb.check({
-                    state = trial_state,
-                    p_idx = p_idx,
-                    p_state = p_state,
-                    frame = engine_frame_count,
-                    pf = _pf,
-                    Validator = Validator,
-                    DebugTrace = DebugTrace,
-                    is_post_hit_setup_step = is_post_hit_setup_step,
-                    set_dummy_counter_type = set_dummy_counter_type,
-                    d2d_cfg = d2d_cfg,
-                    file_system = file_system,
-                    act_id_reverse_enum = act_id_reverse_enum
-                }, "pending_current_absorb_pre_action")
+                ComboTrialsModules.PendingAbsorb.check(
+                    pending_absorb_ctx,
+                    "pending_current_absorb_pre_action"
+                )
 
                 if is_intentional then
                 -- 1. Calculate charge properties
@@ -9373,6 +9384,71 @@ local function ct_player_process_actions(p_idx, p_state, actions_to_process)
                                 match_probe.block_contact_damage_type = trial_state._pending_block_outcome.block_contact_damage_type
                                 match_probe.reject_reason = "block_outcome_pending"
                                 DebugTrace.record_match_probe(trial_state, match_probe)
+                            elseif action_match.matched and expected then
+                                local repeat_prev = trial_state.current_step > 1
+                                    and trial_state.sequence[trial_state.current_step - 1] or nil
+                                local repeat_contact_gate =
+                                    ActionRestartDetector.evaluate_playback_light_repeat_contact_gate({
+                                        expected_id = expected.id,
+                                        expected_motion = expected.motion,
+                                        expected_combo = expected.expected_combo,
+                                        previous_id = repeat_prev and repeat_prev.id or nil,
+                                        previous_motion = repeat_prev and repeat_prev.motion or nil,
+                                        previous_expected_combo = repeat_prev
+                                            and repeat_prev.expected_combo or nil,
+                                        previous_has_hit = repeat_prev and repeat_prev.has_hit == true,
+                                        current_combo = _pf.current_combo or 0,
+                                    })
+                                if repeat_contact_gate.required then
+                                    match_probe.branch = "same_action_light_repeat_contact_pending"
+                                    match_probe.repeat_contact_gate = repeat_contact_gate
+                                    local stored = ComboTrialsModules.PendingAbsorb.store(
+                                        pending_absorb_ctx,
+                                        expected,
+                                        {
+                                            block_reason = "combo_not_reached",
+                                            allow_pending_absorb = true,
+                                            actual_action_id = act_id,
+                                            match_reason = action_match.match_reason,
+                                            source = "same_action_light_repeat_contact",
+                                        },
+                                        match_probe,
+                                        process_act.current_hp
+                                    )
+                                    match_probe.pending_current_absorb_created = stored == true
+                                    if stored then
+                                        DebugTrace.record_match_probe(trial_state, match_probe)
+                                    else
+                                        match_probe.branch = "same_action_light_repeat_contact_pending_fallback"
+                                        DebugTrace.record_match_probe(trial_state, match_probe)
+                                        apply_matched_step(
+                                            expected,
+                                            act_id,
+                                            motion_str,
+                                            real_input_str,
+                                            process_act.synthetic and (process_act.engine_frame or engine_frame_count) or engine_frame_count,
+                                            _pf.current_combo or 0,
+                                            process_act.current_hp,
+                                            action_match.match_reason,
+                                            action_match
+                                        )
+                                    end
+                                else
+                                    match_probe.branch = process_act.synthetic and "same_dash_fallback" or "direct_match"
+                                    match_probe.repeat_contact_gate = repeat_contact_gate
+                                    DebugTrace.record_match_probe(trial_state, match_probe)
+                                    apply_matched_step(
+                                        expected,
+                                        act_id,
+                                        motion_str,
+                                        real_input_str,
+                                        process_act.synthetic and (process_act.engine_frame or engine_frame_count) or engine_frame_count,
+                                        _pf.current_combo or 0,
+                                        process_act.current_hp,
+                                        action_match.match_reason,
+                                        action_match
+                                    )
+                                end
                             elseif action_match.matched then
                                 match_probe.branch = process_act.synthetic and "same_dash_fallback" or "direct_match"
                                 DebugTrace.record_match_probe(trial_state, match_probe)
@@ -9901,6 +9977,15 @@ re.on_frame(function()
     elseif _hold_until and _frame_now > _hold_until then
         trial_state._ui_step_hold_step = nil
         trial_state._ui_step_hold_until_frame = nil
+    end
+    if trial_state._runtime_auditing then
+        DebugTrace.record_visual_step_state(trial_state, {
+            frame = _frame_now,
+            validation_step = trial_state.current_step or 0,
+            visual_step = _visual_step,
+            hold_step = trial_state._ui_step_hold_step,
+            hold_until_frame = trial_state._ui_step_hold_until_frame,
+        })
     end
     _G.ComboTrials_CurrentFile = _fname:match("([^/\\]+)$") or _fname
     _G.ComboTrials_CurrentStep = _visual_step
@@ -10674,6 +10759,7 @@ ctx.transcription_item = function(path, status, details)
         verification_action_trace = details.verification_action_trace,
         action_comparison = details.action_comparison,
         trial_completion = details.trial_completion,
+        runtime_step_trace = details.runtime_step_trace,
         command_display_validation = details.command_display_validation,
         replay_verified = replay_verified,
         raw_replay_verified = raw_replay_verified,
@@ -10858,6 +10944,7 @@ ctx.complete_transcription_item = function(run, evaluation, details)
         verification_action_trace = details.verification_action_trace,
         action_comparison = evaluation.action_comparison,
         trial_completion = evaluation.trial_completion,
+        runtime_step_trace = evaluation.runtime_step_trace,
         command_display_validation = evaluation.command_display_validation,
         replay_verified = details.replay_verified,
         raw_replay_verified = details.raw_replay_verified == true,
@@ -11095,6 +11182,13 @@ ctx.finish_current_transcription_file = function(timed_out)
                 timing_tolerance = 2,
                 trial_completed = trial_completion.completed,
                 trial_completion = trial_completion,
+                runtime_step_trace = {
+                    confirmations = trial_state._step_confirmation_trace,
+                    visual_steps = trial_state._visual_step_trace,
+                    recent_match_probes = trial_state._match_probe_history,
+                    last_auto_advance = trial_state._auto_advance_debug,
+                    last_validation = trial_state._validation_debug,
+                },
                 character = run.character,
                 command_display_validation = command_display_validation,
                 verify_environment = true,

@@ -51,9 +51,74 @@ started, reason = detector.detect(904, 61, 904, 60, nil, nil, 32 | 64, repeat_ev
 assert(started == true and reason == "expected_repeat_action_input",
     "an expected same-ID command must create a new instance even when ActionFrame keeps advancing")
 
-assert(detector.evaluate_recording_repeat_input == nil
-        and detector.evaluate_recording_repeat_contact == nil,
-    "recording must never synthesize an action instance from input and contact alone")
+local light_repeat_input = detector.evaluate_recording_light_repeat_input({
+    motion = "2+LP",
+    pressed_buttons = 16,
+    current_has_hit = true,
+    current_action_id = 614,
+    runtime_action_id = 614,
+})
+assert(light_repeat_input.accepted == true
+        and light_repeat_input.expected_mask == 16,
+    "a fresh LP edge after a landed single-hit light normal may arm a same-ID repeat")
+local playback_light_gate = detector.evaluate_playback_light_repeat_contact_gate({
+    expected_id = 614,
+    expected_motion = "2+LP",
+    expected_combo = 3,
+    previous_id = 614,
+    previous_motion = "2+LP",
+    previous_expected_combo = 2,
+    current_combo = 2,
+})
+assert(playback_light_gate.required == true,
+    "combo truth must gate a consecutive same-ID light even before has_hit settles")
+assert(detector.evaluate_playback_light_repeat_contact_gate({
+        expected_id = 614,
+        expected_motion = "2+LP",
+        expected_combo = 3,
+        previous_id = 614,
+        previous_motion = "2+LP",
+        previous_expected_combo = 2,
+        current_combo = 1,
+    }).required == false,
+    "an unconfirmed previous hit must not arm the repeated-light contact gate")
+assert(detector.evaluate_playback_light_repeat_contact_gate({
+        expected_id = 902,
+        expected_motion = "214+HP",
+        expected_combo = 3,
+        previous_id = 902,
+        previous_motion = "214+HP",
+        previous_expected_combo = 2,
+        current_combo = 2,
+    }).required == false,
+    "multi-hit specials must not inherit the light-normal playback gate")
+assert(detector.evaluate_playback_light_repeat_contact_gate({
+        expected_id = 614,
+        expected_motion = "2+LP",
+        expected_combo = 3,
+        previous_id = 614,
+        previous_motion = "2+LP",
+        previous_expected_combo = 2,
+        current_combo = 3,
+    }).required == false,
+    "an already confirmed repeat contact must advance without another wait")
+assert(detector.evaluate_recording_light_repeat_input({
+        motion = "214+HP",
+        pressed_buttons = 64,
+        current_has_hit = true,
+        current_action_id = 902,
+        runtime_action_id = 902,
+    }).accepted == false,
+    "multi-hit specials must never use light-normal repeat recovery")
+assert(detector.evaluate_recording_light_repeat_contact({
+        hit_confirmed = true,
+        candidate_action_id = 614,
+        runtime_action_id = 614,
+        current_event_action_id = 614,
+        current_expected_combo = 2,
+        current_combo = 3,
+    }).accepted == true,
+    "a later combo increase must confirm the armed same-ID light repeat")
 
 started, reason = detector.detect(902, 24, 902, 23, nil, nil, 128, false)
 assert(started == false and reason == "no_new_action",

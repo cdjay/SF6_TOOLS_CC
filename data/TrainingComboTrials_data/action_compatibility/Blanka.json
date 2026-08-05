@@ -1,0 +1,13 @@
+{
+  "schema": "xt.action_compatibility.v1",
+  "character": "Blanka",
+  "target_game_version": "2026-08-03",
+  "entries": [
+    {
+      "recorded_action_id": 924,
+      "runtime_action_id": 926,
+      "recorded_motions": ["214+LP+LK+MK"],
+      "evidence": "Four events across three completed 2026-08-05 runtime audit routes reproduced legacy Action 924 as current Action 926; the recorded motion is retained only as a historical JSON discriminator, while current display semantics come from Action 926 as 214+P"
+    }
+  ]
+}
