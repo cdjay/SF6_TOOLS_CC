@@ -121,11 +121,29 @@ assert(invalid_override_count == 0 and invalid_override_status == "invalid_overr
 local cammy_overrides, cammy_override_count, cammy_override_status =
     command_display_overrides.merge({
         _slim = true,
+        ["609"] = { classic = "LK", status = "route_unverified" },
+        ["618"] = { classic = "2+LP", status = "route_unverified" },
+        ["750"] = { classic = ">8", status = "route_unverified" },
         ["979"] = { classic = "j.Throw", status = "route_unverified" },
     }, "Cammy", {
         schema = "xt.command_display_overrides.v1",
         character = "Cammy",
         entries = {
+            ["609"] = {
+                classic = "LK",
+                replace = true,
+                evidence = "verified LK raw input",
+            },
+            ["618"] = {
+                classic = "2+LP",
+                replace = true,
+                evidence = "verified down plus LP raw input",
+            },
+            ["750"] = {
+                classic = ">8",
+                replace = true,
+                evidence = "verified upward transition after 651",
+            },
             ["908"] = {
                 classic = ">HK",
                 evidence = "verified 4+MP follow-up HK",
@@ -137,7 +155,16 @@ local cammy_overrides, cammy_override_count, cammy_override_status =
             },
         },
     })
-assert(cammy_override_status == "loaded" and cammy_override_count == 2
+assert(cammy_override_status == "loaded" and cammy_override_count == 5
+    and cammy_overrides["609"].classic == "LK"
+    and cammy_overrides["609"].status == "runtime_verified_override"
+    and cammy_overrides["609"].metadata.replaced_existing == true
+    and cammy_overrides["618"].classic == "2+LP"
+    and cammy_overrides["618"].status == "runtime_verified_override"
+    and cammy_overrides["618"].metadata.replaced_existing == true
+    and cammy_overrides["750"].classic == ">8"
+    and cammy_overrides["750"].status == "runtime_verified_override"
+    and cammy_overrides["750"].metadata.replaced_existing == true
     and cammy_overrides["908"].classic == ">HK"
     and cammy_overrides["908"].status == "runtime_verified_override"
     and cammy_overrides["979"].classic == "j.LP+LK"
@@ -1718,6 +1745,16 @@ assert(lily_exception_source:find('"932"', 1, true)
         and not lily_exception_source:find('"action_alias_ids": "931"', 1, true)
         and not lily_exception_source:find('"canonical_owner_ids": "931"', 1, true),
     "the shipped Lily exception must keep 931 as an absorb-only transient precursor")
+local cammy_override_source = read_all(
+    "data/TrainingComboTrials_data/command_display_overrides/Cammy.json")
+assert(cammy_override_source:find('"609"', 1, true)
+        and cammy_override_source:find('"classic": "LK"', 1, true)
+        and cammy_override_source:find('"618"', 1, true)
+        and cammy_override_source:find('"classic": "2+LP"', 1, true)
+        and cammy_override_source:find('"750"', 1, true)
+        and cammy_override_source:find('"classic": ">8"', 1, true)
+        and cammy_override_source:find('"replace": true', 1, true),
+    "the shipped Cammy command overrides must preserve runtime-verified commands")
 local alex_override_source = read_all(
     "data/TrainingComboTrials_data/command_display_overrides/Alex.json")
 assert(alex_override_source:find('"958"', 1, true)

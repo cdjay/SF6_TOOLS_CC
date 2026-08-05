@@ -2,6 +2,21 @@
   "schema": "xt.command_display_overrides.v1",
   "character": "Cammy",
   "entries": {
+    "609": {
+      "classic": "LK",
+      "replace": true,
+      "evidence": "Runtime audit reproduced Action 609 from an LK press (button mask 128) with confirmed contact and hit"
+    },
+    "618": {
+      "classic": "2+LP",
+      "replace": true,
+      "evidence": "Runtime audit reproduced Action 618 from a down plus LP input (button mask 16) with confirmed contact and hit"
+    },
+    "750": {
+      "classic": ">8",
+      "replace": true,
+      "evidence": "Runtime audit repeatedly observed Action 750 as the non-contact upward transition after Action 651 (>HK) before airborne follow-ups"
+    },
     "908": {
       "classic": ">HK",
       "evidence": "Raw input reaches Action 908 from 4+MP with a distinct HK press; the legacy combo counter also contains the follow-up hit"
