@@ -2401,6 +2401,13 @@ function Transcriber.verify_replay(sequence, compiled, runtime)
             break
         end
     end
+    -- A small final-damage change can remain inside the top-level tolerance,
+    -- so evaluate_sequence emits no explicit damage-drift advisory. When the
+    -- complete runtime route and outcome already passed compatibility checks,
+    -- per-step damage remains derived version data rather than a broken route.
+    local runtime_step_damage_advisory = runtime_damage_drift_advisory
+        or (runtime.allow_runtime_damage_drift == true
+            and evaluation.ok == true)
     local restored_transcription_outcome =
         evaluation.restored_transcription_outcome ~= nil
     local trace_mismatch_count = 0
@@ -2487,7 +2494,7 @@ function Transcriber.verify_replay(sequence, compiled, runtime)
                 index,
                 expected_damage,
                 observed_damage
-            ), runtime_damage_drift_advisory
+            ), runtime_step_damage_advisory
                 or restored_transcription_outcome)
         end
     end

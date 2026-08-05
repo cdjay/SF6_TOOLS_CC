@@ -781,6 +781,40 @@ assert(raw_step_damage_drift_passed.ok == true
         :match("replay_step_damage_mismatch"),
     "verified runtime damage drift must also make per-step damage changes advisory")
 
+local in_tolerance_step_damage_drift_passed = RuntimeAuditor.evaluate(candidate, {
+    steps = {
+        {
+            id = 600,
+            motion = "LP",
+            expected_combo = 1,
+            damage_at_step = 270,
+            delay_from_prev = 0,
+        },
+    },
+    stats = {
+        damage = 290,
+        max_combo = 1,
+        block_contacts = 0,
+        drive_used = 0,
+        super_used = 0,
+        unresolved_anchors = 0,
+    },
+}, {
+    raw_inputs = candidate[1].raw_inputs,
+    input_source = "raw_inputs",
+    input_completed = true,
+    timing_tolerance = 2,
+    trial_completed = true,
+    character = "Ryu",
+    command_display_validation = resolved_command_display(),
+})
+assert(in_tolerance_step_damage_drift_passed.ok == true
+        and table.concat(
+            in_tolerance_step_damage_drift_passed.advisories,
+            ","
+        ):match("replay_step_damage_mismatch"),
+    "a fully verified route must not fail only because step damage drift exceeds its local tolerance while final damage remains compatible")
+
 do
     local terminal_tail_candidate = {
         {
@@ -1841,9 +1875,11 @@ local revision_30_report = {
 }
 local refreshed_30, refreshed_30_counts =
     RuntimeAuditor.recompute_loaded_report_state(revision_30_report)
-assert(RuntimeAuditor.VALIDATION_REVISION == 57
+assert(RuntimeAuditor.VALIDATION_REVISION == 58
     and RuntimeAuditor.COMPATIBLE_VALIDATION_REVISIONS[46]
         == "timeline_transcription_source_outcome_restore"
+    and RuntimeAuditor.COMPATIBLE_VALIDATION_REVISIONS[57]
+        == "recorded_motion_drift_and_strict_terminal_completion"
     and refreshed_30_counts.stale == 1
     and refreshed_30.passed == 0,
     "revision 30 reports must be stale after the strict invariant revision")

@@ -1,0 +1,21 @@
+{
+  "schema": "xt.command_display_overrides.v1",
+  "character": "Ken",
+  "entries": {
+    "618": {
+      "classic": "2+LP",
+      "replace": true,
+      "evidence": "Revision 57 full-character audit reproduced Action 618 as 2+LP across seven visible steps; the generated AC/BCM catalog identifies the same command but has no verified route"
+    },
+    "623": {
+      "classic": "2+MP",
+      "replace": true,
+      "evidence": "Revision 57 full-character audit reproduced Action 623 as 2+MP across twelve visible steps; the generated AC/BCM catalog identifies the same command but has no verified route"
+    },
+    "981": {
+      "classic": "623+MK",
+      "replace": true,
+      "evidence": "Revision 57 full-character audit reproduced Action 981 as 623+MK across six visible steps; the generated AC/BCM catalog identifies the same command but has no verified route"
+    }
+  }
+}

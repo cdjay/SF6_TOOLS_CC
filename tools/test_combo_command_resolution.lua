@@ -2173,6 +2173,18 @@ do
             and ryu_override_source:find('"replace": true', 1, true),
         "the shipped Ryu command overrides must preserve runtime-verified commands")
 end
+do
+    local ken_override_source = read_all(
+        "data/TrainingComboTrials_data/command_display_overrides/Ken.json")
+    assert(ken_override_source:find('"618"', 1, true)
+            and ken_override_source:find('"classic": "2+LP"', 1, true)
+            and ken_override_source:find('"623"', 1, true)
+            and ken_override_source:find('"classic": "2+MP"', 1, true)
+            and ken_override_source:find('"981"', 1, true)
+            and ken_override_source:find('"classic": "623+MK"', 1, true)
+            and ken_override_source:find('"replace": true', 1, true),
+        "the shipped Ken command overrides must preserve the runtime-verified commands")
+end
 local alex_override_source = read_all(
     "data/TrainingComboTrials_data/command_display_overrides/Alex.json")
 assert(alex_override_source:find('"958"', 1, true)

@@ -8,7 +8,7 @@ local RuntimeAuditor = {
     name = "ComboTrials.RuntimeAuditor",
     REPORT_SCHEMA = "sf6cc.combo_runtime_audit.v1",
     REPORT_ROOT = "TrainingComboTrials_data/RuntimeAuditReports",
-    VALIDATION_REVISION = 57,
+    VALIDATION_REVISION = 58,
     COMPATIBLE_VALIDATION_REVISIONS = {
         [35] = "monotonic_timeline_outcome_relaxation",
         [36] = "data_driven_quick_successor_live_validation",
@@ -21,6 +21,7 @@ local RuntimeAuditor = {
         [44] = "burnout_guard_chip_tail_attribution",
         [45] = "version_scoped_motion_guarded_action_compatibility",
         [46] = "timeline_transcription_source_outcome_restore",
+        [57] = "recorded_motion_drift_and_strict_terminal_completion",
     },
 }
 
