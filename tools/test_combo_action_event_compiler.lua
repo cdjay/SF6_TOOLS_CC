@@ -62,6 +62,16 @@ ACTION_EVENT_FIXTURES = {
             },
         },
     },
+    Zangief = {
+        ["945"] = {
+            absorb_ids = "948",
+            action_event_projection = {
+                max_fold_delay_frames = 12,
+                require_same_anchor = true,
+                allow_same_button_press_fold = true,
+            },
+        },
+    },
     Guile = {
         ["994"] = {
             action_event_rules = { transient_precursor_ids = "33" },
@@ -2504,6 +2514,56 @@ assert(#ed_psycho_knuckle_result.steps == 1
         and ed_psycho_knuckle_result.trace.suppressed_events[1].reason
             == "character_internal_action_phase",
     "Ed 606 then 605 must remain one HP instruction while retaining the 605 hit outcome")
+
+local zangief_od_spd = new_character_rule_session("Zangief", 0)
+zangief_od_spd.events = {
+    {
+        id = 945,
+        frame = 100,
+        expected_combo = 0,
+        damage_at_step = 2800,
+        has_hit = false,
+        has_contact = false,
+        anchor = {
+            kind = "button_press",
+            frame = 96,
+            pressed_buttons = 48,
+        },
+    },
+    {
+        id = 948,
+        frame = 106,
+        expected_combo = 1,
+        damage_at_step = 6710,
+        has_hit = true,
+        has_contact = true,
+        anchor = {
+            kind = "button_press",
+            frame = 106,
+            pressed_buttons = 48,
+        },
+    },
+}
+zangief_od_spd.current_damage = 6710
+zangief_od_spd.confirmed_damage = 6710
+zangief_od_spd.max_combo = 1
+local zangief_od_spd_result = compiler.finalize(zangief_od_spd, {
+    motion_resolver = function(action_id)
+        if action_id == 945 then return "360+PP", "strict_route" end
+        return nil, "action_id_missing"
+    end,
+})
+assert(#zangief_od_spd_result.steps == 1
+        and zangief_od_spd_result.steps[1].id == 945
+        and zangief_od_spd_result.steps[1].motion == "360+PP"
+        and zangief_od_spd_result.steps[1].expected_combo == 1
+        and zangief_od_spd_result.steps[1].damage_at_step == 6710
+        and zangief_od_spd_result.steps[1].has_hit == true
+        and zangief_od_spd_result.trace.suppressed_events[1].id == 948
+        and zangief_od_spd_result.trace.suppressed_events[1].merged_into == 945
+        and zangief_od_spd_result.trace.suppressed_events[1].reason
+            == "character_internal_action_phase",
+    "Zangief 945 then 948 must remain one 360+PP instruction with the throw contact outcome")
 
 for precursor_id, precursor_motion in pairs({
     [996] = "214+LP",

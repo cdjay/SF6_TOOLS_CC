@@ -30,6 +30,14 @@
   "924": {
     "force": true
   },
+  "945": {
+    "absorb_ids": "948",
+    "action_event_projection": {
+      "max_fold_delay_frames": 12,
+      "require_same_anchor": true,
+      "allow_same_button_press_fold": true
+    }
+  },
   "1206": {
     "absorb_ids": "1207",
     "is_holdable": true,

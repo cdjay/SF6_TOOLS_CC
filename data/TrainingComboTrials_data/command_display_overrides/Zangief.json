@@ -1,0 +1,39 @@
+{
+  "schema": "xt.command_display_overrides.v1",
+  "character": "Zangief",
+  "contextual_internal_phases": {
+    "948": {
+      "owner_ids": [
+        945
+      ],
+      "evidence": "The 2026-08-05 runtime audit records Action 948 six frames after non-contact Action 945 on the same 360+PP input chain, where 948 contributes the command throw contact"
+    }
+  },
+  "entries": {
+    "609": {
+      "classic": "HP",
+      "replace": true,
+      "evidence": "The 2026-08-05 transcription reproduced Action 609 from the recorded 5+HP input with confirmed contact between DRC and 3+MP; Capcom official frame data independently identifies the same Action as standing HP"
+    },
+    "615": {
+      "classic": "HK",
+      "replace": true,
+      "evidence": "Four verified runtime audit events across three routes bind a fresh HK input and the recorded contact state to Zangief Action 615; the generated catalog independently records the same Classic command without a verified route"
+    },
+    "631": {
+      "classic": "2+MK",
+      "replace": true,
+      "evidence": "Three verified runtime audit events bind crouching MK inputs and contact to Zangief Action 631; the generated catalog independently records the same Classic command without a verified route"
+    },
+    "923": {
+      "classic": "41236+LK+MK",
+      "replace": true,
+      "evidence": "The 2026-08-05 standard-hit runtime audit binds facing-relative input 41236, an LK+MK button press and the confirmed 3400-damage command-grab contact to Zangief Action 923"
+    },
+    "1020": {
+      "classic": "63214+KK",
+      "replace": true,
+      "evidence": "A completed runtime audit route binds the recorded 63214+KK input, hit contact and exact terminal outcome to Zangief Action 1020; the generated catalog records the same Classic command without a verified route"
+    }
+  }
+}

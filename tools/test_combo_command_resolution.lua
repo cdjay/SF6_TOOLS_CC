@@ -106,6 +106,32 @@ assert(blanka_compatibility_status == "loaded"
     "Blanka compatibility must accept only the verified 924 to 926 command migration")
 BLANKA_COMPATIBILITY_TEST = blanka_compatibility
 end
+do
+local zangief_compatibility, zangief_compatibility_count,
+    zangief_compatibility_status = ActionCompatibility.parse({
+        schema = "xt.action_compatibility.v1",
+        character = "Zangief",
+        target_game_version = "2026-08-03",
+        entries = {
+            {
+                recorded_action_id = 900,
+                runtime_action_id = 903,
+                recorded_motions = { "PP" },
+                evidence = "verified Zangief runtime migration",
+            },
+        },
+    }, "Zangief", "2026-08-03")
+assert(zangief_compatibility_status == "loaded"
+        and zangief_compatibility_count == 1
+        and ActionCompatibility.matches(
+            zangief_compatibility, { id = 900, motion = "PP" }, 903)
+        and not ActionCompatibility.matches(
+            zangief_compatibility, { id = 900, motion = "PPP" }, 903)
+        and not ActionCompatibility.matches(
+            zangief_compatibility, { id = 900, motion = "PP" }, 901),
+    "Zangief compatibility must accept only the verified PP Action 900 to 903 migration")
+ZANGIEF_COMPATIBILITY_TEST = zangief_compatibility
+end
 
 local override_map = {
     _slim = true,
@@ -838,6 +864,67 @@ assert(ed_override_status == "loaded" and ed_override_count == 2
             ed_overrides, 621, 605) == false,
     "Ed Action 605 must be display-only after 606 instead of becoming a standalone HP override")
 ED_OVERRIDES_TEST = ed_overrides
+end
+do
+local zangief_overrides, zangief_override_count, zangief_override_status =
+    command_display_overrides.merge({
+        _slim = true,
+        ["609"] = { classic = "HP", status = "route_unverified" },
+        ["615"] = { classic = "HK", status = "route_unverified" },
+        ["631"] = { classic = "2+MK", status = "route_unverified" },
+        ["923"] = { classic = "41236+LK+MK", status = "route_unverified" },
+        ["1020"] = { classic = "63214+KK", status = "route_unverified" },
+    }, "Zangief", {
+        schema = "xt.command_display_overrides.v1",
+        character = "Zangief",
+        contextual_internal_phases = {
+            ["948"] = {
+                owner_ids = { 945 },
+                evidence = "verified 945 to 948 command throw contact phase",
+            },
+        },
+        entries = {
+            ["609"] = {
+                classic = "HP",
+                replace = true,
+                evidence = "verified standing HP",
+            },
+            ["615"] = {
+                classic = "HK",
+                replace = true,
+                evidence = "verified standing HK",
+            },
+            ["631"] = {
+                classic = "2+MK",
+                replace = true,
+                evidence = "verified crouching MK",
+            },
+            ["923"] = {
+                classic = "41236+LK+MK",
+                replace = true,
+                evidence = "verified command grab",
+            },
+            ["1020"] = {
+                classic = "63214+KK",
+                replace = true,
+                evidence = "verified running bear grab",
+            },
+        },
+    })
+assert(zangief_override_status == "loaded" and zangief_override_count == 5
+        and zangief_overrides["609"].classic == "HP"
+        and zangief_overrides["609"].status == "runtime_verified_override"
+        and zangief_overrides["615"].classic == "HK"
+        and zangief_overrides["631"].classic == "2+MK"
+        and zangief_overrides["923"].classic == "41236+LK+MK"
+        and zangief_overrides["923"].status == "runtime_verified_override"
+        and zangief_overrides["1020"].classic == "63214+KK"
+        and command_display_overrides.is_contextual_internal_phase(
+            zangief_overrides, 945, 948) == true
+        and command_display_overrides.is_contextual_internal_phase(
+            zangief_overrides, 900, 948) == false,
+    "Zangief overrides must resolve verified normals and hide only the 945 to 948 contact phase")
+ZANGIEF_OVERRIDES_TEST = zangief_overrides
 end
 local akuma_catalog = { _slim = true }
 local akuma_override_document = {
@@ -2245,6 +2332,46 @@ do
     assert(blanka_exception_source:find('"absorb_ids": "928,929,930"', 1, true)
             and blanka_exception_source:find('"action_event_projection": {}', 1, true),
         "the shipped Blanka rules must fold doll contact Action 930 into owner 931")
+end
+do
+    local zangief_override_source = read_all(
+        "data/TrainingComboTrials_data/command_display_overrides/Zangief.json")
+    local zangief_compatibility_source = read_all(
+        "data/TrainingComboTrials_data/action_compatibility/Zangief.json")
+    local zangief_exception_source = read_all(
+        "data/TrainingComboTrials_data/exceptions/Zangief.json")
+    assert(zangief_override_source:find('"609"', 1, true)
+            and zangief_override_source:find('"classic": "HP"', 1, true)
+            and zangief_override_source:find('"615"', 1, true)
+            and zangief_override_source:find('"classic": "HK"', 1, true)
+            and zangief_override_source:find('"631"', 1, true)
+            and zangief_override_source:find('"classic": "2+MK"', 1, true)
+            and zangief_override_source:find('"923"', 1, true)
+            and zangief_override_source:find(
+                '"classic": "41236+LK+MK"', 1, true)
+            and zangief_override_source:find('"1020"', 1, true)
+            and zangief_override_source:find(
+                '"classic": "63214+KK"', 1, true)
+            and zangief_override_source:find(
+                '"contextual_internal_phases"', 1, true)
+            and zangief_override_source:find('"948"', 1, true),
+        "the shipped Zangief overrides must retain every runtime-verified Classic command and contact phase")
+    assert(zangief_compatibility_source:find(
+                '"target_game_version": "2026-08-03"', 1, true)
+            and zangief_compatibility_source:find(
+                '"recorded_action_id": 900', 1, true)
+            and zangief_compatibility_source:find(
+                '"runtime_action_id": 903', 1, true)
+            and zangief_compatibility_source:find(
+                '"recorded_motions": ["PP"]', 1, true),
+        "the shipped Zangief compatibility map must retain the verified PP Action migration")
+    assert(zangief_exception_source:find('"945"', 1, true)
+            and zangief_exception_source:find('"absorb_ids": "948"', 1, true)
+            and zangief_exception_source:find(
+                '"max_fold_delay_frames": 12', 1, true)
+            and zangief_exception_source:find(
+                '"allow_same_button_press_fold": true', 1, true),
+        "the shipped Zangief rules must fold the 948 contact phase into command owner 945")
 end
 do
     local ed_override_source = read_all(

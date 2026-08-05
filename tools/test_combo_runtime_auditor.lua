@@ -215,6 +215,82 @@ assert(timeline_trace_drift.ok == true
         :match("replay_action_id_mismatch"),
     "legacy timeline trace drift must remain diagnostic when player-visible validation passes")
 
+local timeline_unexpected_contact = RuntimeAuditor.evaluate({
+    {
+        id = 600,
+        motion = "LP",
+        expected_combo = 1,
+        damage_at_step = 300,
+        delay_from_prev = 0,
+        timeline = { "1f : LP", "10f : MP", "10f : HP", "1f : 5" },
+        combo_stats = {
+            damage = 500,
+            drive_used = 0,
+            super_used = 0,
+        },
+    },
+    {
+        id = 601,
+        motion = "MP",
+        expected_combo = 2,
+        damage_at_step = 500,
+        delay_from_prev = 20,
+    },
+}, {
+    steps = {
+        {
+            id = 600,
+            motion = "LP",
+            expected_combo = 1,
+            damage_at_step = 300,
+            delay_from_prev = 0,
+            has_contact = true,
+            has_hit = true,
+        },
+        {
+            id = 609,
+            motion = "HP",
+            expected_combo = 1,
+            damage_at_step = 300,
+            delay_from_prev = 10,
+            has_contact = true,
+            has_hit = true,
+        },
+        {
+            id = 601,
+            motion = "MP",
+            expected_combo = 2,
+            damage_at_step = 500,
+            delay_from_prev = 10,
+            has_contact = true,
+            has_hit = true,
+        },
+    },
+    stats = {
+        damage = 500,
+        max_combo = 2,
+        block_contacts = 0,
+        drive_used = 0,
+        super_used = 0,
+        unresolved_anchors = 0,
+    },
+}, {
+    replay_inputs = { 16, 0 },
+    input_source = "timeline",
+    input_completed = true,
+    timing_tolerance = 2,
+    trial_completed = true,
+    character = "Ryu",
+    command_display_validation = resolved_command_display(
+        2, 0, "Ryu", "classic", { 600, 601 }),
+})
+assert(timeline_unexpected_contact.ok == false
+        and timeline_unexpected_contact.timeline_unexpected_contact_actions[1].action_id
+            == 609
+        and table.concat(timeline_unexpected_contact.reasons, ",")
+            :match("replay_unexpected_contact_action:observed_step=2:action=609"),
+    "legacy timeline audit must reject a real contact Action omitted from the source command sequence")
+
 local guarded_timeline_candidate = {
     {
         id = 600,
@@ -1875,11 +1951,13 @@ local revision_30_report = {
 }
 local refreshed_30, refreshed_30_counts =
     RuntimeAuditor.recompute_loaded_report_state(revision_30_report)
-assert(RuntimeAuditor.VALIDATION_REVISION == 58
+assert(RuntimeAuditor.VALIDATION_REVISION == 59
     and RuntimeAuditor.COMPATIBLE_VALIDATION_REVISIONS[46]
         == "timeline_transcription_source_outcome_restore"
     and RuntimeAuditor.COMPATIBLE_VALIDATION_REVISIONS[57]
         == "recorded_motion_drift_and_strict_terminal_completion"
+    and RuntimeAuditor.COMPATIBLE_VALIDATION_REVISIONS[58]
+        == "strict_timeline_unexpected_contact_action"
     and refreshed_30_counts.stale == 1
     and refreshed_30.passed == 0,
     "revision 30 reports must be stale after the strict invariant revision")

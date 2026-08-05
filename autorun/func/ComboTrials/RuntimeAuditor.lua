@@ -8,7 +8,7 @@ local RuntimeAuditor = {
     name = "ComboTrials.RuntimeAuditor",
     REPORT_SCHEMA = "sf6cc.combo_runtime_audit.v1",
     REPORT_ROOT = "TrainingComboTrials_data/RuntimeAuditReports",
-    VALIDATION_REVISION = 58,
+    VALIDATION_REVISION = 59,
     COMPATIBLE_VALIDATION_REVISIONS = {
         [35] = "monotonic_timeline_outcome_relaxation",
         [36] = "data_driven_quick_successor_live_validation",
@@ -22,6 +22,7 @@ local RuntimeAuditor = {
         [45] = "version_scoped_motion_guarded_action_compatibility",
         [46] = "timeline_transcription_source_outcome_restore",
         [57] = "recorded_motion_drift_and_strict_terminal_completion",
+        [58] = "strict_timeline_unexpected_contact_action",
     },
 }
 
@@ -75,6 +76,67 @@ local function exact_action_sequence_matches(sequence, compiled)
         end
     end
     return true
+end
+
+local function runtime_action_ids_match(runtime, expected_id, observed_id, index)
+    expected_id = tonumber(expected_id)
+    observed_id = tonumber(observed_id)
+    if expected_id == nil or observed_id == nil then return false end
+    if expected_id == observed_id then return true end
+    if type(runtime.action_ids_equivalent) ~= "function" then return false end
+    local ok, matched = pcall(
+        runtime.action_ids_equivalent,
+        expected_id,
+        observed_id,
+        index
+    )
+    return ok and matched == true
+end
+
+-- Legacy timeline rows may carry obsolete non-contact state Actions, but an
+-- additional compiled Action with hit/contact truth is a real omitted command.
+-- Character phase rules and versioned Action compatibility run before this
+-- check, so only still-unexplained contact Actions fail the audit.
+local function timeline_unexpected_contact_actions(sequence, compiled, runtime)
+    if runtime.input_source ~= "timeline"
+        or runtime.input_completed ~= true
+        or runtime.timed_out == true then
+        return {}
+    end
+    local expected_steps = type(sequence) == "table" and sequence or {}
+    local observed_steps = type(compiled) == "table"
+        and type(compiled.steps) == "table" and compiled.steps or {}
+    if #expected_steps == 0 or #observed_steps == 0 then return {} end
+
+    local unexpected = {}
+    local expected_index = 1
+    for observed_index, observed in ipairs(observed_steps) do
+        local matched_index = nil
+        for candidate_index = expected_index, #expected_steps do
+            if runtime_action_ids_match(
+                    runtime,
+                    expected_steps[candidate_index] and expected_steps[candidate_index].id,
+                    observed and observed.id,
+                    candidate_index
+                ) then
+                matched_index = candidate_index
+                break
+            end
+        end
+        if matched_index ~= nil then
+            expected_index = matched_index + 1
+        elseif type(observed) == "table"
+            and (observed.has_contact == true or observed.has_hit == true) then
+            unexpected[#unexpected + 1] = {
+                observed_step = observed_index,
+                action_id = tonumber(observed.id),
+                motion = observed.motion,
+                has_contact = observed.has_contact == true,
+                has_hit = observed.has_hit == true,
+            }
+        end
+    end
+    return unexpected
 end
 
 local function recorded_defender_is_burned_out(sequence)
@@ -941,6 +1003,22 @@ function RuntimeAuditor.evaluate(sequence, compiled, runtime)
         compiled,
         replay_runtime
     )
+    local unexpected_contact_actions = timeline_unexpected_contact_actions(
+        sequence,
+        compiled,
+        runtime
+    )
+    if #unexpected_contact_actions > 0 then
+        evaluation.timeline_unexpected_contact_actions =
+            deep_copy(unexpected_contact_actions)
+        for _, action in ipairs(unexpected_contact_actions) do
+            append_reason(evaluation, string.format(
+                "replay_unexpected_contact_action:observed_step=%d:action=%s",
+                action.observed_step,
+                tostring(action.action_id)
+            ))
+        end
+    end
     local guard_chip_tail = burnout_guard_chip_tail_proof(
         sequence,
         compiled,
