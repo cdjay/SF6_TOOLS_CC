@@ -47,6 +47,21 @@ ACTION_EVENT_FIXTURES = {
         ["1215"] = { absorb_ids = "1216", action_event_projection = {} },
         ["1221"] = { absorb_ids = "1222", action_event_projection = {} },
     },
+    Ed = {
+        ["606"] = {
+            absorb_ids = "605",
+            action_event_projection = {
+                max_fold_delay_frames = 12,
+                require_same_anchor = true,
+                allow_same_button_press_fold = true,
+            },
+        },
+        ["1001"] = {
+            action_event_rules = {
+                transient_precursor_ids = "996,997,999",
+            },
+        },
+    },
     Guile = {
         ["994"] = {
             action_event_rules = { transient_precursor_ids = "33" },
@@ -2427,6 +2442,214 @@ assert(#jp_internal_phase_result.steps == 1
         and jp_internal_phase_result.trace.suppressed_events[1].reason
             == "character_internal_action_phase",
     "JP's internal 914 phase must contribute contact truth to 947 without creating an extra combo step")
+
+local ed_projection_rules = CharacterRules.build_action_event_projection_rules(
+    ACTION_EVENT_FIXTURES.Ed,
+    {}
+)
+assert(type(ed_projection_rules[605]) == "table"
+        and ed_projection_rules[605].kind == "internal_phase"
+        and ed_projection_rules[605].owner_id == 606
+        and ed_projection_rules[605].max_fold_delay_frames == 12
+        and ed_projection_rules[605].require_same_anchor == true
+        and ed_projection_rules[605].allow_same_button_press_fold == true,
+    "Ed Action 605 must be the short same-HP contact phase of Action 606")
+
+local ed_psycho_knuckle = new_character_rule_session("Ed", 0)
+ed_psycho_knuckle.events = {
+    {
+        id = 606,
+        frame = 100,
+        expected_combo = 0,
+        damage_at_step = 0,
+        has_hit = false,
+        has_contact = false,
+        anchor = {
+            kind = "button_press",
+            frame = 98,
+            pressed_buttons = 64,
+        },
+    },
+    {
+        id = 605,
+        frame = 104,
+        expected_combo = 1,
+        damage_at_step = 336,
+        has_hit = true,
+        has_contact = true,
+        anchor = {
+            kind = "button_press",
+            frame = 104,
+            pressed_buttons = 64,
+        },
+    },
+}
+ed_psycho_knuckle.current_damage = 336
+ed_psycho_knuckle.confirmed_damage = 336
+ed_psycho_knuckle.max_combo = 1
+local ed_psycho_knuckle_result = compiler.finalize(ed_psycho_knuckle, {
+    motion_resolver = function(action_id)
+        if action_id == 606 then return "HP", "strict_route" end
+        return nil, "action_id_missing"
+    end,
+})
+assert(#ed_psycho_knuckle_result.steps == 1
+        and ed_psycho_knuckle_result.steps[1].id == 606
+        and ed_psycho_knuckle_result.steps[1].motion == "HP"
+        and ed_psycho_knuckle_result.steps[1].expected_combo == 1
+        and ed_psycho_knuckle_result.steps[1].damage_at_step == 336
+        and ed_psycho_knuckle_result.steps[1].has_hit == true
+        and ed_psycho_knuckle_result.trace.suppressed_events[1].id == 605
+        and ed_psycho_knuckle_result.trace.suppressed_events[1].merged_into == 606
+        and ed_psycho_knuckle_result.trace.suppressed_events[1].reason
+            == "character_internal_action_phase",
+    "Ed 606 then 605 must remain one HP instruction while retaining the 605 hit outcome")
+
+for precursor_id, precursor_motion in pairs({
+    [996] = "214+LP",
+    [997] = "214+MP",
+    [999] = "214+HP",
+}) do
+    local ed_od_chord = new_character_rule_session("Ed", 0)
+    ed_od_chord.events = {
+        {
+            id = precursor_id,
+            frame = 100,
+            expected_combo = 0,
+            damage_at_step = 0,
+            has_hit = false,
+            has_contact = false,
+            anchor = {
+                kind = "button_press",
+                frame = 100,
+                pressed_buttons = precursor_id == 996 and 16
+                    or (precursor_id == 997 and 32 or 64),
+            },
+        },
+        {
+            id = 1001,
+            frame = 101,
+            expected_combo = 9,
+            damage_at_step = 1400,
+            has_hit = true,
+            has_contact = true,
+            anchor = {
+                kind = "button_press",
+                frame = 101,
+                pressed_buttons = 64,
+            },
+        },
+    }
+    ed_od_chord.current_damage = 1400
+    ed_od_chord.confirmed_damage = 1400
+    ed_od_chord.max_combo = 9
+    local ed_od_chord_result = compiler.finalize(ed_od_chord, {
+        motion_resolver = function(action_id)
+            if action_id == precursor_id then
+                return precursor_motion, "strict_route"
+            end
+            if action_id == 1001 then return "214+PP", "strict_route" end
+            return nil, "action_id_missing"
+        end,
+    })
+    assert(#ed_od_chord_result.steps == 1
+            and ed_od_chord_result.steps[1].id == 1001
+            and ed_od_chord_result.steps[1].motion == "214+PP"
+            and ed_od_chord_result.trace.suppressed_events[1].id
+                == precursor_id
+            and ed_od_chord_result.trace.suppressed_events[1].reason
+                == "character_transient_input_precursor",
+        "Ed's one-frame single-P precursor must fold into the completed 214+PP chord")
+end
+
+local ed_real_214hp_then_od = new_character_rule_session("Ed", 0)
+ed_real_214hp_then_od.events = {
+    {
+        id = 999,
+        frame = 100,
+        expected_combo = 1,
+        damage_at_step = 800,
+        has_hit = true,
+        has_contact = true,
+        anchor = { kind = "button_press", frame = 100, pressed_buttons = 64 },
+    },
+    {
+        id = 1001,
+        frame = 140,
+        expected_combo = 2,
+        damage_at_step = 1600,
+        has_hit = true,
+        has_contact = true,
+        anchor = { kind = "button_press", frame = 140, pressed_buttons = 96 },
+    },
+}
+ed_real_214hp_then_od.current_damage = 1600
+ed_real_214hp_then_od.confirmed_damage = 1600
+ed_real_214hp_then_od.max_combo = 2
+local ed_real_214hp_then_od_result = compiler.finalize(
+    ed_real_214hp_then_od,
+    {
+        motion_resolver = function(action_id)
+            if action_id == 999 then return "214+HP", "strict_route" end
+            if action_id == 1001 then return "214+PP", "strict_route" end
+            return nil, "action_id_missing"
+        end,
+    }
+)
+assert(#ed_real_214hp_then_od_result.steps == 2
+        and ed_real_214hp_then_od_result.steps[1].id == 999
+        and ed_real_214hp_then_od_result.steps[2].id == 1001,
+    "a contacted Ed 214+HP before a later 214+PP must remain two real commands")
+
+local ed_real_repeats = new_character_rule_session("Ed", 0)
+ed_real_repeats.events = {
+    { id = 600, frame = 100, expected_combo = 1, damage_at_step = 300,
+      has_hit = true, has_contact = true,
+      anchor = { kind = "button_press", frame = 100, pressed_buttons = 16 } },
+    { id = 601, frame = 116, expected_combo = 2, damage_at_step = 550,
+      has_hit = true, has_contact = true,
+      anchor = { kind = "button_press", frame = 116, pressed_buttons = 16 } },
+    { id = 602, frame = 132, expected_combo = 3, damage_at_step = 740,
+      has_hit = true, has_contact = true,
+      anchor = { kind = "button_press", frame = 132, pressed_buttons = 16 } },
+    { id = 959, frame = 180, expected_combo = 4, damage_at_step = 940,
+      has_hit = true, has_contact = true,
+      anchor = { kind = "button_press", frame = 180, pressed_buttons = 768 } },
+    { id = 959, frame = 240, expected_combo = 5, damage_at_step = 1140,
+      has_hit = true, has_contact = true,
+      anchor = { kind = "button_press", frame = 240, pressed_buttons = 768 } },
+    { id = 900, frame = 300, expected_combo = 6, damage_at_step = 1340,
+      has_hit = true, has_contact = true,
+      anchor = { kind = "button_press", frame = 300, pressed_buttons = 16 } },
+    { id = 900, frame = 360, expected_combo = 7, damage_at_step = 1540,
+      has_hit = true, has_contact = true,
+      anchor = { kind = "button_press", frame = 360, pressed_buttons = 16 } },
+}
+ed_real_repeats.current_damage = 1540
+ed_real_repeats.confirmed_damage = 1540
+ed_real_repeats.max_combo = 7
+local ed_real_repeats_result = compiler.finalize(ed_real_repeats, {
+    motion_resolver = function(action_id)
+        local motions = {
+            [600] = "LP",
+            [601] = "LP",
+            [602] = "LP",
+            [959] = "236+KK",
+            [900] = "236+P",
+        }
+        local motion = motions[action_id]
+        return motion, motion and "strict_route" or "action_id_missing"
+    end,
+})
+assert(#ed_real_repeats_result.steps == 7
+        and ed_real_repeats_result.steps[1].id == 600
+        and ed_real_repeats_result.steps[2].id == 601
+        and ed_real_repeats_result.steps[3].id == 602
+        and ed_real_repeats_result.steps[4].id == 959
+        and ed_real_repeats_result.steps[5].id == 959
+        and ed_real_repeats_result.steps[6].id == 900
+        and ed_real_repeats_result.steps[7].id == 900,
+    "Ed's verified LP, 236+KK and 236+P repeats must remain independent instructions")
 
 local function finalize_unprojected_akuma_transition(owner_id, child_id)
     local session = compiler.new({

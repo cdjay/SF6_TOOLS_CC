@@ -47,6 +47,68 @@ local repeat_eval = detector.evaluate_expected_repeat_input({
 assert(repeat_eval.accepted == true and repeat_eval.reason == "expected_repeat_input_ready",
     "a gated physical edge must admit the next explicitly expected same-ID action")
 
+local replay_dash_residue = detector.evaluate_replay_dash_retrigger_residue({
+    replay_active = true,
+    previous_id = 18,
+    expected_id = 37,
+    actual_id = 18,
+    previous_action_instance = 93,
+    candidate_action_instance = 94,
+    input_anchor_kind = "double_tap",
+    frames_since_previous = 7,
+    expected_delay = 29,
+    timing_tolerance = 2,
+})
+assert(replay_dash_residue.ignored == true
+        and replay_dash_residue.reason == "replayed_previous_dash_retrigger_residue",
+    "automatic replay should ignore an early fresh-instance dash residue before a different step")
+
+local manual_dash_retrigger = detector.evaluate_replay_dash_retrigger_residue({
+    replay_active = false,
+    previous_id = 17,
+    expected_id = 975,
+    actual_id = 17,
+    previous_action_instance = 188,
+    candidate_action_instance = 189,
+    input_anchor_kind = "double_tap",
+    frames_since_previous = 11,
+    expected_delay = 38,
+})
+assert(manual_dash_retrigger.ignored == false
+        and manual_dash_retrigger.reason == "not_automatic_replay",
+    "manual trial validation must keep treating an extra dash input as a real action")
+
+local expected_dash_repeat = detector.evaluate_replay_dash_retrigger_residue({
+    replay_active = true,
+    previous_id = 17,
+    expected_id = 17,
+    actual_id = 17,
+    previous_action_instance = 20,
+    candidate_action_instance = 21,
+    input_anchor_kind = "double_tap",
+    frames_since_previous = 20,
+    expected_delay = 30,
+})
+assert(expected_dash_repeat.ignored == false
+        and expected_dash_repeat.reason == "sequence_expects_same_dash",
+    "a recorded consecutive dash must still consume its own fresh Action instance")
+
+local on_time_dash_retrigger = detector.evaluate_replay_dash_retrigger_residue({
+    replay_active = true,
+    previous_id = 17,
+    expected_id = 975,
+    actual_id = 17,
+    previous_action_instance = 30,
+    candidate_action_instance = 31,
+    input_anchor_kind = "double_tap",
+    frames_since_previous = 36,
+    expected_delay = 38,
+    timing_tolerance = 2,
+})
+assert(on_time_dash_retrigger.ignored == false
+        and on_time_dash_retrigger.reason == "next_step_window_reached",
+    "dash retriggers at the next step window must remain visible to strict validation")
+
 started, reason = detector.detect(904, 61, 904, 60, nil, nil, 32 | 64, repeat_eval.accepted)
 assert(started == true and reason == "expected_repeat_action_input",
     "an expected same-ID command must create a new instance even when ActionFrame keeps advancing")

@@ -1,8 +1,26 @@
 {
+  "_character": {
+    "sequence_grouping": {
+      "structural_followup_chains": [
+        [986, 989],
+        [986, 990],
+        [986, 991],
+        [988, 989],
+        [988, 990],
+        [988, 991]
+      ]
+    }
+  },
   "606": {
+    "absorb_ids": "605",
     "is_holdable": true,
     "charge_min": 30,
-    "charge_max": 60
+    "charge_max": 60,
+    "action_event_projection": {
+      "max_fold_delay_frames": 12,
+      "require_same_anchor": true,
+      "allow_same_button_press_fold": true
+    }
   },
   "674": {
     "optional_parent_ids": [
@@ -58,6 +76,11 @@
       "max_fold_delay_frames": 60,
       "require_same_anchor": true,
       "allow_same_button_press_fold": true
+    }
+  },
+  "1001": {
+    "action_event_rules": {
+      "transient_precursor_ids": "996,997,999"
     }
   }
 }

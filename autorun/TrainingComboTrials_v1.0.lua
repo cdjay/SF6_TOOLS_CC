@@ -9108,6 +9108,21 @@ local function ct_player_process_actions(p_idx, p_state, actions_to_process)
                             if process_act.action_instance ~= nil and type(trial_state._consumed_action_instances) == "table" then
                                 consumed_for_step = trial_state._consumed_action_instances[process_act.action_instance]
                             end
+                            local replay_dash_retrigger =
+                                ActionRestartDetector.evaluate_replay_dash_retrigger_residue({
+                                    replay_active = demo_state and demo_state.is_playing,
+                                    previous_id = trace_prev_step and trace_prev_step.id or nil,
+                                    expected_id = expected and expected.id or nil,
+                                    actual_id = act_id,
+                                    previous_action_instance = trace_prev_step
+                                        and trace_prev_step.action_instance or nil,
+                                    candidate_action_instance = process_act.action_instance,
+                                    input_anchor_kind = process_act.input_anchor_kind,
+                                    frames_since_previous = match_probe.frames_since_prev_step,
+                                    expected_delay = expected and expected.delay_from_prev or nil,
+                                    timing_tolerance = 2,
+                                })
+                            match_probe.replay_dash_retrigger = replay_dash_retrigger
                             if expected and not action_match.matched then
                                 local recent_absorb = input_truth_mode
                                     and CharacterRules.find_recent_canonical_confirmation(
@@ -9341,6 +9356,11 @@ local function ct_player_process_actions(p_idx, p_state, actions_to_process)
                                 match_probe.reject_reason = nil
                                 match_probe.previous_action_instance = trace_prev_step.action_instance
                                 match_probe.action_instance = process_act.action_instance
+                                DebugTrace.record_match_probe(trial_state, match_probe)
+                            elseif replay_dash_retrigger.ignored then
+                                match_probe.branch = "replayed_previous_dash_retrigger_ignored"
+                                match_probe.reject_reason = nil
+                                match_probe.ignored_as_previous_step_residue = true
                                 DebugTrace.record_match_probe(trial_state, match_probe)
                             elseif action_match.matched and expected
                                 and Validator.requires_block_outcome(expected)

@@ -16,6 +16,20 @@ local juri_grouping_rules = character_rules.build_sequence_grouping_rules({
         sequence_grouping = { break_followup_after_ids = "1218" },
     },
 }, {})
+local ed_grouping_rules = character_rules.build_sequence_grouping_rules({
+    _character = {
+        sequence_grouping = {
+            structural_followup_chains = {
+                { 986, 989 },
+                { 986, 990 },
+                { 986, 991 },
+                { 988, 989 },
+                { 988, 990 },
+                { 988, 991 },
+            },
+        },
+    },
+}, {})
 
 local function group_ids(sequence)
     local ids = {}
@@ -90,5 +104,31 @@ local juri = {
 grouping.assign_groups(juri, nil, juri_grouping_rules)
 assert(group_ids(juri) == "1,2" and juri[2].motion == "K",
     "the legacy Juri false-follow-up exception must remain intact")
+
+local ed_kill_rush_followups = {
+    { id = 986, motion = "KK" },
+    { id = 989, motion = "6+P" },
+    { id = 986, motion = "KK" },
+    { id = 990, motion = "6+P" },
+    { id = 986, motion = "KK" },
+    { id = 991, motion = "6+P" },
+    { id = 988, motion = "KK" },
+    { id = 989, motion = "6+P" },
+    { id = 988, motion = "KK" },
+    { id = 990, motion = "6+P" },
+    { id = 988, motion = "KK" },
+    { id = 991, motion = "6+P" },
+}
+grouping.assign_groups(ed_kill_rush_followups, "Ed", ed_grouping_rules)
+assert(group_ids(ed_kill_rush_followups)
+        == "1,1,2,2,3,3,4,4,5,5,6,6",
+    "all Ed KK to 6+P Action variants must render as one structural command row")
+local unrelated_ed_followup = {
+    { id = 621, motion = "HK" },
+    { id = 989, motion = "6+P" },
+}
+grouping.assign_groups(unrelated_ed_followup, "Ed", ed_grouping_rules)
+assert(group_ids(unrelated_ed_followup) == "1,2",
+    "Ed 6+P must not join a row after an undeclared predecessor")
 
 print("combo sequence grouping tests passed")

@@ -799,6 +799,46 @@ assert(cviper_override_status == "loaded" and cviper_override_count == 2
         and cviper_overrides["608"].metadata.replaced_existing == true
         and cviper_overrides["1037"].metadata.replaced_existing == true,
     "C. Viper's runtime-audited HK and high-jump Actions must replace unverified catalog rows")
+do
+local ed_overrides, ed_override_count, ed_override_status =
+    command_display_overrides.merge({
+        _slim = true,
+        ["606"] = { classic = "HP", status = "strict_route" },
+        ["634"] = { classic = "2+LK", status = "route_unverified" },
+        ["639"] = { classic = "2+MK", status = "route_unverified" },
+    }, "Ed", {
+        schema = "xt.command_display_overrides.v1",
+        character = "Ed",
+        contextual_internal_phases = {
+            ["605"] = {
+                owner_ids = { 606 },
+                evidence = "verified 606 to 605 Psycho Knuckle transition",
+            },
+        },
+        entries = {
+            ["634"] = {
+                classic = "2+LK",
+                replace = true,
+                evidence = "verified crouching LK",
+            },
+            ["639"] = {
+                classic = "2+MK",
+                replace = true,
+                evidence = "verified crouching MK",
+            },
+        },
+    })
+assert(ed_override_status == "loaded" and ed_override_count == 2
+        and ed_overrides["605"] == nil
+        and ed_overrides["634"].classic == "2+LK"
+        and ed_overrides["639"].classic == "2+MK"
+        and command_display_overrides.is_contextual_internal_phase(
+            ed_overrides, 606, 605) == true
+        and command_display_overrides.is_contextual_internal_phase(
+            ed_overrides, 621, 605) == false,
+    "Ed Action 605 must be display-only after 606 instead of becoming a standalone HP override")
+ED_OVERRIDES_TEST = ed_overrides
+end
 local akuma_catalog = { _slim = true }
 local akuma_override_document = {
     schema = "xt.command_display_overrides.v1",
@@ -1310,6 +1350,55 @@ assert(lily_runtime_audit_validation.ok == true
         and lily_runtime_audit_validation.suppressed_step_count == 0
         and lily_runtime_audit_validation.unresolved_count == 0,
     "Lily's three runtime-verified Classic overrides must pass strict display audit")
+
+do
+local ed_overrides = ED_OVERRIDES_TEST
+for action_id, classic in pairs({
+    ["600"] = "LP",
+    ["601"] = "LP",
+    ["602"] = "LP",
+    ["900"] = "236+P",
+    ["959"] = "236+KK",
+}) do
+    ed_overrides[action_id] = {
+        classic = classic,
+        status = "strict_route",
+    }
+end
+resolve_modern_display_context = function()
+    return false, ed_overrides, "Ed", "loaded", false
+end
+local ed_internal_phase_validation = validate_sequence_command_display({
+    { id = 606, motion = "HP" },
+    { id = 605, motion = "HP" },
+})
+assert(ed_internal_phase_validation.ok == true
+        and ed_internal_phase_validation.total_steps == 2
+        and ed_internal_phase_validation.resolved_step_count == 1
+        and ed_internal_phase_validation.suppressed_step_count == 1
+        and ed_internal_phase_validation.unresolved_count == 0,
+    "Ed 606 then 605 must render as one HP instruction")
+local standalone_ed_605_validation = validate_sequence_command_display({
+    { id = 605, motion = "HP" },
+})
+assert(standalone_ed_605_validation.ok == false
+        and standalone_ed_605_validation.suppressed_step_count == 0
+        and standalone_ed_605_validation.unresolved_count == 1,
+    "Ed Action 605 must fail closed without its immediate 606 owner")
+local ed_real_repeat_validation = validate_sequence_command_display({
+    { id = 600, motion = "LP" },
+    { id = 601, motion = "LP" },
+    { id = 602, motion = "LP" },
+    { id = 959, motion = "236+KK" },
+    { id = 959, motion = "236+KK" },
+    { id = 900, motion = "236+P" },
+    { id = 900, motion = "236+P" },
+})
+assert(ed_real_repeat_validation.ok == true
+        and ed_real_repeat_validation.resolved_step_count == 7
+        and ed_real_repeat_validation.suppressed_step_count == 0,
+    "Ed's verified LP, 236+KK and 236+P repeats must remain visible")
+end
 
 for action_id, classic in pairs({
     ["903"] = "236+HP",
@@ -2156,6 +2245,38 @@ do
     assert(blanka_exception_source:find('"absorb_ids": "928,929,930"', 1, true)
             and blanka_exception_source:find('"action_event_projection": {}', 1, true),
         "the shipped Blanka rules must fold doll contact Action 930 into owner 931")
+end
+do
+    local ed_override_source = read_all(
+        "data/TrainingComboTrials_data/command_display_overrides/Ed.json")
+    local ed_exception_source = read_all(
+        "data/TrainingComboTrials_data/exceptions/Ed.json")
+    assert(ed_override_source:find('"contextual_internal_phases"', 1, true)
+            and ed_override_source:find('"605"', 1, true)
+            and ed_override_source:find('"owner_ids"', 1, true)
+            and ed_override_source:find('606', 1, true)
+            and not ed_override_source:find(
+                '"605": {\n      "classic": "HP"', 1, true)
+            and ed_override_source:find('"634"', 1, true)
+            and ed_override_source:find('"639"', 1, true),
+        "the shipped Ed overrides must hide 605 only after 606 and retain the verified crouching normals")
+    assert(ed_exception_source:find('"606"', 1, true)
+            and ed_exception_source:find('"absorb_ids": "605"', 1, true)
+            and ed_exception_source:find(
+                '"max_fold_delay_frames": 12', 1, true)
+            and ed_exception_source:find(
+                '"require_same_anchor": true', 1, true)
+            and ed_exception_source:find(
+                '"allow_same_button_press_fold": true', 1, true),
+        "the shipped Ed rules must fold the short same-HP 605 contact phase into 606")
+    assert(ed_exception_source:find(
+                '"structural_followup_chains"', 1, true)
+            and ed_exception_source:find('[986, 989]', 1, true)
+            and ed_exception_source:find('[988, 991]', 1, true)
+            and ed_exception_source:find('"1001"', 1, true)
+            and ed_exception_source:find(
+                '"transient_precursor_ids": "996,997,999"', 1, true),
+        "the shipped Ed rules must group every KK to 6+P variant and suppress staggered single-P OD precursors")
 end
 do
     local yasmine_override_source = read_all(

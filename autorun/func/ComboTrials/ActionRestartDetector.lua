@@ -133,6 +133,60 @@ function M.evaluate_expected_repeat_input(params)
     return result
 end
 
+-- During an automatic replay, a completed dash can receive another physical
+-- double-tap anchor before the next recorded Action begins. The engine may keep
+-- the same dash Action ID while the restart detector assigns a fresh instance.
+-- That early residue belongs to the already-consumed dash, not to the next
+-- different step. Manual validation stays strict, and the runtime auditor still
+-- compares the complete compiled Action stream after playback.
+function M.evaluate_replay_dash_retrigger_residue(params)
+    params = type(params) == "table" and params or {}
+    local result = {
+        ignored = false,
+        reason = nil,
+        replay_active = params.replay_active == true,
+        previous_id = tonumber(params.previous_id),
+        expected_id = tonumber(params.expected_id),
+        actual_id = tonumber(params.actual_id),
+        previous_action_instance = tonumber(params.previous_action_instance),
+        candidate_action_instance = tonumber(params.candidate_action_instance),
+        input_anchor_kind = tostring(params.input_anchor_kind or ""),
+        frames_since_previous = math.max(
+            0,
+            tonumber(params.frames_since_previous) or 0
+        ),
+        expected_delay = math.max(0, tonumber(params.expected_delay) or 0),
+        timing_tolerance = math.max(0, tonumber(params.timing_tolerance) or 2),
+    }
+    result.earliest_expected_frame = math.max(
+        0,
+        result.expected_delay - result.timing_tolerance
+    )
+
+    if not result.replay_active then
+        result.reason = "not_automatic_replay"
+    elseif REPEATABLE_COMMON_ACTIONS[result.previous_id] == nil then
+        result.reason = "previous_action_not_dash"
+    elseif result.actual_id ~= result.previous_id then
+        result.reason = "actual_action_not_previous_dash"
+    elseif result.expected_id == nil or result.expected_id == result.actual_id then
+        result.reason = "sequence_expects_same_dash"
+    elseif result.input_anchor_kind ~= "double_tap" then
+        result.reason = "missing_double_tap_anchor"
+    elseif result.previous_action_instance == nil
+        or result.candidate_action_instance == nil then
+        result.reason = "missing_action_instance"
+    elseif result.previous_action_instance == result.candidate_action_instance then
+        result.reason = "same_action_instance"
+    elseif result.frames_since_previous >= result.earliest_expected_frame then
+        result.reason = "next_step_window_reached"
+    else
+        result.ignored = true
+        result.reason = "replayed_previous_dash_retrigger_residue"
+    end
+    return result
+end
+
 function M.single_hit_light_button_mask(motion)
     local normalized = tostring(motion or ""):upper()
         :gsub("%b()", "")

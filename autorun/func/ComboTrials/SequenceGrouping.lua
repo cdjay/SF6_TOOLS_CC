@@ -15,9 +15,13 @@ end
 function SequenceGrouping.is_structural_followup(grouping_rules, previous_action_id, action_id)
     local predecessors = type(grouping_rules) == "table"
         and grouping_rules.predecessor_by_action or nil
-    local required_predecessor = type(predecessors) == "table"
+    local required_predecessors = type(predecessors) == "table"
         and predecessors[tonumber(action_id)] or nil
-    return required_predecessor ~= nil and required_predecessor == tonumber(previous_action_id)
+    if type(required_predecessors) == "table" then
+        return required_predecessors[tonumber(previous_action_id)] == true
+    end
+    return required_predecessors ~= nil
+        and required_predecessors == tonumber(previous_action_id)
 end
 
 function SequenceGrouping.ensure_followup_prefix(motion)

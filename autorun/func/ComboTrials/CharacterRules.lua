@@ -97,7 +97,12 @@ function CharacterRules.build_sequence_grouping_rules(character_rules, common_ru
                 local previous_id = tonumber(chain[index - 1])
                 local action_id = tonumber(chain[index])
                 if previous_id ~= nil and action_id ~= nil then
-                    result.predecessor_by_action[action_id] = previous_id
+                    local predecessors = result.predecessor_by_action[action_id]
+                    if type(predecessors) ~= "table" then
+                        predecessors = {}
+                        result.predecessor_by_action[action_id] = predecessors
+                    end
+                    predecessors[previous_id] = true
                 end
             end
         end
