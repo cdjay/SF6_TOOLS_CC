@@ -8,7 +8,7 @@ local RuntimeAuditor = {
     name = "ComboTrials.RuntimeAuditor",
     REPORT_SCHEMA = "sf6cc.combo_runtime_audit.v1",
     REPORT_ROOT = "TrainingComboTrials_data/RuntimeAuditReports",
-    VALIDATION_REVISION = 59,
+    VALIDATION_REVISION = 60,
     COMPATIBLE_VALIDATION_REVISIONS = {
         [35] = "monotonic_timeline_outcome_relaxation",
         [36] = "data_driven_quick_successor_live_validation",
@@ -23,6 +23,7 @@ local RuntimeAuditor = {
         [46] = "timeline_transcription_source_outcome_restore",
         [57] = "recorded_motion_drift_and_strict_terminal_completion",
         [58] = "strict_timeline_unexpected_contact_action",
+        [59] = "aggregated_same_action_contact_rows",
     },
 }
 
@@ -93,6 +94,27 @@ local function runtime_action_ids_match(runtime, expected_id, observed_id, index
     return ok and matched == true
 end
 
+local function aggregated_contact_progresses(expected, previous, current)
+    if type(expected) ~= "table" or type(previous) ~= "table"
+        or type(current) ~= "table" then
+        return false
+    end
+
+    local compared = 0
+    local progressed = false
+    for _, field in ipairs({ "expected_combo", "damage_at_step" }) do
+        local limit = tonumber(expected[field])
+        local before = tonumber(previous[field])
+        local after = tonumber(current[field])
+        if limit ~= nil and limit > 0 and before ~= nil and after ~= nil then
+            compared = compared + 1
+            if after < before or after > limit then return false end
+            if after > before then progressed = true end
+        end
+    end
+    return compared > 0 and progressed
+end
+
 -- Legacy timeline rows may carry obsolete non-contact state Actions, but an
 -- additional compiled Action with hit/contact truth is a real omitted command.
 -- Character phase rules and versioned Action compatibility run before this
@@ -101,15 +123,19 @@ local function timeline_unexpected_contact_actions(sequence, compiled, runtime)
     if runtime.input_source ~= "timeline"
         or runtime.input_completed ~= true
         or runtime.timed_out == true then
-        return {}
+        return {}, {}
     end
     local expected_steps = type(sequence) == "table" and sequence or {}
     local observed_steps = type(compiled) == "table"
         and type(compiled.steps) == "table" and compiled.steps or {}
-    if #expected_steps == 0 or #observed_steps == 0 then return {} end
+    if #expected_steps == 0 or #observed_steps == 0 then return {}, {} end
 
     local unexpected = {}
+    local aggregated = {}
     local expected_index = 1
+    local last_matched_expected_index = nil
+    local last_matched_observed_index = nil
+    local last_matched_observed = nil
     for observed_index, observed in ipairs(observed_steps) do
         local matched_index = nil
         for candidate_index = expected_index, #expected_steps do
@@ -125,18 +151,48 @@ local function timeline_unexpected_contact_actions(sequence, compiled, runtime)
         end
         if matched_index ~= nil then
             expected_index = matched_index + 1
+            last_matched_expected_index = matched_index
+            last_matched_observed_index = observed_index
+            last_matched_observed = observed
         elseif type(observed) == "table"
             and (observed.has_contact == true or observed.has_hit == true) then
-            unexpected[#unexpected + 1] = {
-                observed_step = observed_index,
-                action_id = tonumber(observed.id),
-                motion = observed.motion,
-                has_contact = observed.has_contact == true,
-                has_hit = observed.has_hit == true,
-            }
+            local repeated_expected = last_matched_expected_index
+                and expected_steps[last_matched_expected_index] or nil
+            local represented_repeat = last_matched_expected_index
+                    == expected_index - 1
+                and last_matched_observed_index == observed_index - 1
+                and runtime_action_ids_match(
+                    runtime,
+                    repeated_expected and repeated_expected.id,
+                    observed.id,
+                    last_matched_expected_index
+                )
+                and aggregated_contact_progresses(
+                    repeated_expected,
+                    last_matched_observed,
+                    observed
+                )
+            if represented_repeat then
+                aggregated[#aggregated + 1] = {
+                    observed_step = observed_index,
+                    source_step = last_matched_expected_index,
+                    action_id = tonumber(observed.id),
+                    motion = observed.motion,
+                }
+                last_matched_observed_index = observed_index
+                last_matched_observed = observed
+            else
+                unexpected[#unexpected + 1] = {
+                    observed_step = observed_index,
+                    action_id = tonumber(observed.id),
+                    motion = observed.motion,
+                    has_contact = observed.has_contact == true,
+                    has_hit = observed.has_hit == true,
+                }
+            end
         end
     end
-    return unexpected
+    return unexpected, aggregated
 end
 
 local function recorded_defender_is_burned_out(sequence)
@@ -1003,11 +1059,16 @@ function RuntimeAuditor.evaluate(sequence, compiled, runtime)
         compiled,
         replay_runtime
     )
-    local unexpected_contact_actions = timeline_unexpected_contact_actions(
+    local unexpected_contact_actions, aggregated_contact_actions =
+        timeline_unexpected_contact_actions(
         sequence,
         compiled,
         runtime
     )
+    if #aggregated_contact_actions > 0 then
+        evaluation.timeline_aggregated_same_action_contacts =
+            deep_copy(aggregated_contact_actions)
+    end
     if #unexpected_contact_actions > 0 then
         evaluation.timeline_unexpected_contact_actions =
             deep_copy(unexpected_contact_actions)

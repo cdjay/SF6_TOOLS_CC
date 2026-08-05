@@ -62,6 +62,11 @@ ACTION_EVENT_FIXTURES = {
             },
         },
     },
+    Dhalsim = {
+        ["642"] = {
+            action_event_rules = { transient_precursor_ids = "1048" },
+        },
+    },
     Zangief = {
         ["945"] = {
             absorb_ids = "948",
@@ -436,6 +441,56 @@ assert(#guile_flash_kick_result.steps == 1
         and guile_flash_kick_result.trace.suppressed_events[1].reason
             == "character_transient_input_precursor",
     "Guile's transient Action 33 must not become an extra step before HK Flash Kick")
+end
+
+do
+local dhalsim_float_hp = new_character_rule_session("Dhalsim")
+dhalsim_float_hp.events = {
+    {
+        id = 1048,
+        frame = 100,
+        expected_combo = 2,
+        damage_at_step = 1760,
+        has_hit = true,
+        has_contact = true,
+        anchor = { kind = "button_press", pressed_buttons = 64 },
+    },
+}
+dhalsim_float_hp.observed_actions = {
+    { id = 1048, frame = 100, action_frame = 0 },
+    { id = 642, frame = 101, action_frame = 0 },
+}
+dhalsim_float_hp.current_damage = 1760
+dhalsim_float_hp.confirmed_damage = 1760
+dhalsim_float_hp.max_combo = 2
+local dhalsim_float_hp_result = compiler.finalize(dhalsim_float_hp, {
+    motion_resolver = function(action_id)
+        if action_id == 1048 then
+            return "j.4+KK", "strict_route", {
+                ownership = "ac_state_direction",
+            }
+        end
+        if action_id == 642 then return "j.HP", "strict_route" end
+        return nil, "action_id_missing"
+    end,
+})
+local dhalsim_live_precursor = ActionMatcher.classify_runtime_transition({
+    expected_step = { id = 642 },
+    actual_action_id = 1048,
+    action_event_rules = dhalsim_float_hp.action_event_rules,
+})
+assert(#dhalsim_float_hp_result.steps == 1
+        and dhalsim_float_hp_result.steps[1].id == 642
+        and dhalsim_float_hp_result.steps[1].motion == "j.HP"
+        and dhalsim_float_hp_result.steps[1].expected_combo == 2
+        and dhalsim_float_hp_result.steps[1].damage_at_step == 1760
+        and dhalsim_float_hp_result.trace.promoted_events[1].from_id == 1048
+        and dhalsim_float_hp_result.trace.promoted_events[1].to_id == 642
+        and dhalsim_float_hp_result.trace.promoted_events[1].reason
+            == "state_direction_precursor_promoted_to_observed_action"
+        and dhalsim_live_precursor.ignored == true
+        and dhalsim_live_precursor.reason == "transient_input_precursor",
+    "Dhalsim's one-frame 1048 state direction must yield the HP input and hit outcome to durable j.HP Action 642")
 end
 
 local manon_hit_phase = new_character_rule_session("Manon")

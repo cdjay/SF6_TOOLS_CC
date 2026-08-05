@@ -291,6 +291,99 @@ assert(timeline_unexpected_contact.ok == false
             :match("replay_unexpected_contact_action:observed_step=2:action=609"),
     "legacy timeline audit must reject a real contact Action omitted from the source command sequence")
 
+local timeline_aggregated_same_action = RuntimeAuditor.evaluate({
+    {
+        id = 600,
+        motion = "LP",
+        expected_combo = 0,
+        damage_at_step = 540,
+        delay_from_prev = 0,
+        timeline = { "1f : LP", "10f : 2LP", "10f : 2LP", "1f : 5" },
+        combo_stats = {
+            damage = 2010,
+            drive_used = 0,
+            super_used = 10000,
+        },
+    },
+    {
+        id = 613,
+        motion = "2LP",
+        expected_combo = 3,
+        damage_at_step = 750,
+        delay_from_prev = 21,
+    },
+    {
+        id = 1203,
+        motion = "236236+MP",
+        expected_combo = 15,
+        damage_at_step = 2010,
+        delay_from_prev = 34,
+    },
+}, {
+    steps = {
+        {
+            id = 600,
+            motion = "LP",
+            expected_combo = 1,
+            damage_at_step = 300,
+            delay_from_prev = 0,
+            has_contact = true,
+            has_hit = true,
+        },
+        {
+            id = 613,
+            motion = "2+LP",
+            expected_combo = 2,
+            damage_at_step = 540,
+            delay_from_prev = 21,
+            has_contact = true,
+            has_hit = true,
+        },
+        {
+            id = 613,
+            motion = "2+LP",
+            expected_combo = 3,
+            damage_at_step = 750,
+            delay_from_prev = 15,
+            has_contact = true,
+            has_hit = true,
+        },
+        {
+            id = 1203,
+            motion = "236236+MP",
+            expected_combo = 15,
+            damage_at_step = 2010,
+            delay_from_prev = 19,
+            has_contact = true,
+            has_hit = true,
+        },
+    },
+    stats = {
+        damage = 2010,
+        max_combo = 15,
+        block_contacts = 0,
+        drive_used = 0,
+        super_used = 10000,
+        unresolved_anchors = 0,
+    },
+}, {
+    replay_inputs = { 16, 0 },
+    input_source = "timeline",
+    input_completed = true,
+    timing_tolerance = 2,
+    trial_completed = true,
+    character = "Dhalsim",
+    command_display_validation = resolved_command_display(
+        3, 0, "Dhalsim", "classic", { 600, 613, 1203 }),
+})
+assert(timeline_aggregated_same_action.ok == true
+        and #timeline_aggregated_same_action.reasons == 0
+        and timeline_aggregated_same_action
+            .timeline_aggregated_same_action_contacts[1].action_id == 613
+        and timeline_aggregated_same_action
+            .timeline_aggregated_same_action_contacts[1].source_step == 2,
+    "legacy timeline audit must accept consecutive same-Action contacts represented by one cumulative source row")
+
 local guarded_timeline_candidate = {
     {
         id = 600,
@@ -1951,13 +2044,15 @@ local revision_30_report = {
 }
 local refreshed_30, refreshed_30_counts =
     RuntimeAuditor.recompute_loaded_report_state(revision_30_report)
-assert(RuntimeAuditor.VALIDATION_REVISION == 59
+assert(RuntimeAuditor.VALIDATION_REVISION == 60
     and RuntimeAuditor.COMPATIBLE_VALIDATION_REVISIONS[46]
         == "timeline_transcription_source_outcome_restore"
     and RuntimeAuditor.COMPATIBLE_VALIDATION_REVISIONS[57]
         == "recorded_motion_drift_and_strict_terminal_completion"
     and RuntimeAuditor.COMPATIBLE_VALIDATION_REVISIONS[58]
         == "strict_timeline_unexpected_contact_action"
+    and RuntimeAuditor.COMPATIBLE_VALIDATION_REVISIONS[59]
+        == "aggregated_same_action_contact_rows"
     and refreshed_30_counts.stale == 1
     and refreshed_30.passed == 0,
     "revision 30 reports must be stale after the strict invariant revision")

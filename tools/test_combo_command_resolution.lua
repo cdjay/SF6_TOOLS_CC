@@ -866,6 +866,35 @@ assert(ed_override_status == "loaded" and ed_override_count == 2
 ED_OVERRIDES_TEST = ed_overrides
 end
 do
+local dhalsim_overrides, dhalsim_override_count, dhalsim_override_status =
+    command_display_overrides.merge({
+        _slim = true,
+        ["1200"] = { classic = "236236+LP", status = "route_unverified" },
+        ["1206"] = { classic = "236236+HP", status = "route_unverified" },
+    }, "Dhalsim", {
+        schema = "xt.command_display_overrides.v1",
+        character = "Dhalsim",
+        entries = {
+            ["1200"] = {
+                classic = "236236+LP",
+                replace = true,
+                evidence = "verified SA1 LP route",
+            },
+            ["1206"] = {
+                classic = "236236+HP",
+                replace = true,
+                evidence = "verified SA1 HP route",
+            },
+        },
+    })
+assert(dhalsim_override_status == "loaded" and dhalsim_override_count == 2
+        and dhalsim_overrides["1200"].classic == "236236+LP"
+        and dhalsim_overrides["1200"].status == "runtime_verified_override"
+        and dhalsim_overrides["1206"].classic == "236236+HP"
+        and dhalsim_overrides["1206"].status == "runtime_verified_override",
+    "Dhalsim overrides must resolve the runtime-verified LP and HP SA1 Actions")
+end
+do
 local zangief_overrides, zangief_override_count, zangief_override_status =
     command_display_overrides.merge({
         _slim = true,
@@ -1125,6 +1154,12 @@ local semantic_block = assert(renderer_source:match(
 assert(load(semantic_block .. "\n_G.resolve_classic_common_semantic = resolve_classic_common_semantic",
     "classic-common-semantic", "t", _G))()
 
+do
+local slim_map_block = assert(renderer_source:match(
+    "(build_slim_command_display_map = function.-)\n\nlocal function get_classic_display_motion"))
+assert(load(slim_map_block, "slim-command-display-map", "t", _G))()
+end
+
 assert(load(classic_block .. "\n_G.get_classic_display_motion = get_classic_display_motion"
     .. "\n_G.get_modern_display_motion = get_modern_display_motion"
     .. "\n_G.project_historical_action_step = project_historical_action_step"
@@ -1163,6 +1198,19 @@ assert(resolve_classic_common_semantic(parry_entry, "Normal", "DP", "suppress_tr
     "an internal transition must retain its suppression semantics")
 assert(resolve_classic_common_semantic(parry_entry, "MP+MK", "DP", "strict_route") == "MP+MK",
     "an explicit classic command must take precedence over semantic recovery")
+
+do
+local state_direction_slim_map = build_slim_command_display_map({
+    ["1048"] = {
+        ownership = "ac_state_direction",
+        routes = {},
+        classic_command = { display = "4", inputs = { "4" } },
+    },
+})
+assert(type(state_direction_slim_map["1048"].metadata) == "table"
+        and state_direction_slim_map["1048"].metadata.ownership == "ac_state_direction",
+    "slim command maps must preserve verified AC state-direction ownership")
+end
 
 local motion, status = get_classic_display_motion(command_map, { id = 901, motion = "Unknown" })
 assert(motion == "214+MP" and status == "strict_route", "classic mode must use the unified command table")
@@ -2332,6 +2380,23 @@ do
     assert(blanka_exception_source:find('"absorb_ids": "928,929,930"', 1, true)
             and blanka_exception_source:find('"action_event_projection": {}', 1, true),
         "the shipped Blanka rules must fold doll contact Action 930 into owner 931")
+end
+do
+    local dhalsim_override_source = read_all(
+        "data/TrainingComboTrials_data/command_display_overrides/Dhalsim.json")
+    local dhalsim_exception_source = read_all(
+        "data/TrainingComboTrials_data/exceptions/Dhalsim.json")
+    assert(dhalsim_override_source:find('"1200"', 1, true)
+            and dhalsim_override_source:find(
+                '"classic": "236236+LP"', 1, true)
+            and dhalsim_override_source:find('"1206"', 1, true)
+            and dhalsim_override_source:find(
+                '"classic": "236236+HP"', 1, true),
+        "the shipped Dhalsim overrides must retain both runtime-verified SA1 commands")
+    assert(dhalsim_exception_source:find('"642"', 1, true)
+            and dhalsim_exception_source:find(
+                '"transient_precursor_ids": "1048"', 1, true),
+        "the shipped Dhalsim rules must retain the 1048 to 642 transient state transition")
 end
 do
     local zangief_override_source = read_all(

@@ -1,0 +1,16 @@
+{
+  "schema": "xt.command_display_overrides.v1",
+  "character": "Dhalsim",
+  "entries": {
+    "1200": {
+      "classic": "236236+LP",
+      "replace": true,
+      "evidence": "A completed 2026-08-05 runtime audit route binds Dhalsim Action 1200 to the recorded 236236+LP input with exact SA1 damage and combo closure; the generated catalog independently records the same Classic command without a verified route"
+    },
+    "1206": {
+      "classic": "236236+HP",
+      "replace": true,
+      "evidence": "A completed 2026-08-05 runtime audit route binds Dhalsim Action 1206 to the recorded 236236+HP input with exact SA1 damage and combo closure; the generated catalog independently records the same Classic command without a verified route"
+    }
+  }
+}

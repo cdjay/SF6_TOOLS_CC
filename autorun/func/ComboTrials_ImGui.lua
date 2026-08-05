@@ -1533,7 +1533,11 @@ build_slim_command_display_map = function(loaded)
             local motion, status = get_modern_display_motion(loaded, { id = action_id })
             do
                 local runtime_metadata = nil
-                if entry.ownership == "type20_action_phase" then
+                if entry.ownership == "ac_state_direction" then
+                    runtime_metadata = {
+                        ownership = entry.ownership,
+                    }
+                elseif entry.ownership == "type20_action_phase" then
                     local inherited_from_action_id = nil
                     local inheritance_is_consistent = true
                     for _, route in ipairs(type(entry.routes) == "table" and entry.routes or {}) do

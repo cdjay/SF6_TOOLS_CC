@@ -22,6 +22,7 @@ local Compiler = {
     RELEASE_LOW_ACTION_BIND_WINDOW = 8,
     PLAYER_FOLLOWUP_INPUT_WINDOW = 12,
     GHOST_FILTER_FRAMES = 4,
+    STATE_DIRECTION_PRECURSOR_WINDOW = 2,
     DIRECTION_ACTION_BIND_WINDOW = 4,
     DASH_TAP_WINDOW = 12,
     RAW_DRIVE_RUSH_EVIDENCE_WINDOW = 12,
@@ -941,36 +942,43 @@ local function promote_unmapped_event(
     return nil
 end
 
--- A direction-only Action can briefly own the runtime slot when an attack
--- button is pressed, even though that button actually launches a different
--- durable Action a few frames later. A genuine direction command is captured
--- from its direction edge; a direction-only route bound to an attack press is
--- therefore an unexplained precursor and may follow that same input to the
--- first strictly resolved runtime Action.
-local function promote_unverified_direction_precursor(
+-- A direction-only or AC state-direction Action can briefly own the runtime
+-- slot when an attack button is pressed, even though that button launches a
+-- different durable Action a few frames later. Follow that physical input to
+-- the first strictly resolved Action without reclassifying a real direction
+-- command that remains active on its own.
+local function promote_direction_state_precursor(
     event,
     next_event_frame,
     observed_actions,
     resolver,
     session,
     motion,
-    resolution_status
+    resolution_status,
+    resolution_metadata
 )
     local anchor = type(event) == "table" and type(event.anchor) == "table"
         and event.anchor or {}
-    if resolution_status ~= "route_unverified"
+    local catalog_state_direction = type(resolution_metadata) == "table"
+        and resolution_metadata.ownership == "ac_state_direction"
+    local unverified_direction = resolution_status == "route_unverified"
+        and is_direction_only_motion(motion)
+    if (not catalog_state_direction and not unverified_direction)
         or anchor.kind ~= "button_press"
         or event_button_mask(event) == 0
-        or not is_direction_only_motion(motion) then
+        then
         return nil
     end
 
     local event_frame = tonumber(event.frame) or 0
+    local max_delay = catalog_state_direction
+        and Compiler.STATE_DIRECTION_PRECURSOR_WINDOW
+        or (Compiler.GHOST_FILTER_FRAMES - 1)
     for _, observed in ipairs(type(observed_actions) == "table" and observed_actions or {}) do
         local observed_frame = tonumber(observed and observed.frame)
         local observed_id = tonumber(observed and observed.id)
         local delay = observed_frame and (observed_frame - event_frame) or nil
-        if delay and delay > 0 and delay < Compiler.GHOST_FILTER_FRAMES
+        if delay and delay > 0 and delay <= max_delay
             and (tonumber(next_event_frame) == nil
                 or observed_frame < tonumber(next_event_frame))
             and observed_id ~= nil
@@ -981,8 +989,9 @@ local function promote_unverified_direction_precursor(
             candidate.id = observed_id
             candidate.frame = observed_frame
             candidate.action_frame = tonumber(observed.action_frame) or 0
-            candidate.bind_reason =
-                "unverified_direction_precursor_promoted_to_observed_action"
+            candidate.bind_reason = catalog_state_direction
+                and "state_direction_precursor_promoted_to_observed_action"
+                or "unverified_direction_precursor_promoted_to_observed_action"
             local candidate_motion, candidate_status, candidate_metadata =
                 resolve_motion(resolver, candidate, session)
             if candidate_motion ~= nil
@@ -1856,11 +1865,14 @@ function Compiler.finalize(session, options)
             motion, resolution_status, resolution_metadata =
                 resolve_motion(resolver, event, session)
         end
+        local direction_state_candidate = resolution_status == "route_unverified"
+            or (type(resolution_metadata) == "table"
+                and resolution_metadata.ownership == "ac_state_direction")
         if not character_rule_fold
             and type(resolver) == "function"
-            and resolution_status == "route_unverified" then
+            and direction_state_candidate then
             local promoted, promoted_motion, promoted_status, promoted_metadata =
-                promote_unverified_direction_precursor(
+                promote_direction_state_precursor(
                     event,
                     next_promotion_boundary(
                         source_events,
@@ -1872,7 +1884,8 @@ function Compiler.finalize(session, options)
                     resolver,
                     session,
                     motion,
-                    resolution_status
+                    resolution_status,
+                    resolution_metadata
                 )
             if promoted then
                 event = promoted
