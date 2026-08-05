@@ -9,6 +9,67 @@ local command_resolver = dofile("autorun/func/ComboTrials/CommandResolver.lua")
 local command_display_overrides =
     dofile("autorun/func/ComboTrials/CommandDisplayOverrides.lua")
 CommandDisplayOverrides = command_display_overrides
+ActionCompatibility = dofile("autorun/func/ComboTrials/ActionCompatibility.lua")
+do
+local honda_compatibility, honda_compatibility_count,
+    honda_compatibility_status = ActionCompatibility.parse({
+        schema = "xt.action_compatibility.v1",
+        character = "EHonda",
+        target_game_version = "2026-08-03",
+        entries = {
+            {
+                recorded_action_id = 955,
+                runtime_action_id = 959,
+                recorded_motions = { "236+K" },
+                evidence = "verified Honda runtime migration",
+            },
+            {
+                recorded_action_id = 961,
+                runtime_action_id = 965,
+                recorded_motions = { ">2+P" },
+                evidence = "motion-guarded overlapping Honda Action",
+            },
+            {
+                recorded_action_id = 972,
+                runtime_action_id = 977,
+                runtime_action_alias_ids = { 976 },
+                recorded_motions = { ">2+HK" },
+                evidence = "verified Honda runtime phase variants",
+            },
+        },
+    }, "EHonda", "2026-08-03")
+assert(honda_compatibility_status == "loaded"
+        and honda_compatibility_count == 3
+        and ActionCompatibility.resolve(
+            honda_compatibility, { id = 955, motion = "236+K" }) == 959
+        and ActionCompatibility.matches(
+            honda_compatibility, { id = 961, motion = ">2+P" }, 965)
+        and not ActionCompatibility.matches(
+            honda_compatibility, { id = 961, motion = ">2+P" }, 963)
+        and ActionCompatibility.matches(
+            honda_compatibility, { id = 972, motion = ">2+HK" }, 976)
+        and ActionCompatibility.resolve(
+            honda_compatibility, { id = 972, motion = ">2+HK" }) == 977
+        and ActionCompatibility.resolve(
+            honda_compatibility, { id = 961, motion = "236+KK" }) == nil,
+    "historical Action compatibility must require version, ID, motion and runtime target")
+HONDA_COMPATIBILITY_TEST = honda_compatibility
+local mismatched_honda_compatibility = ActionCompatibility.parse({
+    schema = "xt.action_compatibility.v1",
+    character = "EHonda",
+    target_game_version = "2026-08-03",
+    entries = {
+        {
+            recorded_action_id = 955,
+            runtime_action_id = 959,
+            recorded_motions = { "236+K" },
+            evidence = "version mismatch fixture",
+        },
+    },
+}, "EHonda", "2026-09-01")
+assert(mismatched_honda_compatibility == nil,
+    "historical compatibility must fail closed on another game version")
+end
 
 local override_map = {
     _slim = true,
@@ -224,11 +285,17 @@ end
 local honda_overrides, honda_override_count, honda_override_status =
     command_display_overrides.merge({
         _slim = true,
+        ["608"] = { classic = "LK", status = "route_unverified" },
         ["660"] = { classic = "3+HK", status = "route_unverified" },
     }, "EHonda", {
         schema = "xt.command_display_overrides.v1",
         character = "EHonda",
         entries = {
+            ["608"] = {
+                classic = "LK",
+                replace = true,
+                evidence = "verified LK runtime audit",
+            },
             ["660"] = {
                 classic = "3+HK",
                 replace = true,
@@ -236,7 +303,10 @@ local honda_overrides, honda_override_count, honda_override_status =
             },
         },
     })
-assert(honda_override_status == "loaded" and honda_override_count == 1
+assert(honda_override_status == "loaded" and honda_override_count == 2
+        and honda_overrides["608"].classic == "LK"
+        and honda_overrides["608"].status == "runtime_verified_override"
+        and honda_overrides["608"].metadata.replaced_existing == true
         and honda_overrides["660"].classic == "3+HK"
         and honda_overrides["660"].status == "runtime_verified_override"
         and honda_overrides["660"].metadata.replaced_existing == true,
@@ -805,6 +875,7 @@ assert(load(semantic_block .. "\n_G.resolve_classic_common_semantic = resolve_cl
 
 assert(load(classic_block .. "\n_G.get_classic_display_motion = get_classic_display_motion"
     .. "\n_G.get_modern_display_motion = get_modern_display_motion"
+    .. "\n_G.project_historical_action_step = project_historical_action_step"
     .. "\n_G.get_player_visible_transition_motion = get_player_visible_transition_motion",
     "classic-command-resolution", "t", _G))()
 local validation_block = assert(renderer_source:match(
@@ -819,7 +890,11 @@ assert(load(validation_block
 
 local command_map = {
     _slim = true,
+    _action_compatibility = HONDA_COMPATIBILITY_TEST,
     ["901"] = { classic = "214+MP", status = "strict_route" },
+    ["959"] = { classic = "236+K", status = "strict_route" },
+    ["961"] = { classic = "236+KK", status = "strict_route" },
+    ["965"] = { classic = ">2+P", status = "strict_route" },
     ["936"] = { classic = "PP", status = "strict_route" },
     ["906"] = { classic = "Normal", status = "suppress_transition" },
     ["1037"] = { classic = "528", status = "strict_route" }
@@ -839,6 +914,27 @@ assert(resolve_classic_common_semantic(parry_entry, "MP+MK", "DP", "strict_route
 
 local motion, status = get_classic_display_motion(command_map, { id = 901, motion = "Unknown" })
 assert(motion == "214+MP" and status == "strict_route", "classic mode must use the unified command table")
+
+do
+local legacy_honda_resolution = resolve_step_command_display(
+    command_map, { id = 955, motion = "236+K" }, false)
+assert(legacy_honda_resolution.motion == "236+K"
+        and legacy_honda_resolution.projected_action_id == 959
+        and legacy_honda_resolution.effective_action_id == 959,
+    "legacy Honda commands must project to the current catalog Action")
+local overlapping_honda_resolution = resolve_step_command_display(
+    command_map, { id = 961, motion = ">2+P" }, false)
+assert(overlapping_honda_resolution.motion == ">2+P"
+        and overlapping_honda_resolution.projected_action_id == 965
+        and overlapping_honda_resolution.effective_action_id == 965,
+    "motion guards must disambiguate a reused Honda Action ID")
+local current_honda_resolution = resolve_step_command_display(
+    command_map, { id = 961, motion = "236+KK" }, false)
+assert(current_honda_resolution.motion == "236+KK"
+        and current_honda_resolution.projected_action_id == nil
+        and current_honda_resolution.effective_action_id == 961,
+    "current Honda recordings must retain the current meaning of reused Action IDs")
+end
 
 motion, status = get_classic_display_motion(command_map, { id = 906, motion = "Unknown" })
 assert(motion == nil and status == "suppress_transition",
@@ -1257,6 +1353,11 @@ assert(malformed_modern_validation.ok == false
     "modern empty/sentinel commands and unverified routes must fail while valid and suppressed paths remain intact")
 
 local action_matcher = dofile("autorun/func/ComboTrials/ActionMatcher.lua")
+assert(action_matcher.matches_expected_action_id(
+        { id = 961, motion = ">2+P" }, 965, nil, HONDA_COMPATIBILITY_TEST)
+        and not action_matcher.matches_expected_action_id(
+            { id = 961, motion = "236+KK" }, 965, nil, HONDA_COMPATIBILITY_TEST),
+    "runtime matching must apply historical aliases only to the recorded motion")
 assert(action_matcher.is_exact_expected_action({ id = 854 }, 854) == true,
     "an unmapped runtime action must be admitted when it exactly matches the active expected step")
 assert(action_matcher.is_exact_expected_action({ id = 854 }, 855) == false,
@@ -1805,6 +1906,31 @@ assert(cammy_override_source:find('"609"', 1, true)
         and cammy_override_source:find('"classic": ">8"', 1, true)
         and cammy_override_source:find('"replace": true', 1, true),
     "the shipped Cammy command overrides must preserve runtime-verified commands")
+do
+    local honda_override_source = read_all(
+        "data/TrainingComboTrials_data/command_display_overrides/EHonda.json")
+    local honda_compatibility_source = read_all(
+        "data/TrainingComboTrials_data/action_compatibility/EHonda.json")
+    assert(honda_override_source:find('"608"', 1, true)
+            and honda_override_source:find('"classic": "LK"', 1, true)
+            and honda_override_source:find('"replace": true', 1, true),
+        "the shipped Honda override must preserve the runtime-verified LK command")
+    assert(honda_compatibility_source:find(
+                '"target_game_version": "2026-08-03"', 1, true)
+            and honda_compatibility_source:find(
+                '"recorded_action_id": 955', 1, true)
+            and honda_compatibility_source:find(
+                '"runtime_action_id": 959', 1, true)
+            and honda_compatibility_source:find(
+                '"recorded_action_id": 961', 1, true)
+            and honda_compatibility_source:find(
+                '"runtime_action_id": 965', 1, true)
+            and honda_compatibility_source:find(
+                '"recorded_action_id": 977', 1, true)
+            and honda_compatibility_source:find(
+                '"runtime_action_id": 981', 1, true),
+        "the shipped Honda compatibility map must retain verified ID migrations")
+end
 do
     local ryu_override_source = read_all(
         "data/TrainingComboTrials_data/command_display_overrides/Ryu.json")

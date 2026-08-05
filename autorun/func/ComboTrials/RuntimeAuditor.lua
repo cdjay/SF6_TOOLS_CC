@@ -8,7 +8,7 @@ local RuntimeAuditor = {
     name = "ComboTrials.RuntimeAuditor",
     REPORT_SCHEMA = "sf6cc.combo_runtime_audit.v1",
     REPORT_ROOT = "TrainingComboTrials_data/RuntimeAuditReports",
-    VALIDATION_REVISION = 45,
+    VALIDATION_REVISION = 47,
     COMPATIBLE_VALIDATION_REVISIONS = {
         [35] = "monotonic_timeline_outcome_relaxation",
         [36] = "data_driven_quick_successor_live_validation",
@@ -19,6 +19,8 @@ local RuntimeAuditor = {
         [41] = "strict_training_ui_completion_requirement",
         [43] = "monotonic_legacy_timeline_outcome_relaxation",
         [44] = "burnout_guard_chip_tail_attribution",
+        [45] = "version_scoped_motion_guarded_action_compatibility",
+        [46] = "timeline_transcription_source_outcome_restore",
     },
 }
 
@@ -586,6 +588,7 @@ function RuntimeAuditor.evaluate(sequence, compiled, runtime)
     -- change is stale derived data rather than a broken route.
     replay_runtime.allow_runtime_damage_drift =
         runtime.trial_completed == true
+    replay_runtime.allow_transcription_outcome_restore = true
     local evaluation = Transcriber.verify_replay(
         sequence,
         compiled,
@@ -678,6 +681,10 @@ function RuntimeAuditor.report(run)
                 drive_only =
                     "advisory_for_completed_timeline_with_exact_actions_outcome_and_positive_consumption",
                 super_and_terminal_contact = "strict",
+            },
+            raw_outcome_policy = {
+                transcribed_timeline_restore =
+                    "advisory_only_when_provenance_original_outcome_exact_actions_contacts_resources_and_terminal_match",
             },
             compatible_validation_revisions =
                 deep_copy(RuntimeAuditor.COMPATIBLE_VALIDATION_REVISIONS),

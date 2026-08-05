@@ -2,6 +2,11 @@
   "schema": "xt.command_display_overrides.v1",
   "character": "EHonda",
   "entries": {
+    "608": {
+      "classic": "LK",
+      "replace": true,
+      "evidence": "Three 2026-08-05 runtime audit contacts reproduced Action 608 from recorded LK steps; the generated catalog independently identifies the same command"
+    },
     "660": {
       "classic": "3+HK",
       "replace": true,

@@ -8,6 +8,7 @@ local RuntimeSafety = require("func/RuntimeSafety")
 local GS = require("func/GameState")
 local ComboTrialsModules = {
     DebugTrace = require("func/ComboTrials/DebugTrace"),
+    ActionCompatibility = require("func/ComboTrials/ActionCompatibility"),
     ActionMatcher = require("func/ComboTrials/ActionMatcher"),
     ActionRestartDetector = require("func/ComboTrials/ActionRestartDetector"),
     CharacterRules = require("func/ComboTrials/CharacterRules"),
@@ -256,6 +257,7 @@ local players = {
         last_bcm_ptr = "", last_direct_input = 0, last_direction_input = 0,
         input_history_queue = {}, dash_tap_state = {},
         profile_name = "Unknown", last_profile_name = "", exceptions = {},
+        action_compatibility = nil,
         action_event_rules = {}, sequence_grouping_rules = {},
         editing_id = -1, edit_ignore = false, edit_force = false,
 		edit_is_common = false, edit_holdable = false, edit_absorb_ids = "",
@@ -270,6 +272,7 @@ local players = {
         last_bcm_ptr = "", last_direct_input = 0, last_direction_input = 0,
         input_history_queue = {}, dash_tap_state = {},
         profile_name = "Unknown", last_profile_name = "", exceptions = {},
+        action_compatibility = nil,
         action_event_rules = {}, sequence_grouping_rules = {},
         editing_id = -1, edit_ignore = false, edit_force = false,
 		edit_is_common = false, edit_holdable = false, edit_absorb_ids = "",
@@ -7162,6 +7165,12 @@ local function ct_player_init(p_idx, p_state)
         end
         if p_state.profile_name ~= "Unknown" then
             p_state.exceptions = CharacterRules.load_for_character(p_state.profile_name)
+            p_state.action_compatibility = select(1,
+                ComboTrialsModules.ActionCompatibility.load(
+                p_state.profile_name,
+                SF6CCVersion.GAME_VERSION,
+                function(filename) return json.load_file(filename) end
+            ))
             p_state.action_event_rules = CharacterRules.build_action_event_rules(
                 p_state.exceptions,
                 common_exceptions
@@ -8402,7 +8411,8 @@ local function ct_player_process_actions(p_idx, p_state, actions_to_process)
                     and ActionMatcher.matches_expected_action_id(
                         expected_for_ignore,
                         act_id,
-                        expected_exception
+                        expected_exception,
+                        p_state.action_compatibility
                     )
 
                 if is_ignored and ignore_reason == "[例外：忽略]"
@@ -8410,7 +8420,8 @@ local function ct_player_process_actions(p_idx, p_state, actions_to_process)
                         input_truth_mode,
                         expected_for_ignore,
                         act_id,
-                        expected_exception
+                        expected_exception,
+                        p_state.action_compatibility
                     ) then
                     is_ignored = false
                     ignore_reason = ""
@@ -8420,7 +8431,8 @@ local function ct_player_process_actions(p_idx, p_state, actions_to_process)
                         input_truth_mode,
                         expected_for_ignore,
                         act_id,
-                        expected_exception
+                        expected_exception,
+                        p_state.action_compatibility
                     ) then
                     -- A raw-input candidate is created from an input-bound
                     -- runtime Action. Static command data may classify the
@@ -8977,7 +8989,8 @@ local function ct_player_process_actions(p_idx, p_state, actions_to_process)
                                 act_id,
                                 motion_str,
                                 real_input_str,
-                                expected_exception
+                                expected_exception,
+                                p_state.action_compatibility
                             )
                             if process_act.synthetic then
                                 action_match.source = process_act.fallback_source or process_act.source
@@ -9255,7 +9268,8 @@ local function ct_player_process_actions(p_idx, p_state, actions_to_process)
                                                 act_id,
                                                 motion_str,
                                                 real_input_str,
-                                                chain_expected_exception
+                                                chain_expected_exception,
+                                                p_state.action_compatibility
                                             )
                                             match_probe.post_absorb_step = trial_state.current_step
                                             match_probe.post_absorb_action_match = {
@@ -10999,8 +11013,14 @@ ctx.finish_current_transcription_file = function(timed_out)
     if not run or run.active ~= true or type(run.current_source) ~= "table" then return false end
 
     local compiled = ctx.compile_action_event_session(run.session)
-    local function runtime_action_ids_equivalent(expected_id, observed_id)
+    local function runtime_action_ids_equivalent(expected_id, observed_id, index)
         local player_state = players[trial_state.playing_player or 0]
+        local expected_step = type(run.current_source) == "table"
+            and type(index) == "number" and run.current_source[index] or nil
+        if type(expected_step) ~= "table"
+            or tonumber(expected_step.id) ~= tonumber(expected_id) then
+            expected_step = { id = expected_id }
+        end
         local match_rule = CharacterRules.get_match_rule(
             player_state and player_state.exceptions or nil,
             common_exceptions,
@@ -11008,13 +11028,14 @@ ctx.finish_current_transcription_file = function(timed_out)
             expected_id
         )
         return ActionMatcher.matches_expected_action_id(
-            { id = expected_id },
+            expected_step,
             observed_id,
-            match_rule
+            match_rule,
+            player_state and player_state.action_compatibility or nil
         )
     end
-    local function source_action_ids_equivalent(expected_id, observed_id)
-        if runtime_action_ids_equivalent(expected_id, observed_id) then
+    local function source_action_ids_equivalent(expected_id, observed_id, index)
+        if runtime_action_ids_equivalent(expected_id, observed_id, index) then
             return true
         end
         local player_state = players[trial_state.playing_player or 0]

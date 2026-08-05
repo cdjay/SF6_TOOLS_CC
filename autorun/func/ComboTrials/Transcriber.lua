@@ -139,6 +139,218 @@ local function expected_outcome(sequence)
     }
 end
 
+local function parsed_rebuild_advisory(advisories, name)
+    local pattern = "^" .. tostring(name)
+        .. ":expected=(%d+):observed=(%d+)$"
+    for _, advisory in ipairs(type(advisories) == "table" and advisories or {}) do
+        local expected, observed = tostring(advisory):match(pattern)
+        if expected ~= nil and observed ~= nil then
+            return tonumber(expected), tonumber(observed)
+        end
+    end
+    return nil, nil
+end
+
+local function step_made_contact(step)
+    return type(step) == "table"
+        and (step.has_hit == true
+            or step.has_contact == true
+            or step.hit_result == "block"
+            or step.was_blocked == true)
+end
+
+local function step_was_blocked(step)
+    return type(step) == "table"
+        and (step.hit_result == "block" or step.was_blocked == true)
+end
+
+-- A small set of timeline-derived candidates was rebuilt against an older
+-- runtime whose combo counter split an otherwise continuous OKI route. The
+-- transcriber preserved both sides of that decision in source_advisories. If
+-- a later game build reproduces the original outcome exactly, restore that
+-- provenance only for a complete raw replay with identical Actions, contact
+-- truth, terminal contact, and no runtime reset before the terminal hit.
+local function prior_transcription_outcome_restored(
+    sequence,
+    compiled,
+    runtime,
+    expected,
+    source_action_match,
+    source_terminal_contact_match,
+    observed_blocks,
+    unresolved_motion_actions
+)
+    if runtime.allow_transcription_outcome_restore ~= true
+        or (runtime.input_source ~= "raw_inputs"
+            and runtime.input_source ~= RawInputCodec.RELATIVE_FIELD)
+        or runtime.input_completed ~= true
+        or runtime.timed_out == true
+        or source_action_match ~= true
+        or source_terminal_contact_match ~= true
+        or type(sequence) ~= "table"
+        or type(compiled) ~= "table" then
+        return nil
+    end
+
+    local first = first_step(sequence)
+    local meta = type(first._xt_meta) == "table" and first._xt_meta or nil
+    local transcription = meta
+        and type(meta.transcription) == "table"
+        and meta.transcription or nil
+    if type(transcription) ~= "table"
+        or transcription.source_input ~= "timeline"
+        or transcription.raw_replay_verified ~= true
+        or type(transcription.source_advisories) ~= "table" then
+        return nil
+    end
+
+    local original_damage, rebuilt_damage = parsed_rebuild_advisory(
+        transcription.source_advisories,
+        "source_damage_rebuilt"
+    )
+    local original_combo, rebuilt_combo = parsed_rebuild_advisory(
+        transcription.source_advisories,
+        "source_segmented_combo_count_rebuilt"
+    )
+    if original_damage == nil or rebuilt_damage == nil
+        or original_combo == nil or rebuilt_combo == nil
+        or rebuilt_damage ~= tonumber(expected.damage)
+        or rebuilt_combo ~= tonumber(expected.max_combo)
+        or original_damage <= 0 or original_combo <= 0
+        or tonumber(observed_blocks) ~= tonumber(expected.block_contacts)
+        or (tonumber(unresolved_motion_actions) or 0) ~= 0 then
+        return nil
+    end
+
+    local steps = type(compiled.steps) == "table" and compiled.steps or nil
+    local stats = type(compiled.stats) == "table" and compiled.stats or nil
+    if type(steps) ~= "table" or #steps ~= #sequence
+        or type(stats) ~= "table"
+        or (tonumber(stats.resolver_error_actions) or 0) ~= 0 then
+        return nil
+    end
+    local observed_damage = tonumber(stats.damage) or 0
+    local observed_combo = tonumber(stats.max_combo) or 0
+    local damage_tolerance = math.max(
+        20,
+        math.floor(original_damage * 0.01 + 0.5)
+    )
+    if math.abs(observed_damage - original_damage) > damage_tolerance
+        or observed_combo ~= original_combo then
+        return nil
+    end
+
+    local previous_source_combo = nil
+    local previous_observed_combo = nil
+    local previous_source_damage = 0
+    local previous_observed_damage = 0
+    local saw_segment_reset = false
+    local first_contact_frame = nil
+    local terminal_contact_frame = nil
+    local trace = type(compiled.trace) == "table" and compiled.trace or {}
+    local events = type(trace.projected_events) == "table"
+        and trace.projected_events or {}
+    if #events ~= #steps then return nil end
+
+    for index = 1, #sequence do
+        local source = sequence[index]
+        local observed = steps[index]
+        local source_contact = step_made_contact(source)
+        local observed_contact = step_made_contact(observed)
+        if source_contact ~= observed_contact
+            or step_was_blocked(source) ~= step_was_blocked(observed) then
+            return nil
+        end
+
+        local source_damage = math.max(
+            0,
+            tonumber(type(source) == "table" and source.damage_at_step) or 0
+        )
+        local observed_step_damage = math.max(
+            0,
+            tonumber(type(observed) == "table" and observed.damage_at_step) or 0
+        )
+        if source_damage < previous_source_damage
+            or observed_step_damage < previous_observed_damage then
+            return nil
+        end
+        previous_source_damage = source_damage
+        previous_observed_damage = observed_step_damage
+
+        if source_contact then
+            local source_combo = math.max(
+                0,
+                tonumber(type(source) == "table" and source.expected_combo) or 0
+            )
+            local observed_step_combo = math.max(
+                0,
+                tonumber(type(observed) == "table" and observed.expected_combo) or 0
+            )
+            if source_combo <= 0 or observed_step_combo <= 0 then return nil end
+
+            local resets_here = previous_source_combo ~= nil
+                and source_combo < previous_source_combo
+            if resets_here then
+                if previous_observed_combo == nil
+                    or observed_step_combo <= previous_observed_combo then
+                    return nil
+                end
+                saw_segment_reset = true
+            elseif not saw_segment_reset then
+                local step_tolerance = math.max(
+                    20,
+                    math.floor(source_damage * 0.01 + 0.5)
+                )
+                if source_combo ~= observed_step_combo
+                    or math.abs(source_damage - observed_step_damage)
+                        > step_tolerance then
+                    return nil
+                end
+            end
+            if previous_observed_combo ~= nil
+                and observed_step_combo < previous_observed_combo then
+                return nil
+            end
+            previous_source_combo = source_combo
+            previous_observed_combo = observed_step_combo
+
+            local event = events[index]
+            local contact_frame = tonumber(
+                type(event) == "table"
+                    and (event.first_contact_frame or event.frame)
+            )
+            if contact_frame == nil then return nil end
+            first_contact_frame = first_contact_frame or contact_frame
+            terminal_contact_frame = contact_frame
+        end
+    end
+    if not saw_segment_reset
+        or first_contact_frame == nil or terminal_contact_frame == nil then
+        return nil
+    end
+
+    for _, raw_reset_frame in ipairs(
+        type(trace.combo_reset_frames) == "table"
+            and trace.combo_reset_frames or {}
+    ) do
+        local reset_frame = tonumber(raw_reset_frame)
+        if reset_frame ~= nil
+            and reset_frame > first_contact_frame
+            and reset_frame <= terminal_contact_frame then
+            return nil
+        end
+    end
+
+    return {
+        original_damage = original_damage,
+        rebuilt_damage = rebuilt_damage,
+        observed_damage = observed_damage,
+        original_combo = original_combo,
+        rebuilt_combo = rebuilt_combo,
+        observed_combo = observed_combo,
+    }
+end
+
 -- Early recorders sampled the Super gauge again after the combo had already
 -- earned meter. Their derived `super_used` can therefore be a partial value
 -- such as 6900 for an SA1 or 17000 for an SA2. Current runtime truth measures
@@ -1891,6 +2103,17 @@ function Transcriber.evaluate(sequence, compiled, runtime)
         and not source_damage_matches
     local combo_mismatch = expected.max_combo > 0
         and observed_combo ~= expected.max_combo
+    local restored_transcription_outcome =
+        prior_transcription_outcome_restored(
+            sequence,
+            compiled,
+            runtime,
+            expected,
+            source_action_match,
+            source_terminal_contact_match,
+            observed_blocks,
+            unresolved_motion_actions
+        )
     local timeline_coupled_outcome_drift = timeline_outcome_compatibility
         and guarded_followup == nil
         and source_action_match
@@ -1934,6 +2157,13 @@ function Transcriber.evaluate(sequence, compiled, runtime)
                 expected.max_combo,
                 observed_combo
             )
+        elseif restored_transcription_outcome ~= nil then
+            advisories[#advisories + 1] = string.format(
+                "transcription_source_damage_restored:rebuilt=%d:original=%d:observed=%d",
+                restored_transcription_outcome.rebuilt_damage,
+                restored_transcription_outcome.original_damage,
+                restored_transcription_outcome.observed_damage
+            )
         elseif allow_runtime_damage_drift then
             advisories[#advisories + 1] = string.format(
                 "runtime_version_damage_drift:expected=%d:observed=%d:delta=%+d",
@@ -1976,6 +2206,13 @@ function Transcriber.evaluate(sequence, compiled, runtime)
                 "timeline_combo_count_drift:expected=%d:observed=%d",
                 expected.max_combo,
                 observed_combo
+            )
+        elseif restored_transcription_outcome ~= nil then
+            advisories[#advisories + 1] = string.format(
+                "transcription_source_combo_restored:rebuilt=%d:original=%d:observed=%d",
+                restored_transcription_outcome.rebuilt_combo,
+                restored_transcription_outcome.original_combo,
+                restored_transcription_outcome.observed_combo
             )
         elseif runtime.allow_legacy_outcome_rebuild == true
             and observed_combo > expected.max_combo then
@@ -2090,6 +2327,8 @@ function Transcriber.evaluate(sequence, compiled, runtime)
         persistent_damage_window_ticks = persistent_damage_window_ticks,
         blocked_wall_stun_shift = deep_copy(blocked_wall_stun_shift),
         observed_combo_rebuild = deep_copy(observed_combo_rebuild),
+        restored_transcription_outcome =
+            deep_copy(restored_transcription_outcome),
         guarded_followup = deep_copy(guarded_followup),
         environment_validation = environment_validation,
     }
@@ -2147,6 +2386,8 @@ function Transcriber.verify_replay(sequence, compiled, runtime)
         environment_observed = runtime.environment_observed,
         transcription_rules = runtime.transcription_rules,
         allow_runtime_damage_drift = runtime.allow_runtime_damage_drift,
+        allow_transcription_outcome_restore =
+            runtime.allow_transcription_outcome_restore,
         allow_legacy_timeline_outcome_compatibility =
             runtime.allow_legacy_timeline_outcome_compatibility,
         trial_completed = runtime.trial_completed,
@@ -2160,6 +2401,8 @@ function Transcriber.verify_replay(sequence, compiled, runtime)
             break
         end
     end
+    local restored_transcription_outcome =
+        evaluation.restored_transcription_outcome ~= nil
     local trace_mismatch_count = 0
     local function append_trace_mismatch(reason, advisory_only)
         trace_mismatch_count = trace_mismatch_count + 1
@@ -2190,7 +2433,8 @@ function Transcriber.verify_replay(sequence, compiled, runtime)
             local ok, matched = pcall(
                 runtime.action_ids_equivalent,
                 expected_id,
-                observed_id
+                observed_id,
+                index
             )
             equivalent = ok and matched == true
         end
@@ -2231,7 +2475,7 @@ function Transcriber.verify_replay(sequence, compiled, runtime)
                 index,
                 expected_combo,
                 observed_combo
-            ))
+            ), restored_transcription_outcome)
         end
 
         local expected_damage = tonumber(expected and expected.damage_at_step) or 0
@@ -2243,7 +2487,8 @@ function Transcriber.verify_replay(sequence, compiled, runtime)
                 index,
                 expected_damage,
                 observed_damage
-            ), runtime_damage_drift_advisory)
+            ), runtime_damage_drift_advisory
+                or restored_transcription_outcome)
         end
     end
 

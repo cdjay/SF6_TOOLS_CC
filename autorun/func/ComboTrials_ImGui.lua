@@ -13,6 +13,8 @@ local SequenceGrouping = require("func/ComboTrials/SequenceGrouping")
 local Validator = require("func/ComboTrials/Validator")
 local TrainingEnvironment = require("func/ComboTrials/TrainingEnvironment")
 local CommandDisplayOverrides = require("func/ComboTrials/CommandDisplayOverrides")
+local ActionCompatibility = require("func/ComboTrials/ActionCompatibility")
+local SF6CCVersion = require("func/SF6CC_Version")
 local TrialDisplayState = require("func/ComboTrials/TrialDisplayState")
 
 -- Shared context (set by init)
@@ -766,6 +768,16 @@ local function load_command_display_map(character)
             end
             return json.load_file(filename)
         end)
+        slim._action_compatibility = select(1, ActionCompatibility.load(
+            key,
+            SF6CCVersion.GAME_VERSION,
+            function(filename)
+                if type(_G.safe_load_json) == "function" then
+                    return _G.safe_load_json(filename)
+                end
+                return json.load_file(filename)
+            end
+        ))
         loaded = nil
         command_display_cache[key] = slim
         command_display_runtime.cache_status[key] = "loaded"
@@ -802,6 +814,16 @@ local function get_recorded_universal_motion(step)
     local motion = trim_string(step.motion):upper():gsub("%s+", "")
     if motion == "DI" or motion == "HP+HK" then return "DI" end
     return nil
+end
+
+local function project_historical_action_step(command_map, step)
+    if type(command_map) ~= "table" or type(step) ~= "table" then
+        return step, nil
+    end
+    return ActionCompatibility.project_step(
+        command_map._action_compatibility,
+        step
+    )
 end
 
 local function get_modern_display_motion(modern_map, step)
@@ -1927,16 +1949,18 @@ end
 -- modern mode treats every non-suppressed missing motion as unresolved, while
 -- classic mode only shows the placeholder after a command map was loaded.
 local function resolve_step_command_display(command_map, step, is_modern)
+    local display_step, projected_action_id =
+        project_historical_action_step(command_map, step)
     local motion, route_status
     if is_modern then
-        motion, route_status = get_modern_display_motion(command_map, step)
+        motion, route_status = get_modern_display_motion(command_map, display_step)
     else
-        motion, route_status = get_classic_display_motion(command_map, step)
+        motion, route_status = get_classic_display_motion(command_map, display_step)
     end
 
     local suppressed = route_status == "suppress_transition"
     if is_modern then motion = select_modern_display_motion(motion) end
-    local catalog_route_status = get_catalog_route_status(command_map, step)
+    local catalog_route_status = get_catalog_route_status(command_map, display_step)
     local route_accepted = ACCEPTED_COMMAND_DISPLAY_ROUTE_STATUSES[route_status] == true
     if route_status == "recorded_context" then
         route_accepted = ACCEPTED_RECORDED_CONTEXT_CATALOG_STATUSES[catalog_route_status] == true
@@ -1963,6 +1987,8 @@ local function resolve_step_command_display(command_map, step, is_modern)
         failure_status = failure_status,
         suppressed = suppressed,
         unresolved = unresolved,
+        effective_action_id = tonumber(display_step and display_step.id),
+        projected_action_id = projected_action_id,
     }
 end
 
@@ -1982,7 +2008,7 @@ local function resolve_contextual_step_command_display(
         CommandDisplayOverrides.is_contextual_internal_phase(
         command_map,
         previous_effective_owner_id,
-        type(step) == "table" and step.id or nil
+        resolution.effective_action_id
     )
     local player_transition = declared_internal
         and get_player_visible_transition_motion(step) or nil
@@ -1993,12 +2019,12 @@ local function resolve_contextual_step_command_display(
             motion = normalized_transition,
             raw_motion = player_transition,
             route_status = "player_input_transition",
-            catalog_route_status = get_catalog_route_status(command_map, step),
+            catalog_route_status = resolution.catalog_route_status,
             failure_status = normalized_transition == nil
                 and "invalid_display_motion" or nil,
             suppressed = false,
             unresolved = normalized_transition == nil,
-        }, type(step) == "table" and tonumber(step.id) or nil
+        }, resolution.effective_action_id
     end
     if declared_internal then
         return {
@@ -2009,18 +2035,18 @@ local function resolve_contextual_step_command_display(
             failure_status = nil,
             suppressed = true,
             unresolved = false,
-        }, type(step) == "table" and tonumber(step.id) or nil
+        }, resolution.effective_action_id
     end
 
     if resolution.suppressed then
-        return resolution, type(step) == "table" and tonumber(step.id) or nil
+        return resolution, resolution.effective_action_id
     end
 
     -- Any ordinary numeric Action cuts the prior relationship, even when its
     -- display route is currently unresolved. This prevents a later child from
     -- hiding across an unrelated step while still allowing an unresolved
     -- owner to retain only its own immediately declared phases.
-    local effective_owner_id = type(step) == "table" and tonumber(step.id) or nil
+    local effective_owner_id = resolution.effective_action_id
     return resolution, effective_owner_id
 end
 

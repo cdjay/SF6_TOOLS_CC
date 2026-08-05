@@ -7,6 +7,7 @@ local ActionMatcher = {
 }
 
 local RawInputCodec = require("func/ComboTrials/RawInputCodec")
+local ActionCompatibility = require("func/ComboTrials/ActionCompatibility")
 
 local DRIVE_PARRY_INPUT_ACTIONS = {
     [480] = true,
@@ -260,13 +261,19 @@ function ActionMatcher.motion_matches_expected(actual_motion, actual_input, expe
     return false
 end
 
-function ActionMatcher.matches_expected_action_id(expected, actual_action_id, expected_exception)
+function ActionMatcher.matches_expected_action_id(
+    expected,
+    actual_action_id,
+    expected_exception,
+    compatibility_rules
+)
     if type(expected) ~= "table" then return false end
     local expected_id = tonumber(expected.id)
     local actual_id = tonumber(actual_action_id)
     if expected_id == nil or actual_id == nil then return false end
     if expected_id == actual_id then return true end
     return list_contains_number(expected_exception and expected_exception.action_alias_ids, actual_id)
+        or ActionCompatibility.matches(compatibility_rules, expected, actual_id)
 end
 
 -- Legacy exception tables can ignore a parent Action because old motion-only
@@ -278,13 +285,15 @@ function ActionMatcher.should_admit_ignored_expected_action(
     input_truth_mode,
     expected,
     actual_action_id,
-    expected_exception
+    expected_exception,
+    compatibility_rules
 )
     return input_truth_mode == true
         and ActionMatcher.matches_expected_action_id(
             expected,
             actual_action_id,
-            expected_exception
+            expected_exception,
+            compatibility_rules
         )
 end
 
@@ -328,12 +337,24 @@ function ActionMatcher.is_completion_satisfied(expected, previous_step, expected
     return satisfied, required_combo, combo_source
 end
 
-function ActionMatcher.match_expected_action(expected, actual_action_id, actual_motion, actual_input, expected_exception)
+function ActionMatcher.match_expected_action(
+    expected,
+    actual_action_id,
+    actual_motion,
+    actual_input,
+    expected_exception,
+    compatibility_rules
+)
     local exact_id_matched = expected
         and tonumber(actual_action_id) ~= nil
         and tonumber(actual_action_id) == tonumber(expected.id)
     local alias_id_matched = not exact_id_matched
-        and ActionMatcher.matches_expected_action_id(expected, actual_action_id, expected_exception)
+        and ActionMatcher.matches_expected_action_id(
+            expected,
+            actual_action_id,
+            expected_exception,
+            compatibility_rules
+        )
     -- A recorded Action ID is the validation ground truth. Motion/input text is
     -- display and legacy fallback data; it must not advance a step when the
     -- runtime has produced a different Action ID. Known runtime variants remain

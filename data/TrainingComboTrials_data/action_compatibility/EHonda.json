@@ -1,0 +1,68 @@
+{
+  "schema": "xt.action_compatibility.v1",
+  "character": "EHonda",
+  "target_game_version": "2026-08-03",
+  "entries": [
+    {
+      "recorded_action_id": 944,
+      "runtime_action_id": 948,
+      "recorded_motions": ["[2]8+HK"],
+      "evidence": "The 2026-08-05 runtime audit reproduced the legacy charged HK command as current Action 948 with matching route structure"
+    },
+    {
+      "recorded_action_id": 945,
+      "runtime_action_id": 949,
+      "recorded_motions": ["[2]8+KK"],
+      "evidence": "The 2026-08-05 runtime audit reproduced the legacy charged KK command as current Action 949"
+    },
+    {
+      "recorded_action_id": 955,
+      "runtime_action_id": 959,
+      "recorded_motions": ["236+K"],
+      "evidence": "Thirteen 2026-08-05 runtime audit routes consistently mapped the legacy 236+K Action to current Action 959"
+    },
+    {
+      "recorded_action_id": 956,
+      "runtime_action_id": 960,
+      "recorded_motions": ["236+KK"],
+      "evidence": "Four 2026-08-05 runtime audit routes consistently mapped the legacy 236+KK Action to current Action 960"
+    },
+    {
+      "recorded_action_id": 961,
+      "runtime_action_id": 965,
+      "recorded_motions": [">2+P"],
+      "evidence": "Eleven completed route prefixes mapped the legacy down follow-up to current Action 965; the motion guard excludes current Action 961 236+KK"
+    },
+    {
+      "recorded_action_id": 964,
+      "runtime_action_id": 968,
+      "recorded_motions": [">P"],
+      "evidence": "The 2026-08-05 runtime audit mapped the legacy neutral follow-up to current Action 968"
+    },
+    {
+      "recorded_action_id": 967,
+      "runtime_action_id": 971,
+      "recorded_motions": [">2+P"],
+      "evidence": "Three 2026-08-05 runtime audit routes consistently mapped this legacy down follow-up to current Action 971"
+    },
+    {
+      "recorded_action_id": 971,
+      "runtime_action_id": 975,
+      "recorded_motions": ["22+K"],
+      "evidence": "The 2026-08-05 runtime audit mapped the legacy 22+K Action to current Action 975; the motion guard excludes current Action 971 follow-ups"
+    },
+    {
+      "recorded_action_id": 972,
+      "runtime_action_id": 977,
+      "runtime_action_alias_ids": [976],
+      "recorded_motions": [">2+HK"],
+      "evidence": "Repeated 2026-08-05 audits reproduced the legacy down-HK follow-up as current verified Action phases 976 or 977"
+    },
+    {
+      "recorded_action_id": 977,
+      "runtime_action_id": 981,
+      "recorded_motions": ["22+P"],
+      "evidence": "Nine 2026-08-05 runtime audit events mapped the legacy 22+P Action to current Action 981; the motion guard excludes current Action 977 down-HK"
+    }
+  ]
+}

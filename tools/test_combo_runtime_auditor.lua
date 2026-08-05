@@ -959,6 +959,208 @@ assert(strict_raw_ui_incomplete.ok == true
             == "strict_raw_replay",
     "strict raw Action and outcome truth must survive a training UI completion false negative")
 
+local restored_timeline_candidate = {
+    {
+        id = 600,
+        motion = "LP",
+        expected_combo = 1,
+        damage_at_step = 300,
+        delay_from_prev = 0,
+        has_hit = true,
+        has_contact = true,
+        raw_inputs = { 16, 0 },
+        combo_stats = {
+            damage = 1000,
+            drive_used = 10000,
+            super_used = 20000,
+        },
+        _xt_meta = {
+            transcription = {
+                source_input = "timeline",
+                raw_replay_verified = true,
+                source_advisories = {
+                    "source_damage_rebuilt:expected=800:observed=1000",
+                    "source_segmented_combo_count_rebuilt:expected=5:observed=3",
+                },
+            },
+        },
+    },
+    {
+        id = 601,
+        motion = "MP",
+        expected_combo = 2,
+        damage_at_step = 500,
+        delay_from_prev = 10,
+        has_hit = true,
+        has_contact = true,
+    },
+    {
+        id = 500,
+        motion = "DRC",
+        expected_combo = 0,
+        damage_at_step = 500,
+        delay_from_prev = 10,
+        has_hit = false,
+        has_contact = false,
+    },
+    {
+        id = 602,
+        motion = "HP",
+        expected_combo = 1,
+        damage_at_step = 700,
+        delay_from_prev = 10,
+        has_hit = true,
+        has_contact = true,
+    },
+    {
+        id = 603,
+        motion = "236+P",
+        expected_combo = 3,
+        damage_at_step = 1000,
+        delay_from_prev = 10,
+        has_hit = true,
+        has_contact = true,
+    },
+}
+local restored_timeline_compiled = {
+    steps = {
+        {
+            id = 600,
+            motion = "LP",
+            expected_combo = 1,
+            damage_at_step = 300,
+            delay_from_prev = 0,
+            has_hit = true,
+            has_contact = true,
+        },
+        {
+            id = 601,
+            motion = "MP",
+            expected_combo = 2,
+            damage_at_step = 500,
+            delay_from_prev = 10,
+            has_hit = true,
+            has_contact = true,
+        },
+        {
+            id = 500,
+            motion = "DRC",
+            expected_combo = 0,
+            damage_at_step = 500,
+            delay_from_prev = 10,
+            has_hit = false,
+            has_contact = false,
+        },
+        {
+            id = 602,
+            motion = "HP",
+            expected_combo = 3,
+            damage_at_step = 600,
+            delay_from_prev = 10,
+            has_hit = true,
+            has_contact = true,
+        },
+        {
+            id = 603,
+            motion = "236+P",
+            expected_combo = 5,
+            damage_at_step = 800,
+            delay_from_prev = 10,
+            has_hit = true,
+            has_contact = true,
+        },
+    },
+    stats = {
+        damage = 800,
+        max_combo = 5,
+        block_contacts = 0,
+        drive_used = 10000,
+        super_used = 20000,
+        unresolved_anchors = 0,
+        unresolved_motion_actions = 0,
+        resolver_error_actions = 0,
+    },
+    trace = {
+        projected_events = {
+            { frame = 10, first_contact_frame = 11 },
+            { frame = 20, first_contact_frame = 21 },
+            { frame = 30 },
+            { frame = 40, first_contact_frame = 41 },
+            { frame = 50, first_contact_frame = 51 },
+        },
+        combo_reset_frames = { 90 },
+    },
+}
+local restored_timeline_passed = RuntimeAuditor.evaluate(
+    restored_timeline_candidate,
+    restored_timeline_compiled,
+    {
+        raw_inputs = restored_timeline_candidate[1].raw_inputs,
+        input_source = "raw_inputs",
+        input_completed = true,
+        timing_tolerance = 2,
+        trial_completed = false,
+        character = "Ryu",
+        command_display_validation = resolved_command_display(5),
+        trial_completion = {
+            completed = false,
+            current_step = 4,
+            total_steps = 5,
+        },
+    }
+)
+local restored_advisories = table.concat(
+    restored_timeline_passed.advisories or {},
+    ","
+)
+assert(restored_timeline_passed.ok == true
+        and restored_timeline_passed.trial_completion.effective_completed == true
+        and restored_timeline_passed.trial_completion.completion_source
+            == "strict_raw_replay"
+        and restored_advisories:match("transcription_source_damage_restored")
+        and restored_advisories:match("transcription_source_combo_restored")
+        and restored_advisories:match("replay_step_combo_mismatch")
+        and restored_advisories:match("replay_step_damage_mismatch"),
+    "a complete raw replay may restore the exact pre-transcription outcome recorded in provenance")
+
+local incomplete_restored_compiled = RuntimeAuditor.evaluate(
+    restored_timeline_candidate,
+    {
+        steps = restored_timeline_compiled.steps,
+        stats = {
+            damage = 800,
+            max_combo = 5,
+            block_contacts = 0,
+            drive_used = 10000,
+            super_used = 0,
+            unresolved_anchors = 0,
+            unresolved_motion_actions = 0,
+            resolver_error_actions = 0,
+        },
+        trace = restored_timeline_compiled.trace,
+    },
+    {
+        raw_inputs = restored_timeline_candidate[1].raw_inputs,
+        input_source = "raw_inputs",
+        input_completed = true,
+        timing_tolerance = 2,
+        trial_completed = false,
+        character = "Ryu",
+        command_display_validation = resolved_command_display(5),
+        trial_completion = {
+            completed = false,
+            current_step = 4,
+            total_steps = 5,
+        },
+    }
+)
+assert(incomplete_restored_compiled.ok == false
+        and table.concat(incomplete_restored_compiled.reasons, ",")
+            :match("replay_super_consumption_mismatch")
+        and table.concat(incomplete_restored_compiled.reasons, ",")
+            :match("runtime_trial_not_completed"),
+    "restored provenance must not hide a missing terminal resource cost")
+
 local timed_out_strict_raw = RuntimeAuditor.evaluate(candidate, compiled, {
     raw_inputs = candidate[1].raw_inputs,
     input_source = "raw_inputs",
@@ -1397,6 +1599,8 @@ assert(report.schema == RuntimeAuditor.REPORT_SCHEMA
         == "compiled.trace.observed_actions"
     and report.verifier.step_trace_policy.timeline
         == "advisory_with_training_ui_completion_required"
+    and report.verifier.raw_outcome_policy.transcribed_timeline_restore
+        == "advisory_only_when_provenance_original_outcome_exact_actions_contacts_resources_and_terminal_match"
     and report.verifier.compatible_validation_revisions[35]
         == "monotonic_timeline_outcome_relaxation"
     and report.verifier.compatible_validation_revisions[40]
@@ -1470,9 +1674,9 @@ local revision_30_report = {
 }
 local refreshed_30, refreshed_30_counts =
     RuntimeAuditor.recompute_loaded_report_state(revision_30_report)
-assert(RuntimeAuditor.VALIDATION_REVISION == 45
-    and RuntimeAuditor.COMPATIBLE_VALIDATION_REVISIONS[44]
-        == "burnout_guard_chip_tail_attribution"
+assert(RuntimeAuditor.VALIDATION_REVISION == 47
+    and RuntimeAuditor.COMPATIBLE_VALIDATION_REVISIONS[46]
+        == "timeline_transcription_source_outcome_restore"
     and refreshed_30_counts.stale == 1
     and refreshed_30.passed == 0,
     "revision 30 reports must be stale after the strict invariant revision")
