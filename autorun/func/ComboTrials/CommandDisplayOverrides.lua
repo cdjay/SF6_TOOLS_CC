@@ -76,6 +76,64 @@ local function read_button_masks(entry)
     return masks, true
 end
 
+local function read_recorded_motions(entry, classic)
+    local motions = { [classic:upper()] = true }
+    if type(entry) ~= "table" or entry.recorded_motions == nil then
+        return motions, true
+    end
+    if type(entry.recorded_motions) ~= "table" then return nil, false end
+    local count = 0
+    for _, value in ipairs(entry.recorded_motions) do
+        local motion = valid_display(value)
+        if motion == nil then return nil, false end
+        motions[motion:upper()] = true
+        count = count + 1
+    end
+    for key in pairs(entry.recorded_motions) do
+        if type(key) ~= "number" or key < 1 or key % 1 ~= 0
+            or key > count then
+            return nil, false
+        end
+    end
+    if count == 0 then return nil, false end
+    return motions, true
+end
+
+local function build_resolved_entry(entry, existing, fallback_evidence)
+    if type(entry) ~= "table" then return nil, nil end
+    local classic = valid_display(entry.classic)
+    local evidence = trim(entry.evidence)
+    if evidence == "" then evidence = trim(fallback_evidence) end
+    local commands, commands_ok = read_modern_commands(entry)
+    local button_masks, button_masks_ok = read_button_masks(entry)
+    local recorded_motions, recorded_motions_ok = nil, false
+    if classic ~= nil then
+        recorded_motions, recorded_motions_ok =
+            read_recorded_motions(entry, classic)
+    end
+    if classic == nil or evidence == "" or not commands_ok
+        or not button_masks_ok or not recorded_motions_ok then
+        return nil, nil
+    end
+    return {
+        classic = classic,
+        commands = commands,
+        status = button_masks ~= nil
+            and "runtime_verified_conditioned_override"
+            or "runtime_verified_override",
+        button_masks = button_masks,
+        recorded_motions = recorded_motions,
+        metadata = {
+            source = "command_display_override",
+            evidence = evidence,
+            control_support = commands and "classic_modern" or "classic_only",
+            replaced_existing = existing ~= nil,
+            require_recorded_motion_match =
+                entry.require_recorded_motion_match == true,
+        },
+    }, button_masks
+end
+
 local function select_display(entry, mode)
     if mode == "classic" then return entry.classic end
     local commands = entry.commands
@@ -160,38 +218,67 @@ function CommandDisplayOverrides.merge(slim, character, document)
     local conditioned = {}
     for action_id, entry in pairs(document.entries) do
         local id = tostring(action_id or "")
-        local classic = type(entry) == "table" and valid_display(entry.classic) or nil
-        local evidence = type(entry) == "table" and trim(entry.evidence) or ""
-        local commands, commands_ok = read_modern_commands(entry)
-        local button_masks, button_masks_ok = read_button_masks(entry)
         local existing = slim[id]
         local may_replace = type(entry) == "table" and entry.replace == true
-        if id:match("^%d+$") and classic ~= nil and evidence ~= ""
-            and commands_ok and button_masks_ok
+        if id:match("^%d+$") and type(entry) == "table"
             and (existing == nil or may_replace) then
-            local resolved = {
-                classic = classic,
-                commands = commands,
-                status = button_masks ~= nil
-                    and "runtime_verified_conditioned_override"
-                    or "runtime_verified_override",
-                metadata = {
-                    source = "command_display_override",
-                    evidence = evidence,
-                    control_support = commands and "classic_modern" or "classic_only",
-                    replaced_existing = existing ~= nil,
-                    require_recorded_motion_match = entry.require_recorded_motion_match == true,
-                },
-            }
-            if button_masks ~= nil then
-                resolved.button_masks = button_masks
-                local numeric_id = tonumber(id)
-                conditioned[numeric_id] = conditioned[numeric_id] or {}
-                conditioned[numeric_id][#conditioned[numeric_id] + 1] = resolved
-            else
-                slim[id] = resolved
+            local numeric_id = tonumber(id)
+            local variants = entry.variants
+            if variants ~= nil and type(variants) == "table" then
+                local parsed = {}
+                local mask_owners = {}
+                local count = 0
+                local variants_ok = true
+                for _, variant in ipairs(variants) do
+                    local resolved, button_masks = build_resolved_entry(
+                        variant,
+                        existing,
+                        entry.evidence
+                    )
+                    if resolved == nil or button_masks == nil then
+                        variants_ok = false
+                        break
+                    end
+                    for mask in pairs(button_masks) do
+                        if mask_owners[mask] then
+                            variants_ok = false
+                            break
+                        end
+                        mask_owners[mask] = true
+                    end
+                    if not variants_ok then break end
+                    parsed[#parsed + 1] = resolved
+                    count = count + 1
+                end
+                for key in pairs(variants) do
+                    if type(key) ~= "number" or key < 1 or key % 1 ~= 0
+                        or key > count then
+                        variants_ok = false
+                        break
+                    end
+                end
+                if variants_ok and count > 0 then
+                    slim[id] = nil
+                    conditioned[numeric_id] = parsed
+                    applied = applied + 1
+                end
+            elseif variants == nil then
+                local resolved, button_masks = build_resolved_entry(
+                    entry,
+                    existing
+                )
+                if resolved ~= nil then
+                    if button_masks ~= nil then
+                        slim[id] = nil
+                        conditioned[numeric_id] = conditioned[numeric_id] or {}
+                        conditioned[numeric_id][#conditioned[numeric_id] + 1] =
+                            resolved
+                    else
+                        slim[id] = resolved
+                    end
+                    applied = applied + 1
+                end
             end
-            applied = applied + 1
         end
     end
     slim._contextual_internal_phases = contextual_phases
@@ -242,7 +329,9 @@ function CommandDisplayOverrides.resolve_recorded_input_conditioned(
     for _, entry in ipairs(entries) do
         local display = select_display(entry, mode)
         if type(display) == "string"
-            and trim(display):upper() == normalized_recorded then
+            and (trim(display):upper() == normalized_recorded
+                or (type(entry.recorded_motions) == "table"
+                    and entry.recorded_motions[normalized_recorded] == true)) then
             return display, entry.status, entry.metadata
         end
     end

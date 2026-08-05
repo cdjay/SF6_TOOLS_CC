@@ -1,0 +1,84 @@
+{
+  "schema": "xt.command_display_overrides.v1",
+  "character": "MBison",
+  "entries": {
+    "608": {
+      "classic": "LK",
+      "replace": true,
+      "evidence": "Revision 58 full-character audit reproduced Action 608 as LK across three completed replays; the generated AC/BCM catalog and Capcom official semantics independently identify the same command but provide no verified route"
+    },
+    "612": {
+      "classic": "HK",
+      "replace": true,
+      "evidence": "Revision 58 full-character audit reproduced Action 612 as HK across seven completed replays; the generated AC/BCM catalog and Capcom official semantics independently identify the same command but provide no verified route"
+    },
+    "653": {
+      "classic": "3+HK",
+      "replace": true,
+      "evidence": "Revision 58 full-character audit bound a fresh 3+HK press and hit contact to Action 653; the generated AC/BCM catalog and Capcom official semantics independently identify the same command but provide no verified route"
+    },
+    "921": {
+      "classic": "HK",
+      "replace": true,
+      "evidence": "Revision 58 runtime audit bound a fresh HK press to MBison Action 921 during the verified aerial route"
+    },
+    "954": {
+      "replace": true,
+      "evidence": "Revision 58 runtime audit reproduced distinct commands for Action 954 and verified them by their exact physical button masks",
+      "variants": [
+        {
+          "classic": "4+HP",
+          "button_masks": [64],
+          "evidence": "A completed runtime replay bound back plus a fresh HP press to Action 954"
+        },
+        {
+          "classic": "MK+HK",
+          "button_masks": [768],
+          "evidence": "A completed runtime replay bound a fresh MK+HK press to Action 954"
+        }
+      ]
+    },
+    "958": {
+      "classic": "6+MP+HP",
+      "replace": true,
+      "evidence": "Revision 58 runtime audit bound forward plus a fresh MP+HP press and hit contact to Action 958"
+    },
+    "974": {
+      "replace": true,
+      "evidence": "Revision 58 runtime audit reproduced Action 974 with distinct LP and parry button paths",
+      "variants": [
+        {
+          "classic": "236+LP",
+          "button_masks": [16],
+          "evidence": "A completed runtime replay bound a fresh LP press after a 236 direction sequence and hit contact to Action 974"
+        },
+        {
+          "classic": "PARRY",
+          "button_masks": [288],
+          "recorded_motions": ["PARRY", "MP+MK"],
+          "evidence": "Two completed runtime replays bound the parry button mask to Action 974; legacy recordings describe the same physical input as either PARRY or MP+MK"
+        }
+      ]
+    },
+    "978": {
+      "classic": "4+HP",
+      "replace": true,
+      "evidence": "Revision 58 runtime audit bound back plus a fresh HP press and hit contact to Action 978"
+    },
+    "1040": {
+      "classic": "4+MP+HP",
+      "replace": true,
+      "evidence": "Revision 58 runtime audit bound back plus a fresh MP+HP press to Action 1040 in the verified route"
+    },
+    "1063": {
+      "classic": "4+MP",
+      "replace": true,
+      "evidence": "Revision 58 runtime audit bound back plus a fresh MP press and hit contact to Action 1063"
+    },
+    "1070": {
+      "classic": "4+MP+HP",
+      "replace": true,
+      "evidence": "Revision 58 runtime audit bound back plus a fresh MP+HP press and hit contact to Action 1070"
+    }
+  }
+}

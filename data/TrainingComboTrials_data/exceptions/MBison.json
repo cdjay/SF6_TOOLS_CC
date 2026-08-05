@@ -1,4 +1,9 @@
 {
+  "649": {
+    "action_event_rules": {
+      "transient_precursor_ids": "954"
+    }
+  },
   "717": {
     "force": true
   }

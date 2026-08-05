@@ -152,7 +152,10 @@ assert(override_status == "loaded" and applied_overrides == 4
     "verified command overrides must fill missing Actions without silently replacing catalog rows")
 do
     local conditioned_map, conditioned_count, conditioned_status =
-        command_display_overrides.merge({ _slim = true }, "JP", {
+        command_display_overrides.merge({
+            _slim = true,
+            ["645"] = { classic = "route missing", status = "route_unverified" },
+        }, "JP", {
         schema = "xt.command_display_overrides.v1",
         character = "JP",
         entries = {
@@ -180,6 +183,54 @@ do
             and recorded_conditioned_hk == "HK"
             and recorded_conditioned_status == "runtime_verified_conditioned_override",
         "input-conditioned overrides must resolve only their exact physical button mask")
+end
+do
+    local variant_map, variant_count, variant_status =
+        command_display_overrides.merge({
+            _slim = true,
+            ["954"] = { classic = "route missing", status = "route_unverified" },
+        }, "MBison", {
+            schema = "xt.command_display_overrides.v1",
+            character = "MBison",
+            entries = {
+                ["954"] = {
+                    replace = true,
+                    evidence = "distinct runtime button paths",
+                    variants = {
+                        { classic = "4+HP", button_masks = { 64 } },
+                        { classic = "MK+HK", button_masks = { 768 } },
+                    },
+                },
+                ["974"] = {
+                    evidence = "LP and parry runtime paths",
+                    variants = {
+                        { classic = "236+LP", button_masks = { 16 } },
+                        {
+                            classic = "PARRY",
+                            button_masks = { 288 },
+                            recorded_motions = { "PARRY", "MP+MK" },
+                        },
+                    },
+                },
+            },
+        })
+    local back_hp = command_display_overrides.resolve_input_conditioned(
+        variant_map, 954, 64, 64, "classic")
+    local kick_pair = command_display_overrides.resolve_input_conditioned(
+        variant_map, 954, 768, 768, "classic")
+    local psycho_punisher = command_display_overrides.resolve_input_conditioned(
+        variant_map, 974, 16, 16, "classic")
+    local parry = command_display_overrides.resolve_input_conditioned(
+        variant_map, 974, 288, 288, "classic")
+    local legacy_parry =
+        command_display_overrides.resolve_recorded_input_conditioned(
+            variant_map, 974, "MP+MK", "classic")
+    assert(variant_status == "loaded" and variant_count == 2
+            and variant_map["954"] == nil and variant_map["974"] == nil
+            and back_hp == "4+HP" and kick_pair == "MK+HK"
+            and psycho_punisher == "236+LP" and parry == "PARRY"
+            and legacy_parry == "PARRY",
+        "variant overrides must distinguish reused Action IDs by buttons and accept verified legacy recorded aliases")
 end
 local ingrid_catalog = {
     _slim = true,
@@ -2194,6 +2245,28 @@ do
             and chunli_override_source:find('"classic": "3+HP"', 1, true)
             and chunli_override_source:find('"replace": true', 1, true),
         "the shipped Chun-Li command overrides must preserve the runtime-verified commands")
+end
+do
+    local mbison_override_source = read_all(
+        "data/TrainingComboTrials_data/command_display_overrides/MBison.json")
+    local mbison_exception_source = read_all(
+        "data/TrainingComboTrials_data/exceptions/MBison.json")
+    assert(mbison_override_source:find('"608"', 1, true)
+            and mbison_override_source:find('"classic": "LK"', 1, true)
+            and mbison_override_source:find('"612"', 1, true)
+            and mbison_override_source:find('"classic": "HK"', 1, true)
+            and mbison_override_source:find('"653"', 1, true)
+            and mbison_override_source:find('"classic": "3+HK"', 1, true)
+            and mbison_override_source:find('"954"', 1, true)
+            and mbison_override_source:find('"variants"', 1, true)
+            and mbison_override_source:find('"974"', 1, true)
+            and mbison_override_source:find('"recorded_motions"', 1, true)
+            and mbison_override_source:find('"MP+MK"', 1, true),
+        "the shipped M. Bison overrides must preserve verified conditioned commands and legacy aliases")
+    assert(mbison_exception_source:find('"649"', 1, true)
+            and mbison_exception_source:find(
+                '"transient_precursor_ids": "954"', 1, true),
+        "the shipped M. Bison rules must preserve the verified 954-to-649 transient precursor")
 end
 local alex_override_source = read_all(
     "data/TrainingComboTrials_data/command_display_overrides/Alex.json")
