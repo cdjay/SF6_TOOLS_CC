@@ -895,6 +895,35 @@ assert(dhalsim_override_status == "loaded" and dhalsim_override_count == 2
     "Dhalsim overrides must resolve the runtime-verified LP and HP SA1 Actions")
 end
 do
+local terry_overrides, terry_override_count, terry_override_status =
+    command_display_overrides.merge({
+        _slim = true,
+        ["609"] = { classic = "LK", status = "route_unverified" },
+        ["612"] = { classic = "MK", status = "route_unverified" },
+        ["955"] = { classic = "214+LK", status = "route_unverified" },
+        ["956"] = { classic = "214+MK", status = "route_unverified" },
+    }, "Terry", {
+        schema = "xt.command_display_overrides.v1",
+        character = "Terry",
+        entries = {
+            ["609"] = { classic = "LK", replace = true, evidence = "runtime audit" },
+            ["612"] = { classic = "MK", replace = true, evidence = "runtime audit" },
+            ["955"] = { classic = "214+LK", replace = true, evidence = "runtime audit" },
+            ["956"] = { classic = "214+MK", replace = true, evidence = "runtime audit" },
+        },
+    })
+assert(terry_override_status == "loaded" and terry_override_count == 4
+        and terry_overrides["609"].classic == "LK"
+        and terry_overrides["612"].classic == "MK"
+        and terry_overrides["955"].classic == "214+LK"
+        and terry_overrides["956"].classic == "214+MK"
+        and terry_overrides["609"].status == "runtime_verified_override"
+        and terry_overrides["612"].status == "runtime_verified_override"
+        and terry_overrides["955"].status == "runtime_verified_override"
+        and terry_overrides["956"].status == "runtime_verified_override",
+    "Terry overrides must resolve the four runtime-verified Classic commands")
+end
+do
 local zangief_overrides, zangief_override_count, zangief_override_status =
     command_display_overrides.merge({
         _slim = true,
@@ -2397,6 +2426,27 @@ do
             and dhalsim_exception_source:find(
                 '"transient_precursor_ids": "1048"', 1, true),
         "the shipped Dhalsim rules must retain the 1048 to 642 transient state transition")
+end
+do
+    local terry_override_source = read_all(
+        "data/TrainingComboTrials_data/command_display_overrides/Terry.json")
+    local terry_exception_source = read_all(
+        "data/TrainingComboTrials_data/exceptions/Terry.json")
+    for action_id, classic in pairs({
+        ["609"] = "LK",
+        ["612"] = "MK",
+        ["955"] = "214+LK",
+        ["956"] = "214+MK",
+    }) do
+        assert(terry_override_source:find('"' .. action_id .. '"', 1, true)
+                and terry_override_source:find(
+                    '"classic": "' .. classic .. '"', 1, true),
+            "the shipped Terry overrides must retain every runtime-verified Classic command")
+    end
+    assert(terry_exception_source:find('"606"', 1, true)
+            and terry_exception_source:find('"absorb_ids": "607"', 1, true)
+            and terry_exception_source:find('"action_event_projection": {}', 1, true),
+        "the shipped Terry rules must keep HP Action 607 inside owner Action 606")
 end
 do
     local zangief_override_source = read_all(

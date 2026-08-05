@@ -1,4 +1,8 @@
 {
+  "606": {
+    "absorb_ids": "607",
+    "action_event_projection": {}
+  },
   "717": {
     "force": true
   }

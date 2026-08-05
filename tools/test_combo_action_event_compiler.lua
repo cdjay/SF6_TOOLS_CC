@@ -67,6 +67,12 @@ ACTION_EVENT_FIXTURES = {
             action_event_rules = { transient_precursor_ids = "1048" },
         },
     },
+    Terry = {
+        ["606"] = {
+            absorb_ids = "607",
+            action_event_projection = {},
+        },
+    },
     Zangief = {
         ["945"] = {
             absorb_ids = "948",
@@ -441,6 +447,49 @@ assert(#guile_flash_kick_result.steps == 1
         and guile_flash_kick_result.trace.suppressed_events[1].reason
             == "character_transient_input_precursor",
     "Guile's transient Action 33 must not become an extra step before HK Flash Kick")
+end
+
+do
+local terry_stand_hp = new_character_rule_session("Terry")
+terry_stand_hp.events = {
+    {
+        id = 606,
+        frame = 100,
+        expected_combo = 1,
+        damage_at_step = 480,
+        has_hit = true,
+        has_contact = true,
+        anchor = { kind = "button_press", pressed_buttons = 64 },
+    },
+    {
+        id = 607,
+        frame = 121,
+        expected_combo = 2,
+        damage_at_step = 960,
+        has_hit = true,
+        has_contact = true,
+        anchor = { kind = "button_press", pressed_buttons = 64 },
+    },
+}
+terry_stand_hp.current_damage = 960
+terry_stand_hp.confirmed_damage = 960
+terry_stand_hp.max_combo = 2
+local terry_stand_hp_result = compiler.finalize(terry_stand_hp, {
+    motion_resolver = function(action_id)
+        if action_id == 606 then return "HP", "strict_route" end
+        return nil, "action_id_missing"
+    end,
+})
+assert(#terry_stand_hp_result.steps == 1
+        and terry_stand_hp_result.steps[1].id == 606
+        and terry_stand_hp_result.steps[1].motion == "HP"
+        and terry_stand_hp_result.steps[1].expected_combo == 2
+        and terry_stand_hp_result.steps[1].damage_at_step == 960
+        and terry_stand_hp_result.trace.suppressed_events[1].id == 607
+        and terry_stand_hp_result.trace.suppressed_events[1].merged_into == 606
+        and terry_stand_hp_result.trace.suppressed_events[1].reason
+            == "character_internal_action_phase",
+    "Terry's fixed second HP contact phase must remain inside Action 606")
 end
 
 do

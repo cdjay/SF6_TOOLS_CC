@@ -1,0 +1,26 @@
+{
+  "schema": "xt.command_display_overrides.v1",
+  "character": "Terry",
+  "entries": {
+    "609": {
+      "classic": "LK",
+      "replace": true,
+      "evidence": "Repeated completed 2026-08-05 runtime audits bind Terry Action 609 to the recorded LK input with exact replay outcome; the generated catalog independently records the same Classic command without a verified route"
+    },
+    "612": {
+      "classic": "MK",
+      "replace": true,
+      "evidence": "Repeated completed 2026-08-05 runtime audits bind Terry Action 612 to the recorded MK input, including intentional whiff setup, while the generated catalog records the same Classic command without a verified route"
+    },
+    "955": {
+      "classic": "214+LK",
+      "replace": true,
+      "evidence": "Completed 2026-08-05 runtime audits bind Terry Action 955 to the recorded 214+LK input with exact damage and combo closure; the generated catalog independently records the same Classic command without a verified route"
+    },
+    "956": {
+      "classic": "214+MK",
+      "replace": true,
+      "evidence": "Repeated completed 2026-08-05 runtime audits bind Terry Action 956 to the recorded 214+MK input with exact damage and combo closure; the generated catalog independently records the same Classic command without a verified route"
+    }
+  }
+}
