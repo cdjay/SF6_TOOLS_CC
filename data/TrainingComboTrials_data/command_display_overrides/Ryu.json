@@ -1,0 +1,26 @@
+{
+  "schema": "xt.command_display_overrides.v1",
+  "character": "Ryu",
+  "entries": {
+    "617": {
+      "classic": "HK",
+      "replace": true,
+      "evidence": "Runtime audit reproduced Action 617 from neutral HK presses (button mask 512) with confirmed contact and hit across 24 occurrences"
+    },
+    "622": {
+      "classic": "2+LP",
+      "replace": true,
+      "evidence": "Runtime audit reproduced Action 622 from down plus LP inputs (button mask 16) with confirmed contact and hit across four occurrences"
+    },
+    "663": {
+      "classic": "4+HP",
+      "replace": true,
+      "evidence": "Runtime audit reproduced Action 663 for recorded 4+HP steps from HP presses (button mask 64) with confirmed contact and hit across 19 occurrences"
+    },
+    "1005": {
+      "classic": "214+HK",
+      "replace": true,
+      "evidence": "Runtime audit reproduced Action 1005 for a recorded 214+HK step from a quarter-circle-back HK input (button mask 512) with confirmed contact and hit"
+    }
+  }
+}

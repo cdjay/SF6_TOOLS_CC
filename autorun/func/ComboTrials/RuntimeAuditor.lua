@@ -2,12 +2,13 @@
 -- Runtime loading, replay and Action observation remain owned by the main script.
 
 local Transcriber = require("func/ComboTrials/Transcriber")
+local TrainingEnvironment = require("func/ComboTrials/TrainingEnvironment")
 
 local RuntimeAuditor = {
     name = "ComboTrials.RuntimeAuditor",
     REPORT_SCHEMA = "sf6cc.combo_runtime_audit.v1",
     REPORT_ROOT = "TrainingComboTrials_data/RuntimeAuditReports",
-    VALIDATION_REVISION = 44,
+    VALIDATION_REVISION = 45,
     COMPATIBLE_VALIDATION_REVISIONS = {
         [35] = "monotonic_timeline_outcome_relaxation",
         [36] = "data_driven_quick_successor_live_validation",
@@ -17,6 +18,7 @@ local RuntimeAuditor = {
         [40] = "contextual_internal_phase_damage_and_input_projection",
         [41] = "strict_training_ui_completion_requirement",
         [43] = "monotonic_legacy_timeline_outcome_relaxation",
+        [44] = "burnout_guard_chip_tail_attribution",
     },
 }
 
@@ -55,6 +57,136 @@ local function append_reason(evaluation, reason)
         and evaluation.reasons or {}
     evaluation.reasons[#evaluation.reasons + 1] = reason
     evaluation.ok = false
+end
+
+local function exact_action_sequence_matches(sequence, compiled)
+    local steps = type(compiled) == "table" and compiled.steps or nil
+    if type(sequence) ~= "table" or type(steps) ~= "table"
+        or #sequence == 0 or #sequence ~= #steps then
+        return false
+    end
+    for index = 1, #sequence do
+        if tonumber(sequence[index] and sequence[index].id)
+            ~= tonumber(steps[index] and steps[index].id) then
+            return false
+        end
+    end
+    return true
+end
+
+local function recorded_defender_is_burned_out(sequence)
+    local first = type(sequence) == "table" and sequence[1] or nil
+    local scene = type(first) == "table" and first.scene_state or nil
+    local players = type(scene) == "table" and scene.players or nil
+    if type(players) ~= "table" then return false end
+    local recorded_by = tonumber(first.recorded_by or scene.recorded_by) == 1
+        and 1 or 0
+    local defender = players[recorded_by == 1 and "p1" or "p2"]
+    return type(defender) == "table"
+        and type(defender.status) == "table"
+        and defender.status.burnout == true
+end
+
+-- Burnout chip damage can arrive as HP-loss samples after the first contact of
+-- a terminal multi-hit super even though the Action owner never changes. Audit
+-- only: require full guard, exact Actions, completed UI, and exact HP closure.
+local function burnout_guard_chip_tail_proof(sequence, compiled, runtime, evaluation)
+    local reasons = type(evaluation) == "table" and evaluation.reasons or nil
+    local expected = type(evaluation) == "table" and evaluation.expected or nil
+    local observed = type(evaluation) == "table" and evaluation.observed or nil
+    local steps = type(compiled) == "table" and compiled.steps or nil
+    local trace = type(compiled) == "table" and compiled.trace or nil
+    local first = type(sequence) == "table" and sequence[1] or nil
+    local source_environment = type(first) == "table"
+        and type(first._xt_meta) == "table"
+        and type(first._xt_meta.environment) == "table"
+        and first._xt_meta.environment or {}
+    local source_guard = tonumber(type(first) == "table" and first.dummy_guard_type)
+        or tonumber(source_environment.dummy_guard_type)
+    local observed_guard = tonumber(
+        type(runtime.environment_observed) == "table"
+            and runtime.environment_observed.dummy_guard_type
+    )
+    if type(reasons) ~= "table" or #reasons ~= 1
+        or not tostring(reasons[1]):match(
+            "^replay_unattributed_damage_tick:max=%d+:unconfirmed=%d+$"
+        )
+        or runtime.trial_completed ~= true
+        or runtime.input_completed ~= true
+        or runtime.timed_out == true
+        or source_guard ~= TrainingEnvironment.DUMMY_GUARD.ALL
+        or observed_guard ~= TrainingEnvironment.DUMMY_GUARD.ALL
+        or not recorded_defender_is_burned_out(sequence)
+        or not exact_action_sequence_matches(sequence, compiled)
+        or type(expected) ~= "table" or type(observed) ~= "table"
+        or type(steps) ~= "table" or type(trace) ~= "table" then
+        return nil
+    end
+
+    local expected_damage = tonumber(expected.damage)
+    local event_damage = tonumber(observed.damage)
+    local hp_loss = tonumber(observed.observed_hp_loss)
+    local unconfirmed = math.max(0, tonumber(observed.unconfirmed_hp_loss) or 0)
+    if expected_damage == nil or event_damage == nil or hp_loss == nil
+        or unconfirmed <= 0
+        or math.abs(hp_loss - expected_damage) > 1
+        or math.abs(event_damage + unconfirmed - hp_loss) > 1
+        or (tonumber(observed.max_combo) or 0)
+            ~= (tonumber(expected.max_combo) or 0)
+        or (tonumber(observed.block_contacts) or 0)
+            ~= (tonumber(expected.block_contacts) or 0) then
+        return nil
+    end
+
+    local expected_terminal = sequence[#sequence]
+    local observed_terminal = steps[#steps]
+    local bound_events = type(trace.input_bound_events) == "table"
+        and trace.input_bound_events or nil
+    local bound_terminal = bound_events and bound_events[#bound_events] or nil
+    if type(expected_terminal) ~= "table"
+        or type(observed_terminal) ~= "table"
+        or type(bound_terminal) ~= "table"
+        or tonumber(expected_terminal.id) ~= tonumber(observed_terminal.id)
+        or tonumber(observed_terminal.id) ~= tonumber(bound_terminal.id)
+        or (bound_terminal.has_contact ~= true and bound_terminal.has_hit ~= true)
+        or math.abs((tonumber(expected_terminal.damage_at_step) or -1)
+            - expected_damage) > 1
+        or math.abs((tonumber(bound_terminal.damage_at_step) or -1)
+            + unconfirmed - expected_damage) > 1 then
+        return nil
+    end
+
+    local contact_frame = tonumber(bound_terminal.first_contact_frame)
+        or tonumber(bound_terminal.frame)
+    local last_activity = tonumber(trace.last_activity_frame)
+    local samples = type(trace.passive_damage_samples) == "table"
+        and trace.passive_damage_samples or nil
+    if contact_frame == nil or last_activity == nil
+        or last_activity <= contact_frame or samples == nil or #samples < 2 then
+        return nil
+    end
+    local count, total, first_frame, final_frame = 0, 0, nil, nil
+    for _, sample in ipairs(samples) do
+        local frame = tonumber(type(sample) == "table" and sample.frame)
+        local delta = tonumber(type(sample) == "table" and sample.delta)
+        if frame == nil or delta == nil or delta <= 0
+            or frame <= contact_frame or frame > last_activity then
+            return nil
+        end
+        count = count + 1
+        total = total + delta
+        first_frame = first_frame == nil and frame or math.min(first_frame, frame)
+        final_frame = final_frame == nil and frame or math.max(final_frame, frame)
+    end
+    if count < 2 or math.abs(total - unconfirmed) > 1 then return nil end
+    return {
+        action_id = tonumber(bound_terminal.id),
+        count = count,
+        total = total,
+        contact_frame = contact_frame,
+        first_frame = first_frame,
+        final_frame = final_frame,
+    }
 end
 
 local function strict_raw_replay_proves_completion(evaluation, runtime)
@@ -459,6 +591,29 @@ function RuntimeAuditor.evaluate(sequence, compiled, runtime)
         compiled,
         replay_runtime
     )
+    local guard_chip_tail = burnout_guard_chip_tail_proof(
+        sequence,
+        compiled,
+        runtime,
+        evaluation
+    )
+    if guard_chip_tail ~= nil then
+        evaluation.reasons = {}
+        evaluation.ok = true
+        evaluation.burnout_guard_chip_tail = deep_copy(guard_chip_tail)
+        evaluation.advisories = type(evaluation.advisories) == "table"
+            and evaluation.advisories or {}
+        evaluation.advisories[#evaluation.advisories + 1] = string.format(
+            "burnout_guard_chip_tail:action=%s:count=%d:total=%d:"
+                .. "first=%d:last=%d:contact=%d",
+            tostring(guard_chip_tail.action_id),
+            guard_chip_tail.count,
+            guard_chip_tail.total,
+            guard_chip_tail.first_frame,
+            guard_chip_tail.final_frame,
+            guard_chip_tail.contact_frame
+        )
+    end
     validate_command_display(evaluation, runtime, sequence)
     local training_ui_completed = runtime.trial_completed == true
     local strict_replay_completed = not training_ui_completed

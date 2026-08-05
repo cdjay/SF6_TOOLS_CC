@@ -171,6 +171,56 @@ assert(cammy_override_status == "loaded" and cammy_override_count == 5
     and cammy_overrides["979"].status == "runtime_verified_override"
     and cammy_overrides["979"].metadata.replaced_existing == true,
     "Cammy's verified follow-up and air throw must resolve through data overrides")
+do
+    local ryu_catalog = {
+        _slim = true,
+        ["617"] = { classic = "HK", status = "route_unverified" },
+        ["622"] = { classic = "2+LP", status = "route_unverified" },
+        ["663"] = { classic = "4+HP", status = "route_unverified" },
+        ["1005"] = { classic = "214+HK", status = "route_unverified" },
+    }
+    local ryu_overrides, ryu_override_count, ryu_override_status =
+        command_display_overrides.merge(ryu_catalog, "Ryu", {
+            schema = "xt.command_display_overrides.v1",
+            character = "Ryu",
+            entries = {
+                ["617"] = {
+                    classic = "HK",
+                    replace = true,
+                    evidence = "verified neutral HK raw input",
+                },
+                ["622"] = {
+                    classic = "2+LP",
+                    replace = true,
+                    evidence = "verified down plus LP raw input",
+                },
+                ["663"] = {
+                    classic = "4+HP",
+                    replace = true,
+                    evidence = "verified recorded 4+HP raw input",
+                },
+                ["1005"] = {
+                    classic = "214+HK",
+                    replace = true,
+                    evidence = "verified quarter-circle-back HK raw input",
+                },
+            },
+        })
+    assert(ryu_override_status == "loaded" and ryu_override_count == 4
+            and ryu_overrides["617"].classic == "HK"
+            and ryu_overrides["617"].status == "runtime_verified_override"
+            and ryu_overrides["617"].metadata.replaced_existing == true
+            and ryu_overrides["622"].classic == "2+LP"
+            and ryu_overrides["622"].status == "runtime_verified_override"
+            and ryu_overrides["622"].metadata.replaced_existing == true
+            and ryu_overrides["663"].classic == "4+HP"
+            and ryu_overrides["663"].status == "runtime_verified_override"
+            and ryu_overrides["663"].metadata.replaced_existing == true
+            and ryu_overrides["1005"].classic == "214+HK"
+            and ryu_overrides["1005"].status == "runtime_verified_override"
+            and ryu_overrides["1005"].metadata.replaced_existing == true,
+        "Ryu's runtime-verified commands must replace route-unverified catalog rows")
+end
 local honda_overrides, honda_override_count, honda_override_status =
     command_display_overrides.merge({
         _slim = true,
@@ -1755,6 +1805,20 @@ assert(cammy_override_source:find('"609"', 1, true)
         and cammy_override_source:find('"classic": ">8"', 1, true)
         and cammy_override_source:find('"replace": true', 1, true),
     "the shipped Cammy command overrides must preserve runtime-verified commands")
+do
+    local ryu_override_source = read_all(
+        "data/TrainingComboTrials_data/command_display_overrides/Ryu.json")
+    assert(ryu_override_source:find('"617"', 1, true)
+            and ryu_override_source:find('"classic": "HK"', 1, true)
+            and ryu_override_source:find('"622"', 1, true)
+            and ryu_override_source:find('"classic": "2+LP"', 1, true)
+            and ryu_override_source:find('"663"', 1, true)
+            and ryu_override_source:find('"classic": "4+HP"', 1, true)
+            and ryu_override_source:find('"1005"', 1, true)
+            and ryu_override_source:find('"classic": "214+HK"', 1, true)
+            and ryu_override_source:find('"replace": true', 1, true),
+        "the shipped Ryu command overrides must preserve runtime-verified commands")
+end
 local alex_override_source = read_all(
     "data/TrainingComboTrials_data/command_display_overrides/Alex.json")
 assert(alex_override_source:find('"958"', 1, true)

@@ -734,6 +734,132 @@ assert(raw_step_damage_drift_passed.ok == true
         :match("replay_step_damage_mismatch"),
     "verified runtime damage drift must also make per-step damage changes advisory")
 
+do
+    local terminal_tail_candidate = {
+        {
+            id = 1233,
+            motion = "236236+K",
+            expected_combo = 0,
+            damage_at_step = 2450,
+            delay_from_prev = 0,
+            has_hit = true,
+            has_contact = true,
+            dummy_guard_type = 3,
+            scene_state = {
+                recorded_by = 0,
+                players = {
+                    p1 = { status = { burnout = false } },
+                    p2 = { status = { burnout = true } },
+                },
+            },
+            raw_inputs = { 256, 0 },
+            combo_stats = {
+                damage = 2450,
+                drive_used = 60000,
+                super_used = 30000,
+            },
+        },
+    }
+    local function terminal_tail_compiled(first_sample_frame)
+        return {
+            steps = {
+                {
+                    id = 1233,
+                    motion = "236236+K",
+                    expected_combo = 0,
+                    damage_at_step = 1800,
+                    delay_from_prev = 0,
+                    frame = 40,
+                    first_contact_frame = 100,
+                    has_hit = true,
+                    has_contact = true,
+                },
+            },
+            stats = {
+                damage = 1800,
+                observed_hp_loss = 2450,
+                unconfirmed_hp_loss = 650,
+                passive_damage_ticks = 3,
+                passive_damage_total = 650,
+                passive_damage_max_tick = 300,
+                max_combo = 0,
+                block_contacts = 0,
+                drive_used = 60000,
+                super_used = 30000,
+                unresolved_anchors = 0,
+            },
+            trace = {
+                last_activity_frame = 200,
+                input_bound_events = {
+                    {
+                        id = 1233,
+                        frame = 40,
+                        first_contact_frame = 100,
+                        damage_at_step = 1800,
+                        has_hit = true,
+                        has_contact = true,
+                    },
+                },
+                passive_damage_samples = {
+                    { frame = first_sample_frame, delta = 300 },
+                    { frame = 120, delta = 300 },
+                    { frame = 130, delta = 50 },
+                },
+            },
+        }
+    end
+    local terminal_tail_runtime = {
+        raw_inputs = terminal_tail_candidate[1].raw_inputs,
+        input_source = "raw_inputs",
+        input_completed = true,
+        timing_tolerance = 2,
+        trial_completed = true,
+        character = "Ryu",
+        environment_observed = { dummy_guard_type = 3 },
+        command_display_validation = resolved_command_display(),
+    }
+    local terminal_tail_passed = RuntimeAuditor.evaluate(
+        terminal_tail_candidate,
+        terminal_tail_compiled(110),
+        terminal_tail_runtime
+    )
+    assert(terminal_tail_passed.ok == true
+            and table.concat(terminal_tail_passed.advisories, ","):find(
+                "burnout_guard_chip_tail:action=1233:count=3:total=650",
+                1,
+                true
+            ) ~= nil,
+        "completed terminal multi-hit damage must remain attributed to its proven Action")
+
+    terminal_tail_candidate[1].scene_state.players.p2.status.burnout = false
+    local non_burnout_tail_failed = RuntimeAuditor.evaluate(
+        terminal_tail_candidate,
+        terminal_tail_compiled(110),
+        terminal_tail_runtime
+    )
+    assert(non_burnout_tail_failed.ok == false
+            and table.concat(non_burnout_tail_failed.reasons, ","):find(
+                "replay_unattributed_damage_tick:max=300:unconfirmed=650",
+                1,
+                true
+            ) ~= nil,
+        "large terminal damage must remain strict without recorded defender burnout")
+    terminal_tail_candidate[1].scene_state.players.p2.status.burnout = true
+
+    local early_tail_failed = RuntimeAuditor.evaluate(
+        terminal_tail_candidate,
+        terminal_tail_compiled(99),
+        terminal_tail_runtime
+    )
+    assert(early_tail_failed.ok == false
+            and table.concat(early_tail_failed.reasons, ","):find(
+                "replay_unattributed_damage_tick:max=300:unconfirmed=650",
+                1,
+                true
+            ) ~= nil,
+        "large damage before terminal contact must remain a strict audit failure")
+end
+
 local missing_terminal_contact_failed = RuntimeAuditor.evaluate({
     {
         id = 600,
@@ -1344,7 +1470,9 @@ local revision_30_report = {
 }
 local refreshed_30, refreshed_30_counts =
     RuntimeAuditor.recompute_loaded_report_state(revision_30_report)
-assert(RuntimeAuditor.VALIDATION_REVISION == 44
+assert(RuntimeAuditor.VALIDATION_REVISION == 45
+    and RuntimeAuditor.COMPATIBLE_VALIDATION_REVISIONS[44]
+        == "burnout_guard_chip_tail_attribution"
     and refreshed_30_counts.stale == 1
     and refreshed_30.passed == 0,
     "revision 30 reports must be stale after the strict invariant revision")
