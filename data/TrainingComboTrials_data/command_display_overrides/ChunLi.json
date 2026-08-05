@@ -1,0 +1,16 @@
+{
+  "schema": "xt.command_display_overrides.v1",
+  "character": "ChunLi",
+  "entries": {
+    "605": {
+      "classic": "HK",
+      "replace": true,
+      "evidence": "Revision 58 full-character audit reproduced Action 605 as HK across four completed replays; the generated AC/BCM catalog and Capcom official semantics independently identify the same command but provide no verified route"
+    },
+    "627": {
+      "classic": "3+HP",
+      "replace": true,
+      "evidence": "Revision 58 full-character audit reproduced Action 627 as 3HP across three completed replays; the generated AC/BCM catalog and Capcom official semantics independently identify the same command but provide no verified route"
+    }
+  }
+}

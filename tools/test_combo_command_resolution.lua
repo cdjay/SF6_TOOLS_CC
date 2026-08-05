@@ -2185,6 +2185,16 @@ do
             and ken_override_source:find('"replace": true', 1, true),
         "the shipped Ken command overrides must preserve the runtime-verified commands")
 end
+do
+    local chunli_override_source = read_all(
+        "data/TrainingComboTrials_data/command_display_overrides/ChunLi.json")
+    assert(chunli_override_source:find('"605"', 1, true)
+            and chunli_override_source:find('"classic": "HK"', 1, true)
+            and chunli_override_source:find('"627"', 1, true)
+            and chunli_override_source:find('"classic": "3+HP"', 1, true)
+            and chunli_override_source:find('"replace": true', 1, true),
+        "the shipped Chun-Li command overrides must preserve the runtime-verified commands")
+end
 local alex_override_source = read_all(
     "data/TrainingComboTrials_data/command_display_overrides/Alex.json")
 assert(alex_override_source:find('"958"', 1, true)
