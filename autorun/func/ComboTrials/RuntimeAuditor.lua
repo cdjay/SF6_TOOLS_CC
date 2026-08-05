@@ -7,7 +7,7 @@ local RuntimeAuditor = {
     name = "ComboTrials.RuntimeAuditor",
     REPORT_SCHEMA = "sf6cc.combo_runtime_audit.v1",
     REPORT_ROOT = "TrainingComboTrials_data/RuntimeAuditReports",
-    VALIDATION_REVISION = 41,
+    VALIDATION_REVISION = 43,
     COMPATIBLE_VALIDATION_REVISIONS = {
         [35] = "monotonic_timeline_outcome_relaxation",
         [36] = "data_driven_quick_successor_live_validation",
@@ -15,6 +15,7 @@ local RuntimeAuditor = {
         [38] = "top_level_runtime_damage_drift_advisory",
         [39] = "contextual_input_anchor_owner_projection",
         [40] = "contextual_internal_phase_damage_and_input_projection",
+        [41] = "strict_training_ui_completion_requirement",
     },
 }
 
@@ -53,6 +54,16 @@ local function append_reason(evaluation, reason)
         and evaluation.reasons or {}
     evaluation.reasons[#evaluation.reasons + 1] = reason
     evaluation.ok = false
+end
+
+local function strict_raw_replay_proves_completion(evaluation, runtime)
+    local input_source = runtime.input_source
+    local has_strict_input = input_source == "raw_inputs"
+        or input_source == "relative_raw_inputs"
+    return has_strict_input
+        and runtime.input_completed == true
+        and runtime.timed_out ~= true
+        and evaluation.ok == true
 end
 
 -- This validator intentionally accepts only the complete payload emitted by
@@ -448,10 +459,20 @@ function RuntimeAuditor.evaluate(sequence, compiled, runtime)
         replay_runtime
     )
     validate_command_display(evaluation, runtime, sequence)
-    if runtime.trial_completed ~= true then
+    local training_ui_completed = runtime.trial_completed == true
+    local strict_replay_completed = not training_ui_completed
+        and strict_raw_replay_proves_completion(evaluation, runtime)
+    if not training_ui_completed and not strict_replay_completed then
         append_reason(evaluation, "runtime_trial_not_completed")
     end
     evaluation.trial_completion = deep_copy(runtime.trial_completion or {})
+    evaluation.trial_completion.effective_completed = training_ui_completed
+        or strict_replay_completed
+    if training_ui_completed then
+        evaluation.trial_completion.completion_source = "training_ui"
+    elseif strict_replay_completed then
+        evaluation.trial_completion.completion_source = "strict_raw_replay"
+    end
     return evaluation
 end
 
@@ -505,6 +526,11 @@ function RuntimeAuditor.report(run)
                 required = true,
                 pass_condition = "strict_resolved_step_count_invariants",
             },
+            completion_policy = {
+                timeline = "training_ui_required",
+                raw_inputs = "training_ui_or_strict_replay",
+                relative_raw_inputs = "training_ui_or_strict_replay",
+            },
             outcome_checks = {
                 "action_sequence",
                 "action_timing",
@@ -514,7 +540,7 @@ function RuntimeAuditor.report(run)
                 "drive_usage",
                 "super_usage",
                 "command_display_completeness",
-                "training_ui_completion",
+                "completion_proof",
             },
         },
         items = deep_copy(run.items or {}),

@@ -555,6 +555,7 @@ assert(failed.ok == false
 compiled.steps[1].id = 600
 local ui_incomplete = RuntimeAuditor.evaluate(candidate, compiled, {
     raw_inputs = candidate[1].raw_inputs,
+    input_source = "timeline",
     input_completed = true,
     timing_tolerance = 2,
     trial_completed = false,
@@ -569,7 +570,47 @@ local ui_incomplete = RuntimeAuditor.evaluate(candidate, compiled, {
 assert(ui_incomplete.ok == false
     and ui_incomplete.reasons[#ui_incomplete.reasons]
         == "runtime_trial_not_completed",
-    "runtime audit must reject an exact replay when the training UI does not finish")
+    "timeline runtime audit must reject an exact replay when the training UI does not finish")
+
+local strict_raw_ui_incomplete = RuntimeAuditor.evaluate(candidate, compiled, {
+    raw_inputs = candidate[1].raw_inputs,
+    input_source = "raw_inputs",
+    input_completed = true,
+    timing_tolerance = 2,
+    trial_completed = false,
+    character = "Ryu",
+    command_display_validation = resolved_command_display(),
+    trial_completion = {
+        completed = false,
+        current_step = 1,
+        total_steps = 1,
+    },
+})
+assert(strict_raw_ui_incomplete.ok == true
+        and strict_raw_ui_incomplete.trial_completion.effective_completed == true
+        and strict_raw_ui_incomplete.trial_completion.completion_source
+            == "strict_raw_replay",
+    "strict raw Action and outcome truth must survive a training UI completion false negative")
+
+local timed_out_strict_raw = RuntimeAuditor.evaluate(candidate, compiled, {
+    raw_inputs = candidate[1].raw_inputs,
+    input_source = "raw_inputs",
+    input_completed = true,
+    timed_out = true,
+    timing_tolerance = 2,
+    trial_completed = false,
+    character = "Ryu",
+    command_display_validation = resolved_command_display(),
+    trial_completion = {
+        completed = false,
+        current_step = 1,
+        total_steps = 1,
+    },
+})
+assert(timed_out_strict_raw.ok == false
+        and timed_out_strict_raw.reasons[#timed_out_strict_raw.reasons]
+            == "runtime_trial_not_completed",
+    "a timed-out raw replay must not infer completion from partial runtime truth")
 
 local display_validation_missing = RuntimeAuditor.evaluate(candidate, compiled, {
     raw_inputs = candidate[1].raw_inputs,
@@ -993,13 +1034,19 @@ assert(report.schema == RuntimeAuditor.REPORT_SCHEMA
         == "monotonic_timeline_outcome_relaxation"
     and report.verifier.compatible_validation_revisions[40]
         == "contextual_internal_phase_damage_and_input_projection"
+    and report.verifier.compatible_validation_revisions[41]
+        == "strict_training_ui_completion_requirement"
     and report.verifier.raw_action_trace
         == "compiled.trace.observed_actions"
     and report.verifier.command_display.source
         == "runtime.command_display_validation"
     and report.verifier.command_display.required == true
     and report.verifier.command_display.pass_condition
-        == "strict_resolved_step_count_invariants",
+        == "strict_resolved_step_count_invariants"
+    and report.verifier.completion_policy.timeline
+        == "training_ui_required"
+    and report.verifier.completion_policy.relative_raw_inputs
+        == "training_ui_or_strict_replay",
     "runtime audit reports must disclose their truth source and validation policy")
 
 local single_run = RuntimeAuditor.new_run(
@@ -1056,7 +1103,7 @@ local revision_30_report = {
 }
 local refreshed_30, refreshed_30_counts =
     RuntimeAuditor.recompute_loaded_report_state(revision_30_report)
-assert(RuntimeAuditor.VALIDATION_REVISION == 41
+assert(RuntimeAuditor.VALIDATION_REVISION == 43
     and refreshed_30_counts.stale == 1
     and refreshed_30.passed == 0,
     "revision 30 reports must be stale after the strict invariant revision")

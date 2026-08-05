@@ -60,6 +60,9 @@ ACTION_EVENT_FIXTURES = {
             action_event_rules = { transient_precursor_ids = "906,945" },
         },
     },
+    JP = {
+        ["947"] = { absorb_ids = "914", action_event_projection = {} },
+    },
     Luke = {
         ["920"] = { absorb_ids = "921", action_event_projection = {} },
         ["924"] = { absorb_ids = "926", action_event_projection = {} },
@@ -2219,6 +2222,59 @@ assert(lily_action_event_projection_rules[908].kind == "internal_phase"
         and lily_action_event_projection_rules[909].carry_input_anchor == false
         and lily_action_event_projection_rules[986].carry_input_anchor == false,
     "Lily's loaded product rules must project only the declared phases without implicit input passthrough")
+local jp_action_event_projection_rules =
+    CharacterRules.build_action_event_projection_rules({
+        ["947"] = {
+            absorb_ids = "914",
+            action_event_projection = {},
+        },
+    }, {})
+assert(jp_action_event_projection_rules[914].kind == "internal_phase"
+        and jp_action_event_projection_rules[914].owner_id == 947
+        and jp_action_event_projection_rules[914].carry_input_anchor == false,
+    "JP's 214+HP contact phase must project into Action 947 without becoming a separate instruction")
+
+local jp_internal_phase_session = new_character_rule_session("JP", 0)
+jp_internal_phase_session.events = {
+    {
+        id = 947,
+        frame = 100,
+        expected_combo = 0,
+        damage_at_step = 0,
+        has_hit = false,
+        has_contact = false,
+        anchor = { kind = "button_press", pressed_buttons = 64 },
+    },
+    {
+        id = 914,
+        frame = 112,
+        expected_combo = 2,
+        damage_at_step = 800,
+        has_hit = true,
+        has_contact = true,
+        anchor = { kind = "action_transition", pressed_buttons = 0 },
+    },
+}
+jp_internal_phase_session.current_damage = 800
+jp_internal_phase_session.confirmed_damage = 800
+jp_internal_phase_session.max_combo = 2
+local jp_internal_phase_result = compiler.finalize(jp_internal_phase_session, {
+    motion_resolver = function(action_id)
+        if action_id == 947 then return "214+HP", "strict_route" end
+        return nil, "action_id_missing"
+    end,
+})
+assert(#jp_internal_phase_result.steps == 1
+        and jp_internal_phase_result.steps[1].id == 947
+        and jp_internal_phase_result.steps[1].motion == "214+HP"
+        and jp_internal_phase_result.steps[1].expected_combo == 2
+        and jp_internal_phase_result.steps[1].damage_at_step == 800
+        and jp_internal_phase_result.steps[1].has_hit == true
+        and jp_internal_phase_result.trace.suppressed_events[1].id == 914
+        and jp_internal_phase_result.trace.suppressed_events[1].merged_into == 947
+        and jp_internal_phase_result.trace.suppressed_events[1].reason
+            == "character_internal_action_phase",
+    "JP's internal 914 phase must contribute contact truth to 947 without creating an extra combo step")
 
 local function finalize_unprojected_akuma_transition(owner_id, child_id)
     local session = compiler.new({
@@ -3947,6 +4003,8 @@ local partial_super_candidate = assert(transcriber.build_candidate(
         schema = 2,
         product_id = "sf6cc",
         product_version = "1.0.4",
+        game_id = "sf6",
+        game_version = "2026-08-03",
         json_id = "xt.combo_trial",
         json_version = "2",
     },
@@ -4200,6 +4258,63 @@ assert(unattributed_throw_capture.ok == false
             "unattributed_damage_tick:max=2520:unconfirmed=2520"
         ),
     "legacy damage tolerance must fail closed when a real large damage sample remains unattributed")
+
+local post_activity_damage_compiled = transcriber.deep_copy(unattributed_throw_compiled)
+post_activity_damage_compiled.steps = {
+    transcriber.deep_copy(unattributed_throw_compiled.steps[1]),
+}
+post_activity_damage_compiled.stats.damage = 1080
+post_activity_damage_compiled.stats.max_combo = 1
+post_activity_damage_compiled.stats.observed_hp_loss = 1280
+post_activity_damage_compiled.stats.unconfirmed_hp_loss = 200
+post_activity_damage_compiled.stats.passive_damage_ticks = 1
+post_activity_damage_compiled.stats.passive_damage_total = 200
+post_activity_damage_compiled.stats.passive_damage_max_tick = 200
+post_activity_damage_compiled.trace = {
+    last_activity_frame = 100,
+    combo_reset_frames = { 90 },
+    passive_damage_samples = {
+        { frame = 120, delta = 200 },
+    },
+}
+local post_activity_damage_source = {
+    transcriber.deep_copy(lily_command_throw_source[1]),
+}
+post_activity_damage_source[1].combo_stats.damage = 1080
+local post_activity_damage_evaluation = transcriber.evaluate(
+    post_activity_damage_source,
+    post_activity_damage_compiled,
+    {
+        input_source = "relative_raw_inputs",
+        raw_inputs = { 64, 0 },
+        input_completed = true,
+    }
+)
+assert(post_activity_damage_evaluation.ok == true
+        and table.concat(post_activity_damage_evaluation.advisories, ","):find(
+            "post_activity_damage_ignored:total=200:first=120:last_activity=100:reset=90",
+            1,
+            true
+        ) ~= nil,
+    "damage first observed after both combo reset and playback activity must not pollute the authored combo")
+local active_damage_compiled = transcriber.deep_copy(post_activity_damage_compiled)
+active_damage_compiled.trace.passive_damage_samples[1].frame = 99
+local active_damage_evaluation = transcriber.evaluate(
+    post_activity_damage_source,
+    active_damage_compiled,
+    {
+        input_source = "relative_raw_inputs",
+        raw_inputs = { 64, 0 },
+        input_completed = true,
+    }
+)
+assert(active_damage_evaluation.ok == false
+        and table.concat(active_damage_evaluation.reasons, ","):find(
+            "unattributed_damage_tick:max=200:unconfirmed=200",
+            1,
+            true
+        ) ~= nil,
+    "large damage observed during active playback must remain a strict transcription failure")
 
 local polluted_throw_candidate = transcriber.deep_copy(lily_command_throw_source)
 polluted_throw_candidate[1].combo_stats.damage = 1080
@@ -5286,6 +5401,8 @@ local legacy_owner_candidate = assert(transcriber.build_candidate(
         schema = 2,
         product_id = "sf6cc",
         product_version = "1.0.4",
+        game_id = "sf6",
+        game_version = "2026-08-03",
         json_id = "xt.combo_trial",
         json_version = "2",
     },
@@ -5330,6 +5447,8 @@ local legacy_pc_candidate = assert(transcriber.build_candidate(
         schema = 2,
         product_id = "sf6cc",
         product_version = "1.0.4",
+        game_id = "sf6",
+        game_version = "2026-08-03",
         json_id = "xt.combo_trial",
         json_version = "2",
     },
@@ -6057,6 +6176,120 @@ assert(wall_stun_outcome_evaluation.ok == true
             true
         ) ~= nil,
     "an exact blocked wall-stun trace may correct the legacy recorder's constant one-hit offset once")
+local wall_stun_small_passive = transcriber.deep_copy(wall_stun_compiled)
+wall_stun_small_passive.stats.passive_damage_ticks = 2
+wall_stun_small_passive.stats.passive_damage_total = 20
+wall_stun_small_passive.stats.passive_damage_max_tick = 10
+local wall_stun_small_passive_evaluation = transcriber.evaluate(
+    prepared_wall_stun_outcome,
+    wall_stun_small_passive,
+    {
+        input_source = "timeline",
+        raw_inputs = { 64 | 512, 0, 16, 0, 64, 0, 512, 0, 64, 0 },
+        input_completed = true,
+        allow_legacy_outcome_rebuild = true,
+        environment_adjustments = wall_stun_outcome_adjustments,
+        verify_environment = true,
+        environment_observed = { dummy_guard_type = 3 },
+    }
+)
+assert(wall_stun_small_passive_evaluation.ok == true
+        and wall_stun_small_passive_evaluation.blocked_wall_stun_shift.damage_shift == 600,
+    "small persistent-damage telemetry must not hide a proven blocked wall-stun metadata shift")
+local wall_stun_unbound_inputs = transcriber.deep_copy(wall_stun_compiled)
+wall_stun_unbound_inputs.stats.unresolved_anchors = 3
+local wall_stun_unbound_evaluation = transcriber.evaluate(
+    prepared_wall_stun_outcome,
+    wall_stun_unbound_inputs,
+    {
+        input_source = "timeline",
+        raw_inputs = { 64 | 512, 0, 16, 0, 64, 0, 512, 0, 64, 0 },
+        input_completed = true,
+        allow_legacy_outcome_rebuild = true,
+        environment_adjustments = wall_stun_outcome_adjustments,
+        verify_environment = true,
+        environment_observed = { dummy_guard_type = 3 },
+    }
+)
+assert(wall_stun_unbound_evaluation.ok == true
+        and table.concat(wall_stun_unbound_evaluation.advisories, ","):find(
+            "unbound_input_anchors:3",
+            1,
+            true
+        ) ~= nil,
+    "unbound inputs that produced no wrong Action must remain advisory during a proven wall-stun rebuild")
+local wall_stun_intermediate_drift = transcriber.deep_copy(wall_stun_compiled)
+wall_stun_intermediate_drift.steps[3].expected_combo = 0
+wall_stun_intermediate_drift.steps[3].damage_at_step = 870
+local wall_stun_intermediate_drift_evaluation = transcriber.evaluate(
+    prepared_wall_stun_outcome,
+    wall_stun_intermediate_drift,
+    {
+        input_source = "timeline",
+        raw_inputs = { 64 | 512, 0, 16, 0, 64, 0, 512, 0, 64, 0 },
+        input_completed = true,
+        allow_legacy_outcome_rebuild = true,
+        environment_adjustments = wall_stun_outcome_adjustments,
+        verify_environment = true,
+        environment_observed = { dummy_guard_type = 3 },
+    }
+)
+assert(wall_stun_intermediate_drift_evaluation.ok == true
+        and wall_stun_intermediate_drift_evaluation.blocked_wall_stun_shift.damage_shift == 600,
+    "versioned intermediate hit attribution may drift when the exact Action trace and first/terminal wall-stun offsets agree")
+local wall_stun_terminal_drift = transcriber.deep_copy(wall_stun_intermediate_drift)
+wall_stun_terminal_drift.steps[#wall_stun_terminal_drift.steps].damage_at_step = 2400
+wall_stun_terminal_drift.stats.damage = 2400
+local wall_stun_terminal_drift_evaluation = transcriber.evaluate(
+    prepared_wall_stun_outcome,
+    wall_stun_terminal_drift,
+    {
+        input_source = "timeline",
+        raw_inputs = { 64 | 512, 0, 16, 0, 64, 0, 512, 0, 64, 0 },
+        input_completed = true,
+        allow_legacy_outcome_rebuild = true,
+        environment_adjustments = wall_stun_outcome_adjustments,
+        verify_environment = true,
+        environment_observed = { dummy_guard_type = 3 },
+    }
+)
+assert(wall_stun_terminal_drift_evaluation.ok == false,
+    "a changed terminal damage offset must still reject the wall-stun rebuild")
+local pressure_wall_stun_source = transcriber.deep_copy(prepared_wall_stun_outcome)
+pressure_wall_stun_source[#pressure_wall_stun_source + 1] = {
+    id = 950,
+    motion = "214+HP",
+    expected_combo = 7,
+    damage_at_step = 3060,
+    has_hit = false,
+    has_contact = false,
+}
+local pressure_wall_stun_compiled = transcriber.deep_copy(wall_stun_compiled)
+pressure_wall_stun_compiled.steps[#pressure_wall_stun_compiled.steps + 1] = {
+    id = 950,
+    motion = "214+HP",
+    expected_combo = 0,
+    damage_at_step = 2460,
+    has_hit = false,
+    has_contact = false,
+    delay_from_prev = 30,
+}
+local pressure_wall_stun_evaluation = transcriber.evaluate(
+    pressure_wall_stun_source,
+    pressure_wall_stun_compiled,
+    {
+        input_source = "timeline",
+        raw_inputs = { 64 | 512, 0, 16, 0, 64, 0, 512, 0, 64, 0, 64, 0 },
+        input_completed = true,
+        allow_legacy_outcome_rebuild = true,
+        environment_adjustments = wall_stun_outcome_adjustments,
+        verify_environment = true,
+        environment_observed = { dummy_guard_type = 3 },
+    }
+)
+assert(pressure_wall_stun_evaluation.ok == true
+        and pressure_wall_stun_evaluation.blocked_wall_stun_shift.pressure_tail == true,
+    "a non-contact terminal pressure Action may reset to combo zero after a proven wall-stun metadata shift")
 local wall_stun_without_proof = transcriber.evaluate(
     prepared_wall_stun_outcome,
     wall_stun_compiled,
@@ -6080,6 +6313,8 @@ local candidate = assert(transcriber.build_candidate(source, result, {
     schema = 2,
     product_id = "sf6cc",
     product_version = "1.0.4",
+    game_id = "sf6",
+    game_version = "2026-08-03",
     json_id = "xt.combo_trial",
     json_version = "2",
 }, "2026-07-30T00:00:00+08:00", {
@@ -6106,6 +6341,9 @@ assert(candidate[1]._xt_meta.transcription.environment_adjustments[1].reason
 assert(candidate[1]._xt_meta.created_at == "old"
     and candidate[1]._xt_meta.updated_at == "2026-07-30T00:00:00+08:00",
     "metadata must be preserved and updated independently")
+assert(candidate[1]._xt_meta.versions.game.id == "sf6"
+        and candidate[1]._xt_meta.versions.game.version == "2026-08-03",
+    "candidate metadata must stamp the canonical recording game version")
 
 local synchronized_candidate = assert(transcriber.build_candidate({
     {
@@ -6133,6 +6371,8 @@ local synchronized_candidate = assert(transcriber.build_candidate({
     schema = 2,
     product_id = "sf6cc",
     product_version = "1.0.4",
+    game_id = "sf6",
+    game_version = "2026-08-03",
     json_id = "xt.combo_trial",
     json_version = "2",
 }, "2026-07-30T00:00:00+08:00", {
@@ -6258,6 +6498,8 @@ local pressure_candidate = assert(transcriber.build_candidate({
     schema = 2,
     product_id = "sf6cc",
     product_version = "1.0.4",
+    game_id = "sf6",
+    game_version = "2026-08-03",
     json_id = "xt.combo_trial",
     json_version = "2",
 }, "2026-07-30T00:00:00+08:00"))
@@ -6807,6 +7049,138 @@ function test_data_driven_recent_regressions()
             and dash_result.trace.suppressed_events[1].reason
                 == "redundant_dash_transition",
         "a same-Action double-tap jitter must not create a second Dash step")
+
+    local observed_dash = compiler.new({ character = "Ryu", frame = 0 })
+    observed_dash.events = {
+        {
+            id = 17,
+            frame = 100,
+            bind_reason = "double_tap_action",
+            anchor = { frame = 100, kind = "double_tap", direction = "6" },
+        },
+    }
+    observed_dash.observed_actions = {
+        { id = 17, frame = 100, action_frame = 0 },
+    }
+    local observed_dash_result = compiler.finalize(observed_dash, {
+        motion_resolver = function(action_id)
+            if action_id == 17 then return "66", "strict_route" end
+            return nil, "action_id_missing"
+        end,
+    })
+    assert(#observed_dash_result.steps == 1
+            and observed_dash_result.steps[1].id == 17,
+        "a double-tap event backed by a real Dash Action start must remain visible")
+
+    local dash_to_raw_dr = compiler.new({ character = "JP", frame = 0 })
+    dash_to_raw_dr.events = {
+        {
+            id = 17,
+            frame = 100,
+            bind_reason = "action_id_changed",
+            anchor = { frame = 100, kind = "double_tap", direction = "6" },
+        },
+        {
+            id = 17,
+            frame = 160,
+            bind_reason = "double_tap_action",
+            anchor = { frame = 160, kind = "double_tap", direction = "6" },
+        },
+        {
+            id = 740,
+            frame = 167,
+            bind_reason = "drive_cost_confirmed_raw_dr_transition",
+            anchor = { frame = 160, kind = "double_tap", direction = "6" },
+        },
+    }
+    dash_to_raw_dr.observed_actions = {
+        { id = 17, frame = 100, action_frame = 0 },
+        { id = 740, frame = 167, action_frame = 0 },
+    }
+    local dash_to_raw_dr_result = compiler.finalize(dash_to_raw_dr, {
+        motion_resolver = function(action_id)
+            if action_id == 17 then return "66", "strict_route" end
+            if action_id == 740 then return "RAW DR", "strict_route" end
+            return nil, "action_id_missing"
+        end,
+    })
+    assert(#dash_to_raw_dr_result.steps == 2
+            and dash_to_raw_dr_result.steps[1].id == 17
+            and dash_to_raw_dr_result.steps[2].id == 740
+            and dash_to_raw_dr_result.trace.suppressed_events[1].reason
+                == "unbacked_synthetic_dash",
+        "a double tap without a fresh Dash Action must not appear before observed RAW DR")
+
+    local dash_promoted_to_raw_dr = compiler.new({ character = "JP", frame = 0 })
+    dash_promoted_to_raw_dr.events = {
+        {
+            id = 17,
+            frame = 100,
+            bind_reason = "action_id_changed",
+            anchor = { frame = 100, kind = "double_tap", direction = "6" },
+        },
+        {
+            id = 17,
+            frame = 160,
+            bind_reason = "double_tap_action",
+            anchor = { frame = 160, kind = "double_tap", direction = "6" },
+        },
+    }
+    dash_promoted_to_raw_dr.observed_actions = {
+        { id = 17, frame = 100, action_frame = 0 },
+        { id = 740, frame = 167, action_frame = 0 },
+    }
+    local dash_promoted_result = compiler.finalize(dash_promoted_to_raw_dr, {
+        motion_resolver = function(action_id)
+            if action_id == 17 then return "66", "strict_route" end
+            if action_id == 740 then return "RAW DR", "strict_route" end
+            return nil, "action_id_missing"
+        end,
+    })
+    assert(#dash_promoted_result.steps == 2
+            and dash_promoted_result.steps[2].id == 740
+            and dash_promoted_result.trace.promoted_events[1].reason
+                == "synthetic_dash_promoted_to_observed_raw_dr",
+        "an unbound observed RAW DR must own the double-tap anchor instead of a synthetic Dash")
+
+    local dash_to_jump = compiler.new({ character = "JP", frame = 0 })
+    dash_to_jump.events = {
+        {
+            id = 17,
+            frame = 100,
+            bind_reason = "action_id_changed",
+            anchor = { frame = 100, kind = "double_tap", direction = "6" },
+        },
+        {
+            id = 17,
+            frame = 160,
+            bind_reason = "double_tap_action",
+            anchor = { frame = 160, kind = "double_tap", direction = "6" },
+        },
+        {
+            id = 37,
+            frame = 187,
+            bind_reason = "movement_action_started",
+            anchor = { frame = 187, kind = "movement_action", direction = "9" },
+        },
+    }
+    dash_to_jump.observed_actions = {
+        { id = 17, frame = 100, action_frame = 0 },
+        { id = 37, frame = 187, action_frame = 0 },
+    }
+    local dash_to_jump_result = compiler.finalize(dash_to_jump, {
+        motion_resolver = function(action_id)
+            if action_id == 17 then return "66", "strict_route" end
+            if action_id == 37 then return "9", "strict_route" end
+            return nil, "action_id_missing"
+        end,
+    })
+    assert(#dash_to_jump_result.steps == 2
+            and dash_to_jump_result.steps[1].id == 17
+            and dash_to_jump_result.steps[2].id == 37
+            and dash_to_jump_result.trace.suppressed_events[1].reason
+                == "unbacked_synthetic_dash",
+        "a double tap with no fresh Dash Action must be suppressed before a jump")
 
     local long_delay_candidate = {
         {

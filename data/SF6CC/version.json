@@ -4,6 +4,12 @@
     "id": "sf6cc",
     "version": "1.1.0"
   },
+  "recording": {
+    "game": {
+      "id": "sf6",
+      "version": "2026-08-03"
+    }
+  },
   "formats": {
     "combo_trial": {
       "id": "xt.combo_trial",

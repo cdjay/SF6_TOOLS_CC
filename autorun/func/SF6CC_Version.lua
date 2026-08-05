@@ -2,6 +2,8 @@ local Version = {
     FILE = "SF6CC/version.json",
     PRODUCT_ID = "sf6cc",
     PRODUCT_VERSION = "unknown",
+    GAME_ID = "sf6",
+    GAME_VERSION = "unknown",
     COMBO_JSON_ID = "xt.combo_trial",
     COMBO_JSON_VERSION = "unknown",
     COMBO_JSON_SCHEMA = 0,
@@ -35,12 +37,18 @@ local function load_version()
     end
 
     local product = document.product
+    local recording = document.recording
+    local game = type(recording) == "table" and recording.game or nil
     local formats = document.formats
     local combo = type(formats) == "table" and formats.combo_trial or nil
     if type(product) ~= "table"
         or type(product.id) ~= "string" or product.id == ""
         or type(product.version) ~= "string"
         or not product.version:match("^%d+%.%d+%.%d+[%w%.%+%-]*$")
+        or type(game) ~= "table"
+        or type(game.id) ~= "string" or game.id == ""
+        or type(game.version) ~= "string"
+        or not game.version:match("^%d%d%d%d%-%d%d%-%d%d$")
         or type(combo) ~= "table"
         or type(combo.id) ~= "string" or combo.id == ""
         or type(combo.version) ~= "string" or combo.version == ""
@@ -52,6 +60,8 @@ local function load_version()
 
     Version.PRODUCT_ID = product.id
     Version.PRODUCT_VERSION = product.version
+    Version.GAME_ID = game.id
+    Version.GAME_VERSION = game.version
     Version.COMBO_JSON_ID = combo.id
     Version.COMBO_JSON_VERSION = combo.version
     Version.COMBO_JSON_SCHEMA = math.floor(combo.schema)

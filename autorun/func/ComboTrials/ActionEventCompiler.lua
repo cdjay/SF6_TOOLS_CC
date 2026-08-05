@@ -1048,6 +1048,96 @@ local function is_redundant_dash_transition(previous, current)
     return delay > 0 and delay <= Compiler.GHOST_FILTER_FRAMES
 end
 
+local function observed_action_near_anchor(event, observed_actions, predicate)
+    if type(event) ~= "table" or type(predicate) ~= "function" then return nil end
+    local anchor = type(event.anchor) == "table" and event.anchor or {}
+    local anchor_frame = tonumber(anchor.frame) or tonumber(event.frame) or 0
+    local earliest_frame = anchor_frame - Compiler.DIRECTION_ACTION_BIND_WINDOW
+    local latest_frame = anchor_frame + Compiler.BIND_WINDOW
+    for _, observed in ipairs(type(observed_actions) == "table" and observed_actions or {}) do
+        local observed_frame = tonumber(observed and observed.frame)
+        if observed_frame and observed_frame >= earliest_frame
+            and observed_frame <= latest_frame
+            and predicate(tonumber(observed.id)) then
+            return observed
+        end
+    end
+    return nil
+end
+
+-- A second direction double tap can be bound while the old dash Action is
+-- still active. That physical edge is useful input evidence, but it is not a
+-- second 66 unless the game also exposes a fresh dash Action start nearby.
+local function is_unbacked_synthetic_dash(current, observed_actions)
+    if type(current) ~= "table" or type(current.event) ~= "table" then
+        return false
+    end
+    local event = current.event
+    local anchor = type(event.anchor) == "table" and event.anchor or {}
+    if event.bind_reason ~= "double_tap_action"
+        or anchor.kind ~= "double_tap"
+        or not DASH_ACTIONS[tonumber(event.id)] then
+        return false
+    end
+    return observed_action_near_anchor(
+        event,
+        observed_actions,
+        function(action_id) return action_id == tonumber(event.id) end
+    ) == nil
+end
+
+local function source_has_observed_action(source_events, event_index, observed)
+    local observed_id = tonumber(observed and observed.id)
+    local observed_frame = tonumber(observed and observed.frame)
+    if observed_id == nil or observed_frame == nil then return false end
+    for index = event_index + 1, #(type(source_events) == "table" and source_events or {}) do
+        local candidate = source_events[index]
+        local candidate_frame = tonumber(candidate and candidate.frame)
+        if candidate_frame and candidate_frame > observed_frame + Compiler.BIND_WINDOW then
+            break
+        end
+        if tonumber(candidate and candidate.id) == observed_id
+            and candidate_frame ~= nil
+            and math.abs(candidate_frame - observed_frame) <= Compiler.BIND_WINDOW then
+            return true
+        end
+    end
+    return false
+end
+
+local function promote_unbacked_dash_to_raw_drive_rush(
+    event,
+    event_index,
+    source_events,
+    observed_actions,
+    resolver,
+    session
+)
+    if event.has_contact == true or event.has_hit == true then return nil end
+    local observed = observed_action_near_anchor(
+        event,
+        observed_actions,
+        function(action_id)
+            return ActionMatcher.is_raw_drive_rush_action_id(action_id)
+        end
+    )
+    if observed == nil
+        or source_has_observed_action(source_events, event_index, observed) then
+        return nil
+    end
+
+    local promoted = shallow_copy(event)
+    promoted.promoted_from_id = event.id
+    promoted.promoted_from_frame = event.frame
+    promoted.id = tonumber(observed.id)
+    promoted.frame = tonumber(observed.frame)
+    promoted.action_frame = tonumber(observed.action_frame) or 0
+    promoted.bind_reason = "synthetic_dash_promoted_to_observed_raw_dr"
+    local motion, status, metadata = resolve_motion(resolver, promoted, session)
+    if motion == nil or status == "suppress_transition" then return nil end
+    return promoted, motion, status, metadata
+end
+
 -- Character JSON may declare a current Action as a non-command tail after an
 -- exact predecessor. The compiler owns the generic timing/contact semantics;
 -- JSON owns only the Action identities and configured window.
@@ -1742,6 +1832,38 @@ function Compiler.finalize(session, options)
             end
         end
 
+        local unbacked_synthetic_dash = not character_rule_fold
+            and is_unbacked_synthetic_dash(
+                { event = event },
+                session.observed_actions
+            )
+        if unbacked_synthetic_dash and type(resolver) == "function" then
+            local promoted, promoted_motion, promoted_status, promoted_metadata =
+                promote_unbacked_dash_to_raw_drive_rush(
+                    event,
+                    event_index,
+                    source_events,
+                    session.observed_actions,
+                    resolver,
+                    session
+                )
+            if promoted then
+                event = promoted
+                motion = promoted_motion
+                resolution_status = promoted_status
+                resolution_metadata = promoted_metadata
+                unbacked_synthetic_dash = false
+                promoted_events[#promoted_events + 1] = {
+                    from_id = source_event.id,
+                    from_frame = source_event.frame,
+                    to_id = event.id,
+                    to_frame = event.frame,
+                    motion = motion,
+                    reason = event.bind_reason,
+                }
+            end
+        end
+
         local previous = projected[#projected]
         local release_transition = type(event.anchor) == "table"
             and event.anchor.kind == "button_release"
@@ -1838,16 +1960,19 @@ function Compiler.finalize(session, options)
                     current,
                     session_action_event_rules(session)
                 )
-            if redundant_action_phase or redundant_dash or mapped_suppression then
-                merge_event_outcome_truth(previous.event, event)
+            if redundant_action_phase or redundant_dash or mapped_suppression
+                or unbacked_synthetic_dash then
+                if previous then merge_event_outcome_truth(previous.event, event) end
                 suppressed_events[#suppressed_events + 1] = {
                     id = event.id,
                     frame = event.frame,
-                    merged_into = previous.event.id,
-                    reason = redundant_dash
+                    merged_into = previous and previous.event.id or nil,
+                    reason = unbacked_synthetic_dash
+                            and "unbacked_synthetic_dash"
+                        or (redundant_dash
                             and "redundant_dash_transition"
                         or (mapped_suppression and "character_action_event_suppression"
-                            or "redundant_inherited_action_phase"),
+                            or "redundant_inherited_action_phase")),
                 }
             else
                 if quick_drive_parry or jump_startup or unmapped_input

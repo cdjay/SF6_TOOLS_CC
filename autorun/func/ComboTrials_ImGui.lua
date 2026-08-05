@@ -809,6 +809,16 @@ local function get_modern_display_motion(modern_map, step)
     if modern_map._slim == true then
         local resolved = modern_map[tostring(step.id or "")]
         if type(resolved) ~= "table" then
+            local conditioned_motion, conditioned_status =
+                CommandDisplayOverrides.resolve_recorded_input_conditioned(
+                    modern_map,
+                    step.id,
+                    step.motion,
+                    "simple"
+                )
+            if conditioned_motion then
+                return conditioned_motion, conditioned_status
+            end
             local universal_motion = get_recorded_universal_motion(step)
             if universal_motion then return universal_motion, "recorded_universal_command" end
             return nil, "action_id_missing"
@@ -1635,6 +1645,14 @@ local function get_classic_display_motion(command_map, step)
     end
     local resolved = command_map[tostring(step.id or "")]
     if type(resolved) ~= "table" then
+        local conditioned_motion, conditioned_status =
+            CommandDisplayOverrides.resolve_recorded_input_conditioned(
+                command_map,
+                step.id,
+                step.motion,
+                "classic"
+            )
+        if conditioned_motion then return conditioned_motion, conditioned_status end
         local universal_motion = get_recorded_universal_motion(step)
         if universal_motion then return universal_motion, "recorded_universal_command" end
         return nil, "action_id_missing"
@@ -1872,6 +1890,7 @@ end
 local ACCEPTED_COMMAND_DISPLAY_ROUTE_STATUSES = {
     strict_route = true,
     runtime_verified_override = true,
+    runtime_verified_conditioned_override = true,
     recorded_universal_command = true,
     player_input_transition = true,
 }
@@ -3631,6 +3650,24 @@ function M.get_command_display(character, action_id, mode)
     local command_map, status = load_command_display_map(character)
     if not command_map then return nil, status end
     return get_command_display(command_map, action_id, mode)
+end
+
+function M.get_input_conditioned_command_display(
+    character,
+    action_id,
+    direct_input,
+    newly_pressed,
+    mode
+)
+    local command_map, status = load_command_display_map(character)
+    if not command_map then return nil, status end
+    return CommandDisplayOverrides.resolve_input_conditioned(
+        command_map,
+        action_id,
+        direct_input,
+        newly_pressed,
+        mode
+    )
 end
 
 function M.validate_sequence_command_display(sequence)

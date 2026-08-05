@@ -2,6 +2,10 @@
   "716": {
     "force": true
   },
+  "947": {
+    "absorb_ids": "914",
+    "action_event_projection": {}
+  },
   "960": {
     "optional_parent_ids": [
       959

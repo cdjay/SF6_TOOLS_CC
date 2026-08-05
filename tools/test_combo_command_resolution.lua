@@ -50,6 +50,37 @@ assert(override_status == "loaded" and applied_overrides == 4
     and merged_overrides["977"].classic == ">HP (INSTANT)"
     and merged_overrides["978"] == nil,
     "verified command overrides must fill missing Actions without silently replacing catalog rows")
+do
+    local conditioned_map, conditioned_count, conditioned_status =
+        command_display_overrides.merge({ _slim = true }, "JP", {
+        schema = "xt.command_display_overrides.v1",
+        character = "JP",
+        entries = {
+            ["645"] = {
+                classic = "HK",
+                replace = true,
+                button_masks = { 512 },
+                evidence = "distinct runtime HK press",
+            },
+        },
+        })
+    local conditioned_hk, conditioned_hk_status =
+        command_display_overrides.resolve_input_conditioned(
+            conditioned_map, 645, 512, 512, "classic")
+    local conditioned_mp = command_display_overrides.resolve_input_conditioned(
+        conditioned_map, 645, 32, 32, "classic")
+    local recorded_conditioned_hk, recorded_conditioned_status =
+        command_display_overrides.resolve_recorded_input_conditioned(
+            conditioned_map, 645, "HK", "classic")
+    assert(conditioned_status == "loaded" and conditioned_count == 1
+            and conditioned_map["645"] == nil
+            and conditioned_hk == "HK"
+            and conditioned_hk_status == "runtime_verified_conditioned_override"
+            and conditioned_mp == nil
+            and recorded_conditioned_hk == "HK"
+            and recorded_conditioned_status == "runtime_verified_conditioned_override",
+        "input-conditioned overrides must resolve only their exact physical button mask")
+end
 local ingrid_catalog = {
     _slim = true,
     ["609"] = { classic = "HP", status = "route_unverified" },
@@ -1677,6 +1708,31 @@ assert(kimberly_override_source:find('"613"', 1, true)
         and kimberly_override_source:find('"classic": ">22+MP+HP"', 1, true)
         and kimberly_override_source:find('"replace": true', 1, true),
     "the shipped Kimberly command overrides must preserve runtime-verified commands")
+local jp_override_source = read_all(
+    "data/TrainingComboTrials_data/command_display_overrides/JP.json")
+assert(jp_override_source:find('"622"', 1, true)
+        and jp_override_source:find('"classic": "2+HK"', 1, true)
+        and jp_override_source:find('"645"', 1, true)
+        and jp_override_source:find('"classic": "HK"', 1, true)
+        and jp_override_source:find('"720"', 1, true)
+        and jp_override_source:find('"classic": "LP+LK"', 1, true)
+        and jp_override_source:find('"856"', 1, true)
+        and jp_override_source:find('"classic": "MP"', 1, true)
+        and jp_override_source:find('"974"', 1, true)
+        and jp_override_source:find('"classic": "236+LK"', 1, true)
+        and jp_override_source:find('"975"', 1, true)
+        and jp_override_source:find('"classic": "236+MK"', 1, true)
+        and jp_override_source:find('"976"', 1, true)
+        and jp_override_source:find('"classic": "236+HK"', 1, true)
+        and jp_override_source:find('"replace": true', 1, true)
+        and not jp_override_source:find('"943"', 1, true),
+    "the shipped JP command overrides must preserve verified commands without reviving legacy Action 943")
+local jp_exception_source = read_all(
+    "data/TrainingComboTrials_data/exceptions/JP.json")
+assert(jp_exception_source:find('"947"', 1, true)
+        and jp_exception_source:find('"absorb_ids": "914"', 1, true)
+        and jp_exception_source:find('"action_event_projection": {}', 1, true),
+    "the shipped JP exception must preserve the 214+HP internal contact phase")
 local ingrid_exception_source = read_all(
     "data/TrainingComboTrials_data/exceptions/Ingrid.json")
 assert(ingrid_exception_source:find('"945"', 1, true)
@@ -1985,6 +2041,39 @@ local intentional, route_status, classic = command_resolver.resolve_unified_comm
     "AnyCharacter", 901, 32, 32, renderer)
 assert(intentional == true and route_status == "strict_route" and classic == "214+MP",
     "a physical catalog command must remain intentional")
+
+do
+    local conditioned_runtime_map = select(1,
+        command_display_overrides.merge({ _slim = true }, "JP", {
+            schema = "xt.command_display_overrides.v1",
+            character = "JP",
+            entries = {
+                ["645"] = {
+                    classic = "HK",
+                    replace = true,
+                    button_masks = { 512 },
+                    evidence = "distinct runtime HK press",
+                },
+            },
+        }))
+    local conditioned_renderer = {
+        get_command_display = function() return nil, "action_id_missing" end,
+        get_input_conditioned_command_display = function(_, action_id, direct_input, edge, mode)
+            return command_display_overrides.resolve_input_conditioned(
+                conditioned_runtime_map, action_id, direct_input, edge, mode)
+        end,
+    }
+    intentional, route_status, classic = command_resolver.resolve_unified_command_action(
+        "JP", 645, 512, 512, conditioned_renderer)
+    assert(intentional == true
+            and route_status == "runtime_verified_conditioned_override"
+            and classic == "HK",
+        "JP Action 645 must resolve as HK only when the runtime binds an HK input")
+    intentional, route_status, classic = command_resolver.resolve_unified_command_action(
+        "JP", 645, 32, 32, conditioned_renderer)
+    assert(intentional == false and route_status == "action_id_missing" and classic == nil,
+        "JP Action 645 must remain promotable when it carries another move's input")
+end
 
 intentional, route_status, classic = command_resolver.resolve_unified_command_action(
     "AKI", 944, 0, 48, renderer)

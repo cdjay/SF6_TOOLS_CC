@@ -1,0 +1,44 @@
+{
+  "schema": "xt.command_display_overrides.v1",
+  "character": "JP",
+  "entries": {
+    "622": {
+      "classic": "2+HK",
+      "replace": true,
+      "evidence": "Three 2026-08-04 runtime audit replays preserve the recorded 2+HK command on JP Action 622; the generated catalog independently identifies the same Classic command"
+    },
+    "645": {
+      "classic": "HK",
+      "replace": true,
+      "button_masks": [
+        512
+      ],
+      "evidence": "The 2026-08-04 runtime audit binds a distinct HK press and contact to JP Action 645 after 6+HK"
+    },
+    "720": {
+      "classic": "LP+LK",
+      "replace": true,
+      "evidence": "The 2026-08-04 runtime audit binds a distinct LP+LK press and throw contact to JP Action 720"
+    },
+    "856": {
+      "classic": "MP",
+      "replace": true,
+      "evidence": "The 2026-08-04 runtime audit binds the post-DI MP press and contact to JP Action 856"
+    },
+    "974": {
+      "classic": "236+LK",
+      "replace": true,
+      "evidence": "Six 2026-08-04 runtime audit occurrences preserve the recorded 236+LK command on JP Action 974, the release Action reached from holdable Action 971"
+    },
+    "975": {
+      "classic": "236+MK",
+      "replace": true,
+      "evidence": "Seventeen 2026-08-04 runtime audit occurrences preserve the recorded 236+MK command on JP Action 975, the release Action reached from holdable Action 972"
+    },
+    "976": {
+      "classic": "236+HK",
+      "replace": true,
+      "evidence": "Six 2026-08-04 runtime audit occurrences preserve the recorded 236+HK command on JP Action 976, the release Action reached from holdable Action 973"
+    }
+  }
+}

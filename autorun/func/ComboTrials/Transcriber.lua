@@ -4,7 +4,7 @@
 local Transcriber = {
     name = "ComboTrials.Transcriber",
     REPORT_SCHEMA = "sf6cc.combo_transcription_report.v1",
-    VALIDATION_REVISION = 41,
+    VALIDATION_REVISION = 45,
     OUTPUT_ROOT = "TrainingComboTrials_data/TranscribedCandidates",
     REPORT_ROOT = "TrainingComboTrials_data/TranscriptionReports",
 }
@@ -1059,13 +1059,67 @@ local function has_environment_adjustment(runtime, reason)
     return false
 end
 
+local function post_activity_unconfirmed_damage(stats, trace)
+    local unconfirmed = math.max(
+        0,
+        tonumber(type(stats) == "table" and stats.unconfirmed_hp_loss) or 0
+    )
+    if unconfirmed <= 0 or type(trace) ~= "table" then return nil end
+
+    local last_activity = tonumber(trace.last_activity_frame)
+    local samples = type(trace.passive_damage_samples) == "table"
+        and trace.passive_damage_samples or nil
+    local reset_frames = type(trace.combo_reset_frames) == "table"
+        and trace.combo_reset_frames or nil
+    if last_activity == nil or samples == nil or reset_frames == nil then return nil end
+
+    local latest_reset = nil
+    for _, value in ipairs(reset_frames) do
+        local frame = tonumber(value)
+        if frame ~= nil and (latest_reset == nil or frame > latest_reset) then
+            latest_reset = frame
+        end
+    end
+    if latest_reset == nil then return nil end
+
+    local large_total = 0
+    local large_count = 0
+    local first_frame = nil
+    for _, sample in ipairs(samples) do
+        local delta = math.max(0, tonumber(sample and sample.delta) or 0)
+        if delta > PERSISTENT_DAMAGE_MAX_TICK then
+            local frame = tonumber(sample and sample.frame)
+            if frame == nil or frame <= last_activity or frame <= latest_reset then
+                return nil
+            end
+            large_total = large_total + delta
+            large_count = large_count + 1
+            if first_frame == nil or frame < first_frame then first_frame = frame end
+        end
+    end
+    if large_count == 0 or math.abs(large_total - unconfirmed) > 1 then return nil end
+    return {
+        count = large_count,
+        total = large_total,
+        max_tick = math.max(
+            0,
+            tonumber(type(stats) == "table" and stats.passive_damage_max_tick) or 0
+        ),
+        first_frame = first_frame,
+        last_activity_frame = last_activity,
+        combo_reset_frame = latest_reset,
+    }
+end
+
 -- One legacy recorder counted a wall-stun DI as an 800-damage first hit even
 -- though the real game event was a 200-damage blocked contact and the combo
 -- began on the next attack. Accept that one-time metadata correction only when
--- the entire runtime trace proves the same exact Action sequence and a constant
--- one-hit/one-damage-offset across every authored step. Generated candidates do
--- not receive environment_adjustments during verification, so the exception
--- cannot make a polluted candidate self-consistent.
+-- the entire runtime trace proves the same exact Action sequence, the known
+-- blocked first contact, and the same damage offset at the first and terminal
+-- outcomes. Intermediate per-step damage and hit attribution may change across
+-- game versions, but they may never exceed the authored values. Generated
+-- candidates do not receive environment_adjustments during verification, so
+-- the exception cannot make a polluted candidate self-consistent.
 local function legacy_blocked_wall_stun_shift(
     sequence,
     compiled,
@@ -1115,15 +1169,28 @@ local function legacy_blocked_wall_stun_shift(
     end
 
     for _, field_name in ipairs({
-        "unresolved_anchors",
         "fallback_motion_actions",
         "unresolved_motion_actions",
         "resolver_error_actions",
-        "unconfirmed_hp_loss",
-        "passive_damage_ticks",
-        "passive_damage_total",
     }) do
         if (tonumber(stats[field_name]) or 0) ~= 0 then return nil end
+    end
+    local ignored_tail_damage = post_activity_unconfirmed_damage(
+        stats,
+        type(compiled) == "table" and compiled.trace or nil
+    )
+    local unconfirmed_hp_loss = math.max(
+        0,
+        tonumber(stats.unconfirmed_hp_loss) or 0
+    )
+    local passive_damage_max_tick = math.max(
+        0,
+        tonumber(stats.passive_damage_max_tick) or 0
+    )
+    if unconfirmed_hp_loss > 0 and ignored_tail_damage == nil then return nil end
+    if passive_damage_max_tick > PERSISTENT_DAMAGE_MAX_TICK
+        and ignored_tail_damage == nil then
+        return nil
     end
 
     local observed_first = steps[1]
@@ -1140,7 +1207,9 @@ local function legacy_blocked_wall_stun_shift(
         return nil
     end
 
-    local damage_shift = nil
+    local first_damage_shift = nil
+    local terminal_damage_shift = nil
+    local pressure_tail = false
     for index = 1, #sequence do
         local source_step = sequence[index]
         local observed_step = steps[index]
@@ -1149,18 +1218,41 @@ local function legacy_blocked_wall_stun_shift(
         local source_damage = tonumber(source_step and source_step.damage_at_step)
         local observed_damage = tonumber(observed_step and observed_step.damage_at_step)
         if source_combo == nil or observed_combo == nil
-            or source_combo - observed_combo ~= 1
             or source_damage == nil or observed_damage == nil then
             return nil
         end
-        local step_shift = source_damage - observed_damage
-        if step_shift <= 0 then return nil end
-        if damage_shift == nil then
-            damage_shift = step_shift
-        elseif damage_shift ~= step_shift then
+        local legacy_pressure_tail = false
+        if index == #sequence and index > 1 then
+            local previous_source = sequence[index - 1]
+            local previous_observed = steps[index - 1]
+            legacy_pressure_tail = source_step.has_hit ~= true
+                and source_step.has_contact ~= true
+                and observed_step.has_hit ~= true
+                and observed_step.has_contact ~= true
+                and source_combo
+                    == tonumber(previous_source and previous_source.expected_combo)
+                and observed_combo == 0
+                and source_damage
+                    == tonumber(previous_source and previous_source.damage_at_step)
+                and observed_damage
+                    == tonumber(previous_observed and previous_observed.damage_at_step)
+        end
+        local combo_shift = source_combo - observed_combo
+        if combo_shift < 1 and not legacy_pressure_tail then
             return nil
         end
+        pressure_tail = pressure_tail or legacy_pressure_tail
+        local step_shift = source_damage - observed_damage
+        if step_shift <= 0 then return nil end
+        if index == 1 then first_damage_shift = step_shift end
+        if index == #sequence then terminal_damage_shift = step_shift end
     end
+
+    if first_damage_shift == nil or terminal_damage_shift == nil
+        or first_damage_shift ~= terminal_damage_shift then
+        return nil
+    end
+    local damage_shift = terminal_damage_shift
 
     local observed_damage = tonumber(stats.damage) or 0
     local observed_combo = tonumber(stats.max_combo) or 0
@@ -1176,6 +1268,7 @@ local function legacy_blocked_wall_stun_shift(
         observed_damage = observed_damage,
         expected_combo = expected.max_combo,
         observed_combo = observed_combo,
+        pressure_tail = pressure_tail,
     }
 end
 
@@ -1725,12 +1818,25 @@ function Transcriber.evaluate(sequence, compiled, runtime)
         0,
         tonumber(stats.passive_damage_max_tick) or 0
     )
+    local ignored_tail_damage = post_activity_unconfirmed_damage(
+        stats,
+        compiled.trace
+    )
     if unconfirmed_hp_loss > 0
-        and passive_damage_max_tick > PERSISTENT_DAMAGE_MAX_TICK then
+        and passive_damage_max_tick > PERSISTENT_DAMAGE_MAX_TICK
+        and ignored_tail_damage == nil then
         reasons[#reasons + 1] = string.format(
             "unattributed_damage_tick:max=%d:unconfirmed=%d",
             passive_damage_max_tick,
             unconfirmed_hp_loss
+        )
+    elseif ignored_tail_damage ~= nil then
+        advisories[#advisories + 1] = string.format(
+            "post_activity_damage_ignored:total=%d:first=%d:last_activity=%d:reset=%d",
+            ignored_tail_damage.total,
+            ignored_tail_damage.first_frame,
+            ignored_tail_damage.last_activity_frame,
+            ignored_tail_damage.combo_reset_frame
         )
     end
 
@@ -2121,13 +2227,23 @@ function Transcriber.build_candidate(source_sequence, compiled, version_info, no
     local synchronized_legacy_fields =
         SceneState.synchronize_legacy_snapshot(candidate[1])
 
+    local game_id = version_info and version_info.game_id or nil
+    local game_version = version_info and version_info.game_version or nil
+    if type(game_id) ~= "string" or game_id == ""
+        or type(game_version) ~= "string" or game_version == "" then
+        return nil, "recording_game_version_missing"
+    end
+
     local meta = type(candidate[1]._xt_meta) == "table" and candidate[1]._xt_meta or {}
     candidate[1]._xt_meta = meta
     meta.updated_at = now
     if meta.created_at == nil then meta.created_at = now end
     meta.schema = tonumber(version_info and version_info.schema) or meta.schema or 2
     meta.versions = type(meta.versions) == "table" and meta.versions or {}
-    meta.versions.game = { id = "sf6" }
+    meta.versions.game = {
+        id = game_id,
+        version = game_version,
+    }
     meta.versions.recorder = {
         id = version_info and version_info.product_id or "sf6cc",
         version = version_info and version_info.product_version or "unknown",

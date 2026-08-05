@@ -590,7 +590,10 @@ local function build_auto_xt_meta(recording_player, sequence)
         created_at = now,
         updated_at = now,
         versions = {
-            game = { id = "sf6" },
+            game = {
+                id = SF6CCVersion.GAME_ID,
+                version = SF6CCVersion.GAME_VERSION
+            },
             recorder = {
                 id = SF6CCVersion.PRODUCT_ID,
                 version = CTJsonInterop.RECORDER_VERSION
@@ -11200,6 +11203,8 @@ ctx.finish_current_transcription_file = function(timed_out)
                 schema = SF6CCVersion.COMBO_JSON_SCHEMA,
                 product_id = SF6CCVersion.PRODUCT_ID,
                 product_version = SF6CCVersion.PRODUCT_VERSION,
+                game_id = SF6CCVersion.GAME_ID,
+                game_version = SF6CCVersion.GAME_VERSION,
                 json_id = SF6CCVersion.COMBO_JSON_ID,
                 json_version = SF6CCVersion.COMBO_JSON_VERSION,
             },
@@ -11398,9 +11403,15 @@ ctx.tick_transcription = function()
         and tonumber(session.last_activity_frame) or run.input_finished_frame
     local last_sample = type(session) == "table" and session.last_sample or nil
     local combo = tonumber(type(last_sample) == "table" and last_sample.combo_count) or 0
-    local settled = elapsed >= 90
+    local playback_inactive = elapsed >= 90
         and (engine_frame_count - last_activity) >= 45
-        and combo == 0
+    -- Runtime audit already validates the complete raw input stream, Action
+    -- sequence and terminal outcome. Some valid routes leave the training UI's
+    -- combo counter latched after every real Action has settled, so audit must
+    -- not wait for that UI-only counter until the hard timeout. Recording still
+    -- requires combo zero so its captured terminal outcome remains complete.
+    local settled = playback_inactive
+        and (run.mode == "runtime_audit" or combo == 0)
     if settled or elapsed >= 360 then
         ctx.finish_current_transcription_file(not settled)
     end

@@ -129,7 +129,28 @@ function M.resolve_unified_command_action(character, action_id, direct_input, ne
     if not renderer or not renderer.get_command_display then
         return false, "resolver_unavailable", nil
     end
-    local ok, display, status = pcall(renderer.get_command_display, character, action_id, "classic")
+    local display, status
+    if type(renderer.get_input_conditioned_command_display) == "function" then
+        local conditioned_ok, conditioned_display, conditioned_status = pcall(
+            renderer.get_input_conditioned_command_display,
+            character,
+            action_id,
+            direct_input,
+            newly_pressed,
+            "classic"
+        )
+        if not conditioned_ok then return false, "resolver_error", nil end
+        display, status = conditioned_display, conditioned_status
+    end
+    local ok = true
+    if display == nil then
+        ok, display, status = pcall(
+            renderer.get_command_display,
+            character,
+            action_id,
+            "classic"
+        )
+    end
     if not ok then return false, "resolver_error", nil end
     if status == "suppress_transition" then
         local transition_button = decode_transition_button_mask(newly_pressed)

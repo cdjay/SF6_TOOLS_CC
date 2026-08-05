@@ -52,6 +52,38 @@ local function action_id(value)
     return id
 end
 
+local function read_button_masks(entry)
+    if type(entry) ~= "table" or entry.button_masks == nil then return nil, true end
+    if type(entry.button_masks) ~= "table" then return nil, false end
+    local masks = {}
+    local count = 0
+    for _, value in ipairs(entry.button_masks) do
+        local mask = action_id(value)
+        if mask == nil or mask <= 0 or mask > 0xFFF0
+            or (mask & 0xF) ~= 0 or masks[mask] == true then
+            return nil, false
+        end
+        masks[mask] = true
+        count = count + 1
+    end
+    for key in pairs(entry.button_masks) do
+        if type(key) ~= "number" or key < 1 or key % 1 ~= 0
+            or key > count then
+            return nil, false
+        end
+    end
+    if count == 0 then return nil, false end
+    return masks, true
+end
+
+local function select_display(entry, mode)
+    if mode == "classic" then return entry.classic end
+    local commands = entry.commands
+    if type(commands) ~= "table" then return nil end
+    if mode ~= "motion" and mode ~= "all" then mode = "simple" end
+    return commands[mode] or commands.simple or commands.motion or commands.all
+end
+
 -- Contextual internal phases are presentation-only facts. They deliberately
 -- do not participate in ActionEventCompiler or runtime matching: recordings
 -- retain both real Action IDs, while the command table may hide a child only
@@ -125,20 +157,24 @@ function CommandDisplayOverrides.merge(slim, character, document)
     end
 
     local applied = 0
+    local conditioned = {}
     for action_id, entry in pairs(document.entries) do
         local id = tostring(action_id or "")
         local classic = type(entry) == "table" and valid_display(entry.classic) or nil
         local evidence = type(entry) == "table" and trim(entry.evidence) or ""
         local commands, commands_ok = read_modern_commands(entry)
+        local button_masks, button_masks_ok = read_button_masks(entry)
         local existing = slim[id]
         local may_replace = type(entry) == "table" and entry.replace == true
         if id:match("^%d+$") and classic ~= nil and evidence ~= ""
-            and commands_ok
+            and commands_ok and button_masks_ok
             and (existing == nil or may_replace) then
-            slim[id] = {
+            local resolved = {
                 classic = classic,
                 commands = commands,
-                status = "runtime_verified_override",
+                status = button_masks ~= nil
+                    and "runtime_verified_conditioned_override"
+                    or "runtime_verified_override",
                 metadata = {
                     source = "command_display_override",
                     evidence = evidence,
@@ -146,11 +182,70 @@ function CommandDisplayOverrides.merge(slim, character, document)
                     replaced_existing = existing ~= nil,
                 },
             }
+            if button_masks ~= nil then
+                resolved.button_masks = button_masks
+                local numeric_id = tonumber(id)
+                conditioned[numeric_id] = conditioned[numeric_id] or {}
+                conditioned[numeric_id][#conditioned[numeric_id] + 1] = resolved
+            else
+                slim[id] = resolved
+            end
             applied = applied + 1
         end
     end
     slim._contextual_internal_phases = contextual_phases
+    slim._input_conditioned_entries = next(conditioned) ~= nil
+        and conditioned or nil
     return slim, applied, "loaded"
+end
+
+function CommandDisplayOverrides.resolve_input_conditioned(
+    command_map,
+    requested_action_id,
+    direct_input,
+    newly_pressed,
+    mode
+)
+    local id = action_id(requested_action_id)
+    local conditioned = type(command_map) == "table"
+        and command_map._input_conditioned_entries or nil
+    local entries = id ~= nil and type(conditioned) == "table"
+        and conditioned[id] or nil
+    if type(entries) ~= "table" then return nil end
+    local buttons = ((tonumber(direct_input) or 0)
+        | (tonumber(newly_pressed) or 0)) & 0xFFF0
+    for _, entry in ipairs(entries) do
+        if type(entry.button_masks) == "table"
+            and entry.button_masks[buttons] == true then
+            local display = select_display(entry, mode)
+            if display ~= nil then return display, entry.status, entry.metadata end
+        end
+    end
+    return nil
+end
+
+function CommandDisplayOverrides.resolve_recorded_input_conditioned(
+    command_map,
+    requested_action_id,
+    recorded_motion,
+    mode
+)
+    local id = action_id(requested_action_id)
+    local conditioned = type(command_map) == "table"
+        and command_map._input_conditioned_entries or nil
+    local entries = id ~= nil and type(conditioned) == "table"
+        and conditioned[id] or nil
+    local recorded = valid_display(recorded_motion)
+    if type(entries) ~= "table" or recorded == nil then return nil end
+    local normalized_recorded = recorded:upper()
+    for _, entry in ipairs(entries) do
+        local display = select_display(entry, mode)
+        if type(display) == "string"
+            and trim(display):upper() == normalized_recorded then
+            return display, entry.status, entry.metadata
+        end
+    end
+    return nil
 end
 
 function CommandDisplayOverrides.is_contextual_internal_phase(
