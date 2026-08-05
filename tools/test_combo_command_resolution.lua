@@ -290,6 +290,44 @@ assert(juri_override_status == "loaded" and juri_override_count == 4
         and juri_overrides["613"].status == "runtime_verified_override"
         and juri_overrides["665"].status == "runtime_verified_override",
     "Juri's verified Classic Actions must fill missing rows and replace unverified catalog rows")
+do
+    local deejay_catalog = {
+        _slim = true,
+        ["606"] = { classic = "HP", status = "route_unverified" },
+        ["611"] = { classic = "MK", status = "route_unverified" },
+        ["617"] = { classic = "2+LP", status = "route_unverified" },
+        ["1229"] = { classic = "236236+HP", status = "route_unverified" },
+    }
+    local deejay_overrides, deejay_override_count, deejay_override_status =
+        command_display_overrides.merge(deejay_catalog, "DeeJay", {
+            schema = "xt.command_display_overrides.v1",
+            character = "DeeJay",
+            entries = {
+                ["606"] = { classic = "HP", replace = true, evidence = "runtime audit" },
+                ["611"] = { classic = "MK", replace = true, evidence = "runtime audit" },
+                ["617"] = { classic = "2+LP", replace = true, evidence = "runtime audit" },
+                ["1229"] = {
+                    classic = "236236+HP",
+                    replace = true,
+                    evidence = "runtime audit",
+                },
+            },
+        })
+    assert(deejay_override_status == "loaded" and deejay_override_count == 4
+            and deejay_overrides["606"].classic == "HP"
+            and deejay_overrides["611"].classic == "MK"
+            and deejay_overrides["617"].classic == "2+LP"
+            and deejay_overrides["1229"].classic == "236236+HP"
+            and deejay_overrides["606"].status == "runtime_verified_override"
+            and deejay_overrides["611"].status == "runtime_verified_override"
+            and deejay_overrides["617"].status == "runtime_verified_override"
+            and deejay_overrides["1229"].status == "runtime_verified_override"
+            and deejay_overrides["606"].metadata.replaced_existing == true
+            and deejay_overrides["611"].metadata.replaced_existing == true
+            and deejay_overrides["617"].metadata.replaced_existing == true
+            and deejay_overrides["1229"].metadata.replaced_existing == true,
+        "Dee Jay's runtime-audited Classic commands must replace route-unverified catalog rows")
+end
 local mai_catalog = {
     _slim = true,
     ["600"] = { classic = "LP", status = "route_unverified" },
@@ -1687,6 +1725,20 @@ assert(alex_override_source:find('"958"', 1, true)
         and alex_override_source:find('"classic": "2+PP"', 1, true)
         and alex_override_source:find('"replace": true', 1, true),
     "the shipped Alex command overrides must preserve the verified 2+PP stance entries")
+do
+    local deejay_override_source = read_all(
+        "data/TrainingComboTrials_data/command_display_overrides/DeeJay.json")
+    assert(deejay_override_source:find('"606"', 1, true)
+            and deejay_override_source:find('"classic": "HP"', 1, true)
+            and deejay_override_source:find('"611"', 1, true)
+            and deejay_override_source:find('"classic": "MK"', 1, true)
+            and deejay_override_source:find('"617"', 1, true)
+            and deejay_override_source:find('"classic": "2+LP"', 1, true)
+            and deejay_override_source:find('"1229"', 1, true)
+            and deejay_override_source:find('"classic": "236236+HP"', 1, true)
+            and deejay_override_source:find('"replace": true', 1, true),
+        "the shipped Dee Jay command overrides must preserve runtime-verified commands")
+end
 local ingrid_override_source = read_all(
     "data/TrainingComboTrials_data/command_display_overrides/Ingrid.json")
 assert(ingrid_override_source:find('"609"', 1, true)

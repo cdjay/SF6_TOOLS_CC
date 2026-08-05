@@ -11,6 +11,33 @@ log = log or {}
 sdk = sdk or {}
 
 local ComboTrialsFiles = require("func/ComboTrials_Files")
+local TrialDisplayState = require("func/ComboTrials/TrialDisplayState")
+
+local active_display = TrialDisplayState.resolve({
+    { expected_combo = 1, actual_combo = 1 },
+    { expected_combo = 3, actual_combo = 0 },
+}, 2, 0)
+assert(active_display.active_step == 2
+        and active_display.is_success == false,
+    "an unfinished trial must keep its active cursor on the current step")
+
+local completed_display = TrialDisplayState.resolve({
+    { expected_combo = 1, actual_combo = 1 },
+    { expected_combo = 3, actual_combo = 3 },
+}, 3, 0)
+assert(completed_display.active_step == 2
+        and completed_display.terminal_visual_complete == true
+        and completed_display.is_success == true,
+    "a consumed terminal command must leave a green cursor on the final row")
+
+local pending_contact_display = TrialDisplayState.resolve({
+    { expected_combo = 1, actual_combo = 1 },
+    { expected_combo = 3, actual_combo = 2 },
+}, 3, 0)
+assert(pending_contact_display.active_step == 2
+        and pending_contact_display.terminal_visual_complete == true
+        and pending_contact_display.is_success == true,
+    "terminal display completion must not depend on stale outcome counters")
 
 local trial_state = {}
 local file_system = {

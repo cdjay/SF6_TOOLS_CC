@@ -1,0 +1,26 @@
+{
+  "schema": "xt.command_display_overrides.v1",
+  "character": "DeeJay",
+  "entries": {
+    "606": {
+      "classic": "HP",
+      "replace": true,
+      "evidence": "Eleven 2026-08-05 runtime audit replays bind a fresh HP press and hit contact to Dee Jay Action 606; the generated catalog independently identifies the same Classic command"
+    },
+    "611": {
+      "classic": "MK",
+      "replace": true,
+      "evidence": "Four 2026-08-05 runtime audit replays bind a fresh MK press and hit contact to Dee Jay Action 611; the generated catalog independently identifies the same Classic command"
+    },
+    "617": {
+      "classic": "2+LP",
+      "replace": true,
+      "evidence": "Five 2026-08-05 runtime audit replays bind a fresh LP press under crouching input to Dee Jay Action 617, with four hits and one blocked contact; the generated catalog independently identifies 2+LP"
+    },
+    "1229": {
+      "classic": "236236+HP",
+      "replace": true,
+      "evidence": "Two 2026-08-05 runtime audit replays bind a fresh HP press and hit contact to Dee Jay Action 1229; the generated catalog independently identifies 236236+HP"
+    }
+  }
+}

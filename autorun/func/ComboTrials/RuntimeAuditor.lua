@@ -7,7 +7,7 @@ local RuntimeAuditor = {
     name = "ComboTrials.RuntimeAuditor",
     REPORT_SCHEMA = "sf6cc.combo_runtime_audit.v1",
     REPORT_ROOT = "TrainingComboTrials_data/RuntimeAuditReports",
-    VALIDATION_REVISION = 43,
+    VALIDATION_REVISION = 44,
     COMPATIBLE_VALIDATION_REVISIONS = {
         [35] = "monotonic_timeline_outcome_relaxation",
         [36] = "data_driven_quick_successor_live_validation",
@@ -16,6 +16,7 @@ local RuntimeAuditor = {
         [39] = "contextual_input_anchor_owner_projection",
         [40] = "contextual_internal_phase_damage_and_input_projection",
         [41] = "strict_training_ui_completion_requirement",
+        [43] = "monotonic_legacy_timeline_outcome_relaxation",
     },
 }
 
@@ -512,12 +513,16 @@ function RuntimeAuditor.report(run)
             },
             timeline_outcome_policy = {
                 guarded_followup =
-                    "advisory_when_runtime_reset_and_post_reset_block_are_proven",
+                    "advisory_when_explicit_noncontact_bridge_runtime_reset_and_post_reset_block_are_proven",
                 combo_count_only =
                     "advisory_when_damage_contacts_and_completion_match",
                 damage_only =
                     "advisory_when_actions_combo_terminal_contact_blocks_and_completion_match",
-                resources_and_terminal_contact = "strict",
+                damage_and_combo =
+                    "advisory_for_completed_timeline_with_exact_actions_terminal_contact_and_blocks",
+                drive_only =
+                    "advisory_for_completed_timeline_with_exact_actions_outcome_and_positive_consumption",
+                super_and_terminal_contact = "strict",
             },
             compatible_validation_revisions =
                 deep_copy(RuntimeAuditor.COMPATIBLE_VALIDATION_REVISIONS),

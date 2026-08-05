@@ -13,6 +13,7 @@ local SequenceGrouping = require("func/ComboTrials/SequenceGrouping")
 local Validator = require("func/ComboTrials/Validator")
 local TrainingEnvironment = require("func/ComboTrials/TrainingEnvironment")
 local CommandDisplayOverrides = require("func/ComboTrials/CommandDisplayOverrides")
+local TrialDisplayState = require("func/ComboTrials/TrialDisplayState")
 
 -- Shared context (set by init)
 local ctx -- { d2d_cfg, trial_state, players, sf6_menu_state }
@@ -3368,19 +3369,20 @@ local function imgui_draw_inner()
             )
         end
         local trial_meta = get_trial_meta()
-        local final_step = trial_state.sequence and trial_state.sequence[#trial_state.sequence] or nil
-        local final_visual_complete = false
-        if mode == "playing" and final_step and trial_state.current_step > #trial_state.sequence then
-            local expected_combo = final_step.expected_combo or 0
-            final_visual_complete = (expected_combo == 0) or ((final_step.actual_combo or 0) >= expected_combo)
-        end
-        local is_succ = (trial_state.success_timer > 0) or final_visual_complete
+        local display_state = TrialDisplayState.resolve(
+            trial_state.sequence,
+            trial_state.current_step,
+            trial_state.success_timer
+        )
+        local is_succ = mode == "playing" and display_state.is_success
 
-        local visual_step_idx = trial_state.current_step or 1
+        local visual_step_idx = mode == "playing"
+            and display_state.active_step or (trial_state.current_step or 1)
         local hold_step = trial_state._ui_step_hold_step
         local hold_until = trial_state._ui_step_hold_until_frame
         local frame_now = trial_state._engine_frame_count or 0
-        if mode == "playing" and hold_step and hold_until and frame_now <= hold_until then
+        if mode == "playing" and not display_state.terminal_visual_complete
+            and hold_step and hold_until and frame_now <= hold_until then
             visual_step_idx = math.max(1, math.min(hold_step, #trial_state.sequence))
         elseif hold_until and frame_now > hold_until then
             trial_state._ui_step_hold_step = nil

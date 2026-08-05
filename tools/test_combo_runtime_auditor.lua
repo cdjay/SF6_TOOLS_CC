@@ -337,6 +337,97 @@ assert(pre_reset_block_compiled.ok == false
         :match("replay_unexpected_block_before_combo_completion"),
     "a block that occurs before the runtime reset must remain a strict failure")
 
+local continuous_guard_break_failed = RuntimeAuditor.evaluate({
+    {
+        id = 600,
+        motion = "LP",
+        expected_combo = 1,
+        damage_at_step = 300,
+        delay_from_prev = 0,
+        timeline = { "1f : LP", "1f : 5" },
+        dummy_guard_type = 2,
+        combo_stats = { damage = 800, drive_used = 0, super_used = 0 },
+        has_hit = true,
+    },
+    {
+        id = 603,
+        motion = "MP",
+        expected_combo = 2,
+        damage_at_step = 800,
+        delay_from_prev = 50,
+        has_hit = true,
+    },
+}, {
+    steps = {
+        {
+            id = 600,
+            motion = "LP",
+            expected_combo = 1,
+            damage_at_step = 300,
+            delay_from_prev = 0,
+            frame = 10,
+            first_contact_frame = 12,
+            has_contact = true,
+            has_hit = true,
+        },
+        {
+            id = 603,
+            motion = "MP",
+            expected_combo = 0,
+            damage_at_step = 300,
+            delay_from_prev = 50,
+            frame = 60,
+            first_contact_frame = 62,
+            has_contact = true,
+            has_hit = false,
+            was_blocked = true,
+            hit_result = "block",
+        },
+    },
+    stats = {
+        damage = 300,
+        max_combo = 1,
+        block_contacts = 1,
+        drive_used = 0,
+        super_used = 0,
+        unresolved_anchors = 0,
+        unresolved_motion_actions = 0,
+    },
+    trace = {
+        combo_reset_frames = { 40 },
+        projected_events = {
+            {
+                id = 600,
+                frame = 10,
+                first_contact_frame = 12,
+                has_contact = true,
+                has_hit = true,
+            },
+            {
+                id = 603,
+                frame = 60,
+                first_contact_frame = 62,
+                has_contact = true,
+                has_hit = false,
+                was_blocked = true,
+                hit_result = "block",
+            },
+        },
+    },
+}, {
+    replay_inputs = { 16, 0 },
+    input_source = "timeline",
+    input_completed = true,
+    timing_tolerance = 2,
+    trial_completed = true,
+    character = "Ryu",
+    command_display_validation = resolved_command_display(2),
+})
+assert(continuous_guard_break_failed.ok == false
+    and table.concat(continuous_guard_break_failed.reasons, ",")
+        :match("replay_unexpected_block_before_combo_completion"),
+    "a continuous authored combo must not become a guarded-followup pass merely because guard-after-first-hit exposed its break")
+
 local combo_count_drift_candidate = {
     {
         id = 600,
@@ -408,6 +499,156 @@ assert(raw_combo_count_drift_failed.ok == false
     and table.concat(raw_combo_count_drift_failed.reasons, ",")
         :match("replay_combo_count_mismatch"),
     "raw replay combo counts must remain strict")
+
+local coupled_timeline_drift_candidate = {
+    {
+        id = 600,
+        motion = "LP",
+        expected_combo = 2,
+        damage_at_step = 300,
+        delay_from_prev = 0,
+        timeline = { "1f : LP", "1f : 5" },
+        has_hit = true,
+        has_contact = true,
+        combo_stats = { damage = 300, drive_used = 0, super_used = 0 },
+    },
+}
+local coupled_timeline_drift_compiled = {
+    steps = {
+        {
+            id = 600,
+            motion = "LP",
+            expected_combo = 4,
+            damage_at_step = 500,
+            delay_from_prev = 0,
+            has_contact = true,
+            has_hit = true,
+        },
+    },
+    stats = {
+        damage = 500,
+        max_combo = 4,
+        block_contacts = 0,
+        drive_used = 0,
+        super_used = 0,
+        unresolved_anchors = 0,
+        unresolved_motion_actions = 0,
+        resolver_error_actions = 0,
+    },
+}
+local coupled_timeline_drift_passed = RuntimeAuditor.evaluate(
+    coupled_timeline_drift_candidate,
+    coupled_timeline_drift_compiled,
+    {
+        replay_inputs = { 16, 0 },
+        input_source = "timeline",
+        input_completed = true,
+        timing_tolerance = 2,
+        trial_completed = true,
+        character = "Ryu",
+        command_display_validation = resolved_command_display(),
+    }
+)
+local coupled_timeline_advisories = table.concat(
+    coupled_timeline_drift_passed.advisories or {},
+    ","
+)
+assert(coupled_timeline_drift_passed.ok == true
+    and coupled_timeline_advisories:match("timeline_damage_combo_drift")
+    and coupled_timeline_advisories:match("timeline_combo_count_drift"),
+    "a completed legacy timeline may retain coupled damage and hit-count drift when exact Action and contact truth still match")
+
+local coupled_raw_drift_failed = RuntimeAuditor.evaluate(
+    coupled_timeline_drift_candidate,
+    coupled_timeline_drift_compiled,
+    {
+        raw_inputs = { 16, 0 },
+        input_source = "raw_inputs",
+        input_completed = true,
+        timing_tolerance = 2,
+        trial_completed = true,
+        character = "Ryu",
+        command_display_validation = resolved_command_display(),
+    }
+)
+assert(coupled_raw_drift_failed.ok == false
+    and table.concat(coupled_raw_drift_failed.reasons, ",")
+        :match("replay_damage_mismatch")
+    and table.concat(coupled_raw_drift_failed.reasons, ",")
+        :match("replay_combo_count_mismatch"),
+    "coupled outcome drift must remain strict for raw recordings")
+
+local timeline_drive_drift_candidate = {
+    {
+        id = 600,
+        motion = "LP",
+        expected_combo = 1,
+        damage_at_step = 300,
+        delay_from_prev = 0,
+        timeline = { "1f : LP", "1f : 5" },
+        has_hit = true,
+        has_contact = true,
+        combo_stats = { damage = 300, drive_used = 10000, super_used = 0 },
+    },
+}
+local timeline_drive_drift_compiled = {
+    steps = {
+        {
+            id = 600,
+            motion = "LP",
+            expected_combo = 1,
+            damage_at_step = 300,
+            delay_from_prev = 0,
+            has_contact = true,
+            has_hit = true,
+        },
+    },
+    stats = {
+        damage = 300,
+        max_combo = 1,
+        block_contacts = 0,
+        drive_used = 12000,
+        super_used = 0,
+        unresolved_anchors = 0,
+        unresolved_motion_actions = 0,
+        resolver_error_actions = 0,
+    },
+}
+local timeline_drive_drift_passed = RuntimeAuditor.evaluate(
+    timeline_drive_drift_candidate,
+    timeline_drive_drift_compiled,
+    {
+        replay_inputs = { 16, 0 },
+        input_source = "timeline",
+        input_completed = true,
+        timing_tolerance = 2,
+        trial_completed = true,
+        character = "Ryu",
+        command_display_validation = resolved_command_display(),
+    }
+)
+assert(timeline_drive_drift_passed.ok == true
+    and table.concat(timeline_drive_drift_passed.advisories, ",")
+        :match("timeline_drive_consumption_drift"),
+    "legacy timeline drive accounting may be advisory when the exact route and outcome still match")
+
+local raw_drive_drift_failed = RuntimeAuditor.evaluate(
+    timeline_drive_drift_candidate,
+    timeline_drive_drift_compiled,
+    {
+        raw_inputs = { 16, 0 },
+        input_source = "raw_inputs",
+        input_completed = true,
+        timing_tolerance = 2,
+        trial_completed = true,
+        character = "Ryu",
+        command_display_validation = resolved_command_display(),
+    }
+)
+assert(raw_drive_drift_failed.ok == false
+    and table.concat(raw_drive_drift_failed.reasons, ",")
+        :match("replay_drive_consumption_mismatch"),
+    "raw drive consumption must remain strict")
 
 local timeline_damage_drift_passed = RuntimeAuditor.evaluate(
     timeline_candidate,
@@ -1103,7 +1344,7 @@ local revision_30_report = {
 }
 local refreshed_30, refreshed_30_counts =
     RuntimeAuditor.recompute_loaded_report_state(revision_30_report)
-assert(RuntimeAuditor.VALIDATION_REVISION == 43
+assert(RuntimeAuditor.VALIDATION_REVISION == 44
     and refreshed_30_counts.stale == 1
     and refreshed_30.passed == 0,
     "revision 30 reports must be stale after the strict invariant revision")
@@ -1277,7 +1518,7 @@ local retry_paths, retry_counts = RuntimeAuditor.retry_source_paths({
         {
             source_file = "B.json",
             status = "passed",
-            validation_revision = RuntimeAuditor.VALIDATION_REVISION - 1,
+            validation_revision = 42,
         },
         {
             source_file = "C.json",
@@ -1300,7 +1541,7 @@ local failed_paths = RuntimeAuditor.failed_source_paths({
         {
             source_file = "A.json",
             status = "passed",
-            validation_revision = RuntimeAuditor.VALIDATION_REVISION - 1,
+            validation_revision = 42,
         },
         {
             source_file = "B.json",

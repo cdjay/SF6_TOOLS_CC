@@ -231,22 +231,85 @@ function Copy-TrackedReframeworkFiles {
     }
 }
 
-function Assert-CommandDisplayPackage {
+function Assert-ExactNameSet {
     param(
-        [Parameter(Mandatory = $true)][string]$SourceRoot,
-        [Parameter(Mandatory = $true)][string]$PackageRoot
+        [Parameter(Mandatory = $true)][string[]]$Expected,
+        [Parameter(Mandatory = $true)][string[]]$Actual,
+        [Parameter(Mandatory = $true)][string]$Label
     )
+
+    $expectedSet = @{}
+    foreach ($name in $Expected) {
+        $expectedSet[$name.ToLowerInvariant()] = $true
+    }
+    $actualSet = @{}
+    foreach ($name in $Actual) {
+        $actualSet[$name.ToLowerInvariant()] = $true
+    }
+
+    $missing = @($Expected | Where-Object {
+        -not $actualSet.ContainsKey($_.ToLowerInvariant())
+    })
+    $unexpected = @($Actual | Where-Object {
+        -not $expectedSet.ContainsKey($_.ToLowerInvariant())
+    })
+    if ($missing.Count -gt 0 -or $unexpected.Count -gt 0) {
+        $missingText = if ($missing.Count -gt 0) { $missing -join ", " } else { "(none)" }
+        $unexpectedText = if ($unexpected.Count -gt 0) { $unexpected -join ", " } else { "(none)" }
+        throw "$Label does not match the character catalog. Missing: $missingText. Unexpected: $unexpectedText."
+    }
+}
+
+function Get-CommandDisplaySourceState {
+    param(
+        [Parameter(Mandatory = $true)][string]$SourceRoot
+    )
+
+    $catalogRelativePath = "tools/modern_display_builder/characters.json"
+    & git -C $SourceRoot ls-files --error-unmatch -- $catalogRelativePath | Out-Null
+    if ($LASTEXITCODE -ne 0) {
+        throw "Character catalog is not Git-tracked: $catalogRelativePath"
+    }
+    $catalogPath = Join-Path $SourceRoot ($catalogRelativePath -replace '/', '\')
+    if (-not (Test-Path -LiteralPath $catalogPath -PathType Leaf)) {
+        throw "Character catalog is missing: $catalogPath"
+    }
+    $catalog = Get-Content -Raw -LiteralPath $catalogPath | ConvertFrom-Json
+    $expectedCharacters = @(
+        $catalog.PSObject.Properties |
+            ForEach-Object { $_.Name } |
+            Sort-Object
+    )
+    if ($expectedCharacters.Count -eq 0) {
+        throw "Character catalog contains no characters: $catalogPath"
+    }
 
     $relativeRoot = "data/TrainingComboTrials_data/command_display"
     $trackedFiles = @(& git -C $SourceRoot ls-files -- "$relativeRoot/*.json")
     if ($LASTEXITCODE -ne 0) {
         throw "Unable to enumerate tracked command display files."
     }
-    if ($trackedFiles.Count -ne 30) {
-        throw "Command display source must contain exactly 30 tracked character JSON files. Found: $($trackedFiles.Count)"
-    }
+    $trackedCharacters = @($trackedFiles | ForEach-Object {
+        [System.IO.Path]::GetFileNameWithoutExtension($_)
+    })
+    Assert-ExactNameSet -Expected $expectedCharacters -Actual $trackedCharacters `
+        -Label "Tracked command display files"
 
-    foreach ($relativePath in $trackedFiles) {
+    return [pscustomobject]@{
+        ExpectedCharacters = @($expectedCharacters)
+        TrackedFiles = @($trackedFiles)
+    }
+}
+
+function Assert-CommandDisplayPackage {
+    param(
+        [Parameter(Mandatory = $true)][string]$SourceRoot,
+        [Parameter(Mandatory = $true)][string]$PackageRoot
+    )
+
+    $sourceState = Get-CommandDisplaySourceState -SourceRoot $SourceRoot
+
+    foreach ($relativePath in $sourceState.TrackedFiles) {
         $windowsRelativePath = $relativePath -replace '/', '\'
         $packagedPath = Join-Path $PackageRoot (Join-Path "reframework" $windowsRelativePath)
         if (-not (Test-Path -LiteralPath $packagedPath -PathType Leaf)) {
@@ -256,9 +319,9 @@ function Assert-CommandDisplayPackage {
 
     $packagedRoot = Join-Path $PackageRoot "reframework\data\TrainingComboTrials_data\command_display"
     $packagedFiles = @(Get-ChildItem -LiteralPath $packagedRoot -Filter "*.json" -File)
-    if ($packagedFiles.Count -ne 30) {
-        throw "Command display package must contain exactly 30 character JSON files. Found: $($packagedFiles.Count)"
-    }
+    $packagedCharacters = @($packagedFiles | ForEach-Object { $_.BaseName })
+    Assert-ExactNameSet -Expected $sourceState.ExpectedCharacters -Actual $packagedCharacters `
+        -Label "Packaged command display files"
 }
 
 function New-ZipFromDirectory {
@@ -515,6 +578,10 @@ Write-PlanSummary -ReleaseVersion $releaseVersion `
     -ExistingArtifacts $existingArtifacts `
     -WillOverwrite $willOverwrite `
     -BackupPath $plannedBackupPath
+
+if (-not $TrainingConfigManagerOnly) {
+    $null = Get-CommandDisplaySourceState -SourceRoot $workspacePath
+}
 
 if ($DryRun) {
     Write-Host "Dry run complete. No package files were generated."

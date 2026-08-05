@@ -364,6 +364,36 @@ end
 -- correctly records blocks after the first combo has reset. Treat that outcome
 -- drift as compatible only when the runtime trace proves all three facts: a hit
 -- before the reset, a real combo reset, and a blocked contact after the reset.
+local function has_explicit_guarded_followup_bridge(sequence)
+    if type(sequence) ~= "table" or #sequence < 3 then return false end
+    for index = 2, #sequence - 1 do
+        local previous = sequence[index - 1]
+        local step = sequence[index]
+        local following = sequence[index + 1]
+        if type(previous) == "table" and type(step) == "table"
+            and type(following) == "table" then
+            local previous_damage = tonumber(previous.damage_at_step)
+            local step_damage = tonumber(step.damage_at_step)
+            local following_damage = tonumber(following.damage_at_step)
+            local explicit_noncontact = step.has_hit ~= true
+                and step.has_contact ~= true
+                and step.hit_result ~= "block"
+                and step.was_blocked ~= true
+                and math.max(0, tonumber(step.expected_combo) or 0) == 0
+            local following_contact = following.has_hit == true
+                or following.has_contact == true
+                or math.max(0, tonumber(following.expected_combo) or 0) > 0
+                or (following_damage ~= nil and step_damage ~= nil
+                    and following_damage > step_damage)
+            if explicit_noncontact and following_contact
+                and previous_damage ~= nil and step_damage == previous_damage then
+                return true
+            end
+        end
+    end
+    return false
+end
+
 local function observed_guarded_followup_structure(
     sequence,
     compiled,
@@ -373,7 +403,8 @@ local function observed_guarded_followup_structure(
     if authored_action_subsequence_match ~= true
         or math.max(0, tonumber(expected_blocks) or 0) > 0
         or type(sequence) ~= "table"
-        or type(compiled) ~= "table" then
+        or type(compiled) ~= "table"
+        or not has_explicit_guarded_followup_bridge(sequence) then
         return nil
     end
     local first = first_step(sequence)
@@ -1856,6 +1887,21 @@ function Transcriber.evaluate(sequence, compiled, runtime)
     local observed_damage = tonumber(stats.damage) or 0
     local source_damage_matches = math.abs(observed_damage - expected.damage)
         <= damage_tolerance
+    local damage_mismatch = expected.damage > 0
+        and not source_damage_matches
+    local combo_mismatch = expected.max_combo > 0
+        and observed_combo ~= expected.max_combo
+    local timeline_coupled_outcome_drift = timeline_outcome_compatibility
+        and guarded_followup == nil
+        and source_action_match
+        and source_terminal_contact_match
+        and observed_blocks == expected.block_contacts
+        and unresolved_motion_actions == 0
+        and (tonumber(stats.resolver_error_actions) or 0) == 0
+        and damage_mismatch
+        and combo_mismatch
+        and observed_damage > 0
+        and observed_combo > 0
     local timeline_combo_count_drift = timeline_outcome_compatibility
         and guarded_followup == nil
         and legacy_authored_action_subsequence_match
@@ -1863,8 +1909,7 @@ function Transcriber.evaluate(sequence, compiled, runtime)
         and source_damage_matches
         and observed_blocks == expected.block_contacts
         and observed_combo > 0
-    if expected.damage > 0
-        and math.abs(observed_damage - expected.damage) > damage_tolerance
+    if damage_mismatch
         and not allow_legacy_damage_drift then
         if blocked_wall_stun_shift ~= nil then
             advisories[#advisories + 1] = string.format(
@@ -1879,6 +1924,15 @@ function Transcriber.evaluate(sequence, compiled, runtime)
                 expected.damage,
                 observed_damage,
                 tonumber(guarded_followup.block_contacts_after) or 0
+            )
+        elseif timeline_coupled_outcome_drift then
+            advisories[#advisories + 1] = string.format(
+                "timeline_damage_combo_drift:expected_damage=%d:observed_damage=%d:"
+                    .. "expected_combo=%d:observed_combo=%d",
+                expected.damage,
+                observed_damage,
+                expected.max_combo,
+                observed_combo
             )
         elseif allow_runtime_damage_drift then
             advisories[#advisories + 1] = string.format(
@@ -1907,6 +1961,13 @@ function Transcriber.evaluate(sequence, compiled, runtime)
         elseif guarded_followup ~= nil then
             advisories[#advisories + 1] = string.format(
                 "timeline_guarded_followup_combo:expected=%d:observed=%d",
+                expected.max_combo,
+                observed_combo
+            )
+        elseif timeline_coupled_outcome_drift then
+            advisories[#advisories + 1] = string.format(
+                "timeline_combo_count_drift:expected=%d:observed=%d:"
+                    .. "coupled_damage_drift=true",
                 expected.max_combo,
                 observed_combo
             )
@@ -1948,10 +2009,30 @@ function Transcriber.evaluate(sequence, compiled, runtime)
         and (tonumber(stats.block_contacts) or 0) == 0 then
         reasons[#reasons + 1] = "block_contact_missing"
     end
+    local observed_drive_used = tonumber(stats.drive_used) or 0
+    local timeline_drive_usage_drift = timeline_outcome_compatibility
+        and guarded_followup == nil
+        and source_action_match
+        and source_terminal_contact_match
+        and source_damage_matches
+        and observed_combo == expected.max_combo
+        and observed_blocks == expected.block_contacts
+        and unresolved_motion_actions == 0
+        and (tonumber(stats.resolver_error_actions) or 0) == 0
+        and expected.drive_used > 0
+        and observed_drive_used > 0
     if runtime.compare_drive_usage ~= false
         and expected.drive_used > 0
-        and math.abs((tonumber(stats.drive_used) or 0) - expected.drive_used) > 100 then
-        reasons[#reasons + 1] = "drive_consumption_mismatch"
+        and math.abs(observed_drive_used - expected.drive_used) > 100 then
+        if timeline_drive_usage_drift then
+            advisories[#advisories + 1] = string.format(
+                "timeline_drive_consumption_drift:expected=%d:observed=%d",
+                expected.drive_used,
+                observed_drive_used
+            )
+        else
+            reasons[#reasons + 1] = "drive_consumption_mismatch"
+        end
     end
     local observed_super_used = tonumber(stats.super_used) or 0
     if expected.super_used > 0
