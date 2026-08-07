@@ -8,6 +8,7 @@ Language: [简体中文](AGENTS.zh-CN.md)
 * [Vision](VISION.md)
 * [Roadmap](ROADMAP.md)
 * [Architecture](ARCHITECTURE.md)
+* [AC+BCM Semantic Core](docs/AC_BCM_SEMANTIC_CORE.md)
 * **AI Development Guide**
 * [Contributing](CONTRIBUTING.md)
 
@@ -361,3 +362,36 @@ SF6CM provides community features and online content.
 Each layer should remain as independent as possible while sharing common data formats.
 
 The goal is to build a sustainable, maintainable, community-driven project that can continue evolving for many years.
+
+---
+
+# Mandatory Architecture Constraints
+
+The following rules are hard constraints for all AI and human contributors.
+
+## Unified action semantics
+
+The current game's AC and BCM data are the only authority for character action relations, Action relations, and command routes.
+
+* Action IDs are version-scoped technical identifiers, not cross-version move keys.
+* The stable domain entity is a `Move`; Actions are version-specific bindings.
+* Recording, detection, display, and audit must use one semantic resolver.
+* OFF data, display overrides, exception tables, and historical mappings must not become a second semantic authority.
+* Every exception must be evidence-backed, measurable, and explainable; exceptions must not hide generator defects.
+* Historical combo IDs are handled by offline migration, not permanent runtime Action-ID compatibility.
+
+See [AC+BCM Semantic Core](docs/AC_BCM_SEMANTIC_CORE.md) for the detailed contract.
+
+## Entry-script boundary
+
+`autorun/TrainingComboTrials_v1.0.lua` is a composition root. It may assemble dependencies, register hooks, manage lifecycle, pass runtime context, and orchestrate flows.
+
+New character semantics, recording compilation, action detection, display resolution, and audit logic must live in dedicated modules. Do not add new character-specific Action-ID branches or patch layers to the entry script.
+
+Entry-script extraction must preserve current behavior with characterization tests before larger refactors are attempted.
+
+## AI change checklist
+
+Before changing code, the AI must identify whether the change belongs to data, the semantic core, runtime orchestration, or UI; check for an existing resolver or matcher; and verify that the change does not turn a generator defect into an exception or display patch.
+
+Before completing a change, verify that runtime files and dumps remain excluded, character data comes from the generator or evidence-backed curation, all four consumers still share one semantic interpretation, relevant tests ran, and architecture documentation was updated when a contract or boundary changed.

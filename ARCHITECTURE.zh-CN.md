@@ -9,6 +9,7 @@
 * [项目发展规划](ROADMAP.zh-CN.md)
 * **架构设计**
 * [AI 开发规范](AGENTS.zh-CN.md)
+* [AC+BCM 语义核心](docs/AC_BCM_SEMANTIC_CORE.zh-CN.md)
 * [贡献指南](CONTRIBUTING.zh-CN.md)
 
 ---
@@ -350,6 +351,45 @@ TrainingHitConfirm
 模块之间不要互相调用内部实现。
 
 公共能力应抽取到公共模块。
+
+---
+
+# 连段动作数据架构
+
+连段系统不能让录制、检测、显示、审计分别解释角色动作。四个环节可以有不同的流程职责，但动作语义必须来自同一个 AC+BCM 生成物和同一个运行时 resolver。
+
+```text
+当前版本 AC + BCM
+        │
+        ▼
+xt.character_move_graph.v1
+        │
+        ▼
+Lua MoveResolver
+   ┌────┼────┬────┐
+   ▼    ▼    ▼    ▼
+ 录制  检测  显示  审计
+```
+
+AC 负责 Action 全集和结构关系；BCM 负责实际输入入口、profile、触发条件和资源条件；OFF 只能作为名称或人工复核资料。
+
+Action ID 不是跨版本主键。业务主键是 Move，Action 只是当前版本的绑定。旧版本 Combo 通过离线 AC+BCM 比对升级，不通过运行时永久映射解决。
+
+显示 override 只能是诊断或极少数经证据确认的投影规则，不能改变录制和检测语义。Exception 也不能承载生成器本应识别的动作或指令。
+
+---
+
+# 主入口与模块边界
+
+`autorun/TrainingComboTrials_v1.0.lua` 当前是巨型入口和流程容器。目标不是立即重写，而是渐进收敛：
+
+1. 冻结当前行为并建立 characterization tests；
+2. 先把现有动作编译、检测、审计和训练环境流程搬入模块；
+3. 用 MoveResolver 替换分散的 Action/指令解释；
+4. 逐步删除旧兼容层和角色补丁；
+5. 最后让入口只保留 Hook、生命周期、上下文和编排。
+
+任何新业务逻辑都不得继续堆入入口文件。详细的数据契约、例外边界和迁移顺序见 [AC+BCM 语义核心](docs/AC_BCM_SEMANTIC_CORE.zh-CN.md)。
 
 ---
 
