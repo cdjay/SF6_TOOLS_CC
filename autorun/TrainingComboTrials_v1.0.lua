@@ -25,7 +25,8 @@ local ComboTrialsModules = {
     Transcriber = require("func/ComboTrials/Transcriber"),
     RuntimeAuditor = require("func/ComboTrials/RuntimeAuditor"),
     TimelineSequenceNormalizer = require("func/ComboTrials/TimelineSequenceNormalizer"),
-    DummySettings = require("func/ComboTrials/DummySettings")
+    DummySettings = require("func/ComboTrials/DummySettings"),
+    GameProbe = require("func/ComboTrials/GameProbe")
 }
 local DebugTrace = ComboTrialsModules.DebugTrace
 local ActionMatcher = ComboTrialsModules.ActionMatcher
@@ -1281,207 +1282,13 @@ re.on_frame(function()
     end
 end)
 
-local act_id_reverse_enum = {}
-do
-    local td = sdk.find_type_definition("nBattle.ACT_ID")
-    if td then
-        for _, field in ipairs(td:get_fields()) do
-            if field:is_static() and field:get_data() ~= nil then act_id_reverse_enum[field:get_data()] = field:get_name() end
-        end
-    end
-end
+ComboTrialsModules.GameProbe.init({
+    g_battle_type = _td_gBattle,
+    players = players,
+})
 
 local function get_exc_filename(name)
     return CharacterRules.get_exception_filename(name)
-end
-
-local function decode_button_mask(mask)
-    local parts = {}
-    if (mask & 16) ~= 0 then table.insert(parts, "LP") end
-    if (mask & 32) ~= 0 then table.insert(parts, "MP") end
-    if (mask & 64) ~= 0 then table.insert(parts, "HP") end
-    if (mask & 128) ~= 0 then table.insert(parts, "LK") end
-    if (mask & 256) ~= 0 then table.insert(parts, "MK") end
-    if (mask & 512) ~= 0 then table.insert(parts, "HK") end
-    return table.concat(parts, "+")
-end
-
-local function build_bcm_trigger_cache(player_idx)
-    local gBattle = _td_gBattle
-    if not gBattle then return false end
-    local cmd_obj = gBattle:get_field("Command"):get_data(nil)
-    if not cmd_obj then return false end
-
-    local player = players[player_idx]
-    local build = player._trigger_cache_build
-    if not build then
-        local ok, trigs = pcall(function()
-            return cmd_obj:call("get_mUserEngine")[player_idx]:call("GetTrigger()"):get_elements()
-        end)
-        if not ok or type(trigs) ~= "table" then return false end
-        build = {
-            triggers = trigs,
-            index = 1,
-            mask_cache = {},
-            trigger_count = 0,
-        }
-        player._trigger_cache_build = build
-    end
-
-    -- Managed trigger inspection is expensive. Process a bounded slice per
-    -- frame so entering Combo Trials never stalls on a full character scan.
-    local slice_end = math.min(#build.triggers, build.index + 63)
-    while build.index <= slice_end do
-        local t = build.triggers[build.index]
-        pcall(function()
-            if t then
-                local aid = t.action_id
-                if aid > 0 then
-                    local norm_ng = false
-                    pcall(function() norm_ng = t:get_field("norm_NG") == true end)
-
-                    local cmd_src = nil
-                    if not norm_ng then
-                        pcall(function() cmd_src = t:get_field("norm") end)
-                    else
-                        local use_sprt, sprt_ng = false, true
-                        pcall(function() use_sprt = t:get_field("use_sprt") == true end)
-                        pcall(function() sprt_ng = t:get_field("sprt_NG") == true end)
-                        if use_sprt and not sprt_ng then pcall(function() cmd_src = t:get_field("sprt") end) end
-                    end
-
-                    if cmd_src then
-                        local ok_key = cmd_src:get_field("ok_key_flags") or 0
-                        build.mask_cache[aid] = (build.mask_cache[aid] or 0) | ok_key
-                        build.trigger_count = build.trigger_count + 1
-                    end
-                end
-            end
-        end)
-        build.index = build.index + 1
-    end
-
-    if build.index <= #build.triggers then return false end
-    player._trigger_cache_build = nil
-    if build.trigger_count < 10 then return false end
-    player.trigger_mask_cache = build.mask_cache
-    player.trigger_cache_built = true
-    return true
-end
-
-local skip_fields = {
-    ["Owner"] = true,
-    ["OwnerAdrs"] = true,
-    ["mpOwner"] = true,
-    ["ActionPart"] = true,
-    ["_Engine"] = true,
-    ["_EngineAdrs"] = true,
-    ["pPlayer"] = true,
-    ["Battle"] = true,
-    ["Collision"] = true,
-    ["Place"] = true,
-    ["PartsParam"] = true,
-    ["VFXSpawnID"] = true
-}
-
-local function dump_object(obj, depth, max_depth, visited)
-    if not obj then return "null" end
-    if type(obj) ~= "userdata" then return tostring(obj) end
-    if depth > max_depth then return "<Max Depth Reached>" end
-
-    pcall(function() obj = sdk.to_managed_object(obj) or obj end)
-
-    local ptr_str = tostring(obj)
-    if visited[ptr_str] then return "<Already explored>" end
-    visited[ptr_str] = true
-
-    local tdef = obj:get_type_definition()
-    if not tdef then return tostring(obj) end
-
-    local tname = tdef:get_name()
-    if tname == "sfix" or tname == "Sfix" then
-        local val = "unknown"
-        pcall(function() val = tostring(tdef:get_field("v"):get_data(obj)) end)
-        return "sfix(" .. val .. ")"
-    end
-
-    local data = {}
-    data["_type"] = tname
-
-    local is_array = false
-    pcall(function() if obj.get_elements then is_array = true end end)
-
-    if is_array then
-        local s, elements = pcall(function() return obj:get_elements() end)
-        if s and elements then
-            local arr = {}
-            for i = 1, math.min(#elements, 25) do
-                if elements[i] ~= nil then
-                    table.insert(arr, dump_object(elements[i], depth + 1, max_depth, visited))
-                end
-            end
-            if #elements > 25 then table.insert(arr, "<... and " .. tostring(#elements - 25) .. " more>") end
-            data["_elements"] = arr
-            return data
-        end
-    end
-
-    while tdef do
-        for _, f in ipairs(tdef:get_fields()) do
-            local fname = f:get_name()
-            if not skip_fields[fname] and not data[fname] then
-                local s, v = pcall(function() return f:get_data(obj) end)
-                if s and v ~= nil then
-                    data[fname] = dump_object(v, depth + 1, max_depth, visited)
-                end
-            end
-        end
-        tdef = tdef:get_parent_type()
-    end
-
-    return data
-end
-
-local function capture_deep_action_data(p_char)
-    local dump = {}
-    pcall(function()
-        local visited = {}
-        local act_param = p_char:get_field("mpActParam")
-        if act_param then
-            local branch = act_param:get_field("Branch")
-            if branch then dump.ActParam_Branch = dump_object(branch, 0, 5, visited) end
-
-            local trigger = act_param:get_field("Trigger")
-            if trigger then dump.ActParam_Trigger = dump_object(trigger, 0, 5, visited) end
-
-            local action_part = act_param:get_field("ActionPart")
-            if action_part then
-                local engine = action_part:get_field("_Engine")
-                if engine then
-                    local mParam = engine:get_field("mParam")
-                    if mParam then
-                        local action_obj = mParam:get_field("action")
-                        if action_obj then
-                            local keys = action_obj:get_field("Keys")
-                            if keys then dump.Engine_Keys = dump_object(keys, 0, 5, visited) end
-                        end
-                    end
-                end
-            end
-        end
-    end)
-    return dump
-end
-
-local function get_elements_safe(obj)
-    if not obj then return nil end
-    local s, arr = pcall(function() return obj:get_elements() end)
-    if s and arr then return arr end
-    pcall(function()
-        local items = obj:get_field("_items")
-        if items then arr = items:get_elements() end
-    end)
-    return arr
 end
 
 local function auto_detect_charge_min(p_char)
@@ -1490,10 +1297,10 @@ local function auto_detect_charge_min(p_char)
         local engine = p_char:get_field("mpActParam"):get_field("ActionPart"):get_field("_Engine")
         local keys_obj = engine:get_field("mParam"):get_field("action"):get_field("Keys")
 
-        local groups = get_elements_safe(keys_obj)
+        local groups = ComboTrialsModules.GameProbe.get_elements_safe(keys_obj)
         if groups then
             for _, group in ipairs(groups) do
-                local keys = get_elements_safe(group)
+                local keys = ComboTrialsModules.GameProbe.get_elements_safe(group)
                 if keys then
                     for _, key in ipairs(keys) do
                         local tdef = key:get_type_definition()
@@ -1524,11 +1331,11 @@ local function get_luke_charge_windows(p_char)
         local engine = p_char:get_field("mpActParam"):get_field("ActionPart"):get_field("_Engine")
         local keys_obj = engine:get_field("mParam"):get_field("action"):get_field("Keys")
 
-        local groups = get_elements_safe(keys_obj)
+        local groups = ComboTrialsModules.GameProbe.get_elements_safe(keys_obj)
         if groups then
             local frames_by_act = {}
             for _, group in ipairs(groups) do
-                local keys = get_elements_safe(group)
+                local keys = ComboTrialsModules.GameProbe.get_elements_safe(group)
                 if keys then
                     for _, key in ipairs(keys) do
                         local tdef = key:get_type_definition()
@@ -1565,96 +1372,6 @@ local function get_luke_charge_windows(p_char)
     return windows
 end
 
--- Hoisted hot-path helper (no per-call closure). Scratch table preserves
--- partial-write semantics if an SDK call errors mid-body.
-local _ct_action_scratch = {
-    act_id = -1, frame = 0, state_flags = -1, action_code = 0,
-    direct_input = 0, direction_input = 0, branch_type = 0, facing_right = true
-}
-local function _ct_read_action_data(p_obj)
-    local r = _ct_action_scratch
-    local p_def = p_obj:get_type_definition()
-    local d = (p_def:get_field("pl_input_new"):get_data(p_obj)) or 0
-    local b = (p_def:get_field("pl_sw_new"):get_data(p_obj)) or 0
-    r.direct_input = d | b
-    r.direction_input = d
-    r.facing_right = p_obj:get_field("rl_dir") ~= false
-
-    local act_param = p_obj:get_field("mpActParam")
-    if not act_param then return end
-    local action_part = act_param:get_field("ActionPart")
-    if action_part then
-        local engine = action_part:get_field("_Engine")
-        if engine then
-            r.act_id = engine:call("get_ActionID") or -1
-            local sf = engine:call("get_ActionFrame")
-            if sf then r.frame = tonumber(sf:call("ToString()")) or 0 end
-            local m_param = engine:get_field("mParam")
-            if m_param then
-                local sf_field = m_param:get_type_definition():get_field("state_flags")
-                if sf_field then r.state_flags = tonumber(sf_field:get_data(m_param)) or -1 end
-            end
-        end
-    end
-    local ki_field = act_param:get_type_definition():get_field("KeyInput")
-    if ki_field then
-        local ki_data = ki_field:get_data(act_param)
-        if ki_data then
-            local a_field = ki_data:get_type_definition():get_field("Action")
-            if a_field then r.action_code = tonumber(a_field:get_data(ki_data)) or 0 end
-        end
-    end
-    local branch = act_param:get_field("Branch")
-    if branch then
-        local bt_field = branch:get_type_definition():get_field("BranchType")
-        if bt_field then r.branch_type = tonumber(bt_field:get_data(branch)) or 0 end
-    end
-end
-
-local function get_action_data(p_obj)
-    if not p_obj then return -1, 0, -1, 0, 0, 0, 0, true end
-    local r = _ct_action_scratch
-    r.act_id, r.frame, r.state_flags, r.action_code = -1, 0, -1, 0
-    r.direct_input, r.direction_input, r.branch_type, r.facing_right = 0, 0, 0, true
-    pcall(_ct_read_action_data, p_obj)
-    return r.act_id, r.frame, r.state_flags, r.action_code, r.direct_input,
-        r.branch_type, r.direction_input, r.facing_right
-end
-
-local function get_damage_type_safe(p_char)
-    if not p_char then return 0 end
-
-    local result = 0
-    pcall(function()
-        -- Direct syntax via REFramework's syntactic sugar
-        local act_val = tonumber(p_char.act_st)
-
-        if act_val == 27 or act_val == 32 or act_val == 35 or act_val == 38 then
-            result = 1
-        end
-    end)
-
-    return result
-end
-
-local function check_is_projectile(attacker_idx, attacker_obj, gBattle)
-    local attacker_hs = 0
-    pcall(function()
-        local f_hs = attacker_obj:get_type_definition():get_field("hit_stop")
-        if f_hs then attacker_hs = f_hs:get_data(attacker_obj) or 0 end
-    end)
-    return (attacker_hs == 0)
-end
-
-local function _ct_read_combo_cnt(p_obj)
-    return p_obj:get_type_definition():get_field("combo_cnt"):get_data(p_obj) or 0
-end
-local function get_combo_count(p_obj)
-    if not p_obj then return 0 end
-    local s, res = pcall(_ct_read_combo_cnt, p_obj)
-    return s and res or 0
-end
-
 function normalize_hp_value(value)
     local n = tonumber(value)
     if n == nil then return nil end
@@ -1676,41 +1393,6 @@ function read_player_hp_snapshot(player)
     }
     if heal_hp ~= nil then snapshot.heal_hp = heal_hp end
     return snapshot
-end
-
--- Internal recording sample used only to calculate combo result statistics.
-local function capture_recording_gauges(attacker_idx)
-    local result = nil
-    pcall(function()
-        local victim = (attacker_idx == 0) and GS.p2 or GS.p1
-        local attacker = (attacker_idx == 0) and GS.p1 or GS.p2
-        if not victim or not attacker then return end
-        local gB = _td_gBattle
-        if not gB then return end
-        local BT = gB:get_field("Team"):get_data(nil)
-        if not BT or not BT.mcTeam then return end
-
-        local atk_team = BT.mcTeam[attacker_idx]
-
-        if not victim or not attacker or not atk_team then return end
-
-        local v_hp = victim.vital_new
-        local a_dr = attacker.focus_new
-        local a_sa = atk_team.mSuperGauge
-
-        if v_hp == nil or a_dr == nil or a_sa == nil then return end
-
-        result = {
-            victim_hp = v_hp,
-            attacker_drive = a_dr,
-            attacker_super = a_sa,
-            -- Min trackers (updated each frame in on_frame)
-            min_victim_hp = v_hp,
-            min_atk_drive = a_dr,
-            min_atk_super = a_sa
-        }
-    end)
-    return result
 end
 
 function clear_trial_vital_state()
@@ -4816,7 +4498,7 @@ setup_hook("app.battle.bBattleFlow", "updateKO", nil, function(retval)
                 last_step and last_step.id
             )
             local attacker = (trial_state.playing_player == 1) and GS.p2 or GS.p1
-            local combo_count = math.max(get_combo_count(attacker) or 0, last_step and (last_step.actual_combo or 0) or 0)
+            local combo_count = math.max(ComboTrialsModules.GameProbe.get_combo_count(attacker) or 0, last_step and (last_step.actual_combo or 0) or 0)
             local completion_satisfied = ActionMatcher.is_completion_satisfied(
                 last_step,
                 previous_step,
@@ -4926,7 +4608,7 @@ end
 
 local function _ct_check_first_hit()
     local attacker_char = (trial_state.playing_player == 0) and GS.p1 or GS.p2
-    if attacker_char and get_combo_count(attacker_char) > 0 then
+    if attacker_char and ComboTrialsModules.GameProbe.get_combo_count(attacker_char) > 0 then
         trial_state._first_hit_landed = true
     end
 end
@@ -6145,7 +5827,7 @@ local function ct_player_tracking(p_idx, p_state)
     and trial_state._rec_pending_snapshot and trial_state._rec_pending_snapshot > 0 then
     trial_state._rec_pending_snapshot = trial_state._rec_pending_snapshot - 1
     if trial_state._rec_pending_snapshot == 0 then
-    trial_state._rec_gauges = capture_recording_gauges(p_idx)
+    trial_state._rec_gauges = ComboTrialsModules.GameProbe.capture_recording_gauges(p_idx)
     -- At this point vital_new = character's real max_hp, so damage is calculated from 100%
     end
     end
@@ -6210,7 +5892,7 @@ local function ct_player_tracking(p_idx, p_state)
         -- Verify hit source: projectile or direct player hit
         local hit_is_projectile = false
         pcall(function()
-            hit_is_projectile = check_is_projectile(p_idx, _pf.p_char, _td_gBattle)
+            hit_is_projectile = ComboTrialsModules.GameProbe.check_is_projectile(p_idx, _pf.p_char, _td_gBattle)
         end)
 
         if trial_state.is_recording and p_idx == trial_state.recording_player then
@@ -6276,7 +5958,7 @@ local function ct_player_validation(p_idx, p_state)
             set_dummy_counter_type = ComboTrialsModules.DummySettings.set_counter_type,
             d2d_cfg = d2d_cfg,
             file_system = file_system,
-            act_id_reverse_enum = act_id_reverse_enum
+            act_id_reverse_enum = ComboTrialsModules.GameProbe.act_id_reverse_enum
         }, "pending_current_absorb_validation")
     end
     if trial_state.is_playing and p_idx == trial_state.playing_player and not trial_state.manual_reset_pending then
@@ -6995,7 +6677,7 @@ local function ct_player_input_buffer(p_state)
             end
 
             if is_ghost then
-                local g_name = act_id_reverse_enum[p_state.buffer_act_id] or "Unknown"
+                local g_name = ComboTrialsModules.GameProbe.act_id_reverse_enum[p_state.buffer_act_id] or "Unknown"
                 local ghost_motion = nil
                 if ComboTrials_Renderer and ComboTrials_Renderer.get_command_display then
                     local ok, value = pcall(ComboTrials_Renderer.get_command_display,
@@ -7160,7 +6842,7 @@ local function ct_player_process_actions(p_idx, p_state, actions_to_process)
             end
         end
 
-        local act_name = act_id_reverse_enum[act_id] or "Unknown"
+        local act_name = ComboTrialsModules.GameProbe.act_id_reverse_enum[act_id] or "Unknown"
 
         -- 1. EARLY EXCEPTION RESOLUTION (For Hold Link)
         local exc = CharacterRules.get_exception(p_state.exceptions, common_exceptions, act_id)
@@ -7304,7 +6986,7 @@ local function ct_player_process_actions(p_idx, p_state, actions_to_process)
                     is_ignored = true
                     ignore_reason = "[System: Guard/Down/Stun]"
                 end
-                if not is_ignored and get_damage_type_safe(_pf.p_char) ~= 0 then
+                if not is_ignored and ComboTrialsModules.GameProbe.get_damage_type_safe(_pf.p_char) ~= 0 then
                     is_ignored = true
                     ignore_reason = "[System: Taking Damage]"
                 end
@@ -7404,7 +7086,7 @@ local function ct_player_process_actions(p_idx, p_state, actions_to_process)
                     end
                 end
 
-                if p_state.enable_deep_logging then deep_data = capture_deep_action_data(_pf.p_char) end
+                if p_state.enable_deep_logging then deep_data = ComboTrialsModules.GameProbe.capture_deep_action_data(_pf.p_char) end
 
                 if flags == 0 then
                     is_intentional = true
@@ -7463,7 +7145,7 @@ local function ct_player_process_actions(p_idx, p_state, actions_to_process)
                         set_dummy_counter_type = ComboTrialsModules.DummySettings.set_counter_type,
                         d2d_cfg = d2d_cfg,
                         file_system = file_system,
-                        act_id_reverse_enum = act_id_reverse_enum
+                        act_id_reverse_enum = ComboTrialsModules.GameProbe.act_id_reverse_enum
                     }
                 local function apply_matched_step(matched_expected, matched_act_id, matched_motion, matched_input, matched_frame, matched_combo, matched_hp, match_reason, match_details)
                     local confirmed, matched_step_idx = ComboTrialsModules.PendingAbsorb.apply_matched_step(pending_absorb_ctx, {
@@ -7623,7 +7305,7 @@ local function ct_player_process_actions(p_idx, p_state, actions_to_process)
                 end
 
                 if best_match then
-                    local real_btn = decode_button_mask(best_match.mask)
+                    local real_btn = ComboTrialsModules.GameProbe.decode_button_mask(best_match.mask)
                     real_input_str = best_match.dir
                     if real_btn ~= "" then
                         real_input_str = real_input_str ..
@@ -7658,7 +7340,7 @@ local function ct_player_process_actions(p_idx, p_state, actions_to_process)
 
                 if not motion_str then
                     if best_match then
-                        motion_str = "Follow-up (" .. decode_button_mask(best_match.mask) .. ")"
+                        motion_str = "Follow-up (" .. ComboTrialsModules.GameProbe.decode_button_mask(best_match.mask) .. ")"
                     else
                         motion_str = act_name
                     end
@@ -8565,7 +8247,7 @@ local function ct_player_process_actions(p_idx, p_state, actions_to_process)
                         set_dummy_counter_type = ComboTrialsModules.DummySettings.set_counter_type,
                         d2d_cfg = d2d_cfg,
                         file_system = file_system,
-                        act_id_reverse_enum = act_id_reverse_enum
+                        act_id_reverse_enum = ComboTrialsModules.GameProbe.act_id_reverse_enum
                     }, expected, current_absorb, match_probe, process_act.current_hp)
                 end
                 DebugTrace.record_match_probe(trial_state, match_probe)
@@ -9023,11 +8705,11 @@ re.on_frame(function()
                 p_state._trigger_cache_build = nil
             end
         end
-        if not p_state.trigger_cache_built then build_bcm_trigger_cache(p_idx) end
+        if not p_state.trigger_cache_built then ComboTrialsModules.GameProbe.build_bcm_trigger_cache(p_idx) end
 
         _pf.act_id, _pf.act_frame, _pf.flags, _pf.action_code, _pf.direct_input,
-            _pf.b_type, _pf.direction_input, _pf.facing_right = get_action_data(_pf.p_char)
-        _pf.current_combo = get_combo_count(_pf.p_char)
+            _pf.b_type, _pf.direction_input, _pf.facing_right = ComboTrialsModules.GameProbe.get_action_data(_pf.p_char)
+        _pf.current_combo = ComboTrialsModules.GameProbe.get_combo_count(_pf.p_char)
         _pf.victim_idx = 1 - p_idx
         _pf.victim_obj = (_pf.victim_idx == 0) and GS.p1 or GS.p2
         ctx.observe_runtime_action_truth(p_idx)
