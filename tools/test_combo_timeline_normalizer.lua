@@ -9,12 +9,11 @@ package.path = package.path
     .. ";./autorun/?.lua"
     .. ";./autorun/?/init.lua"
 
--- Load the pure normalizer block without booting REFramework/game globals.
 local source = read_all("autorun/TrainingComboTrials_v1.0.lua")
-local block = assert(source:match(
-    "(CTTimelineSequenceNormalizer = CTTimelineSequenceNormalizer or {}.-)\nlocal function normalize_sequence_counter_types"))
-is_drive_rush_id = function() return false end
-assert(load(block, "timeline-normalizer", "t", _G))()
+local CTTimelineSequenceNormalizer = require("func/ComboTrials/TimelineSequenceNormalizer")
+CTTimelineSequenceNormalizer.init({
+    is_drive_rush_id = function() return false end,
+})
 
 local timeline = {
     "1f : 2", "3f : 2+HP", "3f : 1+HP", "3f : 1", "3f : 2", "2f : 1",
