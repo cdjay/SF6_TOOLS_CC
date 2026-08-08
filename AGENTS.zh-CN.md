@@ -9,6 +9,7 @@
 * [项目发展规划](ROADMAP.zh-CN.md)
 * [架构设计](ARCHITECTURE.zh-CN.md)
 * [AC+BCM 语义核心](docs/AC_BCM_SEMANTIC_CORE.zh-CN.md)
+* [文档权威](docs/DOCUMENTATION_AUTHORITY.md)
 * **AI 开发规范**
 * [贡献指南](CONTRIBUTING.zh-CN.md)
 

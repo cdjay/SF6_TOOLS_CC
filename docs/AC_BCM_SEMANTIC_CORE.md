@@ -1,5 +1,7 @@
 # AC+BCM Unified Action Semantic Core
 
+Status: CURRENT Architecture Contract
+
 Language: [简体中文](AC_BCM_SEMANTIC_CORE.zh-CN.md)
 
 This document defines the architectural contract for character action data in SF6CC. The Chinese version is the normative working document for the current migration.
@@ -17,4 +19,3 @@ The target generated contract is `xt.character_move_graph.v1`. Lua exposes one s
 Display overrides, permanent runtime compatibility maps, and character-specific Action-ID branches must not become semantic authorities. Exceptions must be structured, evidence-backed, and limited to facts that AC+BCM cannot express.
 
 Migration is incremental: freeze current behavior, generate the graph, run resolver shadow comparisons, switch recording/detection/display/audit one by one, then remove obsolete patch layers and continue decomposing the entry script.
-

@@ -9,6 +9,7 @@ Language: [简体中文](AGENTS.zh-CN.md)
 * [Roadmap](ROADMAP.md)
 * [Architecture](ARCHITECTURE.md)
 * [AC+BCM Semantic Core](docs/AC_BCM_SEMANTIC_CORE.md)
+* [Documentation Authority](docs/DOCUMENTATION_AUTHORITY.md)
 * **AI Development Guide**
 * [Contributing](CONTRIBUTING.md)
 

@@ -1,5 +1,8 @@
 # Merge Assessment for Wael / 给 Wael 的合并评估
 
+> **Status: HISTORICAL** — This is a 2026-07-23 baseline snapshot. Conclusions are bound to the repository state at that time. It is not a current architecture contract and must not be treated as design authority.
+> See [Documentation Authority](DOCUMENTATION_AUTHORITY.md), [Architecture](../ARCHITECTURE.md), and [AC+BCM Semantic Core](AC_BCM_SEMANTIC_CORE.md) for the current architecture contracts.
+
 Last checked: 2026-07-23
 
 Baselines:

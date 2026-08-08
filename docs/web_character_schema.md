@@ -6,6 +6,8 @@ Capcom OFF 帧数快照组合在一个文件中，但保持两个独立索引：
 - `actions` 按当前游戏 Action ID 查询，用于连段起手和连段步骤的指令显示；
 - `moves` 按稳定的网页招式记录 ID 查询，用于角色资料页、帧数表和招式列表。
 
+`web:<id>:<occurrence>` 是当前网页快照内的记录键，**不是** SF6CC 跨版本 move_uid。它是 Capcom 官网当前快照的索引键，仅在单个角色快照内有效，且不同角色的 `official_web_id` 可能重复。跨版本稳定身份由 SF6ACBCM 的 move_uid 定义（见 [文档权威](DOCUMENTATION_AUTHORITY.md)）。
+
 生成位置：
 
 ```text

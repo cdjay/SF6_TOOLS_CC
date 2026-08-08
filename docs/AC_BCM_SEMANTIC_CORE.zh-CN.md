@@ -1,6 +1,6 @@
 # AC+BCM 统一动作语义核心
 
-状态：架构基线
+Status: CURRENT Architecture Contract / 已批准设计目标
 
 本文档定义 SF6CC 中角色动作数据的唯一解释方式。它不是某个角色的修复记录，也不是临时兼容方案。
 

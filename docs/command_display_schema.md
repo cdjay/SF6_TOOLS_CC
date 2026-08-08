@@ -1,7 +1,11 @@
 # Unified Command Display Schema v1
 
-`xt.command_display.v1` 是 SF6CC 的统一角色指令表。它以 Action ID 为稳定身份，
-AC 提供动作及派生关系，BCM 的 `norm/easy/sprt/supr` 只负责提供不同控制方式的输入投影。
+`xt.command_display.v1` 是 SF6CC 的统一角色指令表。它是当前游戏版本的 Runtime 投影，不是跨版本 Move 身份定义。
+
+- Action ID 是当前游戏 build 内的动作技术标识，**不是跨版本稳定身份**。跨版本稳定实体是 Move（见 [文档权威](DOCUMENTATION_AUTHORITY.md) 与 [AC+BCM 语义核心](AC_BCM_SEMANTIC_CORE.zh-CN.md)）。
+- AC 提供当前版本的动作关系与派生图。
+- BCM 的 `norm/easy/sprt/supr` 只负责提供不同控制方式的输入投影。
+- 本 Schema 定义的 `xt.command_display.v1` 是 current-build projection，不定义 move_uid。
 
 正式数据暂时保存在兼容目录：
 
