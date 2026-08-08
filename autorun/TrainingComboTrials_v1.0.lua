@@ -24,7 +24,8 @@ local ComboTrialsModules = {
     RawInputCodec = require("func/ComboTrials/RawInputCodec"),
     Transcriber = require("func/ComboTrials/Transcriber"),
     RuntimeAuditor = require("func/ComboTrials/RuntimeAuditor"),
-    TimelineSequenceNormalizer = require("func/ComboTrials/TimelineSequenceNormalizer")
+    TimelineSequenceNormalizer = require("func/ComboTrials/TimelineSequenceNormalizer"),
+    DummySettings = require("func/ComboTrials/DummySettings")
 }
 local DebugTrace = ComboTrialsModules.DebugTrace
 local ActionMatcher = ComboTrialsModules.ActionMatcher
@@ -2501,323 +2502,25 @@ function apply_pending_hp_restore_once(phase)
     return true
 end
 
--- Sets the Dummy Counter state (0=Normal, 1=Counter, 2=Punish Counter)
--- Cache tf_CounterSetting from _tfFuncs
-local _tf_counter_cache = nil
-local function get_tf_counter()
-    if _tf_counter_cache then return _tf_counter_cache end
-    pcall(function()
-        local tm = sdk.get_managed_singleton("app.training.TrainingManager")
-        if not tm then return end
-        local dict = tm:get_field("_tfFuncs")
-        if not dict then return end
-        local entries = dict:get_field("_entries")
-        if not entries then return end
-        local count = entries:call("get_Count")
-        for i = 0, count - 1 do
-            local entry = entries:call("get_Item", i)
-            if entry then
-                local val = entry:get_field("value")
-                if val then
-                    local td = val:get_type_definition()
-                    if td:get_full_name():find("tf_CounterSetting") then
-                        _tf_counter_cache = val
-                        return
-                    end
-                end
-            end
-        end
-    end)
-    return _tf_counter_cache
-end
-
--- 0=Normal, 1=CH, 2=PC, 3=Random (via DummyData + bApply).
--- Weight fields are raw values from the native T/detail menu.
-CT_COUNTER_RUNTIME_FIELDS = {
-    "NC_TYPE",
-    "PC_TYPE",
-    "NC_Weight",
-    "NH_Weight",
-    "PC_Weight",
-    "StyleNo"
-}
-
-local function set_dummy_counter_type(counter_val, raw_settings)
-    pcall(function()
-        local tm = sdk.get_managed_singleton("app.training.TrainingManager")
-        if not tm then return end
-        local tData = tm:get_field("_tData")
-        if not tData then return end
-        local cs = tData:get_field("CounterSetting")
-        if not cs then return end
-        local dd = cs:get_field("DummyData")
-        if not dd then return end
-        if counter_val == 3 then
-            dd.NC_TYPE = 2; dd.PC_TYPE = 2
-        elseif counter_val == 2 then
-            dd.NC_TYPE = 0; dd.PC_TYPE = 1
-        elseif counter_val == 1 then
-            dd.NC_TYPE = 1; dd.PC_TYPE = 0
-        else
-            dd.NC_TYPE = 0; dd.PC_TYPE = 0
-        end
-        if type(raw_settings) == "table" then
-            for _, field_name in ipairs(CT_COUNTER_RUNTIME_FIELDS) do
-                if raw_settings[field_name] ~= nil then dd[field_name] = raw_settings[field_name] end
-            end
-        end
-    end)
-    local tc = get_tf_counter()
-    if tc then pcall(function() tc:call("bApply") end) end
-end
-
-function ct_read_dummy_counter_settings()
-    local result = { counter_type = 0 }
-    pcall(function()
-        local tm = sdk.get_managed_singleton("app.training.TrainingManager")
-        if not tm then return end
-        local tData = tm:get_field("_tData")
-        if not tData then return end
-        local cs = tData:get_field("CounterSetting")
-        if not cs then return end
-        local dd = cs:get_field("DummyData")
-        if not dd then return end
-        for _, field_name in ipairs(CT_COUNTER_RUNTIME_FIELDS) do
-            result[field_name] = dd[field_name]
-        end
-        result.counter_type =
-            ComboTrialsModules.TrainingEnvironment.counter_type_from_runtime(
-                result.NC_TYPE,
-                result.PC_TYPE
-            )
-    end)
-    return result
-end
-
--- Read the current counter state.
-local function read_dummy_counter_type()
-    return ct_read_dummy_counter_settings().counter_type
-end
-
-local function save_dummy_counter_type()
-    if trial_state._saved_counter_settings == nil then
-        trial_state._saved_counter_settings = ct_read_dummy_counter_settings()
-    end
-end
-
-local function restore_dummy_counter_type()
-    local saved = trial_state._saved_counter_settings
-    if type(saved) == "table" then
-        set_dummy_counter_type(saved.counter_type, saved)
-        trial_state._saved_counter_settings = nil
-    end
-end
-
--- Cache tf_GuardSetting from _tfFuncs
-local _tf_guard_cache = nil
-local function get_tf_guard()
-    if _tf_guard_cache then return _tf_guard_cache end
-    pcall(function()
-        local tm = sdk.get_managed_singleton("app.training.TrainingManager")
-        if not tm then return end
-        local dict = tm:get_field("_tfFuncs")
-        if not dict then return end
-        local entries = dict:get_field("_entries")
-        if not entries then return end
-        local count = entries:call("get_Count")
-        for i = 0, count - 1 do
-            local entry = entries:call("get_Item", i)
-            if entry then
-                local val = entry:get_field("value")
-                if val and val:get_type_definition():get_full_name():find("tf_GuardSetting") then
-                    _tf_guard_cache = val
-                    return
-                end
-            end
-        end
-    end)
-    return _tf_guard_cache
-end
-
-CT_GUARD_RUNTIME_FIELDS = {
-    "GuardType",
-    "GuardWeight",
-    "GuardCount",
-    "IsGuardSwitching",
-    "GuardOnlyType"
-}
-
-local function set_dummy_guard_type(guard_val, guard_count, raw_settings)
-    pcall(function()
-        local tm = sdk.get_managed_singleton("app.training.TrainingManager")
-        if not tm then return end
-        local tData = tm:get_field("_tData")
-        local gs = tData:get_field("GuardSetting")
-        local dd = gs:get_field("DummyData")
-        dd.GuardType = guard_val
-        local runtime_guard_count =
-            ComboTrialsModules.TrainingEnvironment.guard_count_to_runtime(guard_count)
-        if runtime_guard_count ~= nil then dd.GuardCount = runtime_guard_count end
-        if type(raw_settings) == "table" then
-            for _, field_name in ipairs(CT_GUARD_RUNTIME_FIELDS) do
-                if field_name ~= "GuardType"
-                    and field_name ~= "GuardCount"
-                    and raw_settings[field_name] ~= nil then
-                    dd[field_name] = raw_settings[field_name]
-                end
-            end
-        end
-    end)
-    local tg = get_tf_guard()
-    if tg then pcall(function() tg:call("bApply") end) end
-end
-
-function ct_read_dummy_guard_settings()
-    local result = { guard_type = 0, guard_count = nil }
-    pcall(function()
-        local tm = sdk.get_managed_singleton("app.training.TrainingManager")
-        if not tm then return end
-        local tData = tm:get_field("_tData")
-        local gs = tData:get_field("GuardSetting")
-        local dd = gs:get_field("DummyData")
-        for _, field_name in ipairs(CT_GUARD_RUNTIME_FIELDS) do
-            result[field_name] = dd[field_name]
-        end
-        result.guard_type = result.GuardType or 0
-        result.guard_count =
-            ComboTrialsModules.TrainingEnvironment.guard_count_from_runtime(dd.GuardCount)
-    end)
-    return result
-end
-
-local function read_dummy_guard_type()
-    local result = ct_read_dummy_guard_settings()
-    return result.guard_type, result.guard_count
-end
-
-local function save_dummy_guard_type()
-    if trial_state._saved_guard_settings == nil then
-        trial_state._saved_guard_settings = ct_read_dummy_guard_settings()
-    end
-end
-
-local function restore_dummy_guard_type()
-    local saved = trial_state._saved_guard_settings
-    if type(saved) == "table" then
-        set_dummy_guard_type(saved.guard_type, saved.guard_count, saved)
-        trial_state._saved_guard_settings = nil
-    end
-end
-
--- Game enums:
--- DummyActionType: 0=stand, 1=crouch, 2=jump.
--- JumpType: 0=vertical, 1=front, 2=back, 3=random.
-local DUMMY_ACTION_STAND = ComboTrialsModules.TrainingEnvironment.DUMMY_ACTION.STAND
-local DUMMY_ACTION_CROUCH = ComboTrialsModules.TrainingEnvironment.DUMMY_ACTION.CROUCH
-CT_DUMMY_ACTION_RUNTIME_FIELDS = {
-    "DummyActionType",
-    "JumpType",
-    "JumpWeight_Front",
-    "JumpWeight_Virtical",
-    "JumpWeight_Back",
-    "CpuLevel"
-}
-
-local _tf_dummy_status_cache = nil
-local function get_tf_dummy_status()
-    if _tf_dummy_status_cache then return _tf_dummy_status_cache end
-    pcall(function()
-        local tm = sdk.get_managed_singleton("app.training.TrainingManager")
-        if not tm then return end
-        local dict = tm:get_field("_tfFuncs")
-        if not dict then return end
-        local entries = dict:get_field("_entries")
-        if not entries then return end
-        local count = entries:call("get_Count")
-        for i = 0, count - 1 do
-            local entry = entries:call("get_Item", i)
-            if entry then
-                local val = entry:get_field("value")
-                if val and val:get_type_definition():get_full_name():find("tf_DummyStatus") then
-                    _tf_dummy_status_cache = val
-                    return
-                end
-            end
-        end
-    end)
-    return _tf_dummy_status_cache
-end
-
-local function set_dummy_action_type(action_type, jump_type, resolve_random, raw_settings)
-    local applied_jump_type = jump_type
-    local was_random = false
-    if resolve_random == true then
-        applied_jump_type, was_random =
-            ComboTrialsModules.TrainingEnvironment.resolve_runtime_jump_type(jump_type)
-    end
-    trial_state._resolved_dummy_jump_type = was_random and applied_jump_type or nil
-
-    pcall(function()
-        local tm = sdk.get_managed_singleton("app.training.TrainingManager")
-        if not tm then return end
-        local tData = tm:get_field("_tData")
-        if not tData then return end
-        local ds = tData:get_field("DummyStatus")
-        if not ds then return end
-        local dd = ds:get_field("DummyData")
-        if not dd then return end
-        dd.DummyActionType = action_type
-        if applied_jump_type ~= nil then
-            dd.JumpType = applied_jump_type
-        elseif action_type ~= DUMMY_ACTION_STAND then
-            dd.JumpType = 0
-        end
-        if type(raw_settings) == "table" then
-            for _, field_name in ipairs(CT_DUMMY_ACTION_RUNTIME_FIELDS) do
-                if field_name ~= "DummyActionType"
-                    and field_name ~= "JumpType"
-                    and raw_settings[field_name] ~= nil then
-                    dd[field_name] = raw_settings[field_name]
-                end
-            end
-        end
-    end)
-
-    local td = get_tf_dummy_status()
-    if td then
-        pcall(function() td:call("bApply") end)
-    end
-end
-
-function ct_read_dummy_action_settings()
-    local result = {
-        action_type = DUMMY_ACTION_STAND,
-        jump_type = ComboTrialsModules.TrainingEnvironment.DUMMY_JUMP.VERTICAL
-    }
-    pcall(function()
-        local tm = sdk.get_managed_singleton("app.training.TrainingManager")
-        if not tm then return end
-        local tData = tm:get_field("_tData")
-        if not tData then return end
-        local ds = tData:get_field("DummyStatus")
-        if not ds then return end
-        local dd = ds:get_field("DummyData")
-        if not dd then return end
-        for _, field_name in ipairs(CT_DUMMY_ACTION_RUNTIME_FIELDS) do
-            result[field_name] = dd[field_name]
-        end
-        result.action_type = result.DummyActionType or DUMMY_ACTION_STAND
-        result.jump_type = result.JumpType
-            or ComboTrialsModules.TrainingEnvironment.DUMMY_JUMP.VERTICAL
-    end)
-    return result
-end
-
-local function read_dummy_action_state()
-    local result = ct_read_dummy_action_settings()
-    return result.action_type, result.jump_type
-end
-
+ComboTrialsModules.DummySettings.init(trial_state)
+CT_COUNTER_RUNTIME_FIELDS = ComboTrialsModules.DummySettings.COUNTER_RUNTIME_FIELDS
+CT_GUARD_RUNTIME_FIELDS = ComboTrialsModules.DummySettings.GUARD_RUNTIME_FIELDS
+CT_DUMMY_ACTION_RUNTIME_FIELDS = ComboTrialsModules.DummySettings.DUMMY_ACTION_RUNTIME_FIELDS
+CT_TRIAL_DEFENSE_FIELDS = ComboTrialsModules.DummySettings.TRIAL_DEFENSE_FIELDS
+ct_read_dummy_counter_settings = ComboTrialsModules.DummySettings.read_counter_settings
+ct_read_dummy_guard_settings = ComboTrialsModules.DummySettings.read_guard_settings
+ct_read_dummy_action_settings = ComboTrialsModules.DummySettings.read_action_settings
+ct_get_tf_defense_system = ComboTrialsModules.DummySettings.get_tf_defense_system
+ct_get_trial_defense_objects = ComboTrialsModules.DummySettings.get_trial_defense_objects
+ct_copy_trial_defense_fields = ComboTrialsModules.DummySettings.copy_trial_defense_fields
+ct_capture_training_defense_environment = ComboTrialsModules.DummySettings.capture_training_defense_environment
+ct_write_trial_defense_fields = ComboTrialsModules.DummySettings.write_trial_defense_fields
+ct_backup_trial_defense_settings = ComboTrialsModules.DummySettings.backup_trial_defense_settings
+restore_trial_defense_settings = ComboTrialsModules.DummySettings.restore_trial_defense_settings
+apply_trial_defense_cleanup = ComboTrialsModules.DummySettings.apply_trial_defense_cleanup
+ct_apply_recorded_defense_settings = ComboTrialsModules.DummySettings.apply_recorded_defense_settings
+ct_trial_dummy_guard_type = ComboTrialsModules.DummySettings.trial_dummy_guard_type
+ct_trial_dummy_guard_count = ComboTrialsModules.DummySettings.trial_dummy_guard_count
 function unique_resources.request_training_refresh()
     pcall(function()
         local tm = sdk.get_managed_singleton("app.training.TrainingManager")
@@ -3425,12 +3128,12 @@ end
 
 local function capture_trial_environment()
     local action_settings = ct_read_dummy_action_settings()
-    local action_type = tonumber(action_settings.action_type) or DUMMY_ACTION_STAND
+    local action_type = tonumber(action_settings.action_type) or ComboTrialsModules.DummySettings.DUMMY_ACTION_STAND
     local jump_type = tonumber(action_settings.jump_type)
         or ComboTrialsModules.TrainingEnvironment.DUMMY_JUMP.VERTICAL
-    local stance = action_type == DUMMY_ACTION_CROUCH and "crouch"
+    local stance = action_type == ComboTrialsModules.DummySettings.DUMMY_ACTION_CROUCH and "crouch"
         or (action_type == ComboTrialsModules.TrainingEnvironment.DUMMY_ACTION.JUMP and "jump")
-        or (action_type == DUMMY_ACTION_STAND and "stand")
+        or (action_type == ComboTrialsModules.DummySettings.DUMMY_ACTION_STAND and "stand")
         or nil
     local counter_settings = ct_read_dummy_counter_settings()
     local guard_settings = ct_read_dummy_guard_settings()
@@ -3469,23 +3172,9 @@ local function capture_trial_environment()
     return env
 end
 
-local function save_dummy_action_type()
-    if trial_state._saved_dummy_action_settings == nil then
-        trial_state._saved_dummy_action_settings = ct_read_dummy_action_settings()
-    end
-end
-
-local function restore_dummy_action_type()
-    local saved = trial_state._saved_dummy_action_settings
-    if type(saved) == "table" then
-        set_dummy_action_type(saved.action_type, saved.jump_type, false, saved)
-        trial_state._saved_dummy_action_settings = nil
-    end
-end
-
 local function value_requests_dummy_crouch(value)
     if type(value) == "boolean" then return value end
-    if type(value) == "number" then return value == DUMMY_ACTION_CROUCH end
+    if type(value) == "number" then return value == ComboTrialsModules.DummySettings.DUMMY_ACTION_CROUCH end
     if type(value) ~= "string" then return false end
     local text = value:lower()
     return text == "crouch" or text == "crouching" or text == "cr" or text == "down" or text == "low"
@@ -3511,7 +3200,7 @@ end
 
 local function environment_requests_dummy_crouch(env)
     if not has_recorded_dummy_action_environment(env) then return false end
-    if tonumber(env.dummy_action_type) == DUMMY_ACTION_CROUCH then return true end
+    if tonumber(env.dummy_action_type) == ComboTrialsModules.DummySettings.DUMMY_ACTION_CROUCH then return true end
     if value_requests_dummy_crouch(env.dummy_stance) then return true end
     if value_requests_dummy_crouch(env.dummy_posture) then return true end
     if value_requests_dummy_crouch(env.dummy_action) then return true end
@@ -3571,210 +3260,6 @@ local function trial_requires_dummy_crouch()
     return false
 end
 
-CT_TRIAL_DEFENSE_FIELDS = {
-    "QS_Type",
-    "GD_Type",
-    "DR_Type",
-    "DP_Type",
-    "QS_Weight",
-    "GD_Weight",
-    "DR_Guard_Weight",
-    "DR_Getup_Weight",
-    "DR_No_Weight",
-    "DR_DelayFrame",
-    "DR_DelayCount"
-}
-
-_ct_tf_defense_system_cache = nil
-function ct_get_tf_defense_system()
-    if _ct_tf_defense_system_cache then return _ct_tf_defense_system_cache end
-    pcall(function()
-        local tm = sdk.get_managed_singleton("app.training.TrainingManager")
-        if not tm then return end
-        local dict = tm:get_field("_tfFuncs")
-        if not dict then return end
-        local entries = dict:get_field("_entries")
-        if not entries then return end
-        local count = entries:call("get_Count")
-        for i = 0, count - 1 do
-            local entry = entries:call("get_Item", i)
-            local val = entry and entry:get_field("value") or nil
-            if val then
-                local td = val:get_type_definition()
-                local full_name = td and td:get_full_name() or ""
-                if full_name:find("tf_DefenseSystem") then
-                    _ct_tf_defense_system_cache = val
-                    return
-                end
-            end
-        end
-    end)
-    return _ct_tf_defense_system_cache
-end
-
-function ct_get_trial_defense_objects(player_idx)
-    local out = { player_idx = tonumber(player_idx or 1) or 1 }
-    if out.player_idx ~= 1 then out.player_idx = 0 end
-    pcall(function()
-        out.tm = sdk.get_managed_singleton("app.training.TrainingManager")
-        out.defense_func = out.tm and out.tm:call("get_DefenseFunc") or nil
-        local t_data = out.tm and out.tm:get_field("_tData") or nil
-        out.defense_system = t_data and t_data:get_field("DefenseSystem") or nil
-        if out.defense_system then
-            out.dummy_data = out.defense_system.DummyData
-            out.player_data = out.defense_system.PlayerDatas and out.defense_system.PlayerDatas[out.player_idx] or nil
-        end
-        out.tf_defense = ct_get_tf_defense_system()
-    end)
-    return out
-end
-
-function ct_copy_trial_defense_fields(obj)
-    local fields = {}
-    if not obj then return fields end
-    for _, field_name in ipairs(CT_TRIAL_DEFENSE_FIELDS) do
-        local ok, value = pcall(function() return obj[field_name] end)
-        if ok and value ~= nil then fields[field_name] = value end
-    end
-    return fields
-end
-
-function ct_capture_training_defense_environment(env)
-    if type(env) ~= "table" then return env end
-    local objects = ct_get_trial_defense_objects(1)
-    local fields = ct_copy_trial_defense_fields(objects.dummy_data)
-    env.dummy_drive_parry_type = fields.DP_Type
-    env.dummy_drive_reversal_type = fields.DR_Type
-    env.dummy_drive_reversal_delay = fields.DR_DelayFrame
-    env.dummy_drive_reversal_count =
-        ComboTrialsModules.TrainingEnvironment.drive_reversal_count_from_runtime(
-            fields.DR_DelayCount
-        )
-    env.dummy_drive_reversal_weight_none = fields.DR_No_Weight
-    env.dummy_drive_reversal_weight_guard = fields.DR_Guard_Weight
-    env.dummy_drive_reversal_weight_wakeup = fields.DR_Getup_Weight
-    env.dummy_throw_escape_type = fields.GD_Type
-    env.dummy_throw_escape_weight = fields.GD_Weight
-    env.dummy_wakeup_type = fields.QS_Type
-    env.dummy_wakeup_weight = fields.QS_Weight
-    return env
-end
-
-function ct_write_trial_defense_fields(obj, fields)
-    if not obj then return end
-    for field_name, value in pairs(fields or {}) do
-        pcall(function() obj[field_name] = value end)
-    end
-end
-
-function ct_backup_trial_defense_settings(defender_idx)
-    defender_idx = tonumber(defender_idx or 1) or 1
-    if defender_idx ~= 1 then defender_idx = 0 end
-    if type(trial_state._trial_defense_backup) == "table" then return end
-    local objects = ct_get_trial_defense_objects(defender_idx)
-    trial_state._trial_defense_backup = {
-        player_idx = defender_idx,
-        dummy = ct_copy_trial_defense_fields(objects.dummy_data),
-        player = ct_copy_trial_defense_fields(objects.player_data)
-    }
-end
-
-function restore_trial_defense_settings()
-    local backup = trial_state._trial_defense_backup
-    if type(backup) ~= "table" then return false end
-    local objects = ct_get_trial_defense_objects(backup.player_idx)
-    ct_write_trial_defense_fields(objects.dummy_data, backup.dummy)
-    ct_write_trial_defense_fields(objects.player_data, backup.player)
-    if objects.tf_defense then pcall(function() objects.tf_defense:call("bApply") end) end
-    trial_state._trial_defense_backup = nil
-    return true
-end
-
-function apply_trial_defense_cleanup()
-    local attacker_idx = tonumber(trial_state.playing_player or 0) or 0
-    if attacker_idx ~= 1 then attacker_idx = 0 end
-    local defender_idx = 1 - attacker_idx
-    ct_backup_trial_defense_settings(defender_idx)
-
-    local objects = ct_get_trial_defense_objects(defender_idx)
-    if objects.defense_func then
-        pcall(function() objects.defense_func:call("SetDriveParry", defender_idx, 0) end)
-        pcall(function() objects.defense_func:call("ChangeDRType", defender_idx, 0) end)
-        pcall(function() objects.defense_func:call("SetDR_Guard_Weight", defender_idx, 0) end)
-        pcall(function() objects.defense_func:call("SetDR_Getup_Weight", defender_idx, 0) end)
-        pcall(function() objects.defense_func:call("SetDR_No_Weight", defender_idx, 100) end)
-    end
-
-    local disabled = {
-        DR_Type = 0,
-        DP_Type = 0,
-        DR_Guard_Weight = 0,
-        DR_Getup_Weight = 0,
-        DR_No_Weight = 100
-    }
-    ct_write_trial_defense_fields(objects.dummy_data, disabled)
-    ct_write_trial_defense_fields(objects.player_data, disabled)
-    if objects.tf_defense then pcall(function() objects.tf_defense:call("bApply") end) end
-end
-
-function ct_apply_recorded_defense_settings(first_step)
-    local attacker_idx = tonumber(trial_state.playing_player or 0) or 0
-    if attacker_idx ~= 1 then attacker_idx = 0 end
-    local defender_idx = 1 - attacker_idx
-    if not ComboTrialsModules.TrainingEnvironment.has_recorded_defense_settings(first_step) then
-        apply_trial_defense_cleanup()
-        return "legacy_cleanup"
-    end
-
-    ct_backup_trial_defense_settings(defender_idx)
-    local settings =
-        ComboTrialsModules.TrainingEnvironment.resolve_recorded_settings(first_step)
-    local fields = {
-        QS_Type = settings.dummy_wakeup_type,
-        QS_Weight = settings.dummy_wakeup_weight,
-        GD_Type = settings.dummy_throw_escape_type,
-        GD_Weight = settings.dummy_throw_escape_weight,
-        DP_Type = settings.dummy_drive_parry_type,
-        DR_Type = settings.dummy_drive_reversal_type,
-        DR_DelayFrame = settings.dummy_drive_reversal_delay,
-        DR_DelayCount =
-            ComboTrialsModules.TrainingEnvironment.drive_reversal_count_to_runtime(
-                settings.dummy_drive_reversal_count
-            ),
-        DR_No_Weight = settings.dummy_drive_reversal_weight_none,
-        DR_Guard_Weight = settings.dummy_drive_reversal_weight_guard,
-        DR_Getup_Weight = settings.dummy_drive_reversal_weight_wakeup,
-    }
-    local objects = ct_get_trial_defense_objects(defender_idx)
-    ct_write_trial_defense_fields(objects.dummy_data, fields)
-    ct_write_trial_defense_fields(objects.player_data, fields)
-    if objects.tf_defense then pcall(function() objects.tf_defense:call("bApply") end) end
-    return "recorded"
-end
-
-function ct_trial_dummy_guard_type()
-    local first_step = trial_state.sequence and trial_state.sequence[1]
-    local fallback = type(trial_state._saved_guard_settings) == "table"
-        and trial_state._saved_guard_settings.guard_type
-        or nil
-    if fallback == nil then fallback = read_dummy_guard_type() end
-    local guard_type, source = ComboTrialsModules.TrainingEnvironment.resolve_dummy_guard_type(first_step, fallback)
-    trial_state._dummy_guard_type_source = source
-    return guard_type
-end
-
-function ct_trial_dummy_guard_count()
-    local first_step = trial_state.sequence and trial_state.sequence[1]
-    local fallback = type(trial_state._saved_guard_settings) == "table"
-        and trial_state._saved_guard_settings.guard_count
-        or nil
-    if fallback == nil then fallback = select(2, read_dummy_guard_type()) end
-    local guard_count, source =
-        ComboTrialsModules.TrainingEnvironment.resolve_dummy_guard_count(first_step, fallback)
-    trial_state._dummy_guard_count_source = source
-    return guard_count
-end
-
 local function apply_trial_training_environment(skip_refresh_settings)
     local apply_refresh_settings = skip_refresh_settings ~= true
     -- Training refresh can rebuild UniqueData. Reapply recorded character
@@ -3803,21 +3288,21 @@ local function apply_trial_training_environment(skip_refresh_settings)
         )
     }
     if dummy_action_type ~= nil then
-        set_dummy_action_type(
+        ComboTrialsModules.DummySettings.set_action_type(
             dummy_action_type,
             dummy_jump_type,
             true,
             action_raw_settings
         )
     elseif trial_requires_dummy_crouch() then
-        set_dummy_action_type(DUMMY_ACTION_CROUCH)
+        ComboTrialsModules.DummySettings.set_action_type(ComboTrialsModules.DummySettings.DUMMY_ACTION_CROUCH)
     else
-        set_dummy_action_type(
-            DUMMY_ACTION_STAND,
+        ComboTrialsModules.DummySettings.set_action_type(
+            ComboTrialsModules.DummySettings.DUMMY_ACTION_STAND,
             ComboTrialsModules.TrainingEnvironment.DUMMY_JUMP.VERTICAL
         )
     end
-    set_dummy_counter_type(first_ct or 0, {
+    ComboTrialsModules.DummySettings.set_counter_type(first_ct or 0, {
         NH_Weight = settings.dummy_counter_weight_normal,
         NC_Weight = settings.dummy_counter_weight_counter,
         PC_Weight = settings.dummy_counter_weight_punish
@@ -3853,7 +3338,7 @@ local function apply_trial_training_environment(skip_refresh_settings)
     ct_apply_recorded_defense_settings(first_step)
     -- Guard must be the final training-setting write. Defense cleanup applies
     -- its own function and could otherwise restore the previous guard mode.
-    set_dummy_guard_type(dummy_guard_type, dummy_guard_count, {
+    ComboTrialsModules.DummySettings.set_guard_type(dummy_guard_type, dummy_guard_count, {
         IsGuardSwitching = settings.dummy_guard_switching,
         GuardWeight = settings.dummy_guard_weight,
         GuardOnlyType = settings.dummy_guard_only_type
@@ -4169,11 +3654,11 @@ ComboTrials_Files.init(ctx, {
     normalize_sequence_scene_state =
         ComboTrialsModules.SceneState.materialize_stable_legacy_actor_hp,
     assign_groups = assign_groups,
-    restore_trial_dummy_action_type = restore_dummy_action_type,
+    restore_trial_dummy_action_type = ComboTrialsModules.DummySettings.restore_action_type,
 })
 
 local function load_combo_from_file(path, force)
-    restore_dummy_action_type()
+    ComboTrialsModules.DummySettings.restore_action_type()
     local ok = ComboTrials_Files.load_combo_from_file(path, force)
     if ok and type(read_actor_scene_hp) == "function"
         and type(restore_hp_training_setting_if_needed) == "function" then
@@ -4187,7 +3672,7 @@ end
 
 local function clear_combo_state()
     invalidate_recording_display_context()
-    restore_dummy_action_type()
+    ComboTrialsModules.DummySettings.restore_action_type()
     local ok = ComboTrials_Files.clear_combo_state()
     if type(restore_hp_training_setting_if_needed) == "function" then
         restore_hp_training_setting_if_needed("clear_combo_state", trial_state.playing_player)
@@ -4619,7 +4104,7 @@ local function start_recording(player_idx)
 end
 
 local function start_trial(player_idx)
-    restore_dummy_action_type()
+    ComboTrialsModules.DummySettings.restore_action_type()
     local was_playing = trial_state.is_playing
     clear_pending_position_injection()
     if was_playing then
@@ -4655,9 +4140,9 @@ local function start_trial(player_idx)
     -- Full display reset (text log + ImGui raw and animated views)
     reset_combo_visual_runtime()
 
-    save_dummy_counter_type()
-    save_dummy_guard_type()
-    save_dummy_action_type()
+    ComboTrialsModules.DummySettings.save_counter_type()
+    ComboTrialsModules.DummySettings.save_guard_type()
+    ComboTrialsModules.DummySettings.save_action_type()
 
     -- INJECT FIRST-STEP TRAINING ENVIRONMENT
     apply_trial_training_environment()
@@ -6274,9 +5759,9 @@ local function cleanup_combo_trials_runtime_on_scene_exit(reason)
     pcall(restore_trial_vital)
     pcall(function() unique_resources.restore() end)
     pcall(restore_trial_defense_settings)
-    pcall(restore_dummy_counter_type)
-    pcall(restore_dummy_guard_type)
-    pcall(restore_dummy_action_type)
+    pcall(ComboTrialsModules.DummySettings.restore_counter_type)
+    pcall(ComboTrialsModules.DummySettings.restore_guard_type)
+    pcall(ComboTrialsModules.DummySettings.restore_action_type)
 end
 
 local function ct_handle_runtime_scene_gate()
@@ -6336,9 +5821,9 @@ local function ct_handle_mode_exit()
             restore_trial_vital()
             unique_resources.restore()
             restore_trial_defense_settings()
-            restore_dummy_counter_type()
-            restore_dummy_guard_type()
-            restore_dummy_action_type()
+            ComboTrialsModules.DummySettings.restore_counter_type()
+            ComboTrialsModules.DummySettings.restore_guard_type()
+            ComboTrialsModules.DummySettings.restore_action_type()
             apply_current_position_refresh()
         elseif trial_state.is_recording then
             cancel_recording()
@@ -6444,9 +5929,9 @@ local function ct_handle_playing_transition(_in_replay)
         unique_resources.restore()
         restore_trial_defense_settings()
         trial_state._pending_reinject_settings = false
-        restore_dummy_action_type()
-        restore_dummy_counter_type()
-        restore_dummy_guard_type()
+        ComboTrialsModules.DummySettings.restore_action_type()
+        ComboTrialsModules.DummySettings.restore_counter_type()
+        ComboTrialsModules.DummySettings.restore_guard_type()
         reset_positions_to_default()
     end
     trial_state._was_playing = now_playing
@@ -6788,7 +6273,7 @@ local function ct_player_validation(p_idx, p_state)
             Validator = Validator,
             DebugTrace = DebugTrace,
             is_post_hit_setup_step = is_post_hit_setup_step,
-            set_dummy_counter_type = set_dummy_counter_type,
+            set_dummy_counter_type = ComboTrialsModules.DummySettings.set_counter_type,
             d2d_cfg = d2d_cfg,
             file_system = file_system,
             act_id_reverse_enum = act_id_reverse_enum
@@ -7975,7 +7460,7 @@ local function ct_player_process_actions(p_idx, p_state, actions_to_process)
                         Validator = Validator,
                         DebugTrace = DebugTrace,
                         is_post_hit_setup_step = is_post_hit_setup_step,
-                        set_dummy_counter_type = set_dummy_counter_type,
+                        set_dummy_counter_type = ComboTrialsModules.DummySettings.set_counter_type,
                         d2d_cfg = d2d_cfg,
                         file_system = file_system,
                         act_id_reverse_enum = act_id_reverse_enum
@@ -9077,7 +8562,7 @@ local function ct_player_process_actions(p_idx, p_state, actions_to_process)
                         Validator = Validator,
                         DebugTrace = DebugTrace,
                         is_post_hit_setup_step = is_post_hit_setup_step,
-                        set_dummy_counter_type = set_dummy_counter_type,
+                        set_dummy_counter_type = ComboTrialsModules.DummySettings.set_counter_type,
                         d2d_cfg = d2d_cfg,
                         file_system = file_system,
                         act_id_reverse_enum = act_id_reverse_enum
@@ -10276,9 +9761,9 @@ ctx.reset_transcription_environment = function()
     pcall(restore_trial_vital)
     pcall(function() unique_resources.restore() end)
     pcall(restore_trial_defense_settings)
-    pcall(restore_dummy_counter_type)
-    pcall(restore_dummy_guard_type)
-    pcall(restore_dummy_action_type)
+    pcall(ComboTrialsModules.DummySettings.restore_counter_type)
+    pcall(ComboTrialsModules.DummySettings.restore_guard_type)
+    pcall(ComboTrialsModules.DummySettings.restore_action_type)
     pcall(reset_positions_to_default)
     pcall(function()
         local tm = sdk.get_managed_singleton("app.training.TrainingManager")
