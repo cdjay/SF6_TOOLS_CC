@@ -1,0 +1,72 @@
+{
+  "schema": "sf6acbcm.m5-export-manifest.v1",
+  "algorithm_version": "m5-export.v1",
+  "authority": "current_semantic_candidate_only",
+  "auto_approved": false,
+  "build": {
+    "build_uid": "sf6b_c0269f7351fc73e06633b780",
+    "display_version": "2026-08-03"
+  },
+  "source": {
+    "m2_graph_file_sha256": "eac036e86a7ee88f43b09df7a13de7c6b915bf16f6c785217c2e285e34f0f3de",
+    "m2_graph_canonical_sha256": "0cefaa96ce82ab472cd98e1ec7e4cff6eb13ee3754bf4522a73f6c4137e1629d",
+    "m4_index_sha256": "7b95f8250bbb708ced408cf4481351fcca8296190eee10ebd3c2bd93793886a4",
+    "ledger_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+    "ledger_head_sha256": null
+  },
+  "artifacts": {
+    "runtime_current": {
+      "file": "runtime-current.v1.json",
+      "sha256": "5da28017acb9be992ca7c7f1eee3e9e5659acef80700403e21dfcf49f1a0bc45",
+      "bytes": 21581
+    },
+    "public_catalog_current": {
+      "file": "public-catalog-current.v1.json",
+      "sha256": "c4b753a4f0775b219f2ce4fc190b72f5ffa353ef69b5816b45021f6ed83c7318",
+      "bytes": 2453105
+    },
+    "legacy_projections": {
+      "file": "legacy-projections-current.v1.json",
+      "sha256": "3ae3442c1dfc2dc88a9616790c2c9be18ea4038b41eab621743417c01f455307",
+      "bytes": 375
+    }
+  },
+  "character_coverage": {
+    "expected": 4,
+    "generated": 4,
+    "failed": []
+  },
+  "unresolved": {
+    "migration_links": 0,
+    "memberships": 0,
+    "rows": 1,
+    "extensions": 0,
+    "transitions": 1
+  },
+  "review_pending": {
+    "migration_links": 0,
+    "memberships": 0,
+    "rows": 1,
+    "extensions": 0,
+    "transitions": 1
+  },
+  "approval_coverage": {
+    "moves": 7,
+    "stable_identities": 0,
+    "provisional": 7,
+    "decisions": 0,
+    "active_decisions": 0,
+    "approved_migration_links": 0
+  },
+  "provenance_summary": {
+    "current_only": true,
+    "raw_workspace_read_only": true,
+    "m4_index_query_only": true,
+    "legacy_projection_separate": true
+  },
+  "ready": {
+    "artifact_set": true,
+    "review_complete": false,
+    "integration_candidate": false
+  }
+}

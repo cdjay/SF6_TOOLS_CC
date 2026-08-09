@@ -1,0 +1,502 @@
+{
+  "schema": "sf6acbcm.runtime-current.v1",
+  "algorithm_version": "m5-export.v1",
+  "authority": "current_semantic_candidate_only",
+  "auto_approved": false,
+  "build": {
+    "build_uid": "sf6b_c0269f7351fc73e06633b780",
+    "display_version": "2026-08-03"
+  },
+  "source": {
+    "m2_graph_file_sha256": "eac036e86a7ee88f43b09df7a13de7c6b915bf16f6c785217c2e285e34f0f3de",
+    "m2_graph_canonical_sha256": "0cefaa96ce82ab472cd98e1ec7e4cff6eb13ee3754bf4522a73f6c4137e1629d",
+    "m4_index_sha256": "7b95f8250bbb708ced408cf4481351fcca8296190eee10ebd3c2bd93793886a4",
+    "ledger_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+    "ledger_head_sha256": null
+  },
+  "unresolved_diagnostics": [
+    {
+      "diagnostic_uid": "m2unr_0b5437660b904d001d22097b",
+      "diagnostic_kind": "row",
+      "fighter_id": 19,
+      "character": "Ed",
+      "source_action_id": 417,
+      "target_action_id": 422,
+      "detail": {
+        "candidate_uids": ["m1cand_de76775124b18572d153efab"],
+        "predicate": "t17_exact_rebind",
+        "reasons": ["param01_mismatch:expected_120_got_220", "source_member_unresolved"],
+        "relationship_uids": [],
+        "row_kind": "candidate"
+      },
+      "review": {
+        "status": "pending",
+        "decision_uid": null,
+        "reason": null,
+        "evidence_refs": [],
+        "disposition": null
+      }
+    },
+    {
+      "diagnostic_uid": "m2tr_02c87eca6d5f7c17f61e1af9",
+      "diagnostic_kind": "transition",
+      "fighter_id": 3,
+      "character": "Kimberly",
+      "source_action_id": 902,
+      "target_action_id": 906,
+      "detail": {
+        "evidence": {
+          "branch_types": [0],
+          "candidate_uids": [],
+          "raw_edge_uids": ["edge_61d1382df0535b6bf2fc05e6"],
+          "reasons": ["anchored_to_anchored_raw_ac_pair_not_accepted_by_m1", "family_resolution_not_exact_1x1"],
+          "source_family_uids": ["m1fam_275132d9651009311c193791"],
+          "target_family_uids": ["m1fam_446e35cf2bdf82800861dedb", "m1fam_e28f894c5d6f092ba56569b2", "m1fam_eca6192b2b5fb34474bc3bc4"]
+        },
+        "from_move_uid": null,
+        "kind": "boundary_diagnostic",
+        "strictness": "UNRESOLVED",
+        "to_move_uid": null
+      },
+      "review": {
+        "status": "pending",
+        "decision_uid": null,
+        "reason": null,
+        "evidence_refs": [],
+        "disposition": null
+      }
+    }
+  ],
+  "characters": [
+    {
+      "fighter_id": 20,
+      "character": "EHonda",
+      "moves": [
+        {
+          "current_move_uid": "m2move_6c92dae21a5e22f63d2bfc7f",
+          "stable_move_uid": null,
+          "provisional": true,
+          "revision_uid": "m2rev_3ac10406c9e8bf0d477121a9",
+          "fingerprint": "dc26b5a57cfc9f8f20b331d1712f99ddd3cb7fe886a6c43a5e89af680eb9990e",
+          "duplicate_owners": false,
+          "disabled_only": false,
+          "owner_action_ids": [965],
+          "anchors": [
+            {
+              "anchor_route_uid": "m1route_cdbc59478b1fb11973bd8014",
+              "trigger_index": 83,
+              "owner_action_id": 965,
+              "condition_hash": "5a1d0f7edea335d31ff4bfe4e15165ce5739d4ae838f0d3eb212a6720beba6f4",
+              "has_enabled_profile": true,
+              "charge_command": false,
+              "resource_gated": false,
+              "state_gated": false,
+              "control_mode_availability": "classic_and_modern"
+            }
+          ],
+          "commands": [
+            { "profile_name": "easy", "enabled": false, "normalized_notation": "Normal", "anchor_route_uid": "m1route_cdbc59478b1fb11973bd8014" },
+            { "profile_name": "supr", "enabled": true, "normalized_notation": "2", "anchor_route_uid": "m1route_cdbc59478b1fb11973bd8014" },
+            { "profile_name": "norm", "enabled": true, "normalized_notation": "2+P", "anchor_route_uid": "m1route_cdbc59478b1fb11973bd8014" },
+            { "profile_name": "sprt", "enabled": true, "normalized_notation": "2+LP+MP+LK+MK", "anchor_route_uid": "m1route_cdbc59478b1fb11973bd8014" }
+          ],
+          "memberships": [
+            {
+              "build_uid": "sf6b_c0269f7351fc73e06633b780",
+              "move_uid": "m2move_6c92dae21a5e22f63d2bfc7f",
+              "action_id": 965,
+              "role": "primary",
+              "strictness": "STRICT",
+              "context_key": null,
+              "evidence": {
+                "candidate_uids": [],
+                "extension_uids": [],
+                "family_uids": ["m1fam_d9d42c0d1bf0865ffe29357e"],
+                "reasons": [],
+                "relationship_uids": []
+              }
+            }
+          ]
+        },
+        {
+          "current_move_uid": "m2move_adb56dc91f9b6663c6f61548",
+          "stable_move_uid": null,
+          "provisional": true,
+          "revision_uid": "m2rev_071083db53838af221b9f9c7",
+          "fingerprint": "ad95ade76ae585ba005513297b131c8ae1fddde443563aa4d7d2b657d4bfed75",
+          "duplicate_owners": false,
+          "disabled_only": true,
+          "owner_action_ids": [961],
+          "anchors": [
+            {
+              "anchor_route_uid": "m1route_c4d7a2b6bbd3c14f26dced5c",
+              "trigger_index": 167,
+              "owner_action_id": 961,
+              "condition_hash": "05b63391fa0baefd26304c7484afb4caa0f0eecd8a2da92c3a713627f667c593",
+              "has_enabled_profile": false,
+              "charge_command": false,
+              "resource_gated": true,
+              "state_gated": false,
+              "control_mode_availability": "no_enabled_profile"
+            }
+          ],
+          "commands": [
+            { "profile_name": "easy", "enabled": false, "normalized_notation": "Normal", "anchor_route_uid": "m1route_c4d7a2b6bbd3c14f26dced5c" },
+            { "profile_name": "norm", "enabled": false, "normalized_notation": "Normal", "anchor_route_uid": "m1route_c4d7a2b6bbd3c14f26dced5c" },
+            { "profile_name": "supr", "enabled": false, "normalized_notation": "Normal", "anchor_route_uid": "m1route_c4d7a2b6bbd3c14f26dced5c" },
+            { "profile_name": "sprt", "enabled": false, "normalized_notation": "Normal", "anchor_route_uid": "m1route_c4d7a2b6bbd3c14f26dced5c" }
+          ],
+          "memberships": [
+            {
+              "build_uid": "sf6b_c0269f7351fc73e06633b780",
+              "move_uid": "m2move_adb56dc91f9b6663c6f61548",
+              "action_id": 961,
+              "role": "primary",
+              "strictness": "STRICT",
+              "context_key": null,
+              "evidence": {
+                "candidate_uids": [],
+                "extension_uids": [],
+                "family_uids": ["m1fam_b48b3e2ab6e4f2494ab0d189"],
+                "reasons": [],
+                "relationship_uids": []
+              }
+            }
+          ]
+        },
+        {
+          "current_move_uid": "m2move_0f36af1e59e2836967557403",
+          "stable_move_uid": null,
+          "provisional": true,
+          "revision_uid": "m2rev_6b83e2480b45445c53312838",
+          "fingerprint": "034c6f5e6fc46c1ddcb7d10fb0febc47e8f6706be91fba62013179065d7e834f",
+          "duplicate_owners": false,
+          "disabled_only": false,
+          "owner_action_ids": [976],
+          "anchors": [
+            {
+              "anchor_route_uid": "m1route_a8cdcde7d8b28afd4f9cec75",
+              "trigger_index": 49,
+              "owner_action_id": 976,
+              "condition_hash": "d9ed97953115e8e81e00db9c92225279764732e9d1c267f22436a0b5bfb100d3",
+              "has_enabled_profile": true,
+              "charge_command": false,
+              "resource_gated": false,
+              "state_gated": false,
+              "control_mode_availability": "classic_and_modern"
+            }
+          ],
+          "commands": [
+            { "profile_name": "supr", "enabled": false, "normalized_notation": "Normal", "anchor_route_uid": "m1route_a8cdcde7d8b28afd4f9cec75" },
+            { "profile_name": "easy", "enabled": false, "normalized_notation": "Normal", "anchor_route_uid": "m1route_a8cdcde7d8b28afd4f9cec75" },
+            { "profile_name": "norm", "enabled": true, "normalized_notation": "2+HK", "anchor_route_uid": "m1route_a8cdcde7d8b28afd4f9cec75" },
+            { "profile_name": "sprt", "enabled": true, "normalized_notation": "2+LK", "anchor_route_uid": "m1route_a8cdcde7d8b28afd4f9cec75" }
+          ],
+          "memberships": [
+            {
+              "build_uid": "sf6b_c0269f7351fc73e06633b780",
+              "move_uid": "m2move_0f36af1e59e2836967557403",
+              "action_id": 976,
+              "role": "primary",
+              "strictness": "STRICT",
+              "context_key": null,
+              "evidence": {
+                "candidate_uids": [],
+                "extension_uids": [],
+                "family_uids": ["m1fam_8d4c8193c165aa379c45b4f8"],
+                "reasons": [],
+                "relationship_uids": []
+              }
+            },
+            {
+              "build_uid": "sf6b_c0269f7351fc73e06633b780",
+              "move_uid": "m2move_0f36af1e59e2836967557403",
+              "action_id": 977,
+              "role": "replacement",
+              "strictness": "STRICT",
+              "context_key": null,
+              "evidence": {
+                "candidate_uids": [],
+                "extension_uids": [],
+                "family_uids": [],
+                "reasons": [],
+                "relationship_uids": ["m1rel_8b9f66eec59c44cda0eceb9d"]
+              }
+            }
+          ]
+        }
+      ],
+      "transitions": []
+    },
+    {
+      "fighter_id": 6,
+      "character": "Zangief",
+      "moves": [
+        {
+          "current_move_uid": "m2move_4d0ae239087cf32fa91e300a",
+          "stable_move_uid": null,
+          "provisional": true,
+          "revision_uid": "m2rev_fb16ce8510d78c9605c9cd99",
+          "fingerprint": "13d67a08078cb5348052e610e4ca8c7766a3ffcdc713facbd8b3bcbf68b9eb9a",
+          "duplicate_owners": false,
+          "disabled_only": false,
+          "owner_action_ids": [900],
+          "anchors": [
+            {
+              "anchor_route_uid": "m1route_a2a0871e485498a027460561",
+              "trigger_index": 115,
+              "owner_action_id": 900,
+              "condition_hash": "f19b46bb969cf052be0b6e04baca5146a3bfef1bb5f601d75c3020d2ae831ae6",
+              "has_enabled_profile": true,
+              "charge_command": false,
+              "resource_gated": true,
+              "state_gated": false,
+              "control_mode_availability": "modern_only"
+            }
+          ],
+          "commands": [
+            { "profile_name": "sprt", "enabled": true, "normalized_notation": "LK+MK", "anchor_route_uid": "m1route_a2a0871e485498a027460561" },
+            { "profile_name": "supr", "enabled": false, "normalized_notation": "Normal", "anchor_route_uid": "m1route_a2a0871e485498a027460561" },
+            { "profile_name": "easy", "enabled": false, "normalized_notation": "Normal", "anchor_route_uid": "m1route_a2a0871e485498a027460561" },
+            { "profile_name": "norm", "enabled": false, "normalized_notation": "Normal", "anchor_route_uid": "m1route_a2a0871e485498a027460561" }
+          ],
+          "memberships": [
+            {
+              "build_uid": "sf6b_c0269f7351fc73e06633b780",
+              "move_uid": "m2move_4d0ae239087cf32fa91e300a",
+              "action_id": 900,
+              "role": "primary",
+              "strictness": "STRICT",
+              "context_key": null,
+              "evidence": {
+                "candidate_uids": [],
+                "extension_uids": [],
+                "family_uids": ["m1fam_745f1b01d990f91de3a1f8b9"],
+                "reasons": [],
+                "relationship_uids": []
+              }
+            }
+          ]
+        },
+        {
+          "current_move_uid": "m2move_6f6007b8f44f01b2b5339ab2",
+          "stable_move_uid": null,
+          "provisional": true,
+          "revision_uid": "m2rev_e5c44d50b80e39cd82608cd8",
+          "fingerprint": "0ddeacc308dd3294564ea647290dff5829604caf31f3853c4a3441fc4054944e",
+          "duplicate_owners": true,
+          "disabled_only": false,
+          "owner_action_ids": [900, 903],
+          "anchors": [
+            {
+              "anchor_route_uid": "m1route_3dfd46fd77985d5024a63983",
+              "trigger_index": 79,
+              "owner_action_id": 900,
+              "condition_hash": "c81fdb3afcf36564da0fe4620d7abf2b01d33c23b89474f5bd07e92754dca4a2",
+              "has_enabled_profile": true,
+              "charge_command": false,
+              "resource_gated": false,
+              "state_gated": false,
+              "control_mode_availability": "classic_and_modern"
+            },
+            {
+              "anchor_route_uid": "m1route_9d464bb786a2853f119d40d4",
+              "trigger_index": 80,
+              "owner_action_id": 903,
+              "condition_hash": "c81fdb3afcf36564da0fe4620d7abf2b01d33c23b89474f5bd07e92754dca4a2",
+              "has_enabled_profile": true,
+              "charge_command": false,
+              "resource_gated": false,
+              "state_gated": false,
+              "control_mode_availability": "classic_and_modern"
+            }
+          ],
+          "commands": [
+            { "profile_name": "supr", "enabled": true, "normalized_notation": "2", "anchor_route_uid": "m1route_9d464bb786a2853f119d40d4" },
+            { "profile_name": "easy", "enabled": true, "normalized_notation": "2+MP", "anchor_route_uid": "m1route_9d464bb786a2853f119d40d4" },
+            { "profile_name": "norm", "enabled": true, "normalized_notation": "PP", "anchor_route_uid": "m1route_9d464bb786a2853f119d40d4" },
+            { "profile_name": "sprt", "enabled": true, "normalized_notation": "LK+MK", "anchor_route_uid": "m1route_9d464bb786a2853f119d40d4" },
+            { "profile_name": "supr", "enabled": true, "normalized_notation": "2", "anchor_route_uid": "m1route_3dfd46fd77985d5024a63983" },
+            { "profile_name": "easy", "enabled": true, "normalized_notation": "2+MP", "anchor_route_uid": "m1route_3dfd46fd77985d5024a63983" },
+            { "profile_name": "norm", "enabled": true, "normalized_notation": "PP", "anchor_route_uid": "m1route_3dfd46fd77985d5024a63983" },
+            { "profile_name": "sprt", "enabled": true, "normalized_notation": "LK+MK", "anchor_route_uid": "m1route_3dfd46fd77985d5024a63983" }
+          ],
+          "memberships": [
+            {
+              "build_uid": "sf6b_c0269f7351fc73e06633b780",
+              "move_uid": "m2move_6f6007b8f44f01b2b5339ab2",
+              "action_id": 900,
+              "role": "primary",
+              "strictness": "STRICT",
+              "context_key": null,
+              "evidence": {
+                "candidate_uids": [],
+                "extension_uids": [],
+                "family_uids": ["m1fam_5678133a076216cf03d91414"],
+                "reasons": [],
+                "relationship_uids": []
+              }
+            },
+            {
+              "build_uid": "sf6b_c0269f7351fc73e06633b780",
+              "move_uid": "m2move_6f6007b8f44f01b2b5339ab2",
+              "action_id": 903,
+              "role": "primary",
+              "strictness": "STRICT",
+              "context_key": null,
+              "evidence": {
+                "candidate_uids": [],
+                "extension_uids": [],
+                "family_uids": ["m1fam_5678133a076216cf03d91414"],
+                "reasons": [],
+                "relationship_uids": []
+              }
+            }
+          ]
+        }
+      ],
+      "transitions": []
+    },
+    {
+      "fighter_id": 19,
+      "character": "Ed",
+      "moves": [
+        {
+          "current_move_uid": "m2move_1052594b4f203eed8dce1672",
+          "stable_move_uid": null,
+          "provisional": true,
+          "revision_uid": "m2rev_e133c81117e71e2a150fa20e",
+          "fingerprint": "ac079d5722187d2f79a6653e59dc29a2b5cafa48969ca719923dee4570b6c72f",
+          "duplicate_owners": false,
+          "disabled_only": false,
+          "owner_action_ids": [988],
+          "anchors": [
+            {
+              "anchor_route_uid": "m1route_6e589f7af481edcb4749d07b",
+              "trigger_index": 91,
+              "owner_action_id": 988,
+              "condition_hash": "f9604e200c952f203ff2295bc9b59ac19f776c885e6d55acf6841b9299ed1022",
+              "has_enabled_profile": true,
+              "charge_command": false,
+              "resource_gated": false,
+              "state_gated": false,
+              "control_mode_availability": "classic_and_modern"
+            }
+          ],
+          "commands": [
+            { "profile_name": "easy", "enabled": false, "normalized_notation": "Normal", "anchor_route_uid": "m1route_6e589f7af481edcb4749d07b" },
+            { "profile_name": "sprt", "enabled": true, "normalized_notation": "LP+LK+MK", "anchor_route_uid": "m1route_6e589f7af481edcb4749d07b" },
+            { "profile_name": "supr", "enabled": false, "normalized_notation": "Normal", "anchor_route_uid": "m1route_6e589f7af481edcb4749d07b" },
+            { "profile_name": "norm", "enabled": true, "normalized_notation": "KK", "anchor_route_uid": "m1route_6e589f7af481edcb4749d07b" }
+          ],
+          "memberships": [
+            {
+              "build_uid": "sf6b_c0269f7351fc73e06633b780",
+              "move_uid": "m2move_1052594b4f203eed8dce1672",
+              "action_id": 988,
+              "role": "primary",
+              "strictness": "STRICT",
+              "context_key": null,
+              "evidence": {
+                "candidate_uids": [],
+                "extension_uids": [],
+                "family_uids": ["m1fam_979d6df446d9230de3b1bc35"],
+                "reasons": [],
+                "relationship_uids": []
+              }
+            }
+          ]
+        },
+        {
+          "current_move_uid": "m2move_097e7341cf954d4bbb754fab",
+          "stable_move_uid": null,
+          "provisional": true,
+          "revision_uid": "m2rev_50d3ab4ae5de81456c0452bd",
+          "fingerprint": "0dcc39eb3d9c5f35b92212c2f2192cfa8b4a5d0fa14f8140b4466a9c6b7bdb0c",
+          "duplicate_owners": false,
+          "disabled_only": false,
+          "owner_action_ids": [993],
+          "anchors": [
+            {
+              "anchor_route_uid": "m1route_b0d8803860594876f1fd9541",
+              "trigger_index": 90,
+              "owner_action_id": 993,
+              "condition_hash": "cae09f678a05b6d028c0bbdafd6136b665881e80122dfc266ee42fb65422b984",
+              "has_enabled_profile": true,
+              "charge_command": false,
+              "resource_gated": false,
+              "state_gated": false,
+              "control_mode_availability": "classic_and_modern"
+            }
+          ],
+          "commands": [
+            { "profile_name": "norm", "enabled": true, "normalized_notation": "44", "anchor_route_uid": "m1route_b0d8803860594876f1fd9541" },
+            { "profile_name": "sprt", "enabled": true, "normalized_notation": "44", "anchor_route_uid": "m1route_b0d8803860594876f1fd9541" },
+            { "profile_name": "supr", "enabled": false, "normalized_notation": "Normal", "anchor_route_uid": "m1route_b0d8803860594876f1fd9541" },
+            { "profile_name": "easy", "enabled": false, "normalized_notation": "Normal", "anchor_route_uid": "m1route_b0d8803860594876f1fd9541" }
+          ],
+          "memberships": [
+            {
+              "build_uid": "sf6b_c0269f7351fc73e06633b780",
+              "move_uid": "m2move_097e7341cf954d4bbb754fab",
+              "action_id": 993,
+              "role": "primary",
+              "strictness": "STRICT",
+              "context_key": null,
+              "evidence": {
+                "candidate_uids": [],
+                "extension_uids": [],
+                "family_uids": ["m1fam_d6fbfd7da4384e616b78aa81"],
+                "reasons": [],
+                "relationship_uids": []
+              }
+            }
+          ]
+        }
+      ],
+      "transitions": [
+        {
+          "transition_uid": "m2tr_07194177839275b8f4bd537e",
+          "kind": "followup",
+          "strictness": "STRICT",
+          "from_move_uid": "m2move_1052594b4f203eed8dce1672",
+          "to_move_uid": "m2move_097e7341cf954d4bbb754fab",
+          "source_action_id": 988,
+          "target_action_id": 993,
+          "evidence": {
+            "branch_types": [63],
+            "candidate_uids": ["m1cand_d85533495f15ba5d1b52b0f5"],
+            "raw_edge_uids": ["edge_f0a842c77883ff48822b71e2"],
+            "reasons": ["target_independently_anchored"],
+            "source_family_uids": ["m1fam_979d6df446d9230de3b1bc35"],
+            "target_family_uids": ["m1fam_d6fbfd7da4384e616b78aa81"]
+          }
+        }
+      ]
+    },
+    {
+      "fighter_id": 2,
+      "character": "Luke",
+      "moves": [],
+      "transitions": [
+        {
+          "transition_uid": "m2tr_54b3c09e2a1340bb3cd5b556",
+          "kind": "boundary_diagnostic",
+          "strictness": "UNRESOLVED",
+          "from_move_uid": null,
+          "to_move_uid": null,
+          "source_action_id": 1215,
+          "target_action_id": 1215,
+          "evidence": {
+            "branch_types": [25],
+            "candidate_uids": [],
+            "raw_edge_uids": ["edge_4b9f20714896731d1698039d"],
+            "reasons": ["anchored_to_anchored_raw_ac_pair_not_accepted_by_m1", "family_resolution_not_exact_1x1"],
+            "source_family_uids": ["m1fam_3e4cb7f55fb251d3166ce624", "m1fam_ead6f4f91c5c35f76750f710"],
+            "target_family_uids": ["m1fam_3e4cb7f55fb251d3166ce624", "m1fam_ead6f4f91c5c35f76750f710"]
+          }
+        }
+      ]
+    }
+  ]
+}
