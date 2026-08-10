@@ -7938,7 +7938,9 @@ ctx.arm_raw_stage1_demo_attempt = function()
     local action_id, action_frame =
         ComboTrialsModules.GameProbe.get_runtime_action_data(GS.p1)
     local attempt, status = trial_state._raw_stage1:begin_attempt(
-        engine_frame_count, 0, action_id, action_frame)
+        engine_frame_count, 0, action_id, action_frame, {
+            admit_matching_initial = true,
+        })
     trial_state._raw_stage1_defer_attempt = false
     if attempt == nil and status ~= "legacy"
         and trial_state._raw_stage1:blocks_legacy_detector() then

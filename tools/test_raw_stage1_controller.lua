@@ -164,6 +164,14 @@ local passed_again = assert(controller:observe_frame(0, 13, 600, 1, 16))
 equal(passed_again.status, "passed")
 equal(state.success_timer, 0, "terminal success is applied once")
 
+state.success_timer = 0
+assert(controller:begin_attempt(15, 0, 600, 3, {
+    admit_matching_initial = true,
+}))
+equal(state._raw_stage1_visual_step, 2,
+    "matching Action active at demo arm must advance the first raw row")
+equal(state._raw_stage1_terminal, "passed")
+
 state.is_playing = false
 assert(controller:prepare_recording(1))
 state.is_recording = true

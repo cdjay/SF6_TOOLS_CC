@@ -198,10 +198,14 @@ function Runtime:begin_attempt(options)
     local player_index, player_error = normalize_player_index(options.player_index)
     if player_error ~= nil then return nil, player_error end
     local trace = AtomicTrace.new()
+    local expected = trace_instances(self.loaded:trace())
+    local admit_initial = options.admit_matching_initial == true
+        and expected[1] ~= nil
+        and expected[1].action_id == options.initial_action_id
     local capture, capture_error = AtomicCapture.new(trace, {
-        start_gate = options.start_gate,
-        initial_action_id = options.initial_action_id,
-        initial_action_frame = options.initial_action_frame,
+        start_gate = admit_initial and "immediate" or options.start_gate,
+        initial_action_id = admit_initial and nil or options.initial_action_id,
+        initial_action_frame = admit_initial and nil or options.initial_action_frame,
     })
     if capture == nil then return nil, capture_error end
     local timeout_policy = self:timeout_policy()
@@ -214,6 +218,23 @@ function Runtime:begin_attempt(options)
         terminal = false,
     }
     self.last_result = nil
+    if admit_initial then
+        local observed, observe_error = capture:observe({
+            player_index = player_index,
+            engine_frame = options.start_engine_frame,
+            action_id = options.initial_action_id,
+            action_frame = options.initial_action_frame,
+        })
+        if observed == nil then
+            self.attempt = nil
+            return nil, observe_error
+        end
+        self.attempt.last_activity_frame = options.start_engine_frame
+        self.last_result = prefix_result(self.loaded:trace(), trace)
+        if self.last_result.status == "passed" or self.last_result.status == "failed" then
+            self.attempt.terminal = true
+        end
+    end
     return trace
 end
 

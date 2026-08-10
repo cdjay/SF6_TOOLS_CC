@@ -76,6 +76,42 @@ local passed_finalized = assert(runtime:finalize_attempt())
 equal(passed_finalized.status, "passed")
 equal(passed_finalized.match, true)
 
+-- Demo arming may observe that the expected first Action is already active.
+-- Admit that exact current fact once, then keep strict order for every later
+-- occurrence. A different current Action remains only the boundary baseline.
+assert(runtime:begin_attempt({
+    player_index = 0,
+    start_engine_frame = 50,
+    initial_action_id = 600,
+    initial_action_frame = 4,
+    admit_matching_initial = true,
+}))
+equal(runtime:attempt_trace():count(), 1)
+equal(runtime.last_result.status, "progress")
+result = assert(runtime:observe_attempt({
+    player_index = 0, action_id = 601, engine_frame = 51, action_frame = 0,
+}))
+equal(result.status, "progress")
+result = assert(runtime:observe_attempt({
+    player_index = 0, action_id = 600, engine_frame = 52, action_frame = 0,
+}))
+equal(result.status, "passed")
+
+assert(runtime:begin_attempt({
+    player_index = 0,
+    start_engine_frame = 60,
+    initial_action_id = 999,
+    initial_action_frame = 4,
+    admit_matching_initial = true,
+}))
+equal(runtime:attempt_trace():count(), 0,
+    "a non-matching current Action must not be admitted or skipped")
+result = assert(runtime:observe_attempt({
+    player_index = 0, action_id = 600, engine_frame = 61, action_frame = 0,
+    active = true,
+}))
+equal(result.status, "progress")
+
 -- Inactivity timeout derives from factual expected enter-frame gaps plus
 -- tolerance. A stalled correct prefix times out to missing_expected.
 local timed = Stage1Runtime.new()

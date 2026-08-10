@@ -267,7 +267,7 @@ function Controller:blocks_legacy_detector()
 end
 
 function Controller:begin_attempt(engine_frame, player_index,
-    initial_action_id, initial_action_frame)
+    initial_action_id, initial_action_frame, options)
     local status = self.trial_state._raw_stage1_status
     if (status ~= "loaded" and status ~= "recorded") or self.catalog == nil then
         return nil, self.trial_state._raw_stage1_status or "legacy"
@@ -276,13 +276,21 @@ function Controller:begin_attempt(engine_frame, player_index,
     self.boundaries = { [player_index] = RawActionBoundary.new(
         initial_action_id, initial_action_frame) }
     self.terminal_result_applied = false
-    return self.runtime:begin_attempt({
+    options = type(options) == "table" and options or {}
+    local trace, trace_error = self.runtime:begin_attempt({
         start_gate = "explicit",
         player_index = player_index,
         start_engine_frame = engine_frame,
         initial_action_id = initial_action_id,
         initial_action_frame = initial_action_frame,
+        admit_matching_initial = options.admit_matching_initial == true,
     })
+    if trace ~= nil and self.runtime.last_result ~= nil then
+        local context = type(self.get_context) == "function"
+            and self.get_context(player_index) or {}
+        self:_apply_attempt_result(self.runtime.last_result, context)
+    end
+    return trace, trace_error
 end
 
 function Controller:should_collect_sample(player_index)

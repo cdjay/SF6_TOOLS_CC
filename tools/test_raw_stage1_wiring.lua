@@ -28,6 +28,7 @@ assert(main:find("trial_state.is_playing and trial_state._transcribing ~= true",
 assert(main:find("trial_state._raw_stage1_defer_attempt ~= true", 1, true))
 assert(main:find("ctx.arm_raw_stage1_demo_attempt", 1, true))
 assert(main:find("ctx.arm_raw_stage1_demo_attempt()", 1, true))
+assert(main:find("admit_matching_initial = true", 1, true))
 assert(not main:find("trial_state.is_recording or not (demo_state and demo_state.is_playing)", 1, true))
 assert(not main:find("RawCatalog.load", 1, true))
 assert(not main:find("RawInstructionList.build_rows", 1, true))
