@@ -3462,14 +3462,41 @@ local function imgui_draw_inner()
         local b_off_y = (d2d_cfg.bar_img_offset_y or 0) * sh
         local final_rect_x = rect_x + c_off_x
 
-        -- Recording previews come from the ActionEvent compiler. The saved
-        -- sequence remains untouched until recording is finalized.
-        local display_sequence = trial_state.sequence
-        if mode == "recording"
-            and type(trial_state._recording_preview_sequence) == "table" then
-            display_sequence = trial_state._recording_preview_sequence
+        local raw_stage1_rows = type(trial_state._raw_stage1_rows) == "table"
+            and trial_state._raw_stage1_rows or nil
+        local raw_stage1_display = raw_stage1_rows ~= nil
+            and (trial_state._raw_stage1_status == "recording"
+                or trial_state._raw_stage1_status == "recorded"
+                or trial_state._raw_stage1_status == "loaded")
+        local display_lines, classic_modern_projection
+        if raw_stage1_display then
+            display_lines = {}
+            for row_index, row in ipairs(raw_stage1_rows) do
+                local motion = row.display_text
+                if row.status == "NO_DIRECT_BCM_BINDING" then
+                    motion = motion .. " [NO_DIRECT_BCM_BINDING]"
+                end
+                display_lines[row_index] = {
+                    first = row_index,
+                    last = row_index,
+                    steps = { {
+                        id = row.action_id,
+                        motion = motion,
+                        _raw_stage1 = true,
+                        _raw_stage1_status = row.status,
+                    } },
+                }
+            end
+            classic_modern_projection = false
+        else
+            -- Legacy previews continue to use the stable ActionEvent compiler.
+            local display_sequence = trial_state.sequence
+            if mode == "recording"
+                and type(trial_state._recording_preview_sequence) == "table" then
+                display_sequence = trial_state._recording_preview_sequence
+            end
+            display_lines, classic_modern_projection = build_display_lines(display_sequence)
         end
-        local display_lines, classic_modern_projection = build_display_lines(display_sequence)
         local n_lines = #display_lines
         if classic_modern_projection and assets.font then
             -- Calibrated at desktop (2800, 260), i.e. game-local (240, 260)
@@ -3491,11 +3518,21 @@ local function imgui_draw_inner()
             )
         end
         local trial_meta = get_trial_meta()
-        local display_state = TrialDisplayState.resolve(
-            trial_state.sequence,
-            trial_state.current_step,
-            trial_state.success_timer
-        )
+        local display_state
+        if raw_stage1_display then
+            local raw_step = tonumber(trial_state._raw_stage1_visual_step) or 1
+            display_state = {
+                active_step = math.max(1, math.min(raw_step, math.max(1, n_lines))),
+                is_success = trial_state._raw_stage1_terminal == "passed",
+                terminal_visual_complete = trial_state._raw_stage1_terminal ~= nil,
+            }
+        else
+            display_state = TrialDisplayState.resolve(
+                trial_state.sequence,
+                trial_state.current_step,
+                trial_state.success_timer
+            )
+        end
         local is_succ = mode == "playing" and display_state.is_success
 
         local visual_step_idx = mode == "playing"
@@ -3503,7 +3540,8 @@ local function imgui_draw_inner()
         local hold_step = trial_state._ui_step_hold_step
         local hold_until = trial_state._ui_step_hold_until_frame
         local frame_now = trial_state._engine_frame_count or 0
-        if mode == "playing" and not display_state.terminal_visual_complete
+        if mode == "playing" and not raw_stage1_display
+            and not display_state.terminal_visual_complete
             and hold_step and hold_until and frame_now <= hold_until then
             visual_step_idx = math.max(1, math.min(hold_step, #trial_state.sequence))
         elseif hold_until and frame_now > hold_until then
@@ -3647,7 +3685,9 @@ local function imgui_draw_inner()
             local y = trial_y + (dl_idx - start_idx) * spacing_y
 
             local current_should_flip = false
-            if mode == "recording" then
+            if raw_stage1_display then
+                current_should_flip = false
+            elseif mode == "recording" then
                 current_should_flip = log_item.facing_left or false
             else
                 local step_facing_left = log_item.facing_left or false
@@ -3664,9 +3704,18 @@ local function imgui_draw_inner()
                 Canvas.text(assets.font, result_text, result_x, y + final_text_y_offset, result_color)
             end
 
-            local tokens = parse_motion_to_icons(log_item, mode, current_should_flip, true)
-            local line_w = draw_parsed_line(tokens, command_x, y, icon_w, icon_h, spacing_x, final_text_y_offset, is_aligned_right, nil)
-            if d2d_cfg.show_trial_notes == true then
+            local line_w
+            if raw_stage1_display then
+                local raw_text = tostring(log_item.motion or "")
+                draw_text_with_shadow(assets.font, raw_text, command_x,
+                    y + final_text_y_offset, 0xFFFFFFFF)
+                line_w = measure_text(raw_text)
+            else
+                local tokens = parse_motion_to_icons(log_item, mode, current_should_flip, true)
+                line_w = draw_parsed_line(tokens, command_x, y, icon_w, icon_h,
+                    spacing_x, final_text_y_offset, is_aligned_right, nil)
+            end
+            if not raw_stage1_display and d2d_cfg.show_trial_notes == true then
                 local note = get_display_line_note(trial_meta, dl.first, dl.last)
                 if note ~= "" then
                     draw_step_note(note, command_x + line_w + spacing_x * 3, y, final_text_y_offset)

@@ -1,0 +1,37 @@
+local function read_all(path)
+    local file = assert(io.open(path, "rb"))
+    local value = assert(file:read("*a"))
+    file:close()
+    return value:gsub("\r\n", "\n")
+end
+
+local main = read_all("autorun/TrainingComboTrials_v1.0.lua")
+local files = read_all("autorun/func/ComboTrials_Files.lua")
+local ui = read_all("autorun/func/ComboTrials_ImGui.lua")
+local controller = read_all("autorun/func/ComboTrials/Raw/Stage1Controller.lua")
+
+assert(main:find('RawStage1Controller = require("func/ComboTrials/Raw/Stage1Controller")', 1, true))
+assert(main:find("ctx.install_raw_stage1_sequence", 1, true))
+assert(main:find(":begin_recording(", 1, true))
+assert(main:find(":finish_recording(", 1, true))
+assert(main:find(":attach_last_recording(", 1, true))
+assert(main:find(":observe_frame(", 1, true))
+assert(not main:find("RawCatalog.load", 1, true))
+assert(not main:find("RawInstructionList.build_rows", 1, true))
+assert(not main:find("LastRawStage1Diagnostic.json", 1, true))
+assert(controller:find("expected_display_version = self.target_game_version", 1, true))
+assert(controller:find("raw_trial_build_mismatch", 1, true))
+assert(controller:find("LastRawStage1Diagnostic.json", 1, true))
+assert(controller:find(":attempt_inactivity_timeout", 1, true))
+assert(files:find("ctx.install_raw_stage1_sequence", 1, true))
+assert(not files:find("pcall(ctx.install_raw_stage1_sequence", 1, true))
+assert(ui:find("raw_stage1_rows", 1, true))
+assert(ui:find("NO_DIRECT_BCM_BINDING", 1, true))
+assert(ui:find("draw_text_with_shadow(assets.font, raw_text", 1, true))
+
+-- Replay must remain input/timeline driven; no command token may become a
+-- playback source in the main entry or demo state.
+assert(not main:find("command_token%s*="))
+assert(not main:find("replay_source%s*=%s*.-command_token"))
+
+print("raw stage1 wiring tests passed")

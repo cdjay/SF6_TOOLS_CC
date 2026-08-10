@@ -27,7 +27,9 @@ local ComboTrialsModules = {
     TimelineSequenceNormalizer = require("func/ComboTrials/TimelineSequenceNormalizer"),
     DummySettings = require("func/ComboTrials/DummySettings"),
     GameProbe = require("func/ComboTrials/GameProbe"),
-    HpVital = require("func/ComboTrials/HpVital")
+    HpVital = require("func/ComboTrials/HpVital"),
+    RawStage1Controller = require("func/ComboTrials/Raw/Stage1Controller"),
+    RawRecordingFacts = require("func/ComboTrials/Raw/RawRecordingFacts")
 }
 local DebugTrace = ComboTrialsModules.DebugTrace
 local ActionMatcher = ComboTrialsModules.ActionMatcher
@@ -357,7 +359,14 @@ local trial_state = {
     _demo_backup_slot = nil,
     _raw_rec_active = false,
     -- Stored facing-relative; the legacy name remains runtime-local only.
-    _raw_rec_buffer = {}
+    _raw_rec_buffer = {},
+    _raw_stage1 = nil,
+    _raw_stage1_status = "legacy",
+    _raw_stage1_error = nil,
+    _raw_stage1_diagnostic = nil,
+    _raw_stage1_catalog = nil,
+    _raw_stage1_catalog_status = nil,
+    _raw_stage1_rows = nil
 }
 
 local XT_SETTINGS_FILE = "TrainingComboTrials_data/XT_Settings.json"
@@ -2574,6 +2583,32 @@ function ct_is_ingrid_charge_stock_action(char_name, act_id)
     return tostring(char_name or "") == "Ingrid" and tonumber(act_id) == 969
 end
 
+trial_state._raw_stage1 = assert(ComboTrialsModules.RawStage1Controller.new({
+    trial_state = trial_state,
+    target_game_version = SF6CCVersion.GAME_VERSION,
+    ticker = function(message, duration)
+        if type(_G.show_custom_ticker) == "function" then
+            return _G.show_custom_ticker(message, duration)
+        end
+    end,
+    write_json = function(path, value) return json.dump_file(path, value) end,
+    get_context = function(player_index)
+        return {
+            character = players[player_index] and players[player_index].profile_name or "Unknown",
+            fighter_id = unique_resources.read_training_fighter_id(player_index),
+            control_mode = control_type_from_input_type(read_player_input_type(player_index)),
+            engine_frame = engine_frame_count,
+            trial_file = trial_state.current_file_path or trial_state.current_file,
+            replay_type = demo_state and demo_state.raw_buffer and "raw_input" or "timeline",
+            fail_display_frames = d2d_cfg.fail_display_frames or 120,
+        }
+    end,
+}))
+
+ctx.install_raw_stage1_sequence = function(sequence)
+    return trial_state._raw_stage1:install_sequence(sequence)
+end
+
 local ComboTrials_Files = require("func/ComboTrials_Files")
 ComboTrials_Files.init(ctx, {
     normalize_sequence_counter_types = normalize_sequence_counter_types,
@@ -2776,6 +2811,18 @@ local function clear_trial_attempt_state(player_idx, phase)
     trial_state.last_played_frame = engine_frame_count
     begin_trial_action_grace()
     init_hp_restore_attempt(phase or "attempt", player_idx or trial_state.playing_player)
+    local raw_player = player_idx or trial_state.playing_player
+    local raw_attempt, raw_attempt_status = trial_state._raw_stage1:begin_attempt(
+        engine_frame_count,
+        raw_player,
+        players[raw_player] and players[raw_player].last_direct_input or 0
+    )
+    if raw_attempt == nil and raw_attempt_status ~= "legacy"
+        and trial_state._raw_stage1:blocks_legacy_detector() then
+        trial_state._raw_stage1_error = raw_attempt_status
+        trial_state.fail_timer = d2d_cfg.fail_display_frames or 120
+        trial_state.fail_reason = "RAW STAGE1 INVALID"
+    end
 
     reset_player_action_buffers(players[player_idx or trial_state.playing_player])
     for _, item in ipairs(trial_state.sequence) do
@@ -2956,6 +3003,21 @@ local function start_recording(player_idx)
         return false
     end
     if player_idx ~= 0 and player_idx ~= 1 then return false end
+    local raw_fighter_id = unique_resources.read_training_fighter_id(player_idx)
+    local raw_catalog = trial_state._raw_stage1:prepare_recording(raw_fighter_id)
+    if raw_catalog == nil then
+        return false
+    end
+    local raw_trial, raw_error = trial_state._raw_stage1:begin_recording(
+        players[player_idx].profile_name or "Unknown",
+        {
+            fighter_id = raw_fighter_id,
+            control_mode = control_type_from_input_type(read_player_input_type(player_idx)),
+            player_index = player_idx,
+            initial_input = players[player_idx].last_direct_input,
+        }
+    )
+    if raw_trial == nil then return false, raw_error end
 
     trial_state.recording_player = player_idx
     trial_state.sequence = {}
@@ -3111,6 +3173,7 @@ local function cancel_recording()
     trial_state._rec_scene_state = nil
     trial_state._raw_rec_active = false
     trial_state._raw_rec_buffer = {}
+    trial_state._raw_stage1:cancel_recording()
     trial_state._action_event_session = nil
     trial_state._recording_compiler_used = false
     trial_state._last_action_compile = nil
@@ -3193,6 +3256,15 @@ local function stop_recording_and_save()
     players[saved_player].recording_last_victim_hp = nil
     players[saved_player].recording_contact_state = {}
     trial_state._raw_rec_active = false
+    local raw_profile = control_type_from_input_type(read_player_input_type(saved_player)) == "modern"
+        and "easy" or "norm"
+    local raw_trial, raw_error = trial_state._raw_stage1:finish_recording(raw_profile)
+    if raw_trial == nil then
+        trial_state._xt_pending_save_error = "Atomic Action Trace 为空，未生成文件: " .. tostring(raw_error)
+        _G.ComboTrials_SaveFailedPlayer = saved_player
+        _G.ComboTrials_PendingSaveCanceled = saved_player
+        return
+    end
 
     -- MERGE LOGGER TIMELINE IN MEMORY (no intermediate file)
     local rec = saved_player == 0 and logger_state.rec_p1 or logger_state.rec_p2
@@ -5187,6 +5259,10 @@ local function ct_player_tracking(p_idx, p_state)
 end
 
 local function ct_player_validation(p_idx, p_state)
+    if trial_state._raw_stage1:blocks_legacy_detector()
+        and trial_state.is_playing and p_idx == trial_state.playing_player then
+        return
+    end
     -- SUCCESS VERIFICATION + DROP DETECTION (Trial)
     -- ========================================================
     local is_demo_playing = (demo_state and demo_state.is_playing)
@@ -7737,6 +7813,11 @@ ctx.observe_runtime_action_truth = function(p_idx)
         and demo_state.transcription_run.active == true and p_idx == 0 then
         session = demo_state.transcription_run.session
     end
+    if trial_state.is_recording or not (demo_state and demo_state.is_playing) then
+        trial_state._raw_stage1:observe_frame(
+            p_idx, engine_frame_count, _pf.act_id, _pf.act_frame,
+            _pf.direct_input, _pf.direction_input, _pf.facing_right)
+    end
     if type(session) ~= "table" then return end
 
     local actor_hp, actor_drive, actor_super = nil, nil, nil
@@ -7940,18 +8021,6 @@ re.on_frame(function()
         _pf.p_char = (p_idx == 0) and GS.p1 or GS.p2
         if not _pf.p_char then p_state.last_combo_count = 0; goto ct_next_player end
 
-        local bcm_resource = _pf.cmd_obj:get_field("mpBCMResource")
-        if bcm_resource then
-            local p_bcm = bcm_resource[p_idx]
-            local current_bcm_ptr = tostring(p_bcm)
-            if current_bcm_ptr ~= p_state.last_bcm_ptr then
-                p_state.last_bcm_ptr = current_bcm_ptr
-                p_state.trigger_cache_built = false
-                p_state._trigger_cache_build = nil
-            end
-        end
-        if not p_state.trigger_cache_built then ComboTrialsModules.GameProbe.build_bcm_trigger_cache(p_idx) end
-
         _pf.act_id, _pf.act_frame, _pf.flags, _pf.action_code, _pf.direct_input,
             _pf.b_type, _pf.direction_input, _pf.facing_right = ComboTrialsModules.GameProbe.get_action_data(_pf.p_char)
         _pf.current_combo = ComboTrialsModules.GameProbe.get_combo_count(_pf.p_char)
@@ -7968,8 +8037,17 @@ re.on_frame(function()
             -- admission, command lookup, exception learning and charge mutation
             -- are intentionally bypassed for new recordings.
             if p_idx == trial_state.recording_player then
-                ct_player_tracking(p_idx, p_state)
+                ComboTrialsModules.RawRecordingFacts.observe({
+                    trial_state = trial_state,
+                    player_index = p_idx,
+                    victim = _pf.victim_obj,
+                    player_character = _pf.p_char,
+                    capture_gauges = ComboTrialsModules.GameProbe.capture_recording_gauges,
+                    track_gauges = _ct_track_rec_gauges,
+                })
             end
+            p_state.last_direct_input = _pf.direct_input
+            p_state.last_direction_input = _pf.direction_input
             p_state.last_combo_count = _pf.current_combo
             goto ct_next_player
         end
@@ -7984,6 +8062,28 @@ re.on_frame(function()
         if trial_success_locked then
             p_state.last_combo_count = _pf.current_combo
             goto ct_next_player
+        end
+
+        if trial_state.is_playing and p_idx == trial_state.playing_player
+            and trial_state._raw_stage1:blocks_legacy_detector() then
+            p_state.last_direct_input = _pf.direct_input
+            p_state.last_direction_input = _pf.direction_input
+            p_state.last_combo_count = _pf.current_combo
+            goto ct_next_player
+        end
+
+        local bcm_resource = _pf.cmd_obj:get_field("mpBCMResource")
+        if bcm_resource then
+            local p_bcm = bcm_resource[p_idx]
+            local current_bcm_ptr = tostring(p_bcm)
+            if current_bcm_ptr ~= p_state.last_bcm_ptr then
+                p_state.last_bcm_ptr = current_bcm_ptr
+                p_state.trigger_cache_built = false
+                p_state._trigger_cache_build = nil
+            end
+        end
+        if not p_state.trigger_cache_built then
+            ComboTrialsModules.GameProbe.build_bcm_trigger_cache(p_idx)
         end
 
         ct_player_tracking(p_idx, p_state)
@@ -8118,6 +8218,28 @@ function save_trial_sequence(meta)
             trial_state.sequence[1].raw_inputs = nil
             trial_state.sequence[1]._xt_meta.input_stream =
                 RawInputCodec.describe_relative_stream()
+        end
+        local raw_stage1_options = {
+            timeline_ref = { source = "combo_v2", field = "timeline" },
+            result = {
+                legacy_step_count = #trial_state.sequence,
+                raw_input_count = type(trial_state._raw_rec_buffer) == "table"
+                    and #trial_state._raw_rec_buffer or 0,
+            },
+        }
+        if type(trial_state.sequence[1].relative_raw_inputs) == "table" then
+            raw_stage1_options.raw_input_ref = {
+                source = "combo_v2",
+                field = "relative_raw_inputs",
+                encoding = "facing_relative",
+            }
+        end
+        local attached, attach_error = trial_state._raw_stage1:attach_last_recording(
+            trial_state.sequence[1]._xt_meta,
+            raw_stage1_options
+        )
+        if not attached then
+            error("Raw Stage 1 metadata attach failed: " .. tostring(attach_error))
         end
     end
     -- Counter state is a fixed training-menu rule for the entire recording.

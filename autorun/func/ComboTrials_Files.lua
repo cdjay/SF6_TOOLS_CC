@@ -134,6 +134,9 @@ local function install_combo_sequence(loaded, path, force)
     trial_state._match_probe = nil
     trial_state._match_probe_history = nil
     trial_state._verify_trace_dump = nil
+    if ctx and ctx.install_raw_stage1_sequence then
+        ctx.install_raw_stage1_sequence(loaded, path)
+    end
     if loaded[1] then
         trial_state.start_pos_p1 = loaded[1].recording_start_pos_p1 or loaded[1].start_pos_p1
         trial_state.start_pos_p2 = loaded[1].recording_start_pos_p2 or loaded[1].start_pos_p2
@@ -203,6 +206,9 @@ function M.clear_combo_state()
     trial_state._match_probe = nil
     trial_state._match_probe_history = nil
     trial_state._verify_trace_dump = nil
+    if ctx and ctx.install_raw_stage1_sequence then
+        ctx.install_raw_stage1_sequence(nil, nil)
+    end
 end
 
 local function sanitize_utf8_display(value)
