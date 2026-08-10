@@ -4,7 +4,7 @@ const bcmCore = require("../bcm_catalog_builder/bcm_catalog_core.js");
 
 const RUNTIME_SCHEMA = "sf6cc.action-runtime.v2";
 const REPORT_SCHEMA = "sf6cc.action-runtime-compile-report.v1";
-const RULES_VERSION = "sf6cc-ac-bcm-runtime-rules-v5";
+const RULES_VERSION = "sf6cc-ac-bcm-runtime-rules-v6";
 
 const VALIDATION_FIELDS = [
     "force", "ignore", "is_holdable", "hold_partial_check", "charge_min", "charge_max",
@@ -172,6 +172,55 @@ function inferHoldableSources(relations) {
     for (const [sourceId, group] of bySource) {
         const sharedTargets = [...group.variants].filter(targetId => group.inputTransitions.has(targetId));
         if (sharedTargets.length >= 2) result.add(String(sourceId));
+    }
+    return result;
+}
+
+function inferType63StrengthFamilies(relations, actions, actionSet, aliases) {
+    const bySource = new Map();
+    for (const relation of relations) {
+        if (relation.branch_type !== 63 || relation.attr !== 256
+            || relation.action_frame !== 0 || relation.param00 !== 1
+            || relation.param02 !== 0 || ![1, 2].includes(relation.param03)) continue;
+        if (!bySource.has(relation.source_id)) bySource.set(relation.source_id, []);
+        bySource.get(relation.source_id).push(relation);
+    }
+
+    const exactTarget = (items, param03, param01) => {
+        const targets = [...new Set(items.filter(item => item.param03 === param03
+            && item.param01 === param01).map(item => item.target_id))];
+        return targets.length === 1 ? targets[0] : null;
+    };
+    const result = [];
+    for (const sourceId of [...bySource.keys()].sort((left, right) => left - right)) {
+        const items = bySource.get(sourceId);
+        const mediumId = exactTarget(items, 1, 32);
+        const heavyId = exactTarget(items, 1, 64);
+        const modernMediumId = exactTarget(items, 2, 128);
+        const modernHeavyId = exactTarget(items, 2, 256);
+        if (mediumId === null || heavyId === null || mediumId === heavyId
+            || modernMediumId !== mediumId || modernHeavyId !== heavyId) continue;
+
+        const sourceKey = String(sourceId), mediumKey = String(mediumId), heavyKey = String(heavyId);
+        if (!actionSet.has(mediumKey) || !actionSet.has(heavyKey)
+            || actions[mediumKey] || actions[heavyKey]
+            || aliases[mediumKey] || aliases[heavyKey]) continue;
+        const sourceDisplay = String(actions[sourceKey] || "");
+        const match = sourceDisplay.match(/^(.*(?:\+|\.))P$/i);
+        if (!match) continue;
+
+        result.push({
+            source_id: sourceId,
+            medium_id: mediumId,
+            heavy_id: heavyId,
+            light_display: `${match[1]}LP`,
+            medium_display: `${match[1]}MP`,
+            heavy_display: `${match[1]}HP`,
+            classic_relations: items.filter(item => item.param03 === 1
+                && (item.param01 === 32 || item.param01 === 64)),
+            modern_relations: items.filter(item => item.param03 === 2
+                && (item.param01 === 128 || item.param01 === 256))
+        });
     }
     return result;
 }
@@ -485,6 +534,49 @@ function compileFromCatalog(actionSource, bcmCatalog, behaviorRules, options) {
         followup.display = actions[id] || null;
     }
 
+    const type63StrengthFamilies = inferType63StrengthFamilies(
+        branchRelations, actions, actionSet, aliases);
+    for (const family of type63StrengthFamilies) {
+        const sourceId = String(family.source_id);
+        const mediumId = String(family.medium_id);
+        const heavyId = String(family.heavy_id);
+        actions[sourceId] = family.light_display;
+        actions[mediumId] = family.medium_display;
+        actions[heavyId] = family.heavy_display;
+        rules[mediumId] = {
+            display: family.medium_display,
+            display_source: "ac-type63-strength-variant",
+            force: true,
+            branch_source_action_id: family.source_id,
+            branch_type: 63
+        };
+        rules[heavyId] = {
+            display: family.heavy_display,
+            display_source: "ac-type63-strength-variant",
+            force: true,
+            branch_source_action_id: family.source_id,
+            branch_type: 63
+        };
+        for (const [targetId, display, strength] of [
+            [family.medium_id, family.medium_display, "medium"],
+            [family.heavy_id, family.heavy_display, "heavy"]
+        ]) {
+            const classicRelation = family.classic_relations.find(item => item.target_id === targetId);
+            const modernRelation = family.modern_relations.find(item => item.target_id === targetId);
+            acDerivedCommands.push({
+                action_id: targetId,
+                source_action_id: family.source_id,
+                display,
+                branch_type: 63,
+                force: true,
+                derivation: "type63_strength_variant",
+                strength,
+                classic_param01: classicRelation.param01,
+                modern_param01: modernRelation.param01
+            });
+        }
+    }
+
     for (const [id, action] of Object.entries(bcmCatalog.actions || {})) {
         if (!actions[id]) continue;
         rules[id] = classifyBcmAction(action, actions[id], followups[id]);
@@ -553,6 +645,7 @@ function compileFromCatalog(actionSource, bcmCatalog, behaviorRules, options) {
                 evidence: rules[String(actionId)].followup_evidence
             })),
             ac_derived_commands: acDerivedCommands,
+            type63_strength_families: type63StrengthFamilies,
             holdable_source_action_ids: [...holdableSources].map(Number).sort((a, b) => a - b),
             system_action_detection: "bcm-category+function+focus"
         },

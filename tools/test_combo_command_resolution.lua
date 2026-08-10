@@ -1212,6 +1212,9 @@ local command_map = {
     ["961"] = { classic = "236+KK", status = "strict_route" },
     ["965"] = { classic = ">2+P", status = "strict_route" },
     ["936"] = { classic = "PP", status = "strict_route" },
+    ["967"] = { classic = ">6+LP", status = "strict_route" },
+    ["968"] = { classic = ">6+MP", status = "strict_route" },
+    ["969"] = { classic = ">6+HP", status = "strict_route" },
     ["906"] = { classic = "Normal", status = "suppress_transition" },
     ["1037"] = { classic = "528", status = "strict_route" }
 }
@@ -1280,6 +1283,18 @@ assert(motion == ">29 (cancel)" and status == "recorded_context",
 motion, status = get_classic_display_motion(command_map, { id = 936, motion = ">PP" })
 assert(motion == ">PP" and status == "recorded_context",
     "a verified execution-phase action must retain its recorded follow-up notation")
+
+motion, status = get_classic_display_motion(command_map, { id = 967, motion = ">6+P" })
+assert(motion == ">6+LP" and status == "strict_route",
+    "a current catalog strength must refine a generic historical follow-up display")
+
+motion, status = get_classic_display_motion(command_map, { id = 968, motion = ">6+MP" })
+assert(motion == ">6+MP" and status == "recorded_context",
+    "an already precise historical follow-up must remain unchanged")
+
+motion, status = get_classic_display_motion(command_map, { id = 967, motion = ">6+P (WHIFF)" })
+assert(motion == ">6+P (WHIFF)" and status == "recorded_context",
+    "strength refinement must not discard historical contextual annotations")
 
 RUNTIME_COMMON_ACTIONS = {}
 TYPE37_FOLLOWUP_PHASE_REASON = "ac_type37_verified_followup_execution_phase"

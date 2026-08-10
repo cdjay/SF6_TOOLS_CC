@@ -201,6 +201,64 @@ assert.strictEqual(directionalResult.runtime.actions["1321"], undefined);
 assert.strictEqual(directionalResult.runtime.actions["1302"], undefined);
 assert.strictEqual(directionalResult.runtime.actions["1331"], undefined);
 
+const strengthVariantSource = {
+    schema: "sf6cr.action-catalog-full.v2",
+    character: "Fab",
+    fighter_id: 20,
+    unique_action_ids_by_scope: { character: [1400, 1401, 1402] },
+    objects: [
+        action(600, 1400, 601), collection(601, [602, 603, 604, 605]),
+        object(602, "CharacterAsset.BranchKey", {
+            Action: scalar(1401), Type: scalar(63), Attr: scalar(256),
+            ActionFrame: scalar(0), Param00: scalar(1), Param01: scalar(32),
+            Param02: scalar(0), Param03: scalar(1)
+        }),
+        object(603, "CharacterAsset.BranchKey", {
+            Action: scalar(1402), Type: scalar(63), Attr: scalar(256),
+            ActionFrame: scalar(0), Param00: scalar(1), Param01: scalar(64),
+            Param02: scalar(0), Param03: scalar(1)
+        }),
+        object(604, "CharacterAsset.BranchKey", {
+            Action: scalar(1401), Type: scalar(63), Attr: scalar(256),
+            ActionFrame: scalar(0), Param00: scalar(1), Param01: scalar(128),
+            Param02: scalar(0), Param03: scalar(2)
+        }),
+        object(605, "CharacterAsset.BranchKey", {
+            Action: scalar(1402), Type: scalar(63), Attr: scalar(256),
+            ActionFrame: scalar(0), Param00: scalar(1), Param01: scalar(256),
+            Param02: scalar(0), Param03: scalar(2)
+        }),
+        action(610, 1401, 611), collection(611, []),
+        action(620, 1402, 621), collection(621, [])
+    ],
+    records: [
+        { native_action_id: 1400, source_scope: "character", action_ref: ref(600) },
+        { native_action_id: 1401, source_scope: "character", action_ref: ref(610) },
+        { native_action_id: 1402, source_scope: "character", action_ref: ref(620) }
+    ]
+};
+const strengthVariantCatalog = {
+    schema: "sf6cc.bcm-catalog.v1",
+    source: { schema: "sf6cr.bcm-full.v1", character: "Fab", fighter_id: 20,
+        sha256: "bcm-strength-variant" },
+    actions: { "1400": bcmAction(1400, "6+P", {}, "P") }
+};
+const strengthVariantResult = compiler.compileFromCatalog(
+    strengthVariantSource, strengthVariantCatalog, {},
+    { actionSourceSha256: "ac-strength-variant" });
+assert.strictEqual(strengthVariantResult.runtime.actions["1400"], "6+LP");
+assert.strictEqual(strengthVariantResult.runtime.actions["1401"], "6+MP");
+assert.strictEqual(strengthVariantResult.runtime.actions["1402"], "6+HP");
+assert.strictEqual(
+    strengthVariantResult.runtime.validation.rules["1401"].display_source,
+    "ac-type63-strength-variant");
+assert.deepStrictEqual(
+    strengthVariantResult.runtime.evidence.ac_derived_commands
+        .filter(item => item.derivation === "type63_strength_variant")
+        .map(item => [item.action_id, item.strength, item.classic_param01,
+            item.modern_param01]),
+    [[1401, "medium", 32, 128], [1402, "heavy", 64, 256]]);
+
 const acFollowupSource = {
     schema: "sf6cr.action-catalog-full.v2",
     character: "Fab",

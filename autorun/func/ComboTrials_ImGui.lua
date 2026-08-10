@@ -1666,6 +1666,16 @@ build_slim_command_display_map = function(loaded)
     return slim
 end
 
+local function is_catalog_strength_refinement(recorded_motion, catalog_motion)
+    local recorded = trim_string(recorded_motion):upper():gsub("[%s+]", "")
+    local catalog = trim_string(catalog_motion):upper():gsub("[%s+]", "")
+    local recorded_prefix, recorded_family = recorded:match("^(.-)([PK])$")
+    local catalog_prefix, _, catalog_family = catalog:match("^(.-)([LMH])([PK])$")
+    return recorded_prefix ~= nil
+        and recorded_prefix == catalog_prefix
+        and recorded_family == catalog_family
+end
+
 local function get_classic_display_motion(command_map, step)
     if type(command_map) ~= "table" or type(step) ~= "table" or command_map._slim ~= true then
         return nil, "map_unavailable"
@@ -1699,10 +1709,14 @@ local function get_classic_display_motion(command_map, step)
     -- trial can carry stricter contextual input (cancel shortcut, aerial state,
     -- timing/hold annotation). Replacing that text changes the trial semantics,
     -- so preserve it and use the generated command only for plain actions.
-    if recorded_motion ~= "" and contextual_motion then return recorded_motion, "recorded_context" end
     if type(resolved.classic) == "string" and resolved.classic ~= "" then
+        if recorded_motion ~= "" and contextual_motion
+            and not is_catalog_strength_refinement(recorded_motion, resolved.classic) then
+            return recorded_motion, "recorded_context"
+        end
         return resolved.classic, resolved.status or "loaded"
     end
+    if recorded_motion ~= "" and contextual_motion then return recorded_motion, "recorded_context" end
     return nil, resolved.status or "command_unavailable"
 end
 

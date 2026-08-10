@@ -12,10 +12,6 @@
       "replace": true,
       "evidence": "A revision 37 runtime audit replay binds Alex Action 959 to the recorded 2+PP stance-entry input before a later unrelated terminal mismatch; the generated catalog independently records the same Classic command"
     },
-    "968": {
-      "classic": ">6+MP",
-      "evidence": "Action 967 owns the verified >6+P route; three raw-input replays select Action 968 with MP"
-    },
     "977": {
       "classic": ">HP (INSTANT)",
       "evidence": "Five legacy trials and five raw-input replays agree on the immediate HP Breaker Stance variant"

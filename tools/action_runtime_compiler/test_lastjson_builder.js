@@ -32,6 +32,9 @@ for (const [character, registryEntry] of Object.entries(registry)) {
     assert.strictEqual(Number(formal._meta.audit.classic_projection_pending_count), 0);
     if (character === "Alex") formalAlex = formal;
 }
+assert.strictEqual(formalAlex["967"].classic_command.display, ">6+LP");
+assert.strictEqual(formalAlex["968"].classic_command.display, ">6+MP");
+assert.strictEqual(formalAlex["969"].classic_command.display, ">6+HP");
 
 const incompleteAlex = structuredClone(formalAlex);
 const incompleteId = Object.keys(incompleteAlex).find(id => /^\d+$/.test(id)

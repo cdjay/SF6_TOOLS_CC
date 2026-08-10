@@ -5597,9 +5597,9 @@
   },
   "967": {
     "classic_command": {
-      "display": ">6+P",
+      "display": ">6+LP",
       "inputs": [
-        ">6+P"
+        ">6+LP"
       ]
     },
     "control_support": "classic_modern",
@@ -5671,6 +5671,34 @@
         "super_shortcut_direction_reason": null
       }
     ]
+  },
+  "968": {
+    "classic_command": {
+      "display": ">6+MP",
+      "inputs": [
+        ">6+MP"
+      ]
+    },
+    "control_support": "classic_only",
+    "source": "ac_bcm+capcom_official_semantics",
+    "ownership": "classic_runtime",
+    "simple_command": null,
+    "motion_command": null,
+    "routes": []
+  },
+  "969": {
+    "classic_command": {
+      "display": ">6+HP",
+      "inputs": [
+        ">6+HP"
+      ]
+    },
+    "control_support": "classic_only",
+    "source": "ac_bcm+capcom_official_semantics",
+    "ownership": "classic_runtime",
+    "simple_command": null,
+    "motion_command": null,
+    "routes": []
   },
   "970": {
     "classic_command": {
@@ -9660,10 +9688,10 @@
       "ac_type13_neutral_route_count": 0,
       "internal_transition_suppression_count": 0,
       "split_command_action_count": 81,
-      "classic_command_action_count": 87,
+      "classic_command_action_count": 89,
       "shared_command_action_count": 81,
       "classic_projection_pending_count": 0,
-      "command_display_action_count": 87,
+      "command_display_action_count": 89,
       "followup_relation_count": 0,
       "command_slot_overflow_count": 0,
       "ac_automatic_transition_route_count": 0,
