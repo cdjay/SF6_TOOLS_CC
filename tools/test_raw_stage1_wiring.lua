@@ -14,6 +14,8 @@ assert(main:find('RawStage1Controller = require("func/ComboTrials/Raw/Stage1Cont
 assert(main:find("ctx.install_raw_stage1_sequence", 1, true))
 assert(main:find(":begin_recording(", 1, true))
 assert(main:find(":finish_recording(", 1, true))
+assert(main:find(":build_v2_sequence(", 1, true))
+assert(main:find(":write_save_diagnostic(", 1, true))
 assert(main:find(":attach_last_recording(", 1, true))
 assert(main:find(":observe_frame(", 1, true))
 assert(not main:find("RawCatalog.load", 1, true))
@@ -23,11 +25,13 @@ assert(controller:find("expected_display_version = self.target_game_version", 1,
 assert(controller:find("raw_trial_build_mismatch", 1, true))
 assert(controller:find("LastRawStage1Diagnostic.json", 1, true))
 assert(controller:find(":attempt_inactivity_timeout", 1, true))
+assert(controller:find("RawV2Sequence.build", 1, true))
 assert(files:find("ctx.install_raw_stage1_sequence", 1, true))
 assert(not files:find("pcall(ctx.install_raw_stage1_sequence", 1, true))
 assert(ui:find("raw_stage1_rows", 1, true))
 assert(ui:find("NO_DIRECT_BCM_BINDING", 1, true))
 assert(ui:find("draw_text_with_shadow(assets.font, raw_text", 1, true))
+assert(ui:find("suppress_legacy_recording_preview", 1, true))
 
 -- Replay must remain input/timeline driven; no command token may become a
 -- playback source in the main entry or demo state.

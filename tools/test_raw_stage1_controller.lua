@@ -68,12 +68,19 @@ local state = {
     is_recording = false,
     is_playing = false,
 }
+local written_path = nil
+local written_value = nil
 local controller = assert(Stage1Controller.new({
     trial_state = state,
     target_game_version = "2026-08-03",
     raw_catalog = fake_raw_catalog,
     get_context = function()
-        return { control_mode = "classic", fail_display_frames = 90 }
+        return { control_mode = "classic", fail_display_frames = 90, current_combo = 2 }
+    end,
+    write_json = function(path, value)
+        written_path = path
+        written_value = value
+        return true
     end,
 }))
 
@@ -140,11 +147,11 @@ assert(loaded)
 equal(loaded_status, "loaded")
 equal(state._raw_stage1_rows[1].action_id, 600)
 equal(state._raw_stage1_rows[1].status, "DIRECT")
-equal(state._raw_stage1_rows[1].display_text, "[norm v0] 236+HP")
+equal(state._raw_stage1_rows[1].display_text, "Action 600 | [norm v0] 236+HP")
 
 state.is_playing = true
 state.playing_player = 0
-assert(controller:begin_attempt(10, 0, 0))
+assert(controller:begin_attempt(10, 0, 1, 5))
 local idle = assert(controller:observe_frame(0, 11, 1, 5, 0))
 equal(idle.status, "progress")
 local passed = assert(controller:observe_frame(0, 12, 600, 0, 16))
@@ -166,12 +173,33 @@ assert(controller:begin_recording("Ryu", {
     control_mode = "classic",
     player_index = 0,
     initial_input = 0,
+    initial_action_id = 1,
+    initial_action_frame = 5,
     recorded_at = "2026-08-09T00:00:00Z",
 }))
-assert(controller:observe_frame(0, 20, 1, 5, 0))
-assert(controller:observe_frame(0, 21, 600, 0, 16))
+assert(controller:observe_frame(0, 21, 600, 0, 0))
+assert(controller:observe_frame(0, 22, 600, 5, 0))
+assert(controller:observe_frame(0, 23, 600, 0, 0))
 local recorded = assert(controller:finish_recording("norm"))
-equal(recorded:trace():count(), 1)
+equal(recorded:trace():count(), 2)
+equal(#state._raw_stage1_rows, 2)
+equal(state._raw_stage1_rows[1].action_id, 600)
+equal(state._raw_stage1_rows[1].occurrence, 1)
+equal(state._raw_stage1_rows[2].action_id, 600)
+equal(state._raw_stage1_rows[2].occurrence, 2)
+local v2_sequence = assert(controller:build_v2_sequence())
+equal(v2_sequence[1].id, 600)
+equal(v2_sequence[1].motion, "Action 600")
+equal(v2_sequence[1].expected_combo, 2)
+equal(v2_sequence[2].id, 600)
+equal(v2_sequence[2].expected_combo, 2)
+local save_diagnostic = controller:write_save_diagnostic("write_failed", {
+    character = "Ryu",
+})
+equal(save_diagnostic.failure_phase, "save")
+equal(save_diagnostic.failure_code, "write_failed")
+equal(written_path, "TrainingComboTrials_data/LastRawStage1Diagnostic.json")
+equal(written_value.failure_code, "write_failed")
 local meta = {}
 assert(controller:attach_last_recording(meta, {
     timeline_ref = { source = "combo_v2", field = "timeline" },

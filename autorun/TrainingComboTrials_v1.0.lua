@@ -2601,6 +2601,7 @@ trial_state._raw_stage1 = assert(ComboTrialsModules.RawStage1Controller.new({
             trial_file = trial_state.current_file_path or trial_state.current_file,
             replay_type = demo_state and demo_state.raw_buffer and "raw_input" or "timeline",
             fail_display_frames = d2d_cfg.fail_display_frames or 120,
+            current_combo = tonumber(_pf.current_combo) or 0,
         }
     end,
 }))
@@ -2812,10 +2813,14 @@ local function clear_trial_attempt_state(player_idx, phase)
     begin_trial_action_grace()
     init_hp_restore_attempt(phase or "attempt", player_idx or trial_state.playing_player)
     local raw_player = player_idx or trial_state.playing_player
+    local raw_actor = raw_player == 0 and GS.p1 or GS.p2
+    local raw_action_id, raw_action_frame =
+        ComboTrialsModules.GameProbe.get_action_data(raw_actor)
     local raw_attempt, raw_attempt_status = trial_state._raw_stage1:begin_attempt(
         engine_frame_count,
         raw_player,
-        players[raw_player] and players[raw_player].last_direct_input or 0
+        raw_action_id,
+        raw_action_frame
     )
     if raw_attempt == nil and raw_attempt_status ~= "legacy"
         and trial_state._raw_stage1:blocks_legacy_detector() then
@@ -3003,6 +3008,9 @@ local function start_recording(player_idx)
         return false
     end
     if player_idx ~= 0 and player_idx ~= 1 then return false end
+    local raw_actor = player_idx == 0 and GS.p1 or GS.p2
+    local initial_action_id, initial_action_frame =
+        ComboTrialsModules.GameProbe.get_action_data(raw_actor)
     local raw_fighter_id = unique_resources.read_training_fighter_id(player_idx)
     local raw_catalog = trial_state._raw_stage1:prepare_recording(raw_fighter_id)
     if raw_catalog == nil then
@@ -3014,7 +3022,8 @@ local function start_recording(player_idx)
             fighter_id = raw_fighter_id,
             control_mode = control_type_from_input_type(read_player_input_type(player_idx)),
             player_index = player_idx,
-            initial_input = players[player_idx].last_direct_input,
+            initial_action_id = initial_action_id,
+            initial_action_frame = initial_action_frame,
         }
     )
     if raw_trial == nil then return false, raw_error end
@@ -3088,6 +3097,7 @@ local function start_recording(player_idx)
     trial_state._raw_rec_active = true
     trial_state._action_event_session = ctx.new_action_event_session(player_idx, "recording")
     trial_state._recording_compiler_used = false
+    trial_state._raw_stage1_v2_fallback = false
     trial_state._last_action_compile = nil
     return true
 end
@@ -3176,6 +3186,7 @@ local function cancel_recording()
     trial_state._raw_stage1:cancel_recording()
     trial_state._action_event_session = nil
     trial_state._recording_compiler_used = false
+    trial_state._raw_stage1_v2_fallback = false
     trial_state._last_action_compile = nil
     ctx.reset_recording_preview()
     clear_recording_logger(canceled_player)
@@ -3224,8 +3235,17 @@ local function stop_recording_and_save()
         logger_has_data = logger_state.rec_p2.has_started and #logger_state.rec_p2.data > 0
     end
 
-    -- If nothing was recorded anywhere, act exactly like Cancel
-    if #trial_state.sequence == 0 and not logger_has_data then
+    trial_state.is_recording = false
+    players[saved_player].recording_block_contact_active = false
+    players[saved_player].recording_last_victim_hp = nil
+    players[saved_player].recording_contact_state = {}
+    trial_state._raw_rec_active = false
+    local raw_profile = control_type_from_input_type(read_player_input_type(saved_player)) == "modern"
+        and "easy" or "norm"
+    local raw_trial, raw_error = trial_state._raw_stage1:finish_recording(raw_profile)
+
+    -- If nothing was recorded anywhere, act exactly like Cancel.
+    if #trial_state.sequence == 0 and not logger_has_data and raw_trial == nil then
         local canceled_player = saved_player
         cancel_recording()
 
@@ -3243,24 +3263,46 @@ local function stop_recording_and_save()
         return
     end
 
-    if #trial_state.sequence == 0 then
-        cancel_recording()
-        trial_state._xt_pending_save_error = "输入流没有绑定到任何实际 Action，未生成文件"
+    if raw_trial == nil then
+        trial_state._xt_pending_save_error = "Atomic Action Trace 为空，未生成文件: " .. tostring(raw_error)
         _G.ComboTrials_SaveFailedPlayer = saved_player
         _G.ComboTrials_PendingSaveCanceled = saved_player
+        trial_state._raw_stage1:write_save_diagnostic(raw_error, {
+            character = players[saved_player].profile_name,
+            fighter_id = unique_resources.read_training_fighter_id(saved_player),
+            control_mode = control_type_from_input_type(read_player_input_type(saved_player)),
+            legacy_step_count = #trial_state.sequence,
+            logger_has_data = logger_has_data,
+        })
         return
     end
 
-    trial_state.is_recording = false
-    players[saved_player].recording_block_contact_active = false
-    players[saved_player].recording_last_victim_hp = nil
-    players[saved_player].recording_contact_state = {}
-    trial_state._raw_rec_active = false
-    local raw_profile = control_type_from_input_type(read_player_input_type(saved_player)) == "modern"
-        and "easy" or "norm"
-    local raw_trial, raw_error = trial_state._raw_stage1:finish_recording(raw_profile)
-    if raw_trial == nil then
-        trial_state._xt_pending_save_error = "Atomic Action Trace 为空，未生成文件: " .. tostring(raw_error)
+    if #trial_state.sequence == 0 then
+        local raw_sequence, sequence_error =
+            trial_state._raw_stage1:build_v2_sequence()
+        if raw_sequence == nil or #raw_sequence == 0 then
+            trial_state._xt_pending_save_error =
+                "Atomic Action 无法建立 V2 事实序列: " .. tostring(sequence_error)
+            _G.ComboTrials_SaveFailedPlayer = saved_player
+            _G.ComboTrials_PendingSaveCanceled = saved_player
+            trial_state._raw_stage1:write_save_diagnostic(sequence_error, {
+                character = players[saved_player].profile_name,
+                fighter_id = unique_resources.read_training_fighter_id(saved_player),
+                control_mode = control_type_from_input_type(read_player_input_type(saved_player)),
+                legacy_step_count = 0,
+                logger_has_data = logger_has_data,
+            })
+            return
+        end
+        trial_state.sequence = raw_sequence
+        trial_state._raw_stage1_v2_fallback = true
+        trial_state._recording_compiler_used = false
+    else
+        trial_state._raw_stage1_v2_fallback = false
+    end
+
+    if #trial_state.sequence == 0 then
+        trial_state._xt_pending_save_error = "Atomic Action Trace 未生成 V2 事实序列"
         _G.ComboTrials_SaveFailedPlayer = saved_player
         _G.ComboTrials_PendingSaveCanceled = saved_player
         return
@@ -3288,6 +3330,14 @@ local function stop_recording_and_save()
     if not ok or not saved_path then
         trial_state._xt_pending_save_error = ok and "save returned no path" or tostring(saved_path)
         _G.ComboTrials_SaveFailedPlayer = saved_player
+        trial_state._raw_stage1:write_save_diagnostic(
+            trial_state._xt_pending_save_error, {
+                character = players[saved_player].profile_name,
+                fighter_id = unique_resources.read_training_fighter_id(saved_player),
+                control_mode = control_type_from_input_type(read_player_input_type(saved_player)),
+                legacy_step_count = #trial_state.sequence,
+                logger_has_data = logger_has_data,
+            })
     end
 end
 
@@ -8114,7 +8164,9 @@ function save_trial_sequence(meta)
 
     local p_state = players[rec_p]
     if #trial_state.sequence > 0 then
-        if trial_state._recording_compiler_used ~= true and #p_state.log > 0 then
+        if trial_state._recording_compiler_used ~= true
+            and trial_state._raw_stage1_v2_fallback ~= true
+            and #p_state.log > 0 then
             local last_step = trial_state.sequence[#trial_state.sequence]
             for _, log_entry in ipairs(p_state.log) do
                 if log_entry.trial_step_idx == #trial_state.sequence then
@@ -8296,10 +8348,13 @@ function save_trial_sequence(meta)
 
     file_system.log_combo_save("output filename=" .. tostring(fname))
 
-    assign_groups(trial_state.sequence, char_name)
+    if trial_state._raw_stage1_v2_fallback ~= true then
+        assign_groups(trial_state.sequence, char_name)
+    end
     json.dump_file(path, trial_state.sequence)
     trial_state._raw_rec_buffer = {}
     trial_state._recording_compiler_used = false
+    trial_state._raw_stage1_v2_fallback = false
     trial_state._last_action_compile = nil
     trial_state._rec_environment = nil
     trial_state._rec_scene_state = nil

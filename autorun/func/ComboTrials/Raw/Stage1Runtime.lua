@@ -91,6 +91,8 @@ function Runtime:begin_recording(character, options)
     if player_error ~= nil then return nil, player_error end
     local capture, capture_error = AtomicCapture.new(trial:trace(), {
         start_gate = options.start_gate,
+        initial_action_id = options.initial_action_id,
+        initial_action_frame = options.initial_action_frame,
     })
     if capture == nil then return nil, capture_error end
     self.recording = {
@@ -198,6 +200,8 @@ function Runtime:begin_attempt(options)
     local trace = AtomicTrace.new()
     local capture, capture_error = AtomicCapture.new(trace, {
         start_gate = options.start_gate,
+        initial_action_id = options.initial_action_id,
+        initial_action_frame = options.initial_action_frame,
     })
     if capture == nil then return nil, capture_error end
     local timeout_policy = self:timeout_policy()

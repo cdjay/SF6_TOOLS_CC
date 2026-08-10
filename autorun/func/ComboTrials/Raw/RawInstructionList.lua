@@ -85,7 +85,8 @@ local function display_for_variants(action_id, variants)
     if #labels == 0 then
         return "Action " .. tostring(action_id), RawInstructionList.NO_DIRECT_BCM_BINDING
     end
-    return table.concat(labels, " | "), "DIRECT"
+    return "Action " .. tostring(action_id) .. " | "
+        .. table.concat(labels, " | "), "DIRECT"
 end
 
 function RawInstructionList.build_rows(source, catalog, preferred_profile)

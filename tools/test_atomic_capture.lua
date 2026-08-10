@@ -98,8 +98,11 @@ equal(gated_instances[2].enter_frame, 22)
 -- If the physical input edge and Action transition share a frame, that factual
 -- transition is admitted as the first instance.
 local edge_trace = AtomicTrace.new()
-local edge_capture = assert(AtomicCapture.new(edge_trace, { start_gate = "explicit" }))
-assert(edge_capture:observe({ action_id = 1, engine_frame = 30, action_frame = 5 }))
+local edge_capture = assert(AtomicCapture.new(edge_trace, {
+    start_gate = "explicit",
+    initial_action_id = 1,
+    initial_action_frame = 5,
+}))
 assert(edge_capture:observe({ action_id = 600, engine_frame = 31, action_frame = 0, active = true }))
 assert(edge_capture:observe({ action_id = 600, engine_frame = 32, action_frame = 1 }))
 assert(edge_capture:observe({ action_id = 601, engine_frame = 33, action_frame = 0 }))
@@ -110,6 +113,26 @@ equal(edge_instances[1].action_id, 600)
 equal(edge_instances[1].enter_frame, 31)
 equal(edge_instances[2].action_id, 601)
 equal(edge_instances[2].enter_frame, 33)
+
+-- A same-ID Runtime restart produces a second occurrence without any input
+-- evidence. The baseline Action itself is not emitted as a new occurrence.
+local repeat_trace = AtomicTrace.new()
+local repeat_capture = assert(AtomicCapture.new(repeat_trace, {
+    start_gate = "explicit",
+    initial_action_id = 600,
+    initial_action_frame = 8,
+}))
+assert(repeat_capture:observe({ action_id = 600, engine_frame = 40,
+    action_frame = 0, active = true, restart = true }))
+assert(repeat_capture:observe({ action_id = 600, engine_frame = 41,
+    action_frame = 1 }))
+assert(repeat_capture:observe({ action_id = 600, engine_frame = 42,
+    action_frame = 0, active = true, restart = true }))
+repeat_capture:finish()
+local repeat_instances = repeat_trace:get_instances()
+equal(#repeat_instances, 2)
+equal(repeat_instances[1].occurrence, 1)
+equal(repeat_instances[2].occurrence, 2)
 
 -- Unknown gate modes and immutable traces fail closed.
 local bad_gate, bad_gate_err = AtomicCapture.new(AtomicTrace.new(), { start_gate = "guess" })

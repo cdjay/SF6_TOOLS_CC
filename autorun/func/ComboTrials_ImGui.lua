@@ -3391,10 +3391,13 @@ local function imgui_draw_inner()
     if live_show_p2 and live_raw_p2 then raw_read_inputs(1, raw_state.history_p2, live_raw_max) end
 
     -- DRAW P1
+    local suppress_legacy_recording_preview = trial_state.is_recording == true
+        and trial_state._raw_stage1_status == "recording"
     if live_show_p1 then
         if live_raw_p1 then
             draw_raw_player(raw_state.history_p1, raw_pos_p1.x * sw, raw_pos_p1.y * sh, raw_flip_p1, live_raw_max)
-        else
+        elseif not (suppress_legacy_recording_preview
+            and trial_state.recording_player == 0) then
             local is_modern, modern_map, character, status = resolve_live_player_command_display_context(0)
             local audit_context = trial_state.is_recording and trial_state.recording_player == 0
                 and "recording" or "live"
@@ -3406,7 +3409,8 @@ local function imgui_draw_inner()
     if live_show_p2 then
         if live_raw_p2 then
             draw_raw_player(raw_state.history_p2, raw_pos_p2.x * sw, raw_pos_p2.y * sh, raw_flip_p2, live_raw_max)
-        else
+        elseif not (suppress_legacy_recording_preview
+            and trial_state.recording_player == 1) then
             local is_modern, modern_map, character, status = resolve_live_player_command_display_context(1)
             local audit_context = trial_state.is_recording and trial_state.recording_player == 1
                 and "recording" or "live"

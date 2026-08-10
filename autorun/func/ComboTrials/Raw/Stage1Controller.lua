@@ -5,6 +5,7 @@ local Stage1Controller = {
 local RawCatalog = require("func/ComboTrials/Raw/RawCatalog")
 local RawActionBoundary = require("func/ComboTrials/Raw/RawActionBoundary")
 local RawInstructionList = require("func/ComboTrials/Raw/RawInstructionList")
+local RawV2Sequence = require("func/ComboTrials/Raw/RawV2Sequence")
 local Stage1Runtime = require("func/ComboTrials/Raw/Stage1Runtime")
 
 local Controller = {}
@@ -43,9 +44,8 @@ function Stage1Controller.new(options)
         runtime = options.runtime or Stage1Runtime.new(),
         catalog = nil,
         catalog_status = nil,
-        last_inputs = {},
         boundaries = {},
-        repeatable_directions = {},
+        recording_step_facts = nil,
         terminal_result_applied = false,
         get_context = options.get_context,
         write_json = options.write_json,
@@ -83,7 +83,6 @@ function Controller:_load_catalog(fighter_id)
         expected_display_version = self.target_game_version,
     })
     self.catalog = catalog
-    self.repeatable_directions = {}
     self.catalog_status = status
     self.trial_state._raw_stage1_catalog = catalog
     self.trial_state._raw_stage1_catalog_status = status
@@ -196,8 +195,9 @@ function Controller:begin_recording(character, options)
     options.start_gate = "explicit"
     options.recorded_at = options.recorded_at or os.date("!%Y-%m-%dT%H:%M:%SZ")
     local trial, trial_error = self.runtime:begin_recording(character, options)
-    self.last_inputs[options.player_index] = tonumber(options.initial_input) or 0
-    self.boundaries[options.player_index] = RawActionBoundary.new(options.initial_input)
+    self.boundaries[options.player_index] = RawActionBoundary.new(
+        options.initial_action_id, options.initial_action_frame)
+    self.recording_step_facts = {}
     self.terminal_result_applied = false
     self.trial_state._raw_stage1_status = trial and "recording" or "invalid"
     self.trial_state._raw_stage1_error = trial_error
@@ -208,7 +208,7 @@ end
 
 function Controller:cancel_recording()
     self.runtime:cancel_recording()
-    self.last_inputs = {}
+    self.recording_step_facts = nil
     self.boundaries = {}
     self.terminal_result_applied = false
     self.trial_state._raw_stage1_status = "legacy"
@@ -229,24 +229,51 @@ function Controller:attach_last_recording(xt_meta, options)
     return self.runtime:attach_last_recording(xt_meta, options)
 end
 
+function Controller:build_v2_sequence()
+    local trial = self.runtime:last_recorded_trial()
+    if trial == nil then return nil, "recording_not_finalized" end
+    return RawV2Sequence.build(trial:trace(), self.recording_step_facts)
+end
+
+function Controller:write_save_diagnostic(code, context)
+    context = type(context) == "table" and clone(context) or {}
+    context.schema = "sf6cc.raw_stage1.diagnostic.v1"
+    context.failure_phase = "save"
+    context.failure_code = tostring(code or "save_failed")
+    context.game_build = rawget(_G, "SF6CC_RAW_CURRENT_BUILD_UID")
+    local diagnostic = self.runtime:diagnostic(context)
+    diagnostic.artifact = self.catalog and self.catalog:get_audit_info() or nil
+    diagnostic.raw_rows = clone(self.trial_state._raw_stage1_rows)
+    self.trial_state._raw_stage1_diagnostic = diagnostic
+    _G.SF6CC_RAW_STAGE1_DIAGNOSTIC = diagnostic
+    if type(self.write_json) == "function" then
+        pcall(self.write_json,
+            "TrainingComboTrials_data/LastRawStage1Diagnostic.json", diagnostic)
+    end
+    return diagnostic
+end
+
 function Controller:blocks_legacy_detector()
     local status = self.trial_state._raw_stage1_status
     return status ~= nil and status ~= "legacy"
 end
 
-function Controller:begin_attempt(engine_frame, player_index, initial_input)
+function Controller:begin_attempt(engine_frame, player_index,
+    initial_action_id, initial_action_frame)
     local status = self.trial_state._raw_stage1_status
     if (status ~= "loaded" and status ~= "recorded") or self.catalog == nil then
         return nil, self.trial_state._raw_stage1_status or "legacy"
     end
     if not valid_player_index(player_index) then return nil, "invalid_player_index" end
-    self.last_inputs = { [player_index] = tonumber(initial_input) or 0 }
-    self.boundaries = { [player_index] = RawActionBoundary.new(initial_input) }
+    self.boundaries = { [player_index] = RawActionBoundary.new(
+        initial_action_id, initial_action_frame) }
     self.terminal_result_applied = false
     return self.runtime:begin_attempt({
         start_gate = "explicit",
         player_index = player_index,
         start_engine_frame = engine_frame,
+        initial_action_id = initial_action_id,
+        initial_action_frame = initial_action_frame,
     })
 end
 
@@ -256,36 +283,6 @@ function Controller:should_collect_sample(player_index)
     return state.is_playing and player_index == state.playing_player
         and (state._raw_stage1_status == "loaded"
             or state._raw_stage1_status == "recorded")
-end
-
-function Controller:_sample_activity(player_index, direct_input)
-    local current = tonumber(direct_input) or 0
-    local previous = self.last_inputs[player_index]
-    self.last_inputs[player_index] = current
-    return previous ~= nil and (current ~ previous) ~= 0
-end
-
-function Controller:_repeatable_direction(action_id)
-    if type(action_id) ~= "number" then return nil end
-    local cached = self.repeatable_directions[action_id]
-    if cached ~= nil then return cached or nil end
-    local direction = false
-    local bindings = self.catalog and self.catalog:get_bindings(action_id) or nil
-    for _, binding in ipairs(bindings or {}) do
-        for _, token in ipairs(binding.direct_command_tokens or {}) do
-            local compact = tostring(token):gsub("%s+", "")
-            if compact == "66" or compact == "5656" then
-                direction = "6"
-                break
-            elseif compact == "44" or compact == "5454" then
-                direction = "4"
-                break
-            end
-        end
-        if direction ~= false then break end
-    end
-    self.repeatable_directions[action_id] = direction
-    return direction or nil
 end
 
 function Controller:_diagnostic(result, context)
@@ -352,7 +349,6 @@ function Controller:observe_frame(player_index, engine_frame, action_id, action_
         direct_input = direct_input,
         direction_input = direction_input,
         facing_right = facing_right,
-        repeatable_direction = self:_repeatable_direction(action_id),
     }
     local context = type(self.get_context) == "function"
         and self.get_context(player_index) or {}
@@ -364,14 +360,26 @@ function Controller:observe_frame(player_index, engine_frame, action_id, action_
     local boundary_result, boundary_error = boundary:observe(sample)
     if boundary_result == nil then return nil, boundary_error end
     sample.active = boundary_result.active
-        or self:_sample_activity(player_index, direct_input)
     sample.restart = boundary_result.restart
     if state.is_recording then
         local observed, observe_error = self.runtime:observe_recording(sample)
         if observed == nil then
             state._raw_stage1_error = observe_error
-        elseif observed.new_instance == true then
-            self:refresh_rows(control_profile(context.control_mode))
+        else
+            local step = tonumber(observed.step)
+            local combo_count = tonumber(context.current_combo)
+            if step ~= nil and step % 1 == 0 and step >= 1
+                and combo_count ~= nil and combo_count % 1 == 0
+                and combo_count >= 0 then
+                self.recording_step_facts = self.recording_step_facts or {}
+                local fact = self.recording_step_facts[step] or {}
+                fact.expected_combo = math.max(
+                    tonumber(fact.expected_combo) or 0, combo_count)
+                self.recording_step_facts[step] = fact
+            end
+            if observed.new_instance == true then
+                self:refresh_rows(control_profile(context.control_mode))
+            end
         end
         return observed, observe_error
     end

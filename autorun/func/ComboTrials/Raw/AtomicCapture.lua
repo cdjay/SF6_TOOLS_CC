@@ -49,8 +49,8 @@ function AtomicCapture.new(trace, options)
         start_gate = start_gate,
         started = start_gate == AtomicCapture.START_GATE_IMMEDIATE,
         current_step = nil,
-        current_action_id = nil,
-        last_action_frame = nil,
+        current_action_id = options.initial_action_id,
+        last_action_frame = options.initial_action_frame,
         last_engine_frame = nil,
     }, Capture)
 end
