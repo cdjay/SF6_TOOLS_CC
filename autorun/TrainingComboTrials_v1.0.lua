@@ -3137,7 +3137,8 @@ local function start_trial(player_idx)
     trial_state._rec_scene_state = nil
     trial_state.is_playing = true
     trial_state.playing_player = player_idx
-    trial_state._raw_stage1_defer_attempt = false
+    trial_state._raw_stage1_defer_attempt =
+        trial_state._raw_stage1:blocks_legacy_detector()
     trial_state._was_playing = false
     trial_state._hp_inject_frames = 0
     clear_trial_attempt_state(player_idx, "start_trial")
@@ -3365,8 +3366,8 @@ local function load_and_start_trial(player_idx)
 end
 
 local function reset_trial_steps()
-    if demo_state and demo_state.is_playing
-        and trial_state._transcribing ~= true then
+    if trial_state._transcribing ~= true
+        and trial_state._raw_stage1:blocks_legacy_detector() then
         trial_state._raw_stage1_defer_attempt = true
     end
     clear_pending_position_injection()
@@ -7880,6 +7881,12 @@ ctx.observe_runtime_action_truth = function(p_idx, runtime_action_id, runtime_ac
         ctx.arm_raw_stage1_recording(
             p_idx, runtime_action_id, runtime_action_frame)
     end
+    if trial_state.is_playing and trial_state._transcribing ~= true
+        and trial_state._raw_stage1_defer_attempt == true
+        and not (demo_state and demo_state.is_playing) then
+        ctx.arm_raw_stage1_manual_attempt(
+            p_idx, runtime_action_id, runtime_action_frame)
+    end
     if (trial_state.is_recording
             and trial_state._raw_stage1_recording_defer ~= true)
         or (trial_state.is_playing and trial_state._transcribing ~= true
@@ -7939,6 +7946,31 @@ ctx.observe_runtime_action_truth = function(p_idx, runtime_action_id, runtime_ac
             trial_state.first_action_pos_p1_raw,
             trial_state.first_action_pos_p2_raw = capture_current_positions()
     end
+end
+
+ctx.arm_raw_stage1_manual_attempt = function(p_idx, action_id, action_frame)
+    if trial_state._raw_stage1_defer_attempt ~= true then return true end
+    if p_idx ~= trial_state.playing_player then return false end
+    if trial_state.pending_exact_pos and trial_state.pending_exact_pos > 0 then
+        return false
+    end
+    if trial_state._pending_reinject_settings == true then return false end
+    if trial_state._reset_grace and trial_state._reset_grace > 0 then return false end
+    local tm = sdk.get_managed_singleton("app.training.TrainingManager")
+    if tm and tm:get_field("_IsReqRefresh") == true then return false end
+    local attempt, status = trial_state._raw_stage1:begin_attempt(
+        engine_frame_count, p_idx, action_id, action_frame, {
+            admit_matching_initial = true,
+        })
+    trial_state._raw_stage1_defer_attempt = false
+    if attempt == nil and status ~= "legacy"
+        and trial_state._raw_stage1:blocks_legacy_detector() then
+        trial_state._raw_stage1_error = status
+        trial_state.fail_timer = d2d_cfg.fail_display_frames or 120
+        trial_state.fail_reason = "RAW STAGE1 INVALID"
+        return false
+    end
+    return true
 end
 
 ctx.arm_raw_stage1_recording = function(p_idx, action_id, action_frame)
