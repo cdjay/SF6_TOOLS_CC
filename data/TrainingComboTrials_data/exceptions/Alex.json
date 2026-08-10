@@ -44,7 +44,8 @@
     "charge_max": 13
   },
   "977": {
-    "force": true
+    "force": true,
+    "optional_parent_ids": "976"
   },
   "1208": {
     "absorb_ids": "1209",

@@ -1851,6 +1851,30 @@ assert(action_matcher.is_optional_parent_for_followup(
         "LK"
     ) == true,
     "an explicit transient parent rule must work for a button chord without a > notation")
+do
+local alex_instant_hp_rule = {
+    force = true,
+    optional_parent_ids = "976",
+}
+assert(action_matcher.is_optional_parent_for_followup(
+        "HP",
+        { id = 977, motion = ">HP (INSTANT)" },
+        976,
+        alex_instant_hp_rule,
+        { id = 958, motion = "2+PP" },
+        "HP"
+    ) == true,
+    "Alex's HP parent phase must wait for the recorded instant-release Action 977")
+assert(action_matcher.is_optional_parent_for_followup(
+        ">HP (INSTANT)",
+        { id = 977, motion = ">HP (INSTANT)" },
+        977,
+        alex_instant_hp_rule,
+        { id = 958, motion = "2+PP" },
+        "HP"
+    ) == false,
+    "Alex's exact instant-release Action 977 must remain eligible to complete the step")
+end
 local kimberly_followup_match = action_matcher.match_expected_action(
     { id = 908, motion = ">LK" },
     908,
