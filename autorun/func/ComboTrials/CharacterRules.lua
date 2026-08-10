@@ -6,6 +6,7 @@ local CharacterRules = {
 
 local EXCEPTION_DIR = "TrainingComboTrials_data/exceptions"
 local COMMON_EXCEPTIONS_FILE = EXCEPTION_DIR .. "/Common.json"
+local GENERATED_SEMANTICS_DIR = "TrainingComboTrials_data/generated_semantics"
 
 local function merge_match_rule(base, overlay)
     if not overlay then return base end
@@ -21,6 +22,11 @@ function CharacterRules.get_exception_filename(character_name)
     return EXCEPTION_DIR .. "/" .. tostring(character_name or ""):gsub("[^%w_]", "") .. ".json"
 end
 
+function CharacterRules.get_generated_semantics_filename(character_name)
+    return GENERATED_SEMANTICS_DIR .. "/"
+        .. tostring(character_name or ""):gsub("[^%w_]", "") .. ".json"
+end
+
 function CharacterRules.load_common()
     local common_exceptions = {}
     pcall(function()
@@ -31,9 +37,18 @@ function CharacterRules.load_common()
 end
 
 function CharacterRules.load_for_character(character_name)
-    local loaded = json.load_file(CharacterRules.get_exception_filename(character_name))
-    if loaded then return loaded end
-    return {}
+    local handwritten = json.load_file(
+        CharacterRules.get_exception_filename(character_name)
+    ) or {}
+    local generated = json.load_file(
+        CharacterRules.get_generated_semantics_filename(character_name)
+    ) or {}
+    local merged = {}
+    for action_id, rule in pairs(handwritten) do merged[action_id] = rule end
+    for action_id, rule in pairs(generated) do
+        merged[action_id] = merge_match_rule(merged[action_id], rule)
+    end
+    return merged
 end
 
 function CharacterRules.get_exception(character_rules, common_rules, action_id)
