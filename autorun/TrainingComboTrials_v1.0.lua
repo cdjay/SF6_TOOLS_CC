@@ -20,7 +20,7 @@ local ComboTrialsModules = {
     PendingAbsorb = require("func/ComboTrials/PendingAbsorb"),
     Telemetry = require("func/ComboTrials/Telemetry"),
     CommandResolver = require("func/ComboTrials/CommandResolver"),
-    ActionEventCompiler = require("func/ComboTrials/ActionEventCompiler"),
+    UnifiedActionConsumer = require("func/ComboTrials/UnifiedActionConsumer"),
     RawInputCodec = require("func/ComboTrials/RawInputCodec"),
     Transcriber = require("func/ComboTrials/Transcriber"),
     RuntimeAuditor = require("func/ComboTrials/RuntimeAuditor"),
@@ -2810,59 +2810,18 @@ end
 
 ctx.resolve_compiled_motion = function(action_id, event, session)
     local character = type(session) == "table" and session.character or nil
-    if ComboTrials_Renderer and ComboTrials_Renderer.get_command_display
-        and type(character) == "string" and character ~= "" then
-        local ok, display, status, metadata = pcall(
-            ComboTrials_Renderer.get_command_display,
-            character,
-            action_id,
-            "classic"
-        )
-        if ok and status == "suppress_transition" then
-            local anchor = type(event) == "table" and type(event.anchor) == "table"
-                and event.anchor or {}
-            local edge_buttons =
-                ComboTrialsModules.CommandResolver.find_input_bound_transition_edge(
-                    character,
-                    event,
-                    session,
-                    ComboTrials_Renderer
-                )
-            local direct_input =
-                ((tonumber(anchor.held_buttons) or 0) | edge_buttons)
-            local intentional, transition_status, transition_motion =
-                ComboTrialsModules.CommandResolver.resolve_unified_command_action(
-                    character,
-                    action_id,
-                    direct_input,
-                    edge_buttons,
-                    ComboTrials_Renderer
-                )
-            if intentional and type(transition_motion) == "string"
-                and transition_motion ~= "" then
-                return ComboTrialsModules.TrainingEnvironment.strip_counter_tags(
-                    transition_motion
-                ), transition_status, metadata
-            end
-            return nil, status
-        end
-        -- Do not call the later-declared local trim_string here. This resolver
-        -- is defined before that declaration, so Lua would resolve it as a
-        -- missing global and silently fall back to guessed input notation.
-        local trimmed = type(display) == "string"
-            and display:match("^%s*(.-)%s*$") or ""
-        if ok and trimmed ~= "" then
-            return ComboTrialsModules.TrainingEnvironment.strip_counter_tags(trimmed),
-                status, metadata
-        end
-        return nil, ok and status or "resolver_error", metadata
-    end
-    return nil, "map_unavailable"
+    return ComboTrialsModules.UnifiedActionConsumer.resolve_compiled_motion(
+        character,
+        action_id,
+        event,
+        session,
+        ComboTrials_Renderer
+    )
 end
 
 ctx.new_action_event_session = function(player_idx, source)
     local p_state = players[player_idx]
-    return ComboTrialsModules.ActionEventCompiler.new({
+    return ComboTrialsModules.UnifiedActionConsumer.new_capture({
         character = p_state and p_state.profile_name or "Unknown",
         control_mode = control_type_from_input_type(read_player_input_type(player_idx)),
         source = source,
@@ -2885,7 +2844,10 @@ ctx.compile_action_event_session = function(session, options)
         for key, value in pairs(options) do finalize_options[key] = value end
     end
     finalize_options.motion_resolver = ctx.resolve_compiled_motion
-    return ComboTrialsModules.ActionEventCompiler.finalize(session, finalize_options)
+    return ComboTrialsModules.UnifiedActionConsumer.finalize_capture(
+        session,
+        finalize_options
+    )
 end
 
 ctx.reset_recording_preview = function()
@@ -3989,7 +3951,7 @@ function ct_try_skip_unreported_same_action_pressure_step(args)
     local next_expected = sequence[next_step_idx]
     if not next_expected then return nil end
 
-    local next_action_match = args.ActionMatcher.match_expected_action(
+    local next_action_match = args.ActionConsumer.match_expected_action(
         next_expected,
         args.act_id,
         args.motion,
@@ -5877,7 +5839,7 @@ local function ct_player_input_buffer(p_state)
             -- command owner is a real player command. State/resource branches
             -- can replace it within the ghost window (for example, a status-
             -- dependent follow-up); the later action must not erase the command.
-            local buffered_is_catalog_command = ComboTrialsModules.CommandResolver.resolve_unified_command_action(
+            local buffered_is_catalog_command = ComboTrialsModules.UnifiedActionConsumer.resolve_runtime_command(
                 p_state.profile_name, p_state.buffer_act_id, p_state.buffer_direct_input,
                 p_state.buffer_newly_pressed, ComboTrials_Renderer)
 
@@ -5898,7 +5860,7 @@ local function ct_player_input_buffer(p_state)
                     end
                 end
                 local new_is_catalog_command, new_command_status =
-                    ComboTrialsModules.CommandResolver.resolve_unified_command_action(
+                    ComboTrialsModules.UnifiedActionConsumer.resolve_runtime_command(
                         p_state.profile_name, _pf.act_id, _pf.direct_input, action_input_edge,
                         ComboTrials_Renderer)
                 if not new_is_intentional and new_is_catalog_command then
@@ -6040,7 +6002,10 @@ local function ct_player_input_buffer(p_state)
 end
 
 local function ct_player_process_actions(p_idx, p_state, actions_to_process)
-    local input_truth_mode = ActionMatcher.sequence_uses_input_truth(trial_state.sequence)
+    local input_truth_mode =
+        ComboTrialsModules.UnifiedActionConsumer.sequence_uses_input_truth(
+            trial_state.sequence
+        )
     for _, process_act in ipairs(actions_to_process) do
         local runtime_act_id = process_act.id
         local act_id = runtime_act_id
@@ -6080,7 +6045,7 @@ local function ct_player_process_actions(p_idx, p_state, actions_to_process)
             local absorb_owner_id = CharacterRules.find_recording_absorb_owner(
                 p_state.exceptions, common_exceptions, runtime_act_id)
             if absorb_owner_id then
-                local owner_is_command = ComboTrialsModules.CommandResolver.resolve_unified_command_action(
+                local owner_is_command = ComboTrialsModules.UnifiedActionConsumer.resolve_runtime_command(
                     p_state.profile_name, absorb_owner_id, direct_input, process_act.newly_pressed,
                     ComboTrials_Renderer)
                 if owner_is_command then act_id = absorb_owner_id end
@@ -6142,7 +6107,7 @@ local function ct_player_process_actions(p_idx, p_state, actions_to_process)
             local is_facing_left = false
             local transition_policy = nil
             local unified_command_action, unified_command_status, unified_classic_motion =
-                ComboTrialsModules.CommandResolver.resolve_unified_command_action(
+                ComboTrialsModules.UnifiedActionConsumer.resolve_runtime_command(
                     p_state.profile_name, act_id, direct_input, process_act.newly_pressed,
                     ComboTrials_Renderer)
 
@@ -6265,7 +6230,7 @@ local function ct_player_process_actions(p_idx, p_state, actions_to_process)
                         expected_for_ignore.id
                     ) or nil
                 local expected_action_matches_current = expected_for_ignore
-                    and ActionMatcher.matches_expected_action_id(
+                    and ComboTrialsModules.UnifiedActionConsumer.matches_expected_action_id(
                         expected_for_ignore,
                         act_id,
                         expected_exception,
@@ -6273,7 +6238,7 @@ local function ct_player_process_actions(p_idx, p_state, actions_to_process)
                     )
 
                 if is_ignored and ignore_reason == "[例外：忽略]"
-                    and ActionMatcher.should_admit_ignored_expected_action(
+                    and ComboTrialsModules.UnifiedActionConsumer.should_admit_ignored_expected_action(
                         input_truth_mode,
                         expected_for_ignore,
                         act_id,
@@ -6284,7 +6249,7 @@ local function ct_player_process_actions(p_idx, p_state, actions_to_process)
                     ignore_reason = ""
                 end
                 if is_ignored and ignore_reason == "[指令表：内部状态跳转]"
-                    and ActionMatcher.should_admit_ignored_expected_action(
+                    and ComboTrialsModules.UnifiedActionConsumer.should_admit_ignored_expected_action(
                         input_truth_mode,
                         expected_for_ignore,
                         act_id,
@@ -6303,7 +6268,8 @@ local function ct_player_process_actions(p_idx, p_state, actions_to_process)
                     and trial_state.current_step
                     and trial_state.current_step > 1
                     and trial_state.sequence[trial_state.current_step - 1] or nil
-                transition_policy = ActionMatcher.classify_runtime_transition({
+                transition_policy =
+                    ComboTrialsModules.UnifiedActionConsumer.classify_runtime_transition({
                     previous_step = previous_expected_for_transition,
                     expected_step = expected_for_ignore,
                     expected_action_matches_current = expected_action_matches_current == true,
@@ -6832,7 +6798,8 @@ local function ct_player_process_actions(p_idx, p_state, actions_to_process)
                                 p_state.profile_name,
                                 expected.id
                             )
-                            local action_match = ActionMatcher.match_expected_action(
+                            local action_match =
+                                ComboTrialsModules.UnifiedActionConsumer.match_expected_action(
                                 expected,
                                 act_id,
                                 motion_str,
@@ -6909,7 +6876,7 @@ local function ct_player_process_actions(p_idx, p_state, actions_to_process)
                                     synthetic = process_act.synthetic,
                                     synthetic_frame = process_act.engine_frame,
                                     combo_count = _pf.current_combo or 0,
-                                    ActionMatcher = ActionMatcher,
+                                    ActionConsumer = ComboTrialsModules.UnifiedActionConsumer,
                                     Validator = Validator,
                                     DebugTrace = DebugTrace,
                                     match_probe = match_probe
@@ -7126,7 +7093,8 @@ local function ct_player_process_actions(p_idx, p_state, actions_to_process)
                                                 p_state.profile_name,
                                                 expected.id
                                             )
-                                            action_match = ActionMatcher.match_expected_action(
+                                            action_match =
+                                                ComboTrialsModules.UnifiedActionConsumer.match_expected_action(
                                                 expected,
                                                 act_id,
                                                 motion_str,
@@ -7762,7 +7730,7 @@ ctx.observe_runtime_action_truth = function(p_idx)
         end
     end)
     local event_count_before = #session.events
-    pcall(ComboTrialsModules.ActionEventCompiler.observe, session, {
+    pcall(ComboTrialsModules.UnifiedActionConsumer.observe_capture, session, {
         frame = engine_frame_count,
         action_id = _pf.act_id,
         action_frame = _pf.act_frame,
@@ -8971,7 +8939,7 @@ ctx.finish_current_transcription_file = function(timed_out)
             run.character,
             expected_id
         )
-        return ActionMatcher.matches_expected_action_id(
+        return ComboTrialsModules.UnifiedActionConsumer.matches_expected_action_id(
             expected_step,
             observed_id,
             match_rule,
