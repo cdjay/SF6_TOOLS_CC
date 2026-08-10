@@ -66,6 +66,10 @@ function sha256(value) {
   return crypto.createHash("sha256").update(value).digest("hex");
 }
 
+function normalizedTextSha256(value) {
+  return sha256(value.toString("utf8").replaceAll("\r\n", "\n"));
+}
+
 function relative(filename) {
   return path.relative(ROOT, filename).replaceAll("\\", "/");
 }
@@ -402,8 +406,8 @@ function writeOrCheck(mode) {
   if (mode === "--check") {
     const baselineRaw = fs.readFileSync(BASELINE_FILE);
     const oracleRaw = fs.readFileSync(ORACLE_FILE);
-    if (sha256(baselineRaw) !== SEALED_BASELINE_SHA256) throw new Error("Sealed character exception baseline hash mismatch");
-    if (sha256(oracleRaw) !== SEALED_ORACLE_SHA256) throw new Error("Sealed character exception Oracle hash mismatch");
+    if (normalizedTextSha256(baselineRaw) !== SEALED_BASELINE_SHA256) throw new Error("Sealed character exception baseline hash mismatch");
+    if (normalizedTextSha256(oracleRaw) !== SEALED_ORACLE_SHA256) throw new Error("Sealed character exception Oracle hash mismatch");
     const baseline = JSON.parse(baselineRaw.toString("utf8"));
     const oracle = JSON.parse(oracleRaw.toString("utf8"));
     if (baseline.schema !== "sf6cc.character-exception-baseline.v1"
