@@ -69,7 +69,9 @@ local function variant_from(catalog, binding, binding_index)
     }
 end
 
-local function display_for_variants(action_id, variants)
+local function display_for_variants(action_id, occurrence, variants)
+    local action_label = string.format("Action %s #%s",
+        tostring(action_id), tostring(occurrence or 1))
     local labels = {}
     for _, variant in ipairs(variants) do
         if variant.command_token ~= "" then
@@ -83,9 +85,9 @@ local function display_for_variants(action_id, variants)
         end
     end
     if #labels == 0 then
-        return "Action " .. tostring(action_id), RawInstructionList.NO_DIRECT_BCM_BINDING
+        return action_label, RawInstructionList.NO_DIRECT_BCM_BINDING
     end
-    return "Action " .. tostring(action_id) .. " | "
+    return action_label .. " | "
         .. table.concat(labels, " | "), "DIRECT"
 end
 
@@ -116,7 +118,8 @@ function RawInstructionList.build_rows(source, catalog, preferred_profile)
                 variants[#variants + 1] = variant_from(catalog, binding, binding_index)
             end
         end
-        local display_text, status = display_for_variants(instance.action_id, variants)
+        local display_text, status = display_for_variants(
+            instance.action_id, instance.occurrence, variants)
         rows[index] = {
             step = instance.step or index,
             occurrence = instance.occurrence,

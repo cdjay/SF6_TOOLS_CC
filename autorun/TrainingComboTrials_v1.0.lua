@@ -3097,7 +3097,8 @@ local function start_recording(player_idx)
     trial_state._raw_rec_active = true
     trial_state._action_event_session = ctx.new_action_event_session(player_idx, "recording")
     trial_state._recording_compiler_used = false
-    trial_state._raw_stage1_v2_fallback = false
+    trial_state._raw_stage1_v2_atomic = false
+    trial_state._raw_stage1_legacy_step_count = nil
     trial_state._last_action_compile = nil
     return true
 end
@@ -3186,7 +3187,8 @@ local function cancel_recording()
     trial_state._raw_stage1:cancel_recording()
     trial_state._action_event_session = nil
     trial_state._recording_compiler_used = false
-    trial_state._raw_stage1_v2_fallback = false
+    trial_state._raw_stage1_v2_atomic = false
+    trial_state._raw_stage1_legacy_step_count = nil
     trial_state._last_action_compile = nil
     ctx.reset_recording_preview()
     clear_recording_logger(canceled_player)
@@ -3217,8 +3219,8 @@ local function stop_recording_and_save()
     ctx.reset_recording_preview()
     trial_state._last_action_compile = compiled
     if compiled and type(compiled.steps) == "table" and #compiled.steps > 0 then
-        -- The legacy recorder may still collect its diagnostics while recording,
-        -- but only the input-bound runtime compiler is allowed to create V2 steps.
+        -- Legacy compilation remains diagnostic-only for new Stage 1 recordings.
+        -- The frozen V2 Action list is rebuilt from the independent Atomic Trace.
         trial_state.sequence = compiled.steps
         Validator.annotate_terminal_pressure_tail(trial_state.sequence)
         trial_state._recording_compiler_used = true
@@ -3226,6 +3228,7 @@ local function stop_recording_and_save()
         trial_state.sequence = {}
         trial_state._recording_compiler_used = false
     end
+    local legacy_step_count = #trial_state.sequence
 
     -- Check if logger has data (for replay/BH mode where sequence stays empty)
     local logger_has_data = false
@@ -3245,7 +3248,7 @@ local function stop_recording_and_save()
     local raw_trial, raw_error = trial_state._raw_stage1:finish_recording(raw_profile)
 
     -- If nothing was recorded anywhere, act exactly like Cancel.
-    if #trial_state.sequence == 0 and not logger_has_data and raw_trial == nil then
+    if legacy_step_count == 0 and not logger_has_data and raw_trial == nil then
         local canceled_player = saved_player
         cancel_recording()
 
@@ -3271,35 +3274,32 @@ local function stop_recording_and_save()
             character = players[saved_player].profile_name,
             fighter_id = unique_resources.read_training_fighter_id(saved_player),
             control_mode = control_type_from_input_type(read_player_input_type(saved_player)),
-            legacy_step_count = #trial_state.sequence,
+            legacy_step_count = legacy_step_count,
             logger_has_data = logger_has_data,
         })
         return
     end
 
-    if #trial_state.sequence == 0 then
-        local raw_sequence, sequence_error =
-            trial_state._raw_stage1:build_v2_sequence()
-        if raw_sequence == nil or #raw_sequence == 0 then
-            trial_state._xt_pending_save_error =
-                "Atomic Action 无法建立 V2 事实序列: " .. tostring(sequence_error)
-            _G.ComboTrials_SaveFailedPlayer = saved_player
-            _G.ComboTrials_PendingSaveCanceled = saved_player
-            trial_state._raw_stage1:write_save_diagnostic(sequence_error, {
-                character = players[saved_player].profile_name,
-                fighter_id = unique_resources.read_training_fighter_id(saved_player),
-                control_mode = control_type_from_input_type(read_player_input_type(saved_player)),
-                legacy_step_count = 0,
-                logger_has_data = logger_has_data,
-            })
-            return
-        end
-        trial_state.sequence = raw_sequence
-        trial_state._raw_stage1_v2_fallback = true
-        trial_state._recording_compiler_used = false
-    else
-        trial_state._raw_stage1_v2_fallback = false
+    local raw_sequence, sequence_error =
+        trial_state._raw_stage1:build_v2_sequence()
+    if raw_sequence == nil or #raw_sequence == 0 then
+        trial_state._xt_pending_save_error =
+            "Atomic Action 无法建立 V2 事实序列: " .. tostring(sequence_error)
+        _G.ComboTrials_SaveFailedPlayer = saved_player
+        _G.ComboTrials_PendingSaveCanceled = saved_player
+        trial_state._raw_stage1:write_save_diagnostic(sequence_error, {
+            character = players[saved_player].profile_name,
+            fighter_id = unique_resources.read_training_fighter_id(saved_player),
+            control_mode = control_type_from_input_type(read_player_input_type(saved_player)),
+            legacy_step_count = legacy_step_count,
+            logger_has_data = logger_has_data,
+        })
+        return
     end
+    trial_state.sequence = raw_sequence
+    trial_state._raw_stage1_v2_atomic = true
+    trial_state._raw_stage1_legacy_step_count = legacy_step_count
+    trial_state._recording_compiler_used = false
 
     if #trial_state.sequence == 0 then
         trial_state._xt_pending_save_error = "Atomic Action Trace 未生成 V2 事实序列"
@@ -3335,7 +3335,8 @@ local function stop_recording_and_save()
                 character = players[saved_player].profile_name,
                 fighter_id = unique_resources.read_training_fighter_id(saved_player),
                 control_mode = control_type_from_input_type(read_player_input_type(saved_player)),
-                legacy_step_count = #trial_state.sequence,
+                legacy_step_count = tonumber(
+                    trial_state._raw_stage1_legacy_step_count) or 0,
                 logger_has_data = logger_has_data,
             })
     end
@@ -7863,7 +7864,8 @@ ctx.observe_runtime_action_truth = function(p_idx, runtime_action_id, runtime_ac
         and demo_state.transcription_run.active == true and p_idx == 0 then
         session = demo_state.transcription_run.session
     end
-    if trial_state.is_recording or not (demo_state and demo_state.is_playing) then
+    if trial_state.is_recording
+        or (trial_state.is_playing and trial_state._transcribing ~= true) then
         trial_state._raw_stage1:observe_frame(
             p_idx, engine_frame_count, runtime_action_id, runtime_action_frame,
             _pf.direct_input, _pf.direction_input, _pf.facing_right)
@@ -8169,7 +8171,7 @@ function save_trial_sequence(meta)
     local p_state = players[rec_p]
     if #trial_state.sequence > 0 then
         if trial_state._recording_compiler_used ~= true
-            and trial_state._raw_stage1_v2_fallback ~= true
+            and trial_state._raw_stage1_v2_atomic ~= true
             and #p_state.log > 0 then
             local last_step = trial_state.sequence[#trial_state.sequence]
             for _, log_entry in ipairs(p_state.log) do
@@ -8278,7 +8280,8 @@ function save_trial_sequence(meta)
         local raw_stage1_options = {
             timeline_ref = { source = "combo_v2", field = "timeline" },
             result = {
-                legacy_step_count = #trial_state.sequence,
+                legacy_step_count = tonumber(
+                    trial_state._raw_stage1_legacy_step_count) or 0,
                 raw_input_count = type(trial_state._raw_rec_buffer) == "table"
                     and #trial_state._raw_rec_buffer or 0,
             },
@@ -8352,13 +8355,14 @@ function save_trial_sequence(meta)
 
     file_system.log_combo_save("output filename=" .. tostring(fname))
 
-    if trial_state._raw_stage1_v2_fallback ~= true then
+    if trial_state._raw_stage1_v2_atomic ~= true then
         assign_groups(trial_state.sequence, char_name)
     end
     json.dump_file(path, trial_state.sequence)
     trial_state._raw_rec_buffer = {}
     trial_state._recording_compiler_used = false
-    trial_state._raw_stage1_v2_fallback = false
+    trial_state._raw_stage1_v2_atomic = false
+    trial_state._raw_stage1_legacy_step_count = nil
     trial_state._last_action_compile = nil
     trial_state._rec_environment = nil
     trial_state._rec_scene_state = nil

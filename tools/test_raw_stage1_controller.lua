@@ -147,7 +147,7 @@ assert(loaded)
 equal(loaded_status, "loaded")
 equal(state._raw_stage1_rows[1].action_id, 600)
 equal(state._raw_stage1_rows[1].status, "DIRECT")
-equal(state._raw_stage1_rows[1].display_text, "Action 600 | [norm v0] 236+HP")
+equal(state._raw_stage1_rows[1].display_text, "Action 600 #1 | [norm v0] 236+HP")
 
 state.is_playing = true
 state.playing_player = 0
@@ -186,6 +186,7 @@ equal(state._raw_stage1_rows[1].action_id, 600)
 equal(state._raw_stage1_rows[1].occurrence, 1)
 equal(state._raw_stage1_rows[2].action_id, 600)
 equal(state._raw_stage1_rows[2].occurrence, 2)
+equal(state._raw_stage1_rows[2].display_text, "Action 600 #2 | [norm v0] 236+HP")
 local v2_sequence = assert(controller:build_v2_sequence())
 equal(v2_sequence[1].id, 600)
 equal(v2_sequence[1].motion, "Action 600")

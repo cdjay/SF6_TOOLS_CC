@@ -1,8 +1,8 @@
 -- RawV2Sequence.lua
--- Adapts a finalized Atomic Trace to the frozen Combo V2 step container when
--- the Legacy action compiler cannot produce steps. Action order and duplicate
--- occurrences remain unchanged. The adapter never consults raw input, BCM, AC
--- or presentation data: V2 input and V2 Action facts are independent streams.
+-- Adapts a finalized Atomic Trace to the frozen Combo V2 Action fact container
+-- for every new Stage 1 recording. Action order and duplicate occurrences remain
+-- unchanged. The adapter never consults raw input, BCM, AC or presentation data:
+-- V2 input and V2 Action facts are independent streams.
 
 local RawV2Sequence = {
     name = "ComboTrials.Raw.RawV2Sequence",
