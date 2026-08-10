@@ -11,6 +11,9 @@ local SceneState = require("func/ComboTrials/SceneState")
 ACTION_EVENT_FIXTURES = {
     Alex = {
         ["608"] = { absorb_ids = "610", action_event_projection = {} },
+        ["957"] = {
+            action_event_rules = { transient_precursor_ids = "628" },
+        },
         ["976"] = { absorb_ids = "977", action_event_projection = {} },
         ["1208"] = { absorb_ids = "1209", action_event_projection = {} },
     },
@@ -2086,6 +2089,61 @@ assert(#alex_super_recovery_result.steps == 2
     and alex_super_recovery_result.trace.suppressed_events[1].reason
         == "character_internal_action_phase",
     "Alex's unmapped super recovery phase must merge into the real super command")
+
+do
+local alex_staggered_2pp = new_character_rule_session("Alex")
+alex_staggered_2pp.events = {
+    {
+        id = 628,
+        frame = 100,
+        expected_combo = 0,
+        damage_at_step = 0,
+        has_hit = false,
+        has_contact = false,
+        anchor = { kind = "button_press", pressed_buttons = 64 },
+    },
+    {
+        id = 957,
+        frame = 101,
+        expected_combo = 0,
+        damage_at_step = 0,
+        has_hit = false,
+        has_contact = false,
+        anchor = {
+            kind = "button_press",
+            pressed_buttons = 32,
+            held_buttons = 96,
+            initial_action_id = 628,
+        },
+    },
+}
+local alex_staggered_2pp_result = compiler.finalize(alex_staggered_2pp, {
+    motion_resolver = function(action_id)
+        if action_id == 628 then return "2+HP", "strict_route" end
+        if action_id == 957 then return "2+PP", "strict_route" end
+        return nil, "action_id_missing"
+    end,
+})
+local alex_staggered_2pp_live = ActionMatcher.classify_runtime_transition({
+    expected_step = { id = 957 },
+    actual_action_id = 628,
+    input_anchor_kind = "button_press",
+    input_truth_mode = true,
+    action_event_rules = alex_staggered_2pp.action_event_rules,
+})
+assert(#alex_staggered_2pp.events == 2
+        and #alex_staggered_2pp_result.trace.input_bound_events == 2
+        and #alex_staggered_2pp_result.steps == 1
+        and alex_staggered_2pp_result.steps[1].id == 957
+        and alex_staggered_2pp_result.steps[1].motion == "2+PP"
+        and alex_staggered_2pp_result.trace.suppressed_events[1].id == 628
+        and alex_staggered_2pp_result.trace.suppressed_events[1].merged_into == 957
+        and alex_staggered_2pp_result.trace.suppressed_events[1].reason
+            == "character_transient_input_precursor"
+        and alex_staggered_2pp_live.ignored == true
+        and alex_staggered_2pp_live.reason == "transient_input_precursor",
+    "Alex's one-frame 2HP precursor must fold into the completed 2PP chord in recording and live validation")
+end
 
 local alex_hp_contact_phase = new_character_rule_session("Alex")
 alex_hp_contact_phase.events = {
