@@ -144,6 +144,28 @@ assert(act_id == 123 and frame_no == 7 and flags == 9 and action_code == 456,
 assert(direct_input == (4 | 16) and branch_type == 3
         and direction_input == 4 and facing_right == true,
     "input and facing facts must remain unchanged")
+local runtime_action_id, runtime_action_frame = GameProbe.get_runtime_action_data(attacker)
+assert(runtime_action_id == 123 and runtime_action_frame == 7,
+    "Action-only runtime facts must not depend on input field reads")
+local reused_action_id, reused_action_frame =
+    GameProbe.get_action_data(attacker, runtime_action_id, runtime_action_frame)
+assert(reused_action_id == 123 and reused_action_frame == 7,
+    "mixed probe must reuse pre-read Action facts")
+
+local action_only_attacker = {}
+function action_only_attacker:get_field(name)
+    if name == "mpActParam" then return act_param end
+end
+function action_only_attacker:get_type_definition()
+    return { get_field = function() return nil end }
+end
+local isolated_action_id, isolated_action_frame =
+    GameProbe.get_runtime_action_data(action_only_attacker)
+assert(isolated_action_id == 123 and isolated_action_frame == 7,
+    "Action-only runtime probe must survive unavailable input fields")
+local mixed_action_id, mixed_action_frame = GameProbe.get_action_data(action_only_attacker)
+assert(mixed_action_id == 123 and mixed_action_frame == 7,
+    "mixed probe must retain Action facts when optional input reads fail")
 assert(GameProbe.get_combo_count(attacker) == 6,
     "combo count must remain a safe factual read")
 assert(GameProbe.get_damage_type_safe(attacker) == 1,

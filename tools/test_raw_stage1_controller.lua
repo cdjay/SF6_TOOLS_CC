@@ -172,7 +172,6 @@ assert(controller:begin_recording("Ryu", {
     fighter_id = 1,
     control_mode = "classic",
     player_index = 0,
-    initial_input = 0,
     initial_action_id = 1,
     initial_action_frame = 5,
     recorded_at = "2026-08-09T00:00:00Z",
@@ -198,6 +197,11 @@ local save_diagnostic = controller:write_save_diagnostic("write_failed", {
 })
 equal(save_diagnostic.failure_phase, "save")
 equal(save_diagnostic.failure_code, "write_failed")
+equal(save_diagnostic.controller_status, "recorded")
+equal(save_diagnostic.recording_observation.sample_count, 3)
+equal(save_diagnostic.recording_observation.boundary_count, 2)
+equal(save_diagnostic.recording_observation.invalid_sample_count, 0)
+equal(save_diagnostic.recording_observation.last_sample.action_id, 600)
 equal(written_path, "TrainingComboTrials_data/LastRawStage1Diagnostic.json")
 equal(written_value.failure_code, "write_failed")
 local meta = {}

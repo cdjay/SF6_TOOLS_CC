@@ -224,8 +224,29 @@ local _ct_action_scratch = {
     act_id = -1, frame = 0, state_flags = -1, action_code = 0,
     direct_input = 0, direction_input = 0, branch_type = 0, facing_right = true
 }
-local function _ct_read_action_data(p_obj)
+
+local function _ct_read_runtime_action_data(p_obj)
+    local act_param = p_obj and p_obj:get_field("mpActParam") or nil
+    local action_part = act_param and act_param:get_field("ActionPart") or nil
+    local engine = action_part and action_part:get_field("_Engine") or nil
+    if not engine then return -1, 0 end
+
+    local action_id = tonumber(engine:call("get_ActionID")) or -1
+    local action_frame = 0
+    local sf = engine:call("get_ActionFrame")
+    if sf then action_frame = tonumber(sf:call("ToString()")) or 0 end
+    return action_id, action_frame
+end
+
+local function _ct_read_action_data(p_obj, runtime_action_id, runtime_action_frame)
     local r = _ct_action_scratch
+    if runtime_action_id == nil or runtime_action_frame == nil then
+        r.act_id, r.frame = _ct_read_runtime_action_data(p_obj)
+    else
+        r.act_id = tonumber(runtime_action_id) or -1
+        r.frame = tonumber(runtime_action_frame) or 0
+    end
+
     local p_def = p_obj:get_type_definition()
     local d = (p_def:get_field("pl_input_new"):get_data(p_obj)) or 0
     local b = (p_def:get_field("pl_sw_new"):get_data(p_obj)) or 0
@@ -239,9 +260,6 @@ local function _ct_read_action_data(p_obj)
     if action_part then
         local engine = action_part:get_field("_Engine")
         if engine then
-            r.act_id = engine:call("get_ActionID") or -1
-            local sf = engine:call("get_ActionFrame")
-            if sf then r.frame = tonumber(sf:call("ToString()")) or 0 end
             local m_param = engine:get_field("mParam")
             if m_param then
                 local sf_field = m_param:get_type_definition():get_field("state_flags")
@@ -264,12 +282,19 @@ local function _ct_read_action_data(p_obj)
     end
 end
 
-function GameProbe.get_action_data(p_obj)
+function GameProbe.get_runtime_action_data(p_obj)
+    if not p_obj then return -1, 0 end
+    local ok, action_id, action_frame = pcall(_ct_read_runtime_action_data, p_obj)
+    if not ok then return -1, 0 end
+    return action_id, action_frame
+end
+
+function GameProbe.get_action_data(p_obj, runtime_action_id, runtime_action_frame)
     if not p_obj then return -1, 0, -1, 0, 0, 0, 0, true end
     local r = _ct_action_scratch
     r.act_id, r.frame, r.state_flags, r.action_code = -1, 0, -1, 0
     r.direct_input, r.direction_input, r.branch_type, r.facing_right = 0, 0, 0, true
-    pcall(_ct_read_action_data, p_obj)
+    pcall(_ct_read_action_data, p_obj, runtime_action_id, runtime_action_frame)
     return r.act_id, r.frame, r.state_flags, r.action_code, r.direct_input,
         r.branch_type, r.direction_input, r.facing_right
 end

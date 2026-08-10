@@ -46,6 +46,7 @@ function Stage1Controller.new(options)
         catalog_status = nil,
         boundaries = {},
         recording_step_facts = nil,
+        recording_observation = nil,
         terminal_result_applied = false,
         get_context = options.get_context,
         write_json = options.write_json,
@@ -198,6 +199,11 @@ function Controller:begin_recording(character, options)
     self.boundaries[options.player_index] = RawActionBoundary.new(
         options.initial_action_id, options.initial_action_frame)
     self.recording_step_facts = {}
+    self.recording_observation = {
+        sample_count = 0,
+        boundary_count = 0,
+        invalid_sample_count = 0,
+    }
     self.terminal_result_applied = false
     self.trial_state._raw_stage1_status = trial and "recording" or "invalid"
     self.trial_state._raw_stage1_error = trial_error
@@ -244,6 +250,8 @@ function Controller:write_save_diagnostic(code, context)
     local diagnostic = self.runtime:diagnostic(context)
     diagnostic.artifact = self.catalog and self.catalog:get_audit_info() or nil
     diagnostic.raw_rows = clone(self.trial_state._raw_stage1_rows)
+    diagnostic.controller_status = self.trial_state._raw_stage1_status
+    diagnostic.recording_observation = clone(self.recording_observation)
     self.trial_state._raw_stage1_diagnostic = diagnostic
     _G.SF6CC_RAW_STAGE1_DIAGNOSTIC = diagnostic
     if type(self.write_json) == "function" then
@@ -350,6 +358,23 @@ function Controller:observe_frame(player_index, engine_frame, action_id, action_
         direction_input = direction_input,
         facing_right = facing_right,
     }
+    if state.is_recording then
+        local observation = self.recording_observation or {
+            sample_count = 0,
+            boundary_count = 0,
+            invalid_sample_count = 0,
+        }
+        observation.sample_count = observation.sample_count + 1
+        observation.last_sample = {
+            engine_frame = engine_frame,
+            action_id = action_id,
+            action_frame = action_frame,
+        }
+        if observation.first_sample == nil then
+            observation.first_sample = clone(observation.last_sample)
+        end
+        self.recording_observation = observation
+    end
     local context = type(self.get_context) == "function"
         and self.get_context(player_index) or {}
     local boundary = self.boundaries[player_index]
@@ -358,13 +383,29 @@ function Controller:observe_frame(player_index, engine_frame, action_id, action_
         self.boundaries[player_index] = boundary
     end
     local boundary_result, boundary_error = boundary:observe(sample)
-    if boundary_result == nil then return nil, boundary_error end
+    if boundary_result == nil then
+        if state.is_recording and self.recording_observation ~= nil then
+            self.recording_observation.invalid_sample_count =
+                self.recording_observation.invalid_sample_count + 1
+            self.recording_observation.last_error = boundary_error
+        end
+        return nil, boundary_error
+    end
+    if state.is_recording and self.recording_observation ~= nil
+        and boundary_result.active == true then
+        self.recording_observation.boundary_count =
+            self.recording_observation.boundary_count + 1
+        self.recording_observation.last_boundary_reason = boundary_result.reason
+    end
     sample.active = boundary_result.active
     sample.restart = boundary_result.restart
     if state.is_recording then
         local observed, observe_error = self.runtime:observe_recording(sample)
         if observed == nil then
             state._raw_stage1_error = observe_error
+            if self.recording_observation ~= nil then
+                self.recording_observation.last_error = observe_error
+            end
         else
             local step = tonumber(observed.step)
             local combo_count = tonumber(context.current_combo)

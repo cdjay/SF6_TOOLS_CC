@@ -2815,7 +2815,7 @@ local function clear_trial_attempt_state(player_idx, phase)
     local raw_player = player_idx or trial_state.playing_player
     local raw_actor = raw_player == 0 and GS.p1 or GS.p2
     local raw_action_id, raw_action_frame =
-        ComboTrialsModules.GameProbe.get_action_data(raw_actor)
+        ComboTrialsModules.GameProbe.get_runtime_action_data(raw_actor)
     local raw_attempt, raw_attempt_status = trial_state._raw_stage1:begin_attempt(
         engine_frame_count,
         raw_player,
@@ -3010,7 +3010,7 @@ local function start_recording(player_idx)
     if player_idx ~= 0 and player_idx ~= 1 then return false end
     local raw_actor = player_idx == 0 and GS.p1 or GS.p2
     local initial_action_id, initial_action_frame =
-        ComboTrialsModules.GameProbe.get_action_data(raw_actor)
+        ComboTrialsModules.GameProbe.get_runtime_action_data(raw_actor)
     local raw_fighter_id = unique_resources.read_training_fighter_id(player_idx)
     local raw_catalog = trial_state._raw_stage1:prepare_recording(raw_fighter_id)
     if raw_catalog == nil then
@@ -7855,7 +7855,7 @@ ctx.handle_trial_auto_flow = function()
     end
 end
 
-ctx.observe_runtime_action_truth = function(p_idx)
+ctx.observe_runtime_action_truth = function(p_idx, runtime_action_id, runtime_action_frame)
     local session = nil
     if trial_state.is_recording and p_idx == trial_state.recording_player then
         session = trial_state._action_event_session
@@ -7865,7 +7865,7 @@ ctx.observe_runtime_action_truth = function(p_idx)
     end
     if trial_state.is_recording or not (demo_state and demo_state.is_playing) then
         trial_state._raw_stage1:observe_frame(
-            p_idx, engine_frame_count, _pf.act_id, _pf.act_frame,
+            p_idx, engine_frame_count, runtime_action_id, runtime_action_frame,
             _pf.direct_input, _pf.direction_input, _pf.facing_right)
     end
     if type(session) ~= "table" then return end
@@ -7895,8 +7895,8 @@ ctx.observe_runtime_action_truth = function(p_idx)
     local event_count_before = #session.events
     pcall(ComboTrialsModules.ActionEventCompiler.observe, session, {
         frame = engine_frame_count,
-        action_id = _pf.act_id,
-        action_frame = _pf.act_frame,
+        action_id = runtime_action_id,
+        action_frame = runtime_action_frame,
         direct_input = _pf.direct_input,
         direction_input = _pf.direction_input,
         facing_right = _pf.facing_right,
@@ -8071,12 +8071,16 @@ re.on_frame(function()
         _pf.p_char = (p_idx == 0) and GS.p1 or GS.p2
         if not _pf.p_char then p_state.last_combo_count = 0; goto ct_next_player end
 
+        local runtime_action_id, runtime_action_frame =
+            ComboTrialsModules.GameProbe.get_runtime_action_data(_pf.p_char)
         _pf.act_id, _pf.act_frame, _pf.flags, _pf.action_code, _pf.direct_input,
-            _pf.b_type, _pf.direction_input, _pf.facing_right = ComboTrialsModules.GameProbe.get_action_data(_pf.p_char)
+            _pf.b_type, _pf.direction_input, _pf.facing_right =
+            ComboTrialsModules.GameProbe.get_action_data(
+                _pf.p_char, runtime_action_id, runtime_action_frame)
         _pf.current_combo = ComboTrialsModules.GameProbe.get_combo_count(_pf.p_char)
         _pf.victim_idx = 1 - p_idx
         _pf.victim_obj = (_pf.victim_idx == 0) and GS.p1 or GS.p2
-        ctx.observe_runtime_action_truth(p_idx)
+        ctx.observe_runtime_action_truth(p_idx, runtime_action_id, runtime_action_frame)
 
         if trial_state._transcribing == true then
             p_state.last_combo_count = _pf.current_combo
