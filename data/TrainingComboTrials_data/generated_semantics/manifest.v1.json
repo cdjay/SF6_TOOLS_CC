@@ -2,9 +2,9 @@
   "algorithm_version": "sf6cc-replacement-absorb.v1",
   "artifacts": [
     {
-      "bytes": 51,
+      "bytes": 99,
       "file": "Jamie.json",
-      "sha256": "e4d4d11df0c4d02f849c3e9a46411027f1900a1b40f027d5ede05925002a5a76"
+      "sha256": "2a1ae87d939061fa21975e7bb1e0e3971309434fa8a1727c8156d50111fcb10b"
     }
   ],
   "authority": "current_ac_bcm_strict_relationship_projection",
@@ -30,11 +30,28 @@
         983,
         984
       ]
+    },
+    {
+      "character": "Jamie",
+      "fighter_id": 21,
+      "move_uid": "m2move_b6d156532ec7f5a4c380ce21",
+      "owner_action_id": 989,
+      "projection_uid": "sf6cc_type35_replacement_absorb_002",
+      "relationship_uids": [
+        "m1rel_7665730b10c512c4ad009e24",
+        "m1rel_ccc4131fbef97120fbdff621",
+        "m1rel_f64e625dda03ece890982036"
+      ],
+      "replacement_action_ids": [
+        990,
+        991,
+        992
+      ]
     }
   ],
   "schema": "sf6acbcm.sf6cc-generated-semantics-manifest.v1",
   "source": {
     "m2_graph_sha256": "eac036e86a7ee88f43b09df7a13de7c6b915bf16f6c785217c2e285e34f0f3de",
-    "selection_sha256": "5bd324cf394481dd7792ad17770eb38fd0b2fa64321e771020abfdf07a332cde"
+    "selection_sha256": "15d96d1f294caed2a61380683c69b02033d3a7b7c9038d2138643f3877270056"
   }
 }
