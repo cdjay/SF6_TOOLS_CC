@@ -1,6 +1,63 @@
 {
   "schema": "xt.command_display_overrides.v1",
   "character": "Alex",
+  "presentation_contexts": {
+    "967": {
+      "labels": {
+        "zh-CN": "（破坏姿势中/前滑步中）",
+        "en-US": "(During Breaker Stance / Step-in)"
+      },
+      "separate_line": true,
+      "strip_followup_prefix": true,
+      "evidence": "Capcom official command context identifies Slash Elbow as available during Breaker Stance or Step-in"
+    },
+    "968": {
+      "labels": {
+        "zh-CN": "（破坏姿势中/前滑步中）",
+        "en-US": "(During Breaker Stance / Step-in)"
+      },
+      "separate_line": true,
+      "strip_followup_prefix": true,
+      "evidence": "Capcom official command context identifies Slash Elbow as available during Breaker Stance or Step-in"
+    },
+    "969": {
+      "labels": {
+        "zh-CN": "（破坏姿势中/前滑步中）",
+        "en-US": "(During Breaker Stance / Step-in)"
+      },
+      "separate_line": true,
+      "strip_followup_prefix": true,
+      "evidence": "Capcom official command context identifies Slash Elbow as available during Breaker Stance or Step-in"
+    },
+    "973": {
+      "labels": {
+        "zh-CN": "（破坏姿势中）",
+        "en-US": "(During Breaker Stance)"
+      },
+      "separate_line": true,
+      "strip_followup_prefix": true,
+      "evidence": "Capcom official command context identifies Shoulder Launcher as available during Breaker Stance"
+    },
+    "976": {
+      "labels": {
+        "zh-CN": "（破坏姿势中）",
+        "en-US": "(During Breaker Stance)"
+      },
+      "separate_line": true,
+      "strip_followup_prefix": true,
+      "evidence": "Capcom official command context identifies Heavy Lariat as HP during Breaker Stance"
+    },
+    "977": {
+      "labels": {
+        "zh-CN": "（破坏姿势中）",
+        "en-US": "(During Breaker Stance)"
+      },
+      "separate_line": true,
+      "strip_followup_prefix": true,
+      "replace_recorded_context": true,
+      "evidence": "Action 977 is the release phase of the official Breaker Stance HP command, not a separate instant input"
+    }
+  },
   "entries": {
     "958": {
       "classic": "2+PP",
@@ -13,8 +70,8 @@
       "evidence": "A revision 37 runtime audit replay binds Alex Action 959 to the recorded 2+PP stance-entry input before a later unrelated terminal mismatch; the generated catalog independently records the same Classic command"
     },
     "977": {
-      "classic": ">HP (INSTANT)",
-      "evidence": "Five legacy trials and five raw-input replays agree on the immediate HP Breaker Stance variant"
+      "classic": "HP",
+      "evidence": "Five legacy trials and five raw-input replays identify Action 977 as the release phase of the official Breaker Stance HP command"
     }
   }
 }

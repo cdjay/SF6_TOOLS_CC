@@ -1,5 +1,13 @@
 local M = {}
 
+local RUNTIME_COMMON_DIRECTION_ACTIONS = {
+    [17] = true,
+    [18] = true,
+    [36] = true,
+    [37] = true,
+    [38] = true,
+}
+
 local BTN_MASKS = {
     [16] = "LP",
     [32] = "MP",
@@ -172,7 +180,9 @@ function M.resolve_unified_command_action(character, action_id, direct_input, ne
         status == "route_unverified"
         and edge_buttons ~= 0
         and is_direction_only_display(display)
-    local is_player_command = has_player_buttons
+    local runtime_common_direction =
+        RUNTIME_COMMON_DIRECTION_ACTIONS[tonumber(action_id)] == true
+    local is_player_command = (has_player_buttons or runtime_common_direction)
         and type(display) == "string" and display ~= ""
         and not unexplained_direction_button
     return is_player_command, status, display

@@ -143,6 +143,36 @@ local merged_overrides, applied_overrides, override_status =
     command_display_overrides.merge(override_map, "Alex", {
         schema = "xt.command_display_overrides.v1",
         character = "Alex",
+        presentation_contexts = {
+            ["967"] = {
+                labels = {
+                    ["zh-CN"] = "（破坏姿势中/前滑步中）",
+                    ["en-US"] = "(During Breaker Stance / Step-in)",
+                },
+                separate_line = true,
+                strip_followup_prefix = true,
+                evidence = "Capcom official Slash Elbow context",
+            },
+            ["973"] = {
+                labels = {
+                    ["zh-CN"] = "（破坏姿势中）",
+                    ["en-US"] = "(During Breaker Stance)",
+                },
+                separate_line = true,
+                strip_followup_prefix = true,
+                evidence = "Capcom official Shoulder Launcher context",
+            },
+            ["977"] = {
+                labels = {
+                    ["zh-CN"] = "（破坏姿势中）",
+                    ["en-US"] = "(During Breaker Stance)",
+                },
+                separate_line = true,
+                strip_followup_prefix = true,
+                replace_recorded_context = true,
+                evidence = "Capcom official Heavy Lariat context",
+            },
+        },
         entries = {
             ["958"] = {
                 classic = "2+PP",
@@ -157,7 +187,7 @@ local merged_overrides, applied_overrides, override_status =
             },
             ["967"] = { classic = "bad replacement", evidence = "test" },
             ["968"] = { classic = ">6+MP", evidence = "three raw replays" },
-            ["977"] = { classic = ">HP (INSTANT)", evidence = "five raw replays" },
+            ["977"] = { classic = "HP", evidence = "five raw replays" },
             ["978"] = { classic = ">LK" },
         },
     })
@@ -173,9 +203,24 @@ assert(override_status == "loaded" and applied_overrides == 4
     and merged_overrides["967"].classic == ">6+P"
     and merged_overrides["968"].classic == ">6+MP"
     and merged_overrides["968"].status == "runtime_verified_override"
-    and merged_overrides["977"].classic == ">HP (INSTANT)"
+    and merged_overrides["977"].classic == "HP"
     and merged_overrides["978"] == nil,
     "verified command overrides must fill missing Actions without silently replacing catalog rows")
+ALEX_SLASH_CONTEXT_TEST = command_display_overrides.resolve_presentation_context(
+    merged_overrides, 967, "zh-CN")
+ALEX_SHOULDER_CONTEXT_TEST = command_display_overrides.resolve_presentation_context(
+    merged_overrides, 973, "en-US")
+ALEX_HP_CONTEXT_TEST = command_display_overrides.resolve_presentation_context(
+    merged_overrides, 977, "zh-CN")
+assert(type(ALEX_SLASH_CONTEXT_TEST) == "table"
+        and ALEX_SLASH_CONTEXT_TEST.label == "（破坏姿势中/前滑步中）"
+        and ALEX_SLASH_CONTEXT_TEST.separate_line == true
+        and ALEX_SLASH_CONTEXT_TEST.strip_followup_prefix == true
+        and type(ALEX_SHOULDER_CONTEXT_TEST) == "table"
+        and ALEX_SHOULDER_CONTEXT_TEST.label == "(During Breaker Stance)"
+        and type(ALEX_HP_CONTEXT_TEST) == "table"
+        and ALEX_HP_CONTEXT_TEST.replace_recorded_context == true,
+    "presentation contexts must resolve localized labels without replacing commands")
 do
     local conditioned_map, conditioned_count, conditioned_status =
         command_display_overrides.merge({
@@ -1207,7 +1252,9 @@ assert(load(validation_block
 local command_map = {
     _slim = true,
     _action_compatibility = HONDA_COMPATIBILITY_TEST,
+    _presentation_contexts = merged_overrides._presentation_contexts,
     ["901"] = { classic = "214+MP", status = "strict_route" },
+    ["958"] = { classic = "2+PP", status = "strict_route" },
     ["959"] = { classic = "236+K", status = "strict_route" },
     ["961"] = { classic = "236+KK", status = "strict_route" },
     ["965"] = { classic = ">2+P", status = "strict_route" },
@@ -1215,6 +1262,8 @@ local command_map = {
     ["967"] = { classic = ">6+LP", status = "strict_route" },
     ["968"] = { classic = ">6+MP", status = "strict_route" },
     ["969"] = { classic = ">6+HP", status = "strict_route" },
+    ["973"] = { classic = "MP", status = "strict_route" },
+    ["977"] = { classic = "HP", status = "runtime_verified_override" },
     ["906"] = { classic = "Normal", status = "suppress_transition" },
     ["1037"] = { classic = "528", status = "strict_route" }
 }
@@ -1405,6 +1454,38 @@ assert(type(modern_motion) == "table" and modern_motion.simple == "DI"
 motion, status = get_classic_display_motion(command_map, { id = 9998, motion = "214+HP" })
 assert(motion == nil and status == "action_id_missing",
     "arbitrary recorded motion must not bypass the audited command table")
+
+resolve_modern_display_context = function()
+    return false, command_map, "Alex", "loaded", false
+end
+ALEX_STANCE_VALIDATION_TEST = validate_sequence_command_display({
+    {
+        id = 958,
+        motion = "2+PP",
+        group_id = 1,
+        _xt_meta = { character = "Alex", language = "zh-CN" },
+    },
+    { id = 973, motion = "MP", group_id = 2 },
+    { id = 958, motion = "2+PP", group_id = 3 },
+    { id = 967, motion = ">6+P", group_id = 3 },
+    { id = 958, motion = "2+PP", group_id = 4 },
+    { id = 977, motion = ">HP (INSTANT)", group_id = 4 },
+})
+assert(ALEX_STANCE_VALIDATION_TEST.ok == true
+        and ALEX_STANCE_VALIDATION_TEST.visible_step_count == 6
+        and ALEX_STANCE_VALIDATION_TEST.visible_line_count == 6
+        and ALEX_STANCE_VALIDATION_TEST.steps[2].display_motion
+            == "（破坏姿势中）MP"
+        and ALEX_STANCE_VALIDATION_TEST.steps[4].display_motion
+            == "（破坏姿势中/前滑步中）6+LP"
+        and ALEX_STANCE_VALIDATION_TEST.steps[4].visible_line_index == 4
+        and ALEX_STANCE_VALIDATION_TEST.steps[4].presentation_context.separate_line == true
+        and ALEX_STANCE_VALIDATION_TEST.steps[6].display_motion
+            == "（破坏姿势中）HP"
+        and ALEX_STANCE_VALIDATION_TEST.steps[6].visible_line_index == 6
+        and ALEX_STANCE_VALIDATION_TEST.steps[6].presentation_context
+            .replace_recorded_context == true,
+    "Alex stance commands must display official context on independent lines")
 
 resolve_modern_display_context = function()
     return false, command_map, "AKI", "loaded", false
@@ -1867,28 +1948,28 @@ assert(action_matcher.is_optional_parent_for_followup(
     ) == true,
     "an explicit transient parent rule must work for a button chord without a > notation")
 do
-local alex_instant_hp_rule = {
+local alex_hp_release_rule = {
     force = true,
     optional_parent_ids = "976",
 }
 assert(action_matcher.is_optional_parent_for_followup(
         "HP",
-        { id = 977, motion = ">HP (INSTANT)" },
+        { id = 977, motion = "HP" },
         976,
-        alex_instant_hp_rule,
+        alex_hp_release_rule,
         { id = 958, motion = "2+PP" },
         "HP"
     ) == true,
-    "Alex's HP parent phase must wait for the recorded instant-release Action 977")
+    "Alex's HP parent phase must wait for the recorded release Action 977")
 assert(action_matcher.is_optional_parent_for_followup(
-        ">HP (INSTANT)",
-        { id = 977, motion = ">HP (INSTANT)" },
+        "HP",
+        { id = 977, motion = "HP" },
         977,
-        alex_instant_hp_rule,
+        alex_hp_release_rule,
         { id = 958, motion = "2+PP" },
         "HP"
     ) == false,
-    "Alex's exact instant-release Action 977 must remain eligible to complete the step")
+    "Alex's exact HP release Action 977 must remain eligible to complete the step")
 end
 local kimberly_followup_match = action_matcher.match_expected_action(
     { id = 908, motion = ">LK" },
@@ -2980,6 +3061,9 @@ local renderer = {
         if action_id == 901 then return "214+MP", "strict_route" end
         if action_id == 903 then return "214+HP", "strict_route" end
         if action_id == 944 then return "236+PP", "strict_route" end
+        if action_id == 17 then return "66", "strict_route" end
+        if action_id == 18 then return "44", "strict_route" end
+        if action_id == 36 then return "8", "strict_route" end
         if action_id == 1037 then return "528", "route_unverified" end
         if action_id == 608 then return "HK", "route_unverified" end
         return nil, "action_id_missing"
@@ -3088,6 +3172,19 @@ intentional, route_status, classic = command_resolver.resolve_unified_command_ac
     "AnyCharacter", 901, 0, 0, renderer)
 assert(intentional == false and route_status == "strict_route" and classic == "214+MP",
     "a catalog action without held buttons or a recovered edge must remain non-intentional")
+
+intentional, route_status, classic = command_resolver.resolve_unified_command_action(
+    "AnyCharacter", 17, 0, 0, renderer)
+assert(intentional == true and route_status == "strict_route" and classic == "66",
+    "runtime Dash Action 17 must be intentional without attack buttons")
+intentional, route_status, classic = command_resolver.resolve_unified_command_action(
+    "AnyCharacter", 18, 0, 0, renderer)
+assert(intentional == true and route_status == "strict_route" and classic == "44",
+    "runtime back-dash Action 18 must be intentional without attack buttons")
+intentional, route_status, classic = command_resolver.resolve_unified_command_action(
+    "AnyCharacter", 36, 0, 0, renderer)
+assert(intentional == true and route_status == "strict_route" and classic == "8",
+    "runtime jump Action 36 must retain direction-only intentionality")
 
 intentional, route_status, classic = command_resolver.resolve_unified_command_action(
     "AnyCharacter", 906, 0, 0, renderer)

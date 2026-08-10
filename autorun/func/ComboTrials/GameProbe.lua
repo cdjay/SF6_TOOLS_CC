@@ -7,6 +7,42 @@ local GameProbe = {
 
 local g_battle_type = nil
 local players = nil
+local SFIX_SCALE = 65536
+
+-- REFramework exposes via.sfix return values as boxed value types. Calling
+-- ToString() on the transient wrapper can return an unrelated stable value;
+-- the authoritative fixed-point payload is the internal v field.
+function GameProbe.read_sfix(raw)
+    if raw == nil then return nil end
+    if type(raw) == "number" then return raw end
+
+    local decoded = nil
+    pcall(function()
+        local definition = raw:get_type_definition()
+        local value_field = definition and definition:get_field("v") or nil
+        local value = value_field and tonumber(value_field:get_data(raw)) or nil
+        if value ~= nil then decoded = value / SFIX_SCALE end
+    end)
+    if decoded ~= nil then return decoded end
+
+    pcall(function()
+        local text = raw:call("ToString()")
+        decoded = tonumber(text)
+    end)
+    return decoded
+end
+
+-- REFramework exposes rl_dir as the actor's current right-facing fact.
+-- Keep that convention centralized so capture and playback agree.
+function GameProbe.is_facing_right(p_obj)
+    if not p_obj then return true end
+    local facing_right = true
+    local ok = pcall(function()
+        facing_right = p_obj:get_field("rl_dir") ~= false
+    end)
+    if not ok then return true end
+    return facing_right
+end
 
 local function rebuild_act_id_reverse_enum()
     GameProbe.act_id_reverse_enum = {}
@@ -231,7 +267,7 @@ local function _ct_read_action_data(p_obj)
     local b = (p_def:get_field("pl_sw_new"):get_data(p_obj)) or 0
     r.direct_input = d | b
     r.direction_input = d
-    r.facing_right = p_obj:get_field("rl_dir") ~= false
+    r.facing_right = GameProbe.is_facing_right(p_obj)
 
     local act_param = p_obj:get_field("mpActParam")
     if not act_param then return end
@@ -240,8 +276,7 @@ local function _ct_read_action_data(p_obj)
         local engine = action_part:get_field("_Engine")
         if engine then
             r.act_id = engine:call("get_ActionID") or -1
-            local sf = engine:call("get_ActionFrame")
-            if sf then r.frame = tonumber(sf:call("ToString()")) or 0 end
+            r.frame = GameProbe.read_sfix(engine:call("get_ActionFrame")) or 0
             local m_param = engine:get_field("mParam")
             if m_param then
                 local sf_field = m_param:get_type_definition():get_field("state_flags")

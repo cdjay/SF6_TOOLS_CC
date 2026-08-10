@@ -1705,12 +1705,21 @@ local function get_classic_display_motion(command_map, step)
         or recorded_motion:upper():find("[AIR]", 1, true) ~= nil
         or recorded_motion:find("空中", 1, true) ~= nil
         or recorded_motion:match("%b()") ~= nil
+    local presentation_context =
+        CommandDisplayOverrides.resolve_presentation_context(
+            command_map,
+            step.id,
+            "en-US"
+        )
+    local replace_recorded_context = type(presentation_context) == "table"
+        and presentation_context.replace_recorded_context == true
     -- The generated table describes the action's standalone command. A saved
     -- trial can carry stricter contextual input (cancel shortcut, aerial state,
     -- timing/hold annotation). Replacing that text changes the trial semantics,
     -- so preserve it and use the generated command only for plain actions.
     if type(resolved.classic) == "string" and resolved.classic ~= "" then
         if recorded_motion ~= "" and contextual_motion
+            and not replace_recorded_context
             and not is_catalog_strength_refinement(recorded_motion, resolved.classic) then
             return recorded_motion, "recorded_context"
         end
@@ -1975,6 +1984,28 @@ local function normalize_recorded_motion_match(value)
     return normalized:upper():gsub("%s+", "")
 end
 
+local function sequence_display_language(sequence)
+    local first = type(sequence) == "table" and sequence[1] or nil
+    local meta = type(first) == "table" and first._xt_meta or nil
+    local language = type(meta) == "table" and meta.language or nil
+    return type(language) == "string" and language ~= "" and language or "zh-CN"
+end
+
+local function apply_presentation_context(command_map, action_id, motion, language)
+    if type(motion) ~= "string" or motion == "" then return motion, nil end
+    local context = CommandDisplayOverrides.resolve_presentation_context(
+        command_map,
+        action_id,
+        language
+    )
+    if type(context) ~= "table" then return motion, nil end
+    if context.strip_followup_prefix then
+        motion = motion:gsub("^%s*>%s*", "")
+    end
+    local separator = tostring(context.label):match("%)$") and " " or ""
+    return tostring(context.label) .. separator .. motion, context
+end
+
 -- Resolve the semantic command-display state before any localized placeholder,
 -- display clone or unresolved-action audit is produced. Keeping this decision
 -- in one helper makes programmatic validation agree with the trial table:
@@ -2191,6 +2222,7 @@ local function validate_sequence_command_display(sequence)
 
     local previous_effective_owner_id = nil
     local previous_visible_group_key = nil
+    local display_language = sequence_display_language(sequence)
     for index, step in ipairs(sequence) do
         local resolution
         resolution, previous_effective_owner_id =
@@ -2251,8 +2283,21 @@ local function validate_sequence_command_display(sequence)
                 }
             end
         end
+        local presentation_context = nil
+        if visible and display_motion ~= nil then
+            display_motion, presentation_context = apply_presentation_context(
+                command_map,
+                resolution.effective_action_id,
+                display_motion,
+                display_language
+            )
+        end
         local group_key = tostring(step.group_id ~= nil
             and step.group_id or ("step:" .. tostring(index)))
+        if type(presentation_context) == "table"
+            and presentation_context.separate_line == true then
+            group_key = group_key .. ":context:" .. tostring(index)
+        end
         local visible_line_index = nil
         if visible then
             result.visible_step_count = result.visible_step_count + 1
@@ -2278,6 +2323,7 @@ local function validate_sequence_command_display(sequence)
             visible_line_index = visible_line_index,
             require_recorded_motion_match = require_recorded_motion_match,
             recorded_motion_matches = recorded_motion_matches,
+            presentation_context = presentation_context,
         }
     end
 
@@ -2313,6 +2359,7 @@ local function build_display_lines(sequence)
         and (state.current_file_path or state.current_file) or nil
 
     local previous_effective_owner_id = nil
+    local display_language = sequence_display_language(sequence)
     for i, raw_step in ipairs(sequence) do
         local step = raw_step
         local include_step = true
@@ -2352,12 +2399,21 @@ local function build_display_lines(sequence)
             step = clone_step_for_display(raw_step, classic_motion, false)
         end
         step.motion = TrainingEnvironment.strip_counter_tags(step.motion)
+        local presentation_context
+        step.motion, presentation_context = apply_presentation_context(
+            modern_map,
+            resolution.effective_action_id,
+            step.motion,
+            display_language
+        )
         if i == counter_contact_step and (counter_policy == 1 or counter_policy == 2) then
             step._ct_counter_label_type = counter_policy
         end
         if include_step then
             local gid = step.group_id or i
-            if #lines == 0 or lines[#lines].group_id ~= gid then
+            local separate_line = type(presentation_context) == "table"
+                and presentation_context.separate_line == true
+            if #lines == 0 or lines[#lines].group_id ~= gid or separate_line then
                 table.insert(lines, {
                     group_id = gid,
                     first = i,

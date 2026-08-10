@@ -81,7 +81,19 @@ assert(GameProbe.build_bcm_trigger_cache(0) == true
         and players[0].trigger_cache_built == true,
     "BCM trigger facts must retain their incremental cache result")
 
-local action_frame = { call = function(_, method) if method == "ToString()" then return "7" end end }
+local action_frame_value = { get_data = function() return 7 * 65536 end }
+local action_frame = {
+    get_type_definition = function()
+        return {
+            get_field = function(_, name)
+                if name == "v" then return action_frame_value end
+            end,
+        }
+    end,
+    call = function(_, method)
+        if method == "ToString()" then return "19726.790771" end
+    end,
+}
 local state_flags_field = { get_data = function() return 9 end }
 local action_field = { get_data = function() return 456 end }
 local branch_type_field = { get_data = function() return 3 end }
@@ -140,10 +152,16 @@ end
 local act_id, frame_no, flags, action_code, direct_input, branch_type,
     direction_input, facing_right = GameProbe.get_action_data(attacker)
 assert(act_id == 123 and frame_no == 7 and flags == 9 and action_code == 456,
-    "Action runtime fields must retain their return order and values")
+    "Action runtime fields must decode via.sfix.v instead of the boxed ToString value")
 assert(direct_input == (4 | 16) and branch_type == 3
         and direction_input == 4 and facing_right == true,
     "input and facing facts must remain unchanged")
+assert(GameProbe.is_facing_right({
+        get_field = function(_, name)
+            if name == "rl_dir" then return false end
+        end,
+    }) == false,
+    "rl_dir=false must decode as the actor facing left")
 assert(GameProbe.get_combo_count(attacker) == 6,
     "combo count must remain a safe factual read")
 assert(GameProbe.get_damage_type_safe(attacker) == 1,

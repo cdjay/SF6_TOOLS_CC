@@ -10,11 +10,11 @@ assert(detector.normalize_input_direction_bits(4, false) == 8,
     "P2-side physical right must normalize to the same relative back bit")
 
 local started, reason = detector.detect(17, 3, 17, 18)
-assert(started == true and reason == "repeatable_common_action_rewind",
+assert(started == true and reason == "act_frame_rewind",
     "a repeated 66 must create a new action instance even when frame 0/1 was not sampled")
 
 started, reason = detector.detect(18, 4.5, 18, 21)
-assert(started == true and reason == "repeatable_common_action_rewind",
+assert(started == true and reason == "act_frame_rewind",
     "a repeated 44 must create a new action instance even when frame 0/1 was not sampled")
 
 started, reason = detector.detect(17, 19, 17, 18)
@@ -22,30 +22,12 @@ assert(started == false and reason == "no_new_action",
     "a normally advancing dash must not be duplicated")
 
 started, reason = detector.detect(900, 3, 900, 18)
-assert(started == false and reason == "no_new_action",
-    "an unrelated same-ID frame adjustment above frame 1 must retain the conservative rule")
-
-started, reason = detector.detect(900, 3, 900, 18, nil, nil, 32)
-assert(started == true and reason == "input_confirmed_act_frame_rewind",
-    "a same-ID ActionFrame rewind with a physical attack edge must create a new action instance")
+assert(started == true and reason == "act_frame_rewind",
+    "a same-ID ActionFrame rewind is a game-owned new Action instance")
 
 started, reason = detector.detect(900, 19, 900, 18, nil, nil, 32)
 assert(started == false and reason == "no_new_action",
-    "an attack edge without sequence evidence must not duplicate an advancing action")
-
-local repeat_eval = detector.evaluate_expected_repeat_input({
-    expected_id = 904,
-    previous_id = 904,
-    current_id = 904,
-    buffered_id = 904,
-    current_combo = 4,
-    previous_expected_combo = 4,
-    frames_since_previous = 48,
-    expected_delay = 48,
-    action_button_edge = 32 | 64
-})
-assert(repeat_eval.accepted == true and repeat_eval.reason == "expected_repeat_input_ready",
-    "a gated physical edge must admit the next explicitly expected same-ID action")
+    "an attack edge without ActionFrame rewind must not duplicate an Action")
 
 local replay_dash_residue = detector.evaluate_replay_dash_retrigger_residue({
     replay_active = true,
@@ -109,78 +91,9 @@ assert(on_time_dash_retrigger.ignored == false
         and on_time_dash_retrigger.reason == "next_step_window_reached",
     "dash retriggers at the next step window must remain visible to strict validation")
 
-started, reason = detector.detect(904, 61, 904, 60, nil, nil, 32 | 64, repeat_eval.accepted)
-assert(started == true and reason == "expected_repeat_action_input",
-    "an expected same-ID command must create a new instance even when ActionFrame keeps advancing")
-
-local light_repeat_input = detector.evaluate_recording_light_repeat_input({
-    motion = "2+LP",
-    pressed_buttons = 16,
-    current_has_hit = true,
-    current_action_id = 614,
-    runtime_action_id = 614,
-})
-assert(light_repeat_input.accepted == true
-        and light_repeat_input.expected_mask == 16,
-    "a fresh LP edge after a landed single-hit light normal may arm a same-ID repeat")
-local playback_light_gate = detector.evaluate_playback_light_repeat_contact_gate({
-    expected_id = 614,
-    expected_motion = "2+LP",
-    expected_combo = 3,
-    previous_id = 614,
-    previous_motion = "2+LP",
-    previous_expected_combo = 2,
-    current_combo = 2,
-})
-assert(playback_light_gate.required == true,
-    "combo truth must gate a consecutive same-ID light even before has_hit settles")
-assert(detector.evaluate_playback_light_repeat_contact_gate({
-        expected_id = 614,
-        expected_motion = "2+LP",
-        expected_combo = 3,
-        previous_id = 614,
-        previous_motion = "2+LP",
-        previous_expected_combo = 2,
-        current_combo = 1,
-    }).required == false,
-    "an unconfirmed previous hit must not arm the repeated-light contact gate")
-assert(detector.evaluate_playback_light_repeat_contact_gate({
-        expected_id = 902,
-        expected_motion = "214+HP",
-        expected_combo = 3,
-        previous_id = 902,
-        previous_motion = "214+HP",
-        previous_expected_combo = 2,
-        current_combo = 2,
-    }).required == false,
-    "multi-hit specials must not inherit the light-normal playback gate")
-assert(detector.evaluate_playback_light_repeat_contact_gate({
-        expected_id = 614,
-        expected_motion = "2+LP",
-        expected_combo = 3,
-        previous_id = 614,
-        previous_motion = "2+LP",
-        previous_expected_combo = 2,
-        current_combo = 3,
-    }).required == false,
-    "an already confirmed repeat contact must advance without another wait")
-assert(detector.evaluate_recording_light_repeat_input({
-        motion = "214+HP",
-        pressed_buttons = 64,
-        current_has_hit = true,
-        current_action_id = 902,
-        runtime_action_id = 902,
-    }).accepted == false,
-    "multi-hit specials must never use light-normal repeat recovery")
-assert(detector.evaluate_recording_light_repeat_contact({
-        hit_confirmed = true,
-        candidate_action_id = 614,
-        runtime_action_id = 614,
-        current_event_action_id = 614,
-        current_expected_combo = 2,
-        current_combo = 3,
-    }).accepted == true,
-    "a later combo increase must confirm the armed same-ID light repeat")
+started, reason = detector.detect(904, 61, 904, 60, nil, nil, 32 | 64, true)
+assert(started == false and reason == "no_new_action",
+    "expected input and contact context must not synthesize an advancing same-ID Action")
 
 started, reason = detector.detect(902, 24, 902, 23, nil, nil, 128, false)
 assert(started == false and reason == "no_new_action",
@@ -191,8 +104,8 @@ assert(started == false and reason == "no_new_action",
     "a later hit or repeated HP input in the same 2-hit Action 902 must remain one action instance")
 
 started, reason = detector.detect(902, 3, 902, 61, nil, nil, 128, false)
-assert(started == true and reason == "input_confirmed_act_frame_rewind",
-    "a real second 214HP must still record when Action 902 actually restarts")
+assert(started == true and reason == "act_frame_rewind",
+    "a real second 214HP must record from its native ActionFrame restart")
 
 local block_contact = detector.evaluate_block_contact(30, false)
 assert(block_contact.active == true and block_contact.started == true,
@@ -1002,51 +915,9 @@ hit_contact = detector.evaluate_recording_hit_contact({
 assert(hit_contact.accepted == false and hit_contact.reason == "blocked_hp_decrease",
     "chip damage on block must stay a single block contact")
 
-repeat_eval = detector.evaluate_expected_repeat_input({
-    expected_id = 904,
-    previous_id = 904,
-    current_id = 904,
-    buffered_id = 904,
-    current_combo = 1,
-    previous_expected_combo = 4,
-    frames_since_previous = 43,
-    expected_delay = 48,
-    action_button_edge = 32 | 64
-})
-assert(repeat_eval.accepted == true and repeat_eval.reason == "expected_repeat_input_ready",
-    "a recorded same-ID command buffered 5f before its action point must create the next instance")
-
-repeat_eval = detector.evaluate_expected_repeat_input({
-    expected_id = 904,
-    previous_id = 904,
-    current_id = 904,
-    buffered_id = 904,
-    current_combo = 1,
-    previous_expected_combo = 4,
-    frames_since_previous = 48,
-    expected_delay = 48,
-    action_button_edge = 32 | 64
-})
-assert(repeat_eval.accepted == true and repeat_eval.reason == "expected_repeat_input_ready",
-    "a timed projectile repeat must not wait for every hit from the previous command")
-
-repeat_eval = detector.evaluate_expected_repeat_input({
-    expected_id = 904,
-    previous_id = 904,
-    current_id = 904,
-    buffered_id = 904,
-    current_combo = 4,
-    previous_expected_combo = 4,
-    frames_since_previous = 9,
-    expected_delay = 48,
-    action_button_edge = 32 | 64
-})
-assert(repeat_eval.accepted == false and repeat_eval.reason == "before_expected_repeat_window",
-    "an early repeated edge inside the first command buffer must not create the next trial step")
-
-started, reason = detector.detect(900, 3, 900, 18, nil, nil, 4)
+started, reason = detector.detect(900, 19, 900, 18, nil, nil, 4)
 assert(started == false and reason == "no_new_action",
-    "a direction-only edge must not confirm a same-ID attack restart")
+    "a direction-only edge must not create a same-ID Action without rewind")
 
 started, reason = detector.detect(900, 1, 900, 18)
 assert(started == true and reason == "act_frame_rewind",
@@ -1092,61 +963,60 @@ local function press_pair(state, direction, first_frame)
 end
 
 local p1_state = {}
-local first_66 = press_pair(p1_state, "6", 10)
+press_pair(p1_state, "6", 10)
 started, reason = detector.detect(17, 1, 1, 20, p1_state, 12)
 assert(started == true and reason == "id_changed",
-    "the first P1-side 66 must bind raw 6 to the actual Action 17 transition")
-local second_66 = press_pair(p1_state, "6", 16)
+    "the first 66 must be recorded from the actual Action 17 transition")
+press_pair(p1_state, "6", 16)
 started, reason = detector.detect(17, 30, 17, 29, p1_state, 18)
-assert(started == true and reason == "repeatable_common_action_input",
-    "the next P1-side 66 must restart Action 17 while its frame keeps advancing")
+assert(started == false and reason == "no_new_action",
+    "a second double tap must not synthesize Action 17 while ActionFrame advances")
 
 local p2_state = {}
-local first_44 = press_pair(p2_state, "4", 30)
+press_pair(p2_state, "4", 30)
 started, reason = detector.detect(17, 1, 1, 20, p2_state, 32)
 assert(started == true and reason == "id_changed",
-    "the first P2-side forward dash must bind raw 4 to actual Action 17")
-local second_44 = press_pair(p2_state, "4", 36)
+    "the opposite-side forward dash must use the actual Action 17 transition")
+press_pair(p2_state, "4", 36)
 started, reason = detector.detect(17, 40, 17, 39, p2_state, 38)
-assert(started == true and reason == "repeatable_common_action_input",
-    "the next P2-side raw 44 must use the learned Action 17 binding")
+assert(started == false and reason == "no_new_action",
+    "opposite-side input must not synthesize a repeated Action 17")
 
-local p2_back = press_pair(p2_state, "6", 42)
+press_pair(p2_state, "6", 42)
 started, reason = detector.detect(17, 45, 17, 44, p2_state, 44)
 assert(started == false and reason == "no_new_action",
-    "P2-side raw 66 must not reuse the forward-dash binding")
+    "a direction pair without Action transition must remain input only")
 started, reason = detector.detect(18, 1, 17, 45, p2_state, 45)
 assert(started == true and reason == "id_changed",
-    "the real P2-side Action 18 transition must bind raw 6 as back dash")
-local repeated_p2_back = press_pair(p2_state, "6", 48)
+    "the real Action 18 transition must remain visible")
+press_pair(p2_state, "6", 48)
 started, reason = detector.detect(18, 50, 18, 49, p2_state, 50)
-assert(started == true and reason == "repeatable_common_action_input",
-    "P2-side repeated back dash must work with the learned raw 6 binding")
+assert(started == false and reason == "no_new_action",
+    "a repeated back-dash input must wait for native ActionFrame rewind")
 
-local opposite_pair = press_pair(p1_state, "4", 22)
+press_pair(p1_state, "4", 22)
 started, reason = detector.detect(17, 45, 17, 44, p1_state, 24)
 assert(started == false and reason == "no_new_action",
     "an opposite pair must wait for the real Action ID instead of duplicating the old dash")
 started, reason = detector.detect(18, 1, 17, 45, p1_state, 25)
 assert(started == true and reason == "id_changed",
-    "the following Action 18 transition must bind the pending opposite pair")
-local repeated_44 = press_pair(p1_state, "4", 28)
+    "the following Action 18 transition must create the back dash")
+press_pair(p1_state, "4", 28)
 started, reason = detector.detect(18, 50, 18, 49, p1_state, 30)
-assert(started == true and reason == "repeatable_common_action_input",
-    "the learned back-dash direction must repeat without a coordinate lookup")
+assert(started == false and reason == "no_new_action",
+    "a direction pair alone must not repeat the back dash")
 
 local queued_state = {}
-local queued_first = press_pair(queued_state, "6", 60)
-local queued_second = press_pair(queued_state, "6", 64)
+press_pair(queued_state, "6", 60)
+press_pair(queued_state, "6", 64)
 started, reason = detector.detect(17, 1, 1, 20, queued_state, 66)
 assert(started == true and reason == "id_changed",
-    "the first actual Action 17 transition must consume only the first queued 66")
-assert(#queued_state.completed_pairs == 1 and queued_state.completed_pairs[1] == queued_second,
-    "a second ultra-fast 66 completed before the ID transition must remain queued")
+    "ultra-fast input must still record the first actual Action 17 transition")
 started, reason = detector.detect(17, 3, 17, 2, queued_state, 67)
-assert(started == true and reason == "repeatable_common_action_input",
-    "the queued ultra-fast second 66 must create its own action instance")
-assert(#queued_state.completed_pairs == 0,
-    "all confirmed ultra-fast dash pairs must be consumed exactly once")
+assert(started == false and reason == "no_new_action",
+    "queued double taps must not create a third 66 without native rewind")
+started, reason = detector.detect(17, 0, 17, 3, queued_state, 68)
+assert(started == true and reason == "act_frame_rewind",
+    "the actual second 66 must be recorded when ActionFrame rewinds")
 
 print("combo action restart tests passed")

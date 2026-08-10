@@ -77,6 +77,8 @@ Action 范围、过滤条件、命中规则或 V2 字段语义。录制、训练
 展示分组和旧文件环境修复也遵守相同边界：
 `_character.sequence_grouping.structural_followup_chains` 与
 `break_followup_after_ids` 保存 Action 间的分组关系；
+`command_display_overrides` 的 `presentation_contexts` 保存本地化的状态上下文标签，
+并可声明该上下文指令必须独立成行。它只改变显示，不修改 V2 `motion`、Action ID、检测或回放；
 `_character.transcription_rules.initial_unique_requirements` 保存“哪些 Action 证明起始角色资源
 必需”的映射。`SequenceGrouping` 和 `Transcriber` 只实现通用关系解析与事实推导。
 

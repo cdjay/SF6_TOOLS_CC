@@ -9,19 +9,12 @@ local REPEATABLE_COMMON_ACTIONS = {
 }
 
 local DEFAULT_DASH_TAP_WINDOW = 12
-local DASH_ACTION_BIND_WINDOW = 12
 local CONTACT_SIGNAL_SETTLE_FRAMES = 1
 M.PERSISTENT_DAMAGE_MAX_TICK = 20
 -- Combo growth is sufficient contact truth at any damage. When combo count is
 -- unchanged, fallback HP attribution stays above the supported persistent
 -- damage envelope (A.K.I. poison can tick for 7, 10 or 20).
 local MIN_UNCOUNTED_HIT_HP_DELTA = M.PERSISTENT_DAMAGE_MAX_TICK + 1
--- Match the player-action transition lookup window. A repeated command can be
--- buffered several frames before the engine would expose its next action start;
--- Sagat's recorded consecutive OD projectile reaches the physical edge 5f
--- before that point.
-local DEFAULT_EXPECTED_REPEAT_EARLY_WINDOW = 12
-
 -- pl_input_new uses physical direction bits (right=4, left=8). Normalize them
 -- to facing-relative notation before dash pairing; BCM command directions use
 -- a different lookup and must not be reused for physical input.
@@ -65,72 +58,12 @@ function M.observe_dash_direction_edge(state, direction, frame, window)
             second_frame = frame,
             interval = delta
         }
-        state.completed_pairs = state.completed_pairs or {}
-        table.insert(state.completed_pairs, pair)
         return pair
     end
 
     state.pending_direction = direction
     state.pending_frame = frame
     return nil
-end
-
-local function recent_pair(state, current_tick)
-    if type(state) ~= "table" or type(state.completed_pairs) ~= "table" then return nil end
-    current_tick = tonumber(current_tick) or -1
-    while #state.completed_pairs > 0 do
-        local pair = state.completed_pairs[1]
-        local pair_tick = tonumber(pair.second_frame) or -1
-        local age = current_tick - pair_tick
-        if age >= 0 and age <= DASH_ACTION_BIND_WINDOW then return pair end
-        table.remove(state.completed_pairs, 1)
-    end
-    return nil
-end
-
-local function consume_pair(state, pair)
-    if type(state) ~= "table" or type(state.completed_pairs) ~= "table" then return end
-    for index, queued in ipairs(state.completed_pairs) do
-        if queued == pair then
-            table.remove(state.completed_pairs, index)
-            return
-        end
-    end
-end
-
-function M.evaluate_expected_repeat_input(params)
-    params = type(params) == "table" and params or {}
-    local result = {
-        accepted = false,
-        reason = nil,
-        expected_id = tonumber(params.expected_id),
-        previous_id = tonumber(params.previous_id),
-        current_id = tonumber(params.current_id),
-        buffered_id = tonumber(params.buffered_id),
-        current_combo = tonumber(params.current_combo) or 0,
-        previous_expected_combo = tonumber(params.previous_expected_combo) or 0,
-        frames_since_previous = tonumber(params.frames_since_previous) or 0,
-        expected_delay = tonumber(params.expected_delay) or 0,
-        early_window = tonumber(params.early_window) or DEFAULT_EXPECTED_REPEAT_EARLY_WINDOW,
-        action_button_edge = (tonumber(params.action_button_edge) or 0) & 0xFFF0
-    }
-    result.earliest_frame = math.max(0, result.expected_delay - result.early_window)
-
-    if result.action_button_edge == 0 then
-        result.reason = "missing_attack_edge"
-    elseif result.expected_id == nil or result.previous_id == nil then
-        result.reason = "missing_expected_id"
-    elseif result.expected_id ~= result.previous_id then
-        result.reason = "sequence_not_same_action"
-    elseif result.current_id ~= result.expected_id or result.buffered_id ~= result.expected_id then
-        result.reason = "runtime_action_id_mismatch"
-    elseif result.frames_since_previous < result.earliest_frame then
-        result.reason = "before_expected_repeat_window"
-    else
-        result.accepted = true
-        result.reason = "expected_repeat_input_ready"
-    end
-    return result
 end
 
 -- During an automatic replay, a completed dash can receive another physical
@@ -185,79 +118,6 @@ function M.evaluate_replay_dash_retrigger_residue(params)
         result.reason = "replayed_previous_dash_retrigger_residue"
     end
     return result
-end
-
-function M.single_hit_light_button_mask(motion)
-    local normalized = tostring(motion or ""):upper()
-        :gsub("%b()", "")
-        :gsub("%s+", "")
-        :gsub("^>", "")
-    if normalized == "LP" or normalized:match("^[1-9]%+LP$") then return 16 end
-    if normalized == "LK" or normalized:match("^[1-9]%+LK$") then return 128 end
-    return nil
-end
-
-function M.evaluate_playback_light_repeat_contact_gate(params)
-    params = type(params) == "table" and params or {}
-    local expected_mask = M.single_hit_light_button_mask(params.expected_motion)
-    local previous_mask = M.single_hit_light_button_mask(params.previous_motion)
-    local expected_combo = tonumber(params.expected_combo) or 0
-    local previous_combo = tonumber(params.previous_expected_combo) or 0
-    local current_combo = tonumber(params.current_combo) or 0
-    local required = expected_mask ~= nil
-        and previous_mask == expected_mask
-        and tonumber(params.expected_id) ~= nil
-        and tonumber(params.expected_id) == tonumber(params.previous_id)
-        and previous_combo > 0
-        and current_combo >= previous_combo
-        and expected_combo == previous_combo + 1
-        and current_combo < expected_combo
-    return {
-        required = required,
-        reason = required and "same_action_light_repeat_wait_for_contact"
-            or "same_action_light_repeat_contact_not_required",
-        expected_mask = expected_mask,
-        previous_mask = previous_mask,
-        expected_combo = expected_combo,
-        previous_expected_combo = previous_combo,
-        current_combo = current_combo,
-    }
-end
-
-function M.evaluate_recording_light_repeat_input(params)
-    params = type(params) == "table" and params or {}
-    local expected_mask = M.single_hit_light_button_mask(params.motion)
-    local pressed = (tonumber(params.pressed_buttons) or 0) & 0xFFF0
-    local accepted = expected_mask ~= nil
-        and pressed == expected_mask
-        and params.current_has_hit == true
-        and tonumber(params.current_action_id) ~= nil
-        and tonumber(params.current_action_id) == tonumber(params.runtime_action_id)
-        and params.action_changed ~= true
-        and params.action_restarted ~= true
-    return {
-        accepted = accepted,
-        reason = accepted and "single_hit_light_repeat_input"
-            or "recording_light_repeat_not_proven",
-        expected_mask = expected_mask,
-    }
-end
-
-function M.evaluate_recording_light_repeat_contact(params)
-    params = type(params) == "table" and params or {}
-    local accepted = params.hit_confirmed == true
-        and tonumber(params.candidate_action_id) ~= nil
-        and tonumber(params.candidate_action_id) == tonumber(params.runtime_action_id)
-        and tonumber(params.current_event_action_id)
-            == tonumber(params.candidate_action_id)
-        and tonumber(params.current_combo) ~= nil
-        and tonumber(params.current_combo)
-            > (tonumber(params.current_expected_combo) or 0)
-    return {
-        accepted = accepted,
-        reason = accepted and "single_hit_light_repeat_contact"
-            or "recording_light_repeat_contact_not_proven",
-    }
 end
 
 -- Separate normal hits can both expose combo_cnt == 1 when the polling sample
@@ -589,64 +449,23 @@ function M.evaluate_block_contact(damage_type, was_active)
     }
 end
 
-function M.detect(current_id, current_frame, buffered_id, buffered_frame, state, current_tick,
-        action_button_edge, confirmed_repeat_input)
+function M.detect(current_id, current_frame, buffered_id, buffered_frame, state, current_tick)
     current_id = tonumber(current_id) or -1
     buffered_id = tonumber(buffered_id) or -1
     current_frame = tonumber(current_frame) or -1
     buffered_frame = tonumber(buffered_frame) or -1
-    action_button_edge = (tonumber(action_button_edge) or 0) & 0xFFF0
-    local common_motion = REPEATABLE_COMMON_ACTIONS[current_id]
-    local pair = recent_pair(state, current_tick)
-
     if current_id ~= buffered_id then
-        if common_motion and pair and type(state) == "table" then
-            state.direction_actions = state.direction_actions or {}
-            state.direction_actions[pair.direction] = current_id
-            consume_pair(state, pair)
-        end
         return true, "id_changed"
-    end
-
-    if common_motion and pair and type(state) == "table" then
-        state.direction_actions = state.direction_actions or {}
-        if tonumber(state.direction_actions[pair.direction]) == current_id then
-            consume_pair(state, pair)
-            return true, "repeatable_common_action_input"
-        end
-    end
-
-    -- Playback may admit a fresh edge when the recorded sequence independently
-    -- proves that the next expected step is the same action. Recording never
-    -- uses input or contact alone to synthesize a new action instance.
-    if confirmed_repeat_input and action_button_edge ~= 0 then
-        local confirmation_reason = type(confirmed_repeat_input) == "string"
-            and confirmed_repeat_input or "expected_repeat_action_input"
-        return true, confirmation_reason
     end
 
     if current_frame >= buffered_frame then
         return false, "no_new_action"
     end
 
-    -- Consecutive uses of the same move can keep the same Action ID. If the
-    -- polling sample misses frames 0/1, the ActionFrame still rewinds but the
-    -- old near-zero rule cannot see the restart. A fresh/recent physical attack
-    -- edge confirms that this rewind is a second player command, rather than an
-    -- internal frame correction.
-    if action_button_edge ~= 0 then
-        return true, "input_confirmed_act_frame_rewind"
-    end
-
-    if REPEATABLE_COMMON_ACTIONS[current_id] then
-        return true, "repeatable_common_action_rewind"
-    end
-
-    if current_frame < 2 then
-        return true, "act_frame_rewind"
-    end
-
-    return false, "no_new_action"
+    -- ActionFrame belongs to the game-owned Action instance. A rewind is the
+    -- factual boundary for a repeated same-ID Action; input and contact must
+    -- never manufacture or veto that boundary.
+    return true, "act_frame_rewind"
 end
 
 return M

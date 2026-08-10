@@ -1303,6 +1303,92 @@ assert(repeated_result.steps[1].id == 601 and repeated_result.steps[2].id == 601
     "repeated commands must retain their observed Action ID")
 
 do
+    local terry_repeat = compiler.new({
+        character = "Terry",
+        frame = 0,
+        motion_resolver = function(action_id)
+            if action_id == 635 then return "2+MK", "strict_route" end
+            return nil, "action_id_missing"
+        end,
+    })
+    local rows = {
+        { 10, 0 },
+        { 10, 2 | 256 },
+        { 635, 2 | 256, 0 },
+        { 635, 2, 18 },
+        { 635, 2 | 256, 0 },
+        { 635, 2, 22 },
+        { 635, 2 | 256, 0 },
+        { 635, 2, 1 },
+    }
+    for frame, row in ipairs(rows) do
+        compiler.observe(terry_repeat, {
+            frame = frame,
+            action_id = row[1],
+            action_frame = row[3] or frame,
+            direct_input = row[2],
+            facing_right = true,
+            combo_count = 0,
+            actor_hp = 10000,
+            victim_hp = 10000,
+        })
+    end
+    local result = compiler.finalize(terry_repeat, {
+        motion_resolver = terry_repeat.motion_resolver,
+    })
+    assert(#result.steps == 3
+            and result.steps[1].id == 635
+            and result.steps[2].id == 635
+            and result.steps[3].id == 635,
+        "Terry 635,635,635 must preserve every native ActionFrame restart")
+end
+
+do
+    local function compile_fast_dash(facing_right, forward_bit)
+        local session = compiler.new({ character = "Terry", frame = 0 })
+        local rows = {
+            { 10, 0, 10 },
+            { 10, forward_bit, 11 },
+            { 10, 0, 12 },
+            { 17, forward_bit, 0 },
+            { 17, 0, 1 },
+            { 17, forward_bit, 2 },
+            { 17, 0, 3 },
+            { 17, forward_bit, 4 },
+            { 17, 0, 5 },
+            { 17, forward_bit, 0 },
+        }
+        for frame, row in ipairs(rows) do
+            compiler.observe(session, {
+                frame = frame,
+                action_id = row[1],
+                action_frame = row[3],
+                direct_input = row[2],
+                facing_right = facing_right,
+                combo_count = 0,
+                actor_hp = 10000,
+                victim_hp = 10000,
+            })
+        end
+        return compiler.finalize(session, {
+            motion_resolver = function(action_id)
+                if action_id == 17 then return "66", "strict_route" end
+                return nil, "action_id_missing"
+            end,
+        })
+    end
+
+    local left_result = compile_fast_dash(true, 4)
+    local right_result = compile_fast_dash(false, 8)
+    assert(#left_result.steps == 2 and #right_result.steps == 2
+            and left_result.steps[1].motion == "66"
+            and left_result.steps[2].motion == "66"
+            and right_result.steps[1].motion == "66"
+            and right_result.steps[2].motion == "66",
+        "fast 66 on either side must equal the two native Action 17 instances without a synthetic third step")
+end
+
+do
     local blanka_repeat = compiler.new({
         character = "Blanka",
         frame = 0,
@@ -1347,16 +1433,13 @@ do
     local result = compiler.finalize(blanka_repeat, {
         motion_resolver = blanka_repeat.motion_resolver,
     })
-    assert(#result.steps == 4
+    assert(#result.steps == 3
             and result.steps[1].id == 622
             and result.steps[2].id == 614
-            and result.steps[3].id == 614
-            and result.steps[4].id == 971
-            and result.steps[2].expected_combo == 2
-            and result.steps[3].expected_combo == 3
-            and result.stats.same_action_repeat_events == 1
-            and result.trace.same_action_repeat_count == 1,
-        "a landed same-ID 2LP repeat must survive a constant ActionFrame while an extra mash stays ignored")
+            and result.steps[3].id == 971
+            and result.steps[2].expected_combo == 3
+            and result.steps[3].expected_combo == 4,
+        "input and contact changes without ActionFrame rewind must not manufacture a repeated Action")
 end
 
 local function test_motion_resolver(action_id)
@@ -2230,7 +2313,7 @@ alex_hp_release_phase.max_combo = 2
 local alex_hp_release_result = compiler.finalize(alex_hp_release_phase, {
     motion_resolver = function(action_id)
         if action_id == 976 then return "HP", "strict_route" end
-        if action_id == 977 then return ">HP (INSTANT)", "runtime_verified_override" end
+        if action_id == 977 then return "HP", "runtime_verified_override" end
         return nil, "action_id_missing"
     end,
 })

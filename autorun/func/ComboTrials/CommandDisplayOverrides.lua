@@ -191,6 +191,50 @@ local function parse_contextual_internal_phases(document)
     return parsed, true
 end
 
+local function parse_presentation_contexts(document)
+    local source = type(document) == "table"
+        and document.presentation_contexts or nil
+    if source == nil then return nil, true end
+    if type(source) ~= "table" then return nil, false end
+
+    local parsed = { _validated = true }
+    local context_count = 0
+    for action_key, entry in pairs(source) do
+        local id = action_id(action_key)
+        local labels = type(entry) == "table" and entry.labels or nil
+        local evidence = type(entry) == "table" and trim(entry.evidence) or ""
+        if id == nil or type(labels) ~= "table" or evidence == ""
+            or type(entry.separate_line) ~= "boolean"
+            or type(entry.strip_followup_prefix) ~= "boolean"
+            or (entry.replace_recorded_context ~= nil
+                and type(entry.replace_recorded_context) ~= "boolean") then
+            return nil, false
+        end
+
+        local localized = {}
+        for language, value in pairs(labels) do
+            local key = trim(language)
+            local label = trim(value)
+            if key == "" or label == "" then return nil, false end
+            localized[key] = label
+        end
+        if localized["zh-CN"] == nil or localized["en-US"] == nil then
+            return nil, false
+        end
+
+        parsed[id] = {
+            labels = localized,
+            separate_line = entry.separate_line,
+            strip_followup_prefix = entry.strip_followup_prefix,
+            replace_recorded_context = entry.replace_recorded_context == true,
+            evidence = evidence,
+        }
+        context_count = context_count + 1
+    end
+    if context_count == 0 then return nil, false end
+    return parsed, true
+end
+
 function CommandDisplayOverrides.get_filename(character)
     local key = character_key(character)
     if key == "" then return nil end
@@ -212,6 +256,11 @@ function CommandDisplayOverrides.merge(slim, character, document)
         parse_contextual_internal_phases(document)
     if not contextual_ok then
         return slim, 0, "invalid_contextual_internal_phases"
+    end
+    local presentation_contexts, presentation_ok =
+        parse_presentation_contexts(document)
+    if not presentation_ok then
+        return slim, 0, "invalid_presentation_contexts"
     end
 
     local applied = 0
@@ -282,9 +331,39 @@ function CommandDisplayOverrides.merge(slim, character, document)
         end
     end
     slim._contextual_internal_phases = contextual_phases
+    slim._presentation_contexts = presentation_contexts
     slim._input_conditioned_entries = next(conditioned) ~= nil
         and conditioned or nil
     return slim, applied, "loaded"
+end
+
+function CommandDisplayOverrides.resolve_presentation_context(
+    command_map,
+    requested_action_id,
+    language
+)
+    local id = action_id(requested_action_id)
+    local contexts = type(command_map) == "table"
+        and command_map._presentation_contexts or nil
+    local entry = id ~= nil and type(contexts) == "table"
+        and contexts[id] or nil
+    if type(entry) ~= "table" or type(entry.labels) ~= "table" then
+        return nil
+    end
+    local requested = trim(language)
+    local label = entry.labels[requested]
+    if label == nil and requested:lower():match("^zh") then
+        label = entry.labels["zh-CN"]
+    end
+    if label == nil then label = entry.labels["en-US"] end
+    if label == nil then return nil end
+    return {
+        label = label,
+        separate_line = entry.separate_line == true,
+        strip_followup_prefix = entry.strip_followup_prefix == true,
+        replace_recorded_context = entry.replace_recorded_context == true,
+        evidence = entry.evidence,
+    }
 end
 
 function CommandDisplayOverrides.resolve_input_conditioned(

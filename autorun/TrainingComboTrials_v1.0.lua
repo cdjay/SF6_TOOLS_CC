@@ -856,7 +856,7 @@ local function logger_process_game_state()
         local p = (index == 0) and GS.p1 or GS.p2
         if not p then return end
         
-        local is_facing_right = p:get_field("rl_dir")
+        local is_facing_right = ComboTrialsModules.GameProbe.is_facing_right(p)
         rec_struct.facing_right = is_facing_right
 
         if rec_struct.active and not is_paused then
@@ -5491,101 +5491,6 @@ function _G.CTSameActionTrace.trace(phase, p_state, fields)
     _G.CTSameActionTrace.record(event)
 end
 
-_G.CTSameDashFallback = _G.CTSameDashFallback or {}
-
-function _G.CTSameDashFallback.edge_type_for_step(step)
-    if type(step) ~= "table" then return nil end
-    local motion = ActionMatcher.normalize_motion_token(step.motion)
-    if tonumber(step.id) == 17 and motion == "66" then return "66" end
-    if tonumber(step.id) == 18 and motion == "44" then return "44" end
-    if type(step.motion_aliases) == "table" then
-        for _, alias in ipairs(step.motion_aliases) do
-            local normalized = ActionMatcher.normalize_motion_token(alias)
-            if tonumber(step.id) == 17 and normalized == "66" then return "66" end
-            if tonumber(step.id) == 18 and normalized == "44" then return "44" end
-        end
-    end
-    return nil
-end
-
-function _G.CTSameDashFallback.build_candidate(p_state, detected_66_edge, detected_44_edge)
-    if not (trial_state.is_playing and p_state == players[trial_state.playing_player]) then return nil end
-    if trial_state.manual_reset_pending or (trial_state.success_timer and trial_state.success_timer > 0) then return nil end
-    if trial_state.fail_timer and trial_state.fail_timer > 0 then return nil end
-    if not trial_state.sequence or not trial_state.current_step or trial_state.current_step <= 1 then return nil end
-
-    local expected = trial_state.sequence[trial_state.current_step]
-    local prev_step = trial_state.sequence[trial_state.current_step - 1]
-    if not expected or not prev_step or expected.id ~= prev_step.id then return nil end
-
-    local edge_type = _G.CTSameDashFallback.edge_type_for_step(expected)
-    if not edge_type then return nil end
-    if _G.CTSameDashFallback.edge_type_for_step(prev_step) ~= edge_type then return nil end
-    if edge_type == "66" and not detected_66_edge then return nil end
-    if edge_type == "44" and not detected_44_edge then return nil end
-
-    local consume_key = tostring(trial_state.current_step) .. ":" .. tostring(trial_state.last_played_frame or 0)
-    if p_state._same_dash_fallback_key == consume_key then
-        _G.CTSameActionTrace.trace("same_dash_fallback_rejected", p_state, {
-            fallback_source = "input_same_dash_edge",
-            edge_type = edge_type,
-            accepted = false,
-            reject_reason = "already_consumed"
-        })
-        return nil
-    end
-
-    local last_played = trial_state.last_played_frame or engine_frame_count
-    local frames_since_prev_step = engine_frame_count - last_played
-    local expected_delay = expected.delay_from_prev or 0
-    local frame_diff = Validator.calculate_frame_diff(frames_since_prev_step, expected_delay)
-    local early_window = 4
-    local late_window = 2
-    local accepted = frame_diff >= -early_window and frame_diff <= late_window
-    local trace_fields = {
-        step_index = trial_state.current_step,
-        expected_id = expected.id,
-        expected_motion = expected.motion,
-        previous_step_id = prev_step.id,
-        fallback_source = "input_same_dash_edge",
-        edge_type = edge_type,
-        frames_since_prev_step = frames_since_prev_step,
-        expected_delay = expected_delay,
-        frame_diff = frame_diff,
-        early_window = early_window,
-        late_window = late_window,
-        accepted = accepted,
-        reject_reason = accepted and nil or "timing_window"
-    }
-    p_state._same_dash_fallback_last_eval = trace_fields
-    _G.CTSameActionTrace.trace("same_dash_fallback_evaluate", p_state, trace_fields)
-
-    if not accepted then return nil end
-
-    p_state._same_dash_fallback_key = consume_key
-    local p1, p2, r1, r2 = capture_current_positions()
-    return {
-        id = expected.id,
-        flags = 0,
-        action_code = _pf.action_code or 0,
-        direct_input = _pf.direct_input or 0,
-        b_type = _pf.b_type or 0,
-        engine_frame = engine_frame_count,
-        action_instance = p_state.current_action_instance,
-        buffer_hold_frames = 0,
-        p1 = p1, p2 = p2,
-        r1 = r1, r2 = r2,
-        current_hp = _pf.p_char and _pf.p_char.vital_new or nil,
-        synthetic = true,
-        source = "input_same_dash_edge",
-        fallback_source = "input_same_dash_edge",
-        edge_type = edge_type,
-        frames_since_prev_step = frames_since_prev_step,
-        expected_delay = expected_delay,
-        frame_diff = frame_diff
-    }
-end
-
 local function ct_player_input_buffer(p_state)
     if trial_state.is_playing and p_state == players[trial_state.playing_player]
         and trial_state._action_grace and trial_state._action_grace > 0 then
@@ -5723,26 +5628,6 @@ local function ct_player_input_buffer(p_state)
 
     local actions_to_process = {}
 
-    if p_state._same_dash_fallback_eval_step ~= trial_state.current_step then
-        p_state._same_dash_fallback_eval_step = trial_state.current_step
-        p_state._same_dash_fallback_last_eval = nil
-    end
-    local same_dash_candidate = _G.CTSameDashFallback.build_candidate(p_state, detected_66_edge, detected_44_edge)
-    if same_dash_candidate then
-        table.insert(actions_to_process, same_dash_candidate)
-        _G.CTSameActionTrace.trace("action_candidate_pushed", p_state, {
-            push_reason = "input_same_dash_edge",
-            pushed_action_id = same_dash_candidate.id,
-            pushed_engine_frame = same_dash_candidate.engine_frame,
-            pushed_to_actions_to_process = true,
-            fallback_source = same_dash_candidate.fallback_source,
-            edge_type = same_dash_candidate.edge_type,
-            frames_since_prev_step = same_dash_candidate.frames_since_prev_step,
-            expected_delay = same_dash_candidate.expected_delay,
-            frame_diff = same_dash_candidate.frame_diff,
-            synthetic = true
-        })
-    end
     local action_input_edge = newly_pressed & 0xFFF0
     local restart_input_edge = action_input_edge
     if restart_input_edge == 0 then
@@ -5750,28 +5635,9 @@ local function ct_player_input_buffer(p_state)
             p_state.input_history_queue, p_state.buffer_start_frame,
             engine_frame_count, ComboTrialsModules.CommandResolver.PLAYER_TRANSITION_INPUT_WINDOW)
     end
-    local repeat_expected = trial_state.is_playing
-        and p_state == players[trial_state.playing_player]
-        and trial_state.sequence
-        and trial_state.sequence[trial_state.current_step] or nil
-    local repeat_previous = repeat_expected and trial_state.current_step > 1
-        and trial_state.sequence[trial_state.current_step - 1] or nil
-    local expected_repeat_input = ActionRestartDetector.evaluate_expected_repeat_input({
-        expected_id = repeat_expected and repeat_expected.id or nil,
-        previous_id = repeat_previous and repeat_previous.id or nil,
-        current_id = _pf.act_id,
-        buffered_id = p_state.buffer_act_id,
-        current_combo = _pf.current_combo or 0,
-        previous_expected_combo = repeat_previous and repeat_previous.expected_combo or 0,
-        frames_since_previous = engine_frame_count - (trial_state.last_played_frame or engine_frame_count),
-        expected_delay = repeat_expected and repeat_expected.delay_from_prev or 0,
-        action_button_edge = action_input_edge
-    })
-    local confirmed_repeat_input = expected_repeat_input.accepted
     local started_new_action, started_new_action_reason = ActionRestartDetector.detect(
         _pf.act_id, _pf.act_frame, p_state.buffer_act_id, p_state.buffer_act_frame,
-        p_state.dash_tap_state, engine_frame_count, restart_input_edge,
-        confirmed_repeat_input)
+        p_state.dash_tap_state, engine_frame_count)
     if started_new_action and action_input_edge == 0 then
         -- Some actions switch one or two frames after the button edge. Reuse the
         -- newest post-parent physical edge instead of treating a held button as
@@ -5807,7 +5673,6 @@ local function ct_player_input_buffer(p_state)
         last_act_frame = p_state.prev_act_frame,
         started_new_action = started_new_action,
         started_new_action_reason = started_new_action_reason,
-        expected_repeat_input = expected_repeat_input,
         dash_pair_direction = dash_pair and dash_pair.direction or nil,
         dash_pair_interval = dash_pair and dash_pair.interval or nil,
         skipped_due_to_duplicate = not started_new_action and _pf.act_id == p_state.buffer_act_id,
@@ -7210,79 +7075,28 @@ local function ct_player_process_actions(p_idx, p_state, actions_to_process)
                                 match_probe.reject_reason = "block_outcome_pending"
                                 DebugTrace.record_match_probe(trial_state, match_probe)
                             elseif action_match.matched and expected then
-                                local repeat_prev = trial_state.current_step > 1
-                                    and trial_state.sequence[trial_state.current_step - 1] or nil
-                                local repeat_contact_gate =
-                                    ActionRestartDetector.evaluate_playback_light_repeat_contact_gate({
-                                        expected_id = expected.id,
-                                        expected_motion = expected.motion,
-                                        expected_combo = expected.expected_combo,
-                                        previous_id = repeat_prev and repeat_prev.id or nil,
-                                        previous_motion = repeat_prev and repeat_prev.motion or nil,
-                                        previous_expected_combo = repeat_prev
-                                            and repeat_prev.expected_combo or nil,
-                                        previous_has_hit = repeat_prev and repeat_prev.has_hit == true,
-                                        current_combo = _pf.current_combo or 0,
-                                    })
-                                if repeat_contact_gate.required then
-                                    match_probe.branch = "same_action_light_repeat_contact_pending"
-                                    match_probe.repeat_contact_gate = repeat_contact_gate
-                                    local stored = ComboTrialsModules.PendingAbsorb.store(
-                                        pending_absorb_ctx,
-                                        expected,
-                                        {
-                                            block_reason = "combo_not_reached",
-                                            allow_pending_absorb = true,
-                                            actual_action_id = act_id,
-                                            match_reason = action_match.match_reason,
-                                            source = "same_action_light_repeat_contact",
-                                        },
-                                        match_probe,
-                                        process_act.current_hp
-                                    )
-                                    match_probe.pending_current_absorb_created = stored == true
-                                    if stored then
-                                        DebugTrace.record_match_probe(trial_state, match_probe)
-                                    else
-                                        match_probe.branch = "same_action_light_repeat_contact_pending_fallback"
-                                        DebugTrace.record_match_probe(trial_state, match_probe)
-                                        apply_matched_step(
-                                            expected,
-                                            act_id,
-                                            motion_str,
-                                            real_input_str,
-                                            process_act.synthetic and (process_act.engine_frame or engine_frame_count) or engine_frame_count,
-                                            _pf.current_combo or 0,
-                                            process_act.current_hp,
-                                            action_match.match_reason,
-                                            action_match
-                                        )
-                                    end
-                                else
-                                    match_probe.branch = process_act.synthetic and "same_dash_fallback" or "direct_match"
-                                    match_probe.repeat_contact_gate = repeat_contact_gate
-                                    DebugTrace.record_match_probe(trial_state, match_probe)
-                                    apply_matched_step(
-                                        expected,
-                                        act_id,
-                                        motion_str,
-                                        real_input_str,
-                                        process_act.synthetic and (process_act.engine_frame or engine_frame_count) or engine_frame_count,
-                                        _pf.current_combo or 0,
-                                        process_act.current_hp,
-                                        action_match.match_reason,
-                                        action_match
-                                    )
-                                end
-                            elseif action_match.matched then
-                                match_probe.branch = process_act.synthetic and "same_dash_fallback" or "direct_match"
+                                match_probe.branch = "direct_match"
                                 DebugTrace.record_match_probe(trial_state, match_probe)
                                 apply_matched_step(
                                     expected,
                                     act_id,
                                     motion_str,
                                     real_input_str,
-                                    process_act.synthetic and (process_act.engine_frame or engine_frame_count) or engine_frame_count,
+                                    engine_frame_count,
+                                    _pf.current_combo or 0,
+                                    process_act.current_hp,
+                                    action_match.match_reason,
+                                    action_match
+                                )
+                            elseif action_match.matched then
+                                match_probe.branch = "direct_match"
+                                DebugTrace.record_match_probe(trial_state, match_probe)
+                                apply_matched_step(
+                                    expected,
+                                    act_id,
+                                    motion_str,
+                                    real_input_str,
+                                    engine_frame_count,
                                     _pf.current_combo or 0,
                                     process_act.current_hp,
                                     action_match.match_reason,
@@ -7385,8 +7199,7 @@ local function ct_player_process_actions(p_idx, p_state, actions_to_process)
                                             saw_act17_since_prev_step = same_summary.saw_act17,
                                             act17_min_frame = same_summary.act17_min_frame,
                                             act17_max_frame = same_summary.act17_max_frame,
-                                            act17_rewound = same_summary.act17_rewound,
-                                            same_dash_fallback_last_eval = p_state._same_dash_fallback_last_eval
+                                            act17_rewound = same_summary.act17_rewound
                                         }
                                         _G.CTSameActionTrace.trace("wrong_move", p_state, {
                                             candidate_action_id = act_id,
@@ -7404,8 +7217,7 @@ local function ct_player_process_actions(p_idx, p_state, actions_to_process)
                                             saw_act17_since_prev_step = same_summary.saw_act17,
                                             act17_min_frame = same_summary.act17_min_frame,
                                             act17_max_frame = same_summary.act17_max_frame,
-                                            act17_rewound = same_summary.act17_rewound,
-                                            same_dash_fallback_last_eval = p_state._same_dash_fallback_last_eval
+                                            act17_rewound = same_summary.act17_rewound
                                         })
                                         DebugTrace.record_match_probe(trial_state, match_probe)
                                         ComboTrialsModules.PendingAbsorb.clear(trial_state, "wrong_move")
@@ -10418,7 +10230,7 @@ local function _ct_demo_inject_mask()
     local p1 = _td_gBattle:get_field("Player"):get_data(nil).mcPlayer[0]
     local final_mask = RawInputCodec.relative_to_native(
         demo_state.p1_mask,
-        p1:get_field("rl_dir") ~= false
+        ComboTrialsModules.GameProbe.is_facing_right(p1)
     )
     if demo_state.transcribing == true then
         -- Batch transcription must be deterministic. Do not merge accidental
@@ -10444,7 +10256,7 @@ function CTRawInputRuntime.capture(p_id)
         buffer = {}
         trial_state._raw_rec_buffer = buffer
     end
-    local facing_right = player:get_field("rl_dir") ~= false
+    local facing_right = ComboTrialsModules.GameProbe.is_facing_right(player)
     buffer[#buffer + 1] = RawInputCodec.native_to_relative(
         (input and tonumber(tostring(input))) or 0,
         facing_right
@@ -10524,7 +10336,7 @@ function CTRawInputRuntime.play()
     if demo_state.raw_input_source == RawInputCodec.RELATIVE_FIELD then
         mask = RawInputCodec.relative_to_native(
             mask,
-            p1:get_field("rl_dir") ~= false
+            ComboTrialsModules.GameProbe.is_facing_right(p1)
         )
     end
     p1:set_field("pl_input_new", mask)
