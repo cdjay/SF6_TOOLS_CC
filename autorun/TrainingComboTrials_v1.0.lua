@@ -29,7 +29,9 @@ local ComboTrialsModules = {
     GameProbe = require("func/ComboTrials/GameProbe"),
     HpVital = require("func/ComboTrials/HpVital"),
     RawStage1Controller = require("func/ComboTrials/Raw/Stage1Controller"),
-    RawRecordingFacts = require("func/ComboTrials/Raw/RawRecordingFacts")
+    RawRecordingFacts = require("func/ComboTrials/Raw/RawRecordingFacts"),
+    SemanticShadowController =
+        require("func/ComboTrials/Semantic/SemanticShadowController")
 }
 local DebugTrace = ComboTrialsModules.DebugTrace
 local ActionMatcher = ComboTrialsModules.ActionMatcher
@@ -2595,6 +2597,10 @@ trial_state._raw_stage1 = assert(ComboTrialsModules.RawStage1Controller.new({
         end
     end,
     write_json = function(path, value) return json.dump_file(path, value) end,
+    semantic_shadow = assert(ComboTrialsModules.SemanticShadowController.new({
+        target_game_version = SF6CCVersion.GAME_VERSION,
+        write_json = function(path, value) return json.dump_file(path, value) end,
+    })),
     get_context = function(player_index)
         return {
             character = players[player_index] and players[player_index].profile_name or "Unknown",

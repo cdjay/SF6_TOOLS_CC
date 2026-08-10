@@ -70,10 +70,35 @@ local state = {
 }
 local written_path = nil
 local written_value = nil
+local shadow_expected = nil
+local shadow_compare_count = 0
+local shadow_clear_count = 0
+local semantic_shadow = {
+    clear = function()
+        shadow_clear_count = shadow_clear_count + 1
+    end,
+    install_expected = function(_, fighter_id, trace)
+        equal(fighter_id, 1)
+        shadow_expected = trace
+        return true
+    end,
+    compare_actual = function(_, actual, options)
+        shadow_compare_count = shadow_compare_count + 1
+        return {
+            status = options.finalized and "matched" or "progress",
+            match = options.finalized and true or nil,
+            shadow_only = true,
+            actual = { event_count = actual:count() },
+            atomic_status = options.atomic_status,
+            atomic_match = options.atomic_match,
+        }
+    end,
+}
 local controller = assert(Stage1Controller.new({
     trial_state = state,
     target_game_version = "2026-08-03",
     raw_catalog = fake_raw_catalog,
+    semantic_shadow = semantic_shadow,
     get_context = function()
         return { control_mode = "classic", fail_display_frames = 90, current_combo = 2 }
     end,
@@ -86,6 +111,7 @@ local controller = assert(Stage1Controller.new({
 
 local _, legacy_status = controller:install_sequence({ { _xt_meta = {} } })
 equal(legacy_status, "legacy")
+equal(shadow_clear_count, 1)
 equal(controller:blocks_legacy_detector(), false)
 
 local invalid, invalid_status = controller:install_sequence({ {
@@ -145,6 +171,7 @@ equal(controller:blocks_legacy_detector(), true)
 local loaded, loaded_status = controller:install_sequence({ { _xt_meta = valid_meta } })
 assert(loaded)
 equal(loaded_status, "loaded")
+assert(shadow_expected ~= nil)
 equal(state._raw_stage1_rows[1].action_id, 600)
 equal(state._raw_stage1_rows[1].status, "DIRECT")
 equal(state._raw_stage1_rows[1].display_text, "Action 600 #1 | [norm v0] 236+HP")
@@ -159,6 +186,9 @@ equal(passed.status, "passed")
 equal(state.success_timer, 90)
 equal(state._raw_stage1_visual_step, 2)
 equal(state._raw_stage1_terminal, "passed")
+assert(shadow_compare_count >= 1)
+equal(state._semantic_player_shadow.status, "matched")
+equal(state._semantic_player_shadow.atomic_status, "passed")
 state.success_timer = 0
 local passed_again = assert(controller:observe_frame(0, 13, 600, 1, 16))
 equal(passed_again.status, "passed")

@@ -48,6 +48,7 @@ function Stage1Controller.new(options)
         recording_step_facts = nil,
         recording_observation = nil,
         terminal_result_applied = false,
+        semantic_shadow = options.semantic_shadow,
         get_context = options.get_context,
         write_json = options.write_json,
         ticker = options.ticker,
@@ -66,6 +67,7 @@ function Controller:_reset_visible_state(status, code)
     state._raw_stage1_rows = nil
     state._raw_stage1_visual_step = nil
     state._raw_stage1_terminal = nil
+    state._semantic_player_shadow = nil
 end
 
 function Controller:_set_error(status, code)
@@ -135,6 +137,10 @@ function Controller:refresh_rows(preferred_profile)
 end
 
 function Controller:install_sequence(sequence)
+    if self.semantic_shadow ~= nil
+        and type(self.semantic_shadow.clear) == "function" then
+        self.semantic_shadow:clear()
+    end
     local first = type(sequence) == "table" and sequence[1] or nil
     local meta = type(first) == "table" and first._xt_meta or nil
     local loaded, status, code = self.runtime:load_meta(meta)
@@ -166,6 +172,17 @@ function Controller:install_sequence(sequence)
         self.catalog = nil
         self.trial_state._raw_stage1_catalog = nil
         return self:_set_error("catalog_error", "raw_trial_build_mismatch")
+    end
+    if self.semantic_shadow ~= nil then
+        local installed, install_error = self.semantic_shadow:install_expected(
+            environment.fighter_id, loaded:trace())
+        if installed == nil then
+            self.trial_state._semantic_player_shadow = {
+                status = "unavailable",
+                reason = install_error,
+                shadow_only = true,
+            }
+        end
     end
     self.trial_state._raw_stage1_status = "loaded"
     self.trial_state._raw_stage1_error = nil
@@ -298,8 +315,30 @@ function Controller:begin_attempt(engine_frame, player_index,
         local context = type(self.get_context) == "function"
             and self.get_context(player_index) or {}
         self:_apply_attempt_result(self.runtime.last_result, context)
+        self:_update_semantic_shadow(self.runtime.last_result, false)
     end
     return trace, trace_error
+end
+
+function Controller:_update_semantic_shadow(result, finalized)
+    if self.semantic_shadow == nil then return nil end
+    local actual = self.runtime:attempt_trace()
+    if actual == nil then return nil end
+    local report, report_error = self.semantic_shadow:compare_actual(actual, {
+        finalized = finalized == true,
+        atomic_status = result and result.status or nil,
+        atomic_match = result and result.match or nil,
+    })
+    if report == nil then
+        report = {
+            status = "unavailable",
+            reason = report_error,
+            shadow_only = true,
+        }
+    end
+    self.trial_state._semantic_player_shadow = report
+    _G.SF6CC_SEMANTIC_PLAYER_SHADOW = report
+    return report
 end
 
 function Controller:should_collect_sample(player_index)
@@ -323,6 +362,8 @@ function Controller:_diagnostic(result, context)
         and self.catalog:get_bindings_snapshot(expected_id) or nil
     diagnostic.actual_direct_bindings = actual_id and self.catalog
         and self.catalog:get_bindings_snapshot(actual_id) or nil
+    diagnostic.semantic_player_shadow = clone(
+        self.trial_state._semantic_player_shadow)
     self.trial_state._raw_stage1_diagnostic = diagnostic
     _G.SF6CC_RAW_STAGE1_DIAGNOSTIC = diagnostic
     if type(self.write_json) == "function" then
@@ -454,6 +495,8 @@ function Controller:observe_frame(player_index, engine_frame, action_id, action_
         end
     end
     self:_apply_attempt_result(result, context)
+    self:_update_semantic_shadow(result,
+        result.status == "passed" or result.status == "failed")
     return result
 end
 
