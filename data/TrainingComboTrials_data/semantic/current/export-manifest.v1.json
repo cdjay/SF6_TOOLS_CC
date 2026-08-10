@@ -1,0 +1,72 @@
+{
+  "algorithm_version": "m5-export.v1",
+  "approval_coverage": {
+    "active_decisions": 0,
+    "approved_migration_links": 0,
+    "decisions": 0,
+    "moves": 3023,
+    "provisional": 3023,
+    "stable_identities": 0
+  },
+  "artifacts": {
+    "legacy_projections": {
+      "bytes": 375,
+      "file": "legacy-projections-current.v1.json",
+      "sha256": "3ae3442c1dfc2dc88a9616790c2c9be18ea4038b41eab621743417c01f455307"
+    },
+    "public_catalog_current": {
+      "bytes": 2453105,
+      "file": "public-catalog-current.v1.json",
+      "sha256": "c4b753a4f0775b219f2ce4fc190b72f5ffa353ef69b5816b45021f6ed83c7318"
+    },
+    "runtime_current": {
+      "bytes": 8336048,
+      "file": "runtime-current.v1.json",
+      "sha256": "af319d0f4ca96e49368cea976951558425fb14bc841fad217226e4a158eea5bf"
+    }
+  },
+  "authority": "current_semantic_candidate_only",
+  "auto_approved": false,
+  "build": {
+    "build_uid": "sf6b_c0269f7351fc73e06633b780",
+    "display_version": "2026-08-03"
+  },
+  "character_coverage": {
+    "expected": 31,
+    "failed": [],
+    "generated": 31
+  },
+  "provenance_summary": {
+    "current_only": true,
+    "legacy_projection_separate": true,
+    "m4_index_query_only": true,
+    "raw_workspace_read_only": true
+  },
+  "ready": {
+    "artifact_set": true,
+    "integration_candidate": false,
+    "review_complete": false
+  },
+  "review_pending": {
+    "extensions": 24,
+    "memberships": 0,
+    "migration_links": 273,
+    "rows": 65,
+    "transitions": 20
+  },
+  "schema": "sf6acbcm.m5-export-manifest.v1",
+  "source": {
+    "ledger_head_sha256": null,
+    "ledger_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+    "m2_graph_canonical_sha256": "0cefaa96ce82ab472cd98e1ec7e4cff6eb13ee3754bf4522a73f6c4137e1629d",
+    "m2_graph_file_sha256": "eac036e86a7ee88f43b09df7a13de7c6b915bf16f6c785217c2e285e34f0f3de",
+    "m4_index_sha256": "7b95f8250bbb708ced408cf4481351fcca8296190eee10ebd3c2bd93793886a4"
+  },
+  "unresolved": {
+    "extensions": 24,
+    "memberships": 0,
+    "migration_links": 273,
+    "rows": 65,
+    "transitions": 20
+  }
+}
