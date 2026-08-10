@@ -10640,13 +10640,20 @@ table.insert(_G._shared_input_pre, function(p_id, args)
                             and demo_state._state_reinjected ~= true then
                             CTStunDemoRuntime.restore_pre_demo_state()
                             demo_state._state_reinjected = true
-                            ctx.arm_raw_stage1_demo_attempt()
+                            demo_state.countdown = 10
+                            demo_state.p1_mask = 0
+                            demo_state._last_tick_frame = nil
+                        else
+                            if demo_state.current_step == 1
+                                and demo_state.current_frame == 0 then
+                                ctx.arm_raw_stage1_demo_attempt()
+                            end
+                            demo_state.p1_mask = step.mask
+                            CTStunDemoRuntime.advance_timeline_frames(1)
+                            demo_state._last_tick_frame = engine_frame_count or 0
+                            demo_state._transcription_capture_frame =
+                                demo_state.transcribing == true
                         end
-                        demo_state.p1_mask = step.mask
-                        CTStunDemoRuntime.advance_timeline_frames(1)
-                        demo_state._last_tick_frame = engine_frame_count or 0
-                        demo_state._transcription_capture_frame =
-                            demo_state.transcribing == true
                     else
                         if demo_state.transcribing == true then
                             demo_state.mark_transcription_input_finished()
@@ -10793,8 +10800,10 @@ function CTRawInputRuntime.play()
     if index == 1 and demo_state._state_reinjected ~= true then
         CTStunDemoRuntime.restore_pre_demo_state()
         demo_state._state_reinjected = true
-        ctx.arm_raw_stage1_demo_attempt()
+        demo_state.countdown = 10
+        return
     end
+    if index == 1 then ctx.arm_raw_stage1_demo_attempt() end
 
     local p1 = GS.p1
     if not p1 then return end
