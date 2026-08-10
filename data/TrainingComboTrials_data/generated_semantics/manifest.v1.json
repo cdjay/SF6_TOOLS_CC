@@ -1,0 +1,40 @@
+{
+  "algorithm_version": "sf6cc-replacement-absorb.v1",
+  "artifacts": [
+    {
+      "bytes": 51,
+      "file": "Jamie.json",
+      "sha256": "e4d4d11df0c4d02f849c3e9a46411027f1900a1b40f027d5ede05925002a5a76"
+    }
+  ],
+  "authority": "current_ac_bcm_strict_relationship_projection",
+  "auto_approved": false,
+  "build": {
+    "build_uid": "sf6b_c0269f7351fc73e06633b780",
+    "display_version": "2026-08-03"
+  },
+  "projections": [
+    {
+      "character": "Jamie",
+      "fighter_id": 21,
+      "move_uid": "m2move_596961b76aff52ded307e13a",
+      "owner_action_id": 981,
+      "projection_uid": "sf6cc_pilot_replacement_absorb_001",
+      "relationship_uids": [
+        "m1rel_485e4d83152a623fdd1932ac",
+        "m1rel_91c44dcfc796dd10c6ce591a",
+        "m1rel_efe5d4c2407597b4a56b20e9"
+      ],
+      "replacement_action_ids": [
+        982,
+        983,
+        984
+      ]
+    }
+  ],
+  "schema": "sf6acbcm.sf6cc-generated-semantics-manifest.v1",
+  "source": {
+    "m2_graph_sha256": "eac036e86a7ee88f43b09df7a13de7c6b915bf16f6c785217c2e285e34f0f3de",
+    "selection_sha256": "5bd324cf394481dd7792ad17770eb38fd0b2fa64321e771020abfdf07a332cde"
+  }
+}
