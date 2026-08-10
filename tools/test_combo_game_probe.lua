@@ -81,7 +81,14 @@ assert(GameProbe.build_bcm_trigger_cache(0) == true
         and players[0].trigger_cache_built == true,
     "BCM trigger facts must retain their incremental cache result")
 
-local action_frame = { call = function(_, method) if method == "ToString()" then return "7.75" end end }
+local action_frame = {
+    get_field = function(_, name)
+        if name == "v" then return 7.75 * 65536 end
+    end,
+    call = function(_, method)
+        if method == "ToString()" then return "19726.790771" end
+    end,
+}
 local state_flags_field = { get_data = function() return 9 end }
 local action_field = { get_data = function() return 456 end }
 local branch_type_field = { get_data = function() return 3 end }
@@ -146,7 +153,7 @@ assert(direct_input == (4 | 16) and branch_type == 3
     "input and facing facts must remain unchanged")
 local runtime_action_id, runtime_action_frame = GameProbe.get_runtime_action_data(attacker)
 assert(runtime_action_id == 123 and runtime_action_frame == 7,
-    "Action-only runtime facts must not depend on input field reads")
+    "Action-only runtime facts must decode raw sfix instead of ToString noise")
 local reused_action_id, reused_action_frame =
     GameProbe.get_action_data(attacker, runtime_action_id, runtime_action_frame)
 assert(reused_action_id == 123 and reused_action_frame == 7,

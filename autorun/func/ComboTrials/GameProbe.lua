@@ -225,6 +225,39 @@ local _ct_action_scratch = {
     direct_input = 0, direction_input = 0, branch_type = 0, facing_right = true
 }
 
+local SFIX_SCALE = 65536.0
+
+local function _ct_read_sfix_number(sf)
+    if type(sf) == "number" then return sf end
+    if sf == nil then return nil end
+
+    local raw = nil
+    pcall(function() raw = sf.v end)
+    if raw == nil then
+        pcall(function() raw = sf:get_field("v") end)
+    end
+    if raw == nil then
+        pcall(function()
+            local tdef = sf:get_type_definition()
+            local field = tdef and tdef:get_field("v") or nil
+            raw = field and field:get_data(sf) or nil
+        end)
+    end
+    raw = tonumber(raw)
+    if raw ~= nil and raw == raw
+        and raw ~= math.huge and raw ~= -math.huge then
+        return raw / SFIX_SCALE
+    end
+
+    local value = nil
+    pcall(function() value = tonumber(sf:call("ToString()")) end)
+    if value ~= nil and value == value
+        and value ~= math.huge and value ~= -math.huge then
+        return value
+    end
+    return nil
+end
+
 local function _ct_read_runtime_action_data(p_obj)
     local act_param = p_obj and p_obj:get_field("mpActParam") or nil
     local action_part = act_param and act_param:get_field("ActionPart") or nil
@@ -234,13 +267,8 @@ local function _ct_read_runtime_action_data(p_obj)
     local action_id = tonumber(engine:call("get_ActionID")) or -1
     local action_frame = 0
     local sf = engine:call("get_ActionFrame")
-    if sf then
-        local value = tonumber(sf:call("ToString()"))
-        if value ~= nil and value == value
-            and value ~= math.huge and value ~= -math.huge then
-            action_frame = math.floor(value)
-        end
-    end
+    local value = _ct_read_sfix_number(sf)
+    if value ~= nil then action_frame = math.floor(value) end
     return action_id, action_frame
 end
 

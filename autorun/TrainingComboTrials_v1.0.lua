@@ -366,7 +366,8 @@ local trial_state = {
     _raw_stage1_diagnostic = nil,
     _raw_stage1_catalog = nil,
     _raw_stage1_catalog_status = nil,
-    _raw_stage1_rows = nil
+    _raw_stage1_rows = nil,
+    _raw_stage1_defer_attempt = false
 }
 
 local XT_SETTINGS_FILE = "TrainingComboTrials_data/XT_Settings.json"
@@ -1198,6 +1199,7 @@ ctx.stop_demo_playback = function(reason, old_file, new_file, stop_trial, keep_p
 
     demo_state.is_playing = false
     trial_state._demo_timing_ui_baseline = false
+    trial_state._raw_stage1_defer_attempt = false
     demo_state.current_frame = 0
     demo_state.current_step = 1
     demo_state.countdown = 0
@@ -2816,17 +2818,19 @@ local function clear_trial_attempt_state(player_idx, phase)
     local raw_actor = raw_player == 0 and GS.p1 or GS.p2
     local raw_action_id, raw_action_frame =
         ComboTrialsModules.GameProbe.get_runtime_action_data(raw_actor)
-    local raw_attempt, raw_attempt_status = trial_state._raw_stage1:begin_attempt(
-        engine_frame_count,
-        raw_player,
-        raw_action_id,
-        raw_action_frame
-    )
-    if raw_attempt == nil and raw_attempt_status ~= "legacy"
-        and trial_state._raw_stage1:blocks_legacy_detector() then
-        trial_state._raw_stage1_error = raw_attempt_status
-        trial_state.fail_timer = d2d_cfg.fail_display_frames or 120
-        trial_state.fail_reason = "RAW STAGE1 INVALID"
+    if trial_state._raw_stage1_defer_attempt ~= true then
+        local raw_attempt, raw_attempt_status = trial_state._raw_stage1:begin_attempt(
+            engine_frame_count,
+            raw_player,
+            raw_action_id,
+            raw_action_frame
+        )
+        if raw_attempt == nil and raw_attempt_status ~= "legacy"
+            and trial_state._raw_stage1:blocks_legacy_detector() then
+            trial_state._raw_stage1_error = raw_attempt_status
+            trial_state.fail_timer = d2d_cfg.fail_display_frames or 120
+            trial_state.fail_reason = "RAW STAGE1 INVALID"
+        end
     end
 
     reset_player_action_buffers(players[player_idx or trial_state.playing_player])
@@ -3131,6 +3135,7 @@ local function start_trial(player_idx)
     trial_state._rec_scene_state = nil
     trial_state.is_playing = true
     trial_state.playing_player = player_idx
+    trial_state._raw_stage1_defer_attempt = false
     trial_state._was_playing = false
     trial_state._hp_inject_frames = 0
     clear_trial_attempt_state(player_idx, "start_trial")
@@ -3357,6 +3362,10 @@ local function load_and_start_trial(player_idx)
 end
 
 local function reset_trial_steps()
+    if demo_state and demo_state.is_playing
+        and trial_state._transcribing ~= true then
+        trial_state._raw_stage1_defer_attempt = true
+    end
     clear_pending_position_injection()
     clear_trial_attempt_state(trial_state.playing_player, "reset_trial")
     -- Keep the training room's health settings for the next attempt
@@ -7865,7 +7874,8 @@ ctx.observe_runtime_action_truth = function(p_idx, runtime_action_id, runtime_ac
         session = demo_state.transcription_run.session
     end
     if trial_state.is_recording
-        or (trial_state.is_playing and trial_state._transcribing ~= true) then
+        or (trial_state.is_playing and trial_state._transcribing ~= true
+            and trial_state._raw_stage1_defer_attempt ~= true) then
         trial_state._raw_stage1:observe_frame(
             p_idx, engine_frame_count, runtime_action_id, runtime_action_frame,
             _pf.direct_input, _pf.direction_input, _pf.facing_right)
@@ -7921,6 +7931,23 @@ ctx.observe_runtime_action_truth = function(p_idx, runtime_action_id, runtime_ac
             trial_state.first_action_pos_p1_raw,
             trial_state.first_action_pos_p2_raw = capture_current_positions()
     end
+end
+
+ctx.arm_raw_stage1_demo_attempt = function()
+    if trial_state._raw_stage1_defer_attempt ~= true then return true end
+    local action_id, action_frame =
+        ComboTrialsModules.GameProbe.get_runtime_action_data(GS.p1)
+    local attempt, status = trial_state._raw_stage1:begin_attempt(
+        engine_frame_count, 0, action_id, action_frame)
+    trial_state._raw_stage1_defer_attempt = false
+    if attempt == nil and status ~= "legacy"
+        and trial_state._raw_stage1:blocks_legacy_detector() then
+        trial_state._raw_stage1_error = status
+        trial_state.fail_timer = d2d_cfg.fail_display_frames or 120
+        trial_state.fail_reason = "RAW STAGE1 INVALID"
+        return false
+    end
+    return true
 end
 
 -- =========================================================
@@ -8700,6 +8727,7 @@ local function start_demo(opts)
     trial_state._transcribing = opts.transcribe == true
         and runtime_audit ~= true
     trial_state._runtime_auditing = runtime_audit == true
+    trial_state._raw_stage1_defer_attempt = trial_state._transcribing ~= true
     
     -- CLEANUP TIMERS
     trial_state.success_timer = 0
@@ -10581,6 +10609,7 @@ table.insert(_G._shared_input_pre, function(p_id, args)
                             and demo_state._state_reinjected ~= true then
                             CTStunDemoRuntime.restore_pre_demo_state()
                             demo_state._state_reinjected = true
+                            ctx.arm_raw_stage1_demo_attempt()
                         end
                         demo_state.p1_mask = step.mask
                         CTStunDemoRuntime.advance_timeline_frames(1)
@@ -10733,6 +10762,7 @@ function CTRawInputRuntime.play()
     if index == 1 and demo_state._state_reinjected ~= true then
         CTStunDemoRuntime.restore_pre_demo_state()
         demo_state._state_reinjected = true
+        ctx.arm_raw_stage1_demo_attempt()
     end
 
     local p1 = GS.p1
