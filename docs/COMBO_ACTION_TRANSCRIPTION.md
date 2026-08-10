@@ -64,6 +64,11 @@ owner 折叠，canonical 的时间窗口与同锚要求也必须由该产品数�
 `CharacterRules` 只把这些产品数据编译成纯运行时关系表，
 `ActionEventCompiler` 与实时验证器消费同一张表。
 
+Runtime 入口统一通过 `UnifiedActionConsumer.lua` 消费这套既有合同。该模块只转发
+`ActionEventCompiler`、`ActionMatcher` 与 `CommandResolver` 的现有决定，不定义新的
+Action 范围、过滤条件、命中规则或 V2 字段语义。录制、训练检测与运行审计不得绕过该入口
+另建一套 Action 判定；Presentation 仍只负责显示投影。
+
 实时检测中的角色条件同样必须数据化：Action 条目的 `runtime_force_after_ids` 只在声明的
 前驱 Action 后启用强制识别；角色根级 `_character.allow_pending_absorb` 控制该角色能否在
 连击数尚未到达时暂存内部命中阶段；`preserve_short_action` 控制短 Action 是否绕过通用幽灵
