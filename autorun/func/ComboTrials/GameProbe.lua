@@ -234,7 +234,13 @@ local function _ct_read_runtime_action_data(p_obj)
     local action_id = tonumber(engine:call("get_ActionID")) or -1
     local action_frame = 0
     local sf = engine:call("get_ActionFrame")
-    if sf then action_frame = tonumber(sf:call("ToString()")) or 0 end
+    if sf then
+        local value = tonumber(sf:call("ToString()"))
+        if value ~= nil and value == value
+            and value ~= math.huge and value ~= -math.huge then
+            action_frame = math.floor(value)
+        end
+    end
     return action_id, action_frame
 end
 

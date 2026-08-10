@@ -81,7 +81,7 @@ assert(GameProbe.build_bcm_trigger_cache(0) == true
         and players[0].trigger_cache_built == true,
     "BCM trigger facts must retain their incremental cache result")
 
-local action_frame = { call = function(_, method) if method == "ToString()" then return "7" end end }
+local action_frame = { call = function(_, method) if method == "ToString()" then return "7.75" end end }
 local state_flags_field = { get_data = function() return 9 end }
 local action_field = { get_data = function() return 456 end }
 local branch_type_field = { get_data = function() return 3 end }
@@ -140,7 +140,7 @@ end
 local act_id, frame_no, flags, action_code, direct_input, branch_type,
     direction_input, facing_right = GameProbe.get_action_data(attacker)
 assert(act_id == 123 and frame_no == 7 and flags == 9 and action_code == 456,
-    "Action runtime fields must retain their return order and values")
+    "Action runtime fields must retain their return order and normalize sfix frames")
 assert(direct_input == (4 | 16) and branch_type == 3
         and direction_input == 4 and facing_right == true,
     "input and facing facts must remain unchanged")
