@@ -223,6 +223,15 @@ function Controller:cancel_recording()
     self.trial_state._raw_stage1_rows = nil
 end
 
+function Controller:reseed_recording(player_index, action_id, action_frame)
+    if not valid_player_index(player_index) then return nil, "invalid_player_index" end
+    local reseeded, reseed_error =
+        self.runtime:reseed_recording(action_id, action_frame)
+    if reseeded == nil then return nil, reseed_error end
+    self.boundaries[player_index] = RawActionBoundary.new(action_id, action_frame)
+    return true
+end
+
 function Controller:finish_recording(preferred_profile)
     local trial, trial_error = self.runtime:finish_recording()
     self.trial_state._raw_stage1_status = trial and "recorded" or "invalid"

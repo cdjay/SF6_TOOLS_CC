@@ -367,7 +367,8 @@ local trial_state = {
     _raw_stage1_catalog = nil,
     _raw_stage1_catalog_status = nil,
     _raw_stage1_rows = nil,
-    _raw_stage1_defer_attempt = false
+    _raw_stage1_defer_attempt = false,
+    _raw_stage1_recording_defer = false
 }
 
 local XT_SETTINGS_FILE = "TrainingComboTrials_data/XT_Settings.json"
@@ -3098,7 +3099,8 @@ local function start_recording(player_idx)
     trial_state._piyo_frame = nil
     trial_state._rec_frame_count = 0
     trial_state._raw_rec_buffer = {}
-    trial_state._raw_rec_active = true
+    trial_state._raw_rec_active = false
+    trial_state._raw_stage1_recording_defer = true
     trial_state._action_event_session = ctx.new_action_event_session(player_idx, "recording")
     trial_state._recording_compiler_used = false
     trial_state._raw_stage1_v2_atomic = false
@@ -3194,6 +3196,7 @@ local function cancel_recording()
     trial_state._recording_compiler_used = false
     trial_state._raw_stage1_v2_atomic = false
     trial_state._raw_stage1_legacy_step_count = nil
+    trial_state._raw_stage1_recording_defer = false
     trial_state._last_action_compile = nil
     ctx.reset_recording_preview()
     clear_recording_logger(canceled_player)
@@ -7873,7 +7876,12 @@ ctx.observe_runtime_action_truth = function(p_idx, runtime_action_id, runtime_ac
         and demo_state.transcription_run.active == true and p_idx == 0 then
         session = demo_state.transcription_run.session
     end
-    if trial_state.is_recording
+    if trial_state.is_recording and trial_state._raw_stage1_recording_defer == true then
+        ctx.arm_raw_stage1_recording(
+            p_idx, runtime_action_id, runtime_action_frame)
+    end
+    if (trial_state.is_recording
+            and trial_state._raw_stage1_recording_defer ~= true)
         or (trial_state.is_playing and trial_state._transcribing ~= true
             and trial_state._raw_stage1_defer_attempt ~= true) then
         trial_state._raw_stage1:observe_frame(
@@ -7931,6 +7939,26 @@ ctx.observe_runtime_action_truth = function(p_idx, runtime_action_id, runtime_ac
             trial_state.first_action_pos_p1_raw,
             trial_state.first_action_pos_p2_raw = capture_current_positions()
     end
+end
+
+ctx.arm_raw_stage1_recording = function(p_idx, action_id, action_frame)
+    if trial_state._raw_stage1_recording_defer ~= true then return true end
+    if p_idx ~= trial_state.recording_player then return false end
+    if trial_state.pending_exact_pos and trial_state.pending_exact_pos > 0 then
+        return false
+    end
+    if trial_state._pending_reinject_settings == true then return false end
+    local tm = sdk.get_managed_singleton("app.training.TrainingManager")
+    if tm and tm:get_field("_IsReqRefresh") == true then return false end
+    local reseeded, reseed_error = trial_state._raw_stage1:reseed_recording(
+        p_idx, action_id, action_frame)
+    if reseeded == nil then
+        trial_state._raw_stage1_error = reseed_error
+        return false
+    end
+    trial_state._raw_stage1_recording_defer = false
+    trial_state._raw_rec_active = true
+    return true
 end
 
 ctx.arm_raw_stage1_demo_attempt = function()
@@ -8392,6 +8420,7 @@ function save_trial_sequence(meta)
     trial_state._recording_compiler_used = false
     trial_state._raw_stage1_v2_atomic = false
     trial_state._raw_stage1_legacy_step_count = nil
+    trial_state._raw_stage1_recording_defer = false
     trial_state._last_action_compile = nil
     trial_state._rec_environment = nil
     trial_state._rec_scene_state = nil

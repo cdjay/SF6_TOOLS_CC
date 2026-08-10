@@ -24,6 +24,27 @@ assert(runtime:observe_recording({ action_id = 601, engine_frame = 2, action_fra
 assert(runtime:observe_recording({ action_id = 600, engine_frame = 3, action_frame = 0 }))
 assert(runtime:finish_recording())
 
+local reseeded_runtime = Stage1Runtime.new()
+assert(reseeded_runtime:begin_recording("Ryu", {
+    player_index = 0,
+    start_gate = "explicit",
+    initial_action_id = 1,
+    initial_action_frame = 13,
+}))
+assert(reseeded_runtime:reseed_recording(1, 66))
+local reseeded_idle = assert(reseeded_runtime:observe_recording({
+    player_index = 0, action_id = 1, engine_frame = 1, action_frame = 67,
+}))
+equal(reseeded_idle.new_instance, false)
+local reseeded_first = assert(reseeded_runtime:observe_recording({
+    player_index = 0, action_id = 9, engine_frame = 2, action_frame = 0,
+    active = true,
+}))
+equal(reseeded_first.new_instance, true)
+local reseeded_trial = assert(reseeded_runtime:finish_recording())
+equal(reseeded_trial:trace():count(), 1)
+equal(reseeded_trial:trace():get_instances()[1].action_id, 9)
+
 local meta = {}
 assert(runtime:attach_last_recording(meta, {
     raw_input_ref = { source = "v2", field = "relative_raw_inputs" },

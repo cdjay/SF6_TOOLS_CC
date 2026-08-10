@@ -113,6 +113,20 @@ function Runtime:observe_recording(sample)
     return self.recording.capture:observe(sample)
 end
 
+function Runtime:reseed_recording(initial_action_id, initial_action_frame)
+    if self.recording == nil then return nil, "recording_not_active" end
+    local trace = self.recording.trial:trace()
+    if trace:count() ~= 0 then return nil, "recording_already_started" end
+    local capture, capture_error = AtomicCapture.new(trace, {
+        start_gate = "explicit",
+        initial_action_id = initial_action_id,
+        initial_action_frame = initial_action_frame,
+    })
+    if capture == nil then return nil, capture_error end
+    self.recording.capture = capture
+    return true
+end
+
 function Runtime:finish_recording()
     if self.recording == nil then return nil, "recording_not_active" end
     if self.recording.trial:trace():count() == 0 then

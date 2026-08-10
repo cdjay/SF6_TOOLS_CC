@@ -184,6 +184,7 @@ assert(controller:begin_recording("Ryu", {
     initial_action_frame = 5,
     recorded_at = "2026-08-09T00:00:00Z",
 }))
+assert(controller:reseed_recording(0, 1, 8))
 assert(controller:observe_frame(0, 21, 600, 0, 0))
 assert(controller:observe_frame(0, 22, 600, 5, 0))
 assert(controller:observe_frame(0, 23, 600, 0, 0))
