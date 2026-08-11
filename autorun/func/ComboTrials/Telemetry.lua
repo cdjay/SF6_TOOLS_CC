@@ -35,6 +35,7 @@ local state = {
     attempt = nil,
     event_counter = 0,
     last_error = nil,
+    checkpoint_error = nil,
     identity_cache = setmetatable({}, { __mode = "k" })
 }
 
@@ -304,6 +305,45 @@ local function append_event(event)
     return true
 end
 
+local Checkpoint = require("func/ComboTrials/ComboAttemptCheckpoint")
+local checkpoint_producer = Checkpoint.new({
+    read = function(path)
+        if not fs or type(fs.read) ~= "function" then error("fs.read unavailable") end
+        return fs.read(path)
+    end,
+    exists = function(path)
+        local file = io.open(path, "rb")
+        if not file then return false end
+        file:close()
+        return true
+    end,
+    atomic_write = function(path, bytes)
+        if type(sf6cc_atomic_file) ~= "table" or type(sf6cc_atomic_file.write) ~= "function" then
+            return false, "native atomic file bridge unavailable"
+        end
+        return sf6cc_atomic_file.write(path, bytes)
+    end,
+    decode = function(raw)
+        if not json or type(json.load_string) ~= "function" then error("json.load_string unavailable") end
+        return json.load_string(raw)
+    end,
+    sha256 = Telemetry.sha256,
+    new_epoch = function()
+        if type(sf6cc_atomic_file) ~= "table" or type(sf6cc_atomic_file.random_epoch) ~= "function" then
+            return nil, "native epoch generator unavailable"
+        end
+        return sf6cc_atomic_file.random_epoch()
+    end,
+    now = os.time,
+    log = function(message)
+        pcall(print, "[ComboTrials.Telemetry.Checkpoint] " .. tostring(message))
+    end
+})
+
+if type(sf6cc_atomic_file) == "table" and type(sf6cc_atomic_file.write) == "function" then
+    pcall(checkpoint_producer.initialize, checkpoint_producer)
+end
+
 function Telemetry.begin_attempt(context)
     context = type(context) == "table" and context or {}
     local sequence = type(context.sequence) == "table" and context.sequence or nil
@@ -374,6 +414,22 @@ function Telemetry.finish_attempt(outcome, context)
         }
     }
 
+    if attempt.source == "manual" then
+        local call_ok, checkpoint_ok, checkpoint_error = pcall(
+            checkpoint_producer.record,
+            checkpoint_producer,
+            attempt,
+            outcome
+        )
+        if not call_ok or not checkpoint_ok then
+            state.checkpoint_error = call_ok and checkpoint_error or checkpoint_ok
+            pcall(print, "[ComboTrials.Telemetry] checkpoint failed: "
+                .. tostring(state.checkpoint_error))
+        else
+            state.checkpoint_error = nil
+        end
+    end
+
     local ok, err = append_event(event)
     if not ok then
         state.last_error = err
@@ -386,6 +442,10 @@ end
 
 function Telemetry.get_state()
     return state
+end
+
+function Telemetry.get_checkpoint_producer()
+    return checkpoint_producer
 end
 
 return Telemetry
