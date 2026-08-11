@@ -9,16 +9,15 @@ sf6cc_atomic_file.probe(relative_path)
 sf6cc_atomic_file.random_epoch()
 ```
 
-`write` accepts only the tracked producer's checkpoint and durable-state paths
+`write` accepts only the tracked producer's checkpoint, durable-state, and
+bounded pending-journal paths
 under `reframework/data/SF6_TrainingRemoteControl_data/ComboTrialTelemetry`.
 It creates a unique same-directory temporary file, writes all bytes, flushes
 and closes the handle, then publishes with `MoveFileExW` using
 `MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH`. A failed write or replace
 deletes only the temporary file and leaves the prior destination untouched.
 
-`probe` accepts the two persistence paths plus the fixed legacy `events.jsonl`
-WAL path and returns `exists` or `missing`. Atomic `write` remains restricted
-to the checkpoint and durable-state files.
+`probe` accepts those same three fixed paths and returns `exists` or `missing`.
 Only Win32 `ERROR_FILE_NOT_FOUND` and `ERROR_PATH_NOT_FOUND` are classified as
 missing. ACL, sharing, I/O, or other attribute failures return an error so the
 Lua producer fails closed without generating a replacement epoch.

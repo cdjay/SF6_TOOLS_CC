@@ -294,14 +294,23 @@ end
 
 local function append_event(event)
     ensure_output_directory()
-    local file, open_error = io.open(Telemetry.OUTPUT_FILE, "ab")
-    if not file then return false, tostring(open_error or "open failed") end
-    local ok, write_error = pcall(function()
-        file:write(encode_json(event), "\n")
-        file:flush()
-    end)
-    file:close()
-    if not ok then return false, tostring(write_error) end
+    local open_ok, file, open_error = pcall(io.open, Telemetry.OUTPUT_FILE, "ab")
+    if not open_ok or not file then return false, tostring(open_error or file or "open failed") end
+
+    local failure
+    local write_ok, write_result, write_error = pcall(file.write, file, encode_json(event), "\n")
+    if not write_ok or not write_result then failure = tostring(write_error or write_result or "write failed") end
+    if not failure then
+        local flush_ok, flush_result, flush_error = pcall(file.flush, file)
+        if not flush_ok or not flush_result then
+            failure = tostring(flush_error or flush_result or "flush failed")
+        end
+    end
+    local close_ok, close_result, close_error = pcall(file.close, file)
+    if (not close_ok or not close_result) and not failure then
+        failure = tostring(close_error or close_result or "close failed")
+    end
+    if failure then return false, failure end
     return true
 end
 
@@ -316,24 +325,6 @@ local checkpoint_producer = Checkpoint.new({
             return nil, "native atomic file probe unavailable"
         end
         return sf6cc_atomic_file.probe(path)
-    end,
-    read_events = function()
-        local file, open_error = io.open(Checkpoint.EVENTS_FILE, "rb")
-        if not file then error(tostring(open_error or "legacy events open failed")) end
-        local size, seek_error = file:seek("end")
-        if not size then
-            file:close()
-            error(tostring(seek_error or "legacy events seek failed"))
-        end
-        if size > 16777216 then
-            file:close()
-            error("legacy events exceed recovery byte limit")
-        end
-        assert(file:seek("set", 0))
-        local raw = file:read("*a")
-        file:close()
-        if type(raw) ~= "string" then error("legacy events read failed") end
-        return raw
     end,
     atomic_write = function(path, bytes)
         if type(sf6cc_atomic_file) ~= "table" or type(sf6cc_atomic_file.write) ~= "function" then
@@ -431,26 +422,46 @@ function Telemetry.finish_attempt(outcome, context)
         }
     }
 
-    local ok, err = append_event(event)
-    if not ok then
-        state.last_error = err
-        pcall(print, "[ComboTrials.Telemetry] append failed: " .. tostring(err))
-        return false, err
+    local pending_prepared = false
+    if attempt.source == "manual" then
+        local call_ok, prepare_ok, should_commit_or_error = pcall(
+            checkpoint_producer.prepare_event,
+            checkpoint_producer,
+            event
+        )
+        if call_ok and prepare_ok then
+            pending_prepared = should_commit_or_error == true
+            state.checkpoint_error = nil
+        else
+            state.checkpoint_error = call_ok and should_commit_or_error or prepare_ok
+            pcall(print, "[ComboTrials.Telemetry] pending failed: "
+                .. tostring(state.checkpoint_error))
+        end
     end
-    state.last_error = nil
 
-    local call_ok, checkpoint_ok, checkpoint_error = pcall(
-        checkpoint_producer.record_event,
-        checkpoint_producer,
-        event
-    )
-    if not call_ok or not checkpoint_ok then
-        state.checkpoint_error = call_ok and checkpoint_error or checkpoint_ok
-        pcall(print, "[ComboTrials.Telemetry] checkpoint failed: "
-            .. tostring(state.checkpoint_error))
+    local append_ok, append_error = append_event(event)
+    if not append_ok then
+        state.last_error = append_error
+        pcall(print, "[ComboTrials.Telemetry] append failed: " .. tostring(append_error))
     else
-        state.checkpoint_error = nil
+        state.last_error = nil
     end
+
+    if pending_prepared then
+        local call_ok, checkpoint_ok, checkpoint_error = pcall(
+            checkpoint_producer.commit_pending,
+            checkpoint_producer,
+            event.event_id
+        )
+        if not call_ok or not checkpoint_ok then
+            state.checkpoint_error = call_ok and checkpoint_error or checkpoint_ok
+            pcall(print, "[ComboTrials.Telemetry] checkpoint failed: "
+                .. tostring(state.checkpoint_error))
+        else
+            state.checkpoint_error = nil
+        end
+    end
+    if not append_ok then return false, append_error end
     return true, event
 end
 

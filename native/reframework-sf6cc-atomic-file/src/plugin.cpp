@@ -21,8 +21,8 @@ constexpr std::string_view k_checkpoint_path =
     "SF6_TrainingRemoteControl_data/ComboTrialTelemetry/cumulative-checkpoint-v1.json";
 constexpr std::string_view k_state_path =
     "SF6_TrainingRemoteControl_data/ComboTrialTelemetry/producer-state-v1.json";
-constexpr std::string_view k_events_path =
-    "SF6_TrainingRemoteControl_data/ComboTrialTelemetry/events.jsonl";
+constexpr std::string_view k_pending_path =
+    "SF6_TrainingRemoteControl_data/ComboTrialTelemetry/producer-pending-v1.json";
 
 std::string windows_error(const char* operation, DWORD code = GetLastError()) {
     char buffer[128]{};
@@ -62,11 +62,10 @@ std::optional<std::string> random_hex_16(std::string& error) {
 
 std::optional<std::filesystem::path> allowed_target(
     std::string_view relative,
-    bool allow_events,
     std::string& error
 ) {
     if (relative != k_checkpoint_path && relative != k_state_path
-        && (!allow_events || relative != k_events_path)) {
+        && relative != k_pending_path) {
         error = "path is not an allowed SF6CC telemetry file";
         return std::nullopt;
     }
@@ -160,11 +159,12 @@ int lua_atomic_write(lua_State* state) {
     if (path == nullptr || content == nullptr) return push_failure(state, "write requires path and bytes");
 
     const std::string_view relative{path, path_size};
-    const std::size_t maximum = relative == k_checkpoint_path ? 524288U : 1048576U;
+    const std::size_t maximum = relative == k_checkpoint_path ? 524288U
+        : (relative == k_pending_path ? 4096U : 1048576U);
     if (content_size > maximum) return push_failure(state, "telemetry file exceeds native byte limit");
 
     std::string error;
-    auto target = allowed_target(relative, false, error);
+    auto target = allowed_target(relative, error);
     if (!target || !atomic_write(*target, content, content_size, error)) return push_failure(state, error);
     lua_pushboolean(state, 1);
     return 1;
@@ -176,7 +176,7 @@ int lua_probe(lua_State* state) {
     if (path == nullptr) return push_failure(state, "probe requires path");
 
     std::string error;
-    auto target = allowed_target(std::string_view{path, path_size}, true, error);
+    auto target = allowed_target(std::string_view{path, path_size}, error);
     if (!target) return push_failure(state, error);
 
     const DWORD attributes = GetFileAttributesW(target->c_str());

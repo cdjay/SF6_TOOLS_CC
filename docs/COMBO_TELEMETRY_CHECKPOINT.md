@@ -1,38 +1,38 @@
 # Combo Telemetry Cumulative Checkpoint
 
-SF6CC continues to append the legacy anonymous practice stream at:
+SF6CC continues to append the unchanged anonymous legacy stream at:
 
 ```text
 data/SF6_TrainingRemoteControl_data/ComboTrialTelemetry/events.jsonl
 ```
 
-Manual terminal practice facts from that same producer also update the fixed
-cumulative checkpoint:
+The `sf6cc.combo_attempt.v1` field set and lifecycle remain independent. The
+formal cumulative producer never scans, parses, probes, or depends on this
+file, so normal rotation, truncation, absence, or unbounded growth cannot block
+checkpoint startup.
+
+The fixed cumulative output is:
 
 ```text
 data/SF6_TrainingRemoteControl_data/ComboTrialTelemetry/cumulative-checkpoint-v1.json
 ```
 
-The published schema is `sf6cc.combo_attempt_checkpoint.v1`. Its key is exactly
-`(revisionHash, playerControl, positionSide)`, where `revisionHash` and
-`identitySchema` come from `sf6cc.combo_identity.v1`. Auto demonstrations do
-not update cumulative counters. The checkpoint contains no raw input, replay,
-frame stream, failure details, path, account, or machine identity.
+Its schema is `sf6cc.combo_attempt_checkpoint.v1`, keyed exactly by
+`(revisionHash, playerControl, positionSide)`. Only manual terminal facts enter
+cumulative counters. Auto demonstrations never enter the pending journal or
+state. No checkpoint file contains raw input, replay, frame streams, failure
+details, paths, accounts, or machine identity.
 
-The legacy `sf6cc.combo_attempt.v1` JSON field set is unchanged. A terminal
-event is appended and flushed first; only a successful append is eligible for
-the cumulative producer. `events.jsonl` is therefore the write-ahead fact
-source, while the checkpoint remains the bounded cumulative projection.
+## Durable Files
 
-## Durable Local State
-
-The ignored local producer state is:
+The ignored local state and bounded pending slot are:
 
 ```text
 data/SF6_TrainingRemoteControl_data/ComboTrialTelemetry/producer-state-v1.json
+data/SF6_TrainingRemoteControl_data/ComboTrialTelemetry/producer-pending-v1.json
 ```
 
-Its canonical, single-line UTF-8 format is:
+Canonical state fields are:
 
 ```json
 {
@@ -40,50 +40,66 @@ Its canonical, single-line UTF-8 format is:
   "producerEpoch": "32-lowercase-hex",
   "checkpointSequence": 1,
   "historyStart": "all_time_v1",
-  "baselineCursor": "origin-or-legacy-event-id",
-  "legacyCursor": "origin-or-last-applied-event-id",
+  "lastAppliedEventId": "origin-or-64-lowercase-hex",
   "contentHash": "sha256-of-canonical-items",
   "items": [],
   "stateHash": "sha256-of-all-preceding-canonical-state-fields"
 }
 ```
 
-The actual file has no formatting whitespace. `items` use the checkpoint item
-contract and fixed field order. Both hashes are lowercase SHA-256 hex without a
-prefix. State loading requires exact fields, valid bounds, sorted unique keys,
-matching hashes, and byte-for-byte canonical encoding. A corrupt state, or an
-existing checkpoint with no provable state, fails closed: SF6CC keeps legacy
-events and does not publish a reset epoch or lower counters.
+The pending file has schema `sf6cc.combo_attempt_checkpoint_pending.v1` and is
+always one of two canonical states:
 
-On first installation, pre-existing valid legacy events establish an explicit
-`all_time_v1` baseline at the current last `event_id`; those older events are
-not counted. Afterwards every successfully appended event advances
-`legacyCursor`; only manual success/failure events change counters and
-`checkpointSequence`. Auto demonstrations advance the cursor without changing
-checkpoint content.
+```json
+{
+  "schema": "sf6cc.combo_attempt_checkpoint_pending.v1",
+  "status": "empty",
+  "pendingHash": "sha256-of-preceding-fields"
+}
+```
 
-Startup reads at most 16 MiB and 100,000 complete lines from the current
-`events.jsonl`. It must find the stored cursor, then replays later valid events
-exactly once before publication. A missing cursor after rotation/truncation, an
-incomplete or malformed later line, or an unusable manual fact permanently
-fails closed and preserves the last checkpoint. If both state and checkpoint
-are explicitly removed, a new epoch may establish a new baseline.
+or one projected manual fact containing only the existing `event_id`, combo
+identity/display facts, control, side, sequence length, success/failure
+outcome, and Unix timestamp. It is limited to 4096 bytes. It never stores the
+legacy event body, failure details, raw input, replay, or local identity.
 
-The epoch is generated once from Windows `BCryptGenRandom` only when both state
-and checkpoint are absent. After the legacy append succeeds, the updated state
-is written first and then the checkpoint is published. A crash before the state
-write is recovered from the WAL; a crash between state and checkpoint writes
-leaves the old valid checkpoint in place and republishes the proven state on
-the next load.
+All state and pending reads require exact fields, canonical bytes, valid
+bounds, and matching lowercase SHA-256 hashes. Malformed, missing, conflicting,
+or unreadable durable files fail closed and preserve the last checkpoint.
 
-## Atomic Publication
+## Commit Protocol
 
-`plugins/reframework-sf6cc-atomic-file.dll` writes only the two JSON paths above
-and may probe those paths plus the fixed legacy `events.jsonl` path.
-Its tri-state native probe classifies only Win32 file/path-not-found as
-`missing`; access, sharing, and other probe failures block the producer without
-generating an epoch or writing either file.
-For each write it creates a unique same-directory temp file, writes all bytes,
-flushes and closes the handle, and calls `MoveFileExW` with replace-existing and
-write-through flags. A failure removes the temp and never truncates the prior
-destination. Producer failures are logged and isolated from gameplay.
+For each manual terminal fact:
+
+1. Atomically write the projected fact to `producer-pending-v1.json`.
+2. Attempt the unchanged legacy `events.jsonl` append and check the returned
+   write, flush, and close results.
+3. Atomically apply the fact to cumulative state and set
+   `lastAppliedEventId`.
+4. Atomically publish the checkpoint.
+5. Atomically replace pending with its canonical empty state.
+
+The legacy append is best-effort and independent. A returned write, flush, or
+close failure is reported through the existing telemetry result, but a fact
+already protected by pending still commits to cumulative state. A pending
+write failure prevents counting and blocks that producer instance; gameplay
+and the legacy append attempt remain isolated from the error.
+
+On restart, an empty pending file only triggers normal state/checkpoint
+validation. A pending event whose ID is not `lastAppliedEventId` is applied
+once. A matching ID means state already committed it, so checkpoint recovery
+and pending clear proceed without recounting. State-write, checkpoint-write,
+and pending-clear crashes therefore converge deterministically. A malformed or
+conflicting pending file fails closed.
+
+## Atomic Bridge
+
+`plugins/reframework-sf6cc-atomic-file.dll` accepts only the three fixed JSON
+paths above. Its tri-state probe classifies only Win32 file/path-not-found as
+`missing`; ACL, sharing, and other failures return errors.
+
+Each write uses a unique same-directory temporary file, complete write,
+`FlushFileBuffers`, close, and `MoveFileExW` with replace-existing and
+write-through flags. Failure removes only the temp and never truncates the
+previous destination. The epoch is generated with Windows `BCryptGenRandom`
+only when a new empty pending/state/checkpoint set is initialized.
