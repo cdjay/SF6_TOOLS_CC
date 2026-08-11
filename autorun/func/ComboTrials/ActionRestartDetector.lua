@@ -9,12 +9,74 @@ local REPEATABLE_COMMON_ACTIONS = {
 }
 
 local DEFAULT_DASH_TAP_WINDOW = 12
+local DASH_ACTION_BIND_WINDOW = 12
 local CONTACT_SIGNAL_SETTLE_FRAMES = 1
 M.PERSISTENT_DAMAGE_MAX_TICK = 20
 -- Combo growth is sufficient contact truth at any damage. When combo count is
 -- unchanged, fallback HP attribution stays above the supported persistent
 -- damage envelope (A.K.I. poison can tick for 7, 10 or 20).
 local MIN_UNCOUNTED_HIT_HP_DELTA = M.PERSISTENT_DAMAGE_MAX_TICK + 1
+
+local PUNCH_MASK = 16 | 32 | 64
+local KICK_MASK = 128 | 256 | 512
+local NAMED_BUTTON_MASKS = {
+    LP = 16,
+    MP = 32,
+    HP = 64,
+    LK = 128,
+    MK = 256,
+    HK = 512,
+}
+
+local function bit_count(value)
+    local count = 0
+    value = tonumber(value) or 0
+    while value ~= 0 do
+        count = count + (value & 1)
+        value = value >> 1
+    end
+    return count
+end
+
+function M.button_edge_matches_motion(motion, action_button_edge)
+    local edge = (tonumber(action_button_edge) or 0) & 0xFFF0
+    if edge == 0 then return false end
+
+    local normalized = tostring(motion or ""):upper()
+        :gsub("%b()", "")
+        :gsub("%s+", "")
+    local explicit_mask = 0
+    for token in normalized:gmatch("[A-Z]+") do
+        local button_mask = NAMED_BUTTON_MASKS[token]
+        if button_mask then explicit_mask = explicit_mask | button_mask end
+    end
+    if explicit_mask ~= 0 then return edge == explicit_mask end
+
+    local punches = edge & PUNCH_MASK
+    local kicks = edge & KICK_MASK
+    if normalized:find("PP", 1, true) then
+        return kicks == 0 and bit_count(punches) >= 2
+    end
+    if normalized:find("KK", 1, true) then
+        return punches == 0 and bit_count(kicks) >= 2
+    end
+    if normalized:find("THROW", 1, true) then
+        return edge == (16 | 128)
+    end
+    if normalized:find("PARRY", 1, true) then
+        return edge == (32 | 256)
+    end
+    if normalized == "DI" then
+        return edge == (64 | 512)
+    end
+    if normalized:match("P[^A-Z]*$") then
+        return kicks == 0 and bit_count(punches) == 1
+    end
+    if normalized:match("K[^A-Z]*$") then
+        return punches == 0 and bit_count(kicks) == 1
+    end
+    return false
+end
 -- pl_input_new uses physical direction bits (right=4, left=8). Normalize them
 -- to facing-relative notation before dash pairing; BCM command directions use
 -- a different lookup and must not be reused for physical input.
@@ -58,12 +120,46 @@ function M.observe_dash_direction_edge(state, direction, frame, window)
             second_frame = frame,
             interval = delta
         }
+        state.completed_pairs = state.completed_pairs or {}
+        table.insert(state.completed_pairs, pair)
         return pair
     end
 
     state.pending_direction = direction
     state.pending_frame = frame
     return nil
+end
+
+local function recent_dash_pair(state, current_tick, action_id)
+    if type(state) ~= "table" or type(state.completed_pairs) ~= "table" then
+        return nil
+    end
+    current_tick = tonumber(current_tick) or -1
+    local expected_motion = REPEATABLE_COMMON_ACTIONS[tonumber(action_id)]
+    while #state.completed_pairs > 0 do
+        local pair = state.completed_pairs[1]
+        local age = current_tick - (tonumber(pair.second_frame) or -1)
+        if age > DASH_ACTION_BIND_WINDOW then
+            table.remove(state.completed_pairs, 1)
+        elseif age < 0 then
+            return nil
+        elseif expected_motion == tostring(pair.direction) .. tostring(pair.direction) then
+            return pair
+        else
+            table.remove(state.completed_pairs, 1)
+        end
+    end
+    return nil
+end
+
+local function consume_dash_pair(state, pair)
+    if type(state) ~= "table" or type(state.completed_pairs) ~= "table" then return end
+    for index, candidate in ipairs(state.completed_pairs) do
+        if candidate == pair then
+            table.remove(state.completed_pairs, index)
+            return
+        end
+    end
 end
 
 -- During an automatic replay, a completed dash can receive another physical
@@ -449,12 +545,15 @@ function M.evaluate_block_contact(damage_type, was_active)
     }
 end
 
-function M.detect(current_id, current_frame, buffered_id, buffered_frame, state, current_tick)
+function M.detect(current_id, current_frame, buffered_id, buffered_frame, state, current_tick,
+        action_button_edge, confirmed_repeat_input, action_motion)
     current_id = tonumber(current_id) or -1
     buffered_id = tonumber(buffered_id) or -1
     current_frame = tonumber(current_frame) or -1
     buffered_frame = tonumber(buffered_frame) or -1
     if current_id ~= buffered_id then
+        local pair = recent_dash_pair(state, current_tick, current_id)
+        if pair then consume_dash_pair(state, pair) end
         return true, "id_changed"
     end
 
@@ -462,10 +561,14 @@ function M.detect(current_id, current_frame, buffered_id, buffered_frame, state,
         return false, "no_new_action"
     end
 
-    -- ActionFrame belongs to the game-owned Action instance. A rewind is the
-    -- factual boundary for a repeated same-ID Action; input and contact must
-    -- never manufacture or veto that boundary.
-    return true, "act_frame_rewind"
+    local pair = recent_dash_pair(state, current_tick, current_id)
+    local repeat_confirmed = confirmed_repeat_input == true or pair ~= nil
+        or M.button_edge_matches_motion(action_motion, action_button_edge)
+    if not repeat_confirmed then
+        return false, "unconfirmed_same_action_rewind"
+    end
+    if pair then consume_dash_pair(state, pair) end
+    return true, "confirmed_action_frame_rewind"
 end
 
 return M

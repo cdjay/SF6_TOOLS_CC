@@ -1278,7 +1278,14 @@ local multi_string_result = compiler.finalize(multi_string)
 assert(multi_string_result.stats.damage == 1000,
     "damage must accumulate across training-health refills and later OKI strings")
 
-local repeated = compiler.new({ character = "Ryu", frame = 0 })
+local repeated = compiler.new({
+    character = "Ryu",
+    frame = 0,
+    motion_resolver = function(action_id)
+        if action_id == 601 then return "MP", "strict_route" end
+        return nil, "action_id_missing"
+    end,
+})
 local function repeat_observe(frame, action_frame, input)
     compiler.observe(repeated, {
         frame = frame,
@@ -1341,6 +1348,127 @@ do
             and result.steps[2].id == 635
             and result.steps[3].id == 635,
         "Terry 635,635,635 must preserve every native ActionFrame restart")
+end
+
+do
+    local landing_mash = compiler.new({
+        character = "Juri",
+        frame = 0,
+        motion_resolver = function(action_id)
+            if action_id == 980 then return "623+LP", "strict_route" end
+            return nil, "action_id_missing"
+        end,
+    })
+    local rows = {
+        { 10, 0, 0 },
+        { 10, 16, 1 },
+        { 980, 16, 0 },
+        { 980, 0, 18 },
+        { 980, 32, 19 },
+        { 980, 0, 20 },
+        { 980, 32, 0 },
+        { 980, 0, 1 },
+    }
+    for frame, row in ipairs(rows) do
+        compiler.observe(landing_mash, {
+            frame = frame,
+            action_id = row[1],
+            direct_input = row[2],
+            action_frame = row[3],
+            facing_right = true,
+            combo_count = 0,
+            actor_hp = 10000,
+            victim_hp = 10000,
+        })
+    end
+    local result = compiler.finalize(landing_mash, {
+        motion_resolver = landing_mash.motion_resolver,
+    })
+    assert(#result.steps == 1 and result.steps[1].id == 980,
+        "an unrelated landing mash must not duplicate an unchanged Action ID")
+end
+
+do
+    local yasmine_followup_mash = compiler.new({
+        character = "Yasmine",
+        frame = 0,
+        motion_resolver = function(action_id)
+            if action_id == 951 then return "236+MP", "strict_route" end
+            if action_id == 952 then return ">6+P", "strict_route" end
+            return nil, "action_id_missing"
+        end,
+    })
+    local rows = {
+        { 9, 0, 5 },
+        { 9, 32, 6 },
+        { 951, 32, 0 },
+        { 951, 0, 6 },
+        { 951, 64, 20 },
+        { 952, 64, 0 },
+        { 952, 0, 2 },
+        { 952, 64, 31 },
+        { 953, 64, 0 },
+    }
+    for frame, row in ipairs(rows) do
+        compiler.observe(yasmine_followup_mash, {
+            frame = frame,
+            action_id = row[1],
+            direct_input = row[2],
+            action_frame = row[3],
+            facing_right = true,
+            combo_count = 0,
+            actor_hp = 10000,
+            victim_hp = 10000,
+        })
+    end
+    local result = compiler.finalize(yasmine_followup_mash, {
+        motion_resolver = yasmine_followup_mash.motion_resolver,
+    })
+    assert(#result.steps == 2
+            and result.steps[1].id == 951
+            and result.steps[2].id == 952
+            and result.trace.observed_actions[#result.trace.observed_actions].id == 953
+            and result.stats.unresolved_anchors == 0,
+        "mashing during a resolved follow-up must not bind an unmapped automatic Action transition")
+
+    local delayed_durable = compiler.new({
+        character = "Test",
+        frame = 0,
+        motion_resolver = function(action_id)
+            if action_id == 900 then return "236+P", "strict_route" end
+            if action_id == 902 then return "214+K", "strict_route" end
+            return nil, "action_id_missing"
+        end,
+    })
+    local delayed_rows = {
+        { 10, 0, 0 },
+        { 10, 16, 1 },
+        { 900, 16, 0 },
+        { 900, 0, 6 },
+        { 900, 128, 20 },
+        { 901, 128, 0 },
+        { 902, 128, 0 },
+    }
+    for frame, row in ipairs(delayed_rows) do
+        compiler.observe(delayed_durable, {
+            frame = frame,
+            action_id = row[1],
+            direct_input = row[2],
+            action_frame = row[3],
+            facing_right = true,
+            combo_count = 0,
+            actor_hp = 10000,
+            victim_hp = 10000,
+        })
+    end
+    local delayed_result = compiler.finalize(delayed_durable, {
+        motion_resolver = delayed_durable.motion_resolver,
+    })
+    assert(#delayed_result.steps == 2
+            and delayed_result.steps[1].id == 900
+            and delayed_result.steps[2].id == 902
+            and delayed_result.trace.input_bound_events[2].anchor.frame == 5,
+        "an unmapped transition must preserve its pending edge for a later resolved durable Action")
 end
 
 do

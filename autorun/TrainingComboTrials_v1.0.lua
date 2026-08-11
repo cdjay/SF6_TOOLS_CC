@@ -5635,9 +5635,18 @@ local function ct_player_input_buffer(p_state)
             p_state.input_history_queue, p_state.buffer_start_frame,
             engine_frame_count, ComboTrialsModules.CommandResolver.PLAYER_TRANSITION_INPUT_WINDOW)
     end
+    local restart_motion = nil
+    if _pf.act_id == p_state.buffer_act_id
+        and _pf.act_frame < p_state.buffer_act_frame then
+        restart_motion = select(3,
+            ComboTrialsModules.UnifiedActionConsumer.resolve_runtime_command(
+                p_state.profile_name, _pf.act_id, _pf.direct_input,
+                restart_input_edge, ComboTrials_Renderer))
+    end
     local started_new_action, started_new_action_reason = ActionRestartDetector.detect(
         _pf.act_id, _pf.act_frame, p_state.buffer_act_id, p_state.buffer_act_frame,
-        p_state.dash_tap_state, engine_frame_count)
+        p_state.dash_tap_state, engine_frame_count, restart_input_edge,
+        dash_pair ~= nil, restart_motion)
     if started_new_action and action_input_edge == 0 then
         -- Some actions switch one or two frames after the button edge. Reuse the
         -- newest post-parent physical edge instead of treating a held button as

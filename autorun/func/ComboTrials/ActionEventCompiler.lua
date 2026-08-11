@@ -1297,6 +1297,18 @@ local function resolve_session_motion(session, action_id)
     return ok and motion or nil
 end
 
+local function is_unmapped_transition_after_resolved_event(session, action_id)
+    if type(session) ~= "table" or type(session.motion_resolver) ~= "function"
+        or type(session.current_event) ~= "table"
+        or tonumber(session.current_event.id) == tonumber(action_id)
+        or action_event_projection_rule(session, action_id) ~= nil
+        or quick_successor_rule(session, action_id) ~= nil then
+        return false
+    end
+    return resolve_session_motion(session, session.current_event.id) ~= nil
+        and resolve_session_motion(session, action_id) == nil
+end
+
 function Compiler.new(options)
     options = type(options) == "table" and options or {}
     return {
@@ -1324,6 +1336,7 @@ function Compiler.new(options)
         unresolved_anchor_count = 0,
         expired_internal_continuation_count = 0,
         expired_quick_successor_continuation_count = 0,
+        ignored_unmapped_transition_anchor_count = 0,
         expired_meter_raw_dr_count = 0,
         pending_anchor = nil,
         pending_meter_confirmed_raw_dr = nil,
@@ -1453,12 +1466,34 @@ function Compiler.observe(session, sample)
 
     local action_id = tonumber(sample.action_id)
     local action_frame = tonumber(sample.action_frame) or 0
-    local action_changed = session.previous_action_id ~= nil
-        and action_id ~= session.previous_action_id
-    local action_restarted = session.previous_action_id ~= nil
-        and action_id == session.previous_action_id
-        and session.previous_action_frame ~= nil
-        and action_frame < session.previous_action_frame
+    local repeat_edge = pressed
+    local pending_before_restart = session.pending_anchor
+    local pending_restart_age = type(pending_before_restart) == "table"
+        and frame - (tonumber(pending_before_restart.frame) or frame) or nil
+    local pending_restart_available = pending_restart_age ~= nil
+        and pending_restart_age >= 0
+        and pending_restart_age <= ActionMatcher.PLAYER_ACTION_BIND_WINDOW
+    if repeat_edge == 0 and pending_restart_available then
+        repeat_edge = ((tonumber(pending_before_restart.pressed_buttons) or 0)
+            | (tonumber(pending_before_restart.released_buttons) or 0)) & 0xFFF0
+    end
+    local action_started, action_start_reason = false, "no_previous_action"
+    if session.previous_action_id ~= nil then
+        action_started, action_start_reason = ActionRestartDetector.detect(
+            action_id,
+            action_frame,
+            session.previous_action_id,
+            session.previous_action_frame,
+            nil,
+            frame,
+            repeat_edge,
+            pending_restart_available
+                and pending_before_restart.kind == "double_tap",
+            resolve_session_motion(session, action_id)
+        )
+    end
+    local action_changed = action_started and action_id ~= session.previous_action_id
+    local action_restarted = action_started and action_id == session.previous_action_id
     local actual_action_start = action_changed or action_restarted
     if actual_action_start
         and (session.input_started or MOVEMENT_ACTIONS[action_id]) then
@@ -1466,7 +1501,7 @@ function Compiler.observe(session, sample)
             id = action_id,
             frame = frame,
             action_frame = action_frame,
-            reason = action_restarted and "action_frame_rewind" or "action_id_changed",
+            reason = action_restarted and action_start_reason or "action_id_changed",
         }
         session.last_activity_frame = frame
     end
@@ -1535,6 +1570,14 @@ function Compiler.observe(session, sample)
     end
 
     local pending = session.pending_anchor
+    if type(pending) == "table" then
+        -- A physical edge during a known command may overlap a game-owned
+        -- recovery/internal Action that has no resolver command or declared
+        -- relationship. Keep the edge available for a later durable Action,
+        -- but do not turn the unresolved transition itself into an instruction.
+        pending.is_unmapped_transition_wait =
+            is_unmapped_transition_after_resolved_event(session, action_id)
+    end
     local pending_bind_window = pending
         and pending.is_quick_successor_continuation == true
         and math.max(1, tonumber(pending.max_delay_frames) or 1)
@@ -1550,6 +1593,9 @@ function Compiler.observe(session, sample)
             session.expired_quick_successor_continuation_count =
                 (tonumber(session.expired_quick_successor_continuation_count) or 0)
                     + 1
+        elseif pending.is_unmapped_transition_wait == true then
+            session.ignored_unmapped_transition_anchor_count =
+                (tonumber(session.ignored_unmapped_transition_anchor_count) or 0) + 1
         elseif pending.kind ~= "button_release"
             and pending.is_movement_continuation ~= true then
             session.unresolved_anchor_count = session.unresolved_anchor_count + 1
@@ -1586,6 +1632,7 @@ function Compiler.observe(session, sample)
         end
         if not stale_release_low_action
             and continuation_target_allowed
+            and pending.is_unmapped_transition_wait ~= true
             and (actual_action_start or changed_after_anchor
                 or restarted_after_anchor) then
             local bound_anchor = pending
@@ -1595,7 +1642,7 @@ function Compiler.observe(session, sample)
                 bound_anchor,
                 pending.is_quick_successor_continuation == true
                     and "quick_successor_action_changed"
-                    or (action_restarted and "action_frame_rewind"
+                    or (action_restarted and action_start_reason
                         or "action_id_changed")
             )
             action_bound = bound_event ~= nil
@@ -1774,7 +1821,8 @@ function Compiler.finalize(session, options)
     if type(session) == "table" and type(session.pending_anchor) == "table"
         and session.pending_anchor.kind ~= "button_release"
         and session.pending_anchor.is_internal_phase_continuation ~= true
-        and session.pending_anchor.is_quick_successor_continuation ~= true then
+        and session.pending_anchor.is_quick_successor_continuation ~= true
+        and session.pending_anchor.is_unmapped_transition_wait ~= true then
         unresolved_anchors = unresolved_anchors + 1
     end
 

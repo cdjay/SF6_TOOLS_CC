@@ -9,21 +9,49 @@ assert(detector.normalize_input_direction_bits(8, true) == 8,
 assert(detector.normalize_input_direction_bits(4, false) == 8,
     "P2-side physical right must normalize to the same relative back bit")
 
-local started, reason = detector.detect(17, 3, 17, 18)
-assert(started == true and reason == "act_frame_rewind",
+assert(detector.button_edge_matches_motion("623+LP", 16)
+        and not detector.button_edge_matches_motion("623+LP", 32),
+    "strength-specific punch restarts must require the matching punch")
+assert(detector.button_edge_matches_motion("623+P", 16)
+        and detector.button_edge_matches_motion("623+P", 32)
+        and detector.button_edge_matches_motion("623+P", 64)
+        and not detector.button_edge_matches_motion("623+P", 128),
+    "generic P restarts must accept one punch and reject kicks")
+assert(detector.button_edge_matches_motion("236+K", 128)
+        and detector.button_edge_matches_motion("236+K", 256)
+        and detector.button_edge_matches_motion("236+K", 512)
+        and not detector.button_edge_matches_motion("236+K", 32),
+    "generic K restarts must accept one kick and reject punches")
+assert(detector.button_edge_matches_motion("236+PP", 16 | 32)
+        and not detector.button_edge_matches_motion("236+PP", 16),
+    "PP restarts must require at least two punches")
+assert(detector.button_edge_matches_motion("623+KK", 128 | 256)
+        and not detector.button_edge_matches_motion("623+KK", 256),
+    "KK restarts must require at least two kicks")
+
+local started, reason = detector.detect(17, 3, 17, 18, nil, nil, 0, true)
+assert(started == true and reason == "confirmed_action_frame_rewind",
     "a repeated 66 must create a new action instance even when frame 0/1 was not sampled")
 
-started, reason = detector.detect(18, 4.5, 18, 21)
-assert(started == true and reason == "act_frame_rewind",
+started, reason = detector.detect(18, 4.5, 18, 21, nil, nil, 0, true)
+assert(started == true and reason == "confirmed_action_frame_rewind",
     "a repeated 44 must create a new action instance even when frame 0/1 was not sampled")
 
 started, reason = detector.detect(17, 19, 17, 18)
 assert(started == false and reason == "no_new_action",
     "a normally advancing dash must not be duplicated")
 
-started, reason = detector.detect(900, 3, 900, 18)
-assert(started == true and reason == "act_frame_rewind",
-    "a same-ID ActionFrame rewind is a game-owned new Action instance")
+started, reason = detector.detect(900, 3, 900, 18, nil, nil, 32, false, "MP")
+assert(started == true and reason == "confirmed_action_frame_rewind",
+    "a matching physical command must confirm a same-ID ActionFrame rewind")
+
+started, reason = detector.detect(980, 0, 980, 24, nil, nil, 32, false)
+assert(started == false and reason == "unconfirmed_same_action_rewind",
+    "an unrelated mash during a same-ID landing rewind must not create an Action")
+
+started, reason = detector.detect(635, 0, 635, 22, nil, nil, 256, true, "2+MK")
+assert(started == true and reason == "confirmed_action_frame_rewind",
+    "a command-confirmed same-ID rewind must preserve a real repeated Action")
 
 started, reason = detector.detect(900, 19, 900, 18, nil, nil, 32)
 assert(started == false and reason == "no_new_action",
@@ -95,16 +123,16 @@ started, reason = detector.detect(904, 61, 904, 60, nil, nil, 32 | 64, true)
 assert(started == false and reason == "no_new_action",
     "expected input and contact context must not synthesize an advancing same-ID Action")
 
-started, reason = detector.detect(902, 24, 902, 23, nil, nil, 128, false)
+started, reason = detector.detect(902, 24, 902, 23, nil, nil, 64, false)
 assert(started == false and reason == "no_new_action",
     "A.K.I. 214HP input during the same advancing Action 902 must not create another step")
 
-started, reason = detector.detect(902, 61, 902, 60, nil, nil, 128, false)
+started, reason = detector.detect(902, 61, 902, 60, nil, nil, 64, false)
 assert(started == false and reason == "no_new_action",
     "a later hit or repeated HP input in the same 2-hit Action 902 must remain one action instance")
 
-started, reason = detector.detect(902, 3, 902, 61, nil, nil, 128, false)
-assert(started == true and reason == "act_frame_rewind",
+started, reason = detector.detect(902, 3, 902, 61, nil, nil, 64, false, "214+HP")
+assert(started == true and reason == "confirmed_action_frame_rewind",
     "a real second 214HP must record from its native ActionFrame restart")
 
 local block_contact = detector.evaluate_block_contact(30, false)
@@ -919,9 +947,9 @@ started, reason = detector.detect(900, 19, 900, 18, nil, nil, 4)
 assert(started == false and reason == "no_new_action",
     "a direction-only edge must not create a same-ID Action without rewind")
 
-started, reason = detector.detect(900, 1, 900, 18)
-assert(started == true and reason == "act_frame_rewind",
-    "the existing near-zero same-ID restart behavior must remain intact")
+started, reason = detector.detect(900, 1, 900, 18, nil, nil, 32, false, "MP")
+assert(started == true and reason == "confirmed_action_frame_rewind",
+    "a near-zero same-ID restart with matching input must remain intact")
 
 started, reason = detector.detect(18, 20, 17, 20)
 assert(started == true and reason == "id_changed",
@@ -1016,7 +1044,7 @@ started, reason = detector.detect(17, 3, 17, 2, queued_state, 67)
 assert(started == false and reason == "no_new_action",
     "queued double taps must not create a third 66 without native rewind")
 started, reason = detector.detect(17, 0, 17, 3, queued_state, 68)
-assert(started == true and reason == "act_frame_rewind",
+assert(started == true and reason == "confirmed_action_frame_rewind",
     "the actual second 66 must be recorded when ActionFrame rewinds")
 
 print("combo action restart tests passed")
