@@ -1326,6 +1326,7 @@ function Compiler.new(options)
         previous_direction = "5",
         previous_action_id = nil,
         previous_action_frame = nil,
+        previous_actor_drive = nil,
         previous_combo = 0,
         previous_victim_hp = nil,
         recording_contact_state = {},
@@ -1340,6 +1341,7 @@ function Compiler.new(options)
         expired_meter_raw_dr_count = 0,
         pending_anchor = nil,
         pending_meter_confirmed_raw_dr = nil,
+        recent_drive_parry_observation = nil,
         recent_direction_anchor = nil,
         button_press_frames = {},
         last_direction_tap = {},
@@ -1508,6 +1510,17 @@ function Compiler.observe(session, sample)
 
     local action_start_absorbed = false
 
+    if actual_action_start
+        and ActionMatcher.is_drive_parry_action_id(action_id) then
+        session.recent_drive_parry_observation = {
+            id = action_id,
+            frame = frame,
+            action_frame = action_frame,
+            baseline_drive = tonumber(session.previous_actor_drive)
+                or rounded(sample.actor_drive),
+        }
+    end
+
     -- A neutral Drive Rush briefly exposes the Drive Parry input Action before
     -- switching to RAW DR. When that switch happens immediately, it is one
     -- player command and the later Action ID is the durable truth. A held
@@ -1523,30 +1536,38 @@ function Compiler.observe(session, sample)
         session.current_event.action_frame = action_frame
         session.current_event.bind_reason = "quick_drive_parry_promoted_to_raw_dr"
         session.pending_anchor = nil
+        session.recent_drive_parry_observation = nil
         action_start_absorbed = true
     end
 
-    -- A few raw Drive Rush recordings expose PARRY long enough to miss the
-    -- immediate four-frame precursor fold, yet do not provide another physical
-    -- edge for RAW DR to bind. A real local one-bar Drive spend is independent
-    -- runtime proof that this later Action is a separate rush, while a held or
-    -- re-pressed parry phase without the cost remains ignored.
+    -- The Parry input anchor can be consumed by a preceding internal command
+    -- phase before Actions 480 and 500 become visible. Keep the observed Parry
+    -- start as short-lived evidence and accumulate the full one-bar Drive spend
+    -- across the transition; the game may report that cost as two 5000-point
+    -- drops on separate frames.
+    local parry_observation = session.recent_drive_parry_observation
+    local parry_observation_age = type(parry_observation) == "table"
+        and frame - (tonumber(parry_observation.frame) or frame) or nil
+    local recent_parry_evidence = parry_observation_age ~= nil
+        and parry_observation_age >= 0
+        and parry_observation_age <= Compiler.RAW_DRIVE_RUSH_EVIDENCE_WINDOW
     if actual_action_start
         and not action_start_absorbed
         and session.pending_anchor == nil
-        and type(session.current_event) == "table"
-        and ActionMatcher.is_drive_parry_action_id(session.current_event.id)
         and ActionMatcher.is_raw_drive_rush_action_id(action_id)
-        and frame - (tonumber(session.current_event.frame) or frame) > 4
-        and frame - (tonumber(session.current_event.frame) or frame)
-            <= Compiler.RAW_DRIVE_RUSH_EVIDENCE_WINDOW
-        and session.current_event.has_contact ~= true then
-        local parry_drive = tonumber(session.current_event.actor_drive)
+        and recent_parry_evidence
+        and (type(session.current_event) ~= "table"
+            or not ActionMatcher.is_drive_rush_action_id(session.current_event.id)) then
+        local parry_drive = tonumber(parry_observation.baseline_drive)
         local current_drive = rounded(sample.actor_drive)
         local local_drive_cost = parry_drive ~= nil and current_drive ~= nil
             and math.max(0, parry_drive - current_drive) or 0
+        local transition_source = {
+            id = parry_observation.id,
+            action_frame = parry_observation.action_frame,
+        }
         local rush_anchor = raw_drive_rush_transition_anchor(
-            session.current_event,
+            transition_source,
             sample,
             input
         )
@@ -1567,6 +1588,15 @@ function Compiler.observe(session, sample)
             }
             action_start_absorbed = true
         end
+        if action_start_absorbed then
+            session.recent_drive_parry_observation = nil
+        end
+    end
+
+    if type(session.recent_drive_parry_observation) == "table"
+        and frame - (tonumber(session.recent_drive_parry_observation.frame) or frame)
+            > Compiler.RAW_DRIVE_RUSH_EVIDENCE_WINDOW then
+        session.recent_drive_parry_observation = nil
     end
 
     local pending = session.pending_anchor
@@ -1787,6 +1817,7 @@ function Compiler.observe(session, sample)
     session.previous_direction = direction
     session.previous_action_id = action_id
     session.previous_action_frame = action_frame
+    session.previous_actor_drive = rounded(sample.actor_drive)
     session.previous_combo = combo
     session.previous_victim_hp = victim_hp
     return true

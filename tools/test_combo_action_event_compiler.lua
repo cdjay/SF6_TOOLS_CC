@@ -4554,6 +4554,60 @@ assert(#deferred_meter_result.steps == 3
     "a delayed local Drive cost must preserve Action 740 at its real frame without stealing the next attack anchor")
 end
 
+do
+local split_cost_unbound_parry = compiler.new({
+    character = "TraceFixture",
+    frame = 0,
+    motion_resolver = function(action_id)
+        if action_id == 955 then return ">6+P", "strict_route" end
+        if action_id == 956 then return "FOLLOWUP_PHASE", "strict_route" end
+        if action_id == 500 then return "RAW DR", "strict_route" end
+        if action_id == 628 then return "2+MP", "strict_route" end
+        return nil, "action_id_missing"
+    end,
+})
+local split_cost_rows = {
+    { 1, 955, 64, 0, 60000 },
+    { 2, 955, 0, 1, 60000 },
+    { 28, 955, 32 | 256, 27, 60000 },
+    { 43, 956, 32 | 256, 0, 60000 },
+    -- The command phase consumed the MP+MK anchor before the game exposed
+    -- Parry. Action 480 is therefore observed but not input-bound.
+    { 106, 480, 32 | 256, 0, 60000 },
+    { 107, 480, 32 | 256, 1, 55000 },
+    { 109, 500, 32 | 256, 0, 55000 },
+    { 120, 500, 32 | 256, 11, 50000 },
+    { 127, 500, 0, 18, 50000 },
+    { 128, 500, 32, 19, 50000 },
+    { 129, 628, 32, 0, 50000 },
+}
+for _, row in ipairs(split_cost_rows) do
+    compiler.observe(split_cost_unbound_parry, {
+        frame = row[1],
+        action_id = row[2],
+        direct_input = row[3],
+        direction_input = 0,
+        action_frame = row[4],
+        facing_right = true,
+        combo_count = 0,
+        actor_hp = 10000,
+        actor_drive = row[5],
+        victim_hp = 10000,
+    })
+end
+local split_cost_result = compiler.finalize(split_cost_unbound_parry, {
+    motion_resolver = split_cost_unbound_parry.motion_resolver,
+})
+assert(#split_cost_result.steps == 3
+        and split_cost_result.steps[1].id == 956
+        and split_cost_result.steps[2].id == 500
+        and split_cost_result.steps[2].motion == "RAW DR"
+        and split_cost_result.steps[2].delay_from_prev == 66
+        and split_cost_result.steps[3].id == 628
+        and split_cost_result.steps[3].delay_from_prev == 20,
+    "an observed unbound Parry followed by RAW DR must accumulate a split one-bar Drive cost")
+end
+
 local resolver_failure = compiler.finalize(session, {
     motion_resolver = function() error("synthetic resolver failure") end,
 })
