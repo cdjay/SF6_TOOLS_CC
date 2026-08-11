@@ -2,6 +2,17 @@ local file = assert(io.open("autorun/Training_ScriptManager.lua", "r"))
 local source = file:read("*a")
 file:close()
 
+assert(not source:find("action_id_probe", 1, true),
+    "temporary action ID probe must not remain in the release menu")
+assert(source:find("local TSM_WEBBRIDGE_POLL_FRAMES = 30", 1, true),
+    "remote commands must keep responsive polling")
+assert(source:find("local TSM_WEBSTATE_HEARTBEAT_FRAMES = 300", 1, true),
+    "web state heartbeat must be low frequency")
+assert(source:find("_tsm_publish_webstate_if_needed", 1, true),
+    "web state must publish on change instead of every bridge poll")
+assert(source:find("_tsm_webstate_equal", 1, true),
+    "web state change detection is missing")
+
 local function ordered_positions(patterns, label)
     local previous = 0
     for _, pattern in ipairs(patterns) do

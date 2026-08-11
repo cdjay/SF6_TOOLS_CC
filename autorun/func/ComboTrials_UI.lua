@@ -1697,6 +1697,171 @@ local function _ctui_draw_live_positions()
     imgui.unindent(20)
 end
 
+local function draw_transcription_debug_tools()
+    imgui.text_colored("输入驱动的 V2 转录", COLORS.Orange)
+    imgui.text_colored(
+        "每条先回放源输入，再重置并验证朝向兼容的 raw input；不会覆盖原文件。",
+        COLORS.DarkGrey
+    )
+    local transcription = ctx.get_transcription_state and ctx.get_transcription_state() or nil
+    local audit_active = transcription
+        and transcription.active == true
+        and transcription.mode == "runtime_audit"
+    if transcription and transcription.active == true then
+        if imgui.button(audit_active and "取消审计" or "取消转录")
+            and ctx.cancel_transcription then
+            ctx.cancel_transcription()
+        end
+        imgui.same_line()
+        imgui.text(string.format(
+            "%d/%d  成功 %d  需处理 %d",
+            transcription.index or 0,
+            transcription.total or 0,
+            transcription.passed or 0,
+            transcription.failed or 0
+        ))
+    else
+        local resume = ctx.get_transcription_resume_state
+            and ctx.get_transcription_resume_state()
+            or nil
+        local start_label = resume
+            and string.format("继续转录（剩余 %d）", resume.remaining or 0)
+            or "转录当前角色全部连段"
+        if imgui.button(start_label) and ctx.start_transcription then
+            ctx.start_transcription(false)
+            transcription = ctx.get_transcription_state and ctx.get_transcription_state() or transcription
+        end
+        if ctx.start_transcription_current then
+            imgui.same_line()
+            if imgui.button("仅转录当前连段") then
+                ctx.start_transcription_current()
+                transcription = ctx.get_transcription_state
+                    and ctx.get_transcription_state()
+                    or transcription
+            end
+        end
+        if resume and ctx.start_transcription then
+            if imgui.button("重新转录全部") then
+                ctx.start_transcription(true)
+                transcription = ctx.get_transcription_state and ctx.get_transcription_state() or transcription
+            end
+        end
+        if ctx.load_latest_transcription_report then
+            if resume then imgui.same_line() end
+            if imgui.button("载入最近转录报告") then
+                ctx.load_latest_transcription_report()
+                transcription = ctx.get_transcription_state and ctx.get_transcription_state() or transcription
+            end
+        end
+        local failure_retry = ctx.get_transcription_failure_retry_state
+            and ctx.get_transcription_failure_retry_state()
+            or nil
+        if failure_retry
+            and imgui.button(string.format(
+                "仅重试转录失败项（%d）",
+                failure_retry.count or 0
+            ))
+            and ctx.start_transcription_failures then
+            ctx.start_transcription_failures()
+            transcription = ctx.get_transcription_state
+                and ctx.get_transcription_state()
+                or transcription
+        end
+    end
+    if not (transcription and transcription.active == true) then
+        imgui.spacing()
+        imgui.text_colored("运行目录批量演示审计", COLORS.Orange)
+        imgui.text_colored(
+            "逐条加载已安装 JSON，以输入流自动演示并严格核对实际 Action、结果与指令表完整性；只生成报告。",
+            COLORS.DarkGrey
+        )
+        if imgui.button("仅审计当前连段")
+            and ctx.start_runtime_audit_current then
+            ctx.start_runtime_audit_current()
+            transcription = ctx.get_transcription_state
+                and ctx.get_transcription_state()
+                or transcription
+        end
+        imgui.same_line()
+        if imgui.button("审计当前角色全部连段")
+            and ctx.start_runtime_audit then
+            ctx.start_runtime_audit()
+            transcription = ctx.get_transcription_state
+                and ctx.get_transcription_state()
+                or transcription
+        end
+        if ctx.load_latest_runtime_audit_report then
+            imgui.same_line()
+            if imgui.button("载入最近审计报告") then
+                ctx.load_latest_runtime_audit_report()
+                transcription = ctx.get_transcription_state
+                    and ctx.get_transcription_state()
+                    or transcription
+            end
+        end
+        local audit_retry = ctx.get_runtime_audit_retry_state
+            and ctx.get_runtime_audit_retry_state()
+            or nil
+        if audit_retry then
+            if (audit_retry.transcription_count or 0) > 0 then
+                if imgui.button(string.format(
+                        "仅转录审计失败项（%d）",
+                        audit_retry.transcription_count
+                    ))
+                    and ctx.start_transcription_from_audit_failures then
+                    ctx.start_transcription_from_audit_failures()
+                    transcription = ctx.get_transcription_state
+                        and ctx.get_transcription_state()
+                        or transcription
+                end
+                imgui.same_line()
+            end
+            if imgui.button(string.format(
+                    "仅复审%s（%d）",
+                    audit_retry.item_label or "失败项",
+                    audit_retry.count or 0
+                ))
+                and ctx.start_runtime_audit_failures then
+                ctx.start_runtime_audit_failures()
+                transcription = ctx.get_transcription_state
+                    and ctx.get_transcription_state()
+                    or transcription
+            end
+        end
+    end
+    if transcription then
+        if transcription.status then imgui.text(tostring(transcription.status)) end
+        if transcription.output_dir then
+            imgui.text_colored("候选：" .. tostring(transcription.output_dir), COLORS.DarkGrey)
+        end
+        if transcription.report_path then
+            imgui.text_colored("报告：" .. tostring(transcription.report_path), COLORS.DarkGrey)
+        end
+    end
+    local candidate = ctx.get_transcription_candidate_state
+        and ctx.get_transcription_candidate_state()
+        or nil
+    if candidate and (candidate.count or 0) > 0 then
+        imgui.text(string.format(
+            "已验证候选 %d/%d：%s",
+            candidate.index or 1,
+            candidate.count or 0,
+            tostring(candidate.name or "")
+        ))
+        if imgui.button("上一个候选") and ctx.change_transcription_candidate then
+            ctx.change_transcription_candidate(-1)
+        end
+        imgui.same_line()
+        if imgui.button("加载并开始训练") and ctx.start_transcription_candidate then
+            ctx.start_transcription_candidate()
+        end
+        imgui.same_line()
+        if imgui.button("下一个候选") and ctx.change_transcription_candidate then
+            ctx.change_transcription_candidate(1)
+        end
+    end
+end
+
 local function draw_combo_trials_menu_ui()
     if not _ctui_runtime_allowed() then return end
     local ok, err = pcall(function()
@@ -1731,171 +1896,6 @@ local function draw_combo_trials_menu_ui()
         if arf_c then
             d2d_cfg.auto_retry_on_fail = arf_v
             if ctx.save_d2d_config then ctx.save_d2d_config() end
-        end
-
-        imgui.spacing()
-        imgui.separator()
-        imgui.text_colored("输入驱动的 V2 转录", COLORS.Orange)
-        imgui.text_colored(
-            "每条先回放源输入，再重置并验证朝向兼容的 raw input；不会覆盖原文件。",
-            COLORS.DarkGrey
-        )
-        local transcription = ctx.get_transcription_state and ctx.get_transcription_state() or nil
-        local audit_active = transcription
-            and transcription.active == true
-            and transcription.mode == "runtime_audit"
-        if transcription and transcription.active == true then
-            if imgui.button(audit_active and "取消审计" or "取消转录")
-                and ctx.cancel_transcription then
-                ctx.cancel_transcription()
-            end
-            imgui.same_line()
-            imgui.text(string.format(
-                "%d/%d  成功 %d  需处理 %d",
-                transcription.index or 0,
-                transcription.total or 0,
-                transcription.passed or 0,
-                transcription.failed or 0
-            ))
-        else
-            local resume = ctx.get_transcription_resume_state
-                and ctx.get_transcription_resume_state()
-                or nil
-            local start_label = resume
-                and string.format("继续转录（剩余 %d）", resume.remaining or 0)
-                or "转录当前角色全部连段"
-            if imgui.button(start_label) and ctx.start_transcription then
-                ctx.start_transcription(false)
-                transcription = ctx.get_transcription_state and ctx.get_transcription_state() or transcription
-            end
-            if ctx.start_transcription_current then
-                imgui.same_line()
-                if imgui.button("仅转录当前连段") then
-                    ctx.start_transcription_current()
-                    transcription = ctx.get_transcription_state
-                        and ctx.get_transcription_state()
-                        or transcription
-                end
-            end
-            if resume and ctx.start_transcription then
-                if imgui.button("重新转录全部") then
-                    ctx.start_transcription(true)
-                    transcription = ctx.get_transcription_state and ctx.get_transcription_state() or transcription
-                end
-            end
-            if ctx.load_latest_transcription_report then
-                if resume then imgui.same_line() end
-                if imgui.button("载入最近转录报告") then
-                    ctx.load_latest_transcription_report()
-                    transcription = ctx.get_transcription_state and ctx.get_transcription_state() or transcription
-                end
-            end
-            local failure_retry = ctx.get_transcription_failure_retry_state
-                and ctx.get_transcription_failure_retry_state()
-                or nil
-            if failure_retry
-                and imgui.button(string.format(
-                    "仅重试转录失败项（%d）",
-                    failure_retry.count or 0
-                ))
-                and ctx.start_transcription_failures then
-                ctx.start_transcription_failures()
-                transcription = ctx.get_transcription_state
-                    and ctx.get_transcription_state()
-                    or transcription
-            end
-        end
-        if not (transcription and transcription.active == true) then
-            imgui.spacing()
-            imgui.text_colored("运行目录批量演示审计", COLORS.Orange)
-            imgui.text_colored(
-                "逐条加载已安装 JSON，以输入流自动演示并严格核对实际 Action、结果与指令表完整性；只生成报告。",
-                COLORS.DarkGrey
-            )
-            if imgui.button("仅审计当前连段")
-                and ctx.start_runtime_audit_current then
-                ctx.start_runtime_audit_current()
-                transcription = ctx.get_transcription_state
-                    and ctx.get_transcription_state()
-                    or transcription
-            end
-            imgui.same_line()
-            if imgui.button("审计当前角色全部连段")
-                and ctx.start_runtime_audit then
-                ctx.start_runtime_audit()
-                transcription = ctx.get_transcription_state
-                    and ctx.get_transcription_state()
-                    or transcription
-            end
-            if ctx.load_latest_runtime_audit_report then
-                imgui.same_line()
-                if imgui.button("载入最近审计报告") then
-                    ctx.load_latest_runtime_audit_report()
-                    transcription = ctx.get_transcription_state
-                        and ctx.get_transcription_state()
-                        or transcription
-                end
-            end
-            local audit_retry = ctx.get_runtime_audit_retry_state
-                and ctx.get_runtime_audit_retry_state()
-                or nil
-            if audit_retry then
-                if (audit_retry.transcription_count or 0) > 0 then
-                    if imgui.button(string.format(
-                            "仅转录审计失败项（%d）",
-                            audit_retry.transcription_count
-                        ))
-                        and ctx.start_transcription_from_audit_failures then
-                        ctx.start_transcription_from_audit_failures()
-                        transcription = ctx.get_transcription_state
-                            and ctx.get_transcription_state()
-                            or transcription
-                    end
-                    imgui.same_line()
-                end
-                if imgui.button(string.format(
-                        "仅复审%s（%d）",
-                        audit_retry.item_label or "失败项",
-                        audit_retry.count or 0
-                    ))
-                    and ctx.start_runtime_audit_failures then
-                    ctx.start_runtime_audit_failures()
-                    transcription = ctx.get_transcription_state
-                        and ctx.get_transcription_state()
-                        or transcription
-                end
-            end
-        end
-        if transcription then
-            if transcription.status then imgui.text(tostring(transcription.status)) end
-            if transcription.output_dir then
-                imgui.text_colored("候选：" .. tostring(transcription.output_dir), COLORS.DarkGrey)
-            end
-            if transcription.report_path then
-                imgui.text_colored("报告：" .. tostring(transcription.report_path), COLORS.DarkGrey)
-            end
-        end
-        local candidate = ctx.get_transcription_candidate_state
-            and ctx.get_transcription_candidate_state()
-            or nil
-        if candidate and (candidate.count or 0) > 0 then
-            imgui.text(string.format(
-                "已验证候选 %d/%d：%s",
-                candidate.index or 1,
-                candidate.count or 0,
-                tostring(candidate.name or "")
-            ))
-            if imgui.button("上一个候选") and ctx.change_transcription_candidate then
-                ctx.change_transcription_candidate(-1)
-            end
-            imgui.same_line()
-            if imgui.button("加载并开始训练") and ctx.start_transcription_candidate then
-                ctx.start_transcription_candidate()
-            end
-            imgui.same_line()
-            if imgui.button("下一个候选") and ctx.change_transcription_candidate then
-                ctx.change_transcription_candidate(1)
-            end
         end
 
         imgui.spacing()
@@ -1954,6 +1954,16 @@ local function draw_combo_trials_menu_ui()
         if plain_header("高级与调试") then
         imgui.indent(18)
         local advanced_ok, advanced_err = pcall(function()
+        local trace_changed, trace_enabled = imgui.checkbox(
+            "记录连段诊断历史",
+            rawget(_G, "CT_DIAGNOSTIC_TRACE") == true
+        )
+        if trace_changed then _G.CT_DIAGNOSTIC_TRACE = trace_enabled == true end
+        imgui.spacing()
+        draw_transcription_debug_tools()
+        imgui.spacing()
+        imgui.separator()
+        imgui.spacing()
         -- ==========================================
         -- TAB 2: IMGUI VISUALIZER
         -- ==========================================

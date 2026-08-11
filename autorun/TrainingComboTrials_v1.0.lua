@@ -51,11 +51,9 @@ end
 ct_default_global_flag("CT_HP_RESTORE_TRACE", false)
 ct_default_global_flag("CT_UNIQUE_TRACE", false)
 ct_default_global_flag("CT_DEMO_TRACE", false)
+ct_default_global_flag("CT_DIAGNOSTIC_TRACE", false)
 ct_default_global_flag("CT_VERIFY_TRACE", false)
-ct_default_global_flag("CT_SAME_ACTION_TRACE", false)
-ct_default_global_flag("CT_SAME_ACTION_TRACE_FILE", false)
 ct_default_global_flag("CT_AUTO_FILE_SCAN", false)
-ct_default_global_flag("CT_SAVE_STATE_POC", false)
 
 pcall(function()
     if fs and fs.create_dir then fs.create_dir("TrainingComboTrials_data/exceptions") end
@@ -4907,11 +4905,13 @@ local function ct_player_init(p_idx, p_state)
         if trial_state.fail_timer and trial_state.fail_timer > 0 then
             -- CAPTURE: Take a snapshot on the very first frame of the fail state
             if not trial_state._fail_captured then
-                DebugTrace.record_last_fail(
-                    trial_state,
-                    DebugTrace.build_fail_dump(trial_state, players),
-                    "TrainingComboTrials_data/LastFail.json"
-                )
+                if DebugTrace.is_enabled(trial_state) then
+                    DebugTrace.record_last_fail(
+                        trial_state,
+                        DebugTrace.build_fail_dump(trial_state, players),
+                        "TrainingComboTrials_data/LastFail.json"
+                    )
+                end
                 trial_state._fail_captured = true
             end
 
@@ -5409,88 +5409,6 @@ local function ct_player_hold_charge(p_state)
     end			
 end
 
-_G.CTSameActionTrace = _G.CTSameActionTrace or {}
-_G.CTSameActionTrace.path = "TrainingComboTrials_data/SameActionTrace.json"
-_G.CTSameActionTrace.max_events = 500
-
-function _G.CTSameActionTrace.enabled()
-    local same_flag = rawget(_G, "CT_SAME_ACTION_TRACE")
-    if same_flag ~= nil then return same_flag == true end
-    return rawget(_G, "CT_VERIFY_TRACE") == true
-end
-
-function _G.CTSameActionTrace.target()
-    local name = tostring(trial_state.current_file_name or trial_state.current_file or trial_state.current_file_path or "")
-    return name:find("Mai_OKI_DI_2858_D1_6_SA0", 1, true) ~= nil
-        or name:find("Mai_OKI_DI_3158_D1_6_SA1", 1, true) ~= nil
-end
-
-function _G.CTSameActionTrace.build_base(phase, p_state)
-    if not (_G.CTSameActionTrace.enabled() and _G.CTSameActionTrace.target()) then return nil end
-    if not trial_state.is_playing then return nil end
-    if p_state and p_state ~= players[trial_state.playing_player] then return nil end
-
-    local expected = trial_state.sequence and trial_state.sequence[trial_state.current_step] or nil
-    local prev_step = trial_state.current_step and trial_state.current_step > 1
-        and trial_state.sequence[trial_state.current_step - 1] or nil
-    local last_played = trial_state.last_played_frame or engine_frame_count
-    local expected_delay = expected and expected.delay_from_prev or nil
-    local frames_since_prev_step = trial_state.current_step and trial_state.current_step > 1
-        and (engine_frame_count - last_played) or 0
-
-    return {
-        phase = phase,
-        trial_name = trial_state.current_file_name,
-        trial_file = trial_state.current_file or trial_state.current_file_path,
-        frame = engine_frame_count,
-        current_step = trial_state.current_step,
-        expected_id = expected and expected.id or nil,
-        expected_motion = expected and expected.motion or nil,
-        previous_verified_step = trial_state.current_step and trial_state.current_step - 1 or nil,
-        previous_expected_id = prev_step and prev_step.id or nil,
-        previous_expected_motion = prev_step and prev_step.motion or nil,
-        same_as_previous_expected = expected and prev_step and expected.id == prev_step.id or false,
-        same_as_current_expected = expected and _pf and _pf.act_id == expected.id or false,
-        frames_since_prev_step = frames_since_prev_step,
-        expected_delay = expected_delay,
-        frame_diff = expected_delay and (frames_since_prev_step - expected_delay) or nil
-    }
-end
-
-function _G.CTSameActionTrace.record(event)
-    if type(event) ~= "table" then return end
-    trial_state._same_action_trace = trial_state._same_action_trace or {
-        timestamp = os.date("%Y-%m-%d %H:%M:%S"),
-        note = "Temporary trace for consecutive same-action validation. Enable with _G.CT_SAME_ACTION_TRACE=true.",
-        path = _G.CTSameActionTrace.path,
-        events = {}
-    }
-
-    local dump = trial_state._same_action_trace
-    dump.updated_at = os.date("%Y-%m-%d %H:%M:%S")
-    dump.enabled = true
-    table.insert(dump.events, event)
-    while #dump.events > _G.CTSameActionTrace.max_events do
-        table.remove(dump.events, 1)
-    end
-    if rawget(_G, "CT_SAME_ACTION_TRACE_FILE") == true then
-        pcall(function()
-            DebugTrace.write_json(_G.CTSameActionTrace.path, dump)
-        end)
-    end
-end
-
-function _G.CTSameActionTrace.trace(phase, p_state, fields)
-    local event = _G.CTSameActionTrace.build_base(phase, p_state)
-    if not event then return end
-    if type(fields) == "table" then
-        for k, v in pairs(fields) do
-            event[k] = v
-        end
-    end
-    _G.CTSameActionTrace.record(event)
-end
-
 local function ct_player_input_buffer(p_state)
     if trial_state.is_playing and p_state == players[trial_state.playing_player]
         and trial_state._action_grace and trial_state._action_grace > 0 then
@@ -5558,56 +5476,6 @@ local function ct_player_input_buffer(p_state)
         table.remove(p_state.input_history_queue, 1)
     end
 
-    if _G.CTSameActionTrace.enabled() and _G.CTSameActionTrace.target()
-        and trial_state.is_playing and p_state == players[trial_state.playing_player] then
-        if p_state._same_action_trace_step ~= trial_state.current_step then
-            p_state._same_action_trace_step = trial_state.current_step
-            p_state._same_action_trace_summary = {
-                saw_66_edge = false,
-                saw_44_edge = false,
-                saw_act17 = false,
-                act17_min_frame = nil,
-                act17_max_frame = nil,
-                act17_rewound = false,
-                previous_act17_frame = nil
-            }
-        end
-
-        local same_trace_summary = p_state._same_action_trace_summary
-        if same_trace_summary then
-            if detected_66_edge then same_trace_summary.saw_66_edge = true end
-            if detected_44_edge then same_trace_summary.saw_44_edge = true end
-            if _pf.act_id == 17 then
-                same_trace_summary.saw_act17 = true
-                local act_frame = tonumber(_pf.act_frame) or 0
-                if same_trace_summary.act17_min_frame == nil or act_frame < same_trace_summary.act17_min_frame then
-                    same_trace_summary.act17_min_frame = act_frame
-                end
-                if same_trace_summary.act17_max_frame == nil or act_frame > same_trace_summary.act17_max_frame then
-                    same_trace_summary.act17_max_frame = act_frame
-                end
-                if same_trace_summary.previous_act17_frame and act_frame < same_trace_summary.previous_act17_frame then
-                    same_trace_summary.act17_rewound = true
-                end
-                same_trace_summary.previous_act17_frame = act_frame
-            end
-        end
-
-        _G.CTSameActionTrace.trace("input_sample", p_state, {
-            direct_input = _pf.direct_input,
-            direction_input = current_dir,
-            direction_bits = current_dir_val,
-            newly_pressed = newly_pressed,
-            newly_pressed_dir = newly_pressed_dir,
-            current_input_bits = _pf.direct_input,
-            detected_66_edge = detected_66_edge,
-            detected_44_edge = detected_44_edge,
-            input_history_size = #p_state.input_history_queue,
-            current_act_id = _pf.act_id,
-            current_act_frame = _pf.act_frame
-        })
-    end
-
     -- ANTI-GHOSTING DEBOUNCE LOGIC
     local ghost_wait = ctx.d2d_cfg.ghost_filter_frames or 4
 
@@ -5673,23 +5541,6 @@ local function ct_player_input_buffer(p_state)
             p_state.consumed_player_action_anchor_serial = anchor_serial
         end
     end
-    _G.CTSameActionTrace.trace("action_sample", p_state, {
-        current_action_id = _pf.act_id,
-        current_action_frame = _pf.act_frame,
-        buffer_act_id = p_state.buffer_act_id,
-        buffer_act_frame = p_state.buffer_act_frame,
-        last_act_id = p_state.prev_act_id,
-        last_act_frame = p_state.prev_act_frame,
-        started_new_action = started_new_action,
-        started_new_action_reason = started_new_action_reason,
-        dash_pair_direction = dash_pair and dash_pair.direction or nil,
-        dash_pair_interval = dash_pair and dash_pair.interval or nil,
-        skipped_due_to_duplicate = not started_new_action and _pf.act_id == p_state.buffer_act_id,
-        skipped_due_to_same_action = not started_new_action and _pf.act_id == p_state.buffer_act_id,
-        action_instance = p_state.buffer_action_instance,
-        candidate_window_open = p_state.buffer_is_committed == false,
-        pushed_to_actions_to_process = false
-    })
     p_state.buffer_act_frame = _pf.act_frame
 
     if started_new_action then
@@ -5799,17 +5650,6 @@ local function ct_player_input_buffer(p_state)
                     r1 = p_state.buffer_r1, r2 = p_state.buffer_r2,
                     current_hp = p_state.buffer_current_hp
                 })
-                _G.CTSameActionTrace.trace("action_candidate_pushed", p_state, {
-                    push_reason = "started_new_action_commit_previous",
-                    current_action_id = _pf.act_id,
-                    current_action_frame = _pf.act_frame,
-                    pushed_action_id = p_state.buffer_act_id,
-                    pushed_engine_frame = p_state.buffer_start_frame,
-                    pushed_action_instance = p_state.buffer_action_instance,
-                    pushed_to_actions_to_process = true,
-                    started_new_action = started_new_action,
-                    started_new_action_reason = started_new_action_reason
-                })
             end
         end
         p_state.action_instance_counter = (p_state.action_instance_counter or 0) + 1
@@ -5861,15 +5701,6 @@ local function ct_player_input_buffer(p_state)
             p1 = p_state.buffer_p1, p2 = p_state.buffer_p2,
             r1 = p_state.buffer_r1, r2 = p_state.buffer_r2,
             current_hp = p_state.buffer_current_hp
-        })
-        _G.CTSameActionTrace.trace("action_candidate_pushed", p_state, {
-            push_reason = "ghost_wait_elapsed",
-            pushed_action_id = p_state.buffer_act_id,
-            pushed_engine_frame = p_state.buffer_start_frame,
-            pushed_action_instance = p_state.buffer_action_instance,
-            pushed_to_actions_to_process = true,
-            started_new_action = started_new_action,
-            started_new_action_reason = started_new_action_reason
         })
     end
     return actions_to_process
@@ -6720,23 +6551,6 @@ local function ct_player_process_actions(p_idx, p_state, actions_to_process)
                                 edge_type = action_match.edge_type,
                                 synthetic = action_match.synthetic
                             }
-                            _G.CTSameActionTrace.trace("action_match_entry", p_state, {
-                                candidate_action_id = act_id,
-                                candidate_action_instance = process_act.action_instance,
-                                candidate_motion = motion_str,
-                                candidate_input = real_input_str,
-                                previous_step_id = trace_prev_step and trace_prev_step.id or nil,
-                                action_match_matched = action_match.matched,
-                                action_match_reason = action_match.match_reason,
-                                match_result = action_match.matched,
-                                reject_reason = action_match.matched and nil or "action_mismatch",
-                                combo_ok = trace_combo_ok,
-                                hp_ok = trace_hp_ok,
-                                direct_input = direct_input,
-                                flags = flags,
-                                action_code = action_code,
-                                branch_type = b_type
-                            })
                             if expected and not action_match.matched
                                 and ct_is_unreported_same_action_pressure_step(trace_prev_step, expected) then
                                 _pf.pressure_skip = ct_try_skip_unreported_same_action_pressure_step({
@@ -7198,36 +7012,6 @@ local function ct_player_process_actions(p_idx, p_state, actions_to_process)
                                         trial_state._step1_wrong_pending = true
                                     else
                                         match_probe.reject_reason = "wrong_move"
-                                        local same_summary = p_state._same_action_trace_summary or {}
-                                        match_probe.same_action_trace = {
-                                            expected_same_as_previous = expected and trace_prev_step and expected.id == trace_prev_step.id or false,
-                                            expected_is_dash = expected and (expected.id == 17 or expected.id == 18
-                                                or expected.motion == "66" or expected.motion == "44") or false,
-                                            saw_66_edge_since_prev_step = same_summary.saw_66_edge,
-                                            saw_44_edge_since_prev_step = same_summary.saw_44_edge,
-                                            saw_act17_since_prev_step = same_summary.saw_act17,
-                                            act17_min_frame = same_summary.act17_min_frame,
-                                            act17_max_frame = same_summary.act17_max_frame,
-                                            act17_rewound = same_summary.act17_rewound
-                                        }
-                                        _G.CTSameActionTrace.trace("wrong_move", p_state, {
-                                            candidate_action_id = act_id,
-                                            candidate_motion = motion_str,
-                                            candidate_input = real_input_str,
-                                            previous_step_id = trace_prev_step and trace_prev_step.id or nil,
-                                            match_result = false,
-                                            reject_reason = "wrong_move",
-                                            combo_ok = trace_combo_ok,
-                                            hp_ok = trace_hp_ok,
-                                            expected_id_equals_previous_expected_id = expected and trace_prev_step and expected.id == trace_prev_step.id or false,
-                                            expected_motion_is_dash = expected and (expected.motion == "66" or expected.motion == "44") or false,
-                                            saw_66_edge_since_prev_step = same_summary.saw_66_edge,
-                                            saw_44_edge_since_prev_step = same_summary.saw_44_edge,
-                                            saw_act17_since_prev_step = same_summary.saw_act17,
-                                            act17_min_frame = same_summary.act17_min_frame,
-                                            act17_max_frame = same_summary.act17_max_frame,
-                                            act17_rewound = same_summary.act17_rewound
-                                        })
                                         DebugTrace.record_match_probe(trial_state, match_probe)
                                         ComboTrialsModules.PendingAbsorb.clear(trial_state, "wrong_move")
                                         trial_state.fail_timer = d2d_cfg.fail_display_frames or 120
@@ -9946,186 +9730,7 @@ ctx.sf6_menu_state = sf6_menu_state
 local ComboTrials_UI = require("func/ComboTrials_UI")
 ComboTrials_UI.init(ctx)
 
-
--- ============================================================
--- SAVE STATE / LOAD STATE: sync with active trial
--- ============================================================
-ctx.save_state = ctx.save_state or {
-    trial_snapshot = nil,
-    pending_restore = 0,
-    save_pending = false,
-    real_frame = 0,
-    save_fired_at = 0,
-    save_step_at_fire = 1,
-    dbg_log = {},
-    save_display = "jamais",
-    save_count = 0,
-    load_display = "jamais",
-    load_count = 0,
-    hooked = false
-}
-
-ctx.apply_restore = function()
-    if not ctx.save_state.trial_snapshot then return end
-    if not trial_state.is_playing then return end
-    trial_state.current_step      = ctx.save_state.trial_snapshot.step or 1
-    trial_state.success_timer     = 0
-    trial_state._success_latched  = false
-    trial_state._auto_next_countdown = nil
-    trial_state.fail_timer        = 0
-    trial_state.fail_reason       = nil
-    local frames_since            = ctx.save_state.trial_snapshot.frames_since_step or 0
-    trial_state.last_played_frame = engine_frame_count - frames_since
-    if ctx.save_state.trial_snapshot.flip_inputs ~= nil then
-        trial_state.flip_inputs = ctx.save_state.trial_snapshot.flip_inputs
-    end
-    if ctx.save_state.trial_snapshot.sequence then
-        for i, saved in ipairs(ctx.save_state.trial_snapshot.sequence) do
-            if trial_state.sequence[i] then
-                trial_state.sequence[i].has_hit      = saved.has_hit
-                trial_state.sequence[i].actual_combo = saved.actual_combo
-            end
-        end
-    else
-        for _, item in ipairs(trial_state.sequence) do
-            item.has_hit      = false
-            item.actual_combo = 0
-        end
-    end
-    reset_combo_visual_runtime()
-end
-
-ctx.clear_trial_snapshot = function()
-    ctx.save_state.trial_snapshot = nil
-    ctx.save_state.pending_restore = 0
-    ctx.save_state.save_pending = false
-end
-
--- Debug log
-ctx.save_state_dbg = function(s)
-    table.insert(ctx.save_state.dbg_log, 1, string.format("[%d] %s", ctx.save_state.real_frame, s))
-    if #ctx.save_state.dbg_log > 20 then table.remove(ctx.save_state.dbg_log) end
-end
-
--- re.on_draw_ui(function()
--- imgui.begin_window("TrialSaveState DEBUG", true, 0)
--- imgui.text_colored("SAVE: " .. ctx.save_state.save_count .. "x  " .. ctx.save_state.save_display, 0xFF88FF88)
--- imgui.text_colored("LOAD: " .. ctx.save_state.load_count .. "x  " .. ctx.save_state.load_display, 0xFF8888FF)
--- imgui.separator()
--- for _, l in ipairs(ctx.save_state.dbg_log) do imgui.text(l) end
--- imgui.end_window()
--- end)
-
-
 if _G._allow_stun_demo == nil then _G._allow_stun_demo = true end
-
-ctx.ct_get_field = function(obj, name)
-    return obj:get_field(name)
-end
-
-re.on_frame(function()
-    if rawget(_G, "CT_SAVE_STATE_POC") ~= true then
-        ctx.save_state.save_pending = false
-        ctx.save_state.pending_restore = 0
-        return
-    end
-    if not is_combo_trials_runtime_allowed() then
-        ctx.save_state.save_pending = false
-        ctx.save_state.pending_restore = 0
-        return
-    end
-    if not ctx.save_state.hooked then
-        ctx.save_state.hooked = true
-        local td = sdk.find_type_definition("app.training.TrainingManager")
-        if td then
-            local save_methods = { "requestSaveState", "SaveKeyData" }
-            local load_methods = { "requestLoadState" }
-            
-            for _, name in ipairs(save_methods) do
-                local m = td:get_method(name)
-                if m then
-                    pcall(function()
-                        sdk.hook(m, function(args)
-                            if ctx.save_state.pending_restore > 0 then return end
-                            ctx.save_state.save_pending = true
-                            ctx.save_state.save_fired_at = ctx.save_state.real_frame
-                            ctx.save_state.save_step_at_fire = trial_state.current_step
-                            ctx.save_state_dbg("Save() " .. name .. " step=" .. tostring(trial_state.current_step))
-                        end, function(retval) return retval end)
-                    end)
-                end
-            end
-
-            for _, name in ipairs(load_methods) do
-                local m = td:get_method(name)
-                if m then
-                    pcall(function()
-                        sdk.hook(m, function(args)
-                            ctx.save_state.load_count = ctx.save_state.load_count + 1
-                            ctx.save_state.save_pending = false
-                            if ctx.save_state.trial_snapshot and trial_state.is_playing then
-                                ctx.save_state.pending_restore = 8
-                            end
-                        end, function(retval) return retval end)
-                    end)
-                end
-            end
-        end
-    end
-
-    -- If Save fired and no Load followed within 5 frames -> real Save
-    if ctx.save_state.save_pending and (ctx.save_state.real_frame - ctx.save_state.save_fired_at) >= 5 then
-        ctx.save_state.save_pending = false
-        if trial_state.is_playing then
-            local snap_sequence = {}
-            for i, item in ipairs(trial_state.sequence) do
-                snap_sequence[i] = { has_hit = item.has_hit, actual_combo = item.actual_combo }
-            end
-            ctx.save_state.trial_snapshot = {
-                step              = ctx.save_state.save_step_at_fire,
-                frames_since_step = engine_frame_count - (trial_state.last_played_frame or engine_frame_count),
-                sequence          = snap_sequence,
-                flip_inputs       = trial_state.flip_inputs,
-            }
-            ctx.save_state.save_count = ctx.save_state.save_count + 1
-            ctx.save_state.save_display = os.date("%H:%M:%S") .. " [SnapShoted] step=" .. tostring(ctx.save_state.save_step_at_fire)
-            ctx.save_state_dbg("-> snapshot saved step=" ..
-                tostring(ctx.save_state.trial_snapshot.step) .. " frames_since=" .. tostring(ctx.save_state.trial_snapshot.frames_since_step))
-        end
-    end
-
-    -- STOP TRIAL -> clear
-    if not trial_state.is_playing and ctx.save_state.trial_snapshot then
-        ctx.clear_trial_snapshot()
-    end
-
-    -- GUARD: cancel the refresh triggered by save shortcuts when trial is active with forced position.
-    -- Do not cancel our own reset/start refresh; pending_exact_pos is set by apply_forced_position().
-    local save_refresh_recent = ctx.save_state.save_fired_at > 0 and (ctx.save_state.real_frame - ctx.save_state.save_fired_at) <= 8
-    if trial_state.is_playing and save_refresh_recent and d2d_cfg.forced_position_idx ~= 1
-        and not (trial_state.pending_exact_pos and trial_state.pending_exact_pos > 0) then
-        local tm2 = sdk.get_managed_singleton("app.training.TrainingManager")
-        if tm2 then
-            local ok, ts = pcall(ctx.ct_get_field, tm2, "_TrainingState")
-            local ok2, rf = pcall(ctx.ct_get_field, tm2, "_IsReqRefresh")
-            if ok and ok2 and ts == 2 and rf == true then
-                pcall(function()
-                    tm2:set_field("_IsReqRefresh", false)
-                    tm2:set_field("_TrainingState", 1)
-                end)
-            end
-        end
-    end
-
-   -- Delayed restore
-    if ctx.save_state.pending_restore > 0 then
-        ctx.save_state.pending_restore = ctx.save_state.pending_restore - 1
-        if ctx.save_state.pending_restore == 0 then
-            ctx.save_state_dbg("apply_restore step=" .. tostring(ctx.save_state.trial_snapshot and ctx.save_state.trial_snapshot.step or "nil"))
-            ctx.apply_restore()
-        end
-    end
-end)
 
 -- =========================================================
 -- DEMO ENGINE INJECTION HOOKS (Stack-based Player ID tracking)

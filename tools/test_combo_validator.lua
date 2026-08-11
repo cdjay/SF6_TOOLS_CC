@@ -22,7 +22,7 @@ assert(ActionMatcher.sequence_uses_input_truth({
 }) == false, "a legacy timeline-only trial must retain compatibility matching")
 
 do
-    local trace_state = {}
+    local trace_state = { _runtime_auditing = true }
     DebugTrace.record_step_confirmation(trace_state, {
         step = 2,
         confirmation_frame = 100,

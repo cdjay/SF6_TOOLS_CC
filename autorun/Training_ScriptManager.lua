@@ -667,10 +667,15 @@ local function _tsm_update_hide_rect()
 end
 
 local _TSM_WEBSTATE_INACTIVE = { sf6_running = true, training_active = false, mode = 0 }
+local TSM_WEBSTATE_FILE = "SF6_TrainingRemoteControl_data/TSM_WebState.json"
 local TSM_WEBBRIDGE_FILE = "SF6_TrainingRemoteControl_data/TSM_WebBridge.json"
+local TSM_WEBBRIDGE_POLL_FRAMES = 30
+local TSM_WEBSTATE_HEARTBEAT_FRAMES = 300
 local TSM_INACTIVE_WEBSTATE_REFRESH_FRAMES = 300
 local _tsm_inactive_webstate_reason = nil
 local _tsm_inactive_webstate_wait = 0
+local _tsm_last_webstate = nil
+local _tsm_webstate_heartbeat_wait = 0
 
 local function _tsm_load_web_bridge()
     local ok_open, f = pcall(io.open, TSM_WEBBRIDGE_FILE, "r")
@@ -700,7 +705,7 @@ local function _tsm_dump_webstate_inactive(reason)
         return
     end
 
-    json.dump_file("SF6_TrainingRemoteControl_data/TSM_WebState.json", _TSM_WEBSTATE_INACTIVE)
+    json.dump_file(TSM_WEBSTATE_FILE, _TSM_WEBSTATE_INACTIVE)
     _tsm_inactive_webstate_reason = reason
     _tsm_inactive_webstate_wait = TSM_INACTIVE_WEBSTATE_REFRESH_FRAMES
 end
@@ -710,9 +715,15 @@ local function _tsm_mark_webstate_active()
     _tsm_inactive_webstate_wait = 0
 end
 
-local function _tsm_web_bridge_tick()
-    _tsm_mark_webstate_active()
-    json.dump_file("SF6_TrainingRemoteControl_data/TSM_WebState.json", {
+local function _tsm_copy_webstate_list(values)
+    local copy = {}
+    if type(values) ~= "table" then return copy end
+    for i, value in ipairs(values) do copy[i] = value end
+    return copy
+end
+
+local function _tsm_build_webstate()
+    return {
         mode = _G.CurrentTrainerMode or 0,
         trial_file = _G.ComboTrials_CurrentFile or "",
         trial_step = _G.ComboTrials_CurrentStep or 0,
@@ -720,7 +731,7 @@ local function _tsm_web_bridge_tick()
         trial_playing = _G.ComboTrials_IsPlaying or false,
         trial_recording = _G.ComboTrials_IsRecording or false,
         trial_demo = _G.ComboTrials_IsDemo or false,
-        trial_files = _G.ComboTrials_FileList or {},
+        trial_files = _tsm_copy_webstate_list(_G.ComboTrials_FileList),
         trial_file_idx = _G.ComboTrials_FileIdx or 1,
         trial_position = _G.ComboTrials_PositionIdx or 1,
         is_running = _G.TrainingSession_IsRunning or false,
@@ -731,7 +742,47 @@ local function _tsm_web_bridge_tick()
         hide_ui = _G._tsm_hide_ui or false,
         sf6_running = true,
         training_active = _G.TrainingModeActive or false,
-    })
+    }
+end
+
+local function _tsm_webstate_equal(left, right)
+    if type(left) ~= "table" or type(right) ~= "table" then return false end
+    for key, value in pairs(left) do
+        if key ~= "trial_files" and right[key] ~= value then return false end
+    end
+    for key, value in pairs(right) do
+        if key ~= "trial_files" and left[key] ~= value then return false end
+    end
+    local left_files = left.trial_files or {}
+    local right_files = right.trial_files or {}
+    if #left_files ~= #right_files then return false end
+    for i, value in ipairs(left_files) do
+        if right_files[i] ~= value then return false end
+    end
+    return true
+end
+
+local function _tsm_publish_webstate_if_needed()
+    local current = _tsm_build_webstate()
+    _tsm_webstate_heartbeat_wait = math.max(
+        0,
+        _tsm_webstate_heartbeat_wait - TSM_WEBBRIDGE_POLL_FRAMES
+    )
+    if _tsm_webstate_equal(current, _tsm_last_webstate)
+        and _tsm_webstate_heartbeat_wait > 0 then
+        return true
+    end
+
+    local ok, result = pcall(json.dump_file, TSM_WEBSTATE_FILE, current)
+    if not ok or result == false then return false end
+    _tsm_last_webstate = current
+    _tsm_webstate_heartbeat_wait = TSM_WEBSTATE_HEARTBEAT_FRAMES
+    return true
+end
+
+local function _tsm_web_bridge_tick()
+    _tsm_mark_webstate_active()
+    _tsm_publish_webstate_if_needed()
     local b = _tsm_load_web_bridge()
     if b and b._web_timestamp and (not _G._tsm_bridge_ts or b._web_timestamp > _G._tsm_bridge_ts) then
         _G._tsm_bridge_ts = b._web_timestamp
@@ -922,7 +973,7 @@ re.on_frame(function()
         end)
     end
     _G._tsm_web_counter = _G._tsm_web_counter + 1
-    if _G._tsm_web_counter >= 30 then
+    if _G._tsm_web_counter >= TSM_WEBBRIDGE_POLL_FRAMES then
         _G._tsm_web_counter = 0
         pcall(_tsm_web_bridge_tick)
     end
@@ -1101,13 +1152,6 @@ re.on_draw_ui(function()
 
         imgui.spacing()
         imgui.separator()
-        if imgui.tree_node("高级/调试") then
-            if imgui.tree_node("动作 ID 探针") then
-                TrainingMenuRegistry.draw("action_id_probe")
-                imgui.tree_pop()
-            end
-            imgui.tree_pop()
-        end
         imgui.unindent(12)
     end
 end)

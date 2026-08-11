@@ -20,22 +20,33 @@ local function state_dump_enabled()
     return flag == true
 end
 
+local function diagnostic_trace_enabled(state)
+    return rawget(_G, "CT_DIAGNOSTIC_TRACE") == true
+        or verify_trace_enabled()
+        or state_dump_enabled()
+        or (type(state) == "table" and state._runtime_auditing == true)
+end
+
+function DebugTrace.is_enabled(state)
+    return diagnostic_trace_enabled(state)
+end
+
 function DebugTrace.record_validation_debug(state, data)
-    if state then
+    if diagnostic_trace_enabled(state) and state then
         state._validation_debug = data
     end
     return data
 end
 
 function DebugTrace.record_auto_advance(state, data)
-    if state then
+    if diagnostic_trace_enabled(state) and state then
         state._auto_advance_debug = data
     end
     return data
 end
 
 function DebugTrace.record_step_confirmation(state, data)
-    if not state or type(data) ~= "table" then return data end
+    if not diagnostic_trace_enabled(state) or not state or type(data) ~= "table" then return data end
     state._step_confirmation_trace = state._step_confirmation_trace or {}
     table.insert(state._step_confirmation_trace, data)
     while #state._step_confirmation_trace > 64 do
@@ -45,7 +56,7 @@ function DebugTrace.record_step_confirmation(state, data)
 end
 
 function DebugTrace.record_visual_step_state(state, data)
-    if not state or type(data) ~= "table" then return data end
+    if not diagnostic_trace_enabled(state) or not state or type(data) ~= "table" then return data end
     state._visual_step_trace = state._visual_step_trace or {}
     local previous = state._visual_step_trace[#state._visual_step_trace]
     if previous
@@ -62,7 +73,7 @@ function DebugTrace.record_visual_step_state(state, data)
 end
 
 function DebugTrace.record_match_probe(state, data)
-    if not state or type(data) ~= "table" then return data end
+    if not diagnostic_trace_enabled(state) or not state or type(data) ~= "table" then return data end
     state._match_probe = data
     state._match_probe_history = state._match_probe_history or {}
     table.insert(state._match_probe_history, 1, data)
@@ -247,6 +258,7 @@ function DebugTrace.write_json(path, data)
 end
 
 function DebugTrace.record_last_fail(state, dump, path)
+    if not diagnostic_trace_enabled(state) then return nil end
     if state then
         state.last_fail_dump = dump
     end

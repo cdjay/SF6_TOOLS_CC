@@ -5,12 +5,14 @@ package.path = package.path
 local files = {
     "TrainingComboTrials_data\\CustomCombos\\Ryu\\Ryu_COMBO_2MK_6000_D3_SA3.json",
     "TrainingComboTrials_data\\CustomCombos\\Ryu\\Ryu_COMBO_236_LP_MP_2300_D2_7_SA1.json",
+    "TrainingComboTrials_data\\CustomCombos\\Ryu\\Ryu_COMBO_RAW_DR_3756_D1.1_SA1.json",
     "TrainingComboTrials_data\\CustomCombos\\Ryu\\Ryu_COMBO_3050_D1_SA0.json",
 }
 
 local titles = {
     Ryu_COMBO_2MK_6000_D3_SA3 = "版边连",
     Ryu_COMBO_236_LP_MP_2300_D2_7_SA1 = "波动连",
+    ["Ryu_COMBO_RAW_DR_3756_D1.1_SA1"] = "小数点斗气",
     Ryu_COMBO_3050_D1_SA0 = "无起手",
 }
 
@@ -54,7 +56,7 @@ ComboTrialsFiles.init({
 })
 
 assert(file_system.update_combo_file_list(0) == true, "combo list scan failed")
-assert(#file_system.saved_combos_info_p1 == 3, "structured combo rows were not cached")
+assert(#file_system.saved_combos_info_p1 == 4, "structured combo rows were not cached")
 
 local rows = {}
 for _, row in ipairs(file_system.saved_combos_info_p1) do
@@ -70,6 +72,11 @@ assert(rows["波动连"].starter == "236_LP_MP", "multi-token starter parse fail
 assert(rows["波动连"].damage == "2300", "multi-token damage parse failed")
 assert(rows["波动连"].drive == "2.7", "decimal drive parse failed")
 assert(rows["波动连"].energy == "1", "multi-token energy parse failed")
+
+assert(rows["小数点斗气"].starter == "RAW_DR", "dot-decimal starter parse failed")
+assert(rows["小数点斗气"].damage == "3756", "dot-decimal damage parse failed")
+assert(rows["小数点斗气"].drive == "1.1", "dot-decimal drive parse failed")
+assert(rows["小数点斗气"].energy == "1", "dot-decimal energy parse failed")
 
 assert(rows["无起手"].starter == "", "missing starter must remain empty")
 assert(rows["无起手"].damage == "3050", "damage-only filename parse failed")

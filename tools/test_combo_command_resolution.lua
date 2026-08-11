@@ -1,3 +1,7 @@
+package.path = package.path
+    .. ";./autorun/?.lua"
+    .. ";./autorun/?/init.lua"
+
 local function read_all(path)
     local file = assert(io.open(path, "rb"))
     local value = assert(file:read("*a"))

@@ -324,7 +324,7 @@ local function combo_info_from_file(filepath, char_name)
         local drive = ""
         local energy = ""
         for idx, token in ipairs(tags) do
-            local drive_value = token:match("^D(%d+_%d+)$") or token:match("^D(%d+)$")
+            local drive_value = token:match("^D(%d+[._]%d+)$") or token:match("^D(%d+)$")
             if drive_value and not drive_idx then
                 drive_idx = idx
                 drive = drive_value:gsub("_", ".")
