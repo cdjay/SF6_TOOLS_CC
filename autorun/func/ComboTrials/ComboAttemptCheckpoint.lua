@@ -10,12 +10,17 @@ Checkpoint.IDENTITY_SCHEMA = "sf6cc.combo_identity.v1"
 Checkpoint.OUTPUT_DIR = "SF6_TrainingRemoteControl_data/ComboTrialTelemetry"
 Checkpoint.OUTPUT_FILE = Checkpoint.OUTPUT_DIR .. "/cumulative-checkpoint-v1.json"
 Checkpoint.STATE_FILE = Checkpoint.OUTPUT_DIR .. "/producer-state-v1.json"
+Checkpoint.EVENTS_FILE = Checkpoint.OUTPUT_DIR .. "/events.jsonl"
 
 local MAX_SAFE_INTEGER = 9007199254740991
 local MAX_ITEMS = 512
 local MAX_ATTEMPTS = 10000000
 local MAX_FILE_BYTES = 524288
 local MAX_TIMESTAMP = 4102444800
+local MAX_EVENTS_BYTES = 16777216
+local MAX_EVENTS = 100000
+local HISTORY_START = "all_time_v1"
+local ORIGIN_CURSOR = "origin"
 
 local JSON_ESCAPES = {
     ['"'] = '\\"',
@@ -193,6 +198,9 @@ local function encode_state_without_hash(state)
         '"schema":' .. encode_string(Checkpoint.STATE_SCHEMA),
         '"producerEpoch":' .. encode_string(state.producerEpoch),
         '"checkpointSequence":' .. tostring(state.checkpointSequence),
+        '"historyStart":' .. encode_string(state.historyStart),
+        '"baselineCursor":' .. encode_string(state.baselineCursor),
+        '"legacyCursor":' .. encode_string(state.legacyCursor),
         '"contentHash":' .. encode_string(state.contentHash),
         '"items":' .. encode_items(state.items)
     }, ",") .. "}"
@@ -207,10 +215,18 @@ local STATE_REQUIRED = {
     schema = true,
     producerEpoch = true,
     checkpointSequence = true,
+    historyStart = true,
+    baselineCursor = true,
+    legacyCursor = true,
     contentHash = true,
     items = true,
     stateHash = true
 }
+
+local function valid_cursor(value)
+    return value == ORIGIN_CURSOR
+        or (type(value) == "string" and #value == 64 and value:match("^[0-9a-f]+$") ~= nil)
+end
 
 local CHECKPOINT_REQUIRED = {
     schema = true,
@@ -242,6 +258,9 @@ local function validate_state(self, candidate, raw)
     if not integer(candidate.checkpointSequence, 1, MAX_SAFE_INTEGER) then
         return nil, "sequence invalid"
     end
+    if candidate.historyStart ~= HISTORY_START then return nil, "history start invalid" end
+    if not valid_cursor(candidate.baselineCursor) then return nil, "baseline cursor invalid" end
+    if not valid_cursor(candidate.legacyCursor) then return nil, "legacy cursor invalid" end
     if type(candidate.contentHash) ~= "string" or #candidate.contentHash ~= 64
         or not candidate.contentHash:match("^[0-9a-f]+$") then return nil, "content hash invalid" end
     if type(candidate.stateHash) ~= "string" or #candidate.stateHash ~= 64
@@ -297,15 +316,165 @@ local function write_atomic(self, path, bytes)
     return true
 end
 
+local function probe_path(self, path)
+    local ok, status, err = pcall(self.deps.probe, path)
+    if not ok then return nil, tostring(status) end
+    if status == "exists" or status == "missing" then return status end
+    return nil, tostring(err or status or "probe failed")
+end
+
+local function unix_from_iso8601(value)
+    if type(value) ~= "string" then return nil end
+    local year, month, day, hour, minute, second = value:match(
+        "^(%d%d%d%d)%-(%d%d)%-(%d%d)T(%d%d):(%d%d):(%d%d)Z$"
+    )
+    year, month, day = tonumber(year), tonumber(month), tonumber(day)
+    hour, minute, second = tonumber(hour), tonumber(minute), tonumber(second)
+    if not year or month < 1 or month > 12 or hour > 23 or minute > 59 or second > 59 then return nil end
+    local leap = year % 4 == 0 and (year % 100 ~= 0 or year % 400 == 0)
+    local month_days = { 31, leap and 29 or 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 }
+    if day < 1 or day > month_days[month] then return nil end
+
+    local adjusted_year = year - (month <= 2 and 1 or 0)
+    local era = math.floor(adjusted_year / 400)
+    local year_of_era = adjusted_year - era * 400
+    local adjusted_month = month + (month > 2 and -3 or 9)
+    local day_of_year = math.floor((153 * adjusted_month + 2) / 5) + day - 1
+    local day_of_era = year_of_era * 365 + math.floor(year_of_era / 4)
+        - math.floor(year_of_era / 100) + day_of_year
+    local days = era * 146097 + day_of_era - 719468
+    local timestamp = days * 86400 + hour * 3600 + minute * 60 + second
+    if not integer(timestamp, 0, MAX_TIMESTAMP) then return nil end
+    return timestamp
+end
+
+local function event_descriptor(event)
+    if type(event) ~= "table" or event.schema ~= "sf6cc.combo_attempt.v1" then
+        return nil, "legacy event schema invalid"
+    end
+    if type(event.event_id) ~= "string" or #event.event_id ~= 64
+        or not event.event_id:match("^[0-9a-f]+$") then return nil, "legacy event id invalid" end
+    if type(event.runtime) ~= "table"
+        or (event.runtime.source ~= "manual" and event.runtime.source ~= "auto_demo") then
+        return nil, "legacy event source invalid"
+    end
+    local timestamp = unix_from_iso8601(event.occurred_at)
+    if not timestamp then return nil, "legacy event timestamp invalid" end
+    local descriptor = {
+        event_id = event.event_id,
+        source = event.runtime.source,
+        timestamp = timestamp
+    }
+    if descriptor.source == "auto_demo" then return descriptor end
+    if type(event.result) ~= "table"
+        or (event.result.outcome ~= "success" and event.result.outcome ~= "fail") then
+        return nil, "legacy manual outcome invalid"
+    end
+    if type(event.combo) ~= "table" then return nil, "legacy combo facts missing" end
+    local combo_id = event.combo.combo_id
+    if type(combo_id) ~= "string" or #combo_id > 128
+        or not combo_id:match("^[A-Za-z0-9][A-Za-z0-9._-]*$") then combo_id = nil end
+    descriptor.item = {
+        comboId = combo_id,
+        revisionHash = event.combo.revision_hash,
+        identitySchema = event.combo.identity_schema,
+        title = event.combo.title,
+        character = event.combo.character,
+        playerControl = event.runtime.player_control,
+        positionSide = event.runtime.position_side,
+        sequenceLength = event.combo.sequence_length,
+        attempts = 1,
+        successes = event.result.outcome == "success" and 1 or 0,
+        lastPlayedAt = timestamp
+    }
+    if not valid_item(descriptor.item) then return nil, "legacy event violates checkpoint contract" end
+    return descriptor
+end
+
+local function parse_events(self, raw)
+    if type(raw) ~= "string" then return nil, "legacy events read returned non-string" end
+    if #raw > MAX_EVENTS_BYTES then return nil, "legacy events exceed recovery byte limit" end
+    if raw == "" then return {} end
+    if raw:sub(-1) ~= "\n" then return nil, "legacy events end with an incomplete line" end
+
+    local events, seen = {}, {}
+    for line in raw:gmatch("(.-)\n") do
+        if line == "" then return nil, "legacy events contain an empty line" end
+        if #events >= MAX_EVENTS then return nil, "legacy events exceed recovery item limit" end
+        local decoded_ok, event = pcall(self.deps.decode, line)
+        if not decoded_ok then return nil, "legacy event decode failed" end
+        local descriptor, descriptor_error = event_descriptor(event)
+        if not descriptor then return nil, descriptor_error end
+        if seen[descriptor.event_id] then return nil, "legacy event id duplicated" end
+        seen[descriptor.event_id] = true
+        events[#events + 1] = descriptor
+    end
+    return events
+end
+
+local function read_events(self, status)
+    if status == "missing" then return {} end
+    local ok, raw = pcall(self.deps.read_events)
+    if not ok then return nil, tostring(raw) end
+    return parse_events(self, raw)
+end
+
+local function copy_state(state)
+    return {
+        schema = Checkpoint.STATE_SCHEMA,
+        producerEpoch = state.producerEpoch,
+        checkpointSequence = state.checkpointSequence,
+        historyStart = state.historyStart,
+        baselineCursor = state.baselineCursor,
+        legacyCursor = state.legacyCursor,
+        items = sorted_items(state.items)
+    }
+end
+
+local function apply_descriptor(self, state, descriptor)
+    local next_state = copy_state(state)
+    next_state.legacyCursor = descriptor.event_id
+    if descriptor.source == "manual" then
+        local incoming = descriptor.item
+        local found
+        for _, item in ipairs(next_state.items) do
+            if item_key(item) == item_key(incoming) then found = item break end
+        end
+        if found then
+            if found.attempts >= MAX_ATTEMPTS then return nil, "item attempt overflow" end
+            found.attempts = found.attempts + 1
+            found.successes = found.successes + incoming.successes
+            found.lastPlayedAt = math.max(found.lastPlayedAt, incoming.lastPlayedAt)
+            found.comboId = incoming.comboId
+            found.title = incoming.title
+            found.character = incoming.character
+            found.sequenceLength = incoming.sequenceLength
+        else
+            if #next_state.items >= MAX_ITEMS then return nil, "item limit reached" end
+            next_state.items[#next_state.items + 1] = copy_item(incoming)
+        end
+        local total = 0
+        for _, item in ipairs(next_state.items) do
+            total = total + item.attempts
+            if total > MAX_ATTEMPTS then return nil, "total attempt overflow" end
+        end
+        if next_state.checkpointSequence >= MAX_SAFE_INTEGER then return nil, "sequence overflow" end
+        next_state.checkpointSequence = next_state.checkpointSequence + 1
+    end
+    finalize_state(self, next_state)
+    if #encode_checkpoint(next_state) > MAX_FILE_BYTES then return nil, "checkpoint exceeds byte limit" end
+    return next_state, descriptor.source == "manual"
+end
+
 function Checkpoint.new(deps)
     assert(type(deps) == "table", "checkpoint dependencies required")
     assert(type(deps.read) == "function", "read dependency required")
-    assert(type(deps.exists) == "function", "exists dependency required")
+    assert(type(deps.probe) == "function", "probe dependency required")
+    assert(type(deps.read_events) == "function", "read_events dependency required")
     assert(type(deps.atomic_write) == "function", "atomic_write dependency required")
     assert(type(deps.decode) == "function", "decode dependency required")
     assert(type(deps.sha256) == "function", "sha256 dependency required")
     assert(type(deps.new_epoch) == "function", "new_epoch dependency required")
-    assert(type(deps.now) == "function", "now dependency required")
     return setmetatable({ deps = deps, state = nil, blocked = false, last_error = nil }, Checkpoint)
 end
 
@@ -321,12 +490,20 @@ function Checkpoint:_block(message)
 end
 
 function Checkpoint:initialize()
-    if self.state then return self:republish() end
     if self.blocked then return false, self.last_error end
 
-    local state_exists_ok, state_exists = pcall(self.deps.exists, Checkpoint.STATE_FILE)
-    if not state_exists_ok then return self:_block("state existence check failed") end
-    if state_exists then
+    local state_status, state_probe_error = probe_path(self, Checkpoint.STATE_FILE)
+    if not state_status then return self:_block("state probe failed: " .. state_probe_error) end
+    local checkpoint_status, checkpoint_probe_error = probe_path(self, Checkpoint.OUTPUT_FILE)
+    if not checkpoint_status then
+        return self:_block("checkpoint probe failed: " .. checkpoint_probe_error)
+    end
+    local events_status, events_probe_error = probe_path(self, Checkpoint.EVENTS_FILE)
+    if not events_status then return self:_block("legacy events probe failed: " .. events_probe_error) end
+
+    if self.state then
+        if state_status ~= "exists" then return self:_block("durable state disappeared") end
+    elseif state_status == "exists" then
         local state_raw, state_read_error = read_optional(self, Checkpoint.STATE_FILE)
         if state_read_error then return self:_block("state read failed: " .. state_read_error) end
         if not state_raw then return self:_block("durable state is empty") end
@@ -339,12 +516,12 @@ function Checkpoint:initialize()
             return self:_block("durable state rejected: " .. tostring(validation_error))
         end
         self.state = valid
-        return self:recover_checkpoint()
     end
 
-    local checkpoint_exists_ok, checkpoint_exists = pcall(self.deps.exists, Checkpoint.OUTPUT_FILE)
-    if not checkpoint_exists_ok then return self:_block("checkpoint existence check failed") end
-    if checkpoint_exists then
+    local events, events_error = read_events(self, events_status)
+    if not events then return self:_block("legacy events rejected: " .. tostring(events_error)) end
+
+    if not self.state and checkpoint_status == "exists" then
         local existing_checkpoint, checkpoint_read_error = read_optional(self, Checkpoint.OUTPUT_FILE)
         if checkpoint_read_error then
             return self:_block("checkpoint read failed before initialization: " .. checkpoint_read_error)
@@ -354,28 +531,60 @@ function Checkpoint:initialize()
             or "empty checkpoint exists without provable durable state")
     end
 
-    local epoch_ok, epoch, epoch_error = pcall(self.deps.new_epoch)
-    if not epoch_ok or type(epoch) ~= "string" or #epoch ~= 32
-        or not epoch:match("^[0-9a-f]+$") then
-        return self:_block("epoch generation failed: " .. tostring(epoch_error or epoch))
+    if not self.state then
+        local baseline = #events > 0 and events[#events].event_id or ORIGIN_CURSOR
+        local epoch_ok, epoch, epoch_error = pcall(self.deps.new_epoch)
+        if not epoch_ok or type(epoch) ~= "string" or #epoch ~= 32
+            or not epoch:match("^[0-9a-f]+$") then
+            return self:_block("epoch generation failed: " .. tostring(epoch_error or epoch))
+        end
+        local initial = finalize_state(self, {
+            schema = Checkpoint.STATE_SCHEMA,
+            producerEpoch = epoch,
+            checkpointSequence = 1,
+            historyStart = HISTORY_START,
+            baselineCursor = baseline,
+            legacyCursor = baseline,
+            items = {}
+        })
+        local state_ok, state_error = write_atomic(self, Checkpoint.STATE_FILE, encode_state(initial))
+        if not state_ok then return self:_block("initial state publish failed: " .. state_error) end
+        self.state = initial
+        return self:republish()
     end
-    local initial = finalize_state(self, {
-        schema = Checkpoint.STATE_SCHEMA,
-        producerEpoch = epoch,
-        checkpointSequence = 1,
-        items = {}
-    })
-    local state_ok, state_error = write_atomic(self, Checkpoint.STATE_FILE, encode_state(initial))
-    if not state_ok then return self:_fail("initial state publish failed: " .. state_error) end
-    self.state = initial
-    return self:republish()
+
+    local cursor_index = self.state.legacyCursor == ORIGIN_CURSOR and 0 or nil
+    if cursor_index == nil then
+        for index, descriptor in ipairs(events) do
+            if descriptor.event_id == self.state.legacyCursor then cursor_index = index break end
+        end
+    end
+    if cursor_index == nil then return self:_block("legacy cursor missing after rotation or truncation") end
+
+    local next_state = self.state
+    local changed = false
+    for index = cursor_index + 1, #events do
+        local applied, apply_error = apply_descriptor(self, next_state, events[index])
+        if not applied then return self:_block("legacy replay failed: " .. tostring(apply_error)) end
+        next_state = applied
+        changed = true
+    end
+    if changed then
+        local state_ok, state_error = write_atomic(self, Checkpoint.STATE_FILE, encode_state(next_state))
+        if not state_ok then return self:_block("replayed state publish failed: " .. state_error) end
+        self.state = next_state
+    end
+    return self:recover_checkpoint(checkpoint_status)
 end
 
-function Checkpoint:recover_checkpoint()
+function Checkpoint:recover_checkpoint(status)
     if not self.state then return false, "producer not initialized" end
-    local exists_ok, exists = pcall(self.deps.exists, Checkpoint.OUTPUT_FILE)
-    if not exists_ok then return self:_block("checkpoint existence check failed during recovery") end
-    if not exists then return self:republish() end
+    if not status then
+        local probe_error
+        status, probe_error = probe_path(self, Checkpoint.OUTPUT_FILE)
+        if not status then return self:_block("checkpoint probe failed during recovery: " .. probe_error) end
+    end
+    if status == "missing" then return self:republish() end
 
     local raw, read_error = read_optional(self, Checkpoint.OUTPUT_FILE)
     if read_error then return self:_block("checkpoint read failed during recovery: " .. read_error) end
@@ -420,87 +629,30 @@ function Checkpoint:republish()
     return true, bytes
 end
 
-local function item_from_attempt(attempt, outcome, timestamp)
-    if type(attempt) ~= "table" or type(attempt.combo) ~= "table" then
-        return nil, "attempt facts missing"
-    end
-    local combo = attempt.combo
-    local combo_id = combo.combo_id
-    if type(combo_id) ~= "string" or #combo_id > 128
-        or not combo_id:match("^[A-Za-z0-9][A-Za-z0-9._-]*$") then combo_id = nil end
-    local item = {
-        comboId = combo_id,
-        revisionHash = combo.revision_hash,
-        identitySchema = combo.identity_schema,
-        title = combo.title,
-        character = combo.character,
-        playerControl = attempt.player_control,
-        positionSide = attempt.position_side,
-        sequenceLength = combo.sequence_length,
-        attempts = 1,
-        successes = outcome == "success" and 1 or 0,
-        lastPlayedAt = timestamp
-    }
-    if not valid_item(item) then return nil, "attempt facts violate checkpoint contract" end
-    return item
-end
-
-function Checkpoint:record(attempt, outcome)
-    if outcome ~= "success" and outcome ~= "fail" then return false, "unsupported outcome" end
-    if type(attempt) ~= "table" or attempt.source ~= "manual" then return true, "ignored" end
+function Checkpoint:record_event(event)
     if not self.state then
         local initialized, initialize_error = self:initialize()
         if not initialized then return false, initialize_error end
     end
     if self.blocked then return false, self.last_error end
 
-    local timestamp = tonumber(self.deps.now())
-    if not integer(timestamp, 0, MAX_TIMESTAMP) then return self:_block("timestamp outside contract") end
-    local incoming, incoming_error = item_from_attempt(attempt, outcome, timestamp)
-    if not incoming then return self:_block(incoming_error) end
+    local descriptor, descriptor_error = event_descriptor(event)
+    if not descriptor then return self:_block(descriptor_error) end
+    if descriptor.event_id == self.state.legacyCursor then return true, "already applied" end
 
-    local next_state = {
-        schema = Checkpoint.STATE_SCHEMA,
-        producerEpoch = self.state.producerEpoch,
-        checkpointSequence = self.state.checkpointSequence,
-        items = sorted_items(self.state.items)
-    }
-    local found
-    for _, item in ipairs(next_state.items) do
-        if item_key(item) == item_key(incoming) then found = item break end
-    end
-    if found then
-        if found.attempts >= MAX_ATTEMPTS then return self:_block("item attempt overflow") end
-        found.attempts = found.attempts + 1
-        if outcome == "success" then found.successes = found.successes + 1 end
-        found.lastPlayedAt = math.max(found.lastPlayedAt, timestamp)
-        found.comboId = incoming.comboId
-        found.title = incoming.title
-        found.character = incoming.character
-        found.sequenceLength = incoming.sequenceLength
-    else
-        if #next_state.items >= MAX_ITEMS then return self:_block("item limit reached") end
-        next_state.items[#next_state.items + 1] = incoming
-    end
-
-    local total = 0
-    for _, item in ipairs(next_state.items) do
-        total = total + item.attempts
-        if total > MAX_ATTEMPTS then return self:_block("total attempt overflow") end
-    end
-    if self.state.checkpointSequence >= MAX_SAFE_INTEGER then return self:_block("sequence overflow") end
-    next_state.checkpointSequence = next_state.checkpointSequence + 1
-    finalize_state(self, next_state)
-    local checkpoint_bytes = encode_checkpoint(next_state)
-    if #checkpoint_bytes > MAX_FILE_BYTES then return self:_block("checkpoint exceeds byte limit") end
+    local next_state, content_changed = apply_descriptor(self, self.state, descriptor)
+    if not next_state then return self:_block(content_changed) end
 
     local state_ok, state_error = write_atomic(self, Checkpoint.STATE_FILE, encode_state(next_state))
-    if not state_ok then return self:_block("state publish failed after terminal fact: " .. state_error) end
+    if not state_ok then return self:_block("state publish failed after legacy append: " .. state_error) end
     self.state = next_state
-    local checkpoint_ok, checkpoint_error = write_atomic(self, Checkpoint.OUTPUT_FILE, checkpoint_bytes)
-    if not checkpoint_ok then return self:_fail("checkpoint publish failed: " .. checkpoint_error) end
+    if content_changed then
+        local checkpoint_bytes = encode_checkpoint(next_state)
+        local checkpoint_ok, checkpoint_error = write_atomic(self, Checkpoint.OUTPUT_FILE, checkpoint_bytes)
+        if not checkpoint_ok then return self:_fail("checkpoint publish failed: " .. checkpoint_error) end
+    end
     self.last_error = nil
-    return true, checkpoint_bytes
+    return true
 end
 
 Checkpoint._test = {
@@ -512,7 +664,8 @@ Checkpoint._test = {
     limits = {
         max_items = MAX_ITEMS,
         max_attempts = MAX_ATTEMPTS,
-        max_file_bytes = MAX_FILE_BYTES
+        max_file_bytes = MAX_FILE_BYTES,
+        max_events_bytes = MAX_EVENTS_BYTES
     }
 }
 

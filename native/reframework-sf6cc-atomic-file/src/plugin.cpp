@@ -21,6 +21,8 @@ constexpr std::string_view k_checkpoint_path =
     "SF6_TrainingRemoteControl_data/ComboTrialTelemetry/cumulative-checkpoint-v1.json";
 constexpr std::string_view k_state_path =
     "SF6_TrainingRemoteControl_data/ComboTrialTelemetry/producer-state-v1.json";
+constexpr std::string_view k_events_path =
+    "SF6_TrainingRemoteControl_data/ComboTrialTelemetry/events.jsonl";
 
 std::string windows_error(const char* operation, DWORD code = GetLastError()) {
     char buffer[128]{};
@@ -58,8 +60,13 @@ std::optional<std::string> random_hex_16(std::string& error) {
     return result;
 }
 
-std::optional<std::filesystem::path> allowed_target(std::string_view relative, std::string& error) {
-    if (relative != k_checkpoint_path && relative != k_state_path) {
+std::optional<std::filesystem::path> allowed_target(
+    std::string_view relative,
+    bool allow_events,
+    std::string& error
+) {
+    if (relative != k_checkpoint_path && relative != k_state_path
+        && (!allow_events || relative != k_events_path)) {
         error = "path is not an allowed SF6CC telemetry file";
         return std::nullopt;
     }
@@ -157,10 +164,36 @@ int lua_atomic_write(lua_State* state) {
     if (content_size > maximum) return push_failure(state, "telemetry file exceeds native byte limit");
 
     std::string error;
-    auto target = allowed_target(relative, error);
+    auto target = allowed_target(relative, false, error);
     if (!target || !atomic_write(*target, content, content_size, error)) return push_failure(state, error);
     lua_pushboolean(state, 1);
     return 1;
+}
+
+int lua_probe(lua_State* state) {
+    std::size_t path_size = 0;
+    const char* path = lua_tolstring(state, 1, &path_size);
+    if (path == nullptr) return push_failure(state, "probe requires path");
+
+    std::string error;
+    auto target = allowed_target(std::string_view{path, path_size}, true, error);
+    if (!target) return push_failure(state, error);
+
+    const DWORD attributes = GetFileAttributesW(target->c_str());
+    if (attributes != INVALID_FILE_ATTRIBUTES) {
+        if ((attributes & FILE_ATTRIBUTE_DIRECTORY) != 0) {
+            return push_failure(state, "telemetry target is a directory");
+        }
+        lua_pushliteral(state, "exists");
+        return 1;
+    }
+
+    const DWORD code = GetLastError();
+    if (code == ERROR_FILE_NOT_FOUND || code == ERROR_PATH_NOT_FOUND) {
+        lua_pushliteral(state, "missing");
+        return 1;
+    }
+    return push_failure(state, windows_error("GetFileAttributesW", code));
 }
 
 int lua_random_epoch(lua_State* state) {
@@ -174,9 +207,11 @@ int lua_random_epoch(lua_State* state) {
 void register_lua_api(lua_State* state) {
     if (state == nullptr) return;
     if (g_functions != nullptr && g_functions->lock_lua != nullptr) g_functions->lock_lua();
-    lua_createtable(state, 0, 2);
+    lua_createtable(state, 0, 3);
     lua_pushcclosure(state, lua_atomic_write, 0);
     lua_setfield(state, -2, "write");
+    lua_pushcclosure(state, lua_probe, 0);
+    lua_setfield(state, -2, "probe");
     lua_pushcclosure(state, lua_random_epoch, 0);
     lua_setfield(state, -2, "random_epoch");
     lua_setglobal(state, "sf6cc_atomic_file");
