@@ -357,6 +357,26 @@ local function combo_info_from_file(filepath, char_name)
 
     local short_key, columns = combo_file_key(filename)
 
+    local function format_gauge_units(value)
+        value = tonumber(value)
+        if value == nil then return nil end
+        local bars = value / 10000
+        local formatted = string.format("%.3f", bars)
+        formatted = formatted:gsub("0+$", ""):gsub("%.$", "")
+        return formatted
+    end
+
+    local first = sequence[1]
+    local combo_stats = type(first.combo_stats) == "table" and first.combo_stats or nil
+    local starter = type(first.motion) == "string" and first.motion:match("^%s*(.-)%s*$") or ""
+    local damage = combo_stats and tonumber(combo_stats.damage) or nil
+    local drive = combo_stats and format_gauge_units(combo_stats.drive_used) or nil
+    local energy = combo_stats and format_gauge_units(combo_stats.super_used) or nil
+    if starter ~= "" then columns.starter = sanitize_utf8_display(starter) end
+    if damage ~= nil then columns.damage = sanitize_utf8_display(string.format("%.0f", damage)) end
+    if drive ~= nil then columns.drive = sanitize_utf8_display(drive) end
+    if energy ~= nil then columns.energy = sanitize_utf8_display(energy) end
+
     local function clean_title(value)
         if type(value) ~= "string" then return nil end
         local title = value:match("^%s*(.-)%s*$") or ""

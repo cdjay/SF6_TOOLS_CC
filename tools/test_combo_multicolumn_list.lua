@@ -7,6 +7,7 @@ local files = {
     "TrainingComboTrials_data\\CustomCombos\\Ryu\\Ryu_COMBO_236_LP_MP_2300_D2_7_SA1.json",
     "TrainingComboTrials_data\\CustomCombos\\Ryu\\Ryu_COMBO_RAW_DR_3756_D1.1_SA1.json",
     "TrainingComboTrials_data\\CustomCombos\\Ryu\\Ryu_COMBO_3050_D1_SA0.json",
+    "TrainingComboTrials_data\\CustomCombos\\Ryu\\community-upload.json",
 }
 
 local titles = {
@@ -14,11 +15,21 @@ local titles = {
     Ryu_COMBO_236_LP_MP_2300_D2_7_SA1 = "波动连",
     ["Ryu_COMBO_RAW_DR_3756_D1.1_SA1"] = "小数点斗气",
     Ryu_COMBO_3050_D1_SA0 = "无起手",
+    ["community-upload"] = "社区投稿",
 }
 
 json = {
     load_file = function(path)
         local key = tostring(path):match("([^/\\]+)%.json$")
+        if key == "community-upload" then
+            return {
+                {
+                    _xt_meta = { title = titles[key], control_mode = "modern" },
+                    motion = "2+MP",
+                    combo_stats = { damage = 3420, drive_used = 26750, super_used = 10000 },
+                },
+            }
+        end
         return { { _xt_meta = { title = titles[key], control_mode = "classic" } } }
     end,
 }
@@ -56,7 +67,7 @@ ComboTrialsFiles.init({
 })
 
 assert(file_system.update_combo_file_list(0) == true, "combo list scan failed")
-assert(#file_system.saved_combos_info_p1 == 4, "structured combo rows were not cached")
+assert(#file_system.saved_combos_info_p1 == 5, "structured combo rows were not cached")
 
 local rows = {}
 for _, row in ipairs(file_system.saved_combos_info_p1) do
@@ -80,6 +91,11 @@ assert(rows["小数点斗气"].energy == "1", "dot-decimal energy parse failed")
 
 assert(rows["无起手"].starter == "", "missing starter must remain empty")
 assert(rows["无起手"].damage == "3050", "damage-only filename parse failed")
+
+assert(rows["社区投稿"].starter == "2+MP", "JSON starter must override a non-standard filename")
+assert(rows["社区投稿"].damage == "3420", "JSON damage must override a non-standard filename")
+assert(rows["社区投稿"].drive == "2.675", "JSON decimal drive must preserve significant precision")
+assert(rows["社区投稿"].energy == "1", "JSON super usage must override a non-standard filename")
 
 local function read_all(path)
     local file = assert(io.open(path, "rb"))
