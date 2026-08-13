@@ -131,6 +131,68 @@ assert(passed.ok == true
         and passed.runtime_step_trace.visual_steps[1].visual_step == 2,
     "runtime audit must accept an installed combo that reproduces its Action truth")
 
+local leading_prefix_audit = RuntimeAuditor.evaluate({
+    {
+        id = 17,
+        motion = "66",
+        expected_combo = 0,
+        damage_at_step = 0,
+        delay_from_prev = 0,
+        raw_inputs = { 4, 0, 16, 0 },
+        combo_stats = {
+            damage = 300,
+            drive_used = 0,
+            super_used = 0,
+        },
+    },
+    {
+        id = 600,
+        motion = "LP",
+        expected_combo = 1,
+        damage_at_step = 300,
+        delay_from_prev = 5,
+    },
+}, {
+    steps = {
+        {
+            id = 17,
+            motion = "66",
+            expected_combo = 0,
+            damage_at_step = 0,
+            delay_from_prev = 0,
+        },
+        {
+            id = 600,
+            motion = "LP",
+            expected_combo = 1,
+            damage_at_step = 300,
+            has_hit = true,
+            has_contact = true,
+            delay_from_prev = 5,
+        },
+    },
+    stats = compiled.stats,
+}, {
+    raw_inputs = { 4, 0, 16, 0 },
+    input_source = "raw_inputs",
+    input_completed = true,
+    timing_tolerance = 2,
+    trial_completed = true,
+    character = "Ryu",
+    command_display_validation = resolved_command_display(
+        2,
+        0,
+        "Ryu",
+        "classic",
+        { 17, 600 }
+    ),
+})
+assert(leading_prefix_audit.ok == true
+        and leading_prefix_audit.action_comparison.expected_count == 2
+        and leading_prefix_audit.action_comparison.observed_count == 2
+        and leading_prefix_audit.action_comparison.mismatch_count == 0,
+    "runtime audit must preserve the same standalone leading 66 as training")
+
 local relative_candidate = {
     {
         id = 600,
@@ -2044,7 +2106,7 @@ local revision_30_report = {
 }
 local refreshed_30, refreshed_30_counts =
     RuntimeAuditor.recompute_loaded_report_state(revision_30_report)
-assert(RuntimeAuditor.VALIDATION_REVISION == 60
+assert(RuntimeAuditor.VALIDATION_REVISION == 61
     and RuntimeAuditor.COMPATIBLE_VALIDATION_REVISIONS[46]
         == "timeline_transcription_source_outcome_restore"
     and RuntimeAuditor.COMPATIBLE_VALIDATION_REVISIONS[57]
@@ -2053,6 +2115,7 @@ assert(RuntimeAuditor.VALIDATION_REVISION == 60
         == "strict_timeline_unexpected_contact_action"
     and RuntimeAuditor.COMPATIBLE_VALIDATION_REVISIONS[59]
         == "aggregated_same_action_contact_rows"
+    and RuntimeAuditor.COMPATIBLE_VALIDATION_REVISIONS[60] == nil
     and refreshed_30_counts.stale == 1
     and refreshed_30.passed == 0,
     "revision 30 reports must be stale after the strict invariant revision")

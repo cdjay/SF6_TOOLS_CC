@@ -160,9 +160,16 @@ local function apply_training_settings(role, values, status, trial_state)
                 ct_hp_backup_training_setting_once(role.player_index, "scene_state")
             end
             pcall(function() params.Vital_Point = vital_point end)
+            pcall(function() params.Is_Vital_Infinity = false end)
+            pcall(function() params.Is_Vital_No_Recovery = true end)
+            pcall(function() params.Is_Vital_Recovery_Timer = false end)
+            pcall(function() params.Vital_Timer = 0 end)
+            pcall(function() params.Is_KO = false end)
+            pcall(function() params.Is_Point_Lock = false end)
             if objects.param_func then
                 pcall(function() objects.param_func:call("SetVitalPoint", role.player_index, vital_point) end)
             end
+            trial_state._hp_snapshot_applied_current_session = true
             changed = true
         end
     end

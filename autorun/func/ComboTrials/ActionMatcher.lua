@@ -6,13 +6,22 @@ local ActionMatcher = {
     CHORD_COMPLETION_WINDOW = 20,
     CHORD_ACTION_VISIBILITY_GRACE = 2,
     DRIVE_PARRY_TRANSITION_WINDOW = 12,
+    QUICK_DRIVE_PARRY_PRECURSOR_WINDOW = 4,
+    RAW_DRIVE_RUSH_DASH_PRECURSOR_WINDOW = 5,
+    RAW_DRIVE_RUSH_PARRY_PRECURSOR_WINDOW = 12,
+    ATTEMPT_START_WRONG_TIMEOUT = 60,
 }
 
 local RawInputCodec = require("func/ComboTrials/RawInputCodec")
 local ActionCompatibility = require("func/ComboTrials/ActionCompatibility")
+local ActionSequenceNormalizer = require("func/ComboTrials/ActionSequenceNormalizer")
 
 local DRIVE_PARRY_INPUT_ACTIONS = {
     [480] = true,
+}
+
+local FORWARD_DASH_INPUT_ACTIONS = {
+    [17] = true,
 }
 
 local RAW_DRIVE_RUSH_ACTIONS = {
@@ -178,6 +187,13 @@ function ActionMatcher.latch_buffer_contact(
         has_block_contact == true or observed_block_contact == true
 end
 
+function ActionMatcher.attempt_start_wrong_timed_out(start_frame, current_frame)
+    start_frame = tonumber(start_frame)
+    current_frame = tonumber(current_frame)
+    return start_frame ~= nil and current_frame ~= nil
+        and current_frame - start_frame > ActionMatcher.ATTEMPT_START_WRONG_TIMEOUT
+end
+
 local DRIVE_RUSH_ACTIONS = {
     [500] = true,
     [501] = true,
@@ -253,7 +269,220 @@ end
 
 function ActionMatcher.is_drive_rush_motion(motion)
     local normalized = ActionMatcher.normalize_motion_token(motion)
-    return normalized == "RAWDR" or normalized == "DRC"
+    return normalized == "RAWDR"
+        or normalized == "RAW_DR"
+        or normalized == "DR"
+        or normalized == "DRC"
+end
+
+function ActionMatcher.is_raw_drive_rush_step(step)
+    if type(step) ~= "table" then return false end
+    local motion = ActionMatcher.normalize_motion_token(step.motion)
+    if motion == "DRC" then return false end
+    return ActionMatcher.is_raw_drive_rush_action_id(step.id)
+        or motion == "RAWDR"
+        or motion == "RAW_DR"
+        or motion == "DR"
+end
+
+function ActionMatcher.is_quick_drive_parry_precursor(params)
+    params = type(params) == "table" and params or {}
+    if params.precursor_has_contact == true or params.precursor_has_hit == true then
+        return false
+    end
+
+    local precursor_is_parry = ActionMatcher.is_drive_parry_action_id(
+        params.precursor_action_id
+    )
+    local precursor_motion = ActionMatcher.normalize_motion_token(
+        params.precursor_motion
+    )
+    if not precursor_is_parry
+        and precursor_motion ~= "PARRY"
+        and precursor_motion ~= "DP" then
+        return false
+    end
+
+    if not ActionMatcher.is_raw_drive_rush_step({
+        id = params.successor_action_id,
+        motion = params.successor_motion,
+    }) then
+        return false
+    end
+
+    local elapsed = tonumber(params.elapsed_frames)
+    return elapsed == nil or (elapsed >= 0
+        and elapsed <= ActionMatcher.QUICK_DRIVE_PARRY_PRECURSOR_WINDOW)
+end
+
+function ActionMatcher.should_promote_quick_drive_parry(params)
+    params = type(params) == "table" and params or {}
+    return ActionMatcher.is_raw_drive_rush_step(params.expected_step)
+        and ActionMatcher.is_quick_drive_parry_precursor(params)
+end
+
+function ActionMatcher.raw_drive_rush_precursor_kind(params)
+    params = type(params) == "table" and params or {}
+    if ActionMatcher.is_drive_parry_action_id(params.precursor_action_id) then
+        return "parry"
+    end
+    if FORWARD_DASH_INPUT_ACTIONS[tonumber(params.precursor_action_id)] == true then
+        return "dash"
+    end
+
+    local motion = ActionMatcher.normalize_motion_token(params.precursor_motion)
+    if motion == "PARRY" or motion == "DRIVEPARRY" or motion == "DP" then
+        return "parry"
+    end
+    if motion == "66" then return "dash" end
+
+    local anchor_motion = ActionMatcher.normalize_motion_token(
+        params.precursor_input_anchor_motion
+    )
+    if params.precursor_input_anchor_kind == "double_tap"
+        and anchor_motion == "66" then
+        return "dash"
+    end
+    return nil
+end
+
+function ActionMatcher.step_has_new_contact(step, previous_step)
+    if type(step) ~= "table"
+        or (step.has_contact ~= true and step.has_hit ~= true) then
+        return false
+    end
+    if type(previous_step) ~= "table" then return true end
+
+    local comparable = false
+    for _, key in ipairs({
+        "actual_combo",
+        "expected_combo",
+        "damage_at_step",
+        "expected_hp",
+    }) do
+        local current = tonumber(step[key])
+        local previous = tonumber(previous_step[key])
+        if current ~= nil and previous ~= nil then
+            comparable = true
+            if current ~= previous then return true end
+        end
+    end
+    return not comparable
+end
+
+function ActionMatcher.is_quick_raw_drive_rush_precursor(params)
+    params = type(params) == "table" and params or {}
+    if params.precursor_has_contact == true or params.precursor_has_hit == true then
+        return false, nil
+    end
+
+    local precursor_kind = ActionMatcher.raw_drive_rush_precursor_kind(params)
+    if precursor_kind == nil then return false, nil end
+
+    local successor_motion = ActionMatcher.normalize_motion_token(
+        params.successor_motion
+    )
+    local successor_is_raw = successor_motion ~= "DRC"
+        and (ActionMatcher.is_raw_drive_rush_action_id(
+                params.successor_action_id
+            ) or successor_motion == "RAWDR"
+                or successor_motion == "RAW_DR"
+                or successor_motion == "DR")
+    if not successor_is_raw and params.successor_owned_by_raw_drive_rush ~= true then
+        return false, precursor_kind
+    end
+
+    local successor_kind = ActionMatcher.raw_drive_rush_precursor_kind({
+        precursor_action_id = params.successor_action_id,
+        precursor_motion = params.successor_motion,
+        precursor_input_anchor_kind = params.successor_input_anchor_kind,
+        precursor_input_anchor_motion = params.successor_input_anchor_motion,
+    })
+    if successor_kind ~= nil and successor_kind == precursor_kind then
+        return false, precursor_kind
+    end
+
+    local elapsed = tonumber(params.elapsed_frames)
+    if elapsed == nil or elapsed < 0 then return false, precursor_kind end
+    local window = precursor_kind == "dash"
+        and ActionMatcher.RAW_DRIVE_RUSH_DASH_PRECURSOR_WINDOW
+        or ActionMatcher.RAW_DRIVE_RUSH_PARRY_PRECURSOR_WINDOW
+    return elapsed <= window, precursor_kind
+end
+
+function ActionMatcher.is_raw_drive_rush_precursor_action(params)
+    params = type(params) == "table" and params or {}
+    if not ActionMatcher.is_raw_drive_rush_step(params.expected_step) then
+        return false
+    end
+    return ActionMatcher.is_quick_raw_drive_rush_precursor({
+        precursor_action_id = params.actual_action_id,
+        precursor_motion = params.actual_motion,
+        precursor_input_anchor_kind = params.input_anchor_kind,
+        precursor_input_anchor_motion = params.input_anchor_motion,
+        precursor_has_contact = params.actual_has_contact,
+        precursor_has_hit = params.actual_has_hit,
+        successor_action_id = params.successor_action_id,
+        successor_motion = params.successor_motion,
+        successor_input_anchor_kind = params.successor_input_anchor_kind,
+        successor_input_anchor_motion = params.successor_input_anchor_motion,
+        successor_owned_by_raw_drive_rush =
+            params.successor_owned_by_raw_drive_rush == true,
+        elapsed_frames = params.successor_visibility_frames,
+    })
+end
+
+function ActionMatcher.should_defer_raw_drive_rush_precursor(params)
+    params = type(params) == "table" and params or {}
+    if not ActionMatcher.is_raw_drive_rush_step(params.expected_step)
+        or params.actual_has_contact == true
+        or params.actual_has_hit == true then
+        return false
+    end
+
+    local precursor_kind = ActionMatcher.raw_drive_rush_precursor_kind({
+        precursor_action_id = params.actual_action_id,
+        precursor_motion = params.actual_motion,
+        precursor_input_anchor_kind = params.input_anchor_kind,
+        precursor_input_anchor_motion = params.input_anchor_motion,
+    })
+    if precursor_kind == nil then return false end
+
+    local elapsed = tonumber(params.elapsed_frames)
+    if elapsed == nil or elapsed < 0 then return false end
+    local window = precursor_kind == "dash"
+        and ActionMatcher.RAW_DRIVE_RUSH_DASH_PRECURSOR_WINDOW
+        or ActionMatcher.RAW_DRIVE_RUSH_PARRY_PRECURSOR_WINDOW
+    return elapsed <= window
+end
+
+function ActionMatcher.sequence_normalization_options()
+    return {
+        is_drive_parry_action_id = ActionMatcher.is_drive_parry_action_id,
+        is_raw_drive_rush_action_id = ActionMatcher.is_raw_drive_rush_action_id,
+        classify_raw_drive_rush_precursor = function(
+            precursor,
+            successor,
+            successor_owned_by_raw_drive_rush,
+            previous_step
+        )
+            local has_new_contact = ActionMatcher.step_has_new_contact(
+                precursor,
+                previous_step
+            )
+            return ActionMatcher.is_quick_raw_drive_rush_precursor({
+                precursor_action_id = precursor and precursor.id,
+                precursor_motion = precursor and precursor.motion,
+                precursor_has_contact = has_new_contact,
+                precursor_has_hit = has_new_contact,
+                successor_action_id = successor and successor.id,
+                successor_motion = successor and successor.motion,
+                successor_owned_by_raw_drive_rush =
+                    successor_owned_by_raw_drive_rush,
+                elapsed_frames = successor and successor.delay_from_prev,
+            })
+        end,
+    }
 end
 
 -- Current recordings use facing-relative raw input; older recordings may use
@@ -312,114 +541,6 @@ local function is_drive_rush_step(step)
             or ActionMatcher.is_drive_rush_motion(step.motion))
 end
 
-local function is_drive_rush_attempt_start_precursor_step(step)
-    if type(step) ~= "table" then return false end
-    if is_drive_parry_step(step) then return true end
-    local motion = ActionMatcher.normalize_motion_token(step.motion)
-    return motion == "66"
-end
-
-local function is_drive_rush_attempt_start_precursor_action(
-    action_id,
-    motion,
-    input_anchor_kind,
-    input_anchor_motion
-)
-    if ActionMatcher.is_drive_parry_action_id(action_id) then return true end
-    local normalized = ActionMatcher.normalize_motion_token(motion)
-    if normalized == "PARRY" or normalized == "DP" then return true end
-    if normalized == "66" then return true end
-
-    local anchor_motion = ActionMatcher.normalize_motion_token(input_anchor_motion)
-    return input_anchor_kind == "double_tap"
-        and anchor_motion == "66"
-end
-
-local function first_drive_rush_step_index(sequence)
-    if type(sequence) ~= "table" then return nil end
-    for index = 1, #sequence do
-        if is_drive_rush_step(sequence[index]) then return index end
-    end
-    return nil
-end
-
-local function drive_rush_attempt_start_prefix_is_precursor(sequence, drive_rush_index)
-    for index = 1, drive_rush_index - 1 do
-        if not is_drive_rush_attempt_start_precursor_step(sequence[index]) then
-            return false
-        end
-    end
-    for index = 2, drive_rush_index do
-        local delay = tonumber(sequence[index] and sequence[index].delay_from_prev)
-        if delay == nil
-            or delay < 0
-            or delay > ActionMatcher.PLAYER_ACTION_BIND_WINDOW then
-            return false
-        end
-    end
-    return true
-end
-
--- Combo files can record the same Drive Rush with different physical input
--- timing: parry then 66, 6 then 6+parry, or another game-equivalent route.
--- The V2 Action list is still preserved, but a leading dash/parry is only the
--- input precursor of the first semantic Drive Rush Move. While the attempt is
--- still at or before that first Drive Rush step, such precursor Actions must
--- not arm a failure, and the first Drive Rush Action itself must consume the
--- recorded precursor prefix. Once the first Drive Rush has been validated,
--- later movement/parry/Drive Rush steps return to strict step-by-step matching.
-local function classify_drive_rush_attempt_start(params, result)
-    local sequence = type(params.sequence) == "table" and params.sequence or nil
-    local current_step = tonumber(params.current_step)
-    if sequence == nil or current_step == nil then return false end
-
-    local drive_rush_index = first_drive_rush_step_index(sequence)
-    if drive_rush_index == nil or current_step > drive_rush_index then
-        return false
-    end
-    if not drive_rush_attempt_start_prefix_is_precursor(sequence, drive_rush_index) then
-        return false
-    end
-
-    local actual_action_id = tonumber(params.actual_action_id)
-    local actual_motion = params.actual_motion
-    local actual_is_drive_rush = is_drive_rush_step({
-        id = actual_action_id,
-        motion = actual_motion,
-    })
-    local actual_is_precursor = is_drive_rush_attempt_start_precursor_action(
-        actual_action_id,
-        actual_motion,
-        params.input_anchor_kind,
-        params.input_anchor_motion
-    )
-
-    if current_step < drive_rush_index then
-        if actual_is_drive_rush then
-            result.skip_to_step = drive_rush_index
-            result.attempt_start_timing_baseline = true
-            result.reason = "drive_rush_attempt_start_semantic"
-            return true
-        end
-        if actual_is_precursor then
-            result.ignored = true
-            result.reason = "drive_rush_attempt_start_precursor"
-            return true
-        end
-        result.reason = "drive_rush_attempt_start_wrong_candidate"
-        return true
-    end
-
-    if current_step == drive_rush_index and actual_is_precursor
-        and not actual_is_drive_rush then
-        result.ignored = true
-        result.reason = "drive_rush_attempt_start_precursor"
-        return true
-    end
-
-    return false
-end
-
 -- Runtime Action IDs are the matching truth, but an Action transition is not
 -- automatically a second player command. It must also have a fresh input
 -- anchor. In particular, held Drive Parry exposes a short RAW-DR-family phase
@@ -437,12 +558,29 @@ function ActionMatcher.classify_runtime_transition(params)
         chord_completion_frames = tonumber(params.chord_completion_frames),
     }
 
-    if classify_drive_rush_attempt_start(params, result) then
+    if tonumber(params.current_step) == 1
+        and params.expected_action_matches_current ~= true
+        and ActionSequenceNormalizer.is_leading_precursor_action({
+            motion = params.actual_motion,
+            input_anchor_kind = params.input_anchor_kind,
+            input_anchor_motion = params.input_anchor_motion,
+            is_drive_parry = ActionMatcher.is_drive_parry_action_id(
+                params.actual_action_id
+            ),
+        }) then
+        result.ignored = true
+        result.reason = "attempt_start_leading_precursor"
         return result
     end
 
     if params.expected_action_matches_current == true then
         result.reason = "expected_action"
+        return result
+    end
+
+    if ActionMatcher.is_raw_drive_rush_precursor_action(params) then
+        result.ignored = true
+        result.reason = "raw_drive_rush_precursor"
         return result
     end
 

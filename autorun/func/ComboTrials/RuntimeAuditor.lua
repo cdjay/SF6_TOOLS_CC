@@ -3,12 +3,14 @@
 
 local Transcriber = require("func/ComboTrials/Transcriber")
 local TrainingEnvironment = require("func/ComboTrials/TrainingEnvironment")
+local ActionSequenceNormalizer = require("func/ComboTrials/ActionSequenceNormalizer")
+local ActionMatcher = require("func/ComboTrials/ActionMatcher")
 
 local RuntimeAuditor = {
     name = "ComboTrials.RuntimeAuditor",
     REPORT_SCHEMA = "sf6cc.combo_runtime_audit.v1",
     REPORT_ROOT = "TrainingComboTrials_data/RuntimeAuditReports",
-    VALIDATION_REVISION = 60,
+    VALIDATION_REVISION = 61,
     COMPATIBLE_VALIDATION_REVISIONS = {
         [35] = "monotonic_timeline_outcome_relaxation",
         [36] = "data_driven_quick_successor_live_validation",
@@ -1035,6 +1037,37 @@ end
 
 function RuntimeAuditor.evaluate(sequence, compiled, runtime)
     runtime = type(runtime) == "table" and runtime or {}
+    local normalization_options = ActionMatcher.sequence_normalization_options()
+    local expected_normalization = ActionSequenceNormalizer.normalize(
+        sequence,
+        normalization_options
+    )
+    local observed_steps = type(compiled) == "table"
+        and (compiled.detectable_steps or compiled.steps) or nil
+    local observed_normalization = ActionSequenceNormalizer.normalize(
+        observed_steps,
+        normalization_options
+    )
+    if expected_normalization.ok ~= true or observed_normalization.ok ~= true then
+        return {
+            ok = false,
+            reasons = {
+                "sequence_normalization_failed:expected="
+                    .. tostring(expected_normalization.reason)
+                    .. ":observed=" .. tostring(observed_normalization.reason),
+            },
+            advisories = {},
+            expected = {},
+            observed = {},
+        }
+    end
+    sequence = expected_normalization.sequence
+    local normalized_compiled = {}
+    for key, value in pairs(type(compiled) == "table" and compiled or {}) do
+        normalized_compiled[key] = value
+    end
+    normalized_compiled.steps = observed_normalization.sequence
+    compiled = normalized_compiled
     local replay_runtime = {}
     for key, value in pairs(runtime) do replay_runtime[key] = value end
     replay_runtime.allow_timeline = true

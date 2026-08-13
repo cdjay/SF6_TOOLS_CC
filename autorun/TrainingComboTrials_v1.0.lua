@@ -11,6 +11,8 @@ local ComboTrialsModules = {
     ActionCompatibility = require("func/ComboTrials/ActionCompatibility"),
     ActionMatcher = require("func/ComboTrials/ActionMatcher"),
     ActionRestartDetector = require("func/ComboTrials/ActionRestartDetector"),
+    RawDriveRushPrecursorBuffer =
+        require("func/ComboTrials/RawDriveRushPrecursorBuffer"),
     CharacterRules = require("func/ComboTrials/CharacterRules"),
     SequenceGrouping = require("func/ComboTrials/SequenceGrouping"),
     Validator = require("func/ComboTrials/Validator"),
@@ -265,6 +267,7 @@ local players = {
         trigger_mask_cache = {}, trigger_cache_built = false,
         last_bcm_ptr = "", last_direct_input = 0, last_direction_input = 0,
         input_history_queue = {}, dash_tap_state = {},
+        raw_drive_rush_precursor_state = {},
         profile_name = "Unknown", last_profile_name = "", exceptions = {},
         action_compatibility = nil, generated_action_relations = nil,
         action_event_rules = {}, sequence_grouping_rules = {},
@@ -280,6 +283,7 @@ local players = {
         trigger_mask_cache = {}, trigger_cache_built = false,
         last_bcm_ptr = "", last_direct_input = 0, last_direction_input = 0,
         input_history_queue = {}, dash_tap_state = {},
+        raw_drive_rush_precursor_state = {},
         profile_name = "Unknown", last_profile_name = "", exceptions = {},
         action_compatibility = nil, generated_action_relations = nil,
         action_event_rules = {}, sequence_grouping_rules = {},
@@ -303,6 +307,8 @@ local trial_state = {
     is_playing = false,
     playing_player = 0,
     sequence = {},
+    source_sequence = nil,
+    sequence_normalization = nil,
     _recording_preview_sequence = {},
     _recording_preview_logs = {},
     _recording_preview_signature = nil,
@@ -350,6 +356,7 @@ local trial_state = {
     _rec_pending_snapshot = 0,
     _was_playing = false,   -- Previous state for detecting transitions
     _step1_wrong_pending = false,
+    _step1_wrong_started_frame = nil,
     _pending_current_absorb = nil,
     _pending_block_outcome = nil,
     _demo_backup_slot = nil,
@@ -1386,7 +1393,6 @@ hp_snapshot_to_vital_point = ComboTrialsModules.HpVital.hp_snapshot_to_vital_poi
 get_tf_parameter_setting = ComboTrialsModules.HpVital.get_tf_parameter_setting
 describe_re_object_for_debug = ComboTrialsModules.HpVital.describe_re_object_for_debug
 get_training_parameter_probe_objects = ComboTrialsModules.HpVital.get_training_parameter_probe_objects
-probe_method_exists = ComboTrialsModules.HpVital.probe_method_exists
 ct_hp_copy_vital_setting_fields = ComboTrialsModules.HpVital.ct_hp_copy_vital_setting_fields
 ct_hp_backup_training_setting_once = ComboTrialsModules.HpVital.ct_hp_backup_training_setting_once
 ct_hp_write_vital_setting_fields = ComboTrialsModules.HpVital.ct_hp_write_vital_setting_fields
@@ -1399,7 +1405,9 @@ hp_restore_trace = ComboTrialsModules.HpVital.hp_restore_trace
 record_hp_restore_state = ComboTrialsModules.HpVital.record_hp_restore_state
 read_actor_scene_hp = ComboTrialsModules.HpVital.read_actor_scene_hp
 init_hp_restore_attempt = ComboTrialsModules.HpVital.init_hp_restore_attempt
-apply_hp_restore_training_setting_once = ComboTrialsModules.HpVital.apply_hp_restore_training_setting_once
+is_hp_restore_pending = ComboTrialsModules.HpVital.is_restore_pending
+release_hp_restore_for_player_action =
+    ComboTrialsModules.HpVital.release_restore_for_player_action
 apply_pending_hp_restore_once = ComboTrialsModules.HpVital.apply_pending_hp_restore_once
 
 HP_RESTORE_DEBUG_PATH = "TrainingComboTrials_data/LastHpRestoreDebug.json"
@@ -2576,6 +2584,8 @@ local ComboTrials_Files = require("func/ComboTrials_Files")
 ComboTrials_Files.init(ctx, {
     normalize_sequence_counter_types = normalize_sequence_counter_types,
     normalize_sequence_semantics = Validator.annotate_terminal_pressure_tail,
+    normalize_action_sequence =
+        ComboTrialsModules.UnifiedActionConsumer.normalize_sequence,
     normalize_sequence_scene_state =
         ComboTrialsModules.SceneState.materialize_stable_legacy_actor_hp,
     assign_groups = assign_groups,
@@ -2613,6 +2623,7 @@ local function reset_player_action_buffers(p_state)
     p_state.log = {}
     p_state.input_history_queue = {}
     p_state.dash_tap_state = {}
+    p_state.raw_drive_rush_precursor_state = {}
     p_state.prev_act_id = -1
     p_state.prev_act_frame = -1
     p_state.last_direct_input = direct_input
@@ -2762,6 +2773,7 @@ local function clear_trial_attempt_state(player_idx, phase)
     trial_state.floating_info = nil
     trial_state.floating_color = nil
     trial_state._step1_wrong_pending = false
+    trial_state._step1_wrong_started_frame = nil
     trial_state._first_hit_landed = false
     trial_state._pending_hit_cc = nil
     trial_state._hit_grace = 0
@@ -2901,10 +2913,11 @@ ctx.refresh_recording_preview = function(session)
     end
 
     trial_state._recording_preview_error = nil
-    trial_state._recording_preview_sequence = compiled.steps
+    trial_state._recording_preview_sequence = compiled.detectable_steps or {}
     local logs = {}
-    for index = #compiled.steps, 1, -1 do
-        local source = compiled.steps[index]
+    local preview_steps = compiled.detectable_steps or compiled.steps
+    for index = #preview_steps, 1, -1 do
+        local source = preview_steps[index]
         local log = {}
         for key, value in pairs(source) do log[key] = value end
         log.intentional = true
@@ -2923,6 +2936,8 @@ local function start_recording(player_idx)
 
     trial_state.recording_player = player_idx
     trial_state.sequence = {}
+    trial_state.source_sequence = nil
+    trial_state.sequence_normalization = nil
     ctx.reset_recording_preview()
     begin_recording_display_context(player_idx)
     live_display_context.sync_recording()
@@ -2939,6 +2954,7 @@ local function start_recording(player_idx)
     players[player_idx].log = {}
     players[player_idx].input_history_queue = {}
     players[player_idx].dash_tap_state = {}
+    players[player_idx].raw_drive_rush_precursor_state = {}
     players[player_idx].prev_act_id = -1
     players[player_idx].prev_act_frame = -1
     players[player_idx].last_combo_count = 0
@@ -3037,7 +3053,6 @@ local function start_trial(player_idx)
 
     -- INJECT FIRST-STEP TRAINING ENVIRONMENT
     apply_trial_training_environment()
-    apply_hp_restore_training_setting_once("start_trial_training_setting")
     update_trial_flip_state()
     apply_forced_position()
     trial_state._pending_reinject_settings = true
@@ -3067,6 +3082,8 @@ local function cancel_recording()
     trial_state.is_playing = false
     invalidate_recording_display_context()
     trial_state.sequence = {}
+    trial_state.source_sequence = nil
+    trial_state.sequence_normalization = nil
     trial_state.current_step = 1
     trial_state._xt_pending_save = false
     trial_state._xt_pending_save_player = nil
@@ -3106,7 +3123,9 @@ local function stop_recording_and_save()
     trial_state._action_event_session = nil
     ctx.reset_recording_preview()
     trial_state._last_action_compile = compiled
-    if compiled and type(compiled.steps) == "table" and #compiled.steps > 0 then
+    if compiled and type(compiled.steps) == "table" and #compiled.steps > 0
+        and type(compiled.sequence_normalization) == "table"
+        and compiled.sequence_normalization.ok == true then
         -- The legacy recorder may still collect its diagnostics while recording,
         -- but only the input-bound runtime compiler is allowed to create V2 steps.
         trial_state.sequence = compiled.steps
@@ -3115,6 +3134,11 @@ local function stop_recording_and_save()
     else
         trial_state.sequence = {}
         trial_state._recording_compiler_used = false
+        if compiled and type(compiled.sequence_normalization) == "table"
+            and compiled.sequence_normalization.ok ~= true then
+            trial_state._xt_pending_save_error =
+                compiled.sequence_normalization.reason
+        end
     end
 
     -- Check if logger has data (for replay/BH mode where sequence stays empty)
@@ -3146,7 +3170,8 @@ local function stop_recording_and_save()
 
     if #trial_state.sequence == 0 then
         cancel_recording()
-        trial_state._xt_pending_save_error = "输入流没有绑定到任何实际 Action，未生成文件"
+        trial_state._xt_pending_save_error = trial_state._xt_pending_save_error
+            or "输入流没有绑定到任何实际 Action，未生成文件"
         _G.ComboTrials_SaveFailedPlayer = saved_player
         _G.ComboTrials_PendingSaveCanceled = saved_player
         return
@@ -3203,7 +3228,6 @@ local function reset_trial_steps()
     -- Keep the training room's health settings for the next attempt
     reinject_trial_vital()
     apply_trial_training_environment()
-    apply_hp_restore_training_setting_once("reset_trial_training_setting")
     update_trial_flip_state()
     -- Reset positions if forced pos / mirror is active
     apply_forced_position()
@@ -4938,6 +4962,7 @@ local function ct_player_init(p_idx, p_state)
         p_state.log = {}
         p_state.input_history_queue = {}
         p_state.dash_tap_state = {}
+        p_state.raw_drive_rush_precursor_state = {}
         p_state.action_instance_counter = 0
         p_state.current_action_instance = 0
         p_state.buffer_action_instance = 0
@@ -4978,6 +5003,8 @@ local function ct_player_init(p_idx, p_state)
                 demo_state.playlist_loading = false
             end
             trial_state.sequence = {}
+            trial_state.source_sequence = nil
+            trial_state.sequence_normalization = nil
             trial_state.current_step = 1
             trial_state.success_timer = 0
             trial_state.fail_timer = 0
@@ -5132,6 +5159,7 @@ local function ct_player_tracking(p_idx, p_state)
             -- Step 1 tolerance: fail if the wrong hit LANDS on the dummy
             if trial_state._step1_wrong_pending and trial_state.current_step == 1 and not is_trial_action_grace_active() then
                 trial_state._step1_wrong_pending = false
+                trial_state._step1_wrong_started_frame = nil
                 trial_state.fail_timer = d2d_cfg.fail_display_frames or 120
                 trial_state.fail_reason = "WRONG MOVE"
             end
@@ -5286,6 +5314,22 @@ local function ct_player_validation(p_idx, p_state)
 
         -- TIMEOUT CONTINUOUS DETECTION (Triggers if player does nothing or gets hit)
         if trial_state.success_timer == 0 and not is_hold_pending and not (trial_state.fail_timer and trial_state.fail_timer > 0) then
+            if trial_state.current_step == 1
+                and trial_state._step1_wrong_pending == true
+                and ComboTrialsModules.UnifiedActionConsumer
+                    .attempt_start_wrong_timed_out(
+                        trial_state._step1_wrong_started_frame,
+                        engine_frame_count
+                    ) then
+                trial_state._step1_wrong_pending = false
+                trial_state._step1_wrong_started_frame = nil
+                ComboTrialsModules.PendingAbsorb.clear(
+                    trial_state,
+                    "attempt_start_wrong_timeout"
+                )
+                trial_state.fail_timer = d2d_cfg.fail_display_frames or 120
+                trial_state.fail_reason = "WRONG MOVE"
+            end
             local expected = trial_state.sequence[trial_state.current_step]
             if expected and trial_state.current_step > 1 then
                 local last_played = trial_state.last_played_frame or engine_frame_count
@@ -5538,6 +5582,13 @@ local function ct_player_input_buffer(p_state)
         _pf.act_id, _pf.act_frame, p_state.buffer_act_id, p_state.buffer_act_frame,
         p_state.dash_tap_state, engine_frame_count, restart_input_edge,
         dash_pair ~= nil, restart_motion)
+    if started_new_action
+        and trial_state.is_playing
+        and p_state == players[trial_state.playing_player]
+        and not (demo_state and demo_state.is_playing)
+        and is_hp_restore_pending() then
+        release_hp_restore_for_player_action("manual_action_started")
+    end
     if started_new_action and action_input_edge == 0 then
         -- Some actions switch one or two frames after the button edge. Reuse the
         -- newest post-parent physical edge instead of treating a held button as
@@ -5620,6 +5671,18 @@ local function ct_player_input_buffer(p_state)
             actual_has_hit = buffered_has_hit,
             elapsed_frames = engine_frame_count - p_state.buffer_start_frame,
         })
+    local defer_raw_drive_rush_precursor = not started_new_action
+        and not p_state.buffer_is_committed
+        and ComboTrialsModules.UnifiedActionConsumer.should_defer_raw_drive_rush_precursor({
+            expected_step = expected_chord_step,
+            actual_action_id = p_state.buffer_act_id,
+            actual_motion = buffered_motion,
+            input_anchor_kind = p_state.buffer_input_anchor_kind,
+            input_anchor_motion = p_state.buffer_input_anchor_motion,
+            actual_has_contact = buffered_has_hit or buffered_has_block_contact,
+            actual_has_hit = buffered_has_hit,
+            elapsed_frames = engine_frame_count - p_state.buffer_start_frame,
+        })
 
     if started_new_action then
         if p_state.buffer_act_id ~= -1 and not p_state.buffer_is_committed then
@@ -5646,6 +5709,33 @@ local function ct_player_input_buffer(p_state)
                     p_state.buffer_act_id,
                     duration
                 )
+            local buffered_action = {
+                id = p_state.buffer_act_id,
+                flags = p_state.buffer_flags,
+                action_code = p_state.buffer_action_code,
+                direct_input = p_state.buffer_direct_input,
+                newly_pressed = p_state.buffer_newly_pressed,
+                input_anchor_kind = p_state.buffer_input_anchor_kind,
+                input_anchor_frame = p_state.buffer_input_anchor_frame,
+                input_anchor_motion = p_state.buffer_input_anchor_motion,
+                input_anchor_button_mask = p_state.buffer_input_anchor_button_mask,
+                recent_button_mask = buffered_recent_button_mask,
+                chord_completion_frames = buffered_chord_completion_frames,
+                button_press_frames = buffered_button_press_frames,
+                action_start_frame = p_state.buffer_start_frame,
+                successor_visibility_frames = duration,
+                b_type = p_state.buffer_b_type,
+                engine_frame = p_state.buffer_start_frame,
+                action_instance = p_state.buffer_action_instance,
+                successor_action_id = _pf.act_id,
+                combo_count = p_state.buffer_combo_count,
+                has_hit = buffered_has_hit,
+                has_block_contact = buffered_has_block_contact,
+                buffer_hold_frames = p_state.buffer_hold_frames,
+                p1 = p_state.buffer_p1, p2 = p_state.buffer_p2,
+                r1 = p_state.buffer_r1, r2 = p_state.buffer_r2,
+                current_hp = p_state.buffer_current_hp
+            }
             -- A buffered action with both a physical attack input and a BCM
             -- command owner is a real player command. State/resource branches
             -- can replace it within the ghost window (for example, a status-
@@ -5694,7 +5784,40 @@ local function ct_player_input_buffer(p_state)
                 end
             end
 
-            if is_ghost then
+            local successor_motion =
+                ComboTrialsModules.UnifiedActionConsumer.generated_action_command(
+                    p_state.generated_action_relations,
+                    _pf.act_id
+                ) or ComboTrialsModules.GameProbe.act_id_reverse_enum[_pf.act_id]
+            local precursor_state = p_state.raw_drive_rush_precursor_state or {}
+            p_state.raw_drive_rush_precursor_state = precursor_state
+            local precursor_params = {
+                expected_step = expected_chord_step,
+                previous_action = buffered_action,
+                previous_action_id = p_state.buffer_act_id,
+                previous_motion = buffered_motion,
+                previous_input_anchor_kind = p_state.buffer_input_anchor_kind,
+                previous_input_anchor_motion = p_state.buffer_input_anchor_motion,
+                previous_has_contact = buffered_has_hit or buffered_has_block_contact,
+                previous_has_hit = buffered_has_hit,
+                successor_action_id = _pf.act_id,
+                successor_motion = successor_motion,
+                successor_input_anchor_kind = current_input_anchor_kind,
+                successor_input_anchor_motion = current_input_anchor_motion,
+                elapsed_frames = duration,
+            }
+            local raw_drive_rush_routed =
+                ComboTrialsModules.RawDriveRushPrecursorBuffer.should_route(
+                    precursor_state,
+                    precursor_params
+                )
+            if raw_drive_rush_routed then
+                ComboTrialsModules.RawDriveRushPrecursorBuffer.route(
+                    precursor_state,
+                    actions_to_process,
+                    precursor_params
+                )
+            elseif is_ghost then
                 local g_name = ComboTrialsModules.GameProbe.act_id_reverse_enum[p_state.buffer_act_id] or "Unknown"
                 local ghost_motion = nil
                 if ComboTrials_Renderer and ComboTrials_Renderer.get_command_display then
@@ -5719,33 +5842,7 @@ local function ct_player_input_buffer(p_state)
                 if #p_state.log > 100 then table.remove(p_state.log) end
             else
                 -- Not a ghost (survived or interrupted by system). Force commit it immediately!
-                table.insert(actions_to_process, {
-                    id = p_state.buffer_act_id,
-                    flags = p_state.buffer_flags,
-                    action_code = p_state.buffer_action_code,
-                    direct_input = p_state.buffer_direct_input,
-                    newly_pressed = p_state.buffer_newly_pressed,
-                    input_anchor_kind = p_state.buffer_input_anchor_kind,
-                    input_anchor_frame = p_state.buffer_input_anchor_frame,
-                    input_anchor_motion = p_state.buffer_input_anchor_motion,
-                    input_anchor_button_mask = p_state.buffer_input_anchor_button_mask,
-                    recent_button_mask = buffered_recent_button_mask,
-                    chord_completion_frames = buffered_chord_completion_frames,
-                    button_press_frames = buffered_button_press_frames,
-                    action_start_frame = p_state.buffer_start_frame,
-                    successor_visibility_frames = duration,
-                    b_type = p_state.buffer_b_type,
-                    engine_frame = p_state.buffer_start_frame,
-                    action_instance = p_state.buffer_action_instance,
-                    successor_action_id = _pf.act_id,
-                    combo_count = p_state.buffer_combo_count,
-                    has_hit = buffered_has_hit,
-                    has_block_contact = buffered_has_block_contact,
-                    buffer_hold_frames = p_state.buffer_hold_frames,
-                    p1 = p_state.buffer_p1, p2 = p_state.buffer_p2,
-                    r1 = p_state.buffer_r1, r2 = p_state.buffer_r2,
-                    current_hp = p_state.buffer_current_hp
-                })
+                table.insert(actions_to_process, buffered_action)
             end
         end
         p_state.action_instance_counter = (p_state.action_instance_counter or 0) + 1
@@ -5784,7 +5881,8 @@ local function ct_player_input_buffer(p_state)
 
     if not p_state.buffer_is_committed
         and (engine_frame_count - p_state.buffer_start_frame) >= ghost_wait
-        and not defer_partial_chord then
+        and not defer_partial_chord
+        and not defer_raw_drive_rush_precursor then
         p_state.buffer_is_committed = true
         local recent_button_mask, chord_completion_frames, button_press_frames =
             ComboTrialsModules.CommandResolver.collect_action_button_edges(
@@ -5793,6 +5891,10 @@ local function ct_player_input_buffer(p_state)
                 engine_frame_count,
                 ComboTrialsModules.UnifiedActionConsumer.CHORD_COMPLETION_WINDOW
             )
+        ComboTrialsModules.RawDriveRushPrecursorBuffer.flush_into(
+            p_state.raw_drive_rush_precursor_state,
+            actions_to_process
+        )
         table.insert(actions_to_process, {
             id = p_state.buffer_act_id,
             flags = p_state.buffer_flags,
@@ -6139,7 +6241,6 @@ local function ct_player_process_actions(p_idx, p_state, actions_to_process)
                     expected_step = expected_for_ignore,
                     expected_action_matches_current = expected_action_matches_current == true,
                     actual_action_id = act_id,
-                    actual_motion = motion_str,
                     character = p_state.profile_name,
                     action_event_rules = p_state.action_event_rules,
                     input_anchor_kind = process_act.input_anchor_kind,
@@ -6148,7 +6249,13 @@ local function ct_player_process_actions(p_idx, p_state, actions_to_process)
                         ComboTrialsModules.UnifiedActionConsumer.generated_action_command(
                             p_state.generated_action_relations,
                             act_id
-                        ),
+                        ) or motion_str,
+                    successor_action_id = process_act.successor_action_id,
+                    successor_motion = process_act.successor_action_id
+                        and ComboTrialsModules.UnifiedActionConsumer.generated_action_command(
+                            p_state.generated_action_relations,
+                            process_act.successor_action_id
+                        ) or nil,
                     action_button_mask = process_act.input_anchor_button_mask,
                     recent_button_mask = process_act.recent_button_mask,
                     chord_completion_frames = process_act.chord_completion_frames,
@@ -6173,11 +6280,14 @@ local function ct_player_process_actions(p_idx, p_state, actions_to_process)
                 })
                 if transition_policy.ignored then
                     is_ignored = true
-                    ignore_reason = transition_policy.reason == "transient_input_precursor"
+                    ignore_reason = transition_policy.reason
+                        == "raw_drive_rush_precursor"
+                        and "[输入事实：裸绿冲前驱，不参与显示与检测]"
+                        or (transition_policy.reason == "transient_input_precursor"
                         and "[输入事实：瞬态前驱，等待完整指令]"
                         or (transition_policy.reason == "partial_chord_precursor"
                             and "[输入事实：和弦前驱，等待完整指令]"
-                            or "[输入事实：无新输入的内部状态跳转]")
+                            or "[输入事实：无新输入的内部状态跳转]"))
                 end
 
                 if not is_ignored and not expected_action_matches_current then
@@ -6249,7 +6359,7 @@ local function ct_player_process_actions(p_idx, p_state, actions_to_process)
                         file_system = file_system,
                         act_id_reverse_enum = ComboTrialsModules.GameProbe.act_id_reverse_enum
                     }
-                local function apply_matched_step(matched_expected, matched_act_id, matched_motion, matched_input, matched_frame, matched_combo, matched_hp, match_reason, match_details, attempt_start_timing_baseline)
+                local function apply_matched_step(matched_expected, matched_act_id, matched_motion, matched_input, matched_frame, matched_combo, matched_hp, match_reason, match_details)
                     local confirmed, matched_step_idx = ComboTrialsModules.PendingAbsorb.apply_matched_step(pending_absorb_ctx, {
                         expected = matched_expected,
                         actual_action_id = matched_act_id,
@@ -6263,8 +6373,7 @@ local function ct_player_process_actions(p_idx, p_state, actions_to_process)
                         action_instance = match_details and match_details.action_instance or process_act.action_instance,
                         hold_mask = hold_mask,
                         direct_input = direct_input,
-                        hold_frames = hold_frames,
-                        attempt_start_timing_baseline = attempt_start_timing_baseline == true
+                        hold_frames = hold_frames
                     })
                     if confirmed then
                         trial_step_idx = matched_step_idx
@@ -6684,11 +6793,6 @@ local function ct_player_process_actions(p_idx, p_state, actions_to_process)
                         end
 
                         if allow_input then
-                            if transition_policy and transition_policy.skip_to_step then
-                                trial_state.current_step = transition_policy.skip_to_step
-                                expected = trial_state.sequence[trial_state.current_step]
-                            end
-
                             local expected_exception = CharacterRules.get_match_rule(
                                 p_state.exceptions,
                                 common_exceptions,
@@ -7114,9 +7218,7 @@ local function ct_player_process_actions(p_idx, p_state, actions_to_process)
                                     _pf.current_combo or 0,
                                     process_act.current_hp,
                                     action_match.match_reason,
-                                    action_match,
-                                    transition_policy
-                                        and transition_policy.attempt_start_timing_baseline
+                                    action_match
                                 )
                             elseif action_match.matched then
                                 match_probe.branch = "direct_match"
@@ -7130,31 +7232,9 @@ local function ct_player_process_actions(p_idx, p_state, actions_to_process)
                                     _pf.current_combo or 0,
                                     process_act.current_hp,
                                     action_match.match_reason,
-                                    action_match,
-                                    transition_policy
-                                        and transition_policy.attempt_start_timing_baseline
+                                    action_match
                                 )
                             else
-                                local is_parry = is_parry_action(motion_str, real_input_str, act_name)
-                                local is_current_dr = is_drive_rush_id(act_id) or is_drive_rush_motion(motion_str)
-                                local expecting_dr = expected and (is_drive_rush_id(expected.id) or is_drive_rush_motion(expected.motion))
-                                local expecting_parry = expected and expected.motion and expected.motion:upper():match("PARRY") ~= nil
-                                local is_first_step_dr = is_drive_rush_id(trial_state.sequence[1].id) or is_drive_rush_motion(trial_state.sequence[1].motion)
-                                local is_first_step_parry = trial_state.sequence[1].motion and trial_state.sequence[1].motion:upper():match("PARRY") ~= nil
-                                local first_step_dr_parry_reset_candidate = (is_first_step_dr and is_parry) or (is_first_step_parry and is_current_dr)
-                                local combo_in_progress = (_pf.current_combo or 0) > 0
-                                local just_confirmed_recent_absorb = match_probe.recent_absorb_confirmed == true
-                                    and (match_probe.post_absorb_step or 0) > (match_probe.step or 0)
-                                match_probe.is_parry = is_parry
-                                match_probe.is_current_dr = is_current_dr
-                                match_probe.expecting_dr = expecting_dr
-                                match_probe.expecting_parry = expecting_parry
-                                match_probe.is_first_step_dr = is_first_step_dr
-                                match_probe.is_first_step_parry = is_first_step_parry
-                                match_probe.first_step_dr_parry_reset_candidate = first_step_dr_parry_reset_candidate
-                                match_probe.combo_in_progress = combo_in_progress
-                                match_probe.just_confirmed_recent_absorb = just_confirmed_recent_absorb
-
                                 if expected and is_pressure_tail_step(expected) then
                                     -- Pressure/setup tails validate the real
                                     -- recorded Action, but never require that
@@ -7162,30 +7242,6 @@ local function ct_player_process_actions(p_idx, p_state, actions_to_process)
                                     match_probe.branch = "pressure_tail_wait_for_action"
                                     match_probe.reject_reason = "pressure_tail_action_mismatch_wait"
                                     DebugTrace.record_match_probe(trial_state, match_probe)
-                                elseif expecting_dr and is_parry then
-                                    -- Tolerance: Expecting DR, got Parry → ignore, wait for DR
-                                    match_probe.reject_reason = "expecting_dr_got_parry_wait"
-                                    DebugTrace.record_match_probe(trial_state, match_probe)
-                                elseif expecting_parry and is_current_dr then
-                                    -- Tolerance: Expecting Parry, got DR directly → skip Parry step, validate DR on next
-                                    match_probe.branch = "expecting_parry_got_dr_skip"
-                                    DebugTrace.record_match_probe(trial_state, match_probe)
-                                    trial_state._step1_wrong_pending = false
-                                    ComboTrialsModules.PendingAbsorb.clear(trial_state, "parry_dr_skip")
-                                    trial_state.last_played_frame = engine_frame_count
-                                    trial_state.current_step = trial_state.current_step + 1
-                                    local next_expected = trial_state.sequence[trial_state.current_step]
-                                    if next_expected and (is_drive_rush_id(next_expected.id) or is_drive_rush_motion(next_expected.motion)) then
-                                        trial_state.current_step = trial_state.current_step + 1
-                                    end
-                                elseif expecting_dr and is_current_dr then
-                                    -- Tolerance: DR id mismatch (739 vs 740 vs char-specific) → validate
-                                    match_probe.branch = "drive_rush_id_tolerance"
-                                    DebugTrace.record_match_probe(trial_state, match_probe)
-                                    trial_state._step1_wrong_pending = false
-                                    ComboTrialsModules.PendingAbsorb.clear(trial_state, "drive_rush_tolerance")
-                                    trial_state.last_played_frame = engine_frame_count
-                                    trial_state.current_step = trial_state.current_step + 1
                                 elseif ct_should_ignore_duplicate_previous_pressure_action(
                                     trace_prev_step,
                                     expected,
@@ -7199,26 +7255,14 @@ local function ct_player_process_actions(p_idx, p_state, actions_to_process)
                                     match_probe.waiting_for_expected_id = expected and expected.id or nil
                                     match_probe.waiting_for_expected_motion = expected and expected.motion or nil
                                     DebugTrace.record_match_probe(trial_state, match_probe)
-                                elseif first_step_dr_parry_reset_candidate and not combo_in_progress and not just_confirmed_recent_absorb then
-                                    match_probe.branch = "reset_first_step_dr_parry"
-                                    DebugTrace.record_match_probe(trial_state, match_probe)
-                                    trial_state.fail_timer = 0
-                                    trial_state.fail_reason = nil
-                                    reset_trial_steps()
-                                    trial_step_idx = nil
                                 else
-                                    if first_step_dr_parry_reset_candidate then
-                                        match_probe.reset_first_step_dr_parry_blocked = true
-                                        if combo_in_progress then
-                                            match_probe.reset_first_step_dr_parry_block_reason = "combo_in_progress"
-                                        elseif just_confirmed_recent_absorb then
-                                            match_probe.reset_first_step_dr_parry_block_reason = "recent_absorb_advanced_step"
-                                        end
-                                    end
                                     if trial_state.current_step == 1 then
                                         match_probe.reject_reason = "step1_wrong_pending"
                                         DebugTrace.record_match_probe(trial_state, match_probe)
                                         trial_state._step1_wrong_pending = true
+                                        trial_state._step1_wrong_started_frame =
+                                            trial_state._step1_wrong_started_frame
+                                            or engine_frame_count
                                     else
                                         match_probe.reject_reason = "wrong_move"
                                         DebugTrace.record_match_probe(trial_state, match_probe)
@@ -7481,6 +7525,7 @@ ctx.handle_trial_auto_flow = function()
         -- Discard delayed validators so post-success inputs cannot overwrite
         -- the completed final line with a failure.
         trial_state._step1_wrong_pending = false
+        trial_state._step1_wrong_started_frame = nil
         trial_state.active_universal_hold = nil
         trial_state._pending_hit_cc = nil
         trial_state._pending_hit_delay = nil
@@ -9982,6 +10027,7 @@ table.insert(_G._shared_input_pre, function(p_id, args)
             if tm and tm:get_field("_IsReqRefresh") == true then is_refreshing = true end
             if trial_state.pending_exact_pos and trial_state.pending_exact_pos > 0 then is_refreshing = true end
             if trial_state._pending_reinject_settings == true then is_refreshing = true end
+            if is_hp_restore_pending() then is_refreshing = true end
 
             if not is_paused and not is_refreshing then
                 if demo_state._transcription_input_finished == true then
@@ -10107,6 +10153,7 @@ function CTRawInputRuntime.play()
     if tm and tm:get_field("_IsReqRefresh") == true then return end
     if trial_state.pending_exact_pos and trial_state.pending_exact_pos > 0 then return end
     if trial_state._pending_reinject_settings == true then return end
+    if is_hp_restore_pending() then return end
 
     -- Countdown is a stable pre-roll, not a refresh timeout. Burning it while
     -- position/resource restoration is still pending makes the first replay

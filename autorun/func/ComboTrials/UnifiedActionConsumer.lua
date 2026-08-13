@@ -5,6 +5,7 @@
 
 local ActionEventCompiler = require("func/ComboTrials/ActionEventCompiler")
 local ActionMatcher = require("func/ComboTrials/ActionMatcher")
+local ActionSequenceNormalizer = require("func/ComboTrials/ActionSequenceNormalizer")
 local CommandResolver = require("func/ComboTrials/CommandResolver")
 local GeneratedActionRelations = require("func/ComboTrials/GeneratedActionRelations")
 local TrainingEnvironment = require("func/ComboTrials/TrainingEnvironment")
@@ -14,7 +15,19 @@ local M = {
     CHORD_COMPLETION_WINDOW = ActionMatcher.CHORD_COMPLETION_WINDOW,
     CHORD_ACTION_VISIBILITY_GRACE = ActionMatcher.CHORD_ACTION_VISIBILITY_GRACE,
     PLAYER_ACTION_BIND_WINDOW = ActionMatcher.PLAYER_ACTION_BIND_WINDOW,
+    RAW_DRIVE_RUSH_DASH_PRECURSOR_WINDOW =
+        ActionMatcher.RAW_DRIVE_RUSH_DASH_PRECURSOR_WINDOW,
+    RAW_DRIVE_RUSH_PARRY_PRECURSOR_WINDOW =
+        ActionMatcher.RAW_DRIVE_RUSH_PARRY_PRECURSOR_WINDOW,
+    ATTEMPT_START_WRONG_TIMEOUT = ActionMatcher.ATTEMPT_START_WRONG_TIMEOUT,
 }
+
+local function normalize_sequence(sequence)
+    return ActionSequenceNormalizer.normalize(
+        sequence,
+        ActionMatcher.sequence_normalization_options()
+    )
+end
 
 function M.new_capture(options)
     return ActionEventCompiler.new(options)
@@ -25,7 +38,15 @@ function M.observe_capture(session, sample)
 end
 
 function M.finalize_capture(session, options)
-    return ActionEventCompiler.finalize(session, options)
+    local compiled = ActionEventCompiler.finalize(session, options)
+    local normalization = normalize_sequence(compiled.steps)
+    compiled.detectable_steps = normalization.sequence
+    compiled.sequence_normalization = normalization
+    return compiled
+end
+
+function M.normalize_sequence(sequence)
+    return normalize_sequence(sequence)
 end
 
 function M.resolve_runtime_command(
@@ -99,6 +120,10 @@ function M.should_defer_partial_chord(params)
     return ActionMatcher.should_defer_partial_chord(params)
 end
 
+function M.should_defer_raw_drive_rush_precursor(params)
+    return ActionMatcher.should_defer_raw_drive_rush_precursor(params)
+end
+
 function M.load_generated_action_relations(character, loader)
     return GeneratedActionRelations.load(character, loader)
 end
@@ -122,6 +147,13 @@ function M.latch_buffer_contact(
         has_block_contact,
         observed_hit,
         observed_block_contact
+    )
+end
+
+function M.attempt_start_wrong_timed_out(start_frame, current_frame)
+    return ActionMatcher.attempt_start_wrong_timed_out(
+        start_frame,
+        current_frame
     )
 end
 

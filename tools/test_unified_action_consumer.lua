@@ -5,6 +5,7 @@ package.path = package.path
 local consumer = require("func/ComboTrials/UnifiedActionConsumer")
 local compiler = require("func/ComboTrials/ActionEventCompiler")
 local command_resolver = require("func/ComboTrials/CommandResolver")
+local sequence_normalizer = require("func/ComboTrials/ActionSequenceNormalizer")
 
 local function assert_equal(actual, expected, message)
     assert(actual == expected, string.format(
@@ -14,6 +15,126 @@ local function assert_equal(actual, expected, message)
         tostring(actual)
     ))
 end
+
+local source_timeline = { "5f : 4", "4f : 4+MP+MK", "6f : 6" }
+local source_raw_inputs = { 8, 8 | 32 | 256, 4 }
+local leading_prefix_source = {
+    {
+        id = 38,
+        motion = "7",
+        delay_from_prev = 0,
+        timeline = source_timeline,
+        relative_raw_inputs = source_raw_inputs,
+        expected_hp = 8765,
+        has_hit = true,
+        _xt_meta = { schema = 2, title = "prefix" },
+    },
+    { id = 17, motion = "66", delay_from_prev = 3 },
+    { id = 480, motion = "Drive Parry", delay_from_prev = 2 },
+    { id = 500, motion = "drive rush", delay_from_prev = 4 },
+    { id = 623, motion = "2MP", delay_from_prev = 22 },
+    { id = 17, motion = "66", delay_from_prev = 18 },
+    { id = 480, motion = "PARRY", delay_from_prev = 3 },
+}
+local leading_prefix_result = consumer.normalize_sequence(leading_prefix_source)
+assert(leading_prefix_result.ok == true
+        and leading_prefix_result.prefix_length == 1
+        and leading_prefix_result.inline_removed_count == 2
+        and #leading_prefix_result.sequence == 4,
+    "a contiguous leading direction/dash/parry prefix must be removed")
+assert(leading_prefix_result.sequence[1].id == 500
+        and leading_prefix_result.sequence[1].delay_from_prev == 0
+        and leading_prefix_result.sequence[1].expected_hp == nil
+        and leading_prefix_result.sequence[1].has_hit == nil,
+    "Presentation and Detector must start at the first semantic action")
+assert(leading_prefix_result.sequence[2].id == 623
+        and leading_prefix_result.sequence[3].id == 17
+        and leading_prefix_result.sequence[4].id == 480,
+    "directions, dashes and parries after the semantic start must remain strict")
+assert(leading_prefix_result.sequence[1].timeline ~= source_timeline
+        and leading_prefix_result.sequence[1].timeline[2] == source_timeline[2]
+        and leading_prefix_result.sequence[1].relative_raw_inputs ~= source_raw_inputs
+        and leading_prefix_result.sequence[1].relative_raw_inputs[2]
+            == source_raw_inputs[2]
+        and leading_prefix_result.sequence[1]._xt_meta.title == "prefix",
+    "the normalized first step must copy the frozen replay and metadata payload")
+assert(leading_prefix_source[1].id == 38
+        and leading_prefix_source[2].id == 17
+        and leading_prefix_source[3].id == 480
+        and leading_prefix_source[4].delay_from_prev == 4,
+    "normalization must not rewrite the frozen V2 source sequence")
+
+for _, motions in ipairs({
+    { "7", "66", "PARRY" },
+    { "66" },
+    { "2", "Drive Parry" },
+}) do
+    local source = {}
+    for index, motion in ipairs(motions) do
+        source[index] = { id = 100 + index, motion = motion, delay_from_prev = index - 1 }
+    end
+    source[#source + 1] = { id = 500, motion = "DR", delay_from_prev = 5 }
+    source[#source + 1] = { id = 623, motion = "2MP", delay_from_prev = 10 }
+    local result = consumer.normalize_sequence(source)
+    assert(result.ok == true and #result.sequence == 2
+            and result.sequence[1].id == 500
+            and result.sequence[2].id == 623,
+        "leading precursor order and cardinality must not alter the semantic sequence")
+end
+
+local wrong_semantic_start = sequence_normalizer.normalize({
+    { id = 17, motion = "66" },
+    { id = 623, motion = "2MP" },
+    { id = 500, motion = "DR" },
+})
+assert(wrong_semantic_start.ok == true
+        and wrong_semantic_start.sequence[1].id == 17,
+    "a standalone leading 66 must remain a real checkpoint")
+
+local jump_attack = sequence_normalizer.normalize({
+    { id = 38, motion = "7" },
+    { id = 652, motion = "j.HP", has_hit = true },
+})
+assert(jump_attack.ok == true and #jump_attack.sequence == 1
+        and jump_attack.sequence[1].id == 652,
+    "a leading jump direction must be hidden without hiding the jump attack Action")
+
+local all_prefix = sequence_normalizer.normalize({
+    { id = 38, motion = "7" },
+    { id = 17, motion = "66" },
+    { id = 480, motion = "PARRY" },
+})
+assert(all_prefix.ok == true
+        and all_prefix.prefix_length == 1
+        and #all_prefix.sequence == 2
+        and all_prefix.sequence[1].id == 17
+        and all_prefix.sequence[2].id == 480,
+    "leading 66 and Parry must remain unless a bounded RAW DR owns them")
+
+local action_semantic_parry = consumer.normalize_sequence({
+    { id = 480, motion = "Normal", delay_from_prev = 0 },
+    { id = 500, motion = "DR", delay_from_prev = 4 },
+})
+assert(action_semantic_parry.ok == true
+        and action_semantic_parry.prefix_length == 0
+        and action_semantic_parry.sequence[1].id == 500,
+    "Drive Parry Action semantics must not depend on stale display text")
+
+local terry_2220 = consumer.normalize_sequence({
+    { id = 17, motion = "66", delay_from_prev = 0 },
+    { id = 500, motion = "drive rush", delay_from_prev = 4 },
+    { id = 623, motion = "2MP", delay_from_prev = 22 },
+    { id = 635, motion = "2MK", delay_from_prev = 33 },
+    { id = 670, motion = ">2HK", delay_from_prev = 16 },
+    { id = 933, motion = "214+HP", delay_from_prev = 31 },
+})
+assert(terry_2220.ok == true and terry_2220.prefix_length == 0
+        and terry_2220.inline_removed_count == 1
+        and #terry_2220.sequence == 5
+        and terry_2220.sequence[1].id == 500
+        and terry_2220.sequence[2].id == 623
+        and terry_2220.sequence[5].id == 933,
+    "Terry 2220 must present and detect from Drive Rush without rewriting V2")
 
 local function resolver(action_id)
     if tonumber(action_id) == 627 then return "2+MP", "direct" end

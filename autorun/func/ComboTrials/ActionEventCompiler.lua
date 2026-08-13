@@ -749,12 +749,17 @@ end
 
 local function is_quick_drive_parry_precursor(previous, current)
     if type(previous) ~= "table" or type(current) ~= "table" then return false end
-    if previous.event.has_contact == true or previous.event.has_hit == true then return false end
     local delay = (tonumber(current.event.frame) or 0)
         - (tonumber(previous.event.frame) or 0)
-    return delay >= 0 and delay <= 4
-        and compact_motion(previous.motion) == "DP"
-        and compact_motion(current.motion) == "RAWDR"
+    return ActionMatcher.is_quick_drive_parry_precursor({
+        precursor_action_id = previous.event.id,
+        precursor_motion = previous.motion,
+        precursor_has_contact = previous.event.has_contact,
+        precursor_has_hit = previous.event.has_hit,
+        successor_action_id = current.event.id,
+        successor_motion = current.motion,
+        elapsed_frames = delay,
+    })
 end
 
 local function is_jump_startup_precursor(previous, current)
@@ -1574,10 +1579,14 @@ function Compiler.observe(session, sample)
     -- parry followed by a later rush remains two commands.
     if actual_action_start
         and type(session.current_event) == "table"
-        and ActionMatcher.is_drive_parry_action_id(session.current_event.id)
-        and ActionMatcher.is_raw_drive_rush_action_id(action_id)
-        and frame - (tonumber(session.current_event.frame) or frame) <= 4
-        and session.current_event.has_contact ~= true then
+        and ActionMatcher.is_quick_drive_parry_precursor({
+            precursor_action_id = session.current_event.id,
+            precursor_motion = session.current_event.motion,
+            precursor_has_contact = session.current_event.has_contact,
+            precursor_has_hit = session.current_event.has_hit,
+            successor_action_id = action_id,
+            elapsed_frames = frame - (tonumber(session.current_event.frame) or frame),
+        }) then
         session.current_event.promoted_from_id = session.current_event.id
         session.current_event.id = action_id
         session.current_event.action_frame = action_frame

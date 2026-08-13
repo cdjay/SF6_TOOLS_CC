@@ -30,6 +30,21 @@ json = {
                 },
             }
         end
+        if key == "Ryu_COMBO_RAW_DR_3756_D1.1_SA1" then
+            return {
+                {
+                    _xt_meta = { title = titles[key], control_mode = "classic" },
+                    id = 17,
+                    motion = "66",
+                    combo_stats = {
+                        damage = 3756,
+                        drive_used = 11000,
+                        super_used = 10000,
+                    },
+                },
+                { id = 500, motion = "RAW_DR", delay_from_prev = 4 },
+            }
+        end
         return { { _xt_meta = { title = titles[key], control_mode = "classic" } } }
     end,
 }
@@ -42,6 +57,7 @@ sdk = {}
 
 package.loaded["func/ComboTrials_Files"] = nil
 local ComboTrialsFiles = require("func/ComboTrials_Files")
+local UnifiedActionConsumer = require("func/ComboTrials/UnifiedActionConsumer")
 
 local file_system = {
     combo_control_filter = "all",
@@ -63,6 +79,7 @@ ComboTrialsFiles.init({
     d2d_cfg = {},
 }, {
     normalize_sequence_counter_types = function() end,
+    normalize_action_sequence = UnifiedActionConsumer.normalize_sequence,
     assign_groups = function() end,
 })
 
@@ -96,6 +113,37 @@ assert(rows["社区投稿"].starter == "2+MP", "JSON starter must override a non
 assert(rows["社区投稿"].damage == "3420", "JSON damage must override a non-standard filename")
 assert(rows["社区投稿"].drive == "2.675", "JSON decimal drive must preserve significant precision")
 assert(rows["社区投稿"].energy == "1", "JSON super usage must override a non-standard filename")
+
+local installed_trial_state = {}
+json.load_file = function()
+    return {
+        {
+            _xt_meta = { title = "前导投影", control_mode = "classic" },
+            motion = "66",
+            timeline = { "1f : 6", "1f : 6+MP+MK" },
+        },
+        { motion = "DR", id = 500, delay_from_prev = 4 },
+        { motion = "2MP", id = 623, delay_from_prev = 22 },
+    }
+end
+ComboTrialsFiles.init({
+    trial_state = installed_trial_state,
+    players = {},
+    file_system = file_system,
+    ui_state = { viewed_player = 0 },
+}, {
+    normalize_sequence_counter_types = function() end,
+    normalize_action_sequence = UnifiedActionConsumer.normalize_sequence,
+    assign_groups = function() end,
+})
+assert(ComboTrialsFiles.load_combo_from_file("LeadingPrefix.json", true) == true,
+    "leading-prefix fixture failed to load")
+assert(#installed_trial_state.source_sequence == 3
+        and installed_trial_state.source_sequence[1].motion == "66"
+        and #installed_trial_state.sequence == 2
+        and installed_trial_state.sequence[1].id == 500
+        and installed_trial_state.sequence[1].timeline[2] == "1f : 6+MP+MK",
+    "file loading must preserve frozen V2 while installing the shared projection")
 
 local function read_all(path)
     local file = assert(io.open(path, "rb"))

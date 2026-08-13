@@ -258,16 +258,6 @@ function HpVital.get_training_parameter_probe_objects(attacker_idx)
     return out
 end
 
-function HpVital.probe_method_exists(obj, method_name)
-    if not obj then return false, "missing_object" end
-    local ok, method = pcall(function()
-        local td = obj:get_type_definition()
-        return td and td:get_method(method_name) or nil
-    end)
-    if not ok then return false, tostring(method) end
-    return method ~= nil, method ~= nil and nil or "missing_method"
-end
-
 function HpVital.ct_hp_copy_vital_setting_fields(player_params)
     local fields = {}
     if not player_params then return fields end
@@ -498,7 +488,6 @@ function HpVital.build_hp_restore_debug_dump(phase, extra)
             skip_reason = read_skip_reason
         },
         hp_restore_state = trial_state._hp_restore,
-        training_setting_probe = trial_state._hp_restore and trial_state._hp_restore.training_probe or nil,
         runtime_inject = runtime_inject,
         hp_setting_backup = {
             exists = type(trial_state._hp_training_setting_backup) == "table"
@@ -625,9 +614,8 @@ function HpVital.init_hp_restore_attempt(phase, player_idx)
         restore_count = 0,
         overwrite_count = 0,
         stable_check_count = 0,
-        training_setting_applied = false,
-        training_setting_apply_count = 0,
-        training_refresh_request_count = 0,
+        watch_frames_remaining = 30,
+        max_runtime_writes = 1,
         last_phase = phase,
         skip_reason = found and nil or skip_reason
     }
@@ -640,100 +628,22 @@ function HpVital.init_hp_restore_attempt(phase, player_idx)
     HpVital.record_hp_restore_state(state, phase or "init")
 end
 
-function HpVital.apply_hp_restore_training_setting_once(phase)
-    local state = trial_state._hp_restore
-    if type(state) ~= "table" or state.found ~= true then return false end
-    if state.training_setting_applied == true then return false end
+function HpVital.is_restore_pending()
+    local state = trial_state and trial_state._hp_restore or nil
+    return type(state) == "table"
+        and state.found == true
+        and state.finished ~= true
+end
 
-    state.training_setting_applied = true
-    state.training_setting_apply_count = (state.training_setting_apply_count or 0) + 1
-
-    local snapshot = state.snapshot
-    local vital_point = HpVital.hp_snapshot_to_vital_point(snapshot)
-    local attacker_idx = tonumber(state.target_player or trial_state.playing_player or 0) or 0
-    if attacker_idx ~= 1 then attacker_idx = 0 end
-
-    local objects = HpVital.get_training_parameter_probe_objects(attacker_idx)
-    local tm = objects.tm or sdk.get_managed_singleton("app.training.TrainingManager")
-    local refresh_before = tm and tm:get_field("_IsReqRefresh")
-    local probe = {
-        phase = phase,
-        recorded_by = trial_state.sequence and trial_state.sequence[1] and trial_state.sequence[1].recorded_by or nil,
-        playing_player = trial_state.playing_player,
-        target_player_idx = attacker_idx,
-        target_player = attacker_idx == 1 and "p2" or "p1",
-        snapshot = snapshot,
-        vital_point = vital_point,
-        vital_point_percent = vital_point,
-        param_func_exists = objects.param_func ~= nil,
-        param_func_type = HpVital.describe_re_object_for_debug(objects.param_func),
-        tf_parameter_setting_exists = objects.tf_ps ~= nil,
-        tf_parameter_setting_type = HpVital.describe_re_object_for_debug(objects.tf_ps),
-        player_params_exists = objects.player_params ~= nil,
-        before_params = HpVital.read_player_vital_params_for_debug(objects.player_params),
-        refresh_before = refresh_before
-    }
-
-    probe.set_vital_point_exists, probe.set_vital_point_method_error = HpVital.probe_method_exists(objects.param_func, "SetVitalPoint")
-    probe.set_vital_type_exists, probe.set_vital_type_method_error = HpVital.probe_method_exists(objects.param_func, "SetVitalType")
-    probe.set_vital_infinity_exists, probe.set_vital_infinity_method_error = HpVital.probe_method_exists(objects.param_func, "SetVitalInfinity")
-    probe.set_vital_no_recovery_exists, probe.set_vital_no_recovery_method_error = HpVital.probe_method_exists(objects.param_func, "SetVitalNoRecovery")
-
-    if vital_point == nil then
-        state.training_setting_skip_reason = "missing_vital_point"
-        probe.skip_reason = state.training_setting_skip_reason
-    elseif not objects.player_params then
-        state.training_setting_skip_reason = "missing_player_params"
-        probe.skip_reason = state.training_setting_skip_reason
-    else
-        probe.hp_setting_backup = HpVital.ct_hp_backup_training_setting_once(attacker_idx, phase)
-        if objects.param_func then
-            probe.set_vital_point_called = true
-            local call_ok, call_result = pcall(function()
-                return objects.param_func:call("SetVitalPoint", attacker_idx, vital_point)
-            end)
-            probe.set_vital_point_call_ok = call_ok == true
-            if not call_ok then probe.set_vital_point_call_error = tostring(call_result) end
-        else
-            probe.set_vital_point_called = false
-            probe.set_vital_point_call_error = "missing_param_func"
-        end
-
-        local write_ok, write_err = pcall(function()
-            objects.player_params.Vital_Point = vital_point
-        end)
-        probe.write_vital_point_ok = write_ok == true
-        if not write_ok then probe.write_vital_point_error = tostring(write_err) end
-    end
-
-    probe.after_write_params = HpVital.read_player_vital_params_for_debug(objects.player_params)
-
-    if objects.tf_ps then
-        local bapply_ok, bapply_err = pcall(function()
-            objects.tf_ps:call("bApply")
-        end)
-        probe.bapply_called = true
-        probe.bapply_ok = bapply_ok == true
-        if not bapply_ok then probe.bapply_error = tostring(bapply_err) end
-    else
-        probe.bapply_called = false
-        probe.bapply_error = "missing_tf_parameter_setting"
-    end
-
-    probe.refresh_after = tm and tm:get_field("_IsReqRefresh")
-    if refresh_before ~= true and probe.refresh_after == true then
-        state.training_refresh_request_count = (state.training_refresh_request_count or 0) + 1
-    end
-    probe.refresh_request_count = state.training_refresh_request_count or 0
-    probe.after_apply_params = HpVital.read_player_vital_params_for_debug(objects.player_params)
-    if probe.write_vital_point_ok == true or probe.set_vital_point_call_ok == true then
-        trial_state._hp_snapshot_applied_current_session = true
-        state.hp_snapshot_applied_current_session = true
-    end
-
-    state.training_probe = probe
-    HpVital.record_hp_restore_state(state, phase or "training_setting_probe", { hp_training_probe = probe })
-    return probe.write_vital_point_ok == true or probe.set_vital_point_call_ok == true
+function HpVital.release_restore_for_player_action(phase)
+    local state = trial_state and trial_state._hp_restore or nil
+    if type(state) ~= "table" or state.finished == true then return false end
+    state.finished = true
+    state.skip_reason = "player_action_started"
+    HpVital.record_hp_restore_state(state, phase or "player_action_started", {
+        player_action_started = true,
+    })
+    return true
 end
 
 function HpVital.apply_pending_hp_restore_once(phase)
@@ -774,9 +684,9 @@ function HpVital.apply_pending_hp_restore_once(phase)
     local before_fields = HpVital.read_player_hp_fields_for_debug(target)
     local heal_hp = HpVital.normalize_hp_value(state.snapshot.heal_hp) or hp
     local current_step = tonumber(trial_state.current_step) or 1
-    if current_step > 1 and (state.stable_check_count or 0) > 0 then
+    if current_step > 1 then
         state.finished = true
-        state.skip_reason = "target_hp_stable_before_first_step"
+        state.skip_reason = "target_hp_ownership_released"
         HpVital.record_hp_restore_state(state, phase, {
             before = before,
             before_fields = before_fields,
@@ -786,18 +696,20 @@ function HpVital.apply_pending_hp_restore_once(phase)
         return false
     end
 
+    state.watch_frames_remaining = math.max(
+        0,
+        (tonumber(state.watch_frames_remaining) or 0) - 1
+    )
+
     local live_matches = before
         and before.current_hp == hp
         and (before.heal_hp == nil or before.heal_hp == heal_hp)
     if live_matches then
         state.stable_check_count = (state.stable_check_count or 0) + 1
         state.skip_reason = "target_hp_stable"
-        -- Keep watching the target through the first semantic checkpoint.
-        -- Training refresh and character initialization can overwrite a
-        -- successful write a few frames later on some machines.
-        if current_step > 1 then
+        if state.watch_frames_remaining == 0 then
             state.finished = true
-            state.skip_reason = "target_hp_stable_after_first_step"
+            state.skip_reason = "target_hp_stable_window_complete"
         end
         if state.stable_check_count == 1 or state.finished == true then
             HpVital.record_hp_restore_state(state, phase, {
@@ -810,10 +722,30 @@ function HpVital.apply_pending_hp_restore_once(phase)
         return false
     end
 
-    if state.restored == true then
+
+    -- Character initialization may overwrite the post-refresh scene write a
+    -- few frames after TrainingManager reports refresh completion. Observe the
+    -- full bounded window first, then perform the sole final correction. This
+    -- avoids both a first-attempt full-health race and repeated HP flicker.
+    if state.watch_frames_remaining > 0 then
+        state.skip_reason = "waiting_for_hp_initialization_settle"
+        return false
+    end
+
+    if (state.restore_count or 0) >= (state.max_runtime_writes or 1) then
+        state.finished = true
+        state.skip_reason = "runtime_write_limit_reached"
+        HpVital.record_hp_restore_state(state, phase, {
+            before = before,
+            before_fields = before_fields,
+            runtime_write_limit_reached = true,
+        })
+        return false
+    end
+
+    if (state.stable_check_count or 0) > 0 then
         state.overwrite_count = (state.overwrite_count or 0) + 1
     end
-    state.stable_check_count = 0
     local write_vital_new_ok, write_vital_new_err = pcall(function() target.vital_new = hp end)
     local write_vital_old_ok, write_vital_old_err = pcall(function() target.vital_old = hp end)
     local write_heal_new_ok, write_heal_new_err = pcall(function() target.heal_new = heal_hp end)
@@ -827,10 +759,10 @@ function HpVital.apply_pending_hp_restore_once(phase)
         and after ~= nil
         and after.current_hp == hp
         and (after.heal_hp == nil or after.heal_hp == heal_hp)
-    state.finished = false
     state.restore_count = (state.restore_count or 0) + 1
-    state.skip_reason = state.restored and "target_hp_written_pending_verification"
-        or "target_hp_write_unverified"
+    state.finished = true
+    state.skip_reason = state.restored and "target_hp_written_final_correction"
+        or "target_hp_write_failed_closed"
     local write_errors = {
         vital_new = write_vital_new_ok and nil or tostring(write_vital_new_err),
         vital_old = write_vital_old_ok and nil or tostring(write_vital_old_err),

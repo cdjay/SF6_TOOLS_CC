@@ -777,12 +777,11 @@ assert(runtime_trial.success_timer == 0,
     "the HP exception must not grant pressure-tail auto-success")
 
 local attempt_start_sequence = {
-    { id = 17, motion = "66", expected_combo = 0, delay_from_prev = 0 },
-    { id = 740, motion = "RAWDR", expected_combo = 0, delay_from_prev = 5 },
+    { id = 740, motion = "RAWDR", expected_combo = 0, delay_from_prev = 0 },
 }
 local attempt_start_trial = {
     sequence = attempt_start_sequence,
-    current_step = 2,
+    current_step = 1,
     last_played_frame = 80,
     success_timer = 0,
     fail_timer = 0,
@@ -800,7 +799,7 @@ local attempt_start_applied, attempt_start_step, attempt_start_diff =
         set_dummy_counter_type = function() end,
         d2d_cfg = { fail_display_frames = 120 },
     }, {
-        expected = attempt_start_sequence[2],
+        expected = attempt_start_sequence[1],
         actual_action_id = 740,
         actual_motion = "RAWDR",
         actual_input = "66",
@@ -809,13 +808,12 @@ local attempt_start_applied, attempt_start_step, attempt_start_diff =
         actual_hp = 10000,
         match_reason = "id",
         action_instance = 44,
-        attempt_start_timing_baseline = true,
     })
 assert(attempt_start_applied == true
-        and attempt_start_step == 2
+        and attempt_start_step == 1
         and attempt_start_diff == 0
         and attempt_start_trial.last_played_frame == 100,
-    "a skipped Drive Rush prefix must baseline timing on the semantic Action")
+    "the normalized first semantic Action must establish the timing baseline")
 
 local environment_mismatch_sequence = {
     {

@@ -130,19 +130,35 @@ assert(state._hp_restore.found == true
         and state._hp_restore.snapshot.current_hp == 4200
         and state._hp_restore.target_player == 0,
     "scene HP discovery must retain actor-side targeting")
-assert(HpVital.apply_hp_restore_training_setting_once("fixture_training") == true,
-    "training Vital_Point application must report the existing write success")
-assert(player_params.Vital_Point == 42
-        and state._hp_snapshot_applied_current_session == true
-        and state._hp_training_setting_backup.players[0].fields.Vital_Point == 100,
-    "training HP writes must preserve backup-before-write ordering")
+assert(HpVital.is_restore_pending() == true,
+    "a recorded scene HP attempt must block validation until initialization settles")
+assert(HpVital.release_restore_for_player_action("fixture_manual_action") == true
+        and HpVital.is_restore_pending() == false
+        and state._hp_restore.skip_reason == "player_action_started",
+    "manual player input must release HP initialization instead of dropping Action detection")
+HpVital.init_hp_restore_attempt("fixture_reinit", 0)
+assert(HpVital.is_restore_pending() == true,
+    "a new attempt must recreate the bounded HP initialization state")
+HpVital.ct_hp_backup_training_setting_once(0, "fixture_scene_state")
+player_params.Vital_Point = 42
+player_params.Is_Vital_Infinity = false
+player_params.Is_Vital_No_Recovery = true
+player_params.Is_Vital_Recovery_Timer = false
+state._hp_snapshot_applied_current_session = true
+assert(state._hp_training_setting_backup.players[0].fields.Vital_Point == 100
+        and state._hp_training_setting_backup.players[0].fields.Is_Vital_Infinity == false,
+    "scene HP writes must preserve backup-before-write ordering")
 
-assert(HpVital.apply_pending_hp_restore_once("fixture_runtime") == true,
-    "runtime HP injection must write the pending restore")
-assert(p1.vital_new == 4200 and p1.vital_old == 4200 and p1.heal_new == 4200,
-    "runtime HP injection must retain all three field writes")
+-- SceneStateRuntime performs the post-refresh exact write. HpVital owns only
+-- a bounded observation window and one final correction for delayed rebuilds.
+p1.vital_new = 4200
+p1.vital_old = 4200
+p1.heal_new = 4200
+state._hp_restore.watch_frames_remaining = 3
+assert(HpVital.apply_pending_hp_restore_once("fixture_runtime_stable") == false,
+    "a stable post-refresh scene write must enter bounded observation")
 assert(state._hp_restore.finished == false,
-    "the first successful write must remain pending until gameplay observes it")
+    "the observation window must remain active for delayed character rebuilds")
 
 -- A training refresh or character initialization can overwrite a successful
 -- live write on the following frame. The restore contract must verify the
@@ -150,15 +166,31 @@ assert(state._hp_restore.finished == false,
 p1.vital_new = 10000
 p1.vital_old = 10000
 p1.heal_new = 10000
+assert(HpVital.apply_pending_hp_restore_once("fixture_post_refresh_overwrite_wait") == false
+        and p1.vital_new == 10000
+        and HpVital.is_restore_pending() == true,
+    "a delayed overwrite must remain untouched until the initialization window closes")
 assert(HpVital.apply_pending_hp_restore_once("fixture_post_refresh_overwrite") == true,
-    "a post-refresh HP overwrite must be detected and repaired")
+    "the end of the initialization window must perform one final correction")
 assert(p1.vital_new == 4200 and p1.vital_old == 4200 and p1.heal_new == 4200,
-    "post-refresh verification must restore the recorded actor HP again")
+    "the final correction must restore the recorded actor HP")
 assert(state._hp_restore.overwrite_count == 1,
     "post-refresh recovery must retain an observable overwrite count")
-assert(HpVital.apply_pending_hp_restore_once("fixture_stable_before_first_step") == false
-        and state._hp_restore.stable_check_count == 1,
-    "a stable target must be observed before the first semantic checkpoint")
+assert(state._hp_restore.finished == true and state._hp_restore.restore_count == 1,
+    "the final correction must immediately release HP ownership")
+assert(HpVital.is_restore_pending() == false,
+    "the final correction must release the validation gate")
+-- A hostile refresh loop must never make SF6CC fight the game every frame.
+-- At most one bounded final correction is allowed after the first live write.
+for _ = 1, 3 do
+    p1.vital_new = 10000
+    p1.vital_old = 10000
+    p1.heal_new = 10000
+    HpVital.apply_pending_hp_restore_once("fixture_repeated_external_overwrite")
+end
+assert(state._hp_restore.finished == true and state._hp_restore.restore_count == 1
+        and p1.vital_new == 10000,
+    "repeated external HP overwrites must terminate without a yellow/full flicker loop")
 state.current_step = 2
 -- Once the target was observed before the first Action, later HP changes are
 -- gameplay facts and must not be overwritten by environment recovery.
@@ -173,10 +205,19 @@ assert(p1.vital_new == 4000 and p1.vital_old == 4000 and p1.heal_new == 4000,
 
 local restore_debug = HpVital.restore_hp_training_setting_if_needed("fixture_restore", 0)
 assert(player_params.Vital_Point == 100
+        and player_params.Is_Vital_Infinity == false
+        and player_params.Is_Vital_No_Recovery == false
+        and player_params.Is_Vital_Recovery_Timer == false
         and restore_debug.bapply_ok == true
         and state._hp_training_setting_backup == nil
         and state._hp_snapshot_applied_current_session == false,
     "training HP restore must replay the backup and clear it after bApply")
+
+local main_source = assert(io.open("autorun/TrainingComboTrials_v1.0.lua", "rb")):read("*a")
+assert(main_source:find("if is_hp_restore_pending() then is_refreshing = true end", 1, true)
+        and main_source:find("if is_hp_restore_pending() then return end", 1, true)
+        and main_source:find("release_hp_restore_for_player_action", 1, true),
+    "automatic playback must wait, while manual play releases HP initialization and keeps detection live")
 
 state._saved_drive_settings = { [0] = { DG_Type = 2, DG_Point = 4000 } }
 state._saved_super_settings = { [0] = { SA_Type = 3, SA_Point = 25000 } }

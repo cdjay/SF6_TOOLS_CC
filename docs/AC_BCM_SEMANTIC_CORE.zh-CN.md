@@ -165,6 +165,12 @@ get_command(move, mode, context)
 
 在四个消费者都通过同一套基线后，才能删除 `CommandDisplayOverrides`、运行时 `ActionCompatibility` 以及不再需要的角色 Action ID 分支。
 
+## 7.1 连段起始前导规范化
+
+Presentation、Detector 和 Auditor 必须从冻结 V2 序列生成同一份训练投影。只允许移除连段开头连续出现的以下步骤：单一基础方向 `1` 到 `9`、基础位移 `44`/`66`、Drive Parry。第一个不属于该集合的 Action 是首个可见、可检测检查点。
+
+该投影不得改写冻结 V2 Action ID list、timeline 或 raw input；自动演示继续忠实消费原始回放载荷。首个真实语义动作之后的方向、`44`/`66` 和 Drive Parry 恢复严格语义。若序列全部由前导组成，加载和审计必须 fail closed，不得伪造完成。
+
 ## 8. 完成标准
 
 架构迁移完成必须同时满足：

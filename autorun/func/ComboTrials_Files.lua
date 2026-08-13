@@ -7,6 +7,7 @@ local json = json
 local fs = fs
 local log = log
 local sdk = sdk
+local ActionSequenceNormalizer = require("func/ComboTrials/ActionSequenceNormalizer")
 
 local M = {}
 
@@ -14,6 +15,7 @@ local ctx
 local trial_state, players, file_system
 local normalize_sequence_counter_types, normalize_sequence_semantics
 local normalize_sequence_scene_state, assign_groups
+local normalize_action_sequence
 local restore_trial_dummy_action_type
 local XT_SCHEMA_MAX = 2
 local schema_warning_paths = {}
@@ -121,11 +123,19 @@ local function install_combo_sequence(loaded, path, force)
         return false
     end
 
+    local normalization = normalize_action_sequence(loaded)
+    if normalization.ok ~= true then
+        warn_combo_file_once(path, normalization.reason or "sequence normalization failed")
+        return false
+    end
+
     if restore_trial_dummy_action_type then
         pcall(restore_trial_dummy_action_type)
     end
 
-    trial_state.sequence = loaded
+    trial_state.source_sequence = loaded
+    trial_state.sequence = normalization.sequence
+    trial_state.sequence_normalization = normalization
     trial_state.current_step = 1
     trial_state.is_playing = false
     trial_state.current_file = path
@@ -134,19 +144,20 @@ local function install_combo_sequence(loaded, path, force)
     trial_state._match_probe = nil
     trial_state._match_probe_history = nil
     trial_state._verify_trace_dump = nil
-    if loaded[1] then
-        trial_state.start_pos_p1 = loaded[1].recording_start_pos_p1 or loaded[1].start_pos_p1
-        trial_state.start_pos_p2 = loaded[1].recording_start_pos_p2 or loaded[1].start_pos_p2
-        trial_state.start_pos_p1_raw = loaded[1].recording_start_pos_p1_raw or loaded[1].start_pos_p1_raw
-        trial_state.start_pos_p2_raw = loaded[1].recording_start_pos_p2_raw or loaded[1].start_pos_p2_raw
-        trial_state.recording_start_pos_p1 = loaded[1].recording_start_pos_p1 or loaded[1].start_pos_p1
-        trial_state.recording_start_pos_p2 = loaded[1].recording_start_pos_p2 or loaded[1].start_pos_p2
-        trial_state.recording_start_pos_p1_raw = loaded[1].recording_start_pos_p1_raw or loaded[1].start_pos_p1_raw
-        trial_state.recording_start_pos_p2_raw = loaded[1].recording_start_pos_p2_raw or loaded[1].start_pos_p2_raw
-        trial_state.first_action_pos_p1 = loaded[1].first_action_pos_p1
-        trial_state.first_action_pos_p2 = loaded[1].first_action_pos_p2
-        trial_state.first_action_pos_p1_raw = loaded[1].first_action_pos_p1_raw
-        trial_state.first_action_pos_p2_raw = loaded[1].first_action_pos_p2_raw
+    local first = trial_state.sequence[1]
+    if first then
+        trial_state.start_pos_p1 = first.recording_start_pos_p1 or first.start_pos_p1
+        trial_state.start_pos_p2 = first.recording_start_pos_p2 or first.start_pos_p2
+        trial_state.start_pos_p1_raw = first.recording_start_pos_p1_raw or first.start_pos_p1_raw
+        trial_state.start_pos_p2_raw = first.recording_start_pos_p2_raw or first.start_pos_p2_raw
+        trial_state.recording_start_pos_p1 = first.recording_start_pos_p1 or first.start_pos_p1
+        trial_state.recording_start_pos_p2 = first.recording_start_pos_p2 or first.start_pos_p2
+        trial_state.recording_start_pos_p1_raw = first.recording_start_pos_p1_raw or first.start_pos_p1_raw
+        trial_state.recording_start_pos_p2_raw = first.recording_start_pos_p2_raw or first.start_pos_p2_raw
+        trial_state.first_action_pos_p1 = first.first_action_pos_p1
+        trial_state.first_action_pos_p2 = first.first_action_pos_p2
+        trial_state.first_action_pos_p1_raw = first.first_action_pos_p1_raw
+        trial_state.first_action_pos_p2_raw = first.first_action_pos_p2_raw
     end
     return true
 end
@@ -187,6 +198,8 @@ function M.clear_combo_state()
     end
 
     trial_state.sequence = {}
+    trial_state.source_sequence = nil
+    trial_state.sequence_normalization = nil
     trial_state.current_step = 1
     trial_state.is_playing = false
     trial_state.start_pos_p1 = nil
@@ -272,6 +285,11 @@ local function combo_info_from_file(filepath, char_name)
         return nil, load_error or "JSON load failed"
     end
     local control_type = combo_control_type_from_sequence(sequence)
+    local normalization = normalize_action_sequence(sequence)
+    if normalization.ok ~= true then
+        return nil, normalization.reason or "sequence normalization failed"
+    end
+    local presentation_sequence = normalization.sequence
 
     local function combo_file_key(name)
         local key = tostring(name or "")
@@ -366,7 +384,7 @@ local function combo_info_from_file(filepath, char_name)
         return formatted
     end
 
-    local first = sequence[1]
+    local first = presentation_sequence[1]
     local combo_stats = type(first.combo_stats) == "table" and first.combo_stats or nil
     local starter = type(first.motion) == "string" and first.motion:match("^%s*(.-)%s*$") or ""
     local damage = combo_stats and tonumber(combo_stats.damage) or nil
@@ -771,6 +789,8 @@ function M.init(context, opts)
     normalize_sequence_counter_types = assert(opts.normalize_sequence_counter_types, "ComboTrials_Files requires normalize_sequence_counter_types")
     normalize_sequence_semantics = opts.normalize_sequence_semantics
     normalize_sequence_scene_state = opts.normalize_sequence_scene_state
+    normalize_action_sequence = opts.normalize_action_sequence
+        or ActionSequenceNormalizer.normalize
     assign_groups = assert(opts.assign_groups, "ComboTrials_Files requires assign_groups")
     restore_trial_dummy_action_type = opts.restore_trial_dummy_action_type
 
