@@ -251,9 +251,17 @@ function PendingAbsorb.apply_matched_step(ctx, params)
     PendingAbsorb.clear(state, "matched_step_failed")
     state.fail_timer = ctx.d2d_cfg.fail_display_frames or 20
     if not hp_ok then
-        local custom_reason = "WRONG HP (Setup Dropped)"
+        local hp_mismatch_kind = ctx.Validator.hp_mismatch_kind(
+            expected.expected_hp,
+            actual_hp
+        )
+        local custom_reason = hp_mismatch_kind == "environment_not_applied"
+            and "TRAINING ENVIRONMENT HP NOT APPLIED"
+            or "WRONG HP (Setup Dropped)"
         local prev = state.sequence[state.current_step - 1]
-        if ctx.is_post_hit_setup_step(state.current_step - 1) and prev and prev.last_frame_diff then
+        if hp_mismatch_kind ~= "environment_not_applied"
+            and ctx.is_post_hit_setup_step(state.current_step - 1)
+            and prev and prev.last_frame_diff then
             if prev.last_frame_diff > 2 then
                 custom_reason = string.format("SETUP TOO LATE (%df)", prev.last_frame_diff)
             elseif prev.last_frame_diff < -2 then

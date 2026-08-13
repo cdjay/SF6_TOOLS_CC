@@ -138,9 +138,38 @@ assert(player_params.Vital_Point == 42
     "training HP writes must preserve backup-before-write ordering")
 
 assert(HpVital.apply_pending_hp_restore_once("fixture_runtime") == true,
-    "runtime HP injection must finish the pending restore")
+    "runtime HP injection must write the pending restore")
 assert(p1.vital_new == 4200 and p1.vital_old == 4200 and p1.heal_new == 4200,
     "runtime HP injection must retain all three field writes")
+assert(state._hp_restore.finished == false,
+    "the first successful write must remain pending until gameplay observes it")
+
+-- A training refresh or character initialization can overwrite a successful
+-- live write on the following frame. The restore contract must verify the
+-- target remains applied instead of treating the first write as final.
+p1.vital_new = 10000
+p1.vital_old = 10000
+p1.heal_new = 10000
+assert(HpVital.apply_pending_hp_restore_once("fixture_post_refresh_overwrite") == true,
+    "a post-refresh HP overwrite must be detected and repaired")
+assert(p1.vital_new == 4200 and p1.vital_old == 4200 and p1.heal_new == 4200,
+    "post-refresh verification must restore the recorded actor HP again")
+assert(state._hp_restore.overwrite_count == 1,
+    "post-refresh recovery must retain an observable overwrite count")
+assert(HpVital.apply_pending_hp_restore_once("fixture_stable_before_first_step") == false
+        and state._hp_restore.stable_check_count == 1,
+    "a stable target must be observed before the first semantic checkpoint")
+state.current_step = 2
+-- Once the target was observed before the first Action, later HP changes are
+-- gameplay facts and must not be overwritten by environment recovery.
+p1.vital_new = 4000
+p1.vital_old = 4000
+p1.heal_new = 4000
+assert(HpVital.apply_pending_hp_restore_once("fixture_first_step_confirmed") == false
+        and state._hp_restore.finished == true,
+    "the restore may finish only after the first semantic checkpoint keeps the target HP")
+assert(p1.vital_new == 4000 and p1.vital_old == 4000 and p1.heal_new == 4000,
+    "HP ownership must return to gameplay after the first semantic checkpoint")
 
 local restore_debug = HpVital.restore_hp_training_setting_if_needed("fixture_restore", 0)
 assert(player_params.Vital_Point == 100

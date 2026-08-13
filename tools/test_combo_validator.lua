@@ -446,6 +446,13 @@ assert(derived_followup_after_chord.ignored == false
         and derived_followup_after_chord.reason == "expected_action",
     "the derived Action after a completed chord must remain eligible to advance")
 
+assert(Validator.hp_mismatch_kind(1050, 10500) == "environment_not_applied",
+    "HP above the recorded target must identify an unapplied training environment")
+assert(Validator.hp_mismatch_kind(1050, 900) == "actor_hp_reduced",
+    "HP below the recorded target must remain a real actor-damage mismatch")
+assert(Validator.hp_mismatch_kind(1050, 1050) == nil,
+    "matching HP must not report an environment mismatch")
+
 local exact_unanchored_transition = ActionMatcher.classify_runtime_transition({
     previous_step = { id = 904, motion = "[4]6+HP" },
     expected_step = { id = 34, motion = "8" },
@@ -809,6 +816,66 @@ assert(attempt_start_applied == true
         and attempt_start_diff == 0
         and attempt_start_trial.last_played_frame == 100,
     "a skipped Drive Rush prefix must baseline timing on the semantic Action")
+
+local environment_mismatch_sequence = {
+    {
+        id = 958,
+        motion = "2+PP",
+        expected_combo = 0,
+        expected_hp = 1050,
+        damage_at_step = 960,
+        has_hit = false,
+        delay_from_prev = 34,
+        last_frame_diff = 0,
+    },
+    {
+        id = 977,
+        motion = ">HP (INSTANT)",
+        expected_combo = 2,
+        expected_hp = 1050,
+        damage_at_step = 1960,
+        has_hit = true,
+        delay_from_prev = 17,
+    },
+}
+local environment_mismatch_trial = {
+    sequence = environment_mismatch_sequence,
+    current_step = 2,
+    last_played_frame = 100,
+    success_timer = 0,
+    fail_timer = 0,
+}
+local environment_applied = PendingAbsorb.apply_matched_step({
+    state = environment_mismatch_trial,
+    p_idx = 0,
+    p_state = {},
+    frame = 117,
+    pf = { opponent_knocked_down = false },
+    Validator = Validator,
+    DebugTrace = {
+        record_validation_debug = function() end,
+        log_trial_failure = function() end,
+    },
+    is_post_hit_setup_step = function(step_idx) return step_idx == 1 end,
+    set_dummy_counter_type = function() end,
+    d2d_cfg = { fail_display_frames = 120 },
+    file_system = {},
+    act_id_reverse_enum = {},
+}, {
+    expected = environment_mismatch_sequence[2],
+    actual_action_id = 977,
+    actual_motion = "HP",
+    actual_input = "HP",
+    frame = 117,
+    combo_count = 1,
+    actual_hp = 10500,
+    match_reason = "id",
+    action_instance = 38,
+})
+assert(environment_applied == false
+        and environment_mismatch_trial.fail_reason
+            == "TRAINING ENVIRONMENT HP NOT APPLIED",
+    "an unapplied actor HP snapshot must not masquerade as a meaty timing failure")
 
 local pressure_runtime = {
     sequence = pressure_trial,

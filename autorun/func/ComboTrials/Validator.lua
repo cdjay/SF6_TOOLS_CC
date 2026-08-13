@@ -196,4 +196,16 @@ function Validator.check_hp(expected_hp, current_hp, is_oki, expected, terminal_
     return hp_ok
 end
 
+function Validator.hp_mismatch_kind(expected_hp, current_hp)
+    local expected_value = tonumber(expected_hp)
+    local current_value = tonumber(current_hp)
+    if expected_value == nil or current_value == nil or expected_value == current_value then
+        return nil
+    end
+    if current_value > expected_value then
+        return "environment_not_applied"
+    end
+    return "actor_hp_reduced"
+end
+
 return Validator

@@ -623,6 +623,8 @@ function HpVital.init_hp_restore_attempt(phase, player_idx)
         retry_count = 0,
         max_retries = 5,
         restore_count = 0,
+        overwrite_count = 0,
+        stable_check_count = 0,
         training_setting_applied = false,
         training_setting_apply_count = 0,
         training_refresh_request_count = 0,
@@ -740,12 +742,6 @@ function HpVital.apply_pending_hp_restore_once(phase)
     state.last_phase = phase
     state.apply_called = true
 
-    if state.restored == true then
-        state.finished = true
-        state.skip_reason = "already_restored"
-        return false
-    end
-
     local tm = sdk.get_managed_singleton("app.training.TrainingManager")
     local refresh_before = tm and tm:get_field("_IsReqRefresh")
     if refresh_before == true then
@@ -777,6 +773,47 @@ function HpVital.apply_pending_hp_restore_once(phase)
     local before = HpVital.read_player_hp_snapshot(target)
     local before_fields = HpVital.read_player_hp_fields_for_debug(target)
     local heal_hp = HpVital.normalize_hp_value(state.snapshot.heal_hp) or hp
+    local current_step = tonumber(trial_state.current_step) or 1
+    if current_step > 1 and (state.stable_check_count or 0) > 0 then
+        state.finished = true
+        state.skip_reason = "target_hp_stable_before_first_step"
+        HpVital.record_hp_restore_state(state, phase, {
+            before = before,
+            before_fields = before_fields,
+            target_hp_ownership_released = true,
+            stable_check_count = state.stable_check_count,
+        })
+        return false
+    end
+
+    local live_matches = before
+        and before.current_hp == hp
+        and (before.heal_hp == nil or before.heal_hp == heal_hp)
+    if live_matches then
+        state.stable_check_count = (state.stable_check_count or 0) + 1
+        state.skip_reason = "target_hp_stable"
+        -- Keep watching the target through the first semantic checkpoint.
+        -- Training refresh and character initialization can overwrite a
+        -- successful write a few frames later on some machines.
+        if current_step > 1 then
+            state.finished = true
+            state.skip_reason = "target_hp_stable_after_first_step"
+        end
+        if state.stable_check_count == 1 or state.finished == true then
+            HpVital.record_hp_restore_state(state, phase, {
+                before = before,
+                before_fields = before_fields,
+                target_hp_matches = true,
+                stable_check_count = state.stable_check_count,
+            })
+        end
+        return false
+    end
+
+    if state.restored == true then
+        state.overwrite_count = (state.overwrite_count or 0) + 1
+    end
+    state.stable_check_count = 0
     local write_vital_new_ok, write_vital_new_err = pcall(function() target.vital_new = hp end)
     local write_vital_old_ok, write_vital_old_err = pcall(function() target.vital_old = hp end)
     local write_heal_new_ok, write_heal_new_err = pcall(function() target.heal_new = heal_hp end)
@@ -784,10 +821,16 @@ function HpVital.apply_pending_hp_restore_once(phase)
     local after_fields = HpVital.read_player_hp_fields_for_debug(target)
     local refresh_after = tm and tm:get_field("_IsReqRefresh")
 
-    state.restored = true
-    state.finished = true
+    state.restored = write_vital_new_ok == true
+        and write_vital_old_ok == true
+        and write_heal_new_ok == true
+        and after ~= nil
+        and after.current_hp == hp
+        and (after.heal_hp == nil or after.heal_hp == heal_hp)
+    state.finished = false
     state.restore_count = (state.restore_count or 0) + 1
-    state.skip_reason = nil
+    state.skip_reason = state.restored and "target_hp_written_pending_verification"
+        or "target_hp_write_unverified"
     local write_errors = {
         vital_new = write_vital_new_ok and nil or tostring(write_vital_new_err),
         vital_old = write_vital_old_ok and nil or tostring(write_vital_old_err),
@@ -802,7 +845,8 @@ function HpVital.apply_pending_hp_restore_once(phase)
         write_vital_old_ok = write_vital_old_ok == true,
         write_heal_new_ok = write_heal_new_ok == true,
         write_errors = write_errors,
-        restore_count = state.restore_count
+        restore_count = state.restore_count,
+        overwrite_count = state.overwrite_count or 0
     }
     HpVital.record_hp_restore_state(state, phase, {
         before = before,
@@ -823,7 +867,7 @@ function HpVital.apply_pending_hp_restore_once(phase)
         refresh_before = refresh_before,
         refresh_after = refresh_after
     })
-    return true
+    return state.restored == true
 end
 
 return HpVital
