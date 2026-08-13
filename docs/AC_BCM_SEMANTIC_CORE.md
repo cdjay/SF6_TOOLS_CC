@@ -18,4 +18,11 @@ The target generated contract is `xt.character_move_graph.v1`. Lua exposes one s
 
 Display overrides, permanent runtime compatibility maps, and character-specific Action-ID branches must not become semantic authorities. Exceptions must be structured, evidence-backed, and limited to facts that AC+BCM cannot express.
 
+Attempt-start validation may absorb a contiguous, input-window-bounded precursor
+prefix only when the recorded sequence immediately converges on the same
+resolved semantic Move.
+The runtime Action for that Move is the checkpoint: raw/timeline input and V2
+Action facts remain unchanged, unrelated directional Actions remain strict, and
+the same boundary policy applies to manual validation and automatic replay.
+
 Migration is incremental: freeze current behavior, generate the graph, run resolver shadow comparisons, switch recording/detection/display/audit one by one, then remove obsolete patch layers and continue decomposing the entry script.

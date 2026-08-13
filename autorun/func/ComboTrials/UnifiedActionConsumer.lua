@@ -13,6 +13,7 @@ local M = {
     name = "ComboTrials.UnifiedActionConsumer",
     CHORD_COMPLETION_WINDOW = ActionMatcher.CHORD_COMPLETION_WINDOW,
     CHORD_ACTION_VISIBILITY_GRACE = ActionMatcher.CHORD_ACTION_VISIBILITY_GRACE,
+    PLAYER_ACTION_BIND_WINDOW = ActionMatcher.PLAYER_ACTION_BIND_WINDOW,
 }
 
 function M.new_capture(options)

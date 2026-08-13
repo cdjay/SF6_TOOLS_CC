@@ -769,6 +769,47 @@ assert(runtime_trial.current_step == 3 and runtime_trial.fail_timer == 0,
 assert(runtime_trial.success_timer == 0,
     "the HP exception must not grant pressure-tail auto-success")
 
+local attempt_start_sequence = {
+    { id = 17, motion = "66", expected_combo = 0, delay_from_prev = 0 },
+    { id = 740, motion = "RAWDR", expected_combo = 0, delay_from_prev = 5 },
+}
+local attempt_start_trial = {
+    sequence = attempt_start_sequence,
+    current_step = 2,
+    last_played_frame = 80,
+    success_timer = 0,
+    fail_timer = 0,
+}
+local attempt_start_applied, attempt_start_step, attempt_start_diff =
+    PendingAbsorb.apply_matched_step({
+        state = attempt_start_trial,
+        p_idx = 0,
+        p_state = {},
+        frame = 100,
+        pf = { opponent_knocked_down = false },
+        Validator = Validator,
+        DebugTrace = { record_validation_debug = function() end },
+        is_post_hit_setup_step = function() return false end,
+        set_dummy_counter_type = function() end,
+        d2d_cfg = { fail_display_frames = 120 },
+    }, {
+        expected = attempt_start_sequence[2],
+        actual_action_id = 740,
+        actual_motion = "RAWDR",
+        actual_input = "66",
+        frame = 100,
+        combo_count = 0,
+        actual_hp = 10000,
+        match_reason = "id",
+        action_instance = 44,
+        attempt_start_timing_baseline = true,
+    })
+assert(attempt_start_applied == true
+        and attempt_start_step == 2
+        and attempt_start_diff == 0
+        and attempt_start_trial.last_played_frame == 100,
+    "a skipped Drive Rush prefix must baseline timing on the semantic Action")
+
 local pressure_runtime = {
     sequence = pressure_trial,
     current_step = 3,

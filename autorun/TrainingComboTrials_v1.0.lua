@@ -6139,6 +6139,7 @@ local function ct_player_process_actions(p_idx, p_state, actions_to_process)
                     expected_step = expected_for_ignore,
                     expected_action_matches_current = expected_action_matches_current == true,
                     actual_action_id = act_id,
+                    actual_motion = motion_str,
                     character = p_state.profile_name,
                     action_event_rules = p_state.action_event_rules,
                     input_anchor_kind = process_act.input_anchor_kind,
@@ -6165,6 +6166,8 @@ local function ct_player_process_actions(p_idx, p_state, actions_to_process)
                         or (tonumber(process_act.combo_count) or 0)
                             > previous_runtime_combo,
                     input_truth_mode = input_truth_mode,
+                    sequence = trial_state.sequence,
+                    current_step = trial_state.current_step,
                     frames_since_previous = engine_frame_count
                         - (tonumber(trial_state.last_played_frame) or engine_frame_count),
                 })
@@ -6246,7 +6249,7 @@ local function ct_player_process_actions(p_idx, p_state, actions_to_process)
                         file_system = file_system,
                         act_id_reverse_enum = ComboTrialsModules.GameProbe.act_id_reverse_enum
                     }
-                local function apply_matched_step(matched_expected, matched_act_id, matched_motion, matched_input, matched_frame, matched_combo, matched_hp, match_reason, match_details)
+                local function apply_matched_step(matched_expected, matched_act_id, matched_motion, matched_input, matched_frame, matched_combo, matched_hp, match_reason, match_details, attempt_start_timing_baseline)
                     local confirmed, matched_step_idx = ComboTrialsModules.PendingAbsorb.apply_matched_step(pending_absorb_ctx, {
                         expected = matched_expected,
                         actual_action_id = matched_act_id,
@@ -6260,7 +6263,8 @@ local function ct_player_process_actions(p_idx, p_state, actions_to_process)
                         action_instance = match_details and match_details.action_instance or process_act.action_instance,
                         hold_mask = hold_mask,
                         direct_input = direct_input,
-                        hold_frames = hold_frames
+                        hold_frames = hold_frames,
+                        attempt_start_timing_baseline = attempt_start_timing_baseline == true
                     })
                     if confirmed then
                         trial_step_idx = matched_step_idx
@@ -6680,6 +6684,11 @@ local function ct_player_process_actions(p_idx, p_state, actions_to_process)
                         end
 
                         if allow_input then
+                            if transition_policy and transition_policy.skip_to_step then
+                                trial_state.current_step = transition_policy.skip_to_step
+                                expected = trial_state.sequence[trial_state.current_step]
+                            end
+
                             local expected_exception = CharacterRules.get_match_rule(
                                 p_state.exceptions,
                                 common_exceptions,
@@ -7105,7 +7114,9 @@ local function ct_player_process_actions(p_idx, p_state, actions_to_process)
                                     _pf.current_combo or 0,
                                     process_act.current_hp,
                                     action_match.match_reason,
-                                    action_match
+                                    action_match,
+                                    transition_policy
+                                        and transition_policy.attempt_start_timing_baseline
                                 )
                             elseif action_match.matched then
                                 match_probe.branch = "direct_match"
@@ -7119,7 +7130,9 @@ local function ct_player_process_actions(p_idx, p_state, actions_to_process)
                                     _pf.current_combo or 0,
                                     process_act.current_hp,
                                     action_match.match_reason,
-                                    action_match
+                                    action_match,
+                                    transition_policy
+                                        and transition_policy.attempt_start_timing_baseline
                                 )
                             else
                                 local is_parry = is_parry_action(motion_str, real_input_str, act_name)

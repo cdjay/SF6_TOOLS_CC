@@ -312,6 +312,114 @@ local function is_drive_rush_step(step)
             or ActionMatcher.is_drive_rush_motion(step.motion))
 end
 
+local function is_drive_rush_attempt_start_precursor_step(step)
+    if type(step) ~= "table" then return false end
+    if is_drive_parry_step(step) then return true end
+    local motion = ActionMatcher.normalize_motion_token(step.motion)
+    return motion == "66"
+end
+
+local function is_drive_rush_attempt_start_precursor_action(
+    action_id,
+    motion,
+    input_anchor_kind,
+    input_anchor_motion
+)
+    if ActionMatcher.is_drive_parry_action_id(action_id) then return true end
+    local normalized = ActionMatcher.normalize_motion_token(motion)
+    if normalized == "PARRY" or normalized == "DP" then return true end
+    if normalized == "66" then return true end
+
+    local anchor_motion = ActionMatcher.normalize_motion_token(input_anchor_motion)
+    return input_anchor_kind == "double_tap"
+        and anchor_motion == "66"
+end
+
+local function first_drive_rush_step_index(sequence)
+    if type(sequence) ~= "table" then return nil end
+    for index = 1, #sequence do
+        if is_drive_rush_step(sequence[index]) then return index end
+    end
+    return nil
+end
+
+local function drive_rush_attempt_start_prefix_is_precursor(sequence, drive_rush_index)
+    for index = 1, drive_rush_index - 1 do
+        if not is_drive_rush_attempt_start_precursor_step(sequence[index]) then
+            return false
+        end
+    end
+    for index = 2, drive_rush_index do
+        local delay = tonumber(sequence[index] and sequence[index].delay_from_prev)
+        if delay == nil
+            or delay < 0
+            or delay > ActionMatcher.PLAYER_ACTION_BIND_WINDOW then
+            return false
+        end
+    end
+    return true
+end
+
+-- Combo files can record the same Drive Rush with different physical input
+-- timing: parry then 66, 6 then 6+parry, or another game-equivalent route.
+-- The V2 Action list is still preserved, but a leading dash/parry is only the
+-- input precursor of the first semantic Drive Rush Move. While the attempt is
+-- still at or before that first Drive Rush step, such precursor Actions must
+-- not arm a failure, and the first Drive Rush Action itself must consume the
+-- recorded precursor prefix. Once the first Drive Rush has been validated,
+-- later movement/parry/Drive Rush steps return to strict step-by-step matching.
+local function classify_drive_rush_attempt_start(params, result)
+    local sequence = type(params.sequence) == "table" and params.sequence or nil
+    local current_step = tonumber(params.current_step)
+    if sequence == nil or current_step == nil then return false end
+
+    local drive_rush_index = first_drive_rush_step_index(sequence)
+    if drive_rush_index == nil or current_step > drive_rush_index then
+        return false
+    end
+    if not drive_rush_attempt_start_prefix_is_precursor(sequence, drive_rush_index) then
+        return false
+    end
+
+    local actual_action_id = tonumber(params.actual_action_id)
+    local actual_motion = params.actual_motion
+    local actual_is_drive_rush = is_drive_rush_step({
+        id = actual_action_id,
+        motion = actual_motion,
+    })
+    local actual_is_precursor = is_drive_rush_attempt_start_precursor_action(
+        actual_action_id,
+        actual_motion,
+        params.input_anchor_kind,
+        params.input_anchor_motion
+    )
+
+    if current_step < drive_rush_index then
+        if actual_is_drive_rush then
+            result.skip_to_step = drive_rush_index
+            result.attempt_start_timing_baseline = true
+            result.reason = "drive_rush_attempt_start_semantic"
+            return true
+        end
+        if actual_is_precursor then
+            result.ignored = true
+            result.reason = "drive_rush_attempt_start_precursor"
+            return true
+        end
+        result.reason = "drive_rush_attempt_start_wrong_candidate"
+        return true
+    end
+
+    if current_step == drive_rush_index and actual_is_precursor
+        and not actual_is_drive_rush then
+        result.ignored = true
+        result.reason = "drive_rush_attempt_start_precursor"
+        return true
+    end
+
+    return false
+end
+
 -- Runtime Action IDs are the matching truth, but an Action transition is not
 -- automatically a second player command. It must also have a fresh input
 -- anchor. In particular, held Drive Parry exposes a short RAW-DR-family phase
@@ -328,6 +436,10 @@ function ActionMatcher.classify_runtime_transition(params)
         frames_since_previous = tonumber(params.frames_since_previous),
         chord_completion_frames = tonumber(params.chord_completion_frames),
     }
+
+    if classify_drive_rush_attempt_start(params, result) then
+        return result
+    end
 
     if params.expected_action_matches_current == true then
         result.reason = "expected_action"

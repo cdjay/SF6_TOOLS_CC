@@ -97,11 +97,16 @@ function PendingAbsorb.apply_matched_step(ctx, params)
     state._step1_wrong_pending = false
     local actual_delay = 0
     local last_played = state.last_played_frame or validation_frame
-    if state.current_step > 1 then
+    if state.current_step > 1 and params.attempt_start_timing_baseline ~= true then
         actual_delay = validation_frame - last_played
     end
     state.last_played_frame = validation_frame
-    local raw_frame_diff = ctx.Validator.calculate_frame_diff(actual_delay, expected.delay_from_prev)
+    local timing_expected_delay = params.attempt_start_timing_baseline == true
+        and 0 or expected.delay_from_prev
+    local raw_frame_diff = ctx.Validator.calculate_frame_diff(
+        actual_delay,
+        timing_expected_delay
+    )
     local ui_frame_diff = PendingAbsorb.effective_timing_frame_diff(state, raw_frame_diff)
 
     if ui_frame_diff < 0 then
@@ -173,6 +178,7 @@ function PendingAbsorb.apply_matched_step(ctx, params)
         frame_diff = raw_frame_diff,
         ui_frame_diff = ui_frame_diff,
         demo_timing_ui_baseline = state._demo_timing_ui_baseline == true,
+        attempt_start_timing_baseline = params.attempt_start_timing_baseline == true,
         action_instance = action_instance,
         match_reason = params.match_reason,
         recent_index = details and details.recent_index or nil,
