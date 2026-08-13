@@ -15,6 +15,8 @@ local command_display_overrides =
 CommandDisplayOverrides = command_display_overrides
 ActionCompatibility = dofile("autorun/func/ComboTrials/ActionCompatibility.lua")
 TrainingEnvironment = dofile("autorun/func/ComboTrials/TrainingEnvironment.lua")
+Type63StrengthSemantics = dofile(
+    "autorun/func/ComboTrials/Type63StrengthSemantics.lua")
 do
 local honda_compatibility, honda_compatibility_count,
     honda_compatibility_status = ActionCompatibility.parse({
@@ -1419,6 +1421,172 @@ assert(motion == nil and status == "route_unverified",
     "the runtime must reject a Type37 phase whose AC signature was altered")
 type37_route.ac_attr = 64
 
+TYPE63_STRENGTH_REASON = "ac_type63_classic_modern_strength_family"
+TYPE63_STRENGTH_TEST = {}
+TYPE63_STRENGTH_TEST.route = {
+    display = "> 6 + 中",
+    character = "Generic",
+    owner_action_id = 1700,
+    display_action_id = 1701,
+    bcm_owner_action_id = 1700,
+    source = "ac_type63_strength_variant",
+    ac_relation_type = 63,
+    ac_path = { 1700, 1701 },
+    inherited_from_action_id = 1700,
+    confidence = "verified_inherited_strength_variant",
+    direct_evidence = false,
+    inheritance_evidence = true,
+    inheritance_reason = TYPE63_STRENGTH_REASON,
+    rebind_evidence = false,
+    rebind_reason = nil,
+    runtime_common_evidence = false,
+    runtime_common_reason = nil,
+    official_semantic_evidence = false,
+    official_semantic_reason = nil,
+    community_semantic_evidence = false,
+    community_semantic_reason = nil,
+    assist_combo_evidence = false,
+    assist_combo_reason = nil,
+    charge_context_evidence = false,
+    super_shortcut_direction_evidence = false,
+    visible_direction = "6",
+    visible_button = "中",
+    button_candidates = { "中" },
+    required_button_count = 1,
+    strength = "medium",
+    classic_param01 = 32,
+    modern_param01 = 128,
+}
+TYPE63_STRENGTH_TEST.map = {
+    _meta = {
+        character = "Generic",
+        type63_strength_variant_relation_count = 2,
+        type63_strength_variant_route_count = 2,
+        type63_strength_variant_relations = {
+            {
+                source_action_id = 1700,
+                target_action_id = 1701,
+                branch_type = 63,
+                strength = "medium",
+                classic_param01 = 32,
+                modern_param01 = 128,
+                reason = TYPE63_STRENGTH_REASON,
+            },
+            {
+                source_action_id = 1700,
+                target_action_id = 1702,
+                branch_type = 63,
+                strength = "heavy",
+                classic_param01 = 64,
+                modern_param01 = 256,
+                reason = TYPE63_STRENGTH_REASON,
+            },
+        },
+        audit = {
+            type63_strength_variant_relation_count = 2,
+            type63_strength_variant_route_count = 2,
+        },
+    },
+    ["1700"] = {
+        ownership = "direct",
+        classic_command = { display = ">6+LP", inputs = { ">6+LP" } },
+        routes = { {
+            display = "> 6 + 任意键",
+            character = "Generic",
+            owner_action_id = 1700,
+            source = "bcm_profile",
+            direct_evidence = true,
+            inheritance_evidence = false,
+            rebind_evidence = false,
+            runtime_common_evidence = false,
+            official_semantic_evidence = false,
+            community_semantic_evidence = false,
+            assist_combo_evidence = false,
+            confidence = "direct_structural",
+            visible_direction = "6",
+            visible_button = "任意键",
+            button_candidates = { "弱", "中", "强" },
+            required_button_count = 1,
+        } },
+    },
+    ["1701"] = {
+        ownership = "type63_strength_variant",
+        classic_command = { display = ">6+MP", inputs = { ">6+MP" } },
+        simple_command = nil,
+        motion_command = { display = "> 6 + 中", inputs = { "> 6 + 中" } },
+        routes = { TYPE63_STRENGTH_TEST.route },
+    },
+    ["1702"] = {
+        ownership = "type63_strength_variant",
+        classic_command = { display = ">6+HP", inputs = { ">6+HP" } },
+        simple_command = nil,
+        motion_command = { display = "> 6 + 强", inputs = { "> 6 + 强" } },
+        routes = { {
+            display = "> 6 + 强",
+            character = "Generic",
+            owner_action_id = 1700,
+            display_action_id = 1702,
+            bcm_owner_action_id = 1700,
+            source = "ac_type63_strength_variant",
+            ac_relation_type = 63,
+            ac_path = { 1700, 1702 },
+            inherited_from_action_id = 1700,
+            confidence = "verified_inherited_strength_variant",
+            direct_evidence = false,
+            inheritance_evidence = true,
+            inheritance_reason = TYPE63_STRENGTH_REASON,
+            rebind_evidence = false,
+            runtime_common_evidence = false,
+            official_semantic_evidence = false,
+            community_semantic_evidence = false,
+            assist_combo_evidence = false,
+            visible_direction = "6",
+            visible_button = "强",
+            button_candidates = { "强" },
+            required_button_count = 1,
+            strength = "heavy",
+            classic_param01 = 64,
+            modern_param01 = 256,
+        } },
+    },
+}
+motion, status = get_modern_display_motion(TYPE63_STRENGTH_TEST.map, { id = 1701 })
+assert(motion == "> 6 + 中" and status == "strict_route",
+    "Presentation must admit an audited generic Type63 strength variant")
+motion, status = get_modern_display_motion(TYPE63_STRENGTH_TEST.map, { id = 1702 })
+assert(motion == "> 6 + 强" and status == "strict_route",
+    "Presentation must admit the symmetric heavy Type63 strength variant")
+TYPE63_STRENGTH_TEST.slim = build_slim_command_display_map(TYPE63_STRENGTH_TEST.map)
+assert(TYPE63_STRENGTH_TEST.slim["1701"].classic == ">6+MP"
+        and TYPE63_STRENGTH_TEST.slim["1701"].commands.motion == "> 6 + 中"
+        and TYPE63_STRENGTH_TEST.slim["1701"].status == "strict_route",
+    "the slim Presentation map must preserve audited Type63 Classic and Modern commands")
+assert(TYPE63_STRENGTH_TEST.slim["1702"].classic == ">6+HP"
+        and TYPE63_STRENGTH_TEST.slim["1702"].commands.motion == "> 6 + 强"
+        and TYPE63_STRENGTH_TEST.slim["1702"].status == "strict_route",
+    "the slim Presentation map must preserve the heavy Type63 command")
+
+TYPE63_STRENGTH_TEST.route.modern_param01 = 256
+motion, status = get_modern_display_motion(TYPE63_STRENGTH_TEST.map, { id = 1701 })
+assert(motion == nil and status == "route_unverified",
+    "Presentation must reject mismatched Classic/Modern strength parameters")
+TYPE63_STRENGTH_TEST.route.modern_param01 = 128
+TYPE63_STRENGTH_TEST.route.visible_button = "强"
+motion, status = get_modern_display_motion(TYPE63_STRENGTH_TEST.map, { id = 1701 })
+assert(motion == nil and status == "route_unverified",
+    "Presentation must reject a Type63 route with the wrong visible strength")
+TYPE63_STRENGTH_TEST.route.visible_button = "中"
+TYPE63_STRENGTH_TEST.route.owner_action_id = 1701
+motion, status = get_modern_display_motion(TYPE63_STRENGTH_TEST.map, { id = 1701 })
+assert(motion == nil and status == "route_unverified",
+    "Presentation must reject a Type63 route whose BCM owner changed")
+TYPE63_STRENGTH_TEST.route.owner_action_id = 1700
+TYPE63_STRENGTH_TEST.map._meta.audit.type63_strength_variant_relation_count = nil
+motion, status = get_modern_display_motion(TYPE63_STRENGTH_TEST.map, { id = 1701 })
+assert(motion == nil and status == "route_unverified",
+    "Presentation must reject Type63 display text without complete audit evidence")
+TYPE63_STRENGTH_TEST.map._meta.audit.type63_strength_variant_relation_count = 2
+
 motion, status = get_classic_display_motion(command_map, { id = 9999, motion = "Unknown" })
 assert(motion == nil and status == "action_id_missing", "missing classic IDs must reach the common audit path")
 
@@ -2762,6 +2930,19 @@ assert(alex_override_source:find('"958"', 1, true)
         and alex_override_source:find('"classic": "2+PP"', 1, true)
         and alex_override_source:find('"replace": true', 1, true),
     "the shipped Alex command overrides must preserve the verified 2+PP stance entries")
+do
+    local alex_catalog_source = read_all(
+        "data/TrainingComboTrials_data/command_display/Alex.json")
+    assert(alex_catalog_source:find('"957": {', 1, true)
+            and alex_catalog_source:find('"958": {', 1, true)
+            and alex_catalog_source:find('"959": {', 1, true)
+            and alex_catalog_source:find(
+                '"source_action_ids": [\n          957,\n          958,\n          959',
+                1,
+                true
+            ),
+        "the shipped AC catalog must retain the 957/958/959 state-source relation")
+end
 do
     local deejay_override_source = read_all(
         "data/TrainingComboTrials_data/command_display_overrides/DeeJay.json")

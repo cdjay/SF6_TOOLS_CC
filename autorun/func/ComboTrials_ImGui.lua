@@ -16,6 +16,7 @@ local CommandDisplayOverrides = require("func/ComboTrials/CommandDisplayOverride
 local ActionCompatibility = require("func/ComboTrials/ActionCompatibility")
 local SF6CCVersion = require("func/SF6CC_Version")
 local TrialDisplayState = require("func/ComboTrials/TrialDisplayState")
+local Type63StrengthSemantics = require("func/ComboTrials/Type63StrengthSemantics")
 
 -- Shared context (set by init)
 local ctx -- { d2d_cfg, trial_state, players, sf6_menu_state }
@@ -409,6 +410,7 @@ local function load_command_display_map(character)
         and tonumber(meta.type20_directional_route_count) == type20_routes
         and type(meta.type20_directional_relations) == "table"
         and #meta.type20_directional_relations == type20_relations
+    local type63_strength_audit_ok = Type63StrengthSemantics.validate_audit(meta, audit)
     local type20_hold_relations = type(audit) == "table"
         and tonumber(audit.type20_hold_relation_count) or nil
     local type20_hold_routes = type(audit) == "table"
@@ -738,6 +740,7 @@ local function load_command_display_map(character)
         and community_semantic_audit_ok
         and verified_alias_audit_ok
         and type20_audit_ok
+        and type63_strength_audit_ok
         and type20_hold_audit_ok
         and type20_phase_audit_ok
         and type37_followup_phase_audit_ok
@@ -916,6 +919,10 @@ local function get_modern_display_motion(modern_map, step)
         return nil, "invalid_suppress_transition"
     end
     local displays, seen = {}, {}
+    local type63_strength = nil
+    if entry.ownership == "type63_strength_variant" then
+        type63_strength = Type63StrengthSemantics.validate_target(modern_map, step_id)
+    end
     for _, route in ipairs(entry.routes) do
         local source = type(route) == "table" and tostring(route.source or "") or ""
         local route_character = type(route) == "table" and tostring(route.character or "") or ""
@@ -988,6 +995,9 @@ local function get_modern_display_motion(modern_map, step)
             and tonumber(ac_path[#ac_path]) == step_id
             and route.confidence == "verified_inherited" and route_character == map_character
             and tostring(route.visible_button or ""):upper() == "THROW"
+        local type63_strength_ok = source == "ac_type63_strength_variant"
+            and type(type63_strength) == "table"
+            and tostring(type63_strength.display or "") == tostring(route.display or "")
         local rebind_owner = type(route) == "table" and tonumber(route.bcm_owner_action_id) or nil
         local declared_rebind = false
         local declared_rebinds = type(modern_map._meta) == "table"
@@ -1490,7 +1500,7 @@ local function get_modern_display_motion(modern_map, step)
         if charge_context_ok and super_shortcut_ok
             and (direct_ok or inherited_ok or rebind_ok or runtime_common_ok or official_semantic_ok
                 or verified_alias_ok or type20_ok or type20_hold_ok or type20_phase_ok
-                or type37_followup_phase_ok
+                or type37_followup_phase_ok or type63_strength_ok
                 or state_choice_ok
                 or target_combo_ok or structural_twin_ok
                 or assist_combo_ok)

@@ -8,12 +8,48 @@ local CharacterRules = require("func/ComboTrials/CharacterRules")
 local ActionMatcher = require("func/ComboTrials/ActionMatcher")
 local SceneState = require("func/ComboTrials/SceneState")
 
+GENERATED_ACTION_RELATIONS_TEST =
+    require("func/ComboTrials/GeneratedActionRelations")
+function generated_relations(character, commands, groups)
+    local document = {
+        _meta = {
+            schema = "xt.command_display.v1",
+            strict_policy = "verified_action_graph_v1",
+            generated_from = "ac_bcm",
+            character = character,
+            ac_state_direction_route_count = #(groups or {}),
+            ac_state_direction_relations = {},
+            audit = {
+                ac_state_direction_relation_count = #(groups or {}),
+                ac_state_direction_route_count = #(groups or {}),
+            },
+        },
+    }
+    for action_id, motion in pairs(commands or {}) do
+        document[tostring(action_id)] = {
+            classic_command = { display = motion, inputs = { motion } },
+            routes = {
+                {
+                    source = "bcm_profile",
+                    direct_evidence = true,
+                    owner_action_id = action_id,
+                },
+            },
+        }
+    end
+    for index, source_ids in ipairs(groups or {}) do
+        document._meta.ac_state_direction_relations[index] = {
+            reason = "ac_type20_multi_direction_state_choice",
+            source_action_id = source_ids[1],
+            source_action_ids = source_ids,
+        }
+    end
+    return assert(GENERATED_ACTION_RELATIONS_TEST.parse(document, character))
+end
+
 ACTION_EVENT_FIXTURES = {
     Alex = {
         ["608"] = { absorb_ids = "610", action_event_projection = {} },
-        ["957"] = {
-            action_event_rules = { transient_precursor_ids = "628" },
-        },
         ["976"] = { absorb_ids = "977", action_event_projection = {} },
         ["1208"] = { absorb_ids = "1209", action_event_projection = {} },
     },
@@ -236,6 +272,220 @@ function new_character_rule_session(character, frame)
             CharacterRules.build_action_event_projection_rules(exceptions, {}),
         action_event_rules = CharacterRules.build_action_event_rules(exceptions, {}),
     })
+end
+
+do
+local generic_staggered_chord = compiler.new({
+    character = "Generic",
+    frame = 0,
+    action_relations = generated_relations("Generic", {
+        [100] = "2+HP",
+        [101] = "2+PP",
+    }),
+})
+generic_staggered_chord.events = {
+    {
+        id = 100,
+        frame = 100,
+        expected_combo = 0,
+        damage_at_step = 0,
+        has_hit = false,
+        has_contact = false,
+        anchor = {
+            kind = "button_press",
+            pressed_buttons = 64,
+            held_buttons = 64,
+        },
+    },
+    {
+        id = 101,
+        frame = 122,
+        expected_combo = 0,
+        damage_at_step = 0,
+        has_hit = false,
+        has_contact = false,
+        anchor = {
+            released_buttons = 32,
+            held_buttons = 64,
+            kind = "button_release",
+            frame = 122,
+            button_press_frames = {
+                [64] = 100,
+                [32] = 120,
+            },
+        },
+    },
+}
+local generic_staggered_chord_result = compiler.finalize(
+    generic_staggered_chord,
+    {
+        motion_resolver = function(action_id)
+            if action_id == 100 then return "2+HP", "strict_route" end
+            if action_id == 101 then return "2+PP", "strict_route" end
+            return nil, "action_id_missing"
+        end,
+    }
+)
+assert(#generic_staggered_chord_result.steps == 1
+        and generic_staggered_chord_result.steps[1].id == 101
+        and generic_staggered_chord_result.trace.suppressed_events[1].reason
+            == "partial_chord_precursor",
+    "the compiler must use physical press timing when a boundary chord Action binds on release")
+
+local late_chord_action = compiler.new({
+    character = "Generic",
+    frame = 0,
+    action_relations = generated_relations("Generic", {
+        [100] = "2+HP",
+        [101] = "2+PP",
+    }),
+})
+late_chord_action.events = {
+    generic_staggered_chord.events[1],
+    {
+        id = 101,
+        frame = 123,
+        expected_combo = 0,
+        damage_at_step = 0,
+        has_hit = false,
+        has_contact = false,
+        anchor = {
+            released_buttons = 32,
+            held_buttons = 64,
+            kind = "button_release",
+            frame = 123,
+            button_press_frames = {
+                [64] = 100,
+                [32] = 120,
+            },
+        },
+    },
+}
+local late_chord_action_result = compiler.finalize(late_chord_action, {
+    motion_resolver = function(action_id)
+        if action_id == 100 then return "2+HP", "strict_route" end
+        if action_id == 101 then return "2+PP", "strict_route" end
+        return nil, "action_id_missing"
+    end,
+})
+assert(#late_chord_action_result.steps == 2,
+    "the compiler must preserve the precursor when the chord Action appears after the visibility grace")
+end
+
+do
+local type63_document = {
+    _meta = {
+        schema = "xt.command_display.v1",
+        strict_policy = "verified_action_graph_v1",
+        generated_from = "ac_bcm",
+        character = "Generic",
+        ac_state_direction_route_count = 0,
+        ac_state_direction_relations = {},
+        type63_strength_variant_relation_count = 1,
+        type63_strength_variant_route_count = 1,
+        type63_strength_variant_relations = {
+            {
+                source_action_id = 967,
+                target_action_id = 968,
+                branch_type = 63,
+                strength = "medium",
+                classic_param01 = 32,
+                modern_param01 = 128,
+                reason = "ac_type63_classic_modern_strength_family",
+            },
+        },
+        audit = {
+            ac_state_direction_relation_count = 0,
+            ac_state_direction_route_count = 0,
+            type63_strength_variant_relation_count = 1,
+            type63_strength_variant_route_count = 1,
+        },
+    },
+    ["967"] = {
+        ownership = "direct",
+        classic_command = { display = ">6+LP", inputs = { ">6+LP" } },
+        routes = { {
+            display = "> 6 + 任意键",
+            character = "Generic",
+            source = "bcm_profile",
+            direct_evidence = true,
+            inheritance_evidence = false,
+            rebind_evidence = false,
+            runtime_common_evidence = false,
+            official_semantic_evidence = false,
+            community_semantic_evidence = false,
+            assist_combo_evidence = false,
+            confidence = "direct_structural",
+            owner_action_id = 967,
+            visible_direction = "6",
+            visible_button = "任意键",
+            button_candidates = { "弱", "中", "强" },
+            required_button_count = 1,
+        } },
+    },
+    ["968"] = {
+        ownership = "type63_strength_variant",
+        classic_command = { display = ">6+MP", inputs = { ">6+MP" } },
+        routes = { {
+            display = "> 6 + 中",
+            character = "Generic",
+            source = "ac_type63_strength_variant",
+            owner_action_id = 967,
+            bcm_owner_action_id = 967,
+            display_action_id = 968,
+            inherited_from_action_id = 967,
+            ac_relation_type = 63,
+            ac_path = { 967, 968 },
+            direct_evidence = false,
+            inheritance_evidence = true,
+            rebind_evidence = false,
+            runtime_common_evidence = false,
+            official_semantic_evidence = false,
+            community_semantic_evidence = false,
+            assist_combo_evidence = false,
+            inheritance_reason = "ac_type63_classic_modern_strength_family",
+            confidence = "verified_inherited_strength_variant",
+            strength = "medium",
+            classic_param01 = 32,
+            modern_param01 = 128,
+            visible_direction = "6",
+            visible_button = "中",
+            button_candidates = { "中" },
+            required_button_count = 1,
+        } },
+    },
+}
+local type63_relations = assert(GENERATED_ACTION_RELATIONS_TEST.parse(
+    type63_document,
+    "Generic"
+))
+local type63_session = compiler.new({
+    character = "Generic",
+    frame = 0,
+    action_relations = type63_relations,
+})
+type63_session.events = { {
+    id = 968,
+    frame = 20,
+    expected_combo = 4,
+    damage_at_step = 3104,
+    has_hit = true,
+    has_contact = true,
+    anchor = { kind = "button_press", pressed_buttons = 32 },
+} }
+local type63_result = compiler.finalize(type63_session, {
+    motion_resolver = function(action_id)
+        local motion = GENERATED_ACTION_RELATIONS_TEST.command_for_action(
+            type63_relations,
+            action_id
+        )
+        return motion, motion and "strict_route" or "action_id_missing"
+    end,
+})
+assert(#type63_result.steps == 1
+        and type63_result.steps[1].id == 968
+        and type63_result.steps[1].motion == ">6+MP",
+    "the compiler must consume an audited Type63 strength command without changing its Action ID")
 end
 
 assert(compiler.BIND_WINDOW == ActionMatcher.PLAYER_ACTION_BIND_WINDOW,
@@ -2302,7 +2552,14 @@ assert(#alex_super_recovery_result.steps == 2
     "Alex's unmapped super recovery phase must merge into the real super command")
 
 do
-local alex_staggered_2pp = new_character_rule_session("Alex")
+local alex_staggered_2pp = compiler.new({
+    character = "Alex",
+    frame = 0,
+    action_relations = generated_relations("Alex", {
+        [628] = "2+HP",
+        [957] = "2+PP",
+    }),
+})
 alex_staggered_2pp.events = {
     {
         id = 628,
@@ -2336,11 +2593,15 @@ local alex_staggered_2pp_result = compiler.finalize(alex_staggered_2pp, {
     end,
 })
 local alex_staggered_2pp_live = ActionMatcher.classify_runtime_transition({
-    expected_step = { id = 957 },
+    expected_step = { id = 957, motion = "2+PP" },
     actual_action_id = 628,
+    actual_motion = "2+HP",
+    action_button_mask = 64,
+    recent_button_mask = 32 | 64,
+    chord_completion_frames = 1,
+    successor_matches_expected = true,
     input_anchor_kind = "button_press",
     input_truth_mode = true,
-    action_event_rules = alex_staggered_2pp.action_event_rules,
 })
 assert(#alex_staggered_2pp.events == 2
         and #alex_staggered_2pp_result.trace.input_bound_events == 2
@@ -2350,10 +2611,10 @@ assert(#alex_staggered_2pp.events == 2
         and alex_staggered_2pp_result.trace.suppressed_events[1].id == 628
         and alex_staggered_2pp_result.trace.suppressed_events[1].merged_into == 957
         and alex_staggered_2pp_result.trace.suppressed_events[1].reason
-            == "character_transient_input_precursor"
+            == "partial_chord_precursor"
         and alex_staggered_2pp_live.ignored == true
-        and alex_staggered_2pp_live.reason == "transient_input_precursor",
-    "Alex's one-frame 2HP precursor must fold into the completed 2PP chord in recording and live validation")
+        and alex_staggered_2pp_live.reason == "partial_chord_precursor",
+    "Alex's one-frame 2HP precursor must use the shared chord-completion rule in recording and live validation")
 end
 
 local alex_hp_contact_phase = new_character_rule_session("Alex")

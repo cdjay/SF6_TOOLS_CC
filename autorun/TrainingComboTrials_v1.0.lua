@@ -261,12 +261,12 @@ local players = {
     [0] = {
         log = {}, prev_act_id = -1, prev_act_frame = -1, last_combo_count = 0,
         action_instance_counter = 0, current_action_instance = 0, buffer_action_instance = 0,
-        buffer_combo_count = 0,
+        buffer_combo_count = 0, buffer_has_hit = false, buffer_has_block_contact = false,
         trigger_mask_cache = {}, trigger_cache_built = false,
         last_bcm_ptr = "", last_direct_input = 0, last_direction_input = 0,
         input_history_queue = {}, dash_tap_state = {},
         profile_name = "Unknown", last_profile_name = "", exceptions = {},
-        action_compatibility = nil,
+        action_compatibility = nil, generated_action_relations = nil,
         action_event_rules = {}, sequence_grouping_rules = {},
         editing_id = -1, edit_ignore = false, edit_force = false,
 		edit_is_common = false, edit_holdable = false, edit_absorb_ids = "",
@@ -276,12 +276,12 @@ local players = {
     [1] = {
         log = {}, prev_act_id = -1, prev_act_frame = -1, last_combo_count = 0,
         action_instance_counter = 0, current_action_instance = 0, buffer_action_instance = 0,
-        buffer_combo_count = 0,
+        buffer_combo_count = 0, buffer_has_hit = false, buffer_has_block_contact = false,
         trigger_mask_cache = {}, trigger_cache_built = false,
         last_bcm_ptr = "", last_direct_input = 0, last_direction_input = 0,
         input_history_queue = {}, dash_tap_state = {},
         profile_name = "Unknown", last_profile_name = "", exceptions = {},
-        action_compatibility = nil,
+        action_compatibility = nil, generated_action_relations = nil,
         action_event_rules = {}, sequence_grouping_rules = {},
         editing_id = -1, edit_ignore = false, edit_force = false,
 		edit_is_common = false, edit_holdable = false, edit_absorb_ids = "",
@@ -2624,6 +2624,8 @@ local function reset_player_action_buffers(p_state)
     p_state.buffer_act_frame = act_frame
     p_state.buffer_action_instance = p_state.current_action_instance
     p_state.buffer_combo_count = _pf.current_combo or 0
+    p_state.buffer_has_hit = false
+    p_state.buffer_has_block_contact = false
     p_state.recording_block_contact_active = false
     p_state.recording_last_victim_hp = nil
     p_state.recording_contact_state = {}
@@ -2635,6 +2637,7 @@ local function reset_player_action_buffers(p_state)
     p_state.buffer_input_anchor_kind = nil
     p_state.buffer_input_anchor_frame = nil
     p_state.buffer_input_anchor_motion = nil
+    p_state.buffer_input_anchor_button_mask = 0
     p_state.last_player_action_anchor = nil
     p_state.consumed_player_action_anchor_serial = nil
     p_state.player_action_anchor_serial = 0
@@ -2832,6 +2835,7 @@ ctx.new_action_event_session = function(player_idx, source)
             ),
         action_event_rules = p_state and p_state.action_event_rules
             or CharacterRules.build_action_event_rules(nil, common_exceptions),
+        action_relations = p_state and p_state.generated_action_relations or nil,
     })
 end
 
@@ -3949,11 +3953,16 @@ function ct_try_skip_unreported_same_action_pressure_step(args)
     local next_expected = sequence[next_step_idx]
     if not next_expected then return nil end
 
+    local next_exception = args.get_match_rule
+        and args.get_match_rule(next_expected) or nil
     local next_action_match = args.ActionConsumer.match_expected_action(
         next_expected,
         args.act_id,
         args.motion,
-        args.input
+        args.input,
+        next_exception,
+        args.action_compatibility,
+        args.generated_action_relations
     )
     if not next_action_match or not next_action_match.matched then return nil end
 
@@ -4933,6 +4942,8 @@ local function ct_player_init(p_idx, p_state)
         p_state.current_action_instance = 0
         p_state.buffer_action_instance = 0
         p_state.buffer_combo_count = 0
+        p_state.buffer_has_hit = false
+        p_state.buffer_has_block_contact = false
         p_state.recording_block_contact_active = false
         p_state.recording_last_victim_hp = nil
         p_state.recording_contact_state = {}
@@ -4982,6 +4993,7 @@ local function ct_player_init(p_idx, p_state)
                 refresh_combo_list()
             end
         end
+        p_state.generated_action_relations = nil
         if p_state.profile_name ~= "Unknown" then
             p_state.exceptions = CharacterRules.load_for_character(p_state.profile_name)
             p_state.action_compatibility = select(1,
@@ -4990,6 +5002,11 @@ local function ct_player_init(p_idx, p_state)
                 SF6CCVersion.GAME_VERSION,
                 function(filename) return json.load_file(filename) end
             ))
+            p_state.generated_action_relations = select(1,
+                ComboTrialsModules.UnifiedActionConsumer.load_generated_action_relations(
+                    p_state.profile_name,
+                    function(filename) return json.load_file(filename) end
+                ))
             p_state.action_event_rules = CharacterRules.build_action_event_rules(
                 p_state.exceptions,
                 common_exceptions
@@ -5462,6 +5479,8 @@ local function ct_player_input_buffer(p_state)
             frame = engine_frame_count,
             kind = anchor_kind,
             motion = dash_pair and (dash_pair.direction .. dash_pair.direction) or nil,
+            button_mask = ((_pf.direct_input & 0xFFF0)
+                | pressed_buttons | released_buttons) & 0xFFF0,
         }
     end
 
@@ -5486,9 +5505,13 @@ local function ct_player_input_buffer(p_state)
     p_state.buffer_action_code = p_state.buffer_action_code or 0
     p_state.buffer_direct_input = p_state.buffer_direct_input or 0
     p_state.buffer_newly_pressed = p_state.buffer_newly_pressed or 0
+    p_state.buffer_input_anchor_button_mask =
+        p_state.buffer_input_anchor_button_mask or 0
     p_state.buffer_b_type = p_state.buffer_b_type or 0
     p_state.buffer_hold_frames = p_state.buffer_hold_frames or 0
     p_state.buffer_combo_count = p_state.buffer_combo_count or 0
+    p_state.buffer_has_hit = p_state.buffer_has_hit == true
+    p_state.buffer_has_block_contact = p_state.buffer_has_block_contact == true
     p_state.action_instance_counter = p_state.action_instance_counter or 0
     p_state.current_action_instance = p_state.current_action_instance or p_state.action_instance_counter
     p_state.buffer_action_instance = p_state.buffer_action_instance or p_state.current_action_instance
@@ -5524,6 +5547,7 @@ local function ct_player_input_buffer(p_state)
     local current_input_anchor_kind = nil
     local current_input_anchor_frame = nil
     local current_input_anchor_motion = nil
+    local current_input_anchor_button_mask = 0
     if started_new_action and type(p_state.last_player_action_anchor) == "table" then
         local player_anchor = p_state.last_player_action_anchor
         local anchor_serial = tonumber(player_anchor.serial)
@@ -5538,15 +5562,77 @@ local function ct_player_input_buffer(p_state)
             current_input_anchor_kind = player_anchor.kind
             current_input_anchor_frame = anchor_frame
             current_input_anchor_motion = player_anchor.motion
+            current_input_anchor_button_mask =
+                tonumber(player_anchor.button_mask) or 0
             p_state.consumed_player_action_anchor_serial = anchor_serial
         end
     end
     p_state.buffer_act_frame = _pf.act_frame
 
+    local input_truth_mode =
+        ComboTrialsModules.UnifiedActionConsumer.sequence_uses_input_truth(
+            trial_state.sequence
+        )
+    local expected_chord_step = trial_state.is_playing
+        and p_state == players[trial_state.playing_player]
+        and trial_state.sequence
+        and trial_state.sequence[trial_state.current_step] or nil
+    local buffered_motion = nil
+    if p_state.buffer_act_id ~= -1 then
+        buffered_motion =
+            ComboTrialsModules.UnifiedActionConsumer.generated_action_command(
+                p_state.generated_action_relations,
+                p_state.buffer_act_id
+            )
+    end
+    local recent_block_frame = tonumber(trial_state._recent_block_contact_frame)
+    local buffered_has_block_contact = recent_block_frame ~= nil
+        and recent_block_frame >= (tonumber(p_state.buffer_start_frame) or 0)
+        and tonumber(trial_state._recent_block_contact_actor) == trial_state.playing_player
+    pcall(function()
+        local damage_type = tonumber(tostring(
+            _pf.victim_obj and _pf.victim_obj:get_field("damage_type")
+        )) or 0
+        if damage_type == 30 then buffered_has_block_contact = true end
+    end)
+    local current_buffer_has_hit = (_pf.current_combo or 0)
+        > (tonumber(p_state.buffer_combo_count) or 0)
+    if not p_state.buffer_is_committed then
+        p_state.buffer_has_hit, p_state.buffer_has_block_contact =
+            ComboTrialsModules.UnifiedActionConsumer.latch_buffer_contact(
+                p_state.buffer_has_hit,
+                p_state.buffer_has_block_contact,
+                current_buffer_has_hit,
+                buffered_has_block_contact
+            )
+    end
+    local buffered_has_hit = p_state.buffer_has_hit == true
+    buffered_has_block_contact = p_state.buffer_has_block_contact == true
+    local defer_partial_chord = not started_new_action
+        and not p_state.buffer_is_committed
+        and ComboTrialsModules.UnifiedActionConsumer.should_defer_partial_chord({
+            expected_step = expected_chord_step,
+            actual_motion = buffered_motion,
+            action_button_mask = p_state.buffer_input_anchor_button_mask,
+            input_anchor_kind = p_state.buffer_input_anchor_kind,
+            input_truth_mode = input_truth_mode,
+            actual_has_contact = buffered_has_hit or buffered_has_block_contact,
+            actual_has_hit = buffered_has_hit,
+            elapsed_frames = engine_frame_count - p_state.buffer_start_frame,
+        })
+
     if started_new_action then
         if p_state.buffer_act_id ~= -1 and not p_state.buffer_is_committed then
             local duration = engine_frame_count - p_state.buffer_start_frame
             local is_ghost = false
+            local buffered_recent_button_mask, buffered_chord_completion_frames,
+                buffered_button_press_frames =
+                ComboTrialsModules.CommandResolver.collect_action_button_edges(
+                    p_state.input_history_queue,
+                    p_state.buffer_start_frame,
+                    engine_frame_count,
+                    ComboTrialsModules.UnifiedActionConsumer.CHORD_COMPLETION_WINDOW
+                )
 
             local preserve_short_action =
                 CharacterRules.should_preserve_short_action(
@@ -5642,9 +5728,19 @@ local function ct_player_input_buffer(p_state)
                     input_anchor_kind = p_state.buffer_input_anchor_kind,
                     input_anchor_frame = p_state.buffer_input_anchor_frame,
                     input_anchor_motion = p_state.buffer_input_anchor_motion,
+                    input_anchor_button_mask = p_state.buffer_input_anchor_button_mask,
+                    recent_button_mask = buffered_recent_button_mask,
+                    chord_completion_frames = buffered_chord_completion_frames,
+                    button_press_frames = buffered_button_press_frames,
+                    action_start_frame = p_state.buffer_start_frame,
+                    successor_visibility_frames = duration,
                     b_type = p_state.buffer_b_type,
                     engine_frame = p_state.buffer_start_frame,
                     action_instance = p_state.buffer_action_instance,
+                    successor_action_id = _pf.act_id,
+                    combo_count = p_state.buffer_combo_count,
+                    has_hit = buffered_has_hit,
+                    has_block_contact = buffered_has_block_contact,
                     buffer_hold_frames = p_state.buffer_hold_frames,
                     p1 = p_state.buffer_p1, p2 = p_state.buffer_p2,
                     r1 = p_state.buffer_r1, r2 = p_state.buffer_r2,
@@ -5658,6 +5754,8 @@ local function ct_player_input_buffer(p_state)
         p_state.buffer_start_frame = engine_frame_count
         p_state.buffer_action_instance = p_state.current_action_instance
         p_state.buffer_combo_count = _pf.current_combo or 0
+        p_state.buffer_has_hit = false
+        p_state.buffer_has_block_contact = false
         p_state.buffer_is_committed = false
         p_state.buffer_flags = _pf.flags
         p_state.buffer_action_code = _pf.action_code
@@ -5666,6 +5764,7 @@ local function ct_player_input_buffer(p_state)
         p_state.buffer_input_anchor_kind = current_input_anchor_kind
         p_state.buffer_input_anchor_frame = current_input_anchor_frame
         p_state.buffer_input_anchor_motion = current_input_anchor_motion
+        p_state.buffer_input_anchor_button_mask = current_input_anchor_button_mask
         p_state.buffer_b_type = _pf.b_type
         p_state.buffer_hold_frames = 0
         p_state.buffer_current_hp = _pf.p_char.vital_new
@@ -5683,8 +5782,17 @@ local function ct_player_input_buffer(p_state)
         end
     end
 
-    if not p_state.buffer_is_committed and (engine_frame_count - p_state.buffer_start_frame) >= ghost_wait then
+    if not p_state.buffer_is_committed
+        and (engine_frame_count - p_state.buffer_start_frame) >= ghost_wait
+        and not defer_partial_chord then
         p_state.buffer_is_committed = true
+        local recent_button_mask, chord_completion_frames, button_press_frames =
+            ComboTrialsModules.CommandResolver.collect_action_button_edges(
+                p_state.input_history_queue,
+                p_state.buffer_start_frame,
+                engine_frame_count,
+                ComboTrialsModules.UnifiedActionConsumer.CHORD_COMPLETION_WINDOW
+            )
         table.insert(actions_to_process, {
             id = p_state.buffer_act_id,
             flags = p_state.buffer_flags,
@@ -5694,9 +5802,17 @@ local function ct_player_input_buffer(p_state)
             input_anchor_kind = p_state.buffer_input_anchor_kind,
             input_anchor_frame = p_state.buffer_input_anchor_frame,
             input_anchor_motion = p_state.buffer_input_anchor_motion,
+            input_anchor_button_mask = p_state.buffer_input_anchor_button_mask,
+            recent_button_mask = recent_button_mask,
+            chord_completion_frames = chord_completion_frames,
+            button_press_frames = button_press_frames,
+            action_start_frame = p_state.buffer_start_frame,
             b_type = p_state.buffer_b_type,
             engine_frame = p_state.buffer_start_frame,
             action_instance = p_state.buffer_action_instance,
+            combo_count = p_state.buffer_combo_count,
+            has_hit = buffered_has_hit,
+            has_block_contact = buffered_has_block_contact,
             buffer_hold_frames = p_state.buffer_hold_frames,
             p1 = p_state.buffer_p1, p2 = p_state.buffer_p2,
             r1 = p_state.buffer_r1, r2 = p_state.buffer_r2,
@@ -5711,6 +5827,7 @@ local function ct_player_process_actions(p_idx, p_state, actions_to_process)
         ComboTrialsModules.UnifiedActionConsumer.sequence_uses_input_truth(
             trial_state.sequence
         )
+    local previous_runtime_combo = tonumber(p_state.last_combo_count) or 0
     for _, process_act in ipairs(actions_to_process) do
         local runtime_act_id = process_act.id
         local act_id = runtime_act_id
@@ -5719,6 +5836,32 @@ local function ct_player_process_actions(p_idx, p_state, actions_to_process)
         local direct_input = process_act.direct_input
         local b_type = process_act.b_type
         local engine_frame_count = process_act.engine_frame
+        local expected_for_successor = trial_state.is_playing
+            and p_idx == trial_state.playing_player
+            and trial_state.sequence
+            and trial_state.sequence[trial_state.current_step] or nil
+        local successor_exception = expected_for_successor
+            and CharacterRules.get_match_rule(
+                p_state.exceptions,
+                common_exceptions,
+                p_state.profile_name,
+                expected_for_successor.id
+            ) or nil
+        local successor_id_matches_expected = process_act.successor_action_id ~= nil
+            and expected_for_successor ~= nil
+            and ComboTrialsModules.UnifiedActionConsumer.matches_expected_action_id(
+                expected_for_successor,
+                process_act.successor_action_id,
+                successor_exception,
+                p_state.action_compatibility,
+                p_state.generated_action_relations
+            ) or false
+        local successor_matches_expected = successor_id_matches_expected
+            or ComboTrialsModules.UnifiedActionConsumer.generated_actions_share_source_group(
+                p_state.generated_action_relations,
+                expected_for_successor and expected_for_successor.id,
+                process_act.successor_action_id
+            )
 
         -- ABSORPTION CHECK (Does the active parent action want to absorb this new ID?)
         local is_continuation = false
@@ -5737,6 +5880,20 @@ local function ct_player_process_actions(p_idx, p_state, actions_to_process)
                     parent_exc,
                     process_act.input_anchor_kind
                 ) then
+                is_continuation = false
+            end
+            if is_continuation
+                and ComboTrialsModules.UnifiedActionConsumer.should_preserve_absorbed_expected_action(
+                    input_truth_mode,
+                    expected_for_successor,
+                    runtime_act_id,
+                    successor_exception,
+                    p_state.action_compatibility,
+                    p_state.generated_action_relations
+                ) then
+                -- Absorption keeps an internal phase attached to its parent,
+                -- but it must not hide the exact frozen step (or a strictly
+                -- verified runtime variant) from input-truth validation.
                 is_continuation = false
             end
         end
@@ -5939,7 +6096,8 @@ local function ct_player_process_actions(p_idx, p_state, actions_to_process)
                         expected_for_ignore,
                         act_id,
                         expected_exception,
-                        p_state.action_compatibility
+                        p_state.action_compatibility,
+                        p_state.generated_action_relations
                     )
 
                 if is_ignored and ignore_reason == "[例外：忽略]"
@@ -5948,7 +6106,8 @@ local function ct_player_process_actions(p_idx, p_state, actions_to_process)
                         expected_for_ignore,
                         act_id,
                         expected_exception,
-                        p_state.action_compatibility
+                        p_state.action_compatibility,
+                        p_state.generated_action_relations
                     ) then
                     is_ignored = false
                     ignore_reason = ""
@@ -5959,7 +6118,8 @@ local function ct_player_process_actions(p_idx, p_state, actions_to_process)
                         expected_for_ignore,
                         act_id,
                         expected_exception,
-                        p_state.action_compatibility
+                        p_state.action_compatibility,
+                        p_state.generated_action_relations
                     ) then
                     -- A raw-input candidate is created from an input-bound
                     -- runtime Action. Static command data may classify the
@@ -5983,6 +6143,27 @@ local function ct_player_process_actions(p_idx, p_state, actions_to_process)
                     action_event_rules = p_state.action_event_rules,
                     input_anchor_kind = process_act.input_anchor_kind,
                     input_anchor_motion = process_act.input_anchor_motion,
+                    actual_motion =
+                        ComboTrialsModules.UnifiedActionConsumer.generated_action_command(
+                            p_state.generated_action_relations,
+                            act_id
+                        ),
+                    action_button_mask = process_act.input_anchor_button_mask,
+                    recent_button_mask = process_act.recent_button_mask,
+                    chord_completion_frames = process_act.chord_completion_frames,
+                    button_press_frames = process_act.button_press_frames,
+                    action_start_frame = process_act.action_start_frame,
+                    successor_visibility_frames = process_act.successor_visibility_frames,
+                    successor_matches_expected = successor_matches_expected,
+                    actual_has_contact =
+                        process_act.has_hit == true
+                        or (tonumber(process_act.combo_count) or 0)
+                            > previous_runtime_combo
+                        or process_act.has_block_contact == true,
+                    actual_has_hit =
+                        process_act.has_hit == true
+                        or (tonumber(process_act.combo_count) or 0)
+                            > previous_runtime_combo,
                     input_truth_mode = input_truth_mode,
                     frames_since_previous = engine_frame_count
                         - (tonumber(trial_state.last_played_frame) or engine_frame_count),
@@ -5991,7 +6172,9 @@ local function ct_player_process_actions(p_idx, p_state, actions_to_process)
                     is_ignored = true
                     ignore_reason = transition_policy.reason == "transient_input_precursor"
                         and "[输入事实：瞬态前驱，等待完整指令]"
-                        or "[输入事实：无新输入的内部状态跳转]"
+                        or (transition_policy.reason == "partial_chord_precursor"
+                            and "[输入事实：和弦前驱，等待完整指令]"
+                            or "[输入事实：无新输入的内部状态跳转]")
                 end
 
                 if not is_ignored and not expected_action_matches_current then
@@ -6510,7 +6693,8 @@ local function ct_player_process_actions(p_idx, p_state, actions_to_process)
                                 motion_str,
                                 real_input_str,
                                 expected_exception,
-                                p_state.action_compatibility
+                                p_state.action_compatibility,
+                                p_state.generated_action_relations
                             )
                             if process_act.synthetic then
                                 action_match.source = process_act.fallback_source or process_act.source
@@ -6564,6 +6748,17 @@ local function ct_player_process_actions(p_idx, p_state, actions_to_process)
                                     synthetic = process_act.synthetic,
                                     synthetic_frame = process_act.engine_frame,
                                     combo_count = _pf.current_combo or 0,
+                                    get_match_rule = function(step)
+                                        return CharacterRules.get_match_rule(
+                                            p_state.exceptions,
+                                            common_exceptions,
+                                            p_state.profile_name,
+                                            step and step.id
+                                        )
+                                    end,
+                                    action_compatibility = p_state.action_compatibility,
+                                    generated_action_relations =
+                                        p_state.generated_action_relations,
                                     ActionConsumer = ComboTrialsModules.UnifiedActionConsumer,
                                     Validator = Validator,
                                     DebugTrace = DebugTrace,
@@ -6788,7 +6983,8 @@ local function ct_player_process_actions(p_idx, p_state, actions_to_process)
                                                 motion_str,
                                                 real_input_str,
                                                 chain_expected_exception,
-                                                p_state.action_compatibility
+                                                p_state.action_compatibility,
+                                                p_state.generated_action_relations
                                             )
                                             match_probe.post_absorb_step = trial_state.current_step
                                             match_probe.post_absorb_action_match = {
@@ -8548,7 +8744,8 @@ ctx.finish_current_transcription_file = function(timed_out)
             expected_step,
             observed_id,
             match_rule,
-            player_state and player_state.action_compatibility or nil
+            player_state and player_state.action_compatibility or nil,
+            player_state and player_state.generated_action_relations or nil
         )
     end
     local function source_action_ids_equivalent(expected_id, observed_id, index)

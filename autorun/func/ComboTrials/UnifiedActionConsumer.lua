@@ -6,10 +6,13 @@
 local ActionEventCompiler = require("func/ComboTrials/ActionEventCompiler")
 local ActionMatcher = require("func/ComboTrials/ActionMatcher")
 local CommandResolver = require("func/ComboTrials/CommandResolver")
+local GeneratedActionRelations = require("func/ComboTrials/GeneratedActionRelations")
 local TrainingEnvironment = require("func/ComboTrials/TrainingEnvironment")
 
 local M = {
     name = "ComboTrials.UnifiedActionConsumer",
+    CHORD_COMPLETION_WINDOW = ActionMatcher.CHORD_COMPLETION_WINDOW,
+    CHORD_ACTION_VISIBILITY_GRACE = ActionMatcher.CHORD_ACTION_VISIBILITY_GRACE,
 }
 
 function M.new_capture(options)
@@ -91,11 +94,42 @@ function M.sequence_uses_input_truth(sequence)
     return ActionMatcher.sequence_uses_input_truth(sequence)
 end
 
+function M.should_defer_partial_chord(params)
+    return ActionMatcher.should_defer_partial_chord(params)
+end
+
+function M.load_generated_action_relations(character, loader)
+    return GeneratedActionRelations.load(character, loader)
+end
+
+function M.generated_actions_share_source_group(relations, left_id, right_id)
+    return GeneratedActionRelations.share_source_group(relations, left_id, right_id)
+end
+
+function M.generated_action_command(relations, action_id)
+    return GeneratedActionRelations.command_for_action(relations, action_id)
+end
+
+function M.latch_buffer_contact(
+    has_hit,
+    has_block_contact,
+    observed_hit,
+    observed_block_contact
+)
+    return ActionMatcher.latch_buffer_contact(
+        has_hit,
+        has_block_contact,
+        observed_hit,
+        observed_block_contact
+    )
+end
+
 function M.matches_expected_action_id(
     expected,
     actual_action_id,
     expected_exception,
-    compatibility_rules
+    compatibility_rules,
+    generated_action_relations
 )
     return ActionMatcher.matches_expected_action_id(
         expected,
@@ -103,6 +137,11 @@ function M.matches_expected_action_id(
         expected_exception,
         compatibility_rules
     )
+        or GeneratedActionRelations.share_source_group(
+            generated_action_relations,
+            expected and expected.id,
+            actual_action_id
+        )
 end
 
 function M.should_admit_ignored_expected_action(
@@ -110,15 +149,35 @@ function M.should_admit_ignored_expected_action(
     expected,
     actual_action_id,
     expected_exception,
-    compatibility_rules
+    compatibility_rules,
+    generated_action_relations
 )
-    return ActionMatcher.should_admit_ignored_expected_action(
-        input_truth_mode,
-        expected,
-        actual_action_id,
-        expected_exception,
-        compatibility_rules
-    )
+    return input_truth_mode == true
+        and M.matches_expected_action_id(
+            expected,
+            actual_action_id,
+            expected_exception,
+            compatibility_rules,
+            generated_action_relations
+        )
+end
+
+function M.should_preserve_absorbed_expected_action(
+    input_truth_mode,
+    expected,
+    actual_action_id,
+    expected_exception,
+    compatibility_rules,
+    generated_action_relations
+)
+    return input_truth_mode == true
+        and M.matches_expected_action_id(
+            expected,
+            actual_action_id,
+            expected_exception,
+            compatibility_rules,
+            generated_action_relations
+        )
 end
 
 function M.classify_runtime_transition(params)
@@ -131,9 +190,10 @@ function M.match_expected_action(
     actual_motion,
     actual_input,
     expected_exception,
-    compatibility_rules
+    compatibility_rules,
+    generated_action_relations
 )
-    return ActionMatcher.match_expected_action(
+    local result = ActionMatcher.match_expected_action(
         expected,
         actual_action_id,
         actual_motion,
@@ -141,6 +201,16 @@ function M.match_expected_action(
         expected_exception,
         compatibility_rules
     )
+    if result.matched ~= true
+        and GeneratedActionRelations.share_source_group(
+            generated_action_relations,
+            expected and expected.id,
+            actual_action_id
+        ) then
+        result.matched = true
+        result.match_reason = "generated_source_group"
+    end
+    return result
 end
 
 return M
