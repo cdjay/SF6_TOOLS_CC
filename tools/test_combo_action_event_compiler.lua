@@ -372,6 +372,105 @@ assert(#late_chord_action_result.steps == 2,
     "the compiler must preserve the precursor when the chord Action appears after the visibility grace")
 end
 
+do
+local type63_document = {
+    _meta = {
+        schema = "xt.command_display.v1",
+        strict_policy = "verified_action_graph_v1",
+        generated_from = "ac_bcm",
+        character = "Generic",
+        ac_state_direction_route_count = 0,
+        ac_state_direction_relations = {},
+        type63_strength_variant_relation_count = 1,
+        type63_strength_variant_route_count = 1,
+        type63_strength_variant_relations = {
+            {
+                source_action_id = 967,
+                target_action_id = 968,
+                branch_type = 63,
+                strength = "medium",
+                classic_param01 = 32,
+                modern_param01 = 128,
+                reason = "ac_type63_classic_modern_strength_family",
+            },
+        },
+        audit = {
+            ac_state_direction_relation_count = 0,
+            ac_state_direction_route_count = 0,
+            type63_strength_variant_relation_count = 1,
+            type63_strength_variant_route_count = 1,
+        },
+    },
+    ["967"] = {
+        classic_command = { display = ">6+LP", inputs = { ">6+LP" } },
+        routes = { {
+            display = "> 6 + 任意键",
+            source = "bcm_profile",
+            direct_evidence = true,
+            owner_action_id = 967,
+            visible_direction = "6",
+            visible_button = "任意键",
+            button_candidates = { "弱", "中", "强" },
+            required_button_count = 1,
+        } },
+    },
+    ["968"] = {
+        classic_command = { display = ">6+MP", inputs = { ">6+MP" } },
+        routes = { {
+            display = "> 6 + 中",
+            source = "ac_type63_strength_variant",
+            owner_action_id = 967,
+            bcm_owner_action_id = 967,
+            display_action_id = 968,
+            inherited_from_action_id = 967,
+            ac_relation_type = 63,
+            ac_path = { 967, 968 },
+            inheritance_evidence = true,
+            inheritance_reason = "ac_type63_classic_modern_strength_family",
+            confidence = "verified_inherited_strength_variant",
+            strength = "medium",
+            classic_param01 = 32,
+            modern_param01 = 128,
+            visible_direction = "6",
+            visible_button = "中",
+            button_candidates = { "中" },
+            required_button_count = 1,
+        } },
+    },
+}
+local type63_relations = assert(GENERATED_ACTION_RELATIONS_TEST.parse(
+    type63_document,
+    "Generic"
+))
+local type63_session = compiler.new({
+    character = "Generic",
+    frame = 0,
+    action_relations = type63_relations,
+})
+type63_session.events = { {
+    id = 968,
+    frame = 20,
+    expected_combo = 4,
+    damage_at_step = 3104,
+    has_hit = true,
+    has_contact = true,
+    anchor = { kind = "button_press", pressed_buttons = 32 },
+} }
+local type63_result = compiler.finalize(type63_session, {
+    motion_resolver = function(action_id)
+        local motion = GENERATED_ACTION_RELATIONS_TEST.command_for_action(
+            type63_relations,
+            action_id
+        )
+        return motion, motion and "strict_route" or "action_id_missing"
+    end,
+})
+assert(#type63_result.steps == 1
+        and type63_result.steps[1].id == 968
+        and type63_result.steps[1].motion == ">6+MP",
+    "the compiler must consume an audited Type63 strength command without changing its Action ID")
+end
+
 assert(compiler.BIND_WINDOW == ActionMatcher.PLAYER_ACTION_BIND_WINDOW,
     "compiler and runtime validator must share one physical-input bind window")
 assert(ActionMatcher.sequence_uses_input_truth({

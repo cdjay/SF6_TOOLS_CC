@@ -35,6 +35,17 @@ for (const [character, registryEntry] of Object.entries(registry)) {
 assert.strictEqual(formalAlex["967"].classic_command.display, ">6+LP");
 assert.strictEqual(formalAlex["968"].classic_command.display, ">6+MP");
 assert.strictEqual(formalAlex["969"].classic_command.display, ">6+HP");
+assert.strictEqual(formalAlex["968"].ownership, "type63_strength_variant");
+assert.strictEqual(formalAlex["968"].motion_command.display, "> 6 + 中");
+assert.strictEqual(formalAlex["969"].ownership, "type63_strength_variant");
+assert.strictEqual(formalAlex["969"].motion_command.display, "> 6 + 强");
+assert.deepStrictEqual(formalAlex._meta.type63_strength_variant_relations.map(relation => [
+    relation.source_action_id, relation.target_action_id, relation.strength,
+    relation.classic_param01, relation.modern_param01
+]), [
+    [967, 968, "medium", 32, 128],
+    [967, 969, "heavy", 64, 256]
+]);
 
 const incompleteAlex = structuredClone(formalAlex);
 const incompleteId = Object.keys(incompleteAlex).find(id => /^\d+$/.test(id)

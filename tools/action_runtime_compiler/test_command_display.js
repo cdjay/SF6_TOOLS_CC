@@ -1228,6 +1228,57 @@ for (const display of ["SP", "DP", "DI", "4 + AUTO + SP", "弱 + 中 + 强",
     assert.doesNotThrow(() => commandDisplay.assertValidDisplay(display));
 }
 
+const strengthVariantCatalog = { source: { character: "StrengthVariant" }, actions: {
+    "1700": { action_id: 1700, triggers: [trigger(500, profiles(
+        profile(true, "6+LP", 16), null, null,
+        profile(true, "6+LP", 16)), { function_id: 1 })] }
+} };
+const strengthVariantRuntime = {
+    character: "StrengthVariant", fighter_id: 106,
+    action_ids: [1700, 1701, 1702],
+    actions: { "1700": "6+LP", "1701": "6+MP", "1702": "6+HP" },
+    aliases: {}, sources: { ac_sha256: "ac", bcm_sha256: "bcm" },
+    validation: { rules: {} }, evidence: { ac_derived_commands: [{
+        action_id: 1701, source_action_id: 1700, display: "6+MP", branch_type: 63,
+        force: true, derivation: "type63_strength_variant", strength: "medium",
+        classic_param01: 32, modern_param01: 128
+    }, {
+        action_id: 1702, source_action_id: 1700, display: "6+HP", branch_type: 63,
+        force: true, derivation: "type63_strength_variant", strength: "heavy",
+        classic_param01: 64, modern_param01: 256
+    }] }
+};
+const strengthVariantOutput = commandDisplay.buildCommandDisplay({}, strengthVariantCatalog,
+    strengthVariantRuntime, {}, { generatedAt: "type63-strength" });
+assert.strictEqual(strengthVariantOutput["1701"].classic_command.display, "6+MP");
+assert.strictEqual(strengthVariantOutput["1701"].ownership, "type63_strength_variant");
+assert.strictEqual(modernText(strengthVariantOutput["1701"]), "6 + 中");
+assert.strictEqual(strengthVariantOutput["1701"].routes[0].source,
+    "ac_type63_strength_variant");
+assert.strictEqual(strengthVariantOutput["1701"].routes[0].display_action_id, 1701);
+assert.strictEqual(strengthVariantOutput["1701"].routes[0].inherited_from_action_id, 1700);
+assert.strictEqual(strengthVariantOutput["1701"].routes[0].classic_param01, 32);
+assert.strictEqual(strengthVariantOutput["1701"].routes[0].modern_param01, 128);
+assert.strictEqual(strengthVariantOutput["1702"].classic_command.display, "6+HP");
+assert.strictEqual(strengthVariantOutput["1702"].ownership, "type63_strength_variant");
+assert.strictEqual(modernText(strengthVariantOutput["1702"]), "6 + 强");
+assert.strictEqual(strengthVariantOutput["1702"].routes[0].strength, "heavy");
+assert.strictEqual(strengthVariantOutput["1702"].routes[0].classic_param01, 64);
+assert.strictEqual(strengthVariantOutput["1702"].routes[0].modern_param01, 256);
+assert.strictEqual(strengthVariantOutput._meta.type63_strength_variant_route_count, 2);
+assert.strictEqual(strengthVariantOutput._meta.type63_strength_variant_relation_count, 2);
+assert.deepStrictEqual(strengthVariantOutput._meta.type63_strength_variant_relations, [{
+    source_action_id: 1700, target_action_id: 1701, branch_type: 63,
+    strength: "medium", classic_param01: 32, modern_param01: 128,
+    reason: "ac_type63_classic_modern_strength_family"
+}, {
+    source_action_id: 1700, target_action_id: 1702, branch_type: 63,
+    strength: "heavy", classic_param01: 64, modern_param01: 256,
+    reason: "ac_type63_classic_modern_strength_family"
+}]);
+assert.strictEqual(strengthVariantOutput._meta.audit.type63_strength_variant_route_count, 2);
+assert.strictEqual(strengthVariantOutput._meta.audit.type63_strength_variant_relation_count, 2);
+
 const deterministic = commandDisplay.buildCommandDisplay(actionSource, catalog, runtime, {}, {
     generatedAt: "test", officialSemantics, officialSemanticsSha256: "official"
 });

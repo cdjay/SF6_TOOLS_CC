@@ -16,6 +16,7 @@ const OFFICIAL_SEMANTIC_REASON = "capcom_official_command_semantics_matched_to_c
 const COMMUNITY_SEMANTIC_REASON = "verified_community_command_semantics_matched_to_current_bcm_identity";
 const VERIFIED_ALIAS_REASON = "ac_verified_equivalent_action_variant";
 const TYPE20_DIRECTION_REASON = "ac_type20_verified_directional_air_attack";
+const TYPE63_STRENGTH_REASON = "ac_type63_classic_modern_strength_family";
 const TYPE20_HOLD_REASON = "ac_type20_verified_hold_continuation";
 const TYPE20_PHASE_REASON = "ac_type20_verified_multi_input_action_phase";
 const TYPE37_FOLLOWUP_PHASE_REASON = "ac_type37_verified_followup_execution_phase";
@@ -1170,6 +1171,27 @@ function type20DirectionalRoute(character, relation, sourceRoute, direction, but
     route.visible_button = button;
     route.button_candidates = [button];
     route.required_button_count = 1;
+    return route;
+}
+
+function type63StrengthVariantRoute(character, relation, sourceRoute, button) {
+    const sourceId = Number(relation.source_action_id);
+    const targetId = Number(relation.action_id);
+    const sourceButton = String(sourceRoute.visible_button || "");
+    const sourceDisplay = normalizeDisplay(sourceRoute.display);
+    const offset = sourceDisplay.lastIndexOf(sourceButton);
+    const display = offset >= 0
+        ? `${sourceDisplay.slice(0, offset)}${button}${sourceDisplay.slice(offset + sourceButton.length)}`
+        : "";
+    const route = inheritedRouteFromSource(character, sourceRoute, sourceId, targetId,
+        display, "ac_type63_strength_variant", 63,
+        TYPE63_STRENGTH_REASON, "verified_inherited_strength_variant");
+    route.visible_button = button;
+    route.button_candidates = [button];
+    route.required_button_count = 1;
+    route.strength = relation.strength;
+    route.classic_param01 = Number(relation.classic_param01);
+    route.modern_param01 = Number(relation.modern_param01);
     return route;
 }
 
@@ -2571,6 +2593,30 @@ function assertRoute(route) {
             throw new Error(`Modern Type20 directional route 证据非法: ${route.display}`);
         }
     }
+    if (route.source === "ac_type63_strength_variant") {
+        const expected = route.strength === "medium"
+            ? { button: "中", classic: 32, modern: 128 }
+            : (route.strength === "heavy"
+                ? { button: "强", classic: 64, modern: 256 } : null);
+        if (route.inheritance_evidence !== true
+            || route.inheritance_reason !== TYPE63_STRENGTH_REASON
+            || route.confidence !== "verified_inherited_strength_variant"
+            || Number(route.ac_relation_type) !== 63 || route.ac_path.length < 2
+            || Number(route.ac_path[route.ac_path.length - 1]) !== Number(route.display_action_id)
+            || Number(route.inherited_from_action_id) !== Number(route.ac_path[route.ac_path.length - 2])
+            || Number(route.owner_action_id) !== Number(route.inherited_from_action_id)
+            || Number(route.bcm_owner_action_id) !== Number(route.inherited_from_action_id)
+            || !expected || route.visible_button !== expected.button
+            || Number(route.classic_param01) !== expected.classic
+            || Number(route.modern_param01) !== expected.modern
+            || route.required_button_count !== 1
+            || !Array.isArray(route.button_candidates)
+            || route.button_candidates.length !== 1
+            || route.button_candidates[0] !== expected.button
+            || !route.display.endsWith(expected.button)) {
+            throw new Error(`Modern Type63 strength route 证据非法: ${route.display}`);
+        }
+    }
     if (route.source === "ac_type20_hold_continuation") {
         if (route.inheritance_evidence !== true || route.inheritance_reason !== TYPE20_HOLD_REASON
             || route.confidence !== "verified_inherited_hold_continuation"
@@ -2882,6 +2928,49 @@ function buildCommandDisplay(actionSource, bcmCatalog, runtime, supplement, opti
             progress = true;
         }
         if (!progress) break;
+    }
+
+    const type63StrengthRelations = type63Relations
+        .filter(relation => relation && relation.force === true
+            && relation.derivation === "type63_strength_variant")
+        .sort((left, right) => Number(left.action_id) - Number(right.action_id));
+    const appliedType63StrengthRelations = [];
+    for (const relation of type63StrengthRelations) {
+        const targetId = String(Number(relation.action_id));
+        const sourceId = String(Number(relation.source_action_id));
+        if (!actionSet.has(targetId) || entries[targetId] || !entries[sourceId]) continue;
+        const targetMatch = String(relation.display || "").toUpperCase().replace(/\s+/g, "")
+            .match(/^(.*)(LP|MP|HP)$/);
+        const sourceMatch = String(runtime.actions && runtime.actions[sourceId] || "")
+            .toUpperCase().replace(/\s+/g, "").match(/^(.*)(LP|MP|HP)$/);
+        const expected = relation.strength === "medium"
+            ? { classic: 32, modern: 128, classicButton: "MP", button: "中" }
+            : (relation.strength === "heavy"
+                ? { classic: 64, modern: 256, classicButton: "HP", button: "强" } : null);
+        if (!targetMatch || !sourceMatch || !expected
+            || targetMatch[2] !== expected.classicButton || sourceMatch[2] !== "LP"
+            || targetMatch[1] !== sourceMatch[1]
+            || Number(relation.classic_param01) !== expected.classic
+            || Number(relation.modern_param01) !== expected.modern) continue;
+        const sourceRoutes = entries[sourceId].routes.filter(route => route.direct_evidence === true
+            && route.source === "bcm_profile"
+            && Number(route.owner_action_id) === Number(sourceId)
+            && Number(route.required_button_count) === 1
+            && typeof route.visible_button === "string" && route.visible_button !== ""
+            && normalizeDisplay(route.display).includes(route.visible_button)
+            && Array.isArray(route.button_candidates)
+            && route.button_candidates.length > 0
+            && route.button_candidates.every(button => ["弱", "中", "强"].includes(button)));
+        if (sourceRoutes.length !== 1) continue;
+        const route = type63StrengthVariantRoute(character, relation, sourceRoutes[0], expected.button);
+        assertRoute(route);
+        entries[targetId] = { routes: [route], ownership: "type63_strength_variant" };
+        appliedType63StrengthRelations.push({
+            source_action_id: Number(sourceId), target_action_id: Number(targetId),
+            branch_type: 63, strength: relation.strength,
+            classic_param01: expected.classic, modern_param01: expected.modern,
+            reason: TYPE63_STRENGTH_REASON
+        });
     }
 
     const type20Relations = (runtime.evidence && runtime.evidence.ac_derived_commands || [])
@@ -3199,6 +3288,8 @@ function buildCommandDisplay(actionSource, bcmCatalog, runtime, supplement, opti
     const communitySemanticRouteCount = allRoutes.filter(route => route.community_semantic_evidence === true).length;
     const type20DirectionalRouteCount = allRoutes.filter(route =>
         route.source === "ac_type20_directional_air_attack").length;
+    const type63StrengthRouteCount = allRoutes.filter(route =>
+        route.source === "ac_type63_strength_variant").length;
     const chargeContextRouteCount = allRoutes.filter(route =>
         route.charge_context_evidence === true).length;
     const superShortcutDirectionRouteCount = allRoutes.filter(route =>
@@ -3331,6 +3422,9 @@ function buildCommandDisplay(actionSource, bcmCatalog, runtime, supplement, opti
             hold_transition_suppressed_action_count: suppressedAutomaticHoldTransitionCount,
             hold_transition_type29_alias_suppressions: suppressedAutomaticHoldType29Aliases,
             type20_directional_route_count: type20DirectionalRouteCount,
+            type63_strength_variant_relation_count: appliedType63StrengthRelations.length,
+            type63_strength_variant_route_count: type63StrengthRouteCount,
+            type63_strength_variant_relations: appliedType63StrengthRelations,
             type20_hold_route_count: type20HoldRouteCount,
             type20_action_phase_route_count: type20PhaseRouteCount,
             type37_followup_execution_phase_route_count: type37FollowupPhaseRouteCount,
@@ -3426,6 +3520,8 @@ function buildCommandDisplay(actionSource, bcmCatalog, runtime, supplement, opti
                 hold_transition_suppressed_action_count: suppressedAutomaticHoldTransitionCount,
                 type20_directional_relation_count: appliedType20Relations.length,
                 type20_directional_route_count: type20DirectionalRouteCount,
+                type63_strength_variant_relation_count: appliedType63StrengthRelations.length,
+                type63_strength_variant_route_count: type63StrengthRouteCount,
                 type20_hold_relation_count: appliedType20HoldRelations.length,
                 type20_hold_route_count: type20HoldRouteCount,
                 type20_action_phase_relation_count: appliedType20PhaseRelations.length,

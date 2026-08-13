@@ -5679,12 +5679,81 @@
         ">6+MP"
       ]
     },
-    "control_support": "classic_only",
+    "control_support": "classic_modern",
     "source": "ac_bcm+capcom_official_semantics",
-    "ownership": "classic_runtime",
+    "ownership": "type63_strength_variant",
     "simple_command": null,
-    "motion_command": null,
-    "routes": []
+    "motion_command": {
+      "display": "> 6 + 中",
+      "inputs": [
+        "> 6 + 中"
+      ]
+    },
+    "routes": [
+      {
+        "display": "> 6 + 中",
+        "character": "Alex",
+        "owner_action_id": 967,
+        "trigger_index": 57,
+        "profile": "sprt",
+        "command_no": -1,
+        "command_index": -1,
+        "raw_direction_inputs": [],
+        "raw_button_mask": 400,
+        "raw_button_condition": 16416,
+        "raw_dc_exc_flags": 8,
+        "raw_ng_key_flags": 3,
+        "visible_direction": "6",
+        "visible_button": "中",
+        "button_candidates": [
+          "中"
+        ],
+        "required_button_count": 1,
+        "source": "ac_type63_strength_variant",
+        "ac_relation_type": 63,
+        "ac_path": [
+          967,
+          968
+        ],
+        "inherited_from_action_id": 967,
+        "confidence": "verified_inherited_strength_variant",
+        "direct_evidence": false,
+        "inheritance_evidence": true,
+        "inheritance_reason": "ac_type63_classic_modern_strength_family",
+        "rebind_evidence": false,
+        "rebind_reason": null,
+        "runtime_common_evidence": false,
+        "runtime_common_reason": null,
+        "official_semantic_evidence": false,
+        "official_semantic_reason": null,
+        "community_semantic_evidence": false,
+        "community_semantic_reason": null,
+        "assist_combo_evidence": false,
+        "assist_combo_reason": null,
+        "charge_context_evidence": false,
+        "charge_context_profile": null,
+        "charge_context_direction": null,
+        "charge_context_manual_direction": null,
+        "charge_context_direction_profile": null,
+        "charge_context_command_no": null,
+        "charge_context_command_index": null,
+        "charge_context_notation": null,
+        "charge_context_source_action_id": null,
+        "charge_context_source_trigger_indices": [],
+        "charge_context_relation": null,
+        "charge_context_reason": null,
+        "super_shortcut_direction_evidence": false,
+        "super_shortcut_direction_profile": null,
+        "super_shortcut_direction": null,
+        "super_shortcut_direction_notation": null,
+        "super_shortcut_direction_reason": null,
+        "display_action_id": 968,
+        "bcm_owner_action_id": 967,
+        "strength": "medium",
+        "classic_param01": 32,
+        "modern_param01": 128
+      }
+    ]
   },
   "969": {
     "classic_command": {
@@ -5693,12 +5762,81 @@
         ">6+HP"
       ]
     },
-    "control_support": "classic_only",
+    "control_support": "classic_modern",
     "source": "ac_bcm+capcom_official_semantics",
-    "ownership": "classic_runtime",
+    "ownership": "type63_strength_variant",
     "simple_command": null,
-    "motion_command": null,
-    "routes": []
+    "motion_command": {
+      "display": "> 6 + 强",
+      "inputs": [
+        "> 6 + 强"
+      ]
+    },
+    "routes": [
+      {
+        "display": "> 6 + 强",
+        "character": "Alex",
+        "owner_action_id": 967,
+        "trigger_index": 57,
+        "profile": "sprt",
+        "command_no": -1,
+        "command_index": -1,
+        "raw_direction_inputs": [],
+        "raw_button_mask": 400,
+        "raw_button_condition": 16416,
+        "raw_dc_exc_flags": 8,
+        "raw_ng_key_flags": 3,
+        "visible_direction": "6",
+        "visible_button": "强",
+        "button_candidates": [
+          "强"
+        ],
+        "required_button_count": 1,
+        "source": "ac_type63_strength_variant",
+        "ac_relation_type": 63,
+        "ac_path": [
+          967,
+          969
+        ],
+        "inherited_from_action_id": 967,
+        "confidence": "verified_inherited_strength_variant",
+        "direct_evidence": false,
+        "inheritance_evidence": true,
+        "inheritance_reason": "ac_type63_classic_modern_strength_family",
+        "rebind_evidence": false,
+        "rebind_reason": null,
+        "runtime_common_evidence": false,
+        "runtime_common_reason": null,
+        "official_semantic_evidence": false,
+        "official_semantic_reason": null,
+        "community_semantic_evidence": false,
+        "community_semantic_reason": null,
+        "assist_combo_evidence": false,
+        "assist_combo_reason": null,
+        "charge_context_evidence": false,
+        "charge_context_profile": null,
+        "charge_context_direction": null,
+        "charge_context_manual_direction": null,
+        "charge_context_direction_profile": null,
+        "charge_context_command_no": null,
+        "charge_context_command_index": null,
+        "charge_context_notation": null,
+        "charge_context_source_action_id": null,
+        "charge_context_source_trigger_indices": [],
+        "charge_context_relation": null,
+        "charge_context_reason": null,
+        "super_shortcut_direction_evidence": false,
+        "super_shortcut_direction_profile": null,
+        "super_shortcut_direction": null,
+        "super_shortcut_direction_notation": null,
+        "super_shortcut_direction_reason": null,
+        "display_action_id": 969,
+        "bcm_owner_action_id": 967,
+        "strength": "heavy",
+        "classic_param01": 64,
+        "modern_param01": 256
+      }
+    ]
   },
   "970": {
     "classic_command": {
@@ -7841,7 +7979,7 @@
       "sprt"
     ],
     "direct_route_count": 95,
-    "inherited_route_count": 5,
+    "inherited_route_count": 7,
     "rebind_route_count": 0,
     "runtime_common_route_count": 6,
     "official_semantic_route_count": 3,
@@ -7854,6 +7992,28 @@
     "hold_transition_suppressed_action_count": 0,
     "hold_transition_type29_alias_suppressions": [],
     "type20_directional_route_count": 0,
+    "type63_strength_variant_relation_count": 2,
+    "type63_strength_variant_route_count": 2,
+    "type63_strength_variant_relations": [
+      {
+        "source_action_id": 967,
+        "target_action_id": 968,
+        "branch_type": 63,
+        "strength": "medium",
+        "classic_param01": 32,
+        "modern_param01": 128,
+        "reason": "ac_type63_classic_modern_strength_family"
+      },
+      {
+        "source_action_id": 967,
+        "target_action_id": 969,
+        "branch_type": 63,
+        "strength": "heavy",
+        "classic_param01": 64,
+        "modern_param01": 256,
+        "reason": "ac_type63_classic_modern_strength_family"
+      }
+    ],
     "type20_hold_route_count": 0,
     "type20_action_phase_route_count": 0,
     "type37_followup_execution_phase_route_count": 0,
@@ -7928,7 +8088,7 @@
     "ac_type13_neutral_relations": [],
     "internal_transition_suppression_count": 0,
     "suppressed_internal_transitions": [],
-    "split_command_action_count": 81,
+    "split_command_action_count": 83,
     "followup_relation_count": 0,
     "followup_relations": [],
     "official_semantic_source_sha256": "1224844c32bcc26ce33276400ad2ae4d7cfc99aabc5c2470a96ad77ddb75ac22",
@@ -7939,7 +8099,7 @@
     "ac_relation_route_counts": {
       "20": 1,
       "29": 2,
-      "63": 2
+      "63": 4
     },
     "ac_command_entry_rebinds": [],
     "runtime_common_actions": [
@@ -9348,7 +9508,7 @@
         "reason": "profile_disabled_or_missing"
       }
     ],
-    "unmapped_action_count": 275,
+    "unmapped_action_count": 273,
     "unmapped_action_ids": [
       1,
       2,
@@ -9580,8 +9740,6 @@
       963,
       965,
       966,
-      968,
-      969,
       974,
       975,
       977,
@@ -9656,6 +9814,8 @@
       "hold_transition_suppressed_action_count": 0,
       "type20_directional_relation_count": 0,
       "type20_directional_route_count": 0,
+      "type63_strength_variant_relation_count": 2,
+      "type63_strength_variant_route_count": 2,
       "type20_hold_relation_count": 0,
       "type20_hold_route_count": 0,
       "type20_action_phase_relation_count": 0,
@@ -9687,9 +9847,9 @@
       "ac_type13_neutral_relation_count": 0,
       "ac_type13_neutral_route_count": 0,
       "internal_transition_suppression_count": 0,
-      "split_command_action_count": 81,
+      "split_command_action_count": 83,
       "classic_command_action_count": 89,
-      "shared_command_action_count": 81,
+      "shared_command_action_count": 83,
       "classic_projection_pending_count": 0,
       "command_display_action_count": 89,
       "followup_relation_count": 0,

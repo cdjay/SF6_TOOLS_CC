@@ -65,6 +65,156 @@ local function read_direct_bcm_commands(document)
     return commands
 end
 
+local function compact_command(command)
+    local display = type(command) == "table" and command.display or nil
+    if type(display) ~= "string" or display:match("^%s*(.-)%s*$") == ""
+        or strict_array(command.inputs) == nil or #command.inputs == 0 then
+        return nil
+    end
+    for _, input in ipairs(command.inputs) do
+        if type(input) ~= "string" or input:match("^%s*(.-)%s*$") == "" then return nil end
+    end
+    return display:match("^%s*(.-)%s*$")
+end
+
+local function read_type63_strength_commands(document, meta, commands)
+    local audit = type(meta) == "table" and meta.audit or nil
+    local relations = type(meta) == "table" and meta.type63_strength_variant_relations or nil
+    local meta_relations = type(meta) == "table"
+        and tonumber(meta.type63_strength_variant_relation_count) or nil
+    local meta_routes = type(meta) == "table"
+        and tonumber(meta.type63_strength_variant_route_count) or nil
+    local audit_relations = type(audit) == "table"
+        and tonumber(audit.type63_strength_variant_relation_count) or nil
+    local audit_routes = type(audit) == "table"
+        and tonumber(audit.type63_strength_variant_route_count) or nil
+    if relations == nil and meta_relations == nil and meta_routes == nil
+        and audit_relations == nil and audit_routes == nil then
+        return true
+    end
+    if strict_array(relations) == nil
+        or meta_relations ~= #relations or audit_relations ~= #relations
+        or meta_routes ~= #relations or audit_routes ~= #relations then
+        return nil, "invalid_type63_strength_audit"
+    end
+
+    local seen_targets = {}
+    for _, relation in ipairs(relations) do
+        local source_id = type(relation) == "table" and integer(relation.source_action_id) or nil
+        local target_id = type(relation) == "table" and integer(relation.target_action_id) or nil
+        local strength = type(relation) == "table" and tostring(relation.strength or "") or ""
+        local expected = strength == "medium"
+            and { classic = 32, modern = 128, classic_button = "MP", button = "中" }
+            or (strength == "heavy"
+                and { classic = 64, modern = 256, classic_button = "HP", button = "强" }
+                or nil)
+        if source_id == nil or target_id == nil or source_id == target_id
+            or seen_targets[target_id] == true or tonumber(relation.branch_type) ~= 63
+            or tostring(relation.reason or "") ~= "ac_type63_classic_modern_strength_family"
+            or expected == nil or tonumber(relation.classic_param01) ~= expected.classic
+            or tonumber(relation.modern_param01) ~= expected.modern then
+            return nil, "invalid_type63_strength_relation"
+        end
+
+        local entry = document[tostring(target_id)] or document[target_id]
+        local classic = type(entry) == "table" and compact_command(entry.classic_command) or nil
+        local routes = type(entry) == "table" and entry.routes or nil
+        local source_entry = document[tostring(source_id)] or document[source_id]
+        local source_classic = type(source_entry) == "table"
+            and compact_command(source_entry.classic_command) or nil
+        local compact = type(classic) == "string" and classic:upper():gsub("%s+", "") or ""
+        local source_compact = type(source_classic) == "string"
+            and source_classic:upper():gsub("%s+", "") or ""
+        local target_prefix, classic_button = compact:match("^(.*)([LMH]P)$")
+        local source_prefix, source_button = source_compact:match("^(.*)([LMH]P)$")
+        if strict_array(routes) == nil or classic_button ~= expected.classic_button
+            or source_button ~= "LP" or target_prefix ~= source_prefix then
+            return nil, "invalid_type63_strength_command"
+        end
+
+        local source_routes = type(source_entry) == "table" and source_entry.routes or nil
+        local expected_route_display = nil
+        local expected_direction = nil
+        local source_route_count = 0
+        if strict_array(source_routes) ~= nil then
+            for _, source_route in ipairs(source_routes) do
+                local candidates = type(source_route) == "table"
+                    and source_route.button_candidates or nil
+                local source_display = type(source_route) == "table"
+                    and tostring(source_route.display or "") or ""
+                local source_visible_button = type(source_route) == "table"
+                    and tostring(source_route.visible_button or "") or ""
+                local valid_attack_candidates = strict_array(candidates) ~= nil
+                    and #candidates > 0
+                if strict_array(candidates) ~= nil then
+                    for _, candidate in ipairs(candidates) do
+                        if candidate ~= "弱" and candidate ~= "中" and candidate ~= "强" then
+                            valid_attack_candidates = false
+                            break
+                        end
+                    end
+                end
+                local offset = nil
+                local search_from = 1
+                while source_visible_button ~= "" do
+                    local found = source_display:find(source_visible_button, search_from, true)
+                    if found == nil then break end
+                    offset = found
+                    search_from = found + #source_visible_button
+                end
+                if type(source_route) == "table"
+                    and source_route.source == "bcm_profile"
+                    and source_route.direct_evidence == true
+                    and integer(source_route.owner_action_id) == source_id
+                    and tonumber(source_route.required_button_count) == 1
+                    and valid_attack_candidates and offset ~= nil then
+                    expected_route_display = source_display:sub(1, offset - 1)
+                        .. expected.button
+                        .. source_display:sub(offset + #source_visible_button)
+                    expected_direction = tostring(source_route.visible_direction or "")
+                    source_route_count = source_route_count + 1
+                end
+            end
+        end
+        if source_route_count ~= 1 then return nil, "invalid_type63_strength_source_route" end
+
+        local matching_routes = 0
+        for _, route in ipairs(routes) do
+            if type(route) == "table" and route.source == "ac_type63_strength_variant" then
+                local path = route.ac_path
+                local candidates = route.button_candidates
+                if integer(route.display_action_id) ~= target_id
+                    or integer(route.owner_action_id) ~= source_id
+                    or integer(route.bcm_owner_action_id) ~= source_id
+                    or integer(route.inherited_from_action_id) ~= source_id
+                    or tonumber(route.ac_relation_type) ~= 63
+                    or strict_array(path) == nil or #path < 2
+                    or integer(path[#path - 1]) ~= source_id or integer(path[#path]) ~= target_id
+                    or route.inheritance_evidence ~= true
+                    or tostring(route.inheritance_reason or "")
+                        ~= "ac_type63_classic_modern_strength_family"
+                    or tostring(route.confidence or "") ~= "verified_inherited_strength_variant"
+                    or tostring(route.strength or "") ~= strength
+                    or tonumber(route.classic_param01) ~= expected.classic
+                    or tonumber(route.modern_param01) ~= expected.modern
+                    or tostring(route.visible_direction or "") ~= expected_direction
+                    or tostring(route.visible_button or "") ~= expected.button
+                    or strict_array(candidates) == nil or #candidates ~= 1
+                    or candidates[1] ~= expected.button
+                    or tonumber(route.required_button_count) ~= 1
+                    or tostring(route.display or "") ~= expected_route_display then
+                    return nil, "invalid_type63_strength_route"
+                end
+                matching_routes = matching_routes + 1
+            end
+        end
+        if matching_routes ~= 1 then return nil, "invalid_type63_strength_route_count" end
+        commands[target_id] = classic
+        seen_targets[target_id] = true
+    end
+    return true
+end
+
 local function read_source_groups(meta, commands)
     local relations = type(meta) == "table"
         and meta.ac_state_direction_relations or nil
@@ -146,6 +296,8 @@ function M.parse(document, character)
         return nil, 0, "invalid_generated_action_relations"
     end
     local commands = read_direct_bcm_commands(document)
+    local type63_ok, type63_error = read_type63_strength_commands(document, meta, commands)
+    if type63_ok == nil then return nil, 0, type63_error end
     local by_action, count_or_error = read_source_groups(meta, commands)
     if by_action == nil then return nil, 0, count_or_error end
     return {
