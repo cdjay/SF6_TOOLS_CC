@@ -2763,6 +2763,19 @@ assert(alex_override_source:find('"958"', 1, true)
         and alex_override_source:find('"replace": true', 1, true),
     "the shipped Alex command overrides must preserve the verified 2+PP stance entries")
 do
+    local alex_catalog_source = read_all(
+        "data/TrainingComboTrials_data/command_display/Alex.json")
+    assert(alex_catalog_source:find('"957": {', 1, true)
+            and alex_catalog_source:find('"958": {', 1, true)
+            and alex_catalog_source:find('"959": {', 1, true)
+            and alex_catalog_source:find(
+                '"source_action_ids": [\n          957,\n          958,\n          959',
+                1,
+                true
+            ),
+        "the shipped AC catalog must retain the 957/958/959 state-source relation")
+end
+do
     local deejay_override_source = read_all(
         "data/TrainingComboTrials_data/command_display_overrides/DeeJay.json")
     assert(deejay_override_source:find('"606"', 1, true)

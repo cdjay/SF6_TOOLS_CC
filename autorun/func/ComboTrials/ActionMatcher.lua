@@ -3,6 +3,8 @@ local ActionMatcher = {
     -- Keep runtime validation and ActionEventCompiler on the same definition
     -- of how long a physical input may bind to a later Action transition.
     PLAYER_ACTION_BIND_WINDOW = 45,
+    CHORD_COMPLETION_WINDOW = 20,
+    CHORD_ACTION_VISIBILITY_GRACE = 2,
     DRIVE_PARRY_TRANSITION_WINDOW = 12,
 }
 
@@ -20,6 +22,161 @@ local RAW_DRIVE_RUSH_ACTIONS = {
     [740] = true,
     [760] = true,
 }
+
+local PUNCH_MASK = 16 | 32 | 64
+local KICK_MASK = 128 | 256 | 512
+local NAMED_BUTTON_MASKS = {
+    LP = 16,
+    MP = 32,
+    HP = 64,
+    LK = 128,
+    MK = 256,
+    HK = 512,
+}
+
+local function bit_count(value)
+    local count = 0
+    value = tonumber(value) or 0
+    while value ~= 0 do
+        count = count + (value & 1)
+        value = value >> 1
+    end
+    return count
+end
+
+local function chord_family(motion)
+    local normalized = tostring(motion or ""):upper()
+        :gsub("%b()", "")
+        :gsub("%s+", "")
+    local explicit_mask = 0
+    for token in normalized:gmatch("[A-Z]+") do
+        if token == "PPP" then return PUNCH_MASK, 3 end
+        if token == "KKK" then return KICK_MASK, 3 end
+        if token == "PP" then return PUNCH_MASK, 2 end
+        if token == "KK" then return KICK_MASK, 2 end
+        local button_mask = NAMED_BUTTON_MASKS[token]
+        if button_mask then explicit_mask = explicit_mask | button_mask end
+    end
+    if bit_count(explicit_mask) >= 2 then
+        return explicit_mask, bit_count(explicit_mask), explicit_mask
+    end
+    return nil, nil
+end
+
+local function single_button_family(motion)
+    local normalized = tostring(motion or ""):upper()
+        :gsub("%b()", "")
+        :gsub("%s+", "")
+    local last_token = nil
+    for token in normalized:gmatch("[A-Z]+") do
+        last_token = token
+    end
+    if last_token == "P" or last_token == "LP"
+        or last_token == "MP" or last_token == "HP" then
+        return PUNCH_MASK, NAMED_BUTTON_MASKS[last_token]
+    end
+    if last_token == "K" or last_token == "LK"
+        or last_token == "MK" or last_token == "HK" then
+        return KICK_MASK, NAMED_BUTTON_MASKS[last_token]
+    end
+    return nil
+end
+
+function ActionMatcher.is_partial_chord_precursor(params)
+    params = type(params) == "table" and params or {}
+    local family_mask, required_count, required_mask = chord_family(
+        type(params.expected_step) == "table"
+            and params.expected_step.motion or nil
+    )
+    local actual_family, actual_button = single_button_family(params.actual_motion)
+    if family_mask == nil or params.input_truth_mode ~= true
+        or actual_family == nil
+        or (actual_family & family_mask) == 0
+        or params.successor_matches_expected ~= true
+        or params.actual_has_contact == true
+        or params.actual_has_hit == true
+        or params.input_anchor_kind ~= "button_press" then
+        return false
+    end
+
+    local action_buttons = (tonumber(params.action_button_mask) or 0) & 0xFFF0
+    local recent_buttons = (tonumber(params.recent_button_mask) or 0) & 0xFFF0
+    local family_action = action_buttons & family_mask
+    local family_recent = (recent_buttons | action_buttons) & family_mask
+    local chord_complete = required_mask ~= nil
+        and (family_recent & required_mask) == required_mask
+        or bit_count(family_recent) >= required_count
+
+    local completion_frames = tonumber(params.chord_completion_frames) or 0
+    local action_start_frame = tonumber(params.action_start_frame)
+    if type(params.button_press_frames) == "table" and action_start_frame ~= nil then
+        local press_frames = {}
+        local required_buttons = required_mask or family_recent
+        for bit_index = 4, 15 do
+            local bit = 1 << bit_index
+            if (required_buttons & bit) ~= 0 then
+                local pressed_frame = tonumber(params.button_press_frames[bit])
+                if pressed_frame ~= nil and pressed_frame >= action_start_frame then
+                    press_frames[#press_frames + 1] = pressed_frame
+                end
+            end
+        end
+        if #press_frames >= required_count then
+            table.sort(press_frames)
+            completion_frames = press_frames[required_count] - action_start_frame
+        end
+    end
+    local successor_frames = tonumber(params.successor_visibility_frames)
+        or completion_frames
+    if completion_frames < 0
+        or completion_frames > ActionMatcher.CHORD_COMPLETION_WINDOW
+        or successor_frames < completion_frames
+        or successor_frames > ActionMatcher.CHORD_COMPLETION_WINDOW
+            + ActionMatcher.CHORD_ACTION_VISIBILITY_GRACE then
+        return false
+    end
+
+    return action_buttons == family_action
+        and bit_count(family_action) > 0
+        and (actual_button == nil or (family_action & actual_button) ~= 0)
+        and chord_complete
+end
+
+function ActionMatcher.should_defer_partial_chord(params)
+    params = type(params) == "table" and params or {}
+    local family_mask = chord_family(
+        type(params.expected_step) == "table"
+            and params.expected_step.motion or nil
+    )
+    local actual_family, actual_button = single_button_family(params.actual_motion)
+    local elapsed = tonumber(params.elapsed_frames)
+    local action_buttons = (tonumber(params.action_button_mask) or 0) & 0xFFF0
+    return params.input_truth_mode == true
+        and family_mask ~= nil
+        and actual_family ~= nil
+        and (actual_family & family_mask) ~= 0
+        and params.actual_has_contact ~= true
+        and params.actual_has_hit ~= true
+        and params.input_anchor_kind == "button_press"
+        and elapsed ~= nil and elapsed >= 0
+        -- Keep the candidate through the boundary frame. A chord completed on
+        -- that frame may expose its durable Action on the following tick.
+        and elapsed <= ActionMatcher.CHORD_COMPLETION_WINDOW
+            + ActionMatcher.CHORD_ACTION_VISIBILITY_GRACE
+        and action_buttons ~= 0
+        and action_buttons == (action_buttons & family_mask)
+        and (actual_button == nil or (action_buttons & actual_button) ~= 0)
+end
+
+function ActionMatcher.latch_buffer_contact(
+    has_hit,
+    has_block_contact,
+    observed_hit,
+    observed_block_contact
+)
+    return has_hit == true or observed_hit == true,
+        has_block_contact == true or observed_block_contact == true
+end
 
 local DRIVE_RUSH_ACTIONS = {
     [500] = true,
@@ -169,6 +326,7 @@ function ActionMatcher.classify_runtime_transition(params)
         input_anchor_kind = params.input_anchor_kind,
         input_anchor_motion = params.input_anchor_motion,
         frames_since_previous = tonumber(params.frames_since_previous),
+        chord_completion_frames = tonumber(params.chord_completion_frames),
     }
 
     if params.expected_action_matches_current == true then
@@ -194,6 +352,11 @@ function ActionMatcher.classify_runtime_transition(params)
         and transient_destinations[expected_id] == true then
         result.ignored = true
         result.reason = "transient_input_precursor"
+        return result
+    end
+    if ActionMatcher.is_partial_chord_precursor(params) then
+        result.ignored = true
+        result.reason = "partial_chord_precursor"
         return result
     end
 

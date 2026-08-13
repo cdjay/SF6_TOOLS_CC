@@ -127,6 +127,41 @@ function M.find_recent_action_button_edge(history, parent_start_frame, current_f
     return 0
 end
 
+function M.collect_action_button_edges(history, action_start_frame, current_frame, window)
+    if type(history) ~= "table" then return 0, nil end
+    action_start_frame = tonumber(action_start_frame) or -1
+    current_frame = tonumber(current_frame) or action_start_frame
+    window = tonumber(window) or M.PLAYER_TRANSITION_INPUT_WINDOW
+    local buttons = 0
+    local latest_frame = nil
+    local press_frames = {}
+    for i = #history, 1, -1 do
+        local entry = history[i]
+        local frame_tick = tonumber(type(entry) == "table" and entry.frame_tick) or -1
+        if frame_tick < action_start_frame then break end
+        if frame_tick <= current_frame
+            and frame_tick - action_start_frame <= window then
+            local edge = (tonumber(entry.mask) or 0) & 0xFFF0
+            if edge ~= 0 then
+                buttons = buttons | edge
+                latest_frame = math.max(latest_frame or frame_tick, frame_tick)
+                for bit_index = 4, 15 do
+                    local bit = 1 << bit_index
+                    -- History is scanned newest-first. Keep the newest physical
+                    -- press for each button so live matching uses the same edge
+                    -- as ActionEventCompiler after a release/re-press.
+                    if (edge & bit) ~= 0 and press_frames[bit] == nil then
+                        press_frames[bit] = frame_tick
+                    end
+                end
+            end
+        end
+    end
+    return buttons & 0xFFF0,
+        latest_frame and math.max(0, latest_frame - action_start_frame) or nil,
+        press_frames
+end
+
 -- A resolved catalog entry means the action was deliberately admitted by the
 -- BCM base table or its curated exception aliases. Some stance normals use
 -- flags=16/action_code=0 even when the player pressed an attack button, so the

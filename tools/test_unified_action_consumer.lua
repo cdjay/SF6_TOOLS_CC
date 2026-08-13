@@ -4,6 +4,7 @@ package.path = package.path
 
 local consumer = require("func/ComboTrials/UnifiedActionConsumer")
 local compiler = require("func/ComboTrials/ActionEventCompiler")
+local command_resolver = require("func/ComboTrials/CommandResolver")
 
 local function assert_equal(actual, expected, message)
     assert(actual == expected, string.format(
@@ -113,6 +114,103 @@ assert(match.matched and match.match_reason == "id",
 assert(consumer.sequence_uses_input_truth({
     { relative_raw_inputs = { 0, 32, 0 } },
 }), "input-truth detection must use the shared matcher policy")
+assert_equal(consumer.CHORD_COMPLETION_WINDOW, 20,
+    "the gateway must expose the matcher chord window without redefining it")
+assert_equal(consumer.CHORD_ACTION_VISIBILITY_GRACE, 2,
+    "the gateway must expose the bounded Action visibility grace")
+assert(consumer.should_defer_partial_chord({
+        expected_step = { motion = "PP" },
+        actual_motion = "HP",
+        action_button_mask = 64,
+        input_anchor_kind = "button_press",
+        input_truth_mode = true,
+        elapsed_frames = 8,
+    }), "live deferral must flow through the shared consumer gateway")
+local generated_document = {
+    _meta = {
+        schema = "xt.command_display.v1",
+        strict_policy = "verified_action_graph_v1",
+        generated_from = "ac_bcm",
+        character = "Generic",
+        ac_state_direction_route_count = 1,
+        ac_state_direction_relations = {
+            {
+                reason = "ac_type20_multi_direction_state_choice",
+                source_action_id = 101,
+                source_action_ids = { 101, 102 },
+            },
+        },
+        audit = {
+            ac_state_direction_relation_count = 1,
+            ac_state_direction_route_count = 1,
+        },
+    },
+    ["100"] = {
+        classic_command = { display = "HP", inputs = { "HP" } },
+        routes = { { source = "bcm_profile", direct_evidence = true, owner_action_id = 100 } },
+    },
+    ["101"] = {
+        classic_command = { display = "PP", inputs = { "PP" } },
+        routes = { { source = "bcm_profile", direct_evidence = true, owner_action_id = 101 } },
+    },
+    ["102"] = { classic_command = { display = "PP", inputs = { "PP" } } },
+}
+local generated_relations = select(1,
+    consumer.load_generated_action_relations("Generic", function()
+        return generated_document
+    end))
+assert(consumer.generated_actions_share_source_group(
+        generated_relations, 101, 102),
+    "AC-generated source groups must confirm runtime Action variants")
+assert(not consumer.generated_actions_share_source_group(
+        generated_relations, 100, 101),
+    "matching display text must not create an Action relation")
+assert(consumer.matches_expected_action_id(
+        { id = 101 }, 102, nil, nil, generated_relations),
+    "generated source variants must match the same frozen Action step")
+local generated_variant_match = consumer.match_expected_action(
+    { id = 101, motion = "PP" }, 102, "PP", "PP", nil, nil,
+    generated_relations)
+assert(generated_variant_match.matched == true
+        and generated_variant_match.match_reason == "generated_source_group",
+    "runtime validation must advance on a strict AC source-group variant")
+assert(consumer.should_admit_ignored_expected_action(
+        true, { id = 101 }, 102, nil, nil, generated_relations),
+    "input-truth admission must accept the same generated source variant")
+assert_equal(consumer.generated_action_command(generated_relations, 100), "HP",
+    "generated classic commands must be available without presentation overrides")
+local gateway_hit, gateway_block = consumer.latch_buffer_contact(
+    false, false, true, true)
+assert(gateway_hit and gateway_block,
+    "buffer contact latching must flow through the shared consumer gateway")
+local collected_edges, collected_span, collected_press_frames =
+    command_resolver.collect_action_button_edges({
+        { frame_tick = 100, mask = 64 },
+        { frame_tick = 108, mask = 32 },
+    }, 100, 108, 45)
+assert_equal(collected_edges, 96,
+    "live input buffering must retain every edge that completes a staggered chord")
+assert_equal(collected_span, 8,
+    "live input buffering must measure chord completion from the Action start")
+assert_equal(collected_press_frames[64], 100,
+    "live input buffering must retain the first chord button's physical frame")
+assert_equal(collected_press_frames[32], 108,
+    "live input buffering must retain the completing chord button's physical frame")
+local _, repeated_span, repeated_press_frames =
+    command_resolver.collect_action_button_edges({
+        { frame_tick = 100, mask = 64 },
+        { frame_tick = 108, mask = 32 },
+        { frame_tick = 118, mask = 64 },
+    }, 100, 120, 45)
+assert_equal(repeated_span, 18,
+    "a repeated button press must remain the latest chord edge")
+assert_equal(repeated_press_frames[64], 118,
+    "live input buffering must match compiler last-press semantics")
+assert_equal(command_resolver.collect_action_button_edges({
+        { frame_tick = 40, mask = 64 },
+        { frame_tick = 100, mask = 32 },
+    }, 100, 108, 45), 32,
+    "button edges before the current Action instance must not complete its chord")
 
 local main = assert(io.open("autorun/TrainingComboTrials_v1.0.lua", "rb"))
 local main_source = main:read("*a")
@@ -131,5 +229,13 @@ assert(not main_source:find(
     ), "main entry must not bypass the command gateway")
 assert(not main_source:find("ActionMatcher.match_expected_action", 1, true),
     "main entry must not bypass the expected-Action gateway")
+assert(main_source:find(
+        "args.generated_action_relations",
+        1,
+        true
+    ), "pressure-step skipping must preserve generated Action relations")
+assert(main_source:find(
+        "generated_action_relations =%s*%n?%s*p_state.generated_action_relations"
+    ), "the live pressure-step caller must pass generated Action relations")
 
 print("UnifiedActionConsumer tests passed")

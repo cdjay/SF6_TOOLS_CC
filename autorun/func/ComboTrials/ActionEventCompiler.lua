@@ -7,6 +7,7 @@
 
 local ActionMatcher = require("func/ComboTrials/ActionMatcher")
 local ActionRestartDetector = require("func/ComboTrials/ActionRestartDetector")
+local GeneratedActionRelations = require("func/ComboTrials/GeneratedActionRelations")
 
 local Compiler = {
     name = "ComboTrials.ActionEventCompiler",
@@ -16,7 +17,7 @@ local Compiler = {
     -- allow that anchor to follow the observed runtime chain until the next
     -- input-bound event.
     PROMOTION_WINDOW = 60,
-    UNMAPPED_PRECURSOR_WINDOW = 20,
+    UNMAPPED_PRECURSOR_WINDOW = ActionMatcher.CHORD_COMPLETION_WINDOW,
     -- Negative-edge commands transition shortly after release. A much older
     -- release must not claim a later low-numbered locomotion/system Action.
     RELEASE_LOW_ACTION_BIND_WINDOW = 8,
@@ -470,6 +471,7 @@ local function build_anchor(session, sample, kind, pressed, released, hold_frame
         initial_action_id = session.previous_action_id,
         initial_action_frame = session.previous_action_frame,
         hold_frames = tonumber(hold_frames) or nil,
+        button_press_frames = shallow_copy(session.recent_button_press_frames),
     }
 end
 
@@ -494,6 +496,7 @@ local function update_button_hold_state(session, frame, pressed, released)
         local bit = 1 << bit_index
         if (pressed & bit) ~= 0 then
             session.button_press_frames[bit] = frame
+            session.recent_button_press_frames[bit] = frame
         end
         if (released & bit) ~= 0 then
             local started = tonumber(session.button_press_frames[bit])
@@ -899,6 +902,48 @@ local function is_character_transient_input_precursor(previous, current, rules)
     local delay = (tonumber(current.event.frame) or 0)
         - (tonumber(previous.event.frame) or 0)
     return delay >= 0 and delay <= Compiler.UNMAPPED_PRECURSOR_WINDOW
+end
+
+local function is_partial_chord_precursor(previous, current, session)
+    if type(previous) ~= "table" or type(current) ~= "table"
+        or type(previous.event) ~= "table"
+        or type(current.event) ~= "table" then
+        return false
+    end
+    local previous_anchor = type(previous.event.anchor) == "table"
+        and previous.event.anchor or {}
+    local previous_buttons = event_button_mask(previous.event)
+    local current_buttons = event_button_mask(current.event)
+    local current_anchor = type(current.event.anchor) == "table"
+        and current.event.anchor or {}
+    local completion_frame = tonumber(current_anchor.frame)
+        or tonumber(current.event.frame) or 0
+    local previous_frame = tonumber(previous.event.frame) or 0
+    local relations = type(session) == "table" and session.action_relations or nil
+    return ActionMatcher.is_partial_chord_precursor({
+        expected_step = {
+            motion = GeneratedActionRelations.command_for_action(
+                relations,
+                current.event.id
+            ),
+        },
+        actual_motion = GeneratedActionRelations.command_for_action(
+            relations,
+            previous.event.id
+        ),
+        action_button_mask = previous_buttons,
+        recent_button_mask = previous_buttons | current_buttons,
+        successor_matches_expected = true,
+        input_anchor_kind = previous_anchor.kind,
+        input_truth_mode = true,
+        actual_has_contact = previous.event.has_contact,
+        actual_has_hit = previous.event.has_hit,
+        chord_completion_frames = completion_frame - previous_frame,
+        button_press_frames = current_anchor.button_press_frames,
+        action_start_frame = previous_frame,
+        successor_visibility_frames = (tonumber(current.event.frame) or 0)
+            - previous_frame,
+    })
 end
 
 local function resolve_motion(resolver, event, session)
@@ -1321,6 +1366,7 @@ function Compiler.new(options)
                 and options.action_event_projection_rules or {},
         action_event_rules = type(options.action_event_rules) == "table"
                 and options.action_event_rules or {},
+        action_relations = options.action_relations,
         created_frame = tonumber(options.frame) or 0,
         previous_input = 0,
         previous_direction = "5",
@@ -1344,6 +1390,7 @@ function Compiler.new(options)
         recent_drive_parry_observation = nil,
         recent_direction_anchor = nil,
         button_press_frames = {},
+        recent_button_press_frames = {},
         last_direction_tap = {},
         direction_history = {},
         observed_actions = {},
@@ -2074,6 +2121,7 @@ function Compiler.finalize(session, options)
                     current,
                     session_action_event_rules(session)
                 )
+            local partial_chord = is_partial_chord_precursor(previous, current, session)
             if redundant_action_phase or redundant_dash or mapped_suppression
                 or unbacked_synthetic_dash then
                 if previous then merge_event_outcome_truth(previous.event, event) end
@@ -2090,7 +2138,7 @@ function Compiler.finalize(session, options)
                 }
             else
                 if quick_drive_parry or jump_startup or unmapped_input
-                    or unverified_direction or transient_input then
+                    or unverified_direction or transient_input or partial_chord then
                     if jump_startup then
                         -- The hit can be sampled on the short BGN phase before
                         -- the durable jump Action appears. Preserve that truth
@@ -2109,7 +2157,9 @@ function Compiler.finalize(session, options)
                                 or (unmapped_input and "unmapped_input_precursor"
                                     or (transient_input
                                         and "character_transient_input_precursor"
-                                        or "unverified_direction_button_precursor"))),
+                                        or (partial_chord
+                                            and "partial_chord_precursor"
+                                            or "unverified_direction_button_precursor")))),
                     }
                 end
                 projected[#projected + 1] = current

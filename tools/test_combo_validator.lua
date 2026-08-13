@@ -94,6 +94,358 @@ local anchored_wrong_transition = ActionMatcher.classify_runtime_transition({
 assert(anchored_wrong_transition.ignored == false,
     "a fresh player input must keep an unexpected Action eligible for failure")
 
+local auto_demo_chord_precursor = ActionMatcher.classify_runtime_transition({
+    previous_step = { id = 628, motion = "2+HP" },
+    expected_step = { id = 958, motion = "2+PP" },
+    expected_action_matches_current = false,
+    actual_action_id = 628,
+    actual_motion = "2+HP",
+    action_button_mask = 32 | 64,
+    recent_button_mask = 32 | 64,
+    input_anchor_kind = "button_press",
+    input_truth_mode = true,
+    frames_since_previous = 34,
+    chord_completion_frames = 0,
+    successor_matches_expected = true,
+})
+assert(auto_demo_chord_precursor.ignored == true
+        and auto_demo_chord_precursor.reason == "partial_chord_precursor",
+    "a fast replay must wait when a single-button Action is exposed by a complete same-frame PP chord")
+
+local manual_chord_precursor = ActionMatcher.classify_runtime_transition({
+    previous_step = { id = 628, motion = "2+HP" },
+    expected_step = { id = 958, motion = "2+PP" },
+    expected_action_matches_current = false,
+    actual_action_id = 628,
+    actual_motion = "2+HP",
+    action_button_mask = 64,
+    recent_button_mask = 32 | 64,
+    input_anchor_kind = "button_press",
+    input_truth_mode = true,
+    frames_since_previous = 120,
+    chord_completion_frames = 8,
+    successor_matches_expected = true,
+})
+assert(manual_chord_precursor.ignored == true
+        and manual_chord_precursor.reason == "partial_chord_precursor",
+    "manual stagger within the chord completion window must use the same semantics")
+
+local boundary_chord_precursor = ActionMatcher.classify_runtime_transition({
+    expected_step = { id = 958, motion = "2+PP" },
+    actual_action_id = 628,
+    actual_motion = "2+HP",
+    action_button_mask = 64,
+    recent_button_mask = 32 | 64,
+    input_anchor_kind = "button_press",
+    input_truth_mode = true,
+    chord_completion_frames = ActionMatcher.CHORD_COMPLETION_WINDOW,
+    successor_visibility_frames = ActionMatcher.CHORD_COMPLETION_WINDOW
+        + ActionMatcher.CHORD_ACTION_VISIBILITY_GRACE,
+    successor_matches_expected = true,
+})
+assert(boundary_chord_precursor.ignored == true,
+    "a completed chord must remain valid on the inclusive completion boundary")
+
+local late_chord_precursor = ActionMatcher.classify_runtime_transition({
+    expected_step = { id = 958, motion = "2+PP" },
+    actual_action_id = 628,
+    actual_motion = "2+HP",
+    action_button_mask = 64,
+    recent_button_mask = 32 | 64,
+    input_anchor_kind = "button_press",
+    input_truth_mode = true,
+    chord_completion_frames = ActionMatcher.CHORD_COMPLETION_WINDOW + 1,
+    successor_matches_expected = true,
+})
+assert(late_chord_precursor.ignored == false,
+    "a chord completed after the bounded window must leave the single-button Action real")
+
+local late_successor_chord = ActionMatcher.classify_runtime_transition({
+    expected_step = { id = 958, motion = "2+PP" },
+    actual_action_id = 628,
+    actual_motion = "2+HP",
+    action_button_mask = 64,
+    recent_button_mask = 32 | 64,
+    input_anchor_kind = "button_press",
+    input_truth_mode = true,
+    chord_completion_frames = ActionMatcher.CHORD_COMPLETION_WINDOW,
+    successor_visibility_frames = ActionMatcher.CHORD_COMPLETION_WINDOW
+        + ActionMatcher.CHORD_ACTION_VISIBILITY_GRACE + 1,
+    successor_matches_expected = true,
+})
+assert(late_successor_chord.ignored == false,
+    "a chord Action exposed after the visibility grace must not hide its predecessor")
+
+local unrelated_third_punch = ActionMatcher.classify_runtime_transition({
+    expected_step = { id = 958, motion = "2+PP" },
+    actual_action_id = 628,
+    actual_motion = "2+HP",
+    action_button_mask = 64,
+    recent_button_mask = 16 | 32 | 64,
+    input_anchor_kind = "button_press",
+    input_truth_mode = true,
+    button_press_frames = {
+        [64] = 100,
+        [32] = 120,
+        [16] = 123,
+    },
+    action_start_frame = 100,
+    successor_visibility_frames = 22,
+    successor_matches_expected = true,
+})
+assert(unrelated_third_punch.ignored == true,
+    "a generic PP chord must complete on the second valid punch, not a later unrelated third punch")
+
+local stale_earlier_punch = ActionMatcher.classify_runtime_transition({
+    expected_step = { id = 958, motion = "2+PP" },
+    actual_action_id = 628,
+    actual_motion = "2+HP",
+    action_button_mask = 64,
+    recent_button_mask = 32 | 64,
+    input_anchor_kind = "button_press",
+    input_truth_mode = true,
+    button_press_frames = {
+        [16] = 50,
+        [64] = 100,
+        [32] = 120,
+    },
+    action_start_frame = 100,
+    successor_visibility_frames = 22,
+    successor_matches_expected = true,
+})
+assert(stale_earlier_punch.ignored == true,
+    "same-family button history before the Action start must not alter chord completion timing")
+
+local variant_chord_precursor = ActionMatcher.classify_runtime_transition({
+    previous_step = { id = 628, motion = "2+HP" },
+    expected_step = { id = 959, motion = "2+PP" },
+    expected_action_matches_current = false,
+    actual_action_id = 628,
+    actual_motion = "2+HP",
+    action_button_mask = 64,
+    recent_button_mask = 32 | 64,
+    input_anchor_kind = "button_press",
+    input_truth_mode = true,
+    frames_since_previous = 80,
+    chord_completion_frames = 4,
+    successor_matches_expected = true,
+})
+assert(variant_chord_precursor.ignored == true
+        and variant_chord_precursor.reason == "partial_chord_precursor",
+    "chord completion must follow the expected command instead of one runtime Action variant")
+local contacted_hp_is_not_a_precursor = ActionMatcher.classify_runtime_transition({
+    previous_step = { id = 628, motion = "2+HP" },
+    expected_step = { id = 958, motion = "2+PP" },
+    expected_action_matches_current = false,
+    actual_action_id = 628,
+    actual_motion = "2+HP",
+    action_button_mask = 32 | 64,
+    recent_button_mask = 32 | 64,
+    input_anchor_kind = "button_press",
+    input_truth_mode = true,
+    actual_has_contact = true,
+    actual_has_hit = true,
+    frames_since_previous = 34,
+    chord_completion_frames = 1,
+    successor_matches_expected = true,
+})
+assert(contacted_hp_is_not_a_precursor.ignored == false,
+    "a contacted single-button Action must never be hidden by chord completion")
+
+local incomplete_triple_chord = ActionMatcher.classify_runtime_transition({
+    expected_step = { id = 200, motion = "PPP" },
+    actual_action_id = 100,
+    actual_motion = "HP",
+    action_button_mask = 64,
+    recent_button_mask = 32 | 64,
+    input_anchor_kind = "button_press",
+    input_truth_mode = true,
+    chord_completion_frames = 2,
+    successor_matches_expected = true,
+})
+assert(incomplete_triple_chord.ignored == false,
+    "a two-button edge must not be accepted as completion of an expected three-button chord")
+
+local complete_triple_chord = ActionMatcher.classify_runtime_transition({
+    expected_step = { id = 200, motion = "PPP" },
+    actual_action_id = 100,
+    actual_motion = "HP",
+    action_button_mask = 64,
+    recent_button_mask = 16 | 32 | 64,
+    input_anchor_kind = "button_press",
+    input_truth_mode = true,
+    chord_completion_frames = 3,
+    successor_matches_expected = true,
+})
+assert(complete_triple_chord.ignored == true,
+    "a complete three-button chord must use the same bounded precursor rule")
+
+local non_button_word = ActionMatcher.classify_runtime_transition({
+    expected_step = { id = 200, motion = "PP" },
+    actual_action_id = 100,
+    actual_motion = "JUMP",
+    action_button_mask = 64,
+    recent_button_mask = 32 | 64,
+    input_anchor_kind = "button_press",
+    input_truth_mode = true,
+    chord_completion_frames = 3,
+    successor_matches_expected = true,
+})
+assert(non_button_word.ignored == false,
+    "motion words ending in P or K must not be parsed as single attack buttons")
+
+local wrong_strength_edge = ActionMatcher.classify_runtime_transition({
+    expected_step = { id = 200, motion = "PP" },
+    actual_action_id = 100,
+    actual_motion = "HP",
+    action_button_mask = 16,
+    recent_button_mask = 16 | 32,
+    input_anchor_kind = "button_press",
+    input_truth_mode = true,
+    chord_completion_frames = 3,
+    successor_matches_expected = true,
+})
+assert(wrong_strength_edge.ignored == false,
+    "a named single-button Action must be backed by that button's physical edge")
+
+local explicit_pair_chord = ActionMatcher.classify_runtime_transition({
+    expected_step = { id = 201, motion = "MP+HP" },
+    actual_action_id = 100,
+    actual_motion = "HP",
+    action_button_mask = 64,
+    recent_button_mask = 32 | 64,
+    input_anchor_kind = "button_press",
+    input_truth_mode = true,
+    chord_completion_frames = 2,
+    successor_matches_expected = true,
+})
+assert(explicit_pair_chord.ignored == true
+        and explicit_pair_chord.reason == "partial_chord_precursor",
+    "an explicit multi-button command must use the same chord-completion predicate")
+
+local missing_successor_chord = ActionMatcher.classify_runtime_transition({
+    expected_step = { id = 201, motion = "MP+HP" },
+    actual_action_id = 100,
+    actual_motion = "HP",
+    action_button_mask = 64,
+    recent_button_mask = 32 | 64,
+    input_anchor_kind = "button_press",
+    input_truth_mode = true,
+    chord_completion_frames = 2,
+    successor_matches_expected = false,
+})
+assert(missing_successor_chord.ignored == false,
+    "live validation must not hide a single-button Action until the expected chord Action actually appears")
+
+assert(ActionMatcher.should_defer_partial_chord({
+        expected_step = { id = 201, motion = "MP+HP" },
+        actual_motion = "HP",
+        action_button_mask = 64,
+        input_anchor_kind = "button_press",
+        input_truth_mode = true,
+        elapsed_frames = 8,
+    }) == true,
+    "live buffering must keep a possible chord precursor pending beyond the normal ghost window")
+assert(ActionMatcher.should_defer_partial_chord({
+        expected_step = { id = 201, motion = "MP+HP" },
+        actual_motion = "HP",
+        action_button_mask = 64,
+        input_anchor_kind = "button_press",
+        input_truth_mode = true,
+        elapsed_frames = ActionMatcher.CHORD_COMPLETION_WINDOW,
+    }) == true,
+    "the boundary frame must remain pending so a just-completed chord Action can appear on the next tick")
+assert(ActionMatcher.should_defer_partial_chord({
+        expected_step = { id = 201, motion = "MP+HP" },
+        actual_motion = "HP",
+        action_button_mask = 64,
+        input_anchor_kind = "button_press",
+        input_truth_mode = true,
+        elapsed_frames = ActionMatcher.CHORD_COMPLETION_WINDOW + 1,
+    }) == true,
+    "the first visibility-grace frame must remain pending")
+assert(ActionMatcher.should_defer_partial_chord({
+        expected_step = { id = 201, motion = "MP+HP" },
+        actual_motion = "HP",
+        action_button_mask = 64,
+        input_anchor_kind = "button_press",
+        input_truth_mode = true,
+        elapsed_frames = ActionMatcher.CHORD_COMPLETION_WINDOW
+            + ActionMatcher.CHORD_ACTION_VISIBILITY_GRACE,
+    }) == true,
+    "the last visibility-grace frame must remain pending")
+assert(ActionMatcher.should_defer_partial_chord({
+        expected_step = { id = 201, motion = "MP+HP" },
+        actual_motion = "HP",
+        action_button_mask = 64,
+        input_anchor_kind = "button_press",
+        input_truth_mode = true,
+        elapsed_frames = ActionMatcher.CHORD_COMPLETION_WINDOW
+            + ActionMatcher.CHORD_ACTION_VISIBILITY_GRACE + 1,
+    }) == false,
+    "a chord precursor candidate must be released after the visibility grace")
+assert(ActionMatcher.should_defer_partial_chord({
+        expected_step = { id = 201, motion = "MP+HP" },
+        actual_motion = "HP",
+        action_button_mask = 64,
+        input_anchor_kind = "button_press",
+        input_truth_mode = true,
+        actual_has_contact = true,
+        elapsed_frames = 8,
+    }) == false,
+    "a blocked or hit single-button Action must never be deferred as a chord precursor")
+assert(ActionMatcher.should_defer_partial_chord({
+        expected_step = { id = 201, motion = "PP" },
+        actual_motion = "HP",
+        action_button_mask = 64 | 512,
+        input_anchor_kind = "button_press",
+        input_truth_mode = true,
+        elapsed_frames = 8,
+    }) == false,
+    "a mixed-family system input must not be delayed as a possible same-family chord")
+
+local latched_hit, latched_block = ActionMatcher.latch_buffer_contact(
+    false, false, true, false)
+assert(latched_hit == true and latched_block == false,
+    "a hit observed during chord deferral must remain attached to the buffered Action")
+latched_hit, latched_block = ActionMatcher.latch_buffer_contact(
+    latched_hit, true, false, false)
+assert(latched_hit == true and latched_block == true,
+    "buffered hit and block facts must survive later frames where contact is no longer visible")
+
+local repeated_hp_after_chord_window = ActionMatcher.classify_runtime_transition({
+    previous_step = { id = 958, motion = "2+PP" },
+    expected_step = { id = 977, motion = ">HP (INSTANT)" },
+    expected_action_matches_current = false,
+    actual_action_id = 628,
+    actual_motion = "2+HP",
+    action_button_mask = 64,
+    recent_button_mask = 64,
+    input_anchor_kind = "button_press",
+    input_truth_mode = true,
+    frames_since_previous = 1,
+    chord_completion_frames = ActionMatcher.CHORD_COMPLETION_WINDOW + 1,
+    successor_matches_expected = true,
+})
+assert(repeated_hp_after_chord_window.ignored == false,
+    "a later standalone 2HP must remain eligible for failure instead of being hidden as a PP precursor")
+
+local derived_followup_after_chord = ActionMatcher.classify_runtime_transition({
+    previous_step = { id = 958, motion = "2+PP" },
+    expected_step = { id = 977, motion = ">HP (INSTANT)" },
+    expected_action_matches_current = true,
+    actual_action_id = 977,
+    actual_motion = ">HP (INSTANT)",
+    action_button_mask = 64,
+    recent_button_mask = 64,
+    input_anchor_kind = "button_press",
+    input_truth_mode = true,
+    frames_since_previous = 17,
+})
+assert(derived_followup_after_chord.ignored == false
+        and derived_followup_after_chord.reason == "expected_action",
+    "the derived Action after a completed chord must remain eligible to advance")
+
 local exact_unanchored_transition = ActionMatcher.classify_runtime_transition({
     previous_step = { id = 904, motion = "[4]6+HP" },
     expected_step = { id = 34, motion = "8" },
