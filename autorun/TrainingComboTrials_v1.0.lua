@@ -5882,6 +5882,20 @@ local function ct_player_process_actions(p_idx, p_state, actions_to_process)
                 ) then
                 is_continuation = false
             end
+            if is_continuation
+                and ComboTrialsModules.UnifiedActionConsumer.should_preserve_absorbed_expected_action(
+                    input_truth_mode,
+                    expected_for_successor,
+                    runtime_act_id,
+                    successor_exception,
+                    p_state.action_compatibility,
+                    p_state.generated_action_relations
+                ) then
+                -- Absorption keeps an internal phase attached to its parent,
+                -- but it must not hide the exact frozen step (or a strictly
+                -- verified runtime variant) from input-truth validation.
+                is_continuation = false
+            end
         end
 
         -- Some state-dependent commands branch away from their catalog Action

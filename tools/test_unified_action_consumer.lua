@@ -177,6 +177,18 @@ assert(generated_variant_match.matched == true
 assert(consumer.should_admit_ignored_expected_action(
         true, { id = 101 }, 102, nil, nil, generated_relations),
     "input-truth admission must accept the same generated source variant")
+assert(consumer.should_preserve_absorbed_expected_action(
+        true, { id = 102 }, 102, nil, nil, generated_relations),
+    "an absorbed runtime Action that is the frozen step must remain matchable")
+assert(consumer.should_preserve_absorbed_expected_action(
+        true, { id = 101 }, 102, nil, nil, generated_relations),
+    "a strict generated source variant must remain matchable through absorption")
+assert(not consumer.should_preserve_absorbed_expected_action(
+        false, { id = 102 }, 102, nil, nil, generated_relations),
+    "timeline-only playback must retain legacy absorption behavior")
+assert(not consumer.should_preserve_absorbed_expected_action(
+        true, { id = 100 }, 102, nil, nil, generated_relations),
+    "an absorbed Action for a different step must remain a continuation")
 assert_equal(consumer.generated_action_command(generated_relations, 100), "HP",
     "generated classic commands must be available without presentation overrides")
 local gateway_hit, gateway_block = consumer.latch_buffer_contact(
@@ -237,5 +249,10 @@ assert(main_source:find(
 assert(main_source:find(
         "generated_action_relations =%s*%n?%s*p_state.generated_action_relations"
     ), "the live pressure-step caller must pass generated Action relations")
+assert(main_source:find(
+        "UnifiedActionConsumer.should_preserve_absorbed_expected_action",
+        1,
+        true
+    ), "live absorption must preserve the active frozen Action step")
 
 print("UnifiedActionConsumer tests passed")

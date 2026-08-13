@@ -74,6 +74,11 @@ owner 折叠，canonical 的时间窗口与同锚要求也必须由该产品数�
 共享状态来源组确认；显示文本和 display override 不参与。该规则不推断 Move 归属，也不
 修改 V2 timeline、raw input 或 Action ID。
 
+父 Action 的吸收关系不得遮蔽当前冻结步骤：在 input-truth 检测中，如果被吸收的后继
+Action 本身就是当前步骤的精确 ID、显式兼容变体或严格生成的同源变体，实时消费者必须
+保留该后继并交给统一 matcher。其他内部 phase 仍按既有吸收语义附着到父 Action；该规则
+不改变 Recorder 的折叠结果，也不把 absorb 关系升级为跨版本 Action 等价。
+
 Runtime 入口统一通过 `UnifiedActionConsumer.lua` 消费这套既有合同。该模块只转发
 `ActionEventCompiler`、`ActionMatcher` 与 `CommandResolver` 的现有决定，不定义新的
 Action 范围、过滤条件、命中规则或 V2 字段语义。录制、训练检测与运行审计不得绕过该入口

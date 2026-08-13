@@ -162,6 +162,24 @@ function M.should_admit_ignored_expected_action(
         )
 end
 
+function M.should_preserve_absorbed_expected_action(
+    input_truth_mode,
+    expected,
+    actual_action_id,
+    expected_exception,
+    compatibility_rules,
+    generated_action_relations
+)
+    return input_truth_mode == true
+        and M.matches_expected_action_id(
+            expected,
+            actual_action_id,
+            expected_exception,
+            compatibility_rules,
+            generated_action_relations
+        )
+end
+
 function M.classify_runtime_transition(params)
     return ActionMatcher.classify_runtime_transition(params)
 end
