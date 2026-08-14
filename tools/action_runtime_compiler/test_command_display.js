@@ -534,6 +534,15 @@ const jpCatalog = JSON.parse(fs.readFileSync(
 assert.deepStrictEqual(jpCatalog._meta.ac_command_phase_relations.map(relation =>
     relation.action_ids), [[915, 936], [917, 947]],
 "the shipped JP catalog must retain both generated command-phase families");
+const edCatalog = JSON.parse(fs.readFileSync(
+    "data/TrainingComboTrials_data/command_display/Ed.json", "utf8"));
+assert.strictEqual(edCatalog["1212"].classic_command.display, "214214+HP");
+assert.strictEqual(edCatalog["1212"].control_support, "classic_only");
+assert.strictEqual(modernText(edCatalog["1212"]), null);
+assert.strictEqual(edCatalog["1212"].ownership, "direct");
+assert.strictEqual(edCatalog["1212"].routes.length, 1);
+assert.strictEqual(edCatalog["1212"].routes[0].profile, "norm");
+assert.strictEqual(edCatalog["1212"].routes[0].projection_scope, "classic_only");
 assert.strictEqual(modernText(output["640"]), "2 + 中");
 assert.strictEqual(modernText(output["627"]), "AUTO + 弱");
 assert.strictEqual(modernText(output["642"]), "空中 AUTO + 强");
@@ -1346,6 +1355,44 @@ assert.deepStrictEqual(strengthVariantOutput._meta.type63_strength_variant_relat
 }]);
 assert.strictEqual(strengthVariantOutput._meta.audit.type63_strength_variant_route_count, 2);
 assert.strictEqual(strengthVariantOutput._meta.audit.type63_strength_variant_relation_count, 2);
+
+const classicOnlyDirectCatalog = { source: { character: "ClassicOnlyDirect" }, actions: {
+    "8000": { action_id: 8000, triggers: [trigger(700, profiles(
+        null, null, null,
+        profile(true, "214214+HP", 256, 81952, {
+            command_no: 24,
+            command_index: 7,
+            inputs: [
+                { direction: "2", raw_mask: 2 },
+                { direction: "1", raw_mask: 6 },
+                { direction: "4", raw_mask: 4 },
+                { direction: "2", raw_mask: 2 },
+                { direction: "1", raw_mask: 6 },
+                { direction: "4", raw_mask: 4 }
+            ]
+        })), { function_id: 3, gauge_consume: 20000 })] }
+} };
+const classicOnlyDirectRuntime = {
+    character: "ClassicOnlyDirect", fighter_id: 199,
+    action_ids: [8000],
+    actions: { "8000": "214214+HP" },
+    aliases: {}, sources: { ac_sha256: "ac", bcm_sha256: "bcm" },
+    validation: { rules: {} }, evidence: { ac_derived_commands: [] }
+};
+const classicOnlyDirectOutput = commandDisplay.buildCommandDisplay(
+    {}, classicOnlyDirectCatalog, classicOnlyDirectRuntime, {}, {
+        generatedAt: "classic-only-direct"
+    });
+assert.strictEqual(classicOnlyDirectOutput["8000"].classic_command.display, "214214+HP");
+assert.strictEqual(classicOnlyDirectOutput["8000"].control_support, "classic_only");
+assert.strictEqual(modernText(classicOnlyDirectOutput["8000"]), null);
+assert.strictEqual(classicOnlyDirectOutput["8000"].ownership, "direct");
+assert.strictEqual(classicOnlyDirectOutput["8000"].routes.length, 1);
+assert.strictEqual(classicOnlyDirectOutput["8000"].routes[0].source, "bcm_profile");
+assert.strictEqual(classicOnlyDirectOutput["8000"].routes[0].profile, "norm");
+assert.strictEqual(classicOnlyDirectOutput["8000"].routes[0].projection_scope, "classic_only");
+assert.strictEqual(classicOnlyDirectOutput["8000"].routes[0].direct_evidence, true);
+assert.strictEqual(classicOnlyDirectOutput._meta.unmapped_action_ids.includes(8000), false);
 
 const deterministic = commandDisplay.buildCommandDisplay(actionSource, catalog, runtime, {}, {
     generatedAt: "test", officialSemantics, officialSemanticsSha256: "official"

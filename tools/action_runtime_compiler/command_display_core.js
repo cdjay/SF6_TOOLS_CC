@@ -556,6 +556,16 @@ function pushRoute(routes, seen, display, provenance) {
     routes.push(route);
 }
 
+function pushClassicVerificationRoute(routes, seen, display, provenance) {
+    display = String(display || "").trim();
+    if (!display) return;
+    const route = { display, ...provenance, projection_scope: "classic_only" };
+    const key = routeKey(route);
+    if (seen.has(key)) return;
+    seen.add(key);
+    routes.push(route);
+}
+
 function routeTriggerConditions(route, bcmCatalog) {
     const action = bcmCatalog.actions && bcmCatalog.actions[String(route.owner_action_id)];
     const trigger = action && (action.triggers || []).find(item =>
@@ -908,6 +918,7 @@ function cleanCommandDisplay(value, stripFollowup) {
 }
 
 function commandKind(route) {
+    if (route && route.projection_scope === "classic_only") return null;
     const profile = String(route && route.profile || "");
     const display = cleanCommandDisplay(route && route.display);
     const button = String(route && route.visible_button || "");
@@ -2492,7 +2503,17 @@ const REQUIRED_REBIND_FIELDS = [
 ];
 
 function assertRoute(route) {
-    assertValidDisplay(route.display);
+    const classicVerification = route.projection_scope === "classic_only";
+    if (classicVerification) {
+        if (route.source !== "bcm_profile" || route.profile !== "norm"
+            || route.direct_evidence !== true || route.inheritance_evidence !== false
+            || route.rebind_evidence !== false || route.confidence !== "direct_structural"
+            || typeof route.display !== "string" || route.display.trim() === "") {
+            throw new Error(`Classic-only route 证据非法: ${route.display}`);
+        }
+    } else {
+        assertValidDisplay(route.display);
+    }
     for (const field of REQUIRED_ROUTE_FIELDS) {
         if (!Object.prototype.hasOwnProperty.call(route, field)) throw new Error(`Modern route 缺少 provenance: ${field}`);
     }
@@ -3375,12 +3396,34 @@ function buildCommandDisplay(actionSource, bcmCatalog, runtime, supplement, opti
             occurrences: relation.occurrences.map(item => ({ ...item }))
         });
     }
-    const sortedActionIds = [...actionSet].map(Number).sort((left, right) => left - right);
-    const unmappedActionIds = sortedActionIds.filter(id => !entries[String(id)]);
     unresolvedCandidates.sort((left, right) => left.action_id - right.action_id
         || Number(left.trigger_index || -1) - Number(right.trigger_index || -1)
         || String(left.profile).localeCompare(String(right.profile)));
 
+    // Function 3 can expose only a Classic norm command. Preserve that direct
+    // BCM identity after all Modern and relationship projections have settled.
+    for (const [id, action] of Object.entries(bcmCatalog.actions || {})) {
+        if (!actionSet.has(id) || entries[id]) continue;
+        const classicDisplay = runtime.actions && runtime.actions[id]
+            || action && action.classic_display;
+        const classicIdentity = canonicalClassicIdentity(classicDisplay);
+        if (!classicIdentity) continue;
+        const routes = [], seen = new Set();
+        for (const trigger of action.triggers || []) {
+            const norm = trigger.profiles && trigger.profiles.norm;
+            if (Number(trigger.conditions && trigger.conditions.function_id) !== 3
+                || !norm || norm.enabled !== true
+                || canonicalClassicIdentity(norm.notation) !== classicIdentity) continue;
+            const detail = resolved(String(classicDisplay).trim(), null, null, [],
+                requiredButtonCount(norm));
+            pushClassicVerificationRoute(routes, seen, classicDisplay,
+                routeProvenance(character, id, trigger, "norm", norm, detail, "bcm_profile"));
+        }
+        if (routes.length) entries[id] = { routes, ownership: "direct" };
+    }
+
+    const sortedActionIds = [...actionSet].map(Number).sort((left, right) => left - right);
+    const unmappedActionIds = sortedActionIds.filter(id => !entries[String(id)]);
     const allRoutes = Object.values(entries).flatMap(entry => entry.routes);
     for (const route of allRoutes) assertRoute(route);
     const directRouteCount = allRoutes.filter(route => route.direct_evidence === true).length;

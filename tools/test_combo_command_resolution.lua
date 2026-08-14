@@ -1303,6 +1303,51 @@ local motion, status = get_classic_display_motion(command_map, { id = 901, motio
 assert(motion == "214+MP" and status == "strict_route", "classic mode must use the unified command table")
 
 do
+RUNTIME_COMMON_ACTIONS = RUNTIME_COMMON_ACTIONS or {}
+local classic_only_function3_map = {
+    _meta = { character = "ClassicOnlyDirect" },
+    ["8000"] = {
+        ownership = "direct",
+        classic_command = { display = "214214+HP", inputs = { "214214+HP" } },
+        simple_command = nil,
+        motion_command = nil,
+        control_support = "classic_only",
+        routes = { {
+            display = "214214+HP",
+            character = "ClassicOnlyDirect",
+            owner_action_id = 8000,
+            profile = "norm",
+            source = "bcm_profile",
+            projection_scope = "classic_only",
+            confidence = "direct_structural",
+            direct_evidence = true,
+            inheritance_evidence = false,
+            rebind_evidence = false,
+            rebind_reason = nil,
+            runtime_common_evidence = false,
+            runtime_common_reason = nil,
+            charge_context_evidence = false,
+            super_shortcut_direction_evidence = false,
+            ac_path = {},
+        } },
+    },
+}
+local route_motion, route_status = get_modern_display_motion(
+    classic_only_function3_map, { id = 8000 })
+assert(route_motion == "214214+HP" and route_status == "strict_route",
+    "a Function 3 norm route must provide strict Classic verification evidence")
+local classic_only_slim = build_slim_command_display_map(classic_only_function3_map)
+local classic_motion, classic_status = get_classic_display_motion(
+    classic_only_slim, { id = 8000, motion = "Unknown" })
+assert(classic_motion == "214214+HP" and classic_status == "strict_route",
+    "Classic presentation must consume the verified Function 3 norm route")
+local modern_motion, modern_status = get_modern_display_motion(
+    classic_only_slim, { id = 8000, motion = "Unknown" })
+assert(modern_motion == nil and modern_status == "strict_route",
+    "a classic-only verification route must not create a Modern command")
+end
+
+do
 local legacy_honda_resolution = resolve_step_command_display(
     command_map, { id = 955, motion = "236+K" }, false)
 assert(legacy_honda_resolution.motion == "236+K"

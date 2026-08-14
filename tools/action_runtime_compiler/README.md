@@ -222,6 +222,7 @@ acbcm/<版本>/lastjson/<Character>.json
 - `classic_command`：经典输入，来源顺序为 `norm → sprt`；
 - `simple_command`：简化输入；同一招的等价方向保存在 `inputs` 中；
 - `motion_command`：搓招输入；
+- Function 3 只有 Classic `norm` 直连证据时，保留 `projection_scope: classic_only` 路线用于严格验证，但不生成 Modern 指令槽；
 - `relation`：派生动作通过 `type: followup` 和 `source_action_id` 引用前置动作。
 - `type37_followup_execution_phase`：仅投影官网已确认派生动作的精确
   `Type 37 + Attr 64` 一对一执行阶段，保留实战实际发生的 Action ID。

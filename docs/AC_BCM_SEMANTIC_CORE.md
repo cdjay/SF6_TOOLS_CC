@@ -20,6 +20,8 @@ Display overrides, permanent runtime compatibility maps, and character-specific 
 
 Direct BCM Actions may share one runtime command-phase family only when the generated catalog proves identical Classic command definitions, identical AC core structure, an exact audited AC phase edge, and a narrowly reviewed runtime-condition delta. Recording, detection, presentation, and audit consume that declaration from the same generated catalog; equal display text alone is never identity evidence.
 
+When a Function 3 Action has no player-visible Modern profile but its enabled BCM `norm` profile exactly matches the generated Classic command identity, the catalog may retain that direct route with `projection_scope: classic_only`. This route verifies Classic presentation only; it must not populate either Modern command slot or imply Modern control support.
+
 Presentation, detection, and audit remove only the contiguous attempt-start
 prefix made of single directions (`1`-`9`), basic dashes (`44`/`66`), and Drive
 Parry. The first following semantic Action is the first visible and detectable

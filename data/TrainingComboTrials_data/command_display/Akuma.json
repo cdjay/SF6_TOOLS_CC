@@ -9409,6 +9409,9 @@
     "hold_transition_suppressed_action_count": 0,
     "hold_transition_type29_alias_suppressions": [],
     "type20_directional_route_count": 0,
+    "type63_strength_variant_relation_count": 0,
+    "type63_strength_variant_route_count": 0,
+    "type63_strength_variant_relations": [],
     "type20_hold_route_count": 0,
     "type20_action_phase_route_count": 0,
     "type37_followup_execution_phase_route_count": 0,
@@ -9585,6 +9588,8 @@
       }
     ],
     "structural_twin_relations": [],
+    "ac_command_phase_relation_count": 0,
+    "ac_command_phase_relations": [],
     "assist_combo_relations": [
       {
         "action_id": 636,
@@ -12721,6 +12726,8 @@
       "hold_transition_suppressed_action_count": 0,
       "type20_directional_relation_count": 0,
       "type20_directional_route_count": 0,
+      "type63_strength_variant_relation_count": 0,
+      "type63_strength_variant_route_count": 0,
       "type20_hold_relation_count": 0,
       "type20_hold_route_count": 0,
       "type20_action_phase_relation_count": 0,
@@ -12735,6 +12742,7 @@
       "target_combo_repeat_route_count": 1,
       "structural_twin_relation_count": 0,
       "structural_twin_route_count": 0,
+      "ac_command_phase_relation_count": 0,
       "assist_combo_candidate_count": 20,
       "assist_combo_relation_count": 4,
       "assist_combo_route_count": 4,
