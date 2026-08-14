@@ -214,7 +214,18 @@ function M.should_preserve_absorbed_expected_action(
 end
 
 function M.classify_runtime_transition(params)
-    return ActionMatcher.classify_runtime_transition(params)
+    params = type(params) == "table" and params or {}
+    local result = ActionMatcher.classify_runtime_transition(params)
+    if params.expected_action_matches_current ~= true
+        and GeneratedActionRelations.is_internal_phase_of(
+            params.generated_action_relations,
+            params.previous_step and params.previous_step.id,
+            params.actual_action_id
+        ) then
+        result.ignored = true
+        result.reason = "generated_internal_execution_phase"
+    end
+    return result
 end
 
 function M.match_expected_action(

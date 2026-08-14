@@ -10,6 +10,14 @@ local SUPPORTED_GENERATORS = {
     ["ac_bcm+capcom_official_semantics"] = true,
 }
 
+local INTERNAL_TRANSITION_OWNERSHIP = {
+    ac_state_direction_release = "internal_state_transition",
+    bcm_zero_input_transition = "internal_state_transition",
+    ac_type2_numbered_execution_phase = "internal_execution_phase",
+    ac_type2_same_structure_execution_phase = "internal_execution_phase",
+    ac_type2_type4_terminal_execution_phase = "internal_execution_phase",
+}
+
 local function character_key(value)
     return tostring(value or ""):gsub("[^%w_]", "")
 end
@@ -35,6 +43,18 @@ local function exact_string_array(value, expected)
     if strict_array(value) ~= #expected then return false end
     for index, expected_value in ipairs(expected) do
         if value[index] ~= expected_value then return false end
+    end
+    return true
+end
+
+local function exact_value(left, right)
+    if type(left) ~= type(right) then return false end
+    if type(left) ~= "table" then return left == right end
+    for key, value in pairs(left) do
+        if not exact_value(value, right[key]) then return false end
+    end
+    for key in pairs(right) do
+        if left[key] == nil then return false end
     end
     return true
 end
@@ -268,6 +288,54 @@ local function read_source_groups(meta, commands, phase_evidence)
     return by_action, group_count
 end
 
+local function read_internal_execution_phases(document, meta)
+    local relations = type(meta) == "table"
+        and meta.suppressed_internal_transitions or nil
+    local audit = type(meta) == "table" and meta.audit or nil
+    local declared_count = type(meta) == "table"
+        and tonumber(meta.internal_transition_suppression_count) or nil
+    local audited_count = type(audit) == "table"
+        and tonumber(audit.internal_transition_suppression_count) or nil
+    if relations == nil and declared_count == nil and audited_count == nil then
+        return {}
+    end
+    if strict_array(relations) == nil
+        or declared_count == nil or declared_count ~= #relations
+        or audited_count == nil or audited_count ~= declared_count then
+        return nil, "invalid_internal_transition_audit"
+    end
+
+    local owner_by_action = {}
+    local seen_targets = {}
+    for _, relation in ipairs(relations) do
+        local source_action_id = integer(relation and relation.source_action_id)
+        local target_action_id = integer(relation and relation.target_action_id)
+        local target = target_action_id ~= nil
+            and document[tostring(target_action_id)] or nil
+        local expected_ownership = type(relation) == "table"
+            and INTERNAL_TRANSITION_OWNERSHIP[relation.kind] or nil
+        if target_action_id == nil
+            or expected_ownership == nil
+            or type(relation.reason) ~= "string" or relation.reason == ""
+            or seen_targets[target_action_id] == true
+            or type(target) ~= "table"
+            or target.ownership ~= expected_ownership
+            or target.suppress_display ~= true
+            or strict_array(target.routes) ~= 0
+            or not exact_value(target.transition_evidence, relation) then
+            return nil, "invalid_internal_transition_relation"
+        end
+        seen_targets[target_action_id] = true
+        if expected_ownership == "internal_execution_phase" then
+            if source_action_id == nil or source_action_id == target_action_id then
+                return nil, "invalid_internal_execution_owner"
+            end
+            owner_by_action[target_action_id] = source_action_id
+        end
+    end
+    return owner_by_action
+end
+
 function M.parse(document, character)
     local key = character_key(character)
     local meta = type(document) == "table" and document._meta or nil
@@ -284,11 +352,15 @@ function M.parse(document, character)
     for action_id, command in pairs(type63_commands) do commands[action_id] = command end
     local by_action, count_or_error = read_source_groups(meta, commands, phase_evidence)
     if by_action == nil then return nil, 0, count_or_error end
+    local internal_owner_by_action, internal_error =
+        read_internal_execution_phases(document, meta)
+    if internal_owner_by_action == nil then return nil, 0, internal_error end
     return {
         _validated = true,
         character = key,
         by_action = by_action,
         commands = commands,
+        internal_owner_by_action = internal_owner_by_action,
     }, count_or_error, "loaded"
 end
 
@@ -318,6 +390,14 @@ function M.share_source_group(relations, left_action_id, right_action_id)
         if right[group] == true then return true end
     end
     return false
+end
+
+function M.is_internal_phase_of(relations, source_action_id, target_action_id)
+    if type(relations) ~= "table" or relations._validated ~= true then return false end
+    local source = integer(source_action_id)
+    local target = integer(target_action_id)
+    return source ~= nil and target ~= nil
+        and relations.internal_owner_by_action[target] == source
 end
 
 return M

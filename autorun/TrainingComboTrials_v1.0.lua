@@ -6246,6 +6246,7 @@ local function ct_player_process_actions(p_idx, p_state, actions_to_process)
                     actual_action_id = act_id,
                     character = p_state.profile_name,
                     action_event_rules = p_state.action_event_rules,
+                    generated_action_relations = p_state.generated_action_relations,
                     input_anchor_kind = process_act.input_anchor_kind,
                     input_anchor_motion = process_act.input_anchor_motion,
                     actual_motion =

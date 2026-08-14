@@ -59,6 +59,31 @@ local document = {
                 reason = "ac_type52_same_command_runtime_phase_family",
             },
         },
+        internal_transition_suppression_count = 1,
+        suppressed_internal_transitions = {
+            {
+                kind = "ac_type2_same_structure_execution_phase",
+                source_action_id = 1062,
+                middle_action_id = 1063,
+                tail_action_id = 1064,
+                target_action_id = 1063,
+                phase_index = 1,
+                branch_type = 2,
+                attr = 288,
+                action_frame = 0,
+                param00 = 0,
+                param01 = 0,
+                param02 = 0,
+                param03 = 0,
+                param04 = 0,
+                param05 = 0,
+                trigger_id = -1,
+                fingerprint_fields = {
+                    "Category", "Combo", "Projectile", "State",
+                },
+                reason = "ac_type2_same_structure_zero_parameter_execution_phase",
+            },
+        },
         ac_state_direction_relations = {
             {
                 reason = "ac_type20_multi_direction_state_choice",
@@ -72,6 +97,7 @@ local document = {
             type63_strength_variant_relation_count = 1,
             type63_strength_variant_route_count = 1,
             ac_command_phase_relation_count = 1,
+            internal_transition_suppression_count = 1,
         },
     },
     ["9"] = {
@@ -147,6 +173,33 @@ local document = {
         classic_command = { display = "214+LP", inputs = { "214+LP" } },
         routes = { phase_route(936, 73) },
     },
+    ["1063"] = {
+        ownership = "internal_execution_phase",
+        suppress_display = true,
+        transition_evidence = {
+            kind = "ac_type2_same_structure_execution_phase",
+            source_action_id = 1062,
+            middle_action_id = 1063,
+            tail_action_id = 1064,
+            target_action_id = 1063,
+            phase_index = 1,
+            branch_type = 2,
+            attr = 288,
+            action_frame = 0,
+            param00 = 0,
+            param01 = 0,
+            param02 = 0,
+            param03 = 0,
+            param04 = 0,
+            param05 = 0,
+            trigger_id = -1,
+            fingerprint_fields = {
+                "Category", "Combo", "Projectile", "State",
+            },
+            reason = "ac_type2_same_structure_zero_parameter_execution_phase",
+        },
+        routes = {},
+    },
 }
 
 local relations, count, status = Relations.parse(document, "Generic")
@@ -160,6 +213,10 @@ assert(not Relations.share_source_group(relations, 20, 21),
     "strength variants are distinct Actions, not source-group aliases")
 assert(Relations.share_source_group(relations, 915, 936),
     "AC+BCM command-phase variants must share one runtime Move interpretation")
+assert(Relations.is_internal_phase_of(relations, 1062, 1063),
+    "audited internal execution phases must retain their generated owner")
+assert(not Relations.is_internal_phase_of(relations, 1063, 1062),
+    "internal execution ownership must remain directional")
 
 local function clone(value)
     if type(value) ~= "table" then return value end
@@ -207,6 +264,23 @@ mismatched_phase_inputs["936"].classic_command.inputs = { "236+LP" }
 assert(Relations.parse(mismatched_phase_inputs, "Generic") == nil,
     "matching display text must not hide different BCM command inputs")
 
+local mismatched_internal_audit = clone(document)
+mismatched_internal_audit._meta.audit.internal_transition_suppression_count = 2
+assert(Relations.parse(mismatched_internal_audit, "Generic") == nil,
+    "internal execution phases must match the generated audit count")
+
+local mismatched_internal_evidence = clone(document)
+mismatched_internal_evidence["1063"].transition_evidence.attr = 32
+assert(Relations.parse(mismatched_internal_evidence, "Generic") == nil,
+    "target entries must repeat the exact audited transition evidence")
+
+local routed_internal_target = clone(document)
+routed_internal_target["1063"].routes = {
+    { source = "bcm_profile", direct_evidence = true, owner_action_id = 1063 },
+}
+assert(Relations.parse(routed_internal_target, "Generic") == nil,
+    "an internal execution phase must not own an independent command route")
+
 local unaudited_strength = clone(document)
 unaudited_strength._meta.type63_strength_variant_relations = nil
 unaudited_strength._meta.type63_strength_variant_relation_count = nil
@@ -241,6 +315,8 @@ local inconsistent = Relations.parse({
         generated_from = "ac_bcm",
         character = "Generic",
         ac_state_direction_route_count = 1,
+        internal_transition_suppression_count = 0,
+        suppressed_internal_transitions = {},
         ac_state_direction_relations = {
             {
                 reason = "ac_type20_multi_direction_state_choice",
@@ -251,6 +327,7 @@ local inconsistent = Relations.parse({
         audit = {
             ac_state_direction_relation_count = 1,
             ac_state_direction_route_count = 1,
+            internal_transition_suppression_count = 0,
         },
     },
     ["10"] = {

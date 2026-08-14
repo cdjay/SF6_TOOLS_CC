@@ -223,6 +223,9 @@ acbcm/<版本>/lastjson/<Character>.json
 - `simple_command`：简化输入；同一招的等价方向保存在 `inputs` 中；
 - `motion_command`：搓招输入；
 - Function 3 只有 Classic `norm` 直连证据时，保留 `projection_scope: classic_only` 路线用于严格验证，但不生成 Modern 指令槽；
+- Function 1 只有 Classic `norm` 直连证据时使用同一条 Classic-only 验证规则；若 Action 同时出现在 Assist Combo recipe，Classic `norm` 与 Modern Assist route 并存，二者互不替代；
+- Function 2 仅在空中单一拳脚的 `norm`、按钮掩码、攻击类型位与 Classic 身份全部精确一致，且没有其它已生成路线时保留同一条 Classic-only 验证路线；方向、移动、特殊技及内部状态不使用该回退；
+- 无独立 BCM owner 的执行阶段只有在 AC 图满足精确零参数 Type 2+4 终止结构，或满足同核心结构的 Type 2 三段阶段链（共享 Type 13 出口的编号链或零参数终止链）时才标记为内部阶段并隐藏；Action ID 仍保留给检测和 V2 事实层；
 - `relation`：派生动作通过 `type: followup` 和 `source_action_id` 引用前置动作。
 - `type37_followup_execution_phase`：仅投影官网已确认派生动作的精确
   `Type 37 + Attr 64` 一对一执行阶段，保留实战实际发生的 Action ID。

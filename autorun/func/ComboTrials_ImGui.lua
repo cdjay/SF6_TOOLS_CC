@@ -187,6 +187,12 @@ local AC_STATE_NEUTRAL_REASON = "ac_type1_neutral_branch_beside_multi_direction_
 local AC_TYPE13_NEUTRAL_REASON = "ac_type13_zero_input_terminal_continuation_with_directional_sibling"
 local AC_STATE_RELEASE_REASON = "ac_type20_release_transition_from_verified_direction_state"
 local BCM_ZERO_INPUT_TRANSITION_REASON = "bcm_function2_normal_has_no_player_visible_input"
+local AC_TERMINAL_EXECUTION_PHASE_REASON =
+    "ac_type2_type4_zero_parameter_terminal_execution_phase"
+local AC_NUMBERED_EXECUTION_PHASE_REASON =
+    "ac_type2_numbered_same_structure_execution_phase"
+local AC_SAME_STRUCTURE_EXECUTION_PHASE_REASON =
+    "ac_type2_same_structure_zero_parameter_execution_phase"
 local TARGET_COMBO_REPEAT_REASON = "bcm_turn_around_target_combo_repeats_parent_button"
 local STRUCTURAL_TWIN_REASON = "ac_bcm_unique_structural_twin_with_internal_use_super_delta"
 local ASSIST_COMBO_REASON = "bcm_assist_combo_recipe_direct_input_sequence"
@@ -865,7 +871,8 @@ local function get_modern_display_motion(modern_map, step)
         local internal_declarations = type(modern_map._meta) == "table"
             and modern_map._meta.suppressed_internal_transitions or nil
         if type(evidence) == "table" and type(internal_declarations) == "table"
-            and entry.ownership == "internal_state_transition" and #entry.routes == 0
+            and (entry.ownership == "internal_state_transition"
+                or entry.ownership == "internal_execution_phase") and #entry.routes == 0
             and step_id ~= nil and tonumber(evidence.target_action_id) == step_id then
             for _, relation in ipairs(internal_declarations) do
                 local same = type(relation) == "table"
@@ -882,6 +889,98 @@ local function get_modern_display_motion(modern_map, step)
                         and type(relation.trigger_indices) == "table"
                         and #relation.trigger_indices > 0
                         and relation.reason == BCM_ZERO_INPUT_TRANSITION_REASON
+                elseif same and evidence.kind == "ac_type2_type4_terminal_execution_phase" then
+                    same = entry.ownership == "internal_execution_phase"
+                        and tonumber(relation.source_action_id)
+                            == tonumber(evidence.source_action_id)
+                        and tonumber(relation.source_action_id) ~= step_id
+                        and type(relation.branch_types) == "table"
+                        and #relation.branch_types == 2
+                        and tonumber(relation.branch_types[1]) == 2
+                        and tonumber(relation.branch_types[2]) == 4
+                        and tonumber(relation.attr) == 0
+                        and tonumber(relation.action_frame) == 0
+                        and tonumber(relation.param00) == 0
+                        and tonumber(relation.param01) == 0
+                        and tonumber(relation.param02) == 0
+                        and tonumber(relation.param03) == 0
+                        and tonumber(relation.param04) == 0
+                        and tonumber(relation.param05) == 0
+                        and tonumber(relation.trigger_id) == -1
+                        and relation.reason == AC_TERMINAL_EXECUTION_PHASE_REASON
+                elseif same and evidence.kind == "ac_type2_numbered_execution_phase" then
+                    local phase_index = tonumber(relation.phase_index)
+                    local expected_attr = phase_index == 1 and 288
+                        or phase_index == 2 and 32 or nil
+                    local expected_param00 = phase_index == 1 and 1
+                        or phase_index == 2 and 2 or nil
+                    local expected_target = phase_index == 1
+                        and tonumber(relation.middle_action_id)
+                        or phase_index == 2 and tonumber(relation.tail_action_id) or nil
+                    local fingerprints = relation.fingerprint_fields
+                    same = entry.ownership == "internal_execution_phase"
+                        and tonumber(relation.source_action_id)
+                            == tonumber(evidence.source_action_id)
+                        and tonumber(relation.middle_action_id)
+                            == tonumber(evidence.middle_action_id)
+                        and tonumber(relation.tail_action_id)
+                            == tonumber(evidence.tail_action_id)
+                        and tonumber(relation.exit_action_id)
+                            == tonumber(evidence.exit_action_id)
+                        and tonumber(relation.target_action_id) == expected_target
+                        and expected_target == step_id
+                        and tonumber(relation.branch_type) == 2
+                        and tonumber(relation.attr) == expected_attr
+                        and tonumber(relation.action_frame) == 0
+                        and tonumber(relation.param00) == expected_param00
+                        and tonumber(relation.param01) == 0
+                        and tonumber(relation.param02) == 0
+                        and tonumber(relation.param03) == 0
+                        and tonumber(relation.param04) == 0
+                        and tonumber(relation.param05) == 0
+                        and tonumber(relation.trigger_id) == -1
+                        and tonumber(relation.exit_branch_type) == 13
+                        and type(fingerprints) == "table" and #fingerprints == 4
+                        and fingerprints[1] == "Category" and fingerprints[2] == "Combo"
+                        and fingerprints[3] == "Projectile" and fingerprints[4] == "State"
+                        and relation.reason == AC_NUMBERED_EXECUTION_PHASE_REASON
+                elseif same and evidence.kind == "ac_type2_same_structure_execution_phase" then
+                    local phase_index = tonumber(relation.phase_index)
+                    local expected_attr = phase_index == 1 and 288
+                        or phase_index == 2 and 32 or nil
+                    local expected_target = phase_index == 1
+                        and tonumber(relation.middle_action_id)
+                        or phase_index == 2 and tonumber(relation.tail_action_id) or nil
+                    local fingerprints = relation.fingerprint_fields
+                    same = entry.ownership == "internal_execution_phase"
+                        and tonumber(relation.source_action_id)
+                            == tonumber(evidence.source_action_id)
+                        and tonumber(relation.middle_action_id)
+                            == tonumber(evidence.middle_action_id)
+                        and tonumber(relation.tail_action_id)
+                            == tonumber(evidence.tail_action_id)
+                        and tonumber(relation.source_action_id)
+                            ~= tonumber(relation.middle_action_id)
+                        and tonumber(relation.middle_action_id)
+                            ~= tonumber(relation.tail_action_id)
+                        and tonumber(relation.source_action_id)
+                            ~= tonumber(relation.tail_action_id)
+                        and tonumber(relation.target_action_id) == expected_target
+                        and expected_target == step_id
+                        and tonumber(relation.branch_type) == 2
+                        and tonumber(relation.attr) == expected_attr
+                        and tonumber(relation.action_frame) == 0
+                        and tonumber(relation.param00) == 0
+                        and tonumber(relation.param01) == 0
+                        and tonumber(relation.param02) == 0
+                        and tonumber(relation.param03) == 0
+                        and tonumber(relation.param04) == 0
+                        and tonumber(relation.param05) == 0
+                        and tonumber(relation.trigger_id) == -1
+                        and type(fingerprints) == "table" and #fingerprints == 4
+                        and fingerprints[1] == "Category" and fingerprints[2] == "Combo"
+                        and fingerprints[3] == "Projectile" and fingerprints[4] == "State"
+                        and relation.reason == AC_SAME_STRUCTURE_EXECUTION_PHASE_REASON
                 else
                     same = false
                 end
@@ -1664,7 +1763,7 @@ build_slim_command_display_map = function(loaded)
                     item.commands.all = item.commands.simple == item.commands.motion
                         and item.commands.simple
                         or (item.commands.simple .. "/" .. item.commands.motion)
-                elseif not item.classic then
+                elseif item.status ~= "suppress_transition" and not item.classic then
                     item.status = "invalid_followup_relation"
                 end
                 item.simple = nil

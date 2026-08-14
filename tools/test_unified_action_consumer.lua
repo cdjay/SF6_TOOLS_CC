@@ -279,10 +279,52 @@ local generated_document = {
                 reason = "ac_type52_same_command_runtime_phase_family",
             },
         },
+        internal_transition_suppression_count = 2,
+        suppressed_internal_transitions = {
+            {
+                kind = "ac_type2_type4_terminal_execution_phase",
+                source_action_id = 952,
+                target_action_id = 953,
+                branch_types = { 2, 4 },
+                attr = 0,
+                action_frame = 0,
+                param00 = 0,
+                param01 = 0,
+                param02 = 0,
+                param03 = 0,
+                param04 = 0,
+                param05 = 0,
+                trigger_id = -1,
+                reason = "ac_type2_type4_zero_parameter_terminal_execution_phase",
+            },
+            {
+                kind = "ac_type2_same_structure_execution_phase",
+                source_action_id = 1062,
+                middle_action_id = 1063,
+                tail_action_id = 1064,
+                target_action_id = 1063,
+                phase_index = 1,
+                branch_type = 2,
+                attr = 288,
+                action_frame = 0,
+                param00 = 0,
+                param01 = 0,
+                param02 = 0,
+                param03 = 0,
+                param04 = 0,
+                param05 = 0,
+                trigger_id = -1,
+                fingerprint_fields = {
+                    "Category", "Combo", "Projectile", "State",
+                },
+                reason = "ac_type2_same_structure_zero_parameter_execution_phase",
+            },
+        },
         audit = {
             ac_state_direction_relation_count = 1,
             ac_state_direction_route_count = 1,
             ac_command_phase_relation_count = 1,
+            internal_transition_suppression_count = 2,
         },
     },
     ["100"] = {
@@ -313,6 +355,54 @@ local generated_document = {
             raw_direction_inputs = { 2, 6, 4 }, raw_button_mask = 16,
             raw_button_condition = 81952, raw_dc_exc_flags = 0, raw_ng_key_flags = 0,
         } },
+    },
+    ["953"] = {
+        ownership = "internal_execution_phase",
+        suppress_display = true,
+        transition_evidence = {
+            kind = "ac_type2_type4_terminal_execution_phase",
+            source_action_id = 952,
+            target_action_id = 953,
+            branch_types = { 2, 4 },
+            attr = 0,
+            action_frame = 0,
+            param00 = 0,
+            param01 = 0,
+            param02 = 0,
+            param03 = 0,
+            param04 = 0,
+            param05 = 0,
+            trigger_id = -1,
+            reason = "ac_type2_type4_zero_parameter_terminal_execution_phase",
+        },
+        routes = {},
+    },
+    ["1063"] = {
+        ownership = "internal_execution_phase",
+        suppress_display = true,
+        transition_evidence = {
+            kind = "ac_type2_same_structure_execution_phase",
+            source_action_id = 1062,
+            middle_action_id = 1063,
+            tail_action_id = 1064,
+            target_action_id = 1063,
+            phase_index = 1,
+            branch_type = 2,
+            attr = 288,
+            action_frame = 0,
+            param00 = 0,
+            param01 = 0,
+            param02 = 0,
+            param03 = 0,
+            param04 = 0,
+            param05 = 0,
+            trigger_id = -1,
+            fingerprint_fields = {
+                "Category", "Combo", "Projectile", "State",
+            },
+            reason = "ac_type2_same_structure_zero_parameter_execution_phase",
+        },
+        routes = {},
     },
 }
 local generated_relations = select(1,
@@ -373,6 +463,55 @@ assert(not consumer.should_preserve_absorbed_expected_action(
 assert(not consumer.should_preserve_absorbed_expected_action(
         true, { id = 100 }, 102, nil, nil, generated_relations),
     "an absorbed Action for a different step must remain a continuation")
+local yasmine_9940_internal = consumer.classify_runtime_transition({
+    previous_step = { id = 952, motion = ">6+P" },
+    expected_step = { id = 17, motion = "66" },
+    expected_action_matches_current = false,
+    actual_action_id = 953,
+    input_anchor_kind = "button_release",
+    generated_action_relations = generated_relations,
+})
+assert(yasmine_9940_internal.ignored == true
+        and yasmine_9940_internal.reason == "generated_internal_execution_phase",
+    "Yasmine 9940 must ignore the generated residue of the verified 952 step")
+local yasmine_3020_internal = consumer.classify_runtime_transition({
+    previous_step = { id = 1062, motion = "214+PP" },
+    expected_step = { id = 612, motion = "HP" },
+    expected_action_matches_current = false,
+    actual_action_id = 1063,
+    input_anchor_kind = "button_release",
+    generated_action_relations = generated_relations,
+})
+assert(yasmine_3020_internal.ignored == true
+        and yasmine_3020_internal.reason == "generated_internal_execution_phase",
+    "Yasmine 3020 must ignore the generated residue of the verified 1062 step")
+assert(consumer.classify_runtime_transition({
+        previous_step = { id = 951 },
+        expected_step = { id = 17 },
+        expected_action_matches_current = false,
+        actual_action_id = 953,
+        input_anchor_kind = "button_release",
+        generated_action_relations = generated_relations,
+    }).ignored == false,
+    "an internal phase must not be ignored for the wrong previous owner")
+assert(consumer.classify_runtime_transition({
+        previous_step = { id = 952 },
+        expected_step = { id = 953 },
+        expected_action_matches_current = true,
+        actual_action_id = 953,
+        input_anchor_kind = "button_release",
+        generated_action_relations = generated_relations,
+    }).reason == "expected_action",
+    "an explicitly recorded internal Action must remain a real V2 checkpoint")
+assert(consumer.classify_runtime_transition({
+        previous_step = { id = 952 },
+        expected_step = { id = 17 },
+        expected_action_matches_current = false,
+        actual_action_id = 953,
+        input_anchor_kind = "button_release",
+        generated_action_relations = nil,
+    }).ignored == false,
+    "missing or unvalidated generated evidence must fail closed")
 assert_equal(consumer.generated_action_command(generated_relations, 100), "HP",
     "generated classic commands must be available without presentation overrides")
 local gateway_hit, gateway_block = consumer.latch_buffer_contact(

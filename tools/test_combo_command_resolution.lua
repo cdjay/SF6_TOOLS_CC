@@ -1348,6 +1348,119 @@ assert(modern_motion == nil and modern_status == "strict_route",
 end
 
 do
+AC_TERMINAL_EXECUTION_PHASE_REASON =
+    "ac_type2_type4_zero_parameter_terminal_execution_phase"
+AC_NUMBERED_EXECUTION_PHASE_REASON =
+    "ac_type2_numbered_same_structure_execution_phase"
+AC_SAME_STRUCTURE_EXECUTION_PHASE_REASON =
+    "ac_type2_same_structure_zero_parameter_execution_phase"
+local terminal_evidence = {
+    kind = "ac_type2_type4_terminal_execution_phase",
+    source_action_id = 8200,
+    target_action_id = 8201,
+    branch_types = { 2, 4 },
+    attr = 0,
+    action_frame = 0,
+    param00 = 0,
+    param01 = 0,
+    param02 = 0,
+    param03 = 0,
+    param04 = 0,
+    param05 = 0,
+    trigger_id = -1,
+    reason = AC_TERMINAL_EXECUTION_PHASE_REASON,
+}
+local numbered_evidence = {
+    kind = "ac_type2_numbered_execution_phase",
+    source_action_id = 8210,
+    middle_action_id = 8211,
+    tail_action_id = 8212,
+    exit_action_id = 8299,
+    target_action_id = 8211,
+    phase_index = 1,
+    branch_type = 2,
+    attr = 288,
+    action_frame = 0,
+    param00 = 1,
+    param01 = 0,
+    param02 = 0,
+    param03 = 0,
+    param04 = 0,
+    param05 = 0,
+    trigger_id = -1,
+    exit_branch_type = 13,
+    fingerprint_fields = { "Category", "Combo", "Projectile", "State" },
+    reason = AC_NUMBERED_EXECUTION_PHASE_REASON,
+}
+local same_structure_evidence = {
+    kind = "ac_type2_same_structure_execution_phase",
+    source_action_id = 8230,
+    middle_action_id = 8231,
+    tail_action_id = 8232,
+    target_action_id = 8231,
+    phase_index = 1,
+    branch_type = 2,
+    attr = 288,
+    action_frame = 0,
+    param00 = 0,
+    param01 = 0,
+    param02 = 0,
+    param03 = 0,
+    param04 = 0,
+    param05 = 0,
+    trigger_id = -1,
+    fingerprint_fields = { "Category", "Combo", "Projectile", "State" },
+    reason = AC_SAME_STRUCTURE_EXECUTION_PHASE_REASON,
+}
+local phase_map = {
+    _meta = {
+        character = "InternalPhase",
+        suppressed_internal_transitions = {
+            terminal_evidence, numbered_evidence, same_structure_evidence,
+        },
+    },
+    ["8201"] = {
+        ownership = "internal_execution_phase",
+        suppress_display = true,
+        routes = {},
+        transition_evidence = terminal_evidence,
+    },
+    ["8211"] = {
+        ownership = "internal_execution_phase",
+        suppress_display = true,
+        routes = {},
+        transition_evidence = numbered_evidence,
+    },
+    ["8231"] = {
+        ownership = "internal_execution_phase",
+        suppress_display = true,
+        routes = {},
+        transition_evidence = same_structure_evidence,
+    },
+}
+local terminal_motion, terminal_status = get_modern_display_motion(phase_map, { id = 8201 })
+assert(terminal_motion == nil and terminal_status == "suppress_transition",
+    "an exact Type 2+4 terminal execution phase must remain hidden")
+local numbered_motion, numbered_status = get_modern_display_motion(phase_map, { id = 8211 })
+assert(numbered_motion == nil and numbered_status == "suppress_transition",
+    "an exact numbered execution phase must remain hidden")
+local same_structure_motion, same_structure_status =
+    get_modern_display_motion(phase_map, { id = 8231 })
+assert(same_structure_motion == nil and same_structure_status == "suppress_transition",
+    "an exact same-structure execution phase must remain hidden")
+local phase_slim = build_slim_command_display_map(phase_map)
+assert(phase_slim["8201"].status == "suppress_transition"
+        and phase_slim["8211"].status == "suppress_transition"
+        and phase_slim["8231"].status == "suppress_transition",
+    "slim cache construction must preserve audited transition suppression")
+numbered_evidence.attr = 32
+numbered_motion, numbered_status = get_modern_display_motion(phase_map, { id = 8211 })
+assert(numbered_motion == nil and numbered_status == "invalid_suppress_transition",
+    "a mutated numbered execution phase declaration must fail closed")
+numbered_evidence.attr = 288
+end
+
+do
 local legacy_honda_resolution = resolve_step_command_display(
     command_map, { id = 955, motion = "236+K" }, false)
 assert(legacy_honda_resolution.motion == "236+K"

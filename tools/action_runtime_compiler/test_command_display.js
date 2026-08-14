@@ -543,6 +543,37 @@ assert.strictEqual(edCatalog["1212"].ownership, "direct");
 assert.strictEqual(edCatalog["1212"].routes.length, 1);
 assert.strictEqual(edCatalog["1212"].routes[0].profile, "norm");
 assert.strictEqual(edCatalog["1212"].routes[0].projection_scope, "classic_only");
+const yasmineCatalog = JSON.parse(fs.readFileSync(
+    "data/TrainingComboTrials_data/command_display/Yasmine.json", "utf8"));
+for (const [id, display] of [["600", "LP"], ["612", "HP"], ["628", "2+MP"],
+    ["1014", "j.LP"]]) {
+    assert.strictEqual(yasmineCatalog[id].classic_command.display, display);
+    assert.strictEqual(yasmineCatalog[id].routes.some(route =>
+        route.source === "bcm_profile" && route.profile === "norm"
+            && route.projection_scope === "classic_only" && route.direct_evidence === true), true);
+}
+assert.strictEqual(yasmineCatalog["612"].routes.some(route =>
+    route.source === "bcm_assist_combo_recipe"), true);
+assert.strictEqual(yasmineCatalog["628"].routes.some(route =>
+    route.source === "bcm_assist_combo_recipe"), true);
+assert.strictEqual(yasmineCatalog["953"].suppress_display, true);
+assert.strictEqual(yasmineCatalog["953"].transition_evidence.kind,
+    "ac_type2_type4_terminal_execution_phase");
+for (const [id, phase] of [["984", 1], ["985", 2]]) {
+    assert.strictEqual(yasmineCatalog[id].suppress_display, true);
+    assert.strictEqual(yasmineCatalog[id].ownership, "internal_execution_phase");
+    assert.strictEqual(yasmineCatalog[id].transition_evidence.kind,
+        "ac_type2_numbered_execution_phase");
+    assert.strictEqual(yasmineCatalog[id].transition_evidence.phase_index, phase);
+}
+for (const [id, phase] of [["1063", 1], ["1064", 2]]) {
+    assert.strictEqual(yasmineCatalog[id].suppress_display, true);
+    assert.strictEqual(yasmineCatalog[id].ownership, "internal_execution_phase");
+    assert.strictEqual(yasmineCatalog[id].transition_evidence.kind,
+        "ac_type2_same_structure_execution_phase");
+    assert.strictEqual(yasmineCatalog[id].transition_evidence.phase_index, phase);
+    assert.strictEqual(yasmineCatalog[id].transition_evidence.source_action_id, 1062);
+}
 assert.strictEqual(modernText(output["640"]), "2 + 中");
 assert.strictEqual(modernText(output["627"]), "AUTO + 弱");
 assert.strictEqual(modernText(output["642"]), "空中 AUTO + 强");
@@ -1393,6 +1424,201 @@ assert.strictEqual(classicOnlyDirectOutput["8000"].routes[0].profile, "norm");
 assert.strictEqual(classicOnlyDirectOutput["8000"].routes[0].projection_scope, "classic_only");
 assert.strictEqual(classicOnlyDirectOutput["8000"].routes[0].direct_evidence, true);
 assert.strictEqual(classicOnlyDirectOutput._meta.unmapped_action_ids.includes(8000), false);
+
+const classicOnlyFunction1Catalog = { source: { character: "ClassicOnlyFunction1" }, actions: {
+    "8100": { action_id: 8100, triggers: [trigger(801, profiles(
+        null, null, null, profile(true, "LP", 16)), { function_id: 1 })] },
+    "8101": { action_id: 8101, triggers: [trigger(802, profiles(
+        null, null, null, profile(true, "2+MP", 32)), { function_id: 1 })] }
+} };
+classicOnlyFunction1Catalog.assist_combo_recipes = [{
+    action_id: 8101, trigger_id: 802, array_index: 160,
+    assist_strength: "中", strength_index: 2, recipe_index: 0,
+    step_index: 0, input_stage: "first"
+}];
+const classicOnlyFunction1Runtime = {
+    character: "ClassicOnlyFunction1", fighter_id: 200,
+    action_ids: [8100, 8101], actions: { "8100": "LP", "8101": "2+MP" },
+    aliases: {}, sources: { ac_sha256: "ac", bcm_sha256: "bcm" },
+    validation: { rules: {} }, evidence: { ac_derived_commands: [] }
+};
+const classicOnlyFunction1Output = commandDisplay.buildCommandDisplay(
+    {}, classicOnlyFunction1Catalog, classicOnlyFunction1Runtime, {}, {
+        generatedAt: "classic-only-function1"
+    });
+assert.strictEqual(classicOnlyFunction1Output["8100"].classic_command.display, "LP");
+assert.strictEqual(classicOnlyFunction1Output["8100"].control_support, "classic_only");
+assert.strictEqual(modernText(classicOnlyFunction1Output["8100"]), null);
+assert.strictEqual(classicOnlyFunction1Output["8100"].ownership, "direct");
+assert.strictEqual(classicOnlyFunction1Output["8100"].routes.length, 1);
+assert.strictEqual(classicOnlyFunction1Output["8100"].routes[0].source, "bcm_profile");
+assert.strictEqual(classicOnlyFunction1Output["8100"].routes[0].profile, "norm");
+assert.strictEqual(classicOnlyFunction1Output["8100"].routes[0].projection_scope, "classic_only");
+assert.strictEqual(classicOnlyFunction1Output["8100"].routes[0].direct_evidence, true);
+assert.strictEqual(modernText(classicOnlyFunction1Output["8101"]), "AUTO + 中");
+assert.strictEqual(classicOnlyFunction1Output["8101"].ownership, "assist_combo");
+assert.strictEqual(classicOnlyFunction1Output["8101"].routes.length, 2);
+assert.strictEqual(classicOnlyFunction1Output["8101"].routes.some(route =>
+    route.source === "bcm_profile" && route.profile === "norm"
+        && route.projection_scope === "classic_only" && route.direct_evidence === true), true);
+assert.strictEqual(classicOnlyFunction1Output["8101"].routes.some(route =>
+    route.source === "bcm_assist_combo_recipe" && route.assist_combo_evidence === true), true);
+
+const classicOnlyFunction2Catalog = { source: { character: "ClassicOnlyFunction2" }, actions: {
+    "8200": { action_id: 8200, triggers: [trigger(803, profiles(
+        profile(false, "j.Normal", 0),
+        profile(true, "j.2+LP+MP", 48),
+        profile(true, "j.2", 8192),
+        profile(true, "j.LP", 16)), {
+            function_id: 2,
+            cond_owner_state_flags: 4,
+            atck_type_bit: 1,
+            kind_level: 4
+        })] },
+    "8201": { action_id: 8201, triggers: [trigger(804, profiles(
+        profile(false, "j.Normal", 0),
+        profile(true, "j.2+LP+MP", 48),
+        profile(true, "j.2", 8192),
+        profile(true, "j.LP", 16)), {
+            function_id: 2,
+            cond_owner_state_flags: 4,
+            atck_type_bit: 0,
+            kind_level: 4
+        })] }
+} };
+const classicOnlyFunction2Runtime = {
+    character: "ClassicOnlyFunction2", fighter_id: 201,
+    action_ids: [8200, 8201], actions: { "8200": "j.LP", "8201": "j.LP" },
+    aliases: {}, sources: { ac_sha256: "ac", bcm_sha256: "bcm" },
+    validation: { rules: {} }, evidence: { ac_derived_commands: [] }
+};
+const classicOnlyFunction2Output = commandDisplay.buildCommandDisplay(
+    {}, classicOnlyFunction2Catalog, classicOnlyFunction2Runtime, {}, {
+        generatedAt: "classic-only-function2"
+    });
+assert.strictEqual(classicOnlyFunction2Output["8200"].classic_command.display, "j.LP");
+assert.strictEqual(classicOnlyFunction2Output["8200"].control_support, "classic_only");
+assert.strictEqual(modernText(classicOnlyFunction2Output["8200"]), null);
+assert.strictEqual(classicOnlyFunction2Output["8200"].ownership, "direct");
+assert.strictEqual(classicOnlyFunction2Output["8200"].routes.length, 1);
+assert.strictEqual(classicOnlyFunction2Output["8200"].routes[0].source, "bcm_profile");
+assert.strictEqual(classicOnlyFunction2Output["8200"].routes[0].profile, "norm");
+assert.strictEqual(classicOnlyFunction2Output["8200"].routes[0].projection_scope, "classic_only");
+assert.strictEqual(classicOnlyFunction2Output["8200"].routes[0].direct_evidence, true);
+assert.strictEqual(classicOnlyFunction2Output._meta.unmapped_action_ids.includes(8200), false);
+assert.strictEqual(classicOnlyFunction2Output["8201"].ownership, "classic_runtime");
+assert.strictEqual(classicOnlyFunction2Output["8201"].routes.length, 0);
+assert.strictEqual(classicOnlyFunction2Output._meta.unmapped_action_ids.includes(8201), true);
+
+function makeInternalExecutionPhaseSource() {
+    let nextObjectId = 9000;
+    const objects = [], records = [];
+    const addObject = object => {
+        const result = { object_id: nextObjectId++, ...object };
+        objects.push(result);
+        return result.object_id;
+    };
+    const structureRefs = {};
+    for (const name of ["Category", "Combo", "Projectile", "State"]) {
+        structureRefs[name] = addObject({
+            kind: "managed-object", object_type: `Phase.${name}`, fields: []
+        });
+    }
+    const addAction = (actionId, branchSpecs) => {
+        const branchRefs = branchSpecs.map(spec => {
+            const values = {
+                Action: spec.action, Type: spec.type, Attr: spec.attr || 0,
+                ActionFrame: 0, Param00: spec.p00 || 0, Param01: 0,
+                Param02: 0, Param03: 0, Param04: 0, Param05: 0, TriggerID: -1
+            };
+            return ref(addObject({
+                kind: "managed-object", object_type: "CharacterAsset.BranchKey",
+                fields: Object.entries(values).map(([name, value]) =>
+                    ({ name, value: scalar(value) }))
+            }));
+        });
+        const keysId = addObject({
+            kind: "managed-array", object_type: "Phase.Keys",
+            items: branchRefs.map((value, index) => ({ index, value }))
+        });
+        const rootId = addObject({
+            kind: "managed-object", object_type: "FAB.ACTION",
+            fields: [
+                { name: "ActionID", value: scalar(actionId) },
+                { name: "ActionFrame", value: scalar(0) },
+                { name: "Frame", value: scalar(60) },
+                ...Object.entries(structureRefs).map(([name, objectId]) =>
+                    ({ name, value: ref(objectId) })),
+                { name: "Keys", value: ref(keysId) }
+            ]
+        });
+        records.push({ source_scope: "character", native_action_id: actionId,
+            action_ref: ref(rootId) });
+    };
+    addAction(8200, [
+        { action: 8201, type: 2 }, { action: 8201, type: 4 }
+    ]);
+    addAction(8201, []);
+    addAction(8210, [
+        { action: 8211, type: 2, attr: 288, p00: 1 },
+        { action: 8212, type: 2, attr: 32, p00: 2 },
+        { action: 8299, type: 13 }
+    ]);
+    addAction(8211, [
+        { action: 8212, type: 2, attr: 32, p00: 2 },
+        { action: 8299, type: 13 }
+    ]);
+    addAction(8212, [{ action: 8299, type: 13 }]);
+    addAction(8299, []);
+    addAction(8230, [
+        { action: 8231, type: 2, attr: 288 },
+        { action: 8232, type: 2, attr: 32 }
+    ]);
+    addAction(8231, [{ action: 8232, type: 2, attr: 32 }]);
+    addAction(8232, []);
+    addAction(8220, [{ action: 8221, type: 2 }]);
+    addAction(8221, []);
+    return { records, objects };
+}
+
+const internalPhaseCatalog = { source: { character: "InternalPhase" }, actions: {
+    "8200": { action_id: 8200, triggers: [trigger(820, profiles(
+        profile(true, "236+MP", 32)), { function_id: 2 })] },
+    "8210": { action_id: 8210, triggers: [trigger(821, profiles(
+        profile(true, "623+MK", 256)), { function_id: 2 })] },
+    "8230": { action_id: 8230, triggers: [trigger(823, profiles(
+        profile(true, "214+PP", 112)), { function_id: 2 })] },
+    "8220": { action_id: 8220, triggers: [trigger(822, profiles(
+        profile(true, "236+HP", 64)), { function_id: 2 })] }
+} };
+const internalPhaseRuntime = {
+    character: "InternalPhase", fighter_id: 201,
+    action_ids: [8200, 8201, 8210, 8211, 8212, 8220, 8221, 8230, 8231, 8232, 8299],
+    actions: { "8200": "236+MP", "8210": "623+MK",
+        "8220": "236+HP", "8230": "214+PP" },
+    aliases: {}, sources: { ac_sha256: "ac", bcm_sha256: "bcm" },
+    validation: { rules: {} }, evidence: { ac_derived_commands: [] }
+};
+const internalPhaseOutput = commandDisplay.buildCommandDisplay(
+    makeInternalExecutionPhaseSource(), internalPhaseCatalog, internalPhaseRuntime, {}, {
+        generatedAt: "internal-execution-phase"
+    });
+assert.strictEqual(internalPhaseOutput["8201"].suppress_display, true);
+assert.strictEqual(internalPhaseOutput["8201"].ownership, "internal_execution_phase");
+assert.strictEqual(internalPhaseOutput["8201"].transition_evidence.kind,
+    "ac_type2_type4_terminal_execution_phase");
+assert.strictEqual(internalPhaseOutput["8211"].suppress_display, true);
+assert.strictEqual(internalPhaseOutput["8211"].transition_evidence.phase_index, 1);
+assert.strictEqual(internalPhaseOutput["8212"].suppress_display, true);
+assert.strictEqual(internalPhaseOutput["8212"].transition_evidence.phase_index, 2);
+assert.strictEqual(internalPhaseOutput["8231"].suppress_display, true);
+assert.strictEqual(internalPhaseOutput["8231"].transition_evidence.kind,
+    "ac_type2_same_structure_execution_phase");
+assert.strictEqual(internalPhaseOutput["8231"].transition_evidence.phase_index, 1);
+assert.strictEqual(internalPhaseOutput["8232"].suppress_display, true);
+assert.strictEqual(internalPhaseOutput["8232"].transition_evidence.phase_index, 2);
+assert.strictEqual(internalPhaseOutput["8221"], undefined,
+    "a lone Type 2 edge must not be guessed as an internal execution phase");
 
 const deterministic = commandDisplay.buildCommandDisplay(actionSource, catalog, runtime, {}, {
     generatedAt: "test", officialSemantics, officialSemanticsSha256: "official"

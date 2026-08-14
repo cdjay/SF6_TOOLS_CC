@@ -30,6 +30,9 @@ const AC_STATE_NEUTRAL_REASON = "ac_type1_neutral_branch_beside_multi_direction_
 const AC_TYPE13_NEUTRAL_REASON = "ac_type13_zero_input_terminal_continuation_with_directional_sibling";
 const AC_STATE_RELEASE_REASON = "ac_type20_release_transition_from_verified_direction_state";
 const BCM_ZERO_INPUT_TRANSITION_REASON = "bcm_function2_normal_has_no_player_visible_input";
+const AC_TERMINAL_EXECUTION_PHASE_REASON = "ac_type2_type4_zero_parameter_terminal_execution_phase";
+const AC_NUMBERED_EXECUTION_PHASE_REASON = "ac_type2_numbered_same_structure_execution_phase";
+const AC_SAME_STRUCTURE_EXECUTION_PHASE_REASON = "ac_type2_same_structure_zero_parameter_execution_phase";
 const TARGET_COMBO_REPEAT_REASON = "bcm_turn_around_target_combo_repeats_parent_button";
 const STRUCTURAL_TWIN_REASON = "ac_bcm_unique_structural_twin_with_internal_use_super_delta";
 const AC_COMMAND_PHASE_REASON = "ac_type52_same_command_runtime_phase_family";
@@ -985,6 +988,25 @@ function canonicalClassicIdentity(value) {
         .replace(/KKK$/i, "LKMKHK");
 }
 
+const AERIAL_NORMAL_ATTACK_BITS = Object.freeze({
+    LP: 1, MP: 2, HP: 4, LK: 8, MK: 16, HK: 32
+});
+
+function isDirectFunction2AerialNormal(trigger, classicIdentity) {
+    const conditions = trigger && trigger.conditions || {};
+    const norm = trigger && trigger.profiles && trigger.profiles.norm;
+    const match = String(classicIdentity || "").match(/^j\.(LP|MP|HP|LK|MK|HK)$/i);
+    if (Number(conditions.function_id) !== 2
+        || Number(conditions.cond_owner_state_flags) !== 4
+        || !match || !norm || norm.enabled !== true
+        || Number(norm.command_no) !== -1 || Number(norm.command_index) !== -1) return false;
+    const button = match[1].toUpperCase();
+    return Number(conditions.atck_type_bit) === AERIAL_NORMAL_ATTACK_BITS[button]
+        && Number(norm.ok_key_flags) === ({
+            LP: 16, MP: 32, HP: 256, LK: 64, MK: 128, HK: 512
+        })[button];
+}
+
 function exactOfficialButtonDisplay(entry) {
     if (!entry || !["NORMAL", "AIR"].includes(String(entry.category || ""))) return null;
     const compact = String(entry.modern_display || "").replace(/強/g, "强")
@@ -1553,6 +1575,157 @@ function exactStateBranch(branch, type, param00, param01) {
         && Number(branch.Param02) === 0 && Number(branch.Param03) === 0
         && Number(branch.Param04) === 0 && Number(branch.Param05) === 0
         && Number(branch.TriggerID) === -1;
+}
+
+function exactExecutionBranch(branch, type, attr, param00) {
+    return Number(branch.Type) === type && Number(branch.Attr) === attr
+        && Number(branch.ActionFrame) === 0 && Number(branch.Param00) === param00
+        && Number(branch.Param01) === 0 && Number(branch.Param02) === 0
+        && Number(branch.Param03) === 0 && Number(branch.Param04) === 0
+        && Number(branch.Param05) === 0 && Number(branch.TriggerID) === -1;
+}
+
+function strictInternalExecutionPhaseRelations(actionSource, bcmCatalog, actionSet) {
+    const { objects, actions } = characterActionGraph(actionSource, actionSet);
+    const branchesByAction = new Map([...actions].map(([id, root]) =>
+        [id, actionBranches(root, objects).filter(branch => Number(branch.Action) !== id)]));
+    const hasBcm = actionId => Object.prototype.hasOwnProperty.call(
+        bcmCatalog.actions || {}, String(actionId));
+    const incomingByTarget = new Map();
+    for (const [sourceId, branches] of branchesByAction) {
+        for (const branch of branches) {
+            const targetId = Number(branch.Action);
+            if (!actions.has(targetId)) continue;
+            if (!incomingByTarget.has(targetId)) incomingByTarget.set(targetId, []);
+            incomingByTarget.get(targetId).push({ source_action_id: sourceId, branch });
+        }
+    }
+
+    const relations = [];
+    for (const [targetId, incoming] of incomingByTarget) {
+        const sources = [...new Set(incoming.map(item => item.source_action_id))];
+        if (hasBcm(targetId) || sources.length !== 1 || incoming.length !== 2
+            || !hasBcm(sources[0]) || (branchesByAction.get(targetId) || []).length !== 0) continue;
+        const type2 = incoming.filter(item => exactExecutionBranch(item.branch, 2, 0, 0));
+        const type4 = incoming.filter(item => exactExecutionBranch(item.branch, 4, 0, 0));
+        if (type2.length !== 1 || type4.length !== 1) continue;
+        relations.push({
+            kind: "ac_type2_type4_terminal_execution_phase",
+            source_action_id: sources[0],
+            target_action_id: targetId,
+            branch_types: [2, 4],
+            attr: 0,
+            action_frame: 0,
+            param00: 0,
+            param01: 0,
+            param02: 0,
+            param03: 0,
+            param04: 0,
+            param05: 0,
+            trigger_id: -1,
+            reason: AC_TERMINAL_EXECUTION_PHASE_REASON
+        });
+    }
+
+    for (const [sourceId, sourceRoot] of actions) {
+        if (!hasBcm(sourceId)) continue;
+        const sourceBranches = branchesByAction.get(sourceId) || [];
+        const sourceStructure = actionStructureCategory(sourceRoot, objects);
+        const zeroPhase1 = sourceBranches.filter(branch =>
+            exactExecutionBranch(branch, 2, 288, 0));
+        const zeroPhase2 = sourceBranches.filter(branch =>
+            exactExecutionBranch(branch, 2, 32, 0));
+        if (sourceBranches.length === 2 && zeroPhase1.length === 1
+            && zeroPhase2.length === 1 && sourceStructure != null) {
+            const middleId = Number(zeroPhase1[0].Action);
+            const tailId = Number(zeroPhase2[0].Action);
+            const middleBranches = branchesByAction.get(middleId) || [];
+            const tailBranches = branchesByAction.get(tailId) || [];
+            const middleToTail = middleBranches.filter(branch =>
+                exactExecutionBranch(branch, 2, 32, 0) && Number(branch.Action) === tailId);
+            const exactFamily = middleId !== tailId
+                && actions.has(middleId) && actions.has(tailId)
+                && !hasBcm(middleId) && !hasBcm(tailId)
+                && actionStructureCategory(actions.get(middleId), objects) === sourceStructure
+                && actionStructureCategory(actions.get(tailId), objects) === sourceStructure
+                && middleBranches.length === 1 && middleToTail.length === 1
+                && tailBranches.length === 0;
+            if (exactFamily) for (const phase of [
+                { target_action_id: middleId, phase_index: 1, attr: 288 },
+                { target_action_id: tailId, phase_index: 2, attr: 32 }
+            ]) relations.push({
+                kind: "ac_type2_same_structure_execution_phase",
+                source_action_id: sourceId,
+                middle_action_id: middleId,
+                tail_action_id: tailId,
+                target_action_id: phase.target_action_id,
+                phase_index: phase.phase_index,
+                branch_type: 2,
+                attr: phase.attr,
+                action_frame: 0,
+                param00: 0,
+                param01: 0,
+                param02: 0,
+                param03: 0,
+                param04: 0,
+                param05: 0,
+                trigger_id: -1,
+                fingerprint_fields: [...AC_STRUCTURE_FIELDS],
+                reason: AC_SAME_STRUCTURE_EXECUTION_PHASE_REASON
+            });
+        }
+        const phase1 = sourceBranches.filter(branch => exactExecutionBranch(branch, 2, 288, 1));
+        const phase2 = sourceBranches.filter(branch => exactExecutionBranch(branch, 2, 32, 2));
+        const exits = sourceBranches.filter(branch => exactExecutionBranch(branch, 13, 0, 0));
+        if (sourceBranches.length !== 3 || phase1.length !== 1 || phase2.length !== 1
+            || exits.length !== 1) continue;
+        const middleId = Number(phase1[0].Action);
+        const tailId = Number(phase2[0].Action);
+        const exitId = Number(exits[0].Action);
+        if (middleId === tailId || middleId === exitId || tailId === exitId
+            || !actions.has(middleId) || !actions.has(tailId)
+            || hasBcm(middleId) || hasBcm(tailId)) continue;
+        if (sourceStructure == null
+            || actionStructureCategory(actions.get(middleId), objects) !== sourceStructure
+            || actionStructureCategory(actions.get(tailId), objects) !== sourceStructure) continue;
+        const middleBranches = branchesByAction.get(middleId) || [];
+        const tailBranches = branchesByAction.get(tailId) || [];
+        const middleToTail = middleBranches.filter(branch =>
+            exactExecutionBranch(branch, 2, 32, 2) && Number(branch.Action) === tailId);
+        const middleExit = middleBranches.filter(branch =>
+            exactExecutionBranch(branch, 13, 0, 0) && Number(branch.Action) === exitId);
+        const tailExit = tailBranches.filter(branch =>
+            exactExecutionBranch(branch, 13, 0, 0) && Number(branch.Action) === exitId);
+        if (middleBranches.length !== 2 || middleToTail.length !== 1 || middleExit.length !== 1
+            || tailBranches.length !== 1 || tailExit.length !== 1) continue;
+        for (const phase of [
+            { target_action_id: middleId, phase_index: 1, attr: 288, param00: 1 },
+            { target_action_id: tailId, phase_index: 2, attr: 32, param00: 2 }
+        ]) relations.push({
+            kind: "ac_type2_numbered_execution_phase",
+            source_action_id: sourceId,
+            middle_action_id: middleId,
+            tail_action_id: tailId,
+            exit_action_id: exitId,
+            target_action_id: phase.target_action_id,
+            phase_index: phase.phase_index,
+            branch_type: 2,
+            attr: phase.attr,
+            action_frame: 0,
+            param00: phase.param00,
+            param01: 0,
+            param02: 0,
+            param03: 0,
+            param04: 0,
+            param05: 0,
+            trigger_id: -1,
+            exit_branch_type: 13,
+            fingerprint_fields: [...AC_STRUCTURE_FIELDS],
+            reason: AC_NUMBERED_EXECUTION_PHASE_REASON
+        });
+    }
+    return relations.sort((left, right) => left.target_action_id - right.target_action_id
+        || left.source_action_id - right.source_action_id);
 }
 
 function strictStateChoiceEvidence(actionSource, bcmCatalog, actionSet) {
@@ -2842,6 +3015,8 @@ function buildCommandDisplay(actionSource, bcmCatalog, runtime, supplement, opti
     const acChargePlan = acChargeContextEvidence(actionSource, bcmCatalog, actionSet);
     const stateChoicePlan = strictStateChoiceEvidence(actionSource, bcmCatalog, actionSet);
     const zeroInputTransitions = strictBcmZeroInputTransitions(bcmCatalog, runtime, actionSet);
+    const internalExecutionTransitions = strictInternalExecutionPhaseRelations(
+        actionSource, bcmCatalog, actionSet);
 
     for (const [id, action] of Object.entries(bcmCatalog.actions || {})) {
         if (!actionSet.has(id)) continue;
@@ -3289,6 +3464,18 @@ function buildCommandDisplay(actionSource, bcmCatalog, runtime, supplement, opti
         };
         suppressedInternalTransitions.push(evidence);
     }
+    for (const relation of internalExecutionTransitions) {
+        const targetId = String(relation.target_action_id);
+        if (!actionSet.has(targetId) || entries[targetId]) continue;
+        const evidence = { ...relation };
+        entries[targetId] = {
+            routes: [],
+            ownership: "internal_execution_phase",
+            suppress_display: true,
+            transition_evidence: evidence
+        };
+        suppressedInternalTransitions.push(evidence);
+    }
     suppressedInternalTransitions.sort((left, right) =>
         Number(left.target_action_id) - Number(right.target_action_id));
 
@@ -3400,18 +3587,28 @@ function buildCommandDisplay(actionSource, bcmCatalog, runtime, supplement, opti
         || Number(left.trigger_index || -1) - Number(right.trigger_index || -1)
         || String(left.profile).localeCompare(String(right.profile)));
 
-    // Function 3 can expose only a Classic norm command. Preserve that direct
-    // BCM identity after all Modern and relationship projections have settled.
+    // A direct trigger can expose only a Classic norm command. Preserve that
+    // BCM identity when no other route was generated. Function 1 Assist Combo
+    // routes are the sole exception: their Modern recipe may coexist with the
+    // independent Classic norm evidence.
     for (const [id, action] of Object.entries(bcmCatalog.actions || {})) {
-        if (!actionSet.has(id) || entries[id]) continue;
+        if (!actionSet.has(id) || entries[id] && entries[id].suppress_display === true) continue;
         const classicDisplay = runtime.actions && runtime.actions[id]
             || action && action.classic_display;
         const classicIdentity = canonicalClassicIdentity(classicDisplay);
         if (!classicIdentity) continue;
-        const routes = [], seen = new Set();
+        const entry = entries[id];
+        if (entry && entry.ownership !== "assist_combo") continue;
+        const routes = entry && entry.routes || [];
+        const seen = new Set(routes.map(routeKey));
+        const initialRouteCount = routes.length;
         for (const trigger of action.triggers || []) {
             const norm = trigger.profiles && trigger.profiles.norm;
-            if (Number(trigger.conditions && trigger.conditions.function_id) !== 3
+            const functionId = Number(trigger.conditions && trigger.conditions.function_id);
+            const classicOnlyDirect = functionId === 3 && !entry
+                || !entry && isDirectFunction2AerialNormal(trigger, classicIdentity)
+                || functionId === 1 && !triggerHasModernProfile(trigger);
+            if (!classicOnlyDirect
                 || !norm || norm.enabled !== true
                 || canonicalClassicIdentity(norm.notation) !== classicIdentity) continue;
             const detail = resolved(String(classicDisplay).trim(), null, null, [],
@@ -3419,7 +3616,8 @@ function buildCommandDisplay(actionSource, bcmCatalog, runtime, supplement, opti
             pushClassicVerificationRoute(routes, seen, classicDisplay,
                 routeProvenance(character, id, trigger, "norm", norm, detail, "bcm_profile"));
         }
-        if (routes.length) entries[id] = { routes, ownership: "direct" };
+        if (!entry && routes.length) entries[id] = { routes, ownership: "direct" };
+        else if (entry && routes.length > initialRouteCount) entry.routes = routes;
     }
 
     const sortedActionIds = [...actionSet].map(Number).sort((left, right) => left - right);
