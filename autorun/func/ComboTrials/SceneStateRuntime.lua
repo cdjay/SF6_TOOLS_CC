@@ -1,5 +1,6 @@
 local SceneState = require("func/ComboTrials/SceneState")
 local GS = require("func/GameState")
+local TrainingParameterRefresh = require("func/TrainingParameterRefresh")
 
 local SceneStateRuntime = {
     name = "ComboTrials.SceneStateRuntime",
@@ -247,7 +248,8 @@ function SceneStateRuntime.apply(first_step, playing_player, trial_state, apply_
     -- bApply once per player can latch the first refresh and discard P2.
     local settings_changed = false
     local refresh_objects = nil
-    if apply_refresh_settings == true then
+    local retry_refresh_settings = trial_state._scene_parameter_refresh_retry == true
+    if apply_refresh_settings == true or retry_refresh_settings then
         for _, entry in ipairs(prepared) do
             if entry.has_resources or entry.has_drive_status then
                 local entry_changed, objects = apply_training_settings(
@@ -261,12 +263,19 @@ function SceneStateRuntime.apply(first_step, playing_player, trial_state, apply_
             end
         end
         if settings_changed then
-            if refresh_objects and refresh_objects.tf_ps then
-                pcall(function() refresh_objects.tf_ps:call("bApply") end)
+            local refresh_ok, refresh_reason = TrainingParameterRefresh.request(
+                refresh_objects
+            )
+            trial_state._scene_parameter_refresh = {
+                requested = refresh_ok == true,
+                reason = refresh_reason,
+            }
+            trial_state._scene_parameter_refresh_retry = refresh_ok ~= true
+            if retry_refresh_settings or refresh_ok ~= true then
+                trial_state._pending_reinject_settings = true
             end
-            local tm = refresh_objects and refresh_objects.tm
-                or sdk.get_managed_singleton("app.training.TrainingManager")
-            if tm then pcall(function() tm._IsReqRefresh = true end) end
+        elseif retry_refresh_settings then
+            trial_state._scene_parameter_refresh_retry = false
         end
     end
 

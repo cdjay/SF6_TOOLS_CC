@@ -68,6 +68,9 @@ local tf_parameter_setting = {
     end,
 }
 local training_manager = object({ _IsReqRefresh = false })
+local parameter_setting = object({})
+local training_data = object({ ParameterSetting = parameter_setting })
+training_manager._tData = training_data
 local backups = {}
 
 sdk = {
@@ -84,6 +87,8 @@ function get_training_parameter_probe_objects(player_index)
     if player_index ~= 0 then return { tm = training_manager, tf_ps = tf_parameter_setting } end
     return {
         tm = training_manager,
+        training_data = training_data,
+        parameter_setting = parameter_setting,
         player_params = player_params,
         param_func = param_func,
         tf_ps = tf_parameter_setting,
@@ -118,8 +123,8 @@ assert(player_params.Is_Vital_Infinity == false
         and player_params.Is_KO == false
         and player_params.Is_Point_Lock == false,
     "scene HP ownership must disable training auto-recovery and conflicting locks")
-assert(tf_parameter_setting.apply_count == 1 and training_manager._IsReqRefresh == true,
-    "scene HP settings must be applied through one refresh transaction")
+assert(tf_parameter_setting.apply_count == 0 and training_manager._IsReqRefresh == true,
+    "scene HP settings must request one refresh without invoking tf_ParameterSetting.bApply")
 assert(p1.vital_new == 4200 and p1.vital_old == 4200
         and p1.heal_new == 4500 and p1.heal_old == 4500,
     "scene runtime must preserve exact current and recoverable HP")
@@ -129,5 +134,29 @@ assert(backups[0].Vital_Point == 100
     "scene HP settings must be backed up before mutation")
 assert(trial_state._hp_snapshot_applied_current_session == true,
     "scene HP application must retain restoration ownership")
+
+training_manager._IsReqRefresh = false
+training_data.ParameterSetting = object({})
+local stale_trial_state = {}
+assert(SceneStateRuntime.apply({}, 0, stale_trial_state, true) == true,
+    "live scene resources may still apply while a stale refresh request fails closed")
+assert(training_manager._IsReqRefresh == false
+        and stale_trial_state._scene_parameter_refresh.requested == false
+        and stale_trial_state._scene_parameter_refresh.reason == "stale_parameter_setting"
+        and stale_trial_state._scene_parameter_refresh_retry == true
+        and stale_trial_state._pending_reinject_settings == true
+        and tf_parameter_setting.apply_count == 0,
+    "scene refresh must never invoke or request through a replaced ParameterSetting")
+
+training_data.ParameterSetting = parameter_setting
+assert(SceneStateRuntime.apply({}, 0, stale_trial_state, false) == true,
+    "a failed scene refresh must retry after ParameterSetting identity stabilizes")
+assert(training_manager._IsReqRefresh == true
+        and stale_trial_state._scene_parameter_refresh.requested == true
+        and stale_trial_state._scene_parameter_refresh.reason == "refresh_requested"
+        and stale_trial_state._scene_parameter_refresh_retry == false
+        and stale_trial_state._pending_reinject_settings == true
+        and tf_parameter_setting.apply_count == 0,
+    "the stable retry must request refresh and retain one post-refresh reinjection")
 
 print("combo scene state runtime tests passed")

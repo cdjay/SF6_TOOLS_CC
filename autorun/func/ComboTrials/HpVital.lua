@@ -1,6 +1,7 @@
 local GS = require("func/GameState")
 local SceneState = require("func/ComboTrials/SceneState")
 local SceneStateRuntime = require("func/ComboTrials/SceneStateRuntime")
+local TrainingParameterRefresh = require("func/TrainingParameterRefresh")
 
 local HpVital = {
     name = "ComboTrials.HpVital",
@@ -356,7 +357,7 @@ function HpVital.restore_hp_training_setting_if_needed(reason, preferred_player_
 
     debug.called = true
     local restored_any = false
-    local bapply_target = nil
+    local refresh_objects = nil
 
     if had_backup then
         for player_idx, item in pairs(backup.players) do
@@ -380,7 +381,7 @@ function HpVital.restore_hp_training_setting_if_needed(reason, preferred_player_
             debug.before = debug.before or restore_item.before
             debug.after = debug.after or restore_item.after
             restored_any = true
-            bapply_target = bapply_target or objects.tf_ps
+            refresh_objects = refresh_objects or objects
         end
     else
         local idx = tonumber(preferred_player_idx or trial_state.playing_player or 0) or 0
@@ -405,24 +406,20 @@ function HpVital.restore_hp_training_setting_if_needed(reason, preferred_player_
         debug.before = restore_item.before
         debug.after = restore_item.after
         restored_any = true
-        bapply_target = objects.tf_ps
+        refresh_objects = objects
     end
 
-    if bapply_target then
-        local bapply_ok, bapply_err = pcall(function()
-            bapply_target:call("bApply")
-        end)
-        debug.bapply_called = true
-        debug.bapply_ok = bapply_ok == true
-        if not bapply_ok then debug.bapply_error = tostring(bapply_err) end
-    else
-        debug.bapply_called = false
-        debug.bapply_ok = false
-        debug.bapply_error = "missing_tf_parameter_setting"
-    end
+    debug.bapply_called = false
+    debug.bapply_ok = false
+    debug.bapply_error = "disabled_for_parameter_refresh_safety"
+    local refresh_requested, refresh_reason = TrainingParameterRefresh.request(
+        refresh_objects
+    )
+    debug.refresh_requested = refresh_requested == true
+    debug.refresh_reason = refresh_reason
 
     debug.restored_any = restored_any
-    if debug.bapply_ok == true then
+    if debug.refresh_requested == true then
         trial_state._hp_snapshot_applied_current_session = false
         trial_state._hp_training_setting_backup = nil
         debug.backup_cleared = true

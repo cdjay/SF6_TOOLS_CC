@@ -66,16 +66,27 @@ local function append_reason(evaluation, reason)
     evaluation.ok = false
 end
 
-local function exact_action_sequence_matches(sequence, compiled)
+local function exact_action_sequence_matches(sequence, compiled, runtime)
     local steps = type(compiled) == "table" and compiled.steps or nil
     if type(sequence) ~= "table" or type(steps) ~= "table"
         or #sequence == 0 or #sequence ~= #steps then
         return false
     end
     for index = 1, #sequence do
-        if tonumber(sequence[index] and sequence[index].id)
-            ~= tonumber(steps[index] and steps[index].id) then
-            return false
+        local expected_id = tonumber(sequence[index] and sequence[index].id)
+        local observed_id = tonumber(steps[index] and steps[index].id)
+        if expected_id ~= observed_id then
+            if type(runtime) ~= "table"
+                or type(runtime.action_ids_equivalent) ~= "function" then
+                return false
+            end
+            local ok, equivalent = pcall(
+                runtime.action_ids_equivalent,
+                expected_id,
+                observed_id,
+                index
+            )
+            if not ok or equivalent ~= true then return false end
         end
     end
     return true
@@ -212,7 +223,7 @@ end
 
 -- Burnout chip damage can arrive as HP-loss samples after the first contact of
 -- a terminal multi-hit super even though the Action owner never changes. Audit
--- only: require full guard, exact Actions, completed UI, and exact HP closure.
+-- only: require full guard, shared semantic Actions, completed UI, and exact HP closure.
 local function burnout_guard_chip_tail_proof(sequence, compiled, runtime, evaluation)
     local reasons = type(evaluation) == "table" and evaluation.reasons or nil
     local expected = type(evaluation) == "table" and evaluation.expected or nil
@@ -240,7 +251,7 @@ local function burnout_guard_chip_tail_proof(sequence, compiled, runtime, evalua
         or source_guard ~= TrainingEnvironment.DUMMY_GUARD.ALL
         or observed_guard ~= TrainingEnvironment.DUMMY_GUARD.ALL
         or not recorded_defender_is_burned_out(sequence)
-        or not exact_action_sequence_matches(sequence, compiled)
+        or not exact_action_sequence_matches(sequence, compiled, runtime)
         or type(expected) ~= "table" or type(observed) ~= "table"
         or type(steps) ~= "table" or type(trace) ~= "table" then
         return nil
@@ -269,8 +280,10 @@ local function burnout_guard_chip_tail_proof(sequence, compiled, runtime, evalua
     if type(expected_terminal) ~= "table"
         or type(observed_terminal) ~= "table"
         or type(bound_terminal) ~= "table"
-        or tonumber(expected_terminal.id) ~= tonumber(observed_terminal.id)
-        or tonumber(observed_terminal.id) ~= tonumber(bound_terminal.id)
+        or not runtime_action_ids_match(runtime,
+            expected_terminal.id, observed_terminal.id, #sequence)
+        or not runtime_action_ids_match(runtime,
+            observed_terminal.id, bound_terminal.id, #sequence)
         or (bound_terminal.has_contact ~= true and bound_terminal.has_hit ~= true)
         or math.abs((tonumber(expected_terminal.damage_at_step) or -1)
             - expected_damage) > 1

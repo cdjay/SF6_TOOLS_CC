@@ -261,9 +261,28 @@ local generated_document = {
                 source_action_ids = { 101, 102 },
             },
         },
+        ac_command_phase_relation_count = 1,
+        ac_command_phase_relations = {
+            {
+                source_action_id = 936,
+                target_action_id = 915,
+                action_ids = { 915, 936 },
+                source_trigger_index = 73,
+                target_trigger_index = 82,
+                branch_type = 52,
+                attr = 256,
+                action_frame = 0,
+                param00 = 1,
+                param01 = 3,
+                condition_delta_fields = { "kind_level", "limit_shot_category" },
+                fingerprint_fields = { "Category", "Combo", "Projectile", "State" },
+                reason = "ac_type52_same_command_runtime_phase_family",
+            },
+        },
         audit = {
             ac_state_direction_relation_count = 1,
             ac_state_direction_route_count = 1,
+            ac_command_phase_relation_count = 1,
         },
     },
     ["100"] = {
@@ -275,6 +294,26 @@ local generated_document = {
         routes = { { source = "bcm_profile", direct_evidence = true, owner_action_id = 101 } },
     },
     ["102"] = { classic_command = { display = "PP", inputs = { "PP" } } },
+    ["915"] = {
+        ownership = "direct",
+        classic_command = { display = "214+LP", inputs = { "214+LP" } },
+        routes = { {
+            source = "bcm_profile", direct_evidence = true, owner_action_id = 915,
+            trigger_index = 82, profile = "sprt", command_no = 2, command_index = 1,
+            raw_direction_inputs = { 2, 6, 4 }, raw_button_mask = 16,
+            raw_button_condition = 81952, raw_dc_exc_flags = 0, raw_ng_key_flags = 0,
+        } },
+    },
+    ["936"] = {
+        ownership = "direct",
+        classic_command = { display = "214+LP", inputs = { "214+LP" } },
+        routes = { {
+            source = "bcm_profile", direct_evidence = true, owner_action_id = 936,
+            trigger_index = 73, profile = "sprt", command_no = 2, command_index = 1,
+            raw_direction_inputs = { 2, 6, 4 }, raw_button_mask = 16,
+            raw_button_condition = 81952, raw_dc_exc_flags = 0, raw_ng_key_flags = 0,
+        } },
+    },
 }
 local generated_relations = select(1,
     consumer.load_generated_action_relations("Generic", function()
@@ -289,6 +328,30 @@ assert(not consumer.generated_actions_share_source_group(
 assert(consumer.matches_expected_action_id(
         { id = 101 }, 102, nil, nil, generated_relations),
     "generated source variants must match the same frozen Action step")
+local jp_second_step = {
+    id = 915,
+    motion = "214+LP",
+    delay_from_prev = 162,
+    has_hit = false,
+    has_contact = false,
+}
+assert(consumer.matches_expected_action_id(
+        jp_second_step, 936, nil, nil, generated_relations),
+    "JP second-line playback Action 936 must satisfy the frozen 915 step")
+assert(jp_second_step.motion == "214+LP"
+        and jp_second_step.delay_from_prev == 162
+        and jp_second_step.has_hit == false
+        and jp_second_step.has_contact == false,
+    "the JP fixture must retain the recorded second-line timing and no-contact facts")
+assert(consumer.matches_expected_action_id(
+        { id = 915 }, 936, nil, nil, generated_relations),
+    "a strict Type52 command-phase variant must match the frozen Action step")
+local jp_phase_match = consumer.match_expected_action(
+    { id = 915, motion = "214+LP" }, 936, "214+LP", "214+LP",
+    nil, nil, generated_relations)
+assert(jp_phase_match.matched == true
+        and jp_phase_match.match_reason == "generated_source_group",
+    "detector and audit matching must consume the generated command-phase family")
 local generated_variant_match = consumer.match_expected_action(
     { id = 101, motion = "PP" }, 102, "PP", "PP", nil, nil,
     generated_relations)

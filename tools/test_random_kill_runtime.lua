@@ -1,3 +1,7 @@
+package.path = package.path
+    .. ";./autorun/?.lua"
+    .. ";./autorun/?/init.lua"
+
 local function managed(object)
     object.get_field = function(self, name) return self[name] end
     object.set_field = function(self, name, value) self[name] = value end
@@ -171,7 +175,36 @@ assert(guard_dummy.GuardType == 4
     "dummy guard settings must be restored")
 assert(defense_dummy.DP_Type == 2 and p2_defense.DP_Type == 2,
     "dummy defense settings must be restored")
-assert(parameter_apply_count >= 2 and guard_apply_count >= 2 and defense_apply_count >= 2,
-    "native parameter, guard, and defense panels must apply on setup and restore")
+assert(parameter_apply_count == 0 and guard_apply_count >= 2 and defense_apply_count >= 2,
+    "parameter refresh must avoid bApply while guard and defense keep their native contracts")
+
+local replacement_manager = managed({
+    _tData = training_data,
+    _IsReqRefresh = false,
+    _tfFuncs = managed({ _entries = entries }),
+})
+local singleton_calls = 0
+sdk.get_managed_singleton = function(name)
+    if name ~= "app.training.TrainingManager" then return nil end
+    singleton_calls = singleton_calls + 1
+    return singleton_calls == 1 and manager or replacement_manager
+end
+
+local stale_applied, stale_apply_err = Runtime.apply_scenario(scenario)
+assert(stale_applied == false and stale_apply_err == "stale_training_manager"
+        and replacement_manager._IsReqRefresh == false,
+    "scenario application must fail closed when TrainingManager changes before refresh")
+local stale_update, stale_update_err = Runtime.update()
+assert(stale_update == "idle" and stale_update_err == nil,
+    "a failed scenario refresh must not leave pending live writes")
+
+singleton_calls = 0
+local stale_restored, stale_restore_err = Runtime.restore(backup)
+assert(stale_restored == false and stale_restore_err == "stale_training_manager"
+        and replacement_manager._IsReqRefresh == false,
+    "restoration must fail closed when TrainingManager changes before refresh")
+stale_update, stale_update_err = Runtime.update()
+assert(stale_update == "idle" and stale_update_err == nil,
+    "a failed restoration refresh must not leave pending live writes")
 
 print("random kill runtime tests passed")

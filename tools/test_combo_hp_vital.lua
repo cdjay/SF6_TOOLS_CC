@@ -203,15 +203,35 @@ assert(HpVital.apply_pending_hp_restore_once("fixture_first_step_confirmed") == 
 assert(p1.vital_new == 4000 and p1.vital_old == 4000 and p1.heal_new == 4000,
     "HP ownership must return to gameplay after the first semantic checkpoint")
 
-local restore_debug = HpVital.restore_hp_training_setting_if_needed("fixture_restore", 0)
+local replacement_parameter_setting = object({})
+local parameter_setting_reads = 0
+function training_data:get_field(name)
+    if name ~= "ParameterSetting" then return self[name] end
+    parameter_setting_reads = parameter_setting_reads + 1
+    return parameter_setting_reads == 1
+        and parameter_setting or replacement_parameter_setting
+end
+local restore_debug = HpVital.restore_hp_training_setting_if_needed("fixture_stale_restore", 0)
+assert(restore_debug.bapply_called == false
+        and restore_debug.refresh_requested == false
+        and restore_debug.refresh_reason == "stale_parameter_setting"
+        and state._hp_training_setting_backup ~= nil
+        and state._hp_snapshot_applied_current_session == true,
+    "a replaced ParameterSetting must keep HP restoration ownership for retry")
+
+training_data.get_field = object({}).get_field
+training_data.ParameterSetting = parameter_setting
+training_manager._IsReqRefresh = false
+restore_debug = HpVital.restore_hp_training_setting_if_needed("fixture_restore", 0)
 assert(player_params.Vital_Point == 100
         and player_params.Is_Vital_Infinity == false
         and player_params.Is_Vital_No_Recovery == false
         and player_params.Is_Vital_Recovery_Timer == false
-        and restore_debug.bapply_ok == true
+        and restore_debug.bapply_called == false
+        and restore_debug.refresh_requested == true
         and state._hp_training_setting_backup == nil
         and state._hp_snapshot_applied_current_session == false,
-    "training HP restore must replay the backup and clear it after bApply")
+    "training HP restore must replay the backup and clear it after a safe refresh request")
 
 local main_source = assert(io.open("autorun/TrainingComboTrials_v1.0.lua", "rb")):read("*a")
 assert(main_source:find("if is_hp_restore_pending() then is_refreshing = true end", 1, true)

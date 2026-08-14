@@ -1144,6 +1144,22 @@ do
             ) ~= nil,
         "completed terminal multi-hit damage must remain attributed to its proven Action")
 
+    local equivalent_tail_compiled = terminal_tail_compiled(110)
+    equivalent_tail_compiled.steps[1].id = 1234
+    equivalent_tail_compiled.trace.input_bound_events[1].id = 1234
+    terminal_tail_runtime.action_ids_equivalent = function(expected_id, observed_id)
+        return expected_id == 1233 and observed_id == 1234
+    end
+    local equivalent_tail_passed = RuntimeAuditor.evaluate(
+        terminal_tail_candidate,
+        equivalent_tail_compiled,
+        terminal_tail_runtime
+    )
+    assert(equivalent_tail_passed.ok == true,
+        "burnout guard-chip audit must share generated Action equivalence: "
+            .. table.concat(equivalent_tail_passed.reasons or {}, ","))
+    terminal_tail_runtime.action_ids_equivalent = nil
+
     terminal_tail_candidate[1].scene_state.players.p2.status.burnout = false
     local non_burnout_tail_failed = RuntimeAuditor.evaluate(
         terminal_tail_candidate,

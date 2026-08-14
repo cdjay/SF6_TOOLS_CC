@@ -32,6 +32,7 @@ const AC_STATE_RELEASE_REASON = "ac_type20_release_transition_from_verified_dire
 const BCM_ZERO_INPUT_TRANSITION_REASON = "bcm_function2_normal_has_no_player_visible_input";
 const TARGET_COMBO_REPEAT_REASON = "bcm_turn_around_target_combo_repeats_parent_button";
 const STRUCTURAL_TWIN_REASON = "ac_bcm_unique_structural_twin_with_internal_use_super_delta";
+const AC_COMMAND_PHASE_REASON = "ac_type52_same_command_runtime_phase_family";
 const ASSIST_COMBO_REASON = "bcm_assist_combo_recipe_direct_input_sequence";
 const CLASSIC_PROJECTION_STRUCTURE_REASON = "ac_full_structure_unique_classic_projection";
 const CLASSIC_PROJECTION_CONDITION_REASON = "ac_full_structure_bcm_condition_classic_projection";
@@ -2083,6 +2084,105 @@ function structuralTwinEvidence(actionSource, bcmCatalog, actionSet, entries) {
     return relations;
 }
 
+function commandProfileSignature(trigger) {
+    const profiles = {};
+    for (const name of ["norm", "sprt"]) {
+        const profile = trigger && trigger.profiles && trigger.profiles[name];
+        if (!profile || profile.enabled !== true || !profile.command) return null;
+        profiles[name] = stablePlainValue({
+            notation: profile.notation,
+            ok_key_flags: Number(profile.ok_key_flags || 0),
+            ok_key_cond_flags: Number(profile.ok_key_cond_flags || 0),
+            dc_exc_flags: Number(profile.dc_exc_flags || 0),
+            ng_key_flags: Number(profile.ng_key_flags || 0),
+            command_no: Number(profile.command_no),
+            command_index: Number(profile.command_index),
+            command: profile.command
+        });
+    }
+    return JSON.stringify(profiles);
+}
+
+function commandPhaseConditionDelta(left, right) {
+    const keys = new Set([...Object.keys(left || {}), ...Object.keys(right || {})]);
+    const changed = [...keys].filter(key =>
+        JSON.stringify(stablePlainValue(left && left[key]))
+            !== JSON.stringify(stablePlainValue(right && right[key]))).sort();
+    return changed.length === 2 && changed[0] === "kind_level"
+        && changed[1] === "limit_shot_category" ? changed : null;
+}
+
+function exactType52CommandPhase(branch) {
+    return branch && Number(branch.Type) === 52 && Number(branch.Attr) === 256
+        && Number(branch.ActionFrame) === 0 && Number(branch.Param00) === 1
+        && Number(branch.Param01) === 3 && Number(branch.Param02) === 0
+        && Number(branch.Param03) === 0 && Number(branch.Param04) === 0
+        && Number(branch.Param05) === 0 && Number(branch.TriggerID) === -1;
+}
+
+function commandPhaseEvidence(actionSource, bcmCatalog, actionSet, entries) {
+    const { objects, actions } = characterActionGraph(actionSource, actionSet);
+    const relations = [], seen = new Set();
+    for (const [sourceId, sourceRoot] of actions) {
+        const sourceEntry = entries[String(sourceId)];
+        const sourceAction = bcmCatalog.actions && bcmCatalog.actions[String(sourceId)];
+        if (!sourceEntry || sourceEntry.ownership !== "direct" || !sourceAction) continue;
+        for (const branch of actionBranches(sourceRoot, objects)) {
+            const targetId = Number(branch.Action);
+            const targetRoot = actions.get(targetId);
+            const targetEntry = entries[String(targetId)];
+            const targetAction = bcmCatalog.actions && bcmCatalog.actions[String(targetId)];
+            const sourceStructure = actionStructureCategory(sourceRoot, objects);
+            const targetStructure = actionStructureCategory(targetRoot, objects);
+            if (!exactType52CommandPhase(branch) || sourceId === targetId || !targetRoot
+                || !targetEntry || targetEntry.ownership !== "direct" || !targetAction
+                || sourceStructure == null || targetStructure == null
+                || sourceStructure !== targetStructure) continue;
+
+            const candidates = [];
+            for (const sourceTrigger of sourceAction.triggers || []) {
+                const signature = commandProfileSignature(sourceTrigger);
+                const sourceConditions = sourceTrigger.conditions || {};
+                if (!signature || Number(sourceConditions.function_id) !== 2
+                    || Number(sourceConditions.cond_limit_shot_num) !== 1
+                    || sourceConditions.use_sprt !== true || sourceConditions.use_super !== false) continue;
+                for (const targetTrigger of targetAction.triggers || []) {
+                    const targetConditions = targetTrigger.conditions || {};
+                    const delta = commandPhaseConditionDelta(sourceConditions, targetConditions);
+                    if (!delta || commandProfileSignature(targetTrigger) !== signature
+                        || Number(targetConditions.function_id) !== 2
+                        || Number(targetConditions.cond_limit_shot_num) !== 1
+                        || targetConditions.use_sprt !== true
+                        || targetConditions.use_super !== false) continue;
+                    candidates.push({ sourceTrigger, targetTrigger, delta });
+                }
+            }
+            if (candidates.length !== 1) continue;
+            const key = [sourceId, targetId].sort((left, right) => left - right).join(":");
+            if (seen.has(key)) continue;
+            seen.add(key);
+            const candidate = candidates[0];
+            relations.push({
+                source_action_id: sourceId,
+                target_action_id: targetId,
+                action_ids: [sourceId, targetId].sort((left, right) => left - right),
+                source_trigger_index: Number(candidate.sourceTrigger.trigger_index),
+                target_trigger_index: Number(candidate.targetTrigger.trigger_index),
+                branch_type: 52,
+                attr: 256,
+                action_frame: 0,
+                param00: 1,
+                param01: 3,
+                condition_delta_fields: candidate.delta,
+                fingerprint_fields: [...AC_STRUCTURE_FIELDS],
+                reason: AC_COMMAND_PHASE_REASON
+            });
+        }
+    }
+    return relations.sort((left, right) => left.target_action_id - right.target_action_id
+        || left.source_action_id - right.source_action_id);
+}
+
 const CLASSIC_PROJECTION_IGNORED_CONDITIONS = new Set([
     "use_super", "use_sprt", "fightstyle_flags"
 ]);
@@ -3036,6 +3136,8 @@ function buildCommandDisplay(actionSource, bcmCatalog, runtime, supplement, opti
         });
     }
 
+    const appliedCommandPhaseRelations = commandPhaseEvidence(
+        actionSource, bcmCatalog, actionSet, entries);
     const appliedStructuralTwins = structuralTwinEvidence(actionSource, bcmCatalog, actionSet, entries);
     let structuralTwinRouteCount = 0;
     for (const relation of appliedStructuralTwins) {
@@ -3480,6 +3582,8 @@ function buildCommandDisplay(actionSource, bcmCatalog, runtime, supplement, opti
             type37_followup_execution_phase_relations: appliedType37FollowupPhaseRelations,
             target_combo_repeat_relations: appliedTargetComboRelations,
             structural_twin_relations: appliedStructuralTwins,
+            ac_command_phase_relation_count: appliedCommandPhaseRelations.length,
+            ac_command_phase_relations: appliedCommandPhaseRelations,
             assist_combo_relations: appliedAssistComboRelations,
             classic_projection_relations: classicProjectionRelations,
             unresolved_candidate_count: unresolvedCandidates.length,
@@ -3538,6 +3642,7 @@ function buildCommandDisplay(actionSource, bcmCatalog, runtime, supplement, opti
                 target_combo_repeat_route_count: targetComboRepeatRouteCount,
                 structural_twin_relation_count: appliedStructuralTwins.length,
                 structural_twin_route_count: structuralTwinRouteCount,
+                ac_command_phase_relation_count: appliedCommandPhaseRelations.length,
                 assist_combo_candidate_count: assistComboCandidates.length,
                 assist_combo_relation_count: appliedAssistComboRelations.length,
                 assist_combo_route_count: assistComboRouteCount,

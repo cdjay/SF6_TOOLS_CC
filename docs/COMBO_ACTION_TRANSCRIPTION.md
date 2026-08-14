@@ -74,6 +74,18 @@ owner 折叠，canonical 的时间窗口与同锚要求也必须由该产品数�
 共享状态来源组确认；显示文本和 display override 不参与。该规则不推断 Move 归属，也不
 修改 V2 timeline、raw input 或 Action ID。
 
+同一玩家指令在互斥的运行时状态下可能进入不同的直接 BCM Action。只有生成器同时证明
+两者 `norm/sprt` 指令定义完全一致、AC 核心结构一致、存在精确 Type52 阶段边，且 BCM
+条件只在已审计的运行时选择字段上变化时，才会生成
+`ac_command_phase_relations`。录制、检测、审计和展示从同一份
+`command_display` 目录读取该关系；相同显示文本本身永远不建立 Action 等价。
+
+训练场 `ParameterSetting` 更新不得直接调用缓存或先前捕获的
+`tf_ParameterSetting:bApply`。资源字段写入后必须重新取得当前
+`TrainingManager/_tData/ParameterSetting`，逐级确认对象身份未变化且当前没有 refresh，
+再仅请求 `_IsReqRefresh`。身份变化或 refresh 进行中时失败关闭，由既有后刷新恢复流程重试，
+避免对失效 native 对象执行方法。
+
 父 Action 的吸收关系不得遮蔽当前冻结步骤：在 input-truth 检测中，如果被吸收的后继
 Action 本身就是当前步骤的精确 ID、显式兼容变体或严格生成的同源变体，实时消费者必须
 保留该后继并交给统一 matcher。其他内部 phase 仍按既有吸收语义附着到父 Action；该规则

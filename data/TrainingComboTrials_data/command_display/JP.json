@@ -7085,6 +7085,7 @@
     "charge_compatibility_trigger_suppressions": [],
     "target_combo_repeat_route_count": 0,
     "structural_twin_route_count": 0,
+    "ac_command_phase_relation_count": 2,
     "assist_combo_route_count": 1,
     "assist_combo_normalized_to_existing_count": 12,
     "classic_projection_relation_count": 0,
@@ -7191,6 +7192,60 @@
     "type37_followup_execution_phase_relations": [],
     "target_combo_repeat_relations": [],
     "structural_twin_relations": [],
+    "ac_command_phase_relations": [
+      {
+        "source_action_id": 936,
+        "target_action_id": 915,
+        "action_ids": [
+          915,
+          936
+        ],
+        "source_trigger_index": 73,
+        "target_trigger_index": 82,
+        "branch_type": 52,
+        "attr": 256,
+        "action_frame": 0,
+        "param00": 1,
+        "param01": 3,
+        "condition_delta_fields": [
+          "kind_level",
+          "limit_shot_category"
+        ],
+        "fingerprint_fields": [
+          "Category",
+          "Combo",
+          "Projectile",
+          "State"
+        ],
+        "reason": "ac_type52_same_command_runtime_phase_family"
+      },
+      {
+        "source_action_id": 947,
+        "target_action_id": 917,
+        "action_ids": [
+          917,
+          947
+        ],
+        "source_trigger_index": 79,
+        "target_trigger_index": 84,
+        "branch_type": 52,
+        "attr": 256,
+        "action_frame": 0,
+        "param00": 1,
+        "param01": 3,
+        "condition_delta_fields": [
+          "kind_level",
+          "limit_shot_category"
+        ],
+        "fingerprint_fields": [
+          "Category",
+          "Combo",
+          "Projectile",
+          "State"
+        ],
+        "reason": "ac_type52_same_command_runtime_phase_family"
+      }
+    ],
     "assist_combo_relations": [
       {
         "action_id": 620,
@@ -9585,6 +9640,7 @@
       "target_combo_repeat_route_count": 0,
       "structural_twin_relation_count": 0,
       "structural_twin_route_count": 0,
+      "ac_command_phase_relation_count": 2,
       "assist_combo_candidate_count": 16,
       "assist_combo_relation_count": 1,
       "assist_combo_route_count": 1,

@@ -1,6 +1,7 @@
 "use strict";
 
 const assert = require("assert");
+const fs = require("fs");
 const commandDisplay = require("./command_display_core.js");
 
 function modernText(entry) {
@@ -121,6 +122,12 @@ function makeActionSource() {
     ]);
     addAction(956, 90, []);
     addAction(957, 90, []);
+    // JP 214+LP can enter either Action 936 or 915 in the current build.
+    // AC links the two same-structure Actions with an exact Type 52 phase edge.
+    addAction(915, 93, []);
+    addAction(936, 39, [
+        { action: 915, type: 52, attr: 256, p00: 1, p01: 3 }
+    ]);
     // Identical full AC structures are used only when the BCM selector is
     // byte-for-byte equivalent and exactly one peer owns real charge evidence.
     addAction(1303, 42, []);
@@ -164,7 +171,7 @@ function actionRoot(actionSource, actionId) {
 const actionIds = [
     17, 18, 36, 37, 38,
     480, 489, 600, 605, 606, 627, 640, 642, 647, 651, 652, 653, 681, 692, 715, 716, 717, 718,
-    739, 740, 850, 855, 903, 904, 917, 918, 923, 924, 956, 957, 975, 976, 977, 978, 979, 1015, 1020,
+    739, 740, 850, 855, 903, 904, 915, 917, 918, 923, 924, 936, 956, 957, 975, 976, 977, 978, 979, 1015, 1020,
     985, 1075, 1076, 1077, 1218, 1231, 1240, 1300, 1301, 1302, 1303, 1304,
     1400, 1401, 1500, 1501, 1502, 1503, 1504, 1510, 1511, 1512, 1513,
     1600, 1601, 1602
@@ -254,6 +261,24 @@ const catalog = { source: { character: "Zangief" }, actions: {
         profile(true, "236+LP+LK+MK", 400, 82016),
         profile(true, "MP", 32), profile(true, "Normal", 8192)),
         { function_id: 2, focus_consume: 20000, cond_owner_state_flags: 0 })] },
+    "915": { action_id: 915, triggers: [trigger(82, profiles(
+        profile(true, "214+LP", 16, 81952, { command_no: 2, command_index: 1,
+            inputs: [{ direction: "2", raw_mask: 2 }, { direction: "1", raw_mask: 6 },
+                { direction: "4", raw_mask: 4 }] }), null, null,
+        profile(true, "214+LP", 16, 81952, { command_no: 2, command_index: 1,
+            inputs: [{ direction: "2", raw_mask: 2 }, { direction: "1", raw_mask: 6 },
+                { direction: "4", raw_mask: 4 }] })),
+        { function_id: 2, kind_level: 3, limit_shot_category: 98,
+            cond_limit_shot_num: 1, use_sprt: true, use_super: false })] },
+    "936": { action_id: 936, triggers: [trigger(73, profiles(
+        profile(true, "214+LP", 16, 81952, { command_no: 2, command_index: 1,
+            inputs: [{ direction: "2", raw_mask: 2 }, { direction: "1", raw_mask: 6 },
+                { direction: "4", raw_mask: 4 }] }), null, null,
+        profile(true, "214+LP", 16, 81952, { command_no: 2, command_index: 1,
+            inputs: [{ direction: "2", raw_mask: 2 }, { direction: "1", raw_mask: 6 },
+                { direction: "4", raw_mask: 4 }] })),
+        { function_id: 2, kind_level: 4, limit_shot_category: 64,
+            cond_limit_shot_num: 1, use_sprt: true, use_super: false })] },
     "956": { action_id: 956, triggers: [trigger(166, profiles(
         profile(true, "236+LP+LK+MK", 400, 82016),
         profile(true, "6+MP", 32), profile(true, "6", 8192)),
@@ -466,6 +491,49 @@ assert.strictEqual(output["652"].routes[0].source, "ac_type20_directional_air_at
 assert.strictEqual(modernText(output["957"]), modernText(output["956"]));
 assert.strictEqual(output["957"].ownership, "structural_twin");
 assert.strictEqual(output["957"].routes.every(route => route.source === "ac_bcm_structural_twin"), true);
+assert.deepStrictEqual(output._meta.ac_command_phase_relations.map(relation => [
+    relation.source_action_id, relation.target_action_id, relation.action_ids,
+    relation.branch_type, relation.reason
+]), [[936, 915, [915, 936], 52,
+    "ac_type52_same_command_runtime_phase_family"]]);
+const missingCoreSource = JSON.parse(JSON.stringify(actionSource));
+for (const record of missingCoreSource.records.filter(record =>
+    record.native_action_id === 915 || record.native_action_id === 936)) {
+    const root = missingCoreSource.objects.find(object =>
+        object.object_id === record.action_ref.object_id);
+    root.fields = root.fields.filter(field => field.name !== "Category");
+}
+const missingCoreOutput = commandDisplay.buildCommandDisplay(
+    missingCoreSource, catalog, runtime, {}, {
+        generatedAt: "test", officialSemantics, officialSemanticsSha256: "official"
+    });
+assert.deepStrictEqual(missingCoreOutput._meta.ac_command_phase_relations, [],
+    "missing AC core evidence must not generate a command-phase relation");
+
+const wrongEdgeSource = JSON.parse(JSON.stringify(actionSource));
+const wrongEdge = branchObject(wrongEdgeSource, 915, 1);
+wrongEdge.fields.find(field => field.name === "Attr").value.value = 0;
+const wrongEdgeOutput = commandDisplay.buildCommandDisplay(
+    wrongEdgeSource, catalog, runtime, {}, {
+        generatedAt: "test", officialSemantics, officialSemanticsSha256: "official"
+    });
+assert.deepStrictEqual(wrongEdgeOutput._meta.ac_command_phase_relations, [],
+    "an inexact Type52 edge must not generate a command-phase relation");
+
+const wrongDeltaCatalog = JSON.parse(JSON.stringify(catalog));
+wrongDeltaCatalog.actions["915"].triggers[0].conditions.kind_level = 4;
+const wrongDeltaOutput = commandDisplay.buildCommandDisplay(
+    actionSource, wrongDeltaCatalog, runtime, {}, {
+        generatedAt: "test", officialSemantics, officialSemanticsSha256: "official"
+    });
+assert.deepStrictEqual(wrongDeltaOutput._meta.ac_command_phase_relations, [],
+    "an incomplete BCM condition delta must not generate a command-phase relation");
+
+const jpCatalog = JSON.parse(fs.readFileSync(
+    "data/TrainingComboTrials_data/command_display/JP.json", "utf8"));
+assert.deepStrictEqual(jpCatalog._meta.ac_command_phase_relations.map(relation =>
+    relation.action_ids), [[915, 936], [917, 947]],
+"the shipped JP catalog must retain both generated command-phase families");
 assert.strictEqual(modernText(output["640"]), "2 + 中");
 assert.strictEqual(modernText(output["627"]), "AUTO + 弱");
 assert.strictEqual(modernText(output["642"]), "空中 AUTO + 强");

@@ -2,7 +2,7 @@ local function read_all(path)
     local file = assert(io.open(path, "rb"))
     local source = file:read("*a")
     file:close()
-    return source
+    return source:gsub("\r\n", "\n")
 end
 
 local main_source = read_all("autorun/TrainingComboTrials_v1.0.lua")

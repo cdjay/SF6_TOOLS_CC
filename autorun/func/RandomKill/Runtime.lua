@@ -1,4 +1,5 @@
 local M = {}
+local TrainingParameterRefresh = require("func/TrainingParameterRefresh")
 
 local PARAMETER_FIELDS = {
     "Vital_Type",
@@ -48,7 +49,6 @@ local DEFENSE_FIELDS = {
 }
 
 local pending = nil
-local tf_parameter_setting = nil
 local tf_guard_setting = nil
 local tf_defense_system = nil
 local battle_team_field = nil
@@ -142,42 +142,6 @@ local function p1_team()
     return battle and battle.mcTeam and battle.mcTeam[0] or nil
 end
 
-local function find_tf_parameter_setting(context)
-    if tf_parameter_setting then return tf_parameter_setting end
-    local funcs = context and read_value(context.manager, "_tfFuncs") or nil
-    local entries = funcs and read_value(funcs, "_entries") or nil
-    if not entries then return nil end
-
-    local fallback = nil
-    pcall(function()
-        local entry = entries:call("get_Item", 6)
-        fallback = entry and read_value(entry, "value") or nil
-    end)
-    local count = 0
-    pcall(function() count = tonumber(entries:call("get_Count")) or 0 end)
-    for index = 0, count - 1 do
-        local value = nil
-        pcall(function()
-            local entry = entries:call("get_Item", index)
-            value = entry and read_value(entry, "value") or nil
-        end)
-        if value then
-            local full_name = ""
-            pcall(function()
-                local definition = value:get_type_definition()
-                full_name = definition and definition:get_full_name() or ""
-            end)
-            if full_name:find("tf_ParameterSetting", 1, true)
-                or full_name:find("ParameterSetting", 1, true) then
-                tf_parameter_setting = value
-                return value
-            end
-        end
-    end
-    tf_parameter_setting = fallback
-    return fallback
-end
-
 local function find_tf_guard_setting(context)
     if tf_guard_setting then return tf_guard_setting end
     local funcs = context and read_value(context.manager, "_tfFuncs") or nil
@@ -235,9 +199,11 @@ local function find_tf_defense_system(context)
 end
 
 local function apply_parameter_changes(context)
-    local tf_setting = find_tf_parameter_setting(context)
-    if tf_setting then pcall(function() tf_setting:call("bApply") end) end
-    write_value(context.manager, "_IsReqRefresh", true)
+    return TrainingParameterRefresh.request({
+        tm = context.manager,
+        training_data = context.training_data,
+        parameter_setting = context.parameter_setting,
+    })
 end
 
 local function apply_guard_changes(context)
@@ -356,7 +322,8 @@ function M.apply_scenario(scenario)
     call_param(context, "SetDGDetailPoint", 0, scenario.drive_points)
     call_param(context, "SetDGStock", 0, scenario.drive_bars)
     apply_defense_changes(context)
-    apply_parameter_changes(context)
+    local refresh_ok, refresh_err = apply_parameter_changes(context)
+    if not refresh_ok then return false, refresh_err end
     apply_guard_changes(context)
     pending = {
         kind = "scenario",
@@ -380,7 +347,8 @@ function M.restore(backup)
     write_fields(context.defense_dummy, backup.defense_dummy_fields)
     write_fields(context.p2_defense, backup.p2_defense_fields)
     apply_defense_changes(context)
-    apply_parameter_changes(context)
+    local refresh_ok, refresh_err = apply_parameter_changes(context)
+    if not refresh_ok then return false, refresh_err end
     apply_guard_changes(context)
     pending = {
         kind = "restore",
