@@ -546,23 +546,36 @@ function M.evaluate_block_contact(damage_type, was_active)
 end
 
 function M.detect(current_id, current_frame, buffered_id, buffered_frame, state, current_tick,
-        action_button_edge, confirmed_repeat_input, action_motion)
+        action_button_edge, confirmed_repeat_input, action_motion,
+        expected_repeat_action_id)
     current_id = tonumber(current_id) or -1
     buffered_id = tonumber(buffered_id) or -1
     current_frame = tonumber(current_frame) or -1
     buffered_frame = tonumber(buffered_frame) or -1
+    expected_repeat_action_id = tonumber(expected_repeat_action_id)
+    local confirmed_dash_pair = type(confirmed_repeat_input) == "table"
+        and confirmed_repeat_input or nil
     if current_id ~= buffered_id then
-        local pair = recent_dash_pair(state, current_tick, current_id)
+        local pair = confirmed_dash_pair
+            or recent_dash_pair(state, current_tick, current_id)
         if pair then consume_dash_pair(state, pair) end
         return true, "id_changed"
     end
 
     if current_frame >= buffered_frame then
+        if confirmed_dash_pair ~= nil
+            and expected_repeat_action_id == current_id
+            and REPEATABLE_COMMON_ACTIONS[current_id] ~= nil then
+            consume_dash_pair(state, confirmed_dash_pair)
+            return true, "expected_dash_double_tap_restart"
+        end
         return false, "no_new_action"
     end
 
-    local pair = recent_dash_pair(state, current_tick, current_id)
-    local repeat_confirmed = confirmed_repeat_input == true or pair ~= nil
+    local pair = confirmed_dash_pair
+        or recent_dash_pair(state, current_tick, current_id)
+    local repeat_confirmed = confirmed_repeat_input == true
+        or confirmed_dash_pair ~= nil or pair ~= nil
         or M.button_edge_matches_motion(action_motion, action_button_edge)
     if not repeat_confirmed then
         return false, "unconfirmed_same_action_rewind"

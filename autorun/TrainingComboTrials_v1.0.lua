@@ -5581,7 +5581,10 @@ local function ct_player_input_buffer(p_state)
     local started_new_action, started_new_action_reason = ActionRestartDetector.detect(
         _pf.act_id, _pf.act_frame, p_state.buffer_act_id, p_state.buffer_act_frame,
         p_state.dash_tap_state, engine_frame_count, restart_input_edge,
-        dash_pair ~= nil, restart_motion)
+        dash_pair, restart_motion,
+        trial_state.is_playing
+            and trial_state.sequence[trial_state.current_step]
+            and trial_state.sequence[trial_state.current_step].id or nil)
     if started_new_action
         and trial_state.is_playing
         and p_state == players[trial_state.playing_player]

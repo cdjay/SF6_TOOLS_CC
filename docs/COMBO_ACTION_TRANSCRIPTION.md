@@ -91,6 +91,11 @@ Action 本身就是当前步骤的精确 ID、显式兼容变体或严格生成�
 保留该后继并交给统一 matcher。其他内部 phase 仍按既有吸收语义附着到父 Action；该规则
 不改变 Recorder 的折叠结果，也不把 absorb 关系升级为跨版本 Action 等价。
 
+连续相同 dash 指令可以在游戏仍保持同一公共 dash Action、ActionFrame 未回绕时发生。
+只有当前冻结步骤明确期待同一 dash Action，且输入检测完成了一组新的非重叠 double-tap
+时，实时检测才可据此创建新的步骤实例；未记录的额外 dash、普通方向输入和其他 Action
+仍保持严格，不得仅因自动演示或显示文本而放行。
+
 Runtime 入口统一通过 `UnifiedActionConsumer.lua` 消费这套既有合同。该模块只转发
 `ActionEventCompiler`、`ActionMatcher` 与 `CommandResolver` 的现有决定，不定义新的
 Action 范围、过滤条件、命中规则或 V2 字段语义。录制、训练检测与运行审计不得绕过该入口

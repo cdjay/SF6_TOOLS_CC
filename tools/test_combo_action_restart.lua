@@ -1034,6 +1034,37 @@ started, reason = detector.detect(18, 50, 18, 49, p1_state, 30)
 assert(started == false and reason == "no_new_action",
     "a direction pair alone must not repeat the back dash")
 
+local jp_repeat_state = {}
+local jp_first_backdash = press_pair(jp_repeat_state, "4", 100)
+started, reason = detector.detect(
+    18, 1, 855, 120, jp_repeat_state, 102,
+    0, jp_first_backdash, nil, 18
+)
+assert(started == true and reason == "id_changed",
+    "JP's first recorded 44 must still come from the native DASH_B transition")
+local jp_second_backdash = press_pair(jp_repeat_state, "4", 123)
+started, reason = detector.detect(
+    18, 30, 18, 29, jp_repeat_state, 125,
+    0, jp_second_backdash, nil, 18
+)
+assert(started == true and reason == "expected_dash_double_tap_restart",
+    "an explicitly expected second 44 must advance from its raw double tap while DASH_B continues")
+started, reason = detector.detect(
+    18, 31, 18, 30, jp_repeat_state, 126,
+    0, nil, nil, 18
+)
+assert(started == false and reason == "no_new_action",
+    "the consumed double tap must not advance the repeated dash twice")
+
+local unrecorded_repeat_state = {}
+local unrecorded_repeat = press_pair(unrecorded_repeat_state, "4", 140)
+started, reason = detector.detect(
+    18, 40, 18, 39, unrecorded_repeat_state, 142,
+    0, unrecorded_repeat, nil, 915
+)
+assert(started == false and reason == "no_new_action",
+    "a repeated dash input must stay input-only when the frozen step expects another Action")
+
 local queued_state = {}
 press_pair(queued_state, "6", 60)
 press_pair(queued_state, "6", 64)
