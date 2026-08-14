@@ -231,10 +231,14 @@ function translateSprt(profile, conditions) {
     const raw = Number(profile && profile.ok_key_flags || 0);
     const count = requiredButtonCount(profile);
     const candidates = attackCandidates(profile);
+    const function1DirectionFact = Number(conditions && conditions.function_id) === 1
+        && raw === 0
+        && Number(profile.ok_key_cond_flags || 0) === 0
+        && [1, 9].includes(Number(profile.dc_exc_flags || 0));
     const pureDirection = directions.length === 1 && parts.length === 1
         && candidates.length === 0 && !profile.button && !profile.command
         && Number(conditions && conditions.function_id) === 1
-        && [1, 2, 4, 8].includes(raw);
+        && ([1, 2, 4, 8].includes(raw) || function1DirectionFact);
     if (pureDirection) {
         return resolved(`${air ? "空中 " : ""}${directions[0]}`, directions[0], null, [], 0);
     }
@@ -557,6 +561,15 @@ function pushRoute(routes, seen, display, provenance) {
     if (seen.has(key)) return;
     seen.add(key);
     routes.push(route);
+}
+
+function function1HasPlayerVisibleModernRoute(trigger) {
+    if (Number(trigger && trigger.conditions && trigger.conditions.function_id) !== 1) return false;
+    return selectedProfiles(trigger.conditions, trigger.profiles).some(profileName => {
+        const profile = trigger.profiles && trigger.profiles[profileName];
+        return Boolean(translateProfileDetailed(
+            profileName, profile, trigger.conditions, trigger.profiles).display);
+    });
 }
 
 function pushClassicVerificationRoute(routes, seen, display, provenance) {
@@ -3605,9 +3618,11 @@ function buildCommandDisplay(actionSource, bcmCatalog, runtime, supplement, opti
         for (const trigger of action.triggers || []) {
             const norm = trigger.profiles && trigger.profiles.norm;
             const functionId = Number(trigger.conditions && trigger.conditions.function_id);
+            const concreteFunction1Identity = !/^(?:j\.)?Normal$/i.test(classicIdentity);
             const classicOnlyDirect = functionId === 3 && !entry
                 || !entry && isDirectFunction2AerialNormal(trigger, classicIdentity)
-                || functionId === 1 && !triggerHasModernProfile(trigger);
+                || functionId === 1 && concreteFunction1Identity
+                    && !function1HasPlayerVisibleModernRoute(trigger);
             if (!classicOnlyDirect
                 || !norm || norm.enabled !== true
                 || canonicalClassicIdentity(norm.notation) !== classicIdentity) continue;

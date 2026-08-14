@@ -574,6 +574,18 @@ for (const [id, phase] of [["1063", 1], ["1064", 2]]) {
     assert.strictEqual(yasmineCatalog[id].transition_evidence.phase_index, phase);
     assert.strictEqual(yasmineCatalog[id].transition_evidence.source_action_id, 1062);
 }
+const kimberlyCatalog = JSON.parse(fs.readFileSync(
+    "data/TrainingComboTrials_data/command_display/Kimberly.json", "utf8"));
+assert.strictEqual(kimberlyCatalog["606"].classic_command.display, "LK");
+assert.strictEqual(kimberlyCatalog["606"].routes.length, 1);
+assert.strictEqual(kimberlyCatalog["606"].routes[0].profile, "norm");
+assert.strictEqual(kimberlyCatalog["606"].routes[0].projection_scope, "classic_only");
+assert.strictEqual(kimberlyCatalog["655"].routes[0].display, "8");
+assert.strictEqual(kimberlyCatalog["655"].routes[0].profile, "sprt");
+assert.strictEqual(kimberlyCatalog["636"].routes[0].display, "空中 9");
+assert.strictEqual(kimberlyCatalog["636"].routes[0].profile, "sprt");
+assert.strictEqual(kimberlyCatalog["634"].ownership, "classic_runtime");
+assert.strictEqual(kimberlyCatalog["634"].routes.length, 0);
 assert.strictEqual(modernText(output["640"]), "2 + 中");
 assert.strictEqual(modernText(output["627"]), "AUTO + 弱");
 assert.strictEqual(modernText(output["642"]), "空中 AUTO + 强");
@@ -1463,6 +1475,75 @@ assert.strictEqual(classicOnlyFunction1Output["8101"].routes.some(route =>
         && route.projection_scope === "classic_only" && route.direct_evidence === true), true);
 assert.strictEqual(classicOnlyFunction1Output["8101"].routes.some(route =>
     route.source === "bcm_assist_combo_recipe" && route.assist_combo_evidence === true), true);
+
+const function1DirectFactCatalog = { source: { character: "Function1DirectFact" }, actions: {
+    "8150": { action_id: 8150, triggers: [trigger(805, profiles(
+        profile(false, "Normal", 0),
+        profile(false, "Normal", 0),
+        profile(true, "Normal", 2147483648, 0),
+        profile(true, "LK", 128)), {
+            function_id: 1, action_dir: 2, atck_type_bit: 8
+        })] },
+    "8151": { action_id: 8151, triggers: [trigger(806, profiles(
+        profile(true, "8", 0, 0, { dc_exc_flags: 1 }),
+        profile(false, "Normal", 0),
+        profile(true, "8", 0, 0, { dc_exc_flags: 1 }),
+        profile(true, "8", 0, 0, { dc_exc_flags: 1 })), {
+            function_id: 1, action_dir: 0, atck_type_bit: 0, kind_level: 0,
+            use_sprt: true
+        })] },
+    "8152": { action_id: 8152, triggers: [trigger(807, profiles(
+        profile(true, "j.9", 0, 0, { dc_exc_flags: 9 }),
+        profile(false, "j.Normal", 0),
+        profile(true, "j.Normal", 2147483648, 0),
+        profile(true, "j.9", 0, 0, { dc_exc_flags: 9 })), {
+            function_id: 1, action_dir: 0, atck_type_bit: 0, kind_level: 4,
+            use_sprt: true
+        })] },
+    "8153": { action_id: 8153, triggers: [trigger(808, profiles(
+        profile(true, "8", 0, 0, { dc_exc_flags: 0 }),
+        profile(false, "Normal", 0),
+        profile(true, "Normal", 2147483648, 0),
+        profile(false, "8", 0, 0, { dc_exc_flags: 0 })), {
+            function_id: 1, action_dir: 0, atck_type_bit: 0, kind_level: 0,
+            use_sprt: true
+        })] },
+    "8154": { action_id: 8154, triggers: [trigger(809, profiles(
+        profile(false, "j.Normal", 0, 0, { dc_exc_flags: 5 }),
+        profile(false, "j.Normal", 0),
+        profile(true, "j.Normal", 2147483648, 0),
+        profile(true, "j.Normal", 0, 0, { dc_exc_flags: 5 })), {
+            function_id: 1, action_dir: 0, atck_type_bit: 0, kind_level: 4,
+            use_sprt: true
+        })] }
+} };
+const function1DirectFactRuntime = {
+    character: "Function1DirectFact", fighter_id: 202,
+    action_ids: [8150, 8151, 8152, 8153, 8154],
+    actions: { "8150": "LK", "8151": "8", "8152": "j.9", "8153": "8",
+        "8154": "j.Normal" },
+    aliases: {}, sources: { ac_sha256: "ac", bcm_sha256: "bcm" },
+    validation: { rules: {} }, evidence: { ac_derived_commands: [] }
+};
+const function1DirectFactOutput = commandDisplay.buildCommandDisplay(
+    {}, function1DirectFactCatalog, function1DirectFactRuntime, {}, {
+        generatedAt: "function1-direct-fact"
+    });
+assert.strictEqual(function1DirectFactOutput["8150"].ownership, "direct");
+assert.strictEqual(function1DirectFactOutput["8150"].routes.length, 1);
+assert.strictEqual(function1DirectFactOutput["8150"].routes[0].profile, "norm");
+assert.strictEqual(function1DirectFactOutput["8150"].routes[0].display, "LK");
+assert.strictEqual(function1DirectFactOutput["8150"].routes[0].projection_scope, "classic_only");
+assert.strictEqual(function1DirectFactOutput["8151"].ownership, "direct");
+assert.strictEqual(function1DirectFactOutput["8151"].routes[0].display, "8");
+assert.strictEqual(function1DirectFactOutput["8151"].routes[0].profile, "sprt");
+assert.strictEqual(function1DirectFactOutput["8152"].ownership, "direct");
+assert.strictEqual(function1DirectFactOutput["8152"].routes[0].display, "空中 9");
+assert.strictEqual(function1DirectFactOutput["8152"].routes[0].profile, "sprt");
+assert.strictEqual(function1DirectFactOutput["8153"].ownership, "classic_runtime");
+assert.strictEqual(function1DirectFactOutput["8153"].routes.length, 0);
+assert.strictEqual(function1DirectFactOutput["8154"].ownership, "classic_runtime");
+assert.strictEqual(function1DirectFactOutput["8154"].routes.length, 0);
 
 const classicOnlyFunction2Catalog = { source: { character: "ClassicOnlyFunction2" }, actions: {
     "8200": { action_id: 8200, triggers: [trigger(803, profiles(
