@@ -18,6 +18,74 @@ assert(codec.native_to_relative(0x04 | 0x40, true) == (0x04 | 0x40)
 assert(codec.relative_to_native(0x04 | 0x40, false) == (0x08 | 0x40)
     and codec.relative_to_native(0x04 | 0x40, true) == (0x04 | 0x40),
     "playback must project relative input through the live facing")
+
+for mask = 0, 0xFFFF do
+    for _, facing_right in ipairs({ true, false }) do
+        local relative_mask = codec.native_to_relative(mask, facing_right)
+        local restored_mask = codec.relative_to_native(relative_mask, facing_right)
+        assert(restored_mask == mask,
+            string.format("facing roundtrip changed mask 0x%04X", mask))
+        assert((relative_mask & ~0x0C) == (mask & ~0x0C),
+            string.format("facing conversion changed non-horizontal bits in 0x%04X", mask))
+    end
+end
+
+local function capture_and_play(native_masks, capture_facings, playback_facings)
+    local relative_masks = {}
+    local played_masks = {}
+    for index, mask in ipairs(native_masks) do
+        relative_masks[index] = codec.native_to_relative(
+            mask,
+            capture_facings[index]
+        )
+        played_masks[index] = codec.relative_to_native(
+            relative_masks[index],
+            playback_facings[index]
+        )
+    end
+    return relative_masks, played_masks
+end
+
+local schedule_facings = { true, true, false, false, true }
+local semantic_forward_native = { 0x04, 0x04, 0x08, 0x08, 0x04 }
+local semantic_forward_relative, semantic_forward_played = capture_and_play(
+    semantic_forward_native,
+    schedule_facings,
+    schedule_facings
+)
+assert(table.concat(semantic_forward_relative, ",") == "4,4,4,4,4",
+    "held semantic forward must remain stable across side switches")
+assert(table.concat(semantic_forward_played, ",") == "4,4,8,8,4",
+    "held semantic forward must reproduce the physical switch-frame inputs")
+
+local physical_right_native = { 0x04, 0x04, 0x04, 0x04, 0x04 }
+local physical_right_relative, physical_right_played = capture_and_play(
+    physical_right_native,
+    schedule_facings,
+    schedule_facings
+)
+assert(table.concat(physical_right_relative, ",") == "4,4,8,8,4",
+    "held physical right must change semantic direction after crossing")
+assert(table.concat(physical_right_played, ",") == "4,4,4,4,4",
+    "held physical right must roundtrip without inventing a release")
+
+local switch_boundaries = {
+    { name = "press", native = { 0, 0, 0x08 | 0x10, 0x08 | 0x10 } },
+    { name = "release", native = { 0x04 | 0x10, 0x04 | 0x10, 0, 0 } },
+    { name = "neutral", native = { 0x04 | 0x10, 0, 0, 0x08 | 0x10 } },
+    { name = "multi-button", native = { 0x04 | 0x30, 0x04 | 0x30, 0x08 | 0x30, 0x08 | 0x30 } },
+}
+local boundary_facings = { true, true, false, false }
+for _, case in ipairs(switch_boundaries) do
+    local _, played = capture_and_play(
+        case.native,
+        boundary_facings,
+        boundary_facings
+    )
+    assert(table.concat(played, ",") == table.concat(case.native, ","),
+        case.name .. " on a switch frame must roundtrip exactly")
+end
+
 local crossing_route = { 0x04, 0x04, 0x08 }
 local crossing_facings = { true, false, false }
 local projected = {}

@@ -3454,6 +3454,22 @@ assert(missing_child_verified.ok == false
             missing_child_verified, "raw_replay_action_count_mismatch"),
     "raw replay must reject a missing contextual child Action")
 
+local duplicate_owner_replay = transcriber.deep_copy(akuma_replay_compiled)
+table.insert(
+    duplicate_owner_replay.steps,
+    2,
+    transcriber.deep_copy(duplicate_owner_replay.steps[1])
+)
+local duplicate_owner_verified = transcriber.verify_candidate(
+    akuma_replay_candidate,
+    duplicate_owner_replay,
+    akuma_replay_runtime
+)
+assert(duplicate_owner_verified.ok == false
+        and verification_reasons_match(
+            duplicate_owner_verified, "raw_replay_action_count_mismatch"),
+    "raw replay must reject an extra duplicate Action")
+
 local wrong_child_replay = transcriber.deep_copy(akuma_replay_compiled)
 wrong_child_replay.steps[2].id = 909
 local wrong_child_verified = transcriber.verify_candidate(
@@ -3491,6 +3507,32 @@ assert(late_child_verified.ok == false
         and verification_reasons_match(
             late_child_verified, "raw_replay_action_timing_mismatch"),
     "raw replay must reject an out-of-tolerance contextual child timing")
+
+for _, timing_delta in ipairs({ -1, 1 }) do
+    local neighbor_timing_replay = transcriber.deep_copy(akuma_replay_compiled)
+    neighbor_timing_replay.steps[2].delay_from_prev =
+        neighbor_timing_replay.steps[2].delay_from_prev + timing_delta
+    local neighbor_timing_verified = transcriber.verify_candidate(
+        akuma_replay_candidate,
+        neighbor_timing_replay,
+        akuma_replay_runtime
+    )
+    assert(neighbor_timing_verified.ok == true,
+        "raw replay must retain the documented two-frame timing tolerance")
+end
+
+local early_child_replay = transcriber.deep_copy(akuma_replay_compiled)
+early_child_replay.steps[2].delay_from_prev =
+    early_child_replay.steps[2].delay_from_prev - 3
+local early_child_verified = transcriber.verify_candidate(
+    akuma_replay_candidate,
+    early_child_replay,
+    akuma_replay_runtime
+)
+assert(early_child_verified.ok == false
+        and verification_reasons_match(
+            early_child_verified, "raw_replay_action_timing_mismatch"),
+    "raw replay must reject an early out-of-tolerance contextual Action")
 
 local function new_aki_projection_session()
     return compiler.new({
