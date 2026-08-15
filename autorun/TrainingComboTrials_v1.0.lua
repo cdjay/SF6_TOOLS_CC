@@ -4983,11 +4983,7 @@ local function ct_player_init(p_idx, p_state)
         -- The trial depends on both characters, reset if either changes
         if not trial_state._xt_pending_save then
             if trial_state.is_recording then
-                trial_state.is_recording = false
-                invalidate_recording_display_context()
-                trial_state._raw_rec_active = false
-                trial_state._raw_rec_buffer = {}
-                ctx.reset_recording_preview()
+                cancel_recording()
             end
             if trial_state.is_playing then
                 trial_state.is_playing = false
