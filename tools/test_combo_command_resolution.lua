@@ -1259,6 +1259,8 @@ assert(load(validation_block
 do
     local parser_block = assert(renderer_source:match(
         "(local function localize_motion_text.-)\n%-%- =========================================================\n%-%- get_render_logs"))
+    MotionPresentation = MotionPresentation
+        or require("func/ComboTrials/MotionPresentation")
     Validator = Validator or {
         counter_type_for_display = function() return 0 end,
     }

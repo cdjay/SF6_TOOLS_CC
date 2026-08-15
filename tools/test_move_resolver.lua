@@ -44,6 +44,7 @@ json = {
 local MoveResolver = require("func/ComboTrials/Semantic/MoveResolver")
 local Shadow = require("func/ComboTrials/Semantic/MoveResolverShadow")
 local UnifiedActionConsumer = require("func/ComboTrials/UnifiedActionConsumer")
+local CommandDisplayOverrides = require("func/ComboTrials/CommandDisplayOverrides")
 
 local resolver, status = MoveResolver.load({
     dir = FIXTURE_DIR,
@@ -73,8 +74,33 @@ assert(#ambiguous.current_move_uids == 2)
 
 local missing = resolver:resolve_action(20, 99999)
 assert(missing.status == "NOT_FOUND" and #missing.candidates == 0)
+assert(#missing.identities == 0,
+    "runtime-only Actions must not acquire a fake stable Move identity")
 assert(resolver:resolve_action("bad", 1).status == "INVALID_FIGHTER")
 assert(resolver:resolve_action(20, "bad").status == "INVALID_ACTION")
+
+local before_presentation = resolver:resolve_action(20, 976)
+local command_map = {
+    _slim = true,
+    ["976"] = { classic = "236+P", status = "strict_route" },
+}
+local merged, applied = CommandDisplayOverrides.merge(command_map, "EHonda", {
+    schema = CommandDisplayOverrides.SCHEMA,
+    character = "EHonda",
+    entries = {
+        ["976"] = {
+            classic = "DISPLAY ONLY",
+            replace = true,
+            evidence = "synthetic presentation isolation evidence",
+        },
+    },
+})
+assert(applied == 1 and merged["976"].classic == "DISPLAY ONLY")
+local after_presentation = resolver:resolve_action(20, 976)
+assert(after_presentation.status == before_presentation.status)
+assert(table.concat(after_presentation.identities, ",")
+    == table.concat(before_presentation.identities, ","),
+    "presentation overrides must not alter resolver identity")
 
 local agreement = Shadow.compare_match(resolver, {
     character = "EHonda",

@@ -13,6 +13,7 @@ local SequenceGrouping = require("func/ComboTrials/SequenceGrouping")
 local Validator = require("func/ComboTrials/Validator")
 local TrainingEnvironment = require("func/ComboTrials/TrainingEnvironment")
 local CommandDisplayOverrides = require("func/ComboTrials/CommandDisplayOverrides")
+local MotionPresentation = require("func/ComboTrials/MotionPresentation")
 local ActionCompatibility = require("func/ComboTrials/ActionCompatibility")
 local SF6CCVersion = require("func/SF6CC_Version")
 local TrialDisplayState = require("func/ComboTrials/TrialDisplayState")
@@ -2789,11 +2790,6 @@ local function localize_motion_text(s)
     return s
 end
 
-local function is_shun_goku_satsu_motion(motion)
-    local s = tostring(motion or ""):upper()
-    return s:find("SHUN%s+GOKU%s+SATSU") ~= nil or s:find("瞬狱杀") ~= nil
-end
-
 local function parse_motion_to_icons(log_entry, trial_mode, should_flip, reverse_layout)
     local d2d_cfg = ctx and ctx.d2d_cfg or {}
     local motion_tokens = {}
@@ -2802,9 +2798,7 @@ local function parse_motion_to_icons(log_entry, trial_mode, should_flip, reverse
     -- Convert to uppercase IMMEDIATELY so that j. becomes J.
     s = s:upper()
     s = s:gsub("＋", "+")
-    if log_entry.id == 1231 and is_shun_goku_satsu_motion(s) then
-        s = "LP,LP,6,LK,HP (瞬狱杀)"
-    end
+    s = MotionPresentation.resolve_named_sequence(log_entry.id, s) or s
 
     -- 1. Inline normalization of aerial state (J. -> [空中], keeps each [空中] at its position)
     s = s:gsub("J%.", "[空中]")
@@ -4050,9 +4044,11 @@ function M.init(shared_ctx)
     ctx.clear_command_display_cache = M.clear_command_display_cache
     ctx.clear_unresolved_action_audit = M.clear_unresolved_action_audit
     ctx.localize_motion_text = function(motion, action_id)
-        if action_id == 1231 and is_shun_goku_satsu_motion(motion) then
-            return "LP,LP,6,LK,HP (瞬狱杀)"
-        end
+        local named_sequence = MotionPresentation.resolve_named_sequence(
+            action_id,
+            motion
+        )
+        if named_sequence ~= nil then return named_sequence end
         return localize_motion_text(tostring(motion or ""):upper())
     end
     Canvas.register(imgui_init, imgui_draw)
