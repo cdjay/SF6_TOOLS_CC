@@ -46,3 +46,10 @@ but the comparison always reports `production_result = legacy`. No runtime consu
 has switched authority, and an artifact with `review_complete=false` or
 `integration_candidate=false` is valid only for diagnostics, corpus comparison,
 and future shadow observation.
+
+Phase 2 keeps character-conditioned hold/charge behavior behind
+`ChargeRuntimePolicy`; the entry script only invokes that module. Named command
+expansion such as Akuma Action 1231 lives in `MotionPresentation`, which may
+return display text but cannot alter recording, detection, compatibility, or
+MoveResolver identity. Presentation overrides are covered by a resolver
+isolation test.

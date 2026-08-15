@@ -38,7 +38,6 @@ local DebugTrace = ComboTrialsModules.DebugTrace
 local ActionMatcher = ComboTrialsModules.ActionMatcher
 local ActionRestartDetector = ComboTrialsModules.ActionRestartDetector
 local CharacterRules = ComboTrialsModules.CharacterRules
-local ChargeRuntimePolicy = ComboTrialsModules.ChargeRuntimePolicy
 local RawInputCodec = ComboTrialsModules.RawInputCodec
 local SequenceGrouping = ComboTrialsModules.SequenceGrouping
 local Validator = ComboTrialsModules.Validator
@@ -2581,7 +2580,10 @@ local function normalize_sequence_counter_types(sequence, infer_first_from_legac
 end
 
 function ct_is_ingrid_charge_stock_action(char_name, act_id)
-    return ChargeRuntimePolicy.is_charge_stock_action(char_name, act_id)
+    return ComboTrialsModules.ChargeRuntimePolicy.is_charge_stock_action(
+        char_name,
+        act_id
+    )
 end
 
 local ComboTrials_Files = require("func/ComboTrials_Files")
@@ -3682,7 +3684,8 @@ end
 -- =========================================================
 -- UNIVERSAL CHARGE STATE MACHINE
 -- =========================================================
-local evaluate_charge_status = ChargeRuntimePolicy.evaluate_status
+local evaluate_charge_status =
+    ComboTrialsModules.ChargeRuntimePolicy.evaluate_status
 
 -- =========================================================
 -- SKIP K.O. & ROUND END ANIMATIONS (Ported from ReplayLabs)
@@ -5034,7 +5037,9 @@ end
 
 local function ct_player_tracking(p_idx, p_state)
     -- LILY STRICT: Track physical button held on controller
-    if ChargeRuntimePolicy.should_track_physical_hold(p_state.profile_name)
+    if ComboTrialsModules.ChargeRuntimePolicy.should_track_physical_hold(
+            p_state.profile_name
+        )
         and #p_state.log > 0 and p_state.log[1].trigger_mask then
         p_state.log[1].is_physically_holding = ((_pf.direct_input & p_state.log[1].trigger_mask) ~= 0)
     end
@@ -5427,7 +5432,8 @@ local function ct_player_hold_charge(p_state)
                 current_log.is_holding = false
 
                 -- Auto-detect max frame for JP/Lily if not configured
-                if ChargeRuntimePolicy.should_autodetect_charge_max(p_state.profile_name)
+                if ComboTrialsModules.ChargeRuntimePolicy
+                    .should_autodetect_charge_max(p_state.profile_name)
                     and (current_log.charge_max == nil or current_log.charge_max == "") then
                     current_log.charge_max = current_log.hold_frames
                     local id_s = tostring(current_log.id)

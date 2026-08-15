@@ -181,6 +181,11 @@ get_command(move, mode, context)
 `review_complete=false` 或 `integration_candidate=false` 的 artifact 只能用于诊断、corpus
 比较与后续 shadow observation，不能成为 production authority。
 
+Phase 2 将角色条件化的蓄力/长按行为收敛到 `ChargeRuntimePolicy`，主入口只负责调用。
+Akuma Action 1231 等名称到指令序列的展开归 `MotionPresentation` 所有；该模块只能返回
+显示文本，不能修改录制、检测、兼容或 MoveResolver identity。Presentation override 已由
+Resolver 隔离测试证明不会改变语义解析结果。
+
 ## 7.2 连段起始前导规范化
 
 Presentation、Detector 和 Auditor 必须从冻结 V2 序列生成同一份训练投影。只允许移除连段开头连续出现的以下步骤：单一基础方向 `1` 到 `9`、基础位移 `44`/`66`、Drive Parry。第一个不属于该集合的 Action 是首个可见、可检测检查点。
