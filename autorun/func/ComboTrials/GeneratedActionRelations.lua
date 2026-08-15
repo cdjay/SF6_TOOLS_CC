@@ -16,7 +16,11 @@ local INTERNAL_TRANSITION_OWNERSHIP = {
     ac_type2_numbered_execution_phase = "internal_execution_phase",
     ac_type2_same_structure_execution_phase = "internal_execution_phase",
     ac_type2_type4_terminal_execution_phase = "internal_execution_phase",
+    ac_type37_automatic_execution_phase = "internal_execution_phase",
 }
+
+local TYPE37_AUTOMATIC_EXECUTION_REASON =
+    "ac_type37_unique_automatic_execution_phase"
 
 local function character_key(value)
     return tostring(value or ""):gsub("[^%w_]", "")
@@ -314,8 +318,36 @@ local function read_internal_execution_phases(document, meta)
             and document[tostring(target_action_id)] or nil
         local expected_ownership = type(relation) == "table"
             and INTERNAL_TRANSITION_OWNERSHIP[relation.kind] or nil
+        local relation_shape_ok = true
+        if type(relation) == "table"
+            and relation.kind == "ac_type37_automatic_execution_phase" then
+            local tail_action_id = integer(relation.tail_action_id)
+            local action_frames = relation.action_frames
+            local fingerprint_fields = relation.fingerprint_fields
+            relation_shape_ok = source_action_id ~= nil and target_action_id ~= nil
+                and tail_action_id ~= nil
+                and source_action_id ~= target_action_id
+                and source_action_id ~= tail_action_id
+                and target_action_id ~= tail_action_id
+                and integer(relation.branch_type) == 37
+                and strict_array(action_frames) == 2
+                and integer(action_frames[1]) == 0
+                and integer(action_frames[2]) ~= nil and integer(action_frames[2]) > 0
+                and integer(relation.exit_branch_type) == 12
+                and integer(relation.exit_param01) ~= nil
+                and integer(relation.exit_param01) > 0
+                and integer(relation.exit_param02) ~= nil
+                and integer(relation.exit_param02) > 0
+                and strict_array(fingerprint_fields) == 4
+                and fingerprint_fields[1] == "Category"
+                and fingerprint_fields[2] == "Combo"
+                and fingerprint_fields[3] == "Projectile"
+                and fingerprint_fields[4] == "State"
+                and relation.reason == TYPE37_AUTOMATIC_EXECUTION_REASON
+        end
         if target_action_id == nil
             or expected_ownership == nil
+            or relation_shape_ok ~= true
             or type(relation.reason) ~= "string" or relation.reason == ""
             or seen_targets[target_action_id] == true
             or type(target) ~= "table"

@@ -150,9 +150,25 @@ function ActionSequenceNormalizer.normalize(sequence, options)
     local projected = {}
     local source_indices = {}
     local inline_removed_count = 0
+    local partial_chord_removed_count = 0
     for source_index = prefix_length + 1, #sequence do
         local source_step = sequence[source_index]
         local projected_step = deep_copy(source_step)
+        if #projected > 0
+            and type(options.classify_partial_chord_precursor) == "function"
+            and options.classify_partial_chord_precursor(
+                projected[#projected],
+                source_step,
+                projected[#projected - 1]
+            ) == true then
+            local merged_delay = (tonumber(projected[#projected].delay_from_prev) or 0)
+                + (tonumber(source_step.delay_from_prev) or 0)
+            table.remove(projected)
+            table.remove(source_indices)
+            inline_removed_count = inline_removed_count + 1
+            partial_chord_removed_count = partial_chord_removed_count + 1
+            projected_step.delay_from_prev = #projected == 0 and 0 or merged_delay
+        end
         if is_raw_drive_rush_step(source_step, options)
             and type(options.classify_raw_drive_rush_precursor) == "function" then
             local merged_delay = tonumber(source_step.delay_from_prev) or 0
@@ -190,13 +206,22 @@ function ActionSequenceNormalizer.normalize(sequence, options)
     projected[1].delay_from_prev = 0
     move_first_step_payload(sequence[1], projected[1], source_indices)
 
+    local reason = "unchanged"
+    if partial_chord_removed_count > 0 then
+        reason = "partial_chord_precursors_removed"
+    elseif inline_removed_count > 0 then
+        reason = "raw_drive_rush_precursors_removed"
+    elseif prefix_length > 0 then
+        reason = "leading_prefix_removed"
+    end
+
     return {
         ok = true,
-        reason = inline_removed_count > 0 and "raw_drive_rush_precursors_removed"
-            or (prefix_length > 0 and "leading_prefix_removed" or "unchanged"),
+        reason = reason,
         sequence = projected,
         prefix_length = prefix_length,
         inline_removed_count = inline_removed_count,
+        partial_chord_removed_count = partial_chord_removed_count,
         first_source_index = source_indices[1],
         source_indices = source_indices,
     }

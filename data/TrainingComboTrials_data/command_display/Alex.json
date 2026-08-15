@@ -5533,6 +5533,37 @@
       }
     ]
   },
+  "943": {
+    "classic_command": null,
+    "simple_command": null,
+    "motion_command": null,
+    "control_support": "unknown",
+    "source": "ac_bcm+capcom_official_semantics",
+    "ownership": "internal_execution_phase",
+    "suppress_display": true,
+    "transition_evidence": {
+      "kind": "ac_type37_automatic_execution_phase",
+      "source_action_id": 939,
+      "target_action_id": 943,
+      "tail_action_id": 944,
+      "branch_type": 37,
+      "action_frames": [
+        0,
+        10
+      ],
+      "exit_branch_type": 12,
+      "exit_param01": 4,
+      "exit_param02": 190,
+      "fingerprint_fields": [
+        "Category",
+        "Combo",
+        "Projectile",
+        "State"
+      ],
+      "reason": "ac_type37_unique_automatic_execution_phase"
+    },
+    "routes": []
+  },
   "957": {
     "classic_command": {
       "display": "2+PP",
@@ -5616,28 +5647,36 @@
         "2+PP"
       ]
     },
-    "control_support": "classic_only",
+    "control_support": "classic_modern",
     "source": "ac_bcm+capcom_official_semantics",
     "ownership": "direct",
-    "simple_command": null,
+    "simple_command": {
+      "display": "2 + 中 + 强",
+      "inputs": [
+        "2 + 中 + 强"
+      ]
+    },
     "motion_command": null,
     "routes": [
       {
-        "display": "2+PP",
+        "display": "2 + 中 + 强",
         "character": "Alex",
         "owner_action_id": 958,
         "trigger_index": 121,
-        "profile": "norm",
+        "profile": "easy",
         "command_no": -1,
         "command_index": -1,
         "raw_direction_inputs": [],
-        "raw_button_mask": 112,
+        "raw_button_mask": 384,
         "raw_button_condition": 16480,
         "raw_dc_exc_flags": 2,
         "raw_ng_key_flags": 0,
-        "visible_direction": null,
-        "visible_button": null,
-        "button_candidates": [],
+        "visible_direction": "2",
+        "visible_button": "中 + 强",
+        "button_candidates": [
+          "中",
+          "强"
+        ],
         "required_button_count": 2,
         "source": "bcm_profile",
         "ac_relation_type": null,
@@ -5673,8 +5712,7 @@
         "super_shortcut_direction_profile": null,
         "super_shortcut_direction": null,
         "super_shortcut_direction_notation": null,
-        "super_shortcut_direction_reason": null,
-        "projection_scope": "classic_only"
+        "super_shortcut_direction_reason": null
       }
     ]
   },
@@ -5685,28 +5723,36 @@
         "2+PP"
       ]
     },
-    "control_support": "classic_only",
+    "control_support": "classic_modern",
     "source": "ac_bcm+capcom_official_semantics",
     "ownership": "direct",
-    "simple_command": null,
+    "simple_command": {
+      "display": "2 + 中 + 强",
+      "inputs": [
+        "2 + 中 + 强"
+      ]
+    },
     "motion_command": null,
     "routes": [
       {
-        "display": "2+PP",
+        "display": "2 + 中 + 强",
         "character": "Alex",
         "owner_action_id": 959,
         "trigger_index": 120,
-        "profile": "norm",
+        "profile": "easy",
         "command_no": -1,
         "command_index": -1,
         "raw_direction_inputs": [],
-        "raw_button_mask": 112,
+        "raw_button_mask": 384,
         "raw_button_condition": 16480,
         "raw_dc_exc_flags": 2,
         "raw_ng_key_flags": 0,
-        "visible_direction": null,
-        "visible_button": null,
-        "button_candidates": [],
+        "visible_direction": "2",
+        "visible_button": "中 + 强",
+        "button_candidates": [
+          "中",
+          "强"
+        ],
         "required_button_count": 2,
         "source": "bcm_profile",
         "ac_relation_type": null,
@@ -5742,8 +5788,7 @@
         "super_shortcut_direction_profile": null,
         "super_shortcut_direction": null,
         "super_shortcut_direction_notation": null,
-        "super_shortcut_direction_reason": null,
-        "projection_scope": "classic_only"
+        "super_shortcut_direction_reason": null
       }
     ]
   },
@@ -6597,6 +6642,142 @@
         "super_shortcut_direction": null,
         "super_shortcut_direction_notation": null,
         "super_shortcut_direction_reason": null
+      }
+    ]
+  },
+  "977": {
+    "classic_command": {
+      "display": "HP",
+      "inputs": [
+        "HP"
+      ]
+    },
+    "control_support": "classic_modern",
+    "source": "ac_bcm+capcom_official_semantics",
+    "ownership": "type20_action_phase",
+    "simple_command": null,
+    "motion_command": {
+      "display": "强",
+      "inputs": [
+        "强"
+      ]
+    },
+    "routes": [
+      {
+        "display": "强",
+        "character": "Alex",
+        "owner_action_id": 976,
+        "trigger_index": 48,
+        "profile": "sprt",
+        "command_no": -1,
+        "command_index": -1,
+        "raw_direction_inputs": [],
+        "raw_button_mask": 256,
+        "raw_button_condition": 16416,
+        "raw_dc_exc_flags": 0,
+        "raw_ng_key_flags": 2,
+        "visible_direction": null,
+        "visible_button": "强",
+        "button_candidates": [
+          "强"
+        ],
+        "required_button_count": 1,
+        "source": "ac_type20_same_structure_execution_phase",
+        "ac_relation_type": 20,
+        "ac_path": [
+          976,
+          977
+        ],
+        "inherited_from_action_id": 976,
+        "confidence": "verified_inherited_action_phase",
+        "direct_evidence": false,
+        "inheritance_evidence": true,
+        "inheritance_reason": "ac_type20_verified_same_structure_execution_phase",
+        "rebind_evidence": false,
+        "rebind_reason": null,
+        "runtime_common_evidence": false,
+        "runtime_common_reason": null,
+        "official_semantic_evidence": false,
+        "official_semantic_reason": null,
+        "community_semantic_evidence": false,
+        "community_semantic_reason": null,
+        "assist_combo_evidence": false,
+        "assist_combo_reason": null,
+        "charge_context_evidence": false,
+        "charge_context_profile": null,
+        "charge_context_direction": null,
+        "charge_context_manual_direction": null,
+        "charge_context_direction_profile": null,
+        "charge_context_command_no": null,
+        "charge_context_command_index": null,
+        "charge_context_notation": null,
+        "charge_context_source_action_id": null,
+        "charge_context_source_trigger_indices": [],
+        "charge_context_relation": null,
+        "charge_context_reason": null,
+        "super_shortcut_direction_evidence": false,
+        "super_shortcut_direction_profile": null,
+        "super_shortcut_direction": null,
+        "super_shortcut_direction_notation": null,
+        "super_shortcut_direction_reason": null,
+        "display_action_id": 977,
+        "bcm_owner_action_id": 976,
+        "ac_phase_signatures": [
+          {
+            "attr": 0,
+            "action_frame": 4,
+            "param00": 0,
+            "param01": 64,
+            "param02": 0,
+            "param03": 1
+          },
+          {
+            "attr": 256,
+            "action_frame": 0,
+            "param00": 0,
+            "param01": 64,
+            "param02": 0,
+            "param03": 1
+          },
+          {
+            "attr": 0,
+            "action_frame": 4,
+            "param00": 0,
+            "param01": 256,
+            "param02": 0,
+            "param03": 2
+          },
+          {
+            "attr": 256,
+            "action_frame": 0,
+            "param00": 0,
+            "param01": 256,
+            "param02": 0,
+            "param03": 2
+          },
+          {
+            "attr": 256,
+            "action_frame": 0,
+            "param00": 0,
+            "param01": 256,
+            "param02": 0,
+            "param03": 3
+          },
+          {
+            "attr": 256,
+            "action_frame": 0,
+            "param00": 1,
+            "param01": 256,
+            "param02": 0,
+            "param03": 3
+          }
+        ],
+        "ac_fingerprint_fields": [
+          "Category",
+          "Combo",
+          "Projectile",
+          "State"
+        ]
       }
     ]
   },
@@ -8362,7 +8543,7 @@
       "sprt"
     ],
     "direct_route_count": 102,
-    "inherited_route_count": 7,
+    "inherited_route_count": 8,
     "rebind_route_count": 0,
     "runtime_common_route_count": 6,
     "official_semantic_route_count": 3,
@@ -8399,6 +8580,7 @@
     ],
     "type20_hold_route_count": 0,
     "type20_action_phase_route_count": 0,
+    "type20_same_structure_execution_route_count": 1,
     "type37_followup_execution_phase_route_count": 0,
     "charge_context_route_count": 0,
     "super_shortcut_direction_route_count": 6,
@@ -8469,9 +8651,31 @@
     "ac_state_neutral_relations": [],
     "ac_type13_neutral_route_count": 0,
     "ac_type13_neutral_relations": [],
-    "internal_transition_suppression_count": 0,
-    "suppressed_internal_transitions": [],
-    "split_command_action_count": 83,
+    "internal_transition_suppression_count": 1,
+    "suppressed_internal_transitions": [
+      {
+        "kind": "ac_type37_automatic_execution_phase",
+        "source_action_id": 939,
+        "target_action_id": 943,
+        "tail_action_id": 944,
+        "branch_type": 37,
+        "action_frames": [
+          0,
+          10
+        ],
+        "exit_branch_type": 12,
+        "exit_param01": 4,
+        "exit_param02": 190,
+        "fingerprint_fields": [
+          "Category",
+          "Combo",
+          "Projectile",
+          "State"
+        ],
+        "reason": "ac_type37_unique_automatic_execution_phase"
+      }
+    ],
+    "split_command_action_count": 86,
     "followup_relation_count": 0,
     "followup_relations": [],
     "official_semantic_source_sha256": "1224844c32bcc26ce33276400ad2ae4d7cfc99aabc5c2470a96ad77ddb75ac22",
@@ -8480,7 +8684,7 @@
       "sprt"
     ],
     "ac_relation_route_counts": {
-      "20": 1,
+      "20": 2,
       "29": 2,
       "63": 4
     },
@@ -8572,6 +8776,70 @@
     "type20_directional_relations": [],
     "type20_hold_relations": [],
     "type20_action_phase_relations": [],
+    "type20_same_structure_execution_relations": [
+      {
+        "source_action_id": 976,
+        "target_action_id": 977,
+        "branch_type": 20,
+        "signatures": [
+          {
+            "attr": 0,
+            "action_frame": 4,
+            "param00": 0,
+            "param01": 64,
+            "param02": 0,
+            "param03": 1
+          },
+          {
+            "attr": 256,
+            "action_frame": 0,
+            "param00": 0,
+            "param01": 64,
+            "param02": 0,
+            "param03": 1
+          },
+          {
+            "attr": 0,
+            "action_frame": 4,
+            "param00": 0,
+            "param01": 256,
+            "param02": 0,
+            "param03": 2
+          },
+          {
+            "attr": 256,
+            "action_frame": 0,
+            "param00": 0,
+            "param01": 256,
+            "param02": 0,
+            "param03": 2
+          },
+          {
+            "attr": 256,
+            "action_frame": 0,
+            "param00": 0,
+            "param01": 256,
+            "param02": 0,
+            "param03": 3
+          },
+          {
+            "attr": 256,
+            "action_frame": 0,
+            "param00": 1,
+            "param01": 256,
+            "param02": 0,
+            "param03": 3
+          }
+        ],
+        "fingerprint_fields": [
+          "Category",
+          "Combo",
+          "Projectile",
+          "State"
+        ],
+        "reason": "ac_type20_verified_same_structure_execution_phase"
+      }
+    ],
     "type37_followup_execution_phase_relations": [],
     "target_combo_repeat_relations": [],
     "structural_twin_relations": [],
@@ -8628,7 +8896,7 @@
       }
     ],
     "classic_projection_relations": [],
-    "unresolved_candidate_count": 23,
+    "unresolved_candidate_count": 21,
     "unresolved_candidates": [
       {
         "action_id": 17,
@@ -9569,114 +9837,6 @@
         "reason": "profile_disabled_or_missing"
       },
       {
-        "action_id": 958,
-        "character": "Alex",
-        "owner_action_id": 958,
-        "trigger_index": 121,
-        "profile": "sprt",
-        "command_no": 0,
-        "command_index": -1,
-        "raw_direction_inputs": [],
-        "raw_button_mask": 0,
-        "raw_button_condition": 0,
-        "raw_dc_exc_flags": 0,
-        "raw_ng_key_flags": 0,
-        "visible_direction": null,
-        "visible_button": null,
-        "button_candidates": [],
-        "required_button_count": null,
-        "source": "bcm_profile",
-        "ac_relation_type": null,
-        "ac_path": [],
-        "inherited_from_action_id": null,
-        "confidence": "direct_structural",
-        "direct_evidence": true,
-        "inheritance_evidence": false,
-        "inheritance_reason": null,
-        "rebind_evidence": false,
-        "rebind_reason": null,
-        "runtime_common_evidence": false,
-        "runtime_common_reason": null,
-        "official_semantic_evidence": false,
-        "official_semantic_reason": null,
-        "community_semantic_evidence": false,
-        "community_semantic_reason": null,
-        "assist_combo_evidence": false,
-        "assist_combo_reason": null,
-        "charge_context_evidence": false,
-        "charge_context_profile": null,
-        "charge_context_direction": null,
-        "charge_context_manual_direction": null,
-        "charge_context_direction_profile": null,
-        "charge_context_command_no": null,
-        "charge_context_command_index": null,
-        "charge_context_notation": null,
-        "charge_context_source_action_id": null,
-        "charge_context_source_trigger_indices": [],
-        "charge_context_relation": null,
-        "charge_context_reason": null,
-        "super_shortcut_direction_evidence": false,
-        "super_shortcut_direction_profile": null,
-        "super_shortcut_direction": null,
-        "super_shortcut_direction_notation": null,
-        "super_shortcut_direction_reason": null,
-        "reason": "profile_disabled_or_missing"
-      },
-      {
-        "action_id": 959,
-        "character": "Alex",
-        "owner_action_id": 959,
-        "trigger_index": 120,
-        "profile": "sprt",
-        "command_no": 0,
-        "command_index": -1,
-        "raw_direction_inputs": [],
-        "raw_button_mask": 0,
-        "raw_button_condition": 0,
-        "raw_dc_exc_flags": 0,
-        "raw_ng_key_flags": 0,
-        "visible_direction": null,
-        "visible_button": null,
-        "button_candidates": [],
-        "required_button_count": null,
-        "source": "bcm_profile",
-        "ac_relation_type": null,
-        "ac_path": [],
-        "inherited_from_action_id": null,
-        "confidence": "direct_structural",
-        "direct_evidence": true,
-        "inheritance_evidence": false,
-        "inheritance_reason": null,
-        "rebind_evidence": false,
-        "rebind_reason": null,
-        "runtime_common_evidence": false,
-        "runtime_common_reason": null,
-        "official_semantic_evidence": false,
-        "official_semantic_reason": null,
-        "community_semantic_evidence": false,
-        "community_semantic_reason": null,
-        "assist_combo_evidence": false,
-        "assist_combo_reason": null,
-        "charge_context_evidence": false,
-        "charge_context_profile": null,
-        "charge_context_direction": null,
-        "charge_context_manual_direction": null,
-        "charge_context_direction_profile": null,
-        "charge_context_command_no": null,
-        "charge_context_command_index": null,
-        "charge_context_notation": null,
-        "charge_context_source_action_id": null,
-        "charge_context_source_trigger_indices": [],
-        "charge_context_relation": null,
-        "charge_context_reason": null,
-        "super_shortcut_direction_evidence": false,
-        "super_shortcut_direction_profile": null,
-        "super_shortcut_direction": null,
-        "super_shortcut_direction_notation": null,
-        "super_shortcut_direction_reason": null,
-        "reason": "profile_disabled_or_missing"
-      },
-      {
         "action_id": 1100,
         "character": "Alex",
         "owner_action_id": 1100,
@@ -9893,7 +10053,7 @@
         "reason": "profile_disabled_or_missing"
       }
     ],
-    "unmapped_action_count": 268,
+    "unmapped_action_count": 266,
     "unmapped_action_ids": [
       1,
       2,
@@ -10106,7 +10266,6 @@
       934,
       935,
       942,
-      943,
       944,
       945,
       946,
@@ -10122,7 +10281,6 @@
       966,
       974,
       975,
-      977,
       984,
       985,
       986,
@@ -10200,6 +10358,8 @@
       "type20_hold_route_count": 0,
       "type20_action_phase_relation_count": 0,
       "type20_action_phase_route_count": 0,
+      "type20_same_structure_execution_relation_count": 1,
+      "type20_same_structure_execution_route_count": 1,
       "type37_followup_execution_phase_relation_count": 0,
       "type37_followup_execution_phase_route_count": 0,
       "charge_context_route_count": 0,
@@ -10227,12 +10387,12 @@
       "ac_state_neutral_route_count": 0,
       "ac_type13_neutral_relation_count": 0,
       "ac_type13_neutral_route_count": 0,
-      "internal_transition_suppression_count": 0,
-      "split_command_action_count": 83,
-      "classic_command_action_count": 89,
-      "shared_command_action_count": 83,
+      "internal_transition_suppression_count": 1,
+      "split_command_action_count": 86,
+      "classic_command_action_count": 90,
+      "shared_command_action_count": 86,
       "classic_projection_pending_count": 0,
-      "command_display_action_count": 89,
+      "command_display_action_count": 91,
       "followup_relation_count": 0,
       "command_slot_overflow_count": 0,
       "ac_automatic_transition_route_count": 0,

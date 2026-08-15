@@ -176,6 +176,8 @@ local VERIFIED_ALIAS_REASON = "ac_verified_equivalent_action_variant"
 local TYPE20_DIRECTION_REASON = "ac_type20_verified_directional_air_attack"
 local TYPE20_HOLD_REASON = "ac_type20_verified_hold_continuation"
 local TYPE20_PHASE_REASON = "ac_type20_verified_multi_input_action_phase"
+local TYPE20_SAME_STRUCTURE_PHASE_REASON =
+    "ac_type20_verified_same_structure_execution_phase"
 local TYPE37_FOLLOWUP_PHASE_REASON = "ac_type37_verified_followup_execution_phase"
 local CHARGE_CONTEXT_REASON = "bcm_charge_profile_context_proves_modern_held_shortcut"
 local AC_CHARGE_CONTEXT_REASON = "ac_full_structure_peer_and_bcm_selector_prove_charge_context"
@@ -193,6 +195,8 @@ local AC_NUMBERED_EXECUTION_PHASE_REASON =
     "ac_type2_numbered_same_structure_execution_phase"
 local AC_SAME_STRUCTURE_EXECUTION_PHASE_REASON =
     "ac_type2_same_structure_zero_parameter_execution_phase"
+local AC_TYPE37_AUTOMATIC_EXECUTION_PHASE_REASON =
+    "ac_type37_unique_automatic_execution_phase"
 local TARGET_COMBO_REPEAT_REASON = "bcm_turn_around_target_combo_repeats_parent_button"
 local STRUCTURAL_TWIN_REASON = "ac_bcm_unique_structural_twin_with_internal_use_super_delta"
 local ASSIST_COMBO_REASON = "bcm_assist_combo_recipe_direct_input_sequence"
@@ -439,6 +443,24 @@ local function load_command_display_map(character)
         and tonumber(meta.type20_action_phase_route_count) == type20_phase_routes
         and type(meta.type20_action_phase_relations) == "table"
         and #meta.type20_action_phase_relations == type20_phase_relations
+    local has_type20_same_structure_audit = type(audit) == "table"
+        and (audit.type20_same_structure_execution_relation_count ~= nil
+            or audit.type20_same_structure_execution_route_count ~= nil)
+    local type20_same_structure_relations = has_type20_same_structure_audit
+        and tonumber(audit.type20_same_structure_execution_relation_count) or nil
+    local type20_same_structure_routes = has_type20_same_structure_audit
+        and tonumber(audit.type20_same_structure_execution_route_count) or nil
+    local type20_same_structure_audit_ok = not has_type20_same_structure_audit
+        or (type20_same_structure_relations ~= nil and type20_same_structure_routes ~= nil
+            and type20_same_structure_relations >= 0
+            and type20_same_structure_routes >= type20_same_structure_relations
+            and type20_same_structure_relations == math.floor(type20_same_structure_relations)
+            and type20_same_structure_routes == math.floor(type20_same_structure_routes)
+            and tonumber(meta.type20_same_structure_execution_route_count)
+                == type20_same_structure_routes
+            and type(meta.type20_same_structure_execution_relations) == "table"
+            and #meta.type20_same_structure_execution_relations
+                == type20_same_structure_relations)
     local has_type37_followup_phase_audit = type(audit) == "table"
         and (audit.type37_followup_execution_phase_relation_count ~= nil
             or audit.type37_followup_execution_phase_route_count ~= nil)
@@ -749,6 +771,7 @@ local function load_command_display_map(character)
         and type63_strength_audit_ok
         and type20_hold_audit_ok
         and type20_phase_audit_ok
+        and type20_same_structure_audit_ok
         and type37_followup_phase_audit_ok
         and target_combo_audit_ok
         and structural_twin_audit_ok
@@ -981,6 +1004,30 @@ local function get_modern_display_motion(modern_map, step)
                         and fingerprints[1] == "Category" and fingerprints[2] == "Combo"
                         and fingerprints[3] == "Projectile" and fingerprints[4] == "State"
                         and relation.reason == AC_SAME_STRUCTURE_EXECUTION_PHASE_REASON
+                elseif same and evidence.kind == "ac_type37_automatic_execution_phase" then
+                    local frames = relation.action_frames
+                    local fingerprints = relation.fingerprint_fields
+                    local source_action_id = tonumber(relation.source_action_id)
+                    local tail_action_id = tonumber(relation.tail_action_id)
+                    same = entry.ownership == "internal_execution_phase"
+                        and source_action_id ~= nil and source_action_id ~= step_id
+                        and source_action_id == tonumber(evidence.source_action_id)
+                        and tail_action_id ~= nil and tail_action_id ~= source_action_id
+                        and tail_action_id ~= step_id
+                        and tail_action_id == tonumber(evidence.tail_action_id)
+                        and tonumber(relation.branch_type) == 37
+                        and type(frames) == "table" and #frames == 2
+                        and tonumber(frames[1]) == 0 and tonumber(frames[2]) ~= nil
+                        and tonumber(frames[2]) > 0
+                        and tonumber(relation.exit_branch_type) == 12
+                        and tonumber(relation.exit_param01) ~= nil
+                        and tonumber(relation.exit_param01) > 0
+                        and tonumber(relation.exit_param02) ~= nil
+                        and tonumber(relation.exit_param02) > 0
+                        and type(fingerprints) == "table" and #fingerprints == 4
+                        and fingerprints[1] == "Category" and fingerprints[2] == "Combo"
+                        and fingerprints[3] == "Projectile" and fingerprints[4] == "State"
+                        and relation.reason == AC_TYPE37_AUTOMATIC_EXECUTION_PHASE_REASON
                 else
                     same = false
                 end
@@ -1360,6 +1407,95 @@ local function get_modern_display_motion(modern_map, step)
             and tonumber(route.display_action_id) == step_id
             and route.confidence == "verified_inherited_action_phase"
             and route_character == map_character and phase_signature_ok
+        local same_structure_signature_ok = false
+        local required_same_structure_signatures = {
+            ["256:0:1:256:0:3"] = true,
+            ["256:0:0:256:0:3"] = true,
+            ["0:4:0:256:0:2"] = true,
+            ["256:0:0:256:0:2"] = true,
+            ["0:4:0:64:0:1"] = true,
+            ["256:0:0:64:0:1"] = true,
+        }
+        if type(route.ac_phase_signatures) == "table" and #route.ac_phase_signatures == 6 then
+            local signatures = {}
+            for _, signature in ipairs(route.ac_phase_signatures) do
+                if type(signature) == "table" then
+                    local key = string.format("%s:%s:%s:%s:%s:%s",
+                        tostring(signature.attr), tostring(signature.action_frame),
+                        tostring(signature.param00), tostring(signature.param01),
+                        tostring(signature.param02), tostring(signature.param03))
+                    signatures[key] = (signatures[key] or 0) + 1
+                end
+            end
+            same_structure_signature_ok = true
+            for key in pairs(required_same_structure_signatures) do
+                if signatures[key] ~= 1 then
+                    same_structure_signature_ok = false
+                    break
+                end
+            end
+        end
+        local declared_type20_same_structure = false
+        local type20_same_structure_declarations = type(modern_map._meta) == "table"
+            and modern_map._meta.type20_same_structure_execution_relations or nil
+        if type(type20_same_structure_declarations) == "table"
+            and same_structure_signature_ok then
+            for _, relation in ipairs(type20_same_structure_declarations) do
+                local relation_signature_ok = false
+                if type(relation) == "table" and type(relation.signatures) == "table"
+                    and #relation.signatures == 6 then
+                    local signatures = {}
+                    for _, signature in ipairs(relation.signatures) do
+                        if type(signature) == "table" then
+                            local key = string.format("%s:%s:%s:%s:%s:%s",
+                                tostring(signature.attr), tostring(signature.action_frame),
+                                tostring(signature.param00), tostring(signature.param01),
+                                tostring(signature.param02), tostring(signature.param03))
+                            signatures[key] = (signatures[key] or 0) + 1
+                        end
+                    end
+                    relation_signature_ok = true
+                    for key in pairs(required_same_structure_signatures) do
+                        if signatures[key] ~= 1 then
+                            relation_signature_ok = false
+                            break
+                        end
+                    end
+                end
+                local fingerprints = type(relation) == "table" and relation.fingerprint_fields or nil
+                if relation_signature_ok
+                    and tonumber(relation.source_action_id) == inherited_source
+                    and tonumber(relation.target_action_id) == step_id
+                    and tonumber(relation.branch_type) == 20
+                    and type(fingerprints) == "table" and #fingerprints == 4
+                    and fingerprints[1] == "Category" and fingerprints[2] == "Combo"
+                    and fingerprints[3] == "Projectile" and fingerprints[4] == "State"
+                    and relation.reason == TYPE20_SAME_STRUCTURE_PHASE_REASON then
+                    declared_type20_same_structure = true
+                    break
+                end
+            end
+        end
+        local route_fingerprints = route.ac_fingerprint_fields
+        local type20_same_structure_ok = source == "ac_type20_same_structure_execution_phase"
+            and entry.ownership == "type20_action_phase"
+            and declared_type20_same_structure
+            and route.direct_evidence == false and route.inheritance_evidence == true
+            and route.rebind_evidence == false and route.runtime_common_evidence == false
+            and route.official_semantic_evidence == false
+            and route.community_semantic_evidence == false
+            and route.inheritance_reason == TYPE20_SAME_STRUCTURE_PHASE_REASON
+            and tonumber(route.ac_relation_type) == 20 and inherited_source ~= nil
+            and step_id ~= nil and type(ac_path) == "table" and #ac_path >= 2
+            and tonumber(ac_path[#ac_path - 1]) == inherited_source
+            and tonumber(ac_path[#ac_path]) == step_id
+            and tonumber(route.display_action_id) == step_id
+            and tonumber(route.bcm_owner_action_id) == tonumber(route.owner_action_id)
+            and route.confidence == "verified_inherited_action_phase"
+            and route_character == map_character and same_structure_signature_ok
+            and type(route_fingerprints) == "table" and #route_fingerprints == 4
+            and route_fingerprints[1] == "Category" and route_fingerprints[2] == "Combo"
+            and route_fingerprints[3] == "Projectile" and route_fingerprints[4] == "State"
         local declared_type37_followup_phase = false
         local declared_type37_followup_source = nil
         local type37_followup_phase_declarations = type(modern_map._meta) == "table"
@@ -1599,6 +1735,7 @@ local function get_modern_display_motion(modern_map, step)
         if charge_context_ok and super_shortcut_ok
             and (direct_ok or inherited_ok or rebind_ok or runtime_common_ok or official_semantic_ok
                 or verified_alias_ok or type20_ok or type20_hold_ok or type20_phase_ok
+                or type20_same_structure_ok
                 or type37_followup_phase_ok or type63_strength_ok
                 or state_choice_ok
                 or target_combo_ok or structural_twin_ok
@@ -1651,7 +1788,8 @@ build_slim_command_display_map = function(loaded)
                     local inheritance_is_consistent = true
                     for _, route in ipairs(type(entry.routes) == "table" and entry.routes or {}) do
                         if type(route) == "table"
-                            and route.source == "ac_type20_action_phase"
+                            and (route.source == "ac_type20_action_phase"
+                                or route.source == "ac_type20_same_structure_execution_phase")
                             and route.confidence == "verified_inherited_action_phase" then
                             local candidate = tonumber(route.inherited_from_action_id)
                             if candidate ~= nil and inherited_from_action_id ~= nil
@@ -2111,8 +2249,9 @@ local function apply_presentation_context(command_map, action_id, motion, langua
     if context.strip_followup_prefix then
         motion = motion:gsub("^%s*>%s*", "")
     end
-    local separator = tostring(context.label):match("%)$") and " " or ""
-    return tostring(context.label) .. separator .. motion, context
+    local label = tostring(context.label)
+    local separator = (label:match("%)$") or label:match("）$")) and " " or ""
+    return label .. separator .. motion, context
 end
 
 -- Resolve the semantic command-display state before any localized placeholder,

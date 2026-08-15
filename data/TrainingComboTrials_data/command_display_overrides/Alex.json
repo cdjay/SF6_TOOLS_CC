@@ -58,20 +58,5 @@
       "evidence": "Action 977 is the release phase of the official Breaker Stance HP command, not a separate instant input"
     }
   },
-  "entries": {
-    "958": {
-      "classic": "2+PP",
-      "replace": true,
-      "evidence": "Twenty-seven command-display failures across twenty otherwise completed revision 37 runtime audit replays bind Alex Action 958 to the recorded 2+PP stance-entry input; the generated catalog independently records the same Classic command"
-    },
-    "959": {
-      "classic": "2+PP",
-      "replace": true,
-      "evidence": "A revision 37 runtime audit replay binds Alex Action 959 to the recorded 2+PP stance-entry input before a later unrelated terminal mismatch; the generated catalog independently records the same Classic command"
-    },
-    "977": {
-      "classic": "HP",
-      "evidence": "Five legacy trials and five raw-input replays identify Action 977 as the release phase of the official Breaker Stance HP command"
-    }
-  }
+  "entries": {}
 }

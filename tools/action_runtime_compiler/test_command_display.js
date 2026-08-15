@@ -1165,6 +1165,73 @@ const rejectedPhase = commandDisplay.buildCommandDisplay(makeType20ActionPhaseSo
     phaseRuntime, {}, { generatedAt: "type20-action-phase-negative" });
 assertNoModernCommand(rejectedPhase["3101"]);
 
+function makeType20SameStructureExecutionSource(complete) {
+    let id = 1;
+    const objects = [], records = [];
+    const add = object => {
+        const result = { object_id: id++, ...object };
+        objects.push(result);
+        return result.object_id;
+    };
+    const shared = {};
+    for (const name of ["ActionFrame", "Category", "Combo", "Projectile", "State"]) {
+        shared[name] = add({ object_type: `Type20SameStructure.${name}`, fields: [] });
+    }
+    const signatures = [
+        [256, 0, 1, 256, 3],
+        [256, 0, 0, 256, 3],
+        [0, 4, 0, 256, 2],
+        [256, 0, 0, 256, 2],
+        [0, 4, 0, 64, 1],
+        [256, 0, 0, 64, 1]
+    ];
+    if (!complete) signatures.pop();
+    const sourceItems = signatures.map(([attr, frame, p00, p01, p03], index) => {
+        const branch = add({ object_type: "CharacterAsset.BranchKey", fields: [
+            ["Action", 3151], ["Type", 20], ["Attr", attr], ["ActionFrame", frame],
+            ["Param00", p00], ["Param01", p01], ["Param02", 0], ["Param03", p03],
+            ["Param04", 0], ["Param05", 0], ["TriggerID", -1]
+        ].map(([name, value]) => ({ name, value: scalar(value) })) });
+        return { index, value: ref(branch) };
+    });
+    const addAction = (actionId, items) => {
+        const keys = add({ object_type: "Type20SameStructure.Keys", items });
+        const root = add({ object_type: "FAB.ACTION", fields: [
+            { name: "ActionID", value: scalar(actionId) },
+            { name: "Frame", value: scalar(118) },
+            ...Object.entries(shared).map(([name, objectId]) => ({ name, value: ref(objectId) })),
+            { name: "Keys", value: ref(keys) }
+        ] });
+        records.push({ source_scope: "character", native_action_id: actionId,
+            action_ref: ref(root) });
+    };
+    addAction(3150, sourceItems);
+    addAction(3151, []);
+    return { objects, records };
+}
+const sameStructurePhaseCatalog = { source: { character: "SameStructureExecution" }, actions: {
+    "3150": { action_id: 3150, triggers: [trigger(3150, profiles(
+        profile(true, "HP", 256, 16416), null,
+        profile(true, "Normal", 2147483648, 0),
+        profile(true, "HP", 64, 16416)), {
+            function_id: 1, kind_level: 6, kind_sub: 6, use_sprt: true, use_super: true
+        })] }
+} };
+const sameStructurePhaseRuntime = { character: "SameStructureExecution", fighter_id: 108,
+    action_ids: [3150, 3151], aliases: {}, sources: {}, validation: { rules: {} },
+    actions: { "3150": "HP" }, evidence: { ac_derived_commands: [], alias_relations: [] } };
+const sameStructurePhaseOutput = commandDisplay.buildCommandDisplay(
+    makeType20SameStructureExecutionSource(true), sameStructurePhaseCatalog,
+    sameStructurePhaseRuntime, {}, { generatedAt: "type20-same-structure-execution" });
+assert.strictEqual(modernText(sameStructurePhaseOutput["3151"]), "强");
+assert.strictEqual(sameStructurePhaseOutput["3151"].ownership, "type20_action_phase");
+assert.strictEqual(sameStructurePhaseOutput["3151"].routes[0].source,
+    "ac_type20_same_structure_execution_phase");
+const rejectedSameStructurePhase = commandDisplay.buildCommandDisplay(
+    makeType20SameStructureExecutionSource(false), sameStructurePhaseCatalog,
+    sameStructurePhaseRuntime, {}, { generatedAt: "type20-same-structure-execution-negative" });
+assertNoModernCommand(rejectedSameStructurePhase["3151"]);
+
 function makeType37FollowupPhaseSource(attr) {
     let id = 1;
     const objects = [], records = [];
@@ -1233,6 +1300,68 @@ const rejectedType37 = commandDisplay.buildCommandDisplay(
         officialSemantics: type37Official
     });
 assertNoModernCommand(rejectedType37["3202"]);
+
+function makeType37AutomaticExecutionSource(complete) {
+    let id = 1;
+    const objects = [], records = [];
+    const add = object => {
+        const result = { object_id: id++, ...object };
+        objects.push(result);
+        return result.object_id;
+    };
+    const targetStructure = {};
+    for (const name of ["ActionFrame", "Category", "Combo", "Projectile", "State"]) {
+        targetStructure[name] = add({ object_type: `Type37Automatic.${name}`, fields: [] });
+    }
+    const addAction = (actionId, branches, sharedStructure) => {
+        const items = branches.map((branch, index) => {
+            const branchId = add({ object_type: "CharacterAsset.BranchKey", fields: [
+                ["Action", branch.target], ["Type", branch.type], ["Attr", 0],
+                ["ActionFrame", branch.frame], ["Param00", 0], ["Param01", branch.p01 || 0],
+                ["Param02", branch.p02 || 0], ["Param03", 0], ["Param04", 0],
+                ["Param05", 0], ["TriggerID", -1]
+            ].map(([name, value]) => ({ name, value: scalar(value) })) });
+            return { index, value: ref(branchId) };
+        });
+        const keys = add({ object_type: "Type37Automatic.Keys", items });
+        const root = add({ object_type: "FAB.ACTION", fields: [
+            { name: "ActionID", value: scalar(actionId) },
+            { name: "Frame", value: scalar(actionId === 3250 ? 46 : 18) },
+            ...Object.entries(sharedStructure || {}).map(([name, objectId]) =>
+                ({ name, value: ref(objectId) })),
+            { name: "Keys", value: ref(keys) }
+        ] });
+        records.push({ source_scope: "character", native_action_id: actionId,
+            action_ref: ref(root) });
+    };
+    addAction(3250, complete
+        ? [{ target: 3251, type: 37, frame: 10 },
+            { target: 3251, type: 37, frame: 0 }]
+        : [{ target: 3251, type: 37, frame: 0 }]);
+    addAction(3251, [{ target: 3252, type: 12, frame: 0, p01: 4, p02: 190 }],
+        targetStructure);
+    addAction(3252, [], targetStructure);
+    return { objects, records };
+}
+const type37AutomaticCatalog = { source: { character: "AutomaticExecutionPhase" }, actions: {
+    "3250": { action_id: 3250, triggers: [trigger(3250, profiles(
+        profile(true, "623+HK", 256), profile(true, "2+MP", 32), null,
+        profile(true, "623+HK", 512)), { function_id: 2 })] }
+} };
+const type37AutomaticRuntime = { character: "AutomaticExecutionPhase", fighter_id: 109,
+    action_ids: [3250, 3251, 3252], aliases: {}, sources: {}, validation: { rules: {} },
+    actions: { "3250": "623+HK" }, evidence: { ac_derived_commands: [], alias_relations: [] } };
+const type37AutomaticOutput = commandDisplay.buildCommandDisplay(
+    makeType37AutomaticExecutionSource(true), type37AutomaticCatalog,
+    type37AutomaticRuntime, {}, { generatedAt: "type37-automatic-execution" });
+assert.strictEqual(type37AutomaticOutput["3251"].suppress_display, true);
+assert.strictEqual(type37AutomaticOutput["3251"].ownership, "internal_execution_phase");
+assert.strictEqual(type37AutomaticOutput["3251"].transition_evidence.kind,
+    "ac_type37_automatic_execution_phase");
+const rejectedType37Automatic = commandDisplay.buildCommandDisplay(
+    makeType37AutomaticExecutionSource(false), type37AutomaticCatalog,
+    type37AutomaticRuntime, {}, { generatedAt: "type37-automatic-execution-negative" });
+assert.strictEqual(rejectedType37Automatic["3251"], undefined);
 
 // Only compiler-verified Type29/35 equivalent-action aliases inherit a route.
 const aliasRuntime = clone(runtime);
@@ -1475,6 +1604,44 @@ assert.strictEqual(classicOnlyFunction1Output["8101"].routes.some(route =>
         && route.projection_scope === "classic_only" && route.direct_evidence === true), true);
 assert.strictEqual(classicOnlyFunction1Output["8101"].routes.some(route =>
     route.source === "bcm_assist_combo_recipe" && route.assist_combo_evidence === true), true);
+
+const function1EasyFallbackCatalog = { source: { character: "Function1EasyFallback" }, actions: {
+    "8120": { action_id: 8120, triggers: [trigger(812, profiles(
+        null,
+        profile(true, "2+LK+MK", 384, 16480, { dc_exc_flags: 2 }),
+        profile(true, "Normal", 2147483648, 0),
+        profile(true, "2+PP", 112, 16480, { dc_exc_flags: 2 })), {
+            function_id: 1, action_dir: 2, kind_level: 6,
+            use_sprt: true, use_super: true, turn_around: 1
+        })] }
+} };
+const function1EasyFallbackRuntime = {
+    character: "Function1EasyFallback", fighter_id: 203,
+    action_ids: [8120], actions: { "8120": "2+PP" }, aliases: {},
+    sources: { ac_sha256: "ac", bcm_sha256: "bcm" },
+    validation: { rules: {} }, evidence: { ac_derived_commands: [] }
+};
+const function1EasyFallbackOutput = commandDisplay.buildCommandDisplay(
+    {}, function1EasyFallbackCatalog, function1EasyFallbackRuntime, {}, {
+        generatedAt: "function1-easy-fallback"
+    });
+assert.strictEqual(modernText(function1EasyFallbackOutput["8120"]), "2 + 中 + 强");
+assert.strictEqual(function1EasyFallbackOutput["8120"].control_support, "classic_modern");
+assert.strictEqual(function1EasyFallbackOutput["8120"].routes.some(route =>
+    route.profile === "easy" && route.direct_evidence === true), true);
+
+const rejectedFunction1EasyFallbackCatalog = JSON.parse(
+    JSON.stringify(function1EasyFallbackCatalog));
+rejectedFunction1EasyFallbackCatalog.actions["8120"].triggers[0].profiles.sprt =
+    profile(true, "MP", 128, 16416);
+const rejectedFunction1EasyFallbackOutput = commandDisplay.buildCommandDisplay(
+    {}, rejectedFunction1EasyFallbackCatalog, function1EasyFallbackRuntime, {}, {
+        generatedAt: "function1-easy-fallback-negative"
+    });
+assert.strictEqual(modernText(rejectedFunction1EasyFallbackOutput["8120"]), "中");
+assert.strictEqual(rejectedFunction1EasyFallbackOutput["8120"].routes.some(route =>
+    route.profile === "easy"), false,
+"an enabled Sporty route must remain authoritative over the Function 1 Easy fallback");
 
 const function1DirectFactCatalog = { source: { character: "Function1DirectFact" }, actions: {
     "8150": { action_id: 8150, triggers: [trigger(805, profiles(

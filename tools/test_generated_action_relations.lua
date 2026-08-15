@@ -59,7 +59,7 @@ local document = {
                 reason = "ac_type52_same_command_runtime_phase_family",
             },
         },
-        internal_transition_suppression_count = 1,
+        internal_transition_suppression_count = 2,
         suppressed_internal_transitions = {
             {
                 kind = "ac_type2_same_structure_execution_phase",
@@ -83,6 +83,21 @@ local document = {
                 },
                 reason = "ac_type2_same_structure_zero_parameter_execution_phase",
             },
+            {
+                kind = "ac_type37_automatic_execution_phase",
+                source_action_id = 939,
+                target_action_id = 943,
+                tail_action_id = 944,
+                branch_type = 37,
+                action_frames = { 0, 10 },
+                exit_branch_type = 12,
+                exit_param01 = 4,
+                exit_param02 = 190,
+                fingerprint_fields = {
+                    "Category", "Combo", "Projectile", "State",
+                },
+                reason = "ac_type37_unique_automatic_execution_phase",
+            },
         },
         ac_state_direction_relations = {
             {
@@ -97,7 +112,7 @@ local document = {
             type63_strength_variant_relation_count = 1,
             type63_strength_variant_route_count = 1,
             ac_command_phase_relation_count = 1,
-            internal_transition_suppression_count = 1,
+            internal_transition_suppression_count = 2,
         },
     },
     ["9"] = {
@@ -200,6 +215,26 @@ local document = {
         },
         routes = {},
     },
+    ["943"] = {
+        ownership = "internal_execution_phase",
+        suppress_display = true,
+        transition_evidence = {
+            kind = "ac_type37_automatic_execution_phase",
+            source_action_id = 939,
+            target_action_id = 943,
+            tail_action_id = 944,
+            branch_type = 37,
+            action_frames = { 0, 10 },
+            exit_branch_type = 12,
+            exit_param01 = 4,
+            exit_param02 = 190,
+            fingerprint_fields = {
+                "Category", "Combo", "Projectile", "State",
+            },
+            reason = "ac_type37_unique_automatic_execution_phase",
+        },
+        routes = {},
+    },
 }
 
 local relations, count, status = Relations.parse(document, "Generic")
@@ -215,6 +250,8 @@ assert(Relations.share_source_group(relations, 915, 936),
     "AC+BCM command-phase variants must share one runtime Move interpretation")
 assert(Relations.is_internal_phase_of(relations, 1062, 1063),
     "audited internal execution phases must retain their generated owner")
+assert(Relations.is_internal_phase_of(relations, 939, 943),
+    "audited Type37 automatic execution phases must retain their generated owner")
 assert(not Relations.is_internal_phase_of(relations, 1063, 1062),
     "internal execution ownership must remain directional")
 
@@ -265,9 +302,15 @@ assert(Relations.parse(mismatched_phase_inputs, "Generic") == nil,
     "matching display text must not hide different BCM command inputs")
 
 local mismatched_internal_audit = clone(document)
-mismatched_internal_audit._meta.audit.internal_transition_suppression_count = 2
+mismatched_internal_audit._meta.audit.internal_transition_suppression_count = 1
 assert(Relations.parse(mismatched_internal_audit, "Generic") == nil,
     "internal execution phases must match the generated audit count")
+
+local malformed_type37_phase = clone(document)
+malformed_type37_phase._meta.suppressed_internal_transitions[2].action_frames[2] = 0
+malformed_type37_phase["943"].transition_evidence.action_frames[2] = 0
+assert(Relations.parse(malformed_type37_phase, "Generic") == nil,
+    "malformed Type37 automatic execution evidence must fail closed")
 
 local mismatched_internal_evidence = clone(document)
 mismatched_internal_evidence["1063"].transition_evidence.attr = 32

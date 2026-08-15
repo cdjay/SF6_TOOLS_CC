@@ -346,6 +346,46 @@ function ActionMatcher.raw_drive_rush_precursor_kind(params)
     return nil
 end
 
+local function motion_command_stem(motion)
+    local normalized = tostring(motion or ""):upper()
+        :gsub("%b()", "")
+        :gsub("[%s_+%-]+", "")
+        :gsub("^>", "")
+    local stem, button = normalized:match("^(.-)([A-Z]+)$")
+    if button == nil then return nil end
+    return stem
+end
+
+function ActionMatcher.is_sequence_partial_chord_precursor(params)
+    params = type(params) == "table" and params or {}
+    local precursor = type(params.precursor_step) == "table"
+        and params.precursor_step or nil
+    local successor = type(params.successor_step) == "table"
+        and params.successor_step or nil
+    if precursor == nil or successor == nil
+        or ActionMatcher.step_has_new_contact(
+            precursor,
+            params.previous_step
+        ) then
+        return false
+    end
+
+    local family_mask, _, required_mask = chord_family(successor.motion)
+    local actual_family, actual_button = single_button_family(precursor.motion)
+    local precursor_stem = motion_command_stem(precursor.motion)
+    local successor_stem = motion_command_stem(successor.motion)
+    local elapsed = tonumber(successor.delay_from_prev)
+    if family_mask == nil or actual_family == nil
+        or (actual_family & family_mask) == 0
+        or precursor_stem == nil or precursor_stem ~= successor_stem
+        or elapsed == nil or elapsed < 0
+        or elapsed > ActionMatcher.CHORD_COMPLETION_WINDOW then
+        return false
+    end
+    return required_mask == nil or actual_button == nil
+        or (required_mask & actual_button) ~= 0
+end
+
 function ActionMatcher.step_has_new_contact(step, previous_step)
     if type(step) ~= "table"
         or (step.has_contact ~= true and step.has_hit ~= true) then
@@ -480,6 +520,17 @@ function ActionMatcher.sequence_normalization_options()
                 successor_owned_by_raw_drive_rush =
                     successor_owned_by_raw_drive_rush,
                 elapsed_frames = successor and successor.delay_from_prev,
+            })
+        end,
+        classify_partial_chord_precursor = function(
+            precursor,
+            successor,
+            previous_step
+        )
+            return ActionMatcher.is_sequence_partial_chord_precursor({
+                precursor_step = precursor,
+                successor_step = successor,
+                previous_step = previous_step,
             })
         end,
     }

@@ -1252,8 +1252,19 @@ assert(load(validation_block
         .. "\n_G.resolve_step_command_display = resolve_step_command_display"
         .. "\n_G.resolve_contextual_step_command_display = resolve_contextual_step_command_display"
         .. "\n_G.resolve_live_log_command_displays = resolve_live_log_command_displays"
+        .. "\n_G.apply_presentation_context = apply_presentation_context"
         .. "\n_G.validate_sequence_command_display = validate_sequence_command_display",
     "command-display-validation", "t", _G))()
+
+do
+    local parser_block = assert(renderer_source:match(
+        "(local function localize_motion_text.-)\n%-%- =========================================================\n%-%- get_render_logs"))
+    Validator = Validator or {
+        counter_type_for_display = function() return 0 end,
+    }
+    assert(load(parser_block .. "\n_G.parse_motion_to_icons = parse_motion_to_icons",
+        "command-icon-parser", "t", _G))()
+end
 
 local command_map = {
     _slim = true,
@@ -1412,11 +1423,27 @@ local same_structure_evidence = {
     fingerprint_fields = { "Category", "Combo", "Projectile", "State" },
     reason = AC_SAME_STRUCTURE_EXECUTION_PHASE_REASON,
 }
+AC_TYPE37_AUTOMATIC_EXECUTION_PHASE_REASON =
+    "ac_type37_unique_automatic_execution_phase"
+local type37_automatic_evidence = {
+    kind = "ac_type37_automatic_execution_phase",
+    source_action_id = 8240,
+    target_action_id = 8241,
+    tail_action_id = 8242,
+    branch_type = 37,
+    action_frames = { 0, 10 },
+    exit_branch_type = 12,
+    exit_param01 = 4,
+    exit_param02 = 190,
+    fingerprint_fields = { "Category", "Combo", "Projectile", "State" },
+    reason = AC_TYPE37_AUTOMATIC_EXECUTION_PHASE_REASON,
+}
 local phase_map = {
     _meta = {
         character = "InternalPhase",
         suppressed_internal_transitions = {
             terminal_evidence, numbered_evidence, same_structure_evidence,
+            type37_automatic_evidence,
         },
     },
     ["8201"] = {
@@ -1437,6 +1464,12 @@ local phase_map = {
         routes = {},
         transition_evidence = same_structure_evidence,
     },
+    ["8241"] = {
+        ownership = "internal_execution_phase",
+        suppress_display = true,
+        routes = {},
+        transition_evidence = type37_automatic_evidence,
+    },
 }
 local terminal_motion, terminal_status = get_modern_display_motion(phase_map, { id = 8201 })
 assert(terminal_motion == nil and terminal_status == "suppress_transition",
@@ -1448,16 +1481,89 @@ local same_structure_motion, same_structure_status =
     get_modern_display_motion(phase_map, { id = 8231 })
 assert(same_structure_motion == nil and same_structure_status == "suppress_transition",
     "an exact same-structure execution phase must remain hidden")
+local type37_automatic_motion, type37_automatic_status =
+    get_modern_display_motion(phase_map, { id = 8241 })
+assert(type37_automatic_motion == nil and type37_automatic_status == "suppress_transition",
+    "an exact Type37 automatic execution phase must remain hidden")
 local phase_slim = build_slim_command_display_map(phase_map)
 assert(phase_slim["8201"].status == "suppress_transition"
         and phase_slim["8211"].status == "suppress_transition"
-        and phase_slim["8231"].status == "suppress_transition",
+        and phase_slim["8231"].status == "suppress_transition"
+        and phase_slim["8241"].status == "suppress_transition",
     "slim cache construction must preserve audited transition suppression")
+type37_automatic_evidence.action_frames[2] = 0
+type37_automatic_motion, type37_automatic_status =
+    get_modern_display_motion(phase_map, { id = 8241 })
+assert(type37_automatic_motion == nil and type37_automatic_status == "invalid_suppress_transition",
+    "a malformed Type37 automatic execution phase must fail closed")
+type37_automatic_evidence.action_frames[2] = 10
 numbered_evidence.attr = 32
 numbered_motion, numbered_status = get_modern_display_motion(phase_map, { id = 8211 })
 assert(numbered_motion == nil and numbered_status == "invalid_suppress_transition",
     "a mutated numbered execution phase declaration must fail closed")
 numbered_evidence.attr = 288
+end
+
+do
+TYPE20_SAME_STRUCTURE_PHASE_REASON =
+    "ac_type20_verified_same_structure_execution_phase"
+local signatures = {
+    { attr = 0, action_frame = 4, param00 = 0, param01 = 64, param02 = 0, param03 = 1 },
+    { attr = 256, action_frame = 0, param00 = 0, param01 = 64, param02 = 0, param03 = 1 },
+    { attr = 0, action_frame = 4, param00 = 0, param01 = 256, param02 = 0, param03 = 2 },
+    { attr = 256, action_frame = 0, param00 = 0, param01 = 256, param02 = 0, param03 = 2 },
+    { attr = 256, action_frame = 0, param00 = 0, param01 = 256, param02 = 0, param03 = 3 },
+    { attr = 256, action_frame = 0, param00 = 1, param01 = 256, param02 = 0, param03 = 3 },
+}
+local relation = {
+    source_action_id = 976,
+    target_action_id = 977,
+    branch_type = 20,
+    signatures = signatures,
+    fingerprint_fields = { "Category", "Combo", "Projectile", "State" },
+    reason = TYPE20_SAME_STRUCTURE_PHASE_REASON,
+}
+local route = {
+    display = "强",
+    character = "Alex",
+    owner_action_id = 976,
+    display_action_id = 977,
+    bcm_owner_action_id = 976,
+    source = "ac_type20_same_structure_execution_phase",
+    ac_relation_type = 20,
+    ac_path = { 976, 977 },
+    inherited_from_action_id = 976,
+    confidence = "verified_inherited_action_phase",
+    direct_evidence = false,
+    inheritance_evidence = true,
+    inheritance_reason = TYPE20_SAME_STRUCTURE_PHASE_REASON,
+    rebind_evidence = false,
+    runtime_common_evidence = false,
+    official_semantic_evidence = false,
+    community_semantic_evidence = false,
+    assist_combo_evidence = false,
+    charge_context_evidence = false,
+    super_shortcut_direction_evidence = false,
+    ac_phase_signatures = signatures,
+    ac_fingerprint_fields = { "Category", "Combo", "Projectile", "State" },
+}
+local map = {
+    _meta = {
+        character = "Alex",
+        type20_same_structure_execution_relations = { relation },
+    },
+    ["977"] = {
+        ownership = "type20_action_phase",
+        routes = { route },
+    },
+}
+local inherited_motion, inherited_status = get_modern_display_motion(map, { id = 977 })
+assert(inherited_motion == "强" and inherited_status == "strict_route",
+    "the runtime must admit a fully audited Type20 same-structure execution phase")
+route.ac_phase_signatures[6].param00 = 0
+inherited_motion, inherited_status = get_modern_display_motion(map, { id = 977 })
+assert(inherited_motion == nil and inherited_status == "route_unverified",
+    "a mutated Type20 same-structure phase must fail closed")
 end
 
 do
@@ -1805,17 +1911,32 @@ assert(ALEX_STANCE_VALIDATION_TEST.ok == true
         and ALEX_STANCE_VALIDATION_TEST.visible_step_count == 6
         and ALEX_STANCE_VALIDATION_TEST.visible_line_count == 6
         and ALEX_STANCE_VALIDATION_TEST.steps[2].display_motion
-            == "（破坏姿势中）MP"
+            == "（破坏姿势中） MP"
         and ALEX_STANCE_VALIDATION_TEST.steps[4].display_motion
-            == "（破坏姿势中/前滑步中）6+LP"
+            == "（破坏姿势中/前滑步中） 6+LP"
         and ALEX_STANCE_VALIDATION_TEST.steps[4].visible_line_index == 4
         and ALEX_STANCE_VALIDATION_TEST.steps[4].presentation_context.separate_line == true
         and ALEX_STANCE_VALIDATION_TEST.steps[6].display_motion
-            == "（破坏姿势中）HP"
+            == "（破坏姿势中） HP"
         and ALEX_STANCE_VALIDATION_TEST.steps[6].visible_line_index == 6
         and ALEX_STANCE_VALIDATION_TEST.steps[6].presentation_context
             .replace_recorded_context == true,
     "Alex stance commands must display official context on independent lines")
+do
+    local alex_contextual_heavy = apply_presentation_context(
+        command_map, 977, "强", "zh-CN")
+    local alex_contextual_heavy_tokens = parse_motion_to_icons({
+        motion = alex_contextual_heavy,
+        _ct_modern_display = true,
+    }, "playing", false, true)
+    assert(alex_contextual_heavy == "（破坏姿势中） 强"
+            and #alex_contextual_heavy_tokens == 2
+            and alex_contextual_heavy_tokens[1].type == "text"
+            and alex_contextual_heavy_tokens[1].val == "（破坏姿势中）"
+            and alex_contextual_heavy_tokens[2].type == "img"
+            and alex_contextual_heavy_tokens[2].val == "modern_h",
+        "a localized presentation label must keep the Modern strength as an icon")
+end
 
 resolve_modern_display_context = function()
     return false, command_map, "AKI", "loaded", false
@@ -3083,11 +3204,10 @@ do
 end
 local alex_override_source = read_all(
     "data/TrainingComboTrials_data/command_display_overrides/Alex.json")
-assert(alex_override_source:find('"958"', 1, true)
-        and alex_override_source:find('"959"', 1, true)
-        and alex_override_source:find('"classic": "2+PP"', 1, true)
-        and alex_override_source:find('"replace": true', 1, true),
-    "the shipped Alex command overrides must preserve the verified 2+PP stance entries")
+assert(alex_override_source:find('"entries": {}', 1, true)
+        and not alex_override_source:find('"958"', 1, true)
+        and not alex_override_source:find('"959"', 1, true),
+    "Alex command ownership must stay in the generated catalog instead of stale replacements")
 do
     local alex_catalog_source = read_all(
         "data/TrainingComboTrials_data/command_display/Alex.json")
@@ -3100,6 +3220,10 @@ do
                 true
             ),
         "the shipped AC catalog must retain the 957/958/959 state-source relation")
+    assert(alex_catalog_source:find('"display": "2 + 中 + 强"', 1, true)
+            and alex_catalog_source:find('"profile": "easy"', 1, true)
+            and alex_catalog_source:find('"required_button_count": 2', 1, true),
+        "the generated Alex catalog must own the Modern 2+PP command")
 end
 do
     local deejay_override_source = read_all(

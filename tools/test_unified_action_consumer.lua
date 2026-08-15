@@ -111,6 +111,78 @@ assert(all_prefix.ok == true
         and all_prefix.sequence[2].id == 480,
     "leading 66 and Parry must remain unless a bounded RAW DR owns them")
 
+local ryu_6954_source = {
+    {
+        id = 1037,
+        motion = "214+MP",
+        delay_from_prev = 0,
+        expected_combo = 0,
+        has_hit = false,
+        has_contact = false,
+        timeline = { "4f : 2", "4f : 3", "3f : 6", "1f : 6+MP" },
+        relative_raw_inputs = { 2, 6, 38, 102 },
+        _xt_meta = { schema = 2, title = "Ryu 6954" },
+    },
+    {
+        id = 1040,
+        motion = "214+PP",
+        delay_from_prev = 1,
+        expected_combo = 1,
+        has_hit = true,
+        has_contact = true,
+    },
+    { id = 663, motion = "4+HP", delay_from_prev = 60 },
+}
+local ryu_6954 = consumer.normalize_sequence(ryu_6954_source)
+assert(ryu_6954.ok == true
+        and ryu_6954.inline_removed_count == 1
+        and #ryu_6954.sequence == 2
+        and ryu_6954.sequence[1].id == 1040
+        and ryu_6954.sequence[1].delay_from_prev == 0,
+    "legacy Ryu 214+MP must be projected out when 214+PP appears one frame later")
+assert(ryu_6954.sequence[1].timeline ~= ryu_6954_source[1].timeline
+        and ryu_6954.sequence[1].timeline[4] == "1f : 6+MP"
+        and ryu_6954.sequence[1]._xt_meta.title == "Ryu 6954",
+    "partial-chord projection must move frozen replay payload without mutating V2")
+assert(ryu_6954_source[1].id == 1037
+        and ryu_6954_source[2].delay_from_prev == 1,
+    "partial-chord normalization must leave the frozen source sequence unchanged")
+
+for _, fixture in ipairs({
+    {
+        name = "contacted precursor",
+        sequence = {
+            { id = 1, motion = "214+MP", has_contact = true, expected_combo = 1 },
+            { id = 2, motion = "214+PP", delay_from_prev = 1, expected_combo = 2 },
+        },
+    },
+    {
+        name = "different command stem",
+        sequence = {
+            { id = 1, motion = "236+MP", has_contact = false },
+            { id = 2, motion = "214+PP", delay_from_prev = 1 },
+        },
+    },
+    {
+        name = "outside completion window",
+        sequence = {
+            { id = 1, motion = "214+MP", has_contact = false },
+            { id = 2, motion = "214+PP", delay_from_prev = 21 },
+        },
+    },
+    {
+        name = "button excluded by explicit chord",
+        sequence = {
+            { id = 1, motion = "214+MP", has_contact = false },
+            { id = 2, motion = "214+LP+HP", delay_from_prev = 1 },
+        },
+    },
+}) do
+    local result = consumer.normalize_sequence(fixture.sequence)
+    assert(result.ok == true and #result.sequence == 2,
+        fixture.name .. " must remain two independent V2 checkpoints")
+end
+
 local action_semantic_parry = consumer.normalize_sequence({
     { id = 480, motion = "Normal", delay_from_prev = 0 },
     { id = 500, motion = "DR", delay_from_prev = 4 },
