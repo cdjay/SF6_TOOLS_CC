@@ -51,6 +51,8 @@ local resolver, status = MoveResolver.load({
 })
 assert(resolver ~= nil and status.ok == true)
 assert(resolver:get_readiness().production_ready == false)
+local mutation_ok = pcall(function() resolver._graph = {} end)
+assert(mutation_ok == false, "MoveResolver instance state must be read-only")
 
 local replacement = resolver:resolve_action(20, 977)
 assert(replacement.status == "PROVISIONAL")

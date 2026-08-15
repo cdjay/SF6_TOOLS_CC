@@ -6,6 +6,15 @@ local MoveResolver = {
 
 local Resolver = {}
 Resolver.__index = Resolver
+Resolver.__newindex = function()
+    error("MoveResolver is read-only", 2)
+end
+
+local RESOLVER_STATE = setmetatable({}, { __mode = "k" })
+
+local function resolver_state(resolver)
+    return assert(RESOLVER_STATE[resolver], "invalid MoveResolver instance")
+end
 
 local function integer(value)
     local number = tonumber(value)
@@ -65,7 +74,7 @@ local function invalid_resolution(code, message, fighter_id, action_id)
 end
 
 function Resolver:get_readiness()
-    return self._readiness
+    return resolver_state(self).readiness
 end
 
 function Resolver:resolve_action(fighter_id, action_id)
@@ -78,7 +87,8 @@ function Resolver:resolve_action(fighter_id, action_id)
         return invalid_resolution("INVALID_ACTION", "action_id must be an integer", fighter_id, action_id)
     end
 
-    local entries = self._graph:get_moves_by_action(fighter_id, action_id)
+    local state = resolver_state(self)
+    local entries = state.graph:get_moves_by_action(fighter_id, action_id)
     local candidates = {}
     local identities = {}
     local current_moves = {}
@@ -120,9 +130,9 @@ function Resolver:resolve_action(fighter_id, action_id)
         current_move_uids = current_move_uids,
         move_identity = #identity_list == 1 and identity_list[1] or nil,
         current_move_uid = #current_move_uids == 1 and current_move_uids[1] or nil,
-        production_ready = self._readiness.production_ready == true,
-        authority = self._readiness.authority,
-        build = self._build,
+        production_ready = state.readiness.production_ready == true,
+        authority = state.readiness.authority,
+        build = state.build,
     }
 end
 
@@ -170,7 +180,7 @@ function Resolver:compare_actions(fighter_id, left_action_id, right_action_id)
         shared_current_move_uids = copy_array(shared),
         left = left,
         right = right,
-        production_ready = self._readiness.production_ready == true,
+        production_ready = resolver_state(self).readiness.production_ready == true,
     }
 end
 
@@ -186,11 +196,13 @@ function MoveResolver.new(graph)
         }
     end
     local readiness = graph:get_readiness()
-    return setmetatable({
-        _graph = graph,
-        _readiness = readiness,
-        _build = graph:get_build_info(),
-    }, Resolver), {
+    local resolver = setmetatable({}, Resolver)
+    RESOLVER_STATE[resolver] = {
+        graph = graph,
+        readiness = readiness,
+        build = graph:get_build_info(),
+    }
+    return resolver, {
         ok = true,
         readiness = readiness,
     }
