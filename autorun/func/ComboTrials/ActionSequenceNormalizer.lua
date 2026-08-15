@@ -154,15 +154,15 @@ function ActionSequenceNormalizer.normalize(sequence, options)
     for source_index = prefix_length + 1, #sequence do
         local source_step = sequence[source_index]
         local projected_step = deep_copy(source_step)
-        if #projected > 0
+        while #projected > 0
             and type(options.classify_partial_chord_precursor) == "function"
             and options.classify_partial_chord_precursor(
                 projected[#projected],
-                source_step,
+                projected_step,
                 projected[#projected - 1]
-            ) == true then
+            ) == true do
             local merged_delay = (tonumber(projected[#projected].delay_from_prev) or 0)
-                + (tonumber(source_step.delay_from_prev) or 0)
+                + (tonumber(projected_step.delay_from_prev) or 0)
             table.remove(projected)
             table.remove(source_indices)
             inline_removed_count = inline_removed_count + 1

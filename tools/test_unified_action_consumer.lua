@@ -148,6 +148,37 @@ assert(ryu_6954_source[1].id == 1037
         and ryu_6954_source[2].delay_from_prev == 1,
     "partial-chord normalization must leave the frozen source sequence unchanged")
 
+local staggered_multi_button = {
+    {
+        id = 608,
+        motion = "MP",
+        delay_from_prev = 0,
+        expected_combo = 0,
+        relative_raw_inputs = { 0 },
+        timeline = { "1f : 5" },
+        _xt_meta = { step_notes = { "MP", "LP", "PP" } },
+    },
+    { id = 601, motion = "LP", delay_from_prev = 1, expected_combo = 0 },
+    { id = 700, motion = "PP", delay_from_prev = 1, expected_combo = 0 },
+}
+local staggered_multi_button_result = consumer.normalize_sequence(
+    staggered_multi_button
+)
+assert(staggered_multi_button_result.ok == true
+        and staggered_multi_button_result.partial_chord_removed_count == 2
+        and #staggered_multi_button_result.sequence == 1
+        and staggered_multi_button_result.sequence[1].motion == "PP"
+        and staggered_multi_button_result.sequence[1].delay_from_prev == 0
+        and staggered_multi_button_result.sequence[1]._xt_meta.step_notes[1] == "PP",
+    "all adjacent non-contact button phases must collapse into one chord step")
+local staggered_multi_button_second = consumer.normalize_sequence(
+    staggered_multi_button_result.sequence
+)
+assert(staggered_multi_button_second.ok == true
+        and staggered_multi_button_second.partial_chord_removed_count == 0
+        and #staggered_multi_button_second.sequence == 1,
+    "partial-chord normalization must be idempotent after one pass")
+
 for _, fixture in ipairs({
     {
         name = "contacted precursor",
