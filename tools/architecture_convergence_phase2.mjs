@@ -198,7 +198,18 @@ function loadLegacy(repoRoot) {
       if (Number.isSafeInteger(actionId)) presentation.set(`${character}:${actionId}`, { character, action_id: actionId, rule });
     }
   }
-  return { exceptions, policies, presentation };
+
+  const compatibility = new Map();
+  const compatibilityRoot = path.join(repoRoot, "data", "TrainingComboTrials_data", "action_compatibility");
+  for (const filename of jsonFiles(compatibilityRoot)) {
+    const document = readJson(filename);
+    const character = document.character ?? path.basename(filename, ".json");
+    for (const entry of document.entries ?? []) {
+      if (!Number.isSafeInteger(entry.recorded_action_id)) continue;
+      compatibility.set(`${character}:${entry.recorded_action_id}`, entry);
+    }
+  }
+  return { exceptions, policies, presentation, compatibility };
 }
 
 function commandNotations(candidate) {
@@ -219,16 +230,24 @@ function classifyAmbiguity(candidates) {
   const commandSets = candidates.map((item) => item.commands.join("|"));
   const uniqueCommandSets = sortedUnique(commandSets);
   const notations = sortedUnique(candidates.flatMap(commandNotations));
+  const commandless = candidates.filter((item) => item.commands.length === 0).length;
+  if (commandless > 0 && commandless < candidates.length) {
+    return {
+      classification: "GENERATOR_OVERLAP",
+      requirement: "HUMAN_SEMANTIC_REVIEW_REQUIRED",
+      subtype: "DISABLED_ROUTE_FAMILY_OVERLAP"
+    };
+  }
   const hasUniversalCollision = notations.some((notation) => UNIVERSAL_NOTATIONS.has(notation))
     && uniqueCommandSets.length > 1;
   if (hasUniversalCollision) {
-    return { classification: "RUNTIME_MECHANISM", requirement: "HUMAN_SEMANTIC_REVIEW_REQUIRED" };
+    return { classification: "RUNTIME_MECHANISM", requirement: "HUMAN_SEMANTIC_REVIEW_REQUIRED", subtype: "UNIVERSAL_ROUTE_COLLISION" };
   }
   if (uniqueCommandSets.length === 1 && uniqueCommandSets[0] !== "") {
-    return { classification: "GENERATOR_OVERLAP", requirement: "HUMAN_SEMANTIC_REVIEW_REQUIRED" };
+    return { classification: "GENERATOR_OVERLAP", requirement: "HUMAN_SEMANTIC_REVIEW_REQUIRED", subtype: "DUPLICATE_ENABLED_COMMAND_SET" };
   }
   if (uniqueCommandSets.length > 1 && candidates.every((item) => item.commands.length > 0)) {
-    return { classification: "TRUE_MULTI_MOVE_MEMBERSHIP", requirement: "HUMAN_SEMANTIC_REVIEW_REQUIRED" };
+    return { classification: "TRUE_MULTI_MOVE_MEMBERSHIP", requirement: "HUMAN_SEMANTIC_REVIEW_REQUIRED", subtype: "DISTINCT_ENABLED_COMMAND_SETS" };
   }
   return { classification: "INSUFFICIENT_FACT", requirement: "OFFLINE_INSUFFICIENT_DATA" };
 }
@@ -262,6 +281,7 @@ function ambiguityFamilies(corpus, m1Index, m2Index) {
         combos: new Set(observations.map((item) => item.file)).size,
         recorded_motions: sortedUnique(observations.map((item) => item.recorded_motion)),
         classification: classification.classification,
+        classification_subtype: classification.subtype ?? null,
         decision_requirement: classification.requirement,
         first_ambiguity_layer: m1Families.length > 1 ? "M1_ROUTE_FAMILY"
           : (m2Families.length > 1 ? "M2_MOVE_MEMBERSHIP" : "M5_RUNTIME_SERIALIZATION"),
@@ -283,7 +303,8 @@ function runtimeFields(rule) {
   return Object.keys(rule ?? {}).filter((field) => RUNTIME_FIELDS.has(field)).sort();
 }
 
-function classifyUnmapped({ actionId, motions, census, anchors, legacy, presentation, characterFrequency }) {
+function classifyUnmapped({ actionId, motions, census, anchors, legacy, presentation, compatibility, characterFrequency }) {
+  if (compatibility) return { classification: "LEGACY_ONLY", reason: "EXPLICIT_ACTION_COMPATIBILITY_MAPPING" };
   if (census?.source_scope === "common") return { classification: "SYSTEM_ACTION", reason: "M2_COMMON_SCOPE" };
   if (legacy && runtimeFields(legacy.rule).length > 0) {
     return { classification: "RUNTIME_ONLY_ACTION", reason: "LEGACY_RUNTIME_MECHANISM_EVIDENCE" };
@@ -331,6 +352,7 @@ function unmappedFamilies(corpus, m1Index, m2Index, legacy) {
       anchors,
       legacy: legacyRecord,
       presentation: presentationRecord,
+      compatibility: legacy.compatibility.get(key) ?? null,
       characterFrequency: characterFrequency.get(actionId)?.size ?? 0
     });
     return {
@@ -351,6 +373,7 @@ function unmappedFamilies(corpus, m1Index, m2Index, legacy) {
       })),
       legacy_runtime_fields: runtimeFields(legacyRecord?.rule),
       presentation_override: presentationRecord != null,
+      compatibility_mapping: legacy.compatibility.get(key) ?? null,
       cross_character_family_count: characterFrequency.get(actionId)?.size ?? 0
     };
   }).sort((a, b) => b.observations - a.observations
@@ -383,6 +406,7 @@ function ownershipForAction(character, actionId, m1Index, m2Index, legacy, unmap
     anchors: m1?.anchorsByAction.get(actionId) ?? [],
     legacy: legacyRecord,
     presentation: presentationRecord,
+    compatibility: legacy.compatibility.get(key) ?? null,
     characterFrequency: 0
   });
   return { character, action_id: actionId, ...result };
@@ -440,9 +464,11 @@ function auditLegacy(legacy, corpus, unmappedByKey, m1Index, m2Index) {
       const missingAction = item.owner_resolution === "NOT_FOUND" ? item.owner_action_id : item.related_action_id;
       const ownership = ownershipForAction(item.character, missingAction,
         m1Index, m2Index, legacy, unmappedByKey);
-      if (ownership && ["SYSTEM_ACTION", "RUNTIME_ONLY_ACTION", "TRANSITION_ACTION"].includes(ownership.classification)) {
+      if (ownership && ["SYSTEM_ACTION", "RUNTIME_ONLY_ACTION", "TRANSITION_ACTION", "LEGACY_ONLY"].includes(ownership.classification)) {
         offline_category = "OFFLINE_PROVABLE_NOT_IMPLEMENTED";
-        explanation = `The missing Action is classified as ${ownership.classification}, so Move equality is the wrong comparison.`;
+        explanation = ownership.classification === "LEGACY_ONLY"
+          ? "The missing Action is an explicit historical compatibility locator, so current Move equality must follow the compatibility projection first."
+          : `The missing Action is classified as ${ownership.classification}, so Move equality is the wrong comparison.`;
       } else if (ownership?.classification === "MISSING_GENERATED_FACT") {
         offline_category = "OFFLINE_PROVABLE_NOT_IMPLEMENTED";
         explanation = "Raw BCM ownership exists, but the generated Move membership is missing.";
@@ -540,6 +566,62 @@ function auditPolicies(policies) {
   }).sort((a, b) => a.record_uid.localeCompare(b.record_uid));
 }
 
+function pendingM2Review(m2, manifest) {
+  const rows = (m2.characters ?? []).flatMap((character) =>
+    (character.unresolved_rows ?? []).map((row) => ({
+      character: character.key.character,
+      row_kind: row.row_kind,
+      predicate: row.predicate,
+      reasons: row.reasons ?? []
+    })));
+  const rowGroups = [...group(rows, (item) => `${item.row_kind}:${item.predicate}:${item.reasons.map((reason) => reason.split(":")[0]).sort().join(",")}`).entries()]
+    .map(([key, members]) => ({
+      group_uid: `M2ROW-${signature(key)}`,
+      row_kind: members[0].row_kind,
+      predicate: members[0].predicate,
+      reason_codes: sortedUnique(members.flatMap((item) => item.reasons.map((reason) => reason.split(":")[0]))),
+      records: members.length,
+      characters: sortedUnique(members.map((item) => item.character)),
+      requirement: members[0].predicate === "t20_hold_continuation"
+        ? "RAW_ACCESSOR_CONTRACT_REQUIRED" : "HUMAN_SEMANTIC_REVIEW_REQUIRED"
+    })).sort((a, b) => a.predicate.localeCompare(b.predicate) || a.group_uid.localeCompare(b.group_uid));
+
+  const extensions = m2.unresolved_extensions ?? [];
+  const extensionGroups = [...group(extensions, (item) => `${item.extension_kind}:${item.predicate}:${item.attachment?.kind}`).entries()]
+    .map(([key, members]) => ({
+      group_uid: `M2EXT-${signature(key)}`,
+      extension_kind: members[0].extension_kind,
+      predicate: members[0].predicate,
+      attachment: members[0].attachment?.kind ?? null,
+      records: members.length,
+      requirement: "HUMAN_SEMANTIC_REVIEW_REQUIRED"
+    })).sort((a, b) => a.extension_kind.localeCompare(b.extension_kind) || a.group_uid.localeCompare(b.group_uid));
+
+  const transitions = (m2.characters ?? []).flatMap((character) =>
+    (character.transitions ?? []).filter((item) => item.strictness === "UNRESOLVED")
+      .map((item) => ({ character: character.key.character, ...item })));
+  const transitionGroups = [...group(transitions, (item) => `${item.kind}:${(item.evidence?.reasons ?? []).join(",")}`).entries()]
+    .map(([key, members]) => ({
+      group_uid: `M2TR-${signature(key)}`,
+      kind: members[0].kind,
+      reasons: sortedUnique(members.flatMap((item) => item.evidence?.reasons ?? [])),
+      records: members.length,
+      characters: sortedUnique(members.map((item) => item.character)),
+      requirement: "HUMAN_SEMANTIC_REVIEW_REQUIRED"
+    })).sort((a, b) => a.kind.localeCompare(b.kind) || a.group_uid.localeCompare(b.group_uid));
+
+  return {
+    unresolved_rows: { records: rows.length, groups: rowGroups.length, review_groups: rowGroups },
+    unresolved_extensions: { records: extensions.length, groups: extensionGroups.length, review_groups: extensionGroups },
+    unresolved_transitions: { records: transitions.length, groups: transitionGroups.length, review_groups: transitionGroups },
+    migration_links: {
+      records: manifest.review_pending?.migration_links ?? manifest.unresolved?.migration_links ?? 0,
+      requirement: "HUMAN_MIGRATION_REVIEW_REQUIRED",
+      auto_approved: false
+    }
+  };
+}
+
 function stableIdentityBatches(m2Index) {
   const rows = [];
   for (const [character, index] of m2Index) {
@@ -559,22 +641,39 @@ function stableIdentityBatches(m2Index) {
         classification,
         membership_count: memberships.length,
         roles: sortedUnique(memberships.map((item) => item.role)),
-        command_signature: signature(commands),
+        has_enabled_command: commands.length > 0,
+        disabled_only: move.disabled_only === true,
+        duplicate_owners: move.duplicate_owners === true,
         commands
       });
     }
   }
-  const batches = [...group(rows, (item) => `${item.classification}:${item.command_signature}:${item.roles.join(",")}`).entries()]
+  const batches = [...group(rows, (item) => [
+    item.classification,
+    item.character,
+    item.roles.join(","),
+    item.has_enabled_command ? "commands" : "no_commands",
+    item.disabled_only ? "disabled" : "active",
+    item.duplicate_owners ? "duplicate_owners" : "single_owner",
+    item.membership_count > 1 ? "multi_membership" : "single_membership"
+  ].join(":")).entries()]
     .map(([key, members]) => ({
       batch_uid: `REVIEW-${signature(key)}`,
       classification: members[0].classification,
-      command_signature: members[0].command_signature,
+      character: members[0].character,
       roles: members[0].roles,
-      commands: members[0].commands,
+      evidence_shape: {
+        has_enabled_command: members[0].has_enabled_command,
+        disabled_only: members[0].disabled_only,
+        duplicate_owners: members[0].duplicate_owners,
+        multi_membership: members[0].membership_count > 1
+      },
+      sample_commands: sortedUnique(members.flatMap((item) => item.commands)).slice(0, 8),
       moves: members.length,
       members: members.map((item) => ({ character: item.character, move_uid: item.move_uid }))
         .sort((a, b) => a.character.localeCompare(b.character) || a.move_uid.localeCompare(b.move_uid))
-    })).sort((a, b) => a.classification.localeCompare(b.classification) || b.moves - a.moves || a.batch_uid.localeCompare(b.batch_uid));
+    })).sort((a, b) => a.classification.localeCompare(b.classification)
+      || a.character.localeCompare(b.character) || b.moves - a.moves || a.batch_uid.localeCompare(b.batch_uid));
   return {
     moves: rows.length,
     classifications: tally(rows, (item) => item.classification),
@@ -595,7 +694,7 @@ function m5GateMatrix(manifest) {
   ];
 }
 
-function humanReviewPacket(ambiguity, stableIdentities, aliases) {
+function humanReviewPacket(ambiguity, stableIdentities, aliases, m2Review) {
   const ambiguityItems = ambiguity.filter((item) => item.decision_requirement === "HUMAN_SEMANTIC_REVIEW_REQUIRED")
     .map((item) => ({
       id: item.ledger_id,
@@ -617,11 +716,16 @@ function humanReviewPacket(ambiguity, stableIdentities, aliases) {
     summary: {
       ambiguity_decisions: ambiguityItems.length,
       stable_identity_batches: stableIdentities.review_batches,
-      alias_decisions: aliases.unique_pairs
+      alias_decisions: aliases.unique_pairs,
+      m2_row_groups: m2Review.unresolved_rows.groups,
+      m2_extension_groups: m2Review.unresolved_extensions.groups,
+      m2_transition_groups: m2Review.unresolved_transitions.groups,
+      migration_links: m2Review.migration_links.records
     },
     ambiguity_items: ambiguityItems,
     stable_identity_batches: stableIdentities.batches,
-    alias_items: aliases.ledger
+    alias_items: aliases.ledger,
+    m2_pending_review: m2Review
   };
 }
 
@@ -691,7 +795,8 @@ export function analyzePhase2({ repoRoot, corpus, m1, m2, runtime, manifest, sou
   const presentation = auditPresentation(legacy);
   const policies = auditPolicies(legacy.policies);
   const stableIdentities = stableIdentityBatches(m2Index);
-  const humanReview = humanReviewPacket(ambiguity, stableIdentities, legacyAudit.aliases);
+  const m2Review = pendingM2Review(m2, manifest);
+  const humanReview = humanReviewPacket(ambiguity, stableIdentities, legacyAudit.aliases, m2Review);
   const smoke = smokePacket(ambiguity, unmapped, legacyAudit);
   const source = Object.fromEntries(Object.entries(sourceFiles).map(([key, filename]) => [key, {
     file: path.resolve(filename),
@@ -755,6 +860,7 @@ export function analyzePhase2({ repoRoot, corpus, m1, m2, runtime, manifest, sou
       summary: { records: policies.length, classifications: tally(policies, (item) => item.classification) }
     },
     stable_identity_review: stableIdentities,
+    m2_pending_review: m2Review,
     m5_gate_matrix: m5GateMatrix(manifest),
     shadow_consumer_coverage: {
       recording: { offline_cases: corpus.summary.step_cases, runtime_shadow_observations: null, production_authority: "LEGACY" },
@@ -764,7 +870,18 @@ export function analyzePhase2({ repoRoot, corpus, m1, m2, runtime, manifest, sou
       playback: { offline_compatibility_cases: corpus.summary.compatibility_cases, runtime_shadow_observations: null, production_authority: "FROZEN_V2_AND_LEGACY_COMPATIBILITY" }
     },
     human_review_packet: humanReview,
-    real_game_smoke_packet: smoke
+    real_game_smoke_packet: smoke,
+    offline_exhaustion: {
+      decision_independent_work_remaining: [],
+      decision_dependent_blocks: [
+        "245 ambiguity families require semantic review; representative runtime-mechanism cases also need live capture.",
+        "M2 unresolved rows/extensions/transitions require human contract decisions or a pinned raw accessor contract.",
+        "273 migration links and 3023 provisional Move identities require human review.",
+        "Real-game smoke is unavailable."
+      ],
+      production_switch: "BLOCKED",
+      legacy_off: "BLOCKED"
+    }
   };
 }
 

@@ -10,6 +10,7 @@ const repoRoot = path.join(root, "repo");
 const dataRoot = path.join(repoRoot, "data", "TrainingComboTrials_data");
 fs.mkdirSync(path.join(dataRoot, "exceptions"), { recursive: true });
 fs.mkdirSync(path.join(dataRoot, "command_display_overrides"), { recursive: true });
+fs.mkdirSync(path.join(dataRoot, "action_compatibility"), { recursive: true });
 fs.writeFileSync(path.join(dataRoot, "exceptions", "Ryu.json"), JSON.stringify({
   37: { force: true },
   600: { absorb_ids: "601", force: true },
@@ -19,6 +20,11 @@ fs.writeFileSync(path.join(dataRoot, "command_display_overrides", "Ryu.json"), J
   schema: "sf6cc.command-display-overrides.v1",
   character: "Ryu",
   entries: { 650: { classic: "2+MP", replace: true, evidence: "synthetic" } }
+}));
+fs.writeFileSync(path.join(dataRoot, "action_compatibility", "Ryu.json"), JSON.stringify({
+  schema: "xt.action_compatibility.v1",
+  character: "Ryu",
+  entries: [{ recorded_action_id: 999, runtime_action_id: 700, evidence: "synthetic" }]
 }));
 
 const build = { build_uid: "build-test", display_version: "test" };
@@ -126,7 +132,7 @@ const manifest = {
 const corpus = {
   schema: "sf6cc.architecture-convergence-corpus.v1",
   source: { build },
-  summary: { step_cases: 7, replayable_combos: 1, compatibility_cases: 0 },
+  summary: { step_cases: 8, replayable_combos: 1, compatibility_cases: 1 },
   cases: [
     { file: "a.json", character: "Ryu", recorded_action_id: 500, recorded_motion: "RAW DR", resolution_status: "AMBIGUOUS", display_status: "AVAILABLE" },
     { file: "b.json", character: "Ryu", recorded_action_id: 500, recorded_motion: "Parry", resolution_status: "AMBIGUOUS", display_status: "AVAILABLE" },
@@ -134,6 +140,7 @@ const corpus = {
     { file: "a.json", character: "Ryu", recorded_action_id: 50, recorded_motion: "Normal", resolution_status: "NOT_FOUND", display_status: "MISSING" },
     { file: "a.json", character: "Ryu", recorded_action_id: 601, recorded_motion: null, resolution_status: "NOT_FOUND", display_status: "MISSING" },
     { file: "a.json", character: "Ryu", recorded_action_id: 650, recorded_motion: "2+MP", resolution_status: "NOT_FOUND", display_status: "AVAILABLE" },
+    { file: "a.json", character: "Ryu", recorded_action_id: 999, recorded_motion: "legacy", resolution_status: "NOT_FOUND", display_status: "MISSING" },
     { file: "a.json", character: "Ryu", recorded_action_id: 700, recorded_motion: "236+P", resolution_status: "PROVISIONAL", display_status: "AVAILABLE" }
   ],
   legacy_family_cases: [{
@@ -160,6 +167,7 @@ assert.equal(report.ambiguity.family_ledger[0].classification, "RUNTIME_MECHANIS
 assert.equal(report.unmapped.family_ledger.find((item) => item.action_id === 50).classification, "SYSTEM_ACTION");
 assert.equal(report.unmapped.family_ledger.find((item) => item.action_id === 601).classification, "TRANSITION_ACTION");
 assert.equal(report.unmapped.family_ledger.find((item) => item.action_id === 650).classification, "PRESENTATION_ACTION");
+assert.equal(report.unmapped.family_ledger.find((item) => item.action_id === 999).classification, "LEGACY_ONLY");
 assert.equal(report.legacy.relations.cases[0].offline_category, "OFFLINE_PROVABLE_NOT_IMPLEMENTED");
 assert.equal(report.legacy.runtime_mechanisms.summary.subclasses.PARTICIPATION_CONTROL, 2);
 assert.equal(report.presentation.summary.identity_affecting, 0);
