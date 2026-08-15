@@ -4730,14 +4730,14 @@ local function ct_handle_mode_exit()
         if trial_state.is_playing or (demo_state and (demo_state.is_playing or demo_state.playlist_active)) then
             trial_state.is_playing = false
             trial_state._was_playing = false
-            if demo_state then
-                demo_state.is_playing = false
-                demo_state.p1_mask = 0
-                demo_state.playlist_active = false
-                demo_state.playlist_index = 0
-                demo_state.playlist_total = 0
-                demo_state.playlist_pending_next = false
-                demo_state.playlist_loading = false
+            if demo_state and ctx.stop_demo_playback then
+                ctx.stop_demo_playback(
+                    "training_mode_exit",
+                    demo_state.current_file_path or demo_state.current_file,
+                    nil,
+                    true,
+                    false
+                )
             end
 
             restore_trial_vital()
@@ -4767,7 +4767,15 @@ local function ct_handle_first_frame_init(_in_replay)
             trial_state.is_playing = false
             trial_state._was_playing = false
         end
-        if demo_state and demo_state.is_playing then demo_state.is_playing = false end
+        if demo_state and demo_state.is_playing and ctx.stop_demo_playback then
+            ctx.stop_demo_playback(
+                "first_frame_recovery",
+                demo_state.current_file_path or demo_state.current_file,
+                nil,
+                true,
+                false
+            )
+        end
         if trial_state.is_recording then cancel_recording() end
         trial_state.flip_inputs = false
         trial_state.floating_info = nil
