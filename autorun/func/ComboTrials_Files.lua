@@ -99,15 +99,6 @@ local function install_combo_sequence(loaded, path, force)
 
     local current_path = trial_state.current_file_path or trial_state.current_file
     local path_changed = tostring(current_path or "") ~= tostring(path or "")
-    if ctx and ctx.on_combo_file_change and (path_changed or force == true) then
-        pcall(ctx.on_combo_file_change, {
-            reason = path_changed and "trial_changed" or "trial_reloaded",
-            old_file = current_path,
-            new_file = path,
-            force = force == true
-        })
-    end
-
     warn_newer_schema(path, loaded)
 
     local prepared, prepare_error = pcall(function()
@@ -127,6 +118,15 @@ local function install_combo_sequence(loaded, path, force)
     if normalization.ok ~= true then
         warn_combo_file_once(path, normalization.reason or "sequence normalization failed")
         return false
+    end
+
+    if ctx and ctx.on_combo_file_change and (path_changed or force == true) then
+        pcall(ctx.on_combo_file_change, {
+            reason = path_changed and "trial_changed" or "trial_reloaded",
+            old_file = current_path,
+            new_file = path,
+            force = force == true
+        })
     end
 
     if restore_trial_dummy_action_type then
