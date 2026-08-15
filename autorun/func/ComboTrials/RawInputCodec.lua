@@ -14,6 +14,25 @@ local RawInputCodec = {
 local HORIZONTAL_MASK = 0x0C
 local PHYSICAL_RIGHT = 0x04
 local PHYSICAL_LEFT = 0x08
+local TIMELINE_DIRECTION_MASKS = {
+    ["7"] = 0x09,
+    ["8"] = 0x01,
+    ["9"] = 0x05,
+    ["4"] = 0x08,
+    ["5"] = 0x00,
+    ["6"] = 0x04,
+    ["1"] = 0x0A,
+    ["2"] = 0x02,
+    ["3"] = 0x06,
+}
+local TIMELINE_BUTTON_MASKS = {
+    LP = 0x10,
+    MP = 0x20,
+    HP = 0x40,
+    LK = 0x80,
+    MK = 0x100,
+    HK = 0x200,
+}
 local stream_cache = setmetatable({}, { __mode = "k" })
 
 function RawInputCodec.normalize_mask(value)
@@ -101,16 +120,45 @@ function RawInputCodec.has_valid_stream(first_step)
     return stream ~= nil
 end
 
-function RawInputCodec.has_usable_timeline(timeline)
-    if type(timeline) ~= "table" or #timeline == 0 then return false end
-    for index = 1, #timeline do
-        local line = timeline[index]
-        if type(line) ~= "string"
-            or not line:match("^%d+f%s*:%s*.*") then
-            return false
-        end
+function RawInputCodec.parse_timeline_line(line)
+    if type(line) ~= "string" then return nil end
+    local frames_str, rest = line:match("^(%d+)f%s*:%s*(.-)%s*$")
+    local frames = tonumber(frames_str)
+    if frames == nil or frames <= 0 or rest == ""
+        or rest:match("^%s*%+") or rest:match("%+%s*$")
+        or rest:match("%+%s*%+") then
+        return nil
     end
-    return true
+
+    local tokens = {}
+    for part in rest:gmatch("[^+]+") do
+        tokens[#tokens + 1] = tostring(
+            part:match("^%s*(.-)%s*$") or ""
+        ):upper()
+    end
+    local mask = TIMELINE_DIRECTION_MASKS[tokens[1]]
+    if mask == nil then return nil end
+    for index = 2, #tokens do
+        local button_mask = TIMELINE_BUTTON_MASKS[tokens[index]]
+        if button_mask == nil then return nil end
+        mask = mask | button_mask
+    end
+    return { frames = frames, mask = mask }
+end
+
+function RawInputCodec.build_timeline_steps(timeline)
+    if type(timeline) ~= "table" or #timeline == 0 then return nil end
+    local steps = {}
+    for index = 1, #timeline do
+        local step = RawInputCodec.parse_timeline_line(timeline[index])
+        if step == nil then return nil end
+        steps[index] = step
+    end
+    return steps
+end
+
+function RawInputCodec.has_usable_timeline(timeline)
+    return RawInputCodec.build_timeline_steps(timeline) ~= nil
 end
 
 function RawInputCodec.select_transcription_stream(first_step, runtime_audit)

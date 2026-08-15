@@ -8098,23 +8098,6 @@ end
 -- =========================================================
 -- DEMO ENGINE LOGIC & EXPORTS
 -- =========================================================
-local function parse_timeline_line(line)
-    if type(line) ~= "string" then return nil end
-    local frames_str, rest = line:match("^(%d+)f%s*:%s*(.*)")
-    if not frames_str then return nil end
-    local frames = tonumber(frames_str)
-    
-    local parts = {}
-    for p in rest:gmatch("[^+]+") do table.insert(parts, p:match("^%s*(.-)%s*$")) end
-    
-    local dir_to_mask = { ["7"]=9, ["8"]=1, ["9"]=5, ["4"]=8, ["5"]=0, ["6"]=4, ["1"]=10, ["2"]=2, ["3"]=6 }
-    local btn_to_mask = { ["LP"]=16, ["MP"]=32, ["HP"]=64, ["LK"]=128, ["MK"]=256, ["HK"]=512 }
-    
-    local mask = dir_to_mask[parts[1]] or 0
-    for i = 2, #parts do if btn_to_mask[parts[i]] then mask = mask | btn_to_mask[parts[i]] end end
-    return { frames = frames, mask = mask }
-end
-
 function CTJsonInterop.normalize_raw_inputs(raw_inputs)
     return RawInputCodec.normalize_stream(raw_inputs)
 end
@@ -8324,12 +8307,8 @@ local function start_demo(opts)
 
         demo_state.raw_buffer = nil
         demo_state.raw_input_source = nil
-        demo_state.sequence = {}
-        for _, line in ipairs(timeline) do
-            local parsed = parse_timeline_line(line)
-            if parsed then table.insert(demo_state.sequence, parsed) end
-        end
-        if #demo_state.sequence == 0 then return false end
+        demo_state.sequence = RawInputCodec.build_timeline_steps(timeline)
+        if not demo_state.sequence then return false end
     end
 
     -- Force Trial mode to stay active on P1

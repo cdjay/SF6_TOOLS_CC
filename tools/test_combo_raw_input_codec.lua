@@ -116,6 +116,34 @@ assert(codec.normalize_stream({}) == nil
     and codec.normalize_stream({ 0, false }) == nil,
     "empty or malformed streams must be rejected")
 
+local lowercase_timeline_step = codec.parse_timeline_line("1f : 6+lp")
+assert(lowercase_timeline_step
+        and lowercase_timeline_step.frames == 1
+        and lowercase_timeline_step.mask == (0x04 | 0x10),
+    "timeline playback must preserve lowercase named buttons")
+assert(codec.parse_timeline_line("0f : 4") == nil,
+    "zero-duration timeline rows must not enter playback")
+assert(codec.parse_timeline_line("1f : 6+MYSTERY") == nil,
+    "unknown timeline tokens must not degrade to partial input")
+assert(codec.has_usable_timeline({ "1f : 6+lp" }) == true
+        and codec.has_usable_timeline({ "0f : 4" }) == false
+        and codec.has_usable_timeline({ "1f : 6+MYSTERY" }) == false,
+    "timeline usability must share the playback parser contract")
+local lowercase_timeline = codec.build_timeline_steps({
+    "1f : 6+lp",
+    "2f : 5",
+})
+assert(lowercase_timeline
+        and #lowercase_timeline == 2
+        and lowercase_timeline[1].mask == (0x04 | 0x10),
+    "timeline playback must build every row through the strict parser")
+assert(codec.build_timeline_steps({
+    "1f : 6+LP",
+    "1f : 6+MYSTERY",
+    "1f : 5",
+}) == nil,
+    "one unknown row must reject playback instead of shortening the stream")
+
 local description = codec.describe_relative_stream()
 assert(description.field == "relative_raw_inputs"
     and description.encoding == "facing_relative_v1",
