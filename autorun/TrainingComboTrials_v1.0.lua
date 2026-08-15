@@ -4988,17 +4988,14 @@ local function ct_player_init(p_idx, p_state)
             if trial_state.is_playing then
                 trial_state.is_playing = false
             end
-            if demo_state then
-                demo_state.is_playing = false
-                demo_state.p1_mask = 0
-                demo_state.raw_buffer = nil
-                demo_state.raw_input_source = nil
-                demo_state.play_index = 1
-                demo_state.playlist_active = false
-                demo_state.playlist_index = 0
-                demo_state.playlist_total = 0
-                demo_state.playlist_pending_next = false
-                demo_state.playlist_loading = false
+            if demo_state and ctx.stop_demo_playback then
+                ctx.stop_demo_playback(
+                    "character_change",
+                    demo_state.current_file_path or demo_state.current_file,
+                    nil,
+                    true,
+                    false
+                )
             end
             trial_state.sequence = {}
             trial_state.source_sequence = nil
