@@ -8,6 +8,8 @@ local ActionMatcher = require("func/ComboTrials/ActionMatcher")
 local ActionSequenceNormalizer = require("func/ComboTrials/ActionSequenceNormalizer")
 local CommandResolver = require("func/ComboTrials/CommandResolver")
 local GeneratedActionRelations = require("func/ComboTrials/GeneratedActionRelations")
+local MoveResolver = require("func/ComboTrials/Semantic/MoveResolver")
+local MoveResolverShadow = require("func/ComboTrials/Semantic/MoveResolverShadow")
 local TrainingEnvironment = require("func/ComboTrials/TrainingEnvironment")
 
 local M = {
@@ -126,6 +128,25 @@ end
 
 function M.load_generated_action_relations(character, loader)
     return GeneratedActionRelations.load(character, loader)
+end
+
+function M.load_move_resolver(options)
+    return MoveResolver.load(options)
+end
+
+function M.compare_expected_action_shadow(resolver, params)
+    if type(resolver) ~= "table" or type(resolver.compare_actions) ~= "function" then
+        return {
+            schema = "sf6cc.move-resolver-shadow.v1",
+            authority = "diagnostic_only",
+            production_result = "legacy",
+            difference_category = "UNKNOWN",
+            candidate_classification = "RESOLVER_UNAVAILABLE",
+            severity = "BLOCKED",
+            consumer = type(params) == "table" and params.consumer or "unknown",
+        }
+    end
+    return MoveResolverShadow.compare_match(resolver, params)
 end
 
 function M.generated_actions_share_source_group(relations, left_id, right_id)

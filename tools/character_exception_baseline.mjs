@@ -398,8 +398,62 @@ function markdown(baseline, oracle) {
     `## Artifacts\n\n` +
     `- Machine baseline: \`tests/fixtures/character_exception_baseline.json\`\n` +
     `- Legacy Oracle: \`tests/fixtures/character_exception_legacy_oracle.json\`\n` +
-    `- Rebuild/check: \`node tools/character_exception_baseline.mjs --write|--check\`\n\n` +
+    `- Rebuild/check: \`node tools/character_exception_baseline.mjs --write|--check|--compare-source|--verify-source\`\n\n` +
     `Every record stores its source, raw rule, normalized result, consumers, effects, category, and provenance state. Unknown provenance is explicit and blocks semantic convergence until reviewed.\n`;
+}
+
+function recordMap(records) {
+  return new Map(records.map((record) => [record.record_uid, record]));
+}
+
+function sourceMap(sources) {
+  return new Map(sources.map((source) => [source.file, source]));
+}
+
+function changedKeys(sealedMap, currentMap) {
+  return [...sealedMap.keys()]
+    .filter((key) => currentMap.has(key)
+      && jsonText(sealedMap.get(key)) !== jsonText(currentMap.get(key)))
+    .sort();
+}
+
+function mapDiff(sealedMap, currentMap) {
+  return {
+    added: [...currentMap.keys()].filter((key) => !sealedMap.has(key)).sort(),
+    removed: [...sealedMap.keys()].filter((key) => !currentMap.has(key)).sort(),
+    changed: changedKeys(sealedMap, currentMap)
+  };
+}
+
+function compareSource() {
+  const sealedBaseline = JSON.parse(fs.readFileSync(BASELINE_FILE, "utf8"));
+  const sealedOracle = JSON.parse(fs.readFileSync(ORACLE_FILE, "utf8"));
+  const current = build();
+  const baselineDiff = mapDiff(
+    recordMap(sealedBaseline.records),
+    recordMap(current.baseline.records)
+  );
+  const oracleDiff = mapDiff(
+    new Map(sealedOracle.cases.map((item) => [item.case_uid, item])),
+    new Map(current.oracle.cases.map((item) => [item.case_uid, item]))
+  );
+  const sources = mapDiff(
+    sourceMap(sealedBaseline.sources),
+    sourceMap(current.baseline.sources)
+  );
+  process.stdout.write(JSON.stringify({
+    schema: "sf6cc.character-exception-source-comparison.v1",
+    authority: "diagnostic_only",
+    sealed_snapshot_date: sealedBaseline.snapshot_date,
+    sealed_source_root_hash: sealedBaseline.source_root_hash,
+    current_source_root_hash: current.baseline.source_root_hash,
+    sealed_summary: sealedBaseline.summary,
+    current_summary: current.baseline.summary,
+    records: baselineDiff,
+    oracle_cases: oracleDiff,
+    sources,
+    sealed_artifacts_modified: false
+  }, null, 2) + "\n");
 }
 
 function writeOrCheck(mode) {
@@ -433,6 +487,11 @@ function writeOrCheck(mode) {
     return;
   }
 
+  if (mode === "--compare-source") {
+    compareSource();
+    return;
+  }
+
   const { baseline, oracle } = build();
   const outputs = [
     [BASELINE_FILE, jsonText(baseline)],
@@ -454,7 +513,7 @@ function writeOrCheck(mode) {
       }
     }
   } else {
-    throw new Error("Usage: node tools/character_exception_baseline.mjs --write|--check|--verify-source");
+    throw new Error("Usage: node tools/character_exception_baseline.mjs --write|--check|--compare-source|--verify-source");
   }
   process.stdout.write(JSON.stringify({
     mode,

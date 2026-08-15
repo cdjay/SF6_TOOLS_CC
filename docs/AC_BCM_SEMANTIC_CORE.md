@@ -31,3 +31,18 @@ automatic replay. Matching becomes strict after that first semantic Action, and
 an all-prefix sequence fails closed.
 
 Migration is incremental: freeze current behavior, generate the graph, run resolver shadow comparisons, switch recording/detection/display/audit one by one, then remove obsolete patch layers and continue decomposing the entry script.
+
+## Current Resolver Rollout State (2026-08-15)
+
+`MoveResolver` is implemented as a shadow-only semantic entry over the validated
+`CurrentMoveGraph` data-access layer. Resolution prefers an approved
+`stable_move_uid`; while review is incomplete it reports the build-local
+`current_move_uid` explicitly as provisional identity. Multi-valued membership,
+unresolved membership, missing Actions, and artifact readiness remain distinct
+results and are never collapsed into a match.
+
+`UnifiedActionConsumer` exposes resolver loading and structured shadow comparison,
+but the comparison always reports `production_result = legacy`. No runtime consumer
+has switched authority, and an artifact with `review_complete=false` or
+`integration_candidate=false` is valid only for diagnostics, corpus comparison,
+and future shadow observation.

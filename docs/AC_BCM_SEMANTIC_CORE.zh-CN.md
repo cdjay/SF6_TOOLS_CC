@@ -169,7 +169,19 @@ get_command(move, mode, context)
 
 在四个消费者都通过同一套基线后，才能删除 `CommandDisplayOverrides`、运行时 `ActionCompatibility` 以及不再需要的角色 Action ID 分支。
 
-## 7.1 连段起始前导规范化
+## 7.1 当前 Resolver 推进状态（2026-08-15）
+
+`MoveResolver` 已作为 `CurrentMoveGraph` 已验证数据访问层之上的影子语义入口实现。
+解析时优先使用已经审定的 `stable_move_uid`；在人审尚未完成时，只能把 build-local
+`current_move_uid` 明确标记为 provisional identity。多值 membership、未解析 membership、
+缺失 Action 与 artifact readiness 必须保持为不同结果，不得折叠成一次匹配。
+
+`UnifiedActionConsumer` 已暴露 resolver 加载与结构化 shadow compare 入口，但比较结果始终
+声明 `production_result = legacy`。当前没有任何 Runtime consumer 完成 authority switch；
+`review_complete=false` 或 `integration_candidate=false` 的 artifact 只能用于诊断、corpus
+比较与后续 shadow observation，不能成为 production authority。
+
+## 7.2 连段起始前导规范化
 
 Presentation、Detector 和 Auditor 必须从冻结 V2 序列生成同一份训练投影。只允许移除连段开头连续出现的以下步骤：单一基础方向 `1` 到 `9`、基础位移 `44`/`66`、Drive Parry。第一个不属于该集合的 Action 是首个可见、可检测检查点。
 
