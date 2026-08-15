@@ -27,6 +27,10 @@ Date: 2026-08-15
 - SF6ACBCM SHA: `6ee988dd0a2a30c23d57cf2d09493defadb6b44b`
 - SF6CC worktree: `D:\CP\SF6CC\reframework-task-a`
 - SF6ACBCM worktree: `D:\CP\SF6ACBCM-task-a`
+- Parallel SF6CC worktree: `D:\CP\SF6CC\reframework-task-b`
+  (`bugfix/autonomous-bug-mining-task-b`, observed only)
+- Parallel SF6CC worktree: `D:\CP\SF6CC\reframework-task-c`
+  (`review/full-corpus-audit-task-c`, observed only)
 - Main SF6CC worktree remained dirty and untouched; its pre-existing changes are an integration risk.
 - No merge and no push were performed.
 
@@ -314,7 +318,7 @@ compatibility mappings, unresolved corpus coverage, and missing smoke evidence s
 ## 15. Handoff to Main
 
 - Review commits in order: `43ba98f`, then `9b98273`.
-- Merge both implementation commits before the documentation handoff commit.
+- Merge both implementation commits before the documentation handoff commits.
 - Do not copy or commit files under either worktree's `scratch/` directories.
 - Reconcile carefully with the dirty Main changes touching UnifiedActionConsumer and semantic
   generation; preserve `production_result = legacy` and stable-identity-first comparison.
