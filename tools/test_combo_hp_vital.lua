@@ -4,6 +4,10 @@ package.path = package.path
 
 local p1 = { vital_new = 10000, vital_old = 10000, heal_new = 10000, vital_max = 10000 }
 local p2 = { vital_new = 9000, vital_old = 9000, heal_new = 9000, vital_max = 10000 }
+local previous_game_state = package.loaded["func/GameState"]
+local previous_scene_state = package.loaded["func/ComboTrials/SceneState"]
+local previous_scene_state_runtime = package.loaded["func/ComboTrials/SceneStateRuntime"]
+local previous_hp_vital = package.loaded["func/ComboTrials/HpVital"]
 package.loaded["func/GameState"] = { p1 = p1, p2 = p2 }
 package.loaded["func/ComboTrials/SceneState"] = {
     resolve_roles = function()
@@ -19,6 +23,7 @@ package.loaded["func/ComboTrials/SceneStateRuntime"] = {
         restored_live_resources = true
     end,
 }
+package.loaded["func/ComboTrials/HpVital"] = nil
 
 local function object(fields)
     fields = fields or {}
@@ -250,5 +255,10 @@ assert(player_params.DG_Type == 2 and player_params.DG_Point == 4000
         and player_params.SA_Type == 3 and player_params.SA_Point == 25000
         and restored_live_resources == true,
     "trial vital restore must retain gauge restoration and live-resource ordering")
+
+package.loaded["func/GameState"] = previous_game_state
+package.loaded["func/ComboTrials/SceneState"] = previous_scene_state
+package.loaded["func/ComboTrials/SceneStateRuntime"] = previous_scene_state_runtime
+package.loaded["func/ComboTrials/HpVital"] = previous_hp_vital
 
 print("combo HP vital tests passed")

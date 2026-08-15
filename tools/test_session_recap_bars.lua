@@ -1,4 +1,20 @@
 local draw_calls = 0
+local dependency_names = { "func/ImGuiCanvas", "func/SharedHooks" }
+local previous_loaded = {}
+local previous_preload = {}
+for _, name in ipairs(dependency_names) do
+    previous_loaded[name] = package.loaded[name]
+    previous_preload[name] = package.preload[name]
+    package.loaded[name] = nil
+end
+local previous_globals = {
+    safe_load_json = _G.safe_load_json,
+    re = re,
+    imgui = imgui,
+    sdk = sdk,
+    SessionRecapVisible = _G.SessionRecapVisible,
+    session_recap_queue = _G._session_recap_queue,
+}
 package.preload["func/ImGuiCanvas"] = function()
     local function draw() draw_calls = draw_calls + 1; return true end
     return {
@@ -55,5 +71,16 @@ assert(_G.SessionRecapVisible == true and draw_calls > 0,
 Recap.hide()
 assert(Recap.is_visible() == false,
     "shared recap panel must still close normally")
+
+for _, name in ipairs(dependency_names) do
+    package.loaded[name] = previous_loaded[name]
+    package.preload[name] = previous_preload[name]
+end
+_G.safe_load_json = previous_globals.safe_load_json
+re = previous_globals.re
+imgui = previous_globals.imgui
+sdk = previous_globals.sdk
+_G.SessionRecapVisible = previous_globals.SessionRecapVisible
+_G._session_recap_queue = previous_globals.session_recap_queue
 
 print("session recap bar tests passed")

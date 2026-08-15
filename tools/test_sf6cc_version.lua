@@ -2,6 +2,10 @@ package.path = package.path
     .. ";./autorun/?.lua"
     .. ";./autorun/?/init.lua"
 
+local previous_version_module = package.loaded["func/SF6CC_Version"]
+local previous_json = json
+local previous_global_version = _G.SF6CC_VERSION
+package.loaded["func/SF6CC_Version"] = nil
 json = {
     load_file = function(path)
         assert(path == "SF6CC/version.json", "version module must use the canonical runtime path")
@@ -48,5 +52,9 @@ assert(MissingVersion.loaded == false, "missing version data must not be accepte
 assert(MissingVersion.PRODUCT_VERSION == "unknown", "missing product version must never use a stale fallback")
 assert(MissingVersion.GAME_VERSION == "unknown", "missing game version must never use a stale fallback")
 assert(type(MissingVersion.error) == "string", "missing version data must report an error")
+
+package.loaded["func/SF6CC_Version"] = previous_version_module
+json = previous_json
+_G.SF6CC_VERSION = previous_global_version
 
 print("SF6CC version tests passed")

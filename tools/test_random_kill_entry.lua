@@ -8,6 +8,34 @@ local p2_vital = 10000
 local drawn_text = {}
 local ticker_messages = {}
 
+local dependency_names = {
+    "func/SharedHooks",
+    "func/RuntimeSafety",
+    "func/GameState",
+    "func/Training_SharedUI",
+    "func/Training_MenuRegistry",
+    "func/Training_SessionRecap",
+    "func/DynamicRecords",
+    "func/RandomKill/Scenario",
+    "func/RandomKill/Runtime",
+    "func/RandomKill/Stats",
+}
+local previous_loaded = {}
+local previous_preload = {}
+for _, name in ipairs(dependency_names) do
+    previous_loaded[name] = package.loaded[name]
+    previous_preload[name] = package.preload[name]
+    package.loaded[name] = nil
+end
+local previous_globals = {
+    re = re,
+    imgui = imgui,
+    json = json,
+    safe_load_json = _G.safe_load_json,
+    show_custom_ticker = _G.show_custom_ticker,
+    CurrentTrainerMode = _G.CurrentTrainerMode,
+}
+
 re = {
     on_frame = function(callback)
         callbacks[#callbacks + 1] = callback
@@ -173,5 +201,16 @@ api.stop()
 for _ = 1, 5 do callbacks[1]() end
 assert(import_calls == 2, "stop must restore the exact pre-session recording backup")
 assert(api.get_session().phase == "idle", "stop must restore runtime state and become idle")
+
+for _, name in ipairs(dependency_names) do
+    package.loaded[name] = previous_loaded[name]
+    package.preload[name] = previous_preload[name]
+end
+re = previous_globals.re
+imgui = previous_globals.imgui
+json = previous_globals.json
+_G.safe_load_json = previous_globals.safe_load_json
+_G.show_custom_ticker = previous_globals.show_custom_ticker
+_G.CurrentTrainerMode = previous_globals.CurrentTrainerMode
 
 print("random kill entry tests passed")

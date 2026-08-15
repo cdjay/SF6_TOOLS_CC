@@ -16,6 +16,9 @@ local p2 = {
     heal_old = 10000,
     vital_max = 10000,
 }
+local previous_game_state = package.loaded["func/GameState"]
+local previous_scene_state = package.loaded["func/ComboTrials/SceneState"]
+local previous_scene_state_runtime = package.loaded["func/ComboTrials/SceneStateRuntime"]
 package.loaded["func/GameState"] = { p1 = p1, p2 = p2 }
 package.loaded["func/ComboTrials/SceneState"] = {
     resolve_roles = function()
@@ -34,6 +37,7 @@ package.loaded["func/ComboTrials/SceneState"] = {
         return nil
     end,
 }
+package.loaded["func/ComboTrials/SceneStateRuntime"] = nil
 
 local function object(fields)
     fields = fields or {}
@@ -158,5 +162,9 @@ assert(training_manager._IsReqRefresh == true
         and stale_trial_state._pending_reinject_settings == true
         and tf_parameter_setting.apply_count == 0,
     "the stable retry must request refresh and retain one post-refresh reinjection")
+
+package.loaded["func/GameState"] = previous_game_state
+package.loaded["func/ComboTrials/SceneState"] = previous_scene_state
+package.loaded["func/ComboTrials/SceneStateRuntime"] = previous_scene_state_runtime
 
 print("combo scene state runtime tests passed")

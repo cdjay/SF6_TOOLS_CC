@@ -30,6 +30,7 @@ sdk = {
 
 local attacker = { focus_new = 8500, act_st = 27 }
 local victim = { vital_new = 7600 }
+local previous_game_state = package.loaded["func/GameState"]
 package.loaded["func/GameState"] = { p1 = attacker, p2 = victim }
 
 local command_source = {
@@ -173,5 +174,7 @@ local gauges = GameProbe.capture_recording_gauges(0)
 assert(gauges.victim_hp == 7600 and gauges.attacker_drive == 8500
         and gauges.attacker_super == 30000,
     "recording gauges must retain the existing runtime snapshot")
+
+package.loaded["func/GameState"] = previous_game_state
 
 print("combo game probe tests passed")
