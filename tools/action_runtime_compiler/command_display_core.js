@@ -586,13 +586,17 @@ function pushRoute(routes, seen, display, provenance) {
     routes.push(route);
 }
 
-function function1HasPlayerVisibleModernRoute(trigger) {
-    if (Number(trigger && trigger.conditions && trigger.conditions.function_id) !== 1) return false;
+function hasPlayerVisibleModernRoute(trigger) {
     return selectedProfiles(trigger.conditions, trigger.profiles).some(profileName => {
         const profile = trigger.profiles && trigger.profiles[profileName];
         return Boolean(translateProfileDetailed(
             profileName, profile, trigger.conditions, trigger.profiles).display);
     });
+}
+
+function function1HasPlayerVisibleModernRoute(trigger) {
+    if (Number(trigger && trigger.conditions && trigger.conditions.function_id) !== 1) return false;
+    return hasPlayerVisibleModernRoute(trigger);
 }
 
 function pushClassicVerificationRoute(routes, seen, display, provenance) {
@@ -1041,6 +1045,21 @@ function isDirectFunction2AerialNormal(trigger, classicIdentity) {
         && Number(norm.ok_key_flags) === ({
             LP: 16, MP: 32, HP: 256, LK: 64, MK: 128, HK: 512
         })[button];
+}
+
+function isDirectFunction2Command(trigger, classicIdentity) {
+    const conditions = trigger && trigger.conditions || {};
+    const norm = trigger && trigger.profiles && trigger.profiles.norm;
+    const command = norm && norm.command;
+    return Number(conditions.function_id) === 2
+        && norm && norm.enabled === true
+        && canonicalClassicIdentity(norm.notation) === classicIdentity
+        && !/^(?:j\.)?Normal$/i.test(classicIdentity)
+        && requiredButtonCount(norm) > 0
+        && Number(norm.command_no) >= 0
+        && Number(norm.command_index) >= 0
+        && command && Array.isArray(command.inputs) && command.inputs.length > 0
+        && !hasPlayerVisibleModernRoute(trigger);
 }
 
 function exactOfficialButtonDisplay(entry) {
@@ -3810,6 +3829,7 @@ function buildCommandDisplay(actionSource, bcmCatalog, runtime, supplement, opti
             const concreteFunction1Identity = !/^(?:j\.)?Normal$/i.test(classicIdentity);
             const classicOnlyDirect = functionId === 3 && !entry
                 || !entry && isDirectFunction2AerialNormal(trigger, classicIdentity)
+                || !entry && isDirectFunction2Command(trigger, classicIdentity)
                 || functionId === 1 && concreteFunction1Identity
                     && !function1HasPlayerVisibleModernRoute(trigger);
             if (!classicOnlyDirect

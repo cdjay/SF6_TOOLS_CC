@@ -2783,6 +2783,36 @@ function Transcriber.remaining_paths(previous_run, paths)
     return remaining, #retained, retained
 end
 
+function Transcriber.remaining_path_summary(previous_run, paths)
+    local completed = {}
+    local processed = 0
+    local items = type(previous_run) == "table"
+        and type(previous_run.items) == "table" and previous_run.items or {}
+    for _, item in ipairs(items) do
+        local has_verification_marker = item.raw_replay_verified ~= nil
+        local validation_is_current =
+            tonumber(item.validation_revision) == Transcriber.VALIDATION_REVISION
+        local is_completed =
+            (item.status == "passed" and item.raw_replay_verified == true)
+            or (item.status ~= "passed"
+                and has_verification_marker
+                and validation_is_current)
+        if is_completed then
+            local key = normalized_source_path(item.source_file)
+            if key ~= "" then completed[key] = true end
+            processed = processed + 1
+        end
+    end
+
+    local remaining = 0
+    for _, path in ipairs(type(paths) == "table" and paths or {}) do
+        if not completed[normalized_source_path(path)] then
+            remaining = remaining + 1
+        end
+    end
+    return remaining, processed
+end
+
 function Transcriber.resume_info(previous_run, character, paths)
     if type(previous_run) ~= "table" or previous_run.active == true then return nil end
     if not Transcriber.is_resumable_scope(previous_run.transcription_scope) then return nil end
@@ -2793,12 +2823,13 @@ function Transcriber.resume_info(previous_run, character, paths)
 
     local source_paths = Transcriber.resume_source_paths(previous_run, paths)
     if #source_paths == 0 then return nil end
-    local remaining, processed = Transcriber.remaining_paths(previous_run, source_paths)
-    if #remaining == 0 then return nil end
+    local remaining, processed =
+        Transcriber.remaining_path_summary(previous_run, source_paths)
+    if remaining == 0 then return nil end
     return {
         processed = processed,
-        remaining = #remaining,
-        total = processed + #remaining,
+        remaining = remaining,
+        total = processed + remaining,
     }
 end
 
@@ -2819,6 +2850,48 @@ function Transcriber.failed_source_paths(previous_run)
             seen[key] = true
         end
     end
+    return paths
+end
+
+function Transcriber.failed_source_paths_with_legacy_conflicts(previous_run, conflict_probe)
+    if type(previous_run) ~= "table"
+        or previous_run.active == true
+        or previous_run.mode == "runtime_audit"
+        or type(previous_run.items) ~= "table" then
+        return {}
+    end
+    if type(previous_run._failed_transcription_paths_cache) == "table" then
+        return deep_copy(previous_run._failed_transcription_paths_cache)
+    end
+
+    local paths = Transcriber.failed_source_paths(previous_run)
+    local seen = {}
+    for _, path in ipairs(paths) do
+        seen[normalized_source_path(path)] = true
+    end
+    for _, item in ipairs(previous_run.items) do
+        local path = item and item.source_file
+        local key = normalized_source_path(path)
+        if item and item.status == "passed" and key ~= "" and not seen[key] then
+            local repaired = false
+            for _, adjustment in ipairs(type(item.environment_adjustments) == "table"
+                and item.environment_adjustments or {}) do
+                if adjustment.reason
+                    == "legacy_counter_policy_canonicalized:legacy_consensus" then
+                    repaired = true
+                    break
+                end
+            end
+            if not repaired and type(conflict_probe) == "function" then
+                local ok, conflict = pcall(conflict_probe, path, item)
+                if ok and conflict == true then
+                    paths[#paths + 1] = path
+                    seen[key] = true
+                end
+            end
+        end
+    end
+    previous_run._failed_transcription_paths_cache = deep_copy(paths)
     return paths
 end
 

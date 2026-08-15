@@ -25,6 +25,8 @@ local ComboTrialsModules = {
     UnifiedActionConsumer = require("func/ComboTrials/UnifiedActionConsumer"),
     RawInputCodec = require("func/ComboTrials/RawInputCodec"),
     Transcriber = require("func/ComboTrials/Transcriber"),
+    TranscriptionCandidateInstaller =
+        require("func/ComboTrials/TranscriptionCandidateInstaller"),
     RuntimeAuditor = require("func/ComboTrials/RuntimeAuditor"),
     TimelineSequenceNormalizer = require("func/ComboTrials/TimelineSequenceNormalizer"),
     DummySettings = require("func/ComboTrials/DummySettings"),
@@ -9434,37 +9436,16 @@ local function retryable_audit_paths(run)
 end
 
 local function failed_transcription_paths(run)
-    local requested = ComboTrialsModules.Transcriber.failed_source_paths(run)
-    local seen = {}
-    for _, path in ipairs(requested) do
-        seen[normalized_runtime_combo_path(path)] = true
-    end
-    for _, item in ipairs(type(run) == "table" and type(run.items) == "table"
-        and run.items or {}) do
-        local path = item and item.source_file
-        local key = normalized_runtime_combo_path(path)
-        if item and item.status == "passed" and key ~= "" and not seen[key] then
-            local repaired = false
-            for _, adjustment in ipairs(type(item.environment_adjustments) == "table"
-                and item.environment_adjustments or {}) do
-                if adjustment.reason
-                    == "legacy_counter_policy_canonicalized:legacy_consensus" then
-                    repaired = true
-                    break
-                end
-            end
-            if not repaired then
+    local requested =
+        ComboTrialsModules.Transcriber.failed_source_paths_with_legacy_conflicts(
+            run,
+            function(path)
                 local ok, source = pcall(json.load_file, path)
-                local conflict = ok and type(source) == "table"
+                return ok and type(source) == "table"
                     and ComboTrialsModules.TrainingEnvironment
                         .has_legacy_counter_conflict(source)
-                if conflict then
-                    requested[#requested + 1] = path
-                    seen[key] = true
-                end
             end
-        end
-    end
+        )
     return available_combo_paths(requested)
 end
 
@@ -9827,6 +9808,8 @@ ctx.get_transcription_candidate_state = function()
         index = run.review_index,
         name = item.source_name or tostring(item.candidate_file):match("([^/\\]+)$"),
         path = item.candidate_file,
+        source_path = item.source_file,
+        item = item,
     }
 end
 
@@ -9863,6 +9846,48 @@ ctx.start_transcription_candidate = function()
     if run then run.status = "正在审阅候选：" .. tostring(state.name or state.path) end
     ct_ticker(string.format("已加载候选 %d/%d", state.index, state.count))
     return true
+end
+
+ctx.install_transcription_candidate_for_audit = function()
+    local state = ctx.get_transcription_candidate_state()
+    local run = demo_state.transcription_run
+    if not state or not state.item or not run then return false end
+    if trial_state.is_recording or trial_state.is_playing or demo_state.is_playing then
+        ct_ticker("请先停止录制、训练或演示")
+        return false
+    end
+
+    local installed, install_error =
+        ComboTrialsModules.TranscriptionCandidateInstaller.install(state.item, {
+            load_file = json.load_file,
+            dump_file = json.dump_file,
+        })
+    if not installed then
+        run.status = "候选载入失败：" .. tostring(install_error)
+        ct_ticker(run.status)
+        return false
+    end
+
+    state.item.installed_file = installed.target_path
+    state.item.installed_copy = installed.target_path
+    state.item.installed_for_audit = true
+    ctx.persist_transcription_report(run)
+    if file_system.refresh_combo_list_preserve_selection then
+        file_system.refresh_combo_list_preserve_selection(false)
+    end
+    if not load_combo_from_file(installed.target_path, true) then
+        run.status = "候选已写入，但重新载入失败"
+        ct_ticker(run.status)
+        return false
+    end
+
+    local source_report = run.report_path
+    ct_ticker("转录副本已载入当前目录，开始单条审计")
+    return ctx.start_runtime_audit({
+        scope = "current",
+        paths = { installed.target_path },
+        source_transcription_report = source_report,
+    })
 end
 
 ctx.stop_demo_without_transcription = ctx.stop_demo

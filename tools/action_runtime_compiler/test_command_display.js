@@ -543,6 +543,17 @@ assert.strictEqual(edCatalog["1212"].ownership, "direct");
 assert.strictEqual(edCatalog["1212"].routes.length, 1);
 assert.strictEqual(edCatalog["1212"].routes[0].profile, "norm");
 assert.strictEqual(edCatalog["1212"].routes[0].projection_scope, "classic_only");
+const akiCatalog = JSON.parse(fs.readFileSync(
+    "data/TrainingComboTrials_data/command_display/AKI.json", "utf8"));
+for (const [id, display] of [["972", "236+LK"], ["976", "236+HK"]]) {
+    assert.strictEqual(akiCatalog[id].classic_command.display, display);
+    assert.strictEqual(akiCatalog[id].ownership, "direct");
+    assert.strictEqual(akiCatalog[id].routes.length, 1);
+    assert.strictEqual(akiCatalog[id].routes[0].source, "bcm_profile");
+    assert.strictEqual(akiCatalog[id].routes[0].profile, "norm");
+    assert.strictEqual(akiCatalog[id].routes[0].projection_scope, "classic_only");
+    assert.strictEqual(akiCatalog[id].routes[0].direct_evidence, true);
+}
 const yasmineCatalog = JSON.parse(fs.readFileSync(
     "data/TrainingComboTrials_data/command_display/Yasmine.json", "utf8"));
 for (const [id, display] of [["600", "LP"], ["612", "HP"], ["628", "2+MP"],
@@ -1732,11 +1743,35 @@ const classicOnlyFunction2Catalog = { source: { character: "ClassicOnlyFunction2
             cond_owner_state_flags: 4,
             atck_type_bit: 0,
             kind_level: 4
+        })] },
+    "8202": { action_id: 8202, triggers: [trigger(805, profiles(
+        null, null, null,
+        profile(true, "236+HK", 512, 81952, {
+            command_no: 1,
+            command_index: 0,
+            inputs: [
+                { direction: "2", raw_mask: 2 },
+                { direction: "3", raw_mask: 10 },
+                { direction: "6", raw_mask: 8 }
+            ]
+        })), {
+            function_id: 2,
+            cond_owner_state_flags: 0,
+            kind_level: 7
+        })] },
+    "8203": { action_id: 8203, triggers: [trigger(806, profiles(
+        null, null, null,
+        profile(true, "236+HK", 512, 81952)), {
+            function_id: 2,
+            cond_owner_state_flags: 0,
+            kind_level: 7
         })] }
 } };
 const classicOnlyFunction2Runtime = {
     character: "ClassicOnlyFunction2", fighter_id: 201,
-    action_ids: [8200, 8201], actions: { "8200": "j.LP", "8201": "j.LP" },
+    action_ids: [8200, 8201, 8202, 8203], actions: {
+        "8200": "j.LP", "8201": "j.LP", "8202": "236+HK", "8203": "236+HK"
+    },
     aliases: {}, sources: { ac_sha256: "ac", bcm_sha256: "bcm" },
     validation: { rules: {} }, evidence: { ac_derived_commands: [] }
 };
@@ -1757,6 +1792,17 @@ assert.strictEqual(classicOnlyFunction2Output._meta.unmapped_action_ids.includes
 assert.strictEqual(classicOnlyFunction2Output["8201"].ownership, "classic_runtime");
 assert.strictEqual(classicOnlyFunction2Output["8201"].routes.length, 0);
 assert.strictEqual(classicOnlyFunction2Output._meta.unmapped_action_ids.includes(8201), true);
+assert.strictEqual(classicOnlyFunction2Output["8202"].ownership, "direct");
+assert.strictEqual(classicOnlyFunction2Output["8202"].routes.length, 1);
+assert.strictEqual(classicOnlyFunction2Output["8202"].routes[0].source, "bcm_profile");
+assert.strictEqual(classicOnlyFunction2Output["8202"].routes[0].profile, "norm");
+assert.strictEqual(classicOnlyFunction2Output["8202"].routes[0].projection_scope,
+    "classic_only");
+assert.strictEqual(classicOnlyFunction2Output["8202"].routes[0].direct_evidence, true);
+assert.strictEqual(classicOnlyFunction2Output._meta.unmapped_action_ids.includes(8202), false);
+assert.strictEqual(classicOnlyFunction2Output["8203"].ownership, "classic_runtime");
+assert.strictEqual(classicOnlyFunction2Output["8203"].routes.length, 0);
+assert.strictEqual(classicOnlyFunction2Output._meta.unmapped_action_ids.includes(8203), true);
 
 function makeInternalExecutionPhaseSource() {
     let nextObjectId = 9000;

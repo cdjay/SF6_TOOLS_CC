@@ -1859,6 +1859,10 @@ local function draw_transcription_debug_tools()
         if imgui.button("下一个候选") and ctx.change_transcription_candidate then
             ctx.change_transcription_candidate(1)
         end
+        if imgui.button("载入当前目录并审计")
+            and ctx.install_transcription_candidate_for_audit then
+            ctx.install_transcription_candidate_for_audit()
+        end
     end
 end
 

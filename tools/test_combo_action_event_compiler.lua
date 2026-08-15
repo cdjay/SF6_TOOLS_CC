@@ -8020,6 +8020,37 @@ assert(#legacy_failure_remaining == 1
     and legacy_failure_retained == 1,
     "resume must revalidate legacy failures but retain failures classified by the new flow")
 
+;(function()
+    local nested_payload_reads = 0
+    local heavy_payload = setmetatable({ trace = "large verification payload" }, {
+        __pairs = function(value)
+            nested_payload_reads = nested_payload_reads + 1
+            return next, value, nil
+        end,
+    })
+    local resume_summary = transcriber.resume_info({
+        active = false,
+        character = "Ryu",
+        transcription_scope = "all",
+        items = {
+            {
+                source_file = "TrainingComboTrials_data\\CustomCombos\\Ryu\\A.json",
+                status = "passed",
+                raw_replay_verified = true,
+                verification = heavy_payload,
+            },
+        },
+    }, "Ryu", {
+        "TrainingComboTrials_data\\CustomCombos\\Ryu\\A.json",
+        "TrainingComboTrials_data\\CustomCombos\\Ryu\\B.json",
+    })
+    assert(resume_summary.processed == 1 and resume_summary.remaining == 1
+            and resume_summary.total == 2,
+        "resume summary must preserve the character-wide remaining counts")
+    assert(nested_payload_reads == 0,
+        "menu resume queries must not deep-copy large transcription item payloads")
+end)()
+
 local stale_failure_remaining, stale_failure_retained = transcriber.remaining_paths({
     items = {
         {
@@ -8113,6 +8144,53 @@ local explicit_failure_retry = transcriber.failed_source_paths({
 assert(#explicit_failure_retry == 1
     and explicit_failure_retry[1]:match("B%.json$"),
     "manual environment changes must be able to retry only current transcription failures")
+
+;(function()
+    local legacy_conflict_probe_calls = 0
+    local cached_failure_run = {
+        character = "Guile",
+        items = {
+            {
+                source_file = "TrainingComboTrials_data\\CustomCombos\\Guile\\A.json",
+                status = "passed",
+                raw_replay_verified = true,
+            },
+            {
+                source_file = "TrainingComboTrials_data\\CustomCombos\\Guile\\B.json",
+                status = "failed",
+                raw_replay_verified = false,
+            },
+            {
+                source_file = "TrainingComboTrials_data\\CustomCombos\\Guile\\C.json",
+                status = "passed",
+                raw_replay_verified = true,
+                environment_adjustments = {
+                    { reason = "legacy_counter_policy_canonicalized:legacy_consensus" },
+                },
+            },
+        },
+    }
+    local function legacy_conflict_probe(path)
+        legacy_conflict_probe_calls = legacy_conflict_probe_calls + 1
+        return path:match("A%.json$") ~= nil
+    end
+    local cached_failure_paths_first =
+        transcriber.failed_source_paths_with_legacy_conflicts(
+            cached_failure_run,
+            legacy_conflict_probe
+        )
+    local cached_failure_paths_second =
+        transcriber.failed_source_paths_with_legacy_conflicts(
+            cached_failure_run,
+            legacy_conflict_probe
+        )
+    assert(#cached_failure_paths_first == 2
+            and cached_failure_paths_first[1]:match("B%.json$")
+            and cached_failure_paths_first[2]:match("A%.json$"),
+        "legacy-conflict passes and explicit failures must share one retry list")
+    assert(#cached_failure_paths_second == 2 and legacy_conflict_probe_calls == 1,
+        "an inactive transcription report must probe legacy conflicts only once")
+end)()
 
 local failure_retry_run = transcriber.failure_retry_run({
     character = "Marisa",
