@@ -94,4 +94,3 @@ Delete only when an asset is not current, referenced, required by Runtime,
 build, tests, reproduction, human review, smoke, compatibility, or a lasting
 decision record. Git history is the archive for completed phase reports and
 temporary evidence that do not meet that test.
-

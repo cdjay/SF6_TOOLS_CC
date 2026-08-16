@@ -24,4 +24,3 @@ The active review procedures are [Human Review](review/HUMAN_REVIEW.md) and
 [Real-game Smoke](testing/REAL_GAME_SMOKE.md). Do not close a limitation by
 editing this file alone; close the underlying evidence or architecture gate
 first.
-

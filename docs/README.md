@@ -34,4 +34,3 @@ Start with this page instead of searching dated reports.
 See [Archive](archive/README.md). Dated audit and integration documents are
 evidence for past baselines only. Removed phase reports remain available in Git
 history.
-

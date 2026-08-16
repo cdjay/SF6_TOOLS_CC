@@ -16,4 +16,3 @@ handover. Resolve current questions through [Documentation Authority](../DOCUMEN
 
 Completed phase reports whose durable conclusions now live in current authority
 documents were removed. They remain available through Git history.
-
