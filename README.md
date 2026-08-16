@@ -112,17 +112,23 @@ SF6CC 将永久免费。
 
 ## 📚 项目文档
 
-- [项目首页](README.md)
-- [项目愿景](VISION.zh-CN.md)
-- [项目发展规划](ROADMAP.zh-CN.md)
-- [架构设计](ARCHITECTURE.zh-CN.md)
+- [文档入口与当前权威](docs/README.md)
+- [当前架构](ARCHITECTURE.zh-CN.md)
+- [AC+BCM 语义核心](docs/AC_BCM_SEMANTIC_CORE.zh-CN.md)
+- [测试策略](docs/TESTING_STRATEGY.md)
+- [当前限制](docs/KNOWN_LIMITATIONS.md)
 - [AI 开发规范](AGENTS.zh-CN.md)
 - [贡献指南](CONTRIBUTING.zh-CN.md)
-- [与 WTT 合并评估（中英双语）](docs/WAEL_MERGE_ASSESSMENT.md)
 
 English entry: [README.en.md](README.en.md)
 
 如果你使用 AI 编程工具（Codex、Claude Code、Gemini CLI、Cursor、Windsurf 等），建议首先阅读 [AGENTS.zh-CN.md](AGENTS.zh-CN.md)。
+
+开发者可从干净 worktree 运行当前离线门禁：
+
+```powershell
+python tools\repository_test_audit.py --repo-root . --audit-date (Get-Date -Format yyyy-MM-dd) --run-tests --output (Join-Path $env:TEMP 'sf6cc-repository-test-audit.json')
+```
 
 ---
 
@@ -158,7 +164,16 @@ SF6CC 与 SF6CM 仅通过 JSON 数据交换，不直接依赖彼此。
 
 # 当前状态
 
-当前项目已完成：
+当前 Runtime / 架构基线：
+
+* Production authority：Legacy
+* M5 / MoveResolver：仅 Shadow
+* Frozen V2：保持不变
+* Human Review：179 批仍需人工审查
+* Real-game Smoke：仍需完成
+* Legacy OFF：阻塞
+
+当前项目已提供：
 
 * ✅ 中文本地化
 * ✅ UI 优化

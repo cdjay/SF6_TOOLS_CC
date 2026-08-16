@@ -113,17 +113,23 @@ Future releases will provide:
 
 ## 📚 Documentation
 
-- [README](README.en.md)
-- [Vision](VISION.md)
-- [Roadmap](ROADMAP.md)
-- [Architecture](ARCHITECTURE.md)
+- [Documentation Index And Current Authority](docs/README.md)
+- [Current Architecture](ARCHITECTURE.md)
+- [AC+BCM Semantic Core](docs/AC_BCM_SEMANTIC_CORE.md)
+- [Testing Strategy](docs/TESTING_STRATEGY.md)
+- [Known Limitations](docs/KNOWN_LIMITATIONS.md)
 - [AI Development Guide](AGENTS.md)
 - [Contributing](CONTRIBUTING.md)
-- [WTT Merge Assessment (EN/中文)](docs/WAEL_MERGE_ASSESSMENT.md)
 
 Chinese entry: [README.md](README.md)
 
 If you are using AI coding assistants such as Codex, Claude Code, Gemini CLI, Cursor or Windsurf, please start with [AGENTS.md](AGENTS.md).
+
+Developers can run the current offline gate from a clean worktree:
+
+```powershell
+python tools\repository_test_audit.py --repo-root . --audit-date (Get-Date -Format yyyy-MM-dd) --run-tests --output (Join-Path $env:TEMP 'sf6cc-repository-test-audit.json')
+```
 
 ---
 
@@ -159,7 +165,16 @@ SF6CC and SF6CM remain fully decoupled and communicate only through standardized
 
 # Current Status
 
-Current development includes:
+Current Runtime and architecture baseline:
+
+* Production authority: Legacy
+* M5 / MoveResolver: shadow only
+* Frozen V2: unchanged
+* Human review: 179 batches remain
+* Real-game smoke: required
+* Legacy OFF: blocked
+
+Current project capabilities include:
 
 * ✅ Localization improvements
 * ✅ UI enhancements

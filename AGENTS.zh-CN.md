@@ -10,6 +10,9 @@
 * [架构设计](ARCHITECTURE.zh-CN.md)
 * [AC+BCM 语义核心](docs/AC_BCM_SEMANTIC_CORE.zh-CN.md)
 * [文档权威](docs/DOCUMENTATION_AUTHORITY.md)
+* [文档入口](docs/README.md)
+* [测试策略](docs/TESTING_STRATEGY.md)
+* [当前限制](docs/KNOWN_LIMITATIONS.md)
 * **AI 开发规范**
 * [贡献指南](CONTRIBUTING.zh-CN.md)
 
@@ -20,6 +23,35 @@
 本文档定义了 AI 编程助手（Codex、Claude Code、Gemini CLI、Cursor、Windsurf 等）参与 SF6CC 项目开发时必须遵循的规范。
 
 本文档也是项目的设计原则说明。
+
+## 当前知识权威
+
+所有文档冲突必须通过 [文档权威](docs/DOCUMENTATION_AUTHORITY.md) 解决。
+当前架构、测试、Known Limitations、Human Review、实机 Smoke 和 Tester
+Workflow 都在 [文档入口](docs/README.md) 中各自指定唯一 Current Authority。
+
+`docs/archive/` 下的文档和带日期的完成/审计报告只属于历史证据，不得覆盖
+Current Authority，也不得作为当前 production 状态引用。
+
+当前运行基线：
+
+```text
+Production authority = Legacy
+M5 = Shadow only
+Frozen V2 = UNCHANGED
+Human review = REQUIRED（仍有 179 批）
+Real-game smoke = REQUIRED
+Legacy OFF = BLOCKED
+Oracle independence = LOW
+```
+
+正式离线门禁和 corpus 命令只以 [测试策略](docs/TESTING_STRATEGY.md) 为准。
+包括 BUG-B001 至 BUG-B006 在内的永久 regression，未经明确退役决策和 test-count
+delta 审查不得删除。
+
+Audit JSON、coverage、profile、日志、测试包和其他可重建输出必须写入系统临时目录
+或已忽略的 `audit-output/`。不得手工修改或忽略 Runtime 实际消费的生成资产、sealed
+fixtures，以及 `tools/modern_display_builder/out/` 中受跟踪的 OFF 快照。
 
 ---
 

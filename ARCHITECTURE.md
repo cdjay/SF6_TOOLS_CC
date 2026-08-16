@@ -2,6 +2,19 @@
 
 Language: [简体中文](ARCHITECTURE.zh-CN.md)
 
+Status: `CURRENT`
+
+## Operational Baseline
+
+- Production action semantics: `Legacy`.
+- M5 / `MoveResolver`: shadow-only diagnostics.
+- Frozen Combo V2: unchanged.
+- Legacy OFF: blocked.
+- Human semantic review and real-game smoke: required.
+
+The resolver graph below is the approved target architecture. It is not a
+claim that production authority has already switched.
+
 ## Documentation
 
 * [README](README.en.md)
@@ -266,7 +279,7 @@ Avoid hidden dependencies.
 
 # Combo Action Data Architecture
 
-Recording, detection, display, and audit may have different workflow responsibilities, but they must not interpret character actions independently. Action semantics must come from one AC+BCM-generated artifact and one runtime resolver.
+Recording, detection, display, and audit may have different workflow responsibilities, but the approved target does not allow independent character-action semantics. The current production implementation remains Legacy while the AC+BCM graph and resolver run in shadow for comparison and review.
 
 ```text
 Current-version AC + BCM
@@ -291,7 +304,7 @@ Display overrides and exception tables must not become semantic authorities or c
 
 # Entry Script And Module Boundaries
 
-`autorun/TrainingComboTrials_v1.0.lua` is currently a large entry and workflow container. The target is incremental migration:
+`autorun/TrainingComboTrials_v1.0.lua` remains a large composition root and workflow container. Existing extraction work is frozen at the current safety baseline; future changes must preserve behavior and keep new business logic in modules. The long-term direction remains:
 
 1. Freeze current behavior with characterization tests.
 2. Move action compilation, detection, audit, and training-environment workflows into modules.

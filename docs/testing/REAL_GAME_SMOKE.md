@@ -1,8 +1,10 @@
-# REAL_GAME_SMOKE_PACKET - Task A Phase 2
+# Real-game Smoke Packet
 
-Date: 2026-08-15
+Status: `CURRENT_OPERATIONAL` / `REAL_GAME_SMOKE_REQUIRED`
 
-Status: `UNAVAILABLE`
+Baseline date: 2026-08-15
+
+Execution state: `NOT_COMPLETE`
 
 This is a minimal blocking packet, not a general manual test plan. Every case
 must capture both Legacy production behavior and MoveResolver shadow output.

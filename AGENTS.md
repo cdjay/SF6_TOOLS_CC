@@ -10,6 +10,9 @@ Language: [简体中文](AGENTS.zh-CN.md)
 * [Architecture](ARCHITECTURE.md)
 * [AC+BCM Semantic Core](docs/AC_BCM_SEMANTIC_CORE.md)
 * [Documentation Authority](docs/DOCUMENTATION_AUTHORITY.md)
+* [Documentation Index](docs/README.md)
+* [Testing Strategy](docs/TESTING_STRATEGY.md)
+* [Known Limitations](docs/KNOWN_LIMITATIONS.md)
 * **AI Development Guide**
 * [Contributing](CONTRIBUTING.md)
 
@@ -20,6 +23,39 @@ Language: [简体中文](AGENTS.zh-CN.md)
 This document defines how AI coding assistants should work in this repository.
 
 It applies to Codex, Claude Code, Gemini CLI, Cursor, Windsurf and any future AI development tools.
+
+## Current Knowledge Authority
+
+Use [Documentation Authority](docs/DOCUMENTATION_AUTHORITY.md) to resolve every
+documentation conflict. Current architecture, testing, known limitations,
+human review, real-game smoke, and tester workflow each have one named current
+authority in [the documentation index](docs/README.md).
+
+Documents under `docs/archive/` and dated completion/audit reports are
+historical evidence only. They must not override current authority or be cited
+as current production state.
+
+The current operational baseline is:
+
+```text
+Production authority = Legacy
+M5 = Shadow only
+Frozen V2 = UNCHANGED
+Human review = REQUIRED (179 batches remain)
+Real-game smoke = REQUIRED
+Legacy OFF = BLOCKED
+Oracle independence = LOW
+```
+
+The official offline gate and corpus commands are defined only in
+[Testing Strategy](docs/TESTING_STRATEGY.md). Permanent regressions, including
+BUG-B001 through BUG-B006, must not be removed without an explicit retirement
+decision and test-count delta review.
+
+Audit JSON, coverage, profiles, logs, test packages, and other rebuildable
+outputs belong in a system temporary directory or ignored `audit-output/`.
+Do not edit or ignore authoritative generated Runtime assets, sealed fixtures,
+or the tracked OFF snapshots in `tools/modern_display_builder/out/`.
 
 ---
 

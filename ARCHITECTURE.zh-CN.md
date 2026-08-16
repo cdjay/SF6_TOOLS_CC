@@ -2,6 +2,18 @@
 
 语言：[English](ARCHITECTURE.md)
 
+状态：`CURRENT`
+
+## 当前运行基线
+
+- Action 语义生产权威：`Legacy`。
+- M5 / `MoveResolver`：仅 Shadow 诊断。
+- Frozen Combo V2：保持不变。
+- Legacy OFF：阻塞。
+- 人工语义审查与实机 Smoke：仍然必须完成。
+
+下文的统一 Resolver 图是已批准的目标架构，不表示生产权威已经切换。
+
 ## 文档导航
 
 * [项目首页](README.md)
@@ -356,7 +368,7 @@ TrainingHitConfirm
 
 # 连段动作数据架构
 
-连段系统不能让录制、检测、显示、审计分别解释角色动作。四个环节可以有不同的流程职责，但动作语义必须来自同一个 AC+BCM 生成物和同一个运行时 resolver。
+目标架构不允许录制、检测、显示、审计分别维护角色动作语义。当前生产实现仍是 Legacy；AC+BCM 图与 Resolver 只用于 Shadow 对比和审查。
 
 ```text
 当前版本 AC + BCM
@@ -381,7 +393,7 @@ Action ID 不是跨版本主键。业务主键是 Move，Action 只是当前版�
 
 # 主入口与模块边界
 
-`autorun/TrainingComboTrials_v1.0.lua` 当前是巨型入口和流程容器。目标不是立即重写，而是渐进收敛：
+`autorun/TrainingComboTrials_v1.0.lua` 当前仍是较大的组合根和流程容器。现有提取工作冻结在当前安全基线；后续改动必须保持行为，并把新业务逻辑放入模块。长期方向仍是：
 
 1. 冻结当前行为并建立 characterization tests；
 2. 先把现有动作编译、检测、审计和训练环境流程搬入模块；
