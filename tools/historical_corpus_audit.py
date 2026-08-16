@@ -11,7 +11,7 @@ import re
 import tempfile
 import zipfile
 
-import task_c_full_corpus_audit as core
+import current_corpus_audit as core
 
 
 COMBO_KEYS = {
@@ -147,7 +147,7 @@ def main() -> None:
     parser.add_argument(
         "--output-dir",
         type=Path,
-        default=Path("docs/audits/task-c"),
+        default=Path("audit-output/historical-corpus"),
     )
     parser.add_argument("--case-order", choices=["normal", "reverse"], default="normal")
     args = parser.parse_args()
@@ -187,7 +187,7 @@ def main() -> None:
         roundtrip_run = core.run(
             [
                 "node",
-                "tools/task_c_corpus_roundtrip.mjs",
+                "tools/corpus_roundtrip.mjs",
                 "--case-index",
                 str(case_index_path),
                 "--output",
@@ -208,7 +208,7 @@ def main() -> None:
         consumer_run = core.run(
             [
                 "lua",
-                "tools/task_c_full_corpus_consumer.lua",
+                "tools/corpus_consumer.lua",
                 str(lua_data_path),
                 str(consumer_output),
             ],

@@ -42,11 +42,34 @@ sync_signal.json
 
 # Debug/dump files
 /exam/
+*.log
+*.trace
+*.prof
+*.profile
+*.bak
+*.old
+*.tmp
+*.patch
+*.diff
 
 # Build/release artifacts
 /release/
 /runtime/
 *.zip
+
+# Rebuildable test/audit output
+/audit-output/
+/test-output/
+/coverage/
+/.coverage
+/.pytest_cache/
+/.mypy_cache/
+/.ruff_cache/
+*.lcov
+coverage*.json
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
 
 # Python tool caches
 __pycache__/

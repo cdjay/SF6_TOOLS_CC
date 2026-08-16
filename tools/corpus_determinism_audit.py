@@ -11,13 +11,13 @@ from pathlib import Path
 import random
 import tempfile
 
-import task_c_full_corpus_audit as corpus_core
+import current_corpus_audit as corpus_core
 
 
 def load_phase1(repo: Path):
     spec = importlib.util.spec_from_file_location(
-        "task_c_phase1_audit",
-        repo / "tools" / "task_c_phase1_audit.py",
+        "repository_test_audit",
+        repo / "tools" / "repository_test_audit.py",
     )
     module = importlib.util.module_from_spec(spec)
     assert spec.loader is not None
@@ -73,11 +73,11 @@ def lua_same_process(repo: Path, locations: list[str], label: str, temporary: Pa
         "for index, filename in ipairs(files) do",
         "  local ok, err = pcall(dofile, filename)",
         "  if not ok then",
-        "    io.stderr:write(string.format('TASK_C_SAME_PROCESS_FAIL\\t%d\\t%s\\t%s\\n', index, filename, tostring(err)))",
+        "    io.stderr:write(string.format('CORPUS_SAME_PROCESS_FAIL\\t%d\\t%s\\t%s\\n', index, filename, tostring(err)))",
         "    os.exit(1)",
         "  end",
         "end",
-        "print('TASK_C_SAME_PROCESS_PASS ' .. tostring(#files))",
+        "print('CORPUS_SAME_PROCESS_PASS ' .. tostring(#files))",
     ]
     runner.write_text("\n".join(lines) + "\n", encoding="utf-8")
     result = corpus_core.run(["lua", str(runner)], repo)
@@ -147,7 +147,7 @@ def run_corpus_variants(repo: Path, backup_root: Path, temporary: Path) -> dict:
         (
             "frozen_normal_1",
             [
-                "python", "tools/task_c_full_corpus_audit.py",
+                "python", "tools/current_corpus_audit.py",
                 "--repo-root", ".",
                 "--corpus-root", str(backup_root / "0803"),
                 "--output-dir", str(temporary / "frozen-normal-1"),
@@ -157,7 +157,7 @@ def run_corpus_variants(repo: Path, backup_root: Path, temporary: Path) -> dict:
         (
             "frozen_normal_2",
             [
-                "python", "tools/task_c_full_corpus_audit.py",
+                "python", "tools/current_corpus_audit.py",
                 "--repo-root", ".",
                 "--corpus-root", str(backup_root / "0803"),
                 "--output-dir", str(temporary / "frozen-normal-2"),
@@ -167,7 +167,7 @@ def run_corpus_variants(repo: Path, backup_root: Path, temporary: Path) -> dict:
         (
             "frozen_reverse",
             [
-                "python", "tools/task_c_full_corpus_audit.py",
+                "python", "tools/current_corpus_audit.py",
                 "--repo-root", ".",
                 "--corpus-root", str(backup_root / "0803"),
                 "--output-dir", str(temporary / "frozen-reverse"),
@@ -177,7 +177,7 @@ def run_corpus_variants(repo: Path, backup_root: Path, temporary: Path) -> dict:
         (
             "all_normal_1",
             [
-                "python", "tools/task_c_all_accessible_corpus_audit.py",
+                "python", "tools/historical_corpus_audit.py",
                 "--repo-root", ".",
                 "--backup-root", str(backup_root),
                 "--output-dir", str(temporary / "all-normal-1"),
@@ -187,7 +187,7 @@ def run_corpus_variants(repo: Path, backup_root: Path, temporary: Path) -> dict:
         (
             "all_normal_2",
             [
-                "python", "tools/task_c_all_accessible_corpus_audit.py",
+                "python", "tools/historical_corpus_audit.py",
                 "--repo-root", ".",
                 "--backup-root", str(backup_root),
                 "--output-dir", str(temporary / "all-normal-2"),
@@ -197,7 +197,7 @@ def run_corpus_variants(repo: Path, backup_root: Path, temporary: Path) -> dict:
         (
             "all_reverse",
             [
-                "python", "tools/task_c_all_accessible_corpus_audit.py",
+                "python", "tools/historical_corpus_audit.py",
                 "--repo-root", ".",
                 "--backup-root", str(backup_root),
                 "--output-dir", str(temporary / "all-reverse"),
@@ -238,7 +238,7 @@ def main() -> None:
     parser.add_argument(
         "--output",
         type=Path,
-        default=Path("docs/audits/task-c/determinism-audit.json"),
+        default=Path("audit-output/corpus-determinism.json"),
     )
     args = parser.parse_args()
     repo = args.repo_root.resolve()

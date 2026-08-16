@@ -18,7 +18,7 @@ function parseArgs(argv) {
     }
     if (!args["--output"]
         || (!args["--case-index"] && (!args["--manifest"] || !args["--corpus-root"]))) {
-        throw new Error("Usage: node tools/task_c_corpus_roundtrip.mjs (--case-index <file> | --manifest <file> --corpus-root <dir>) --output <file>");
+        throw new Error("Usage: node tools/corpus_roundtrip.mjs (--case-index <file> | --manifest <file> --corpus-root <dir>) --output <file>");
     }
     return args;
 }

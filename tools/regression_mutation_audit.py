@@ -16,7 +16,7 @@ PROBES = [
         "domain": "Detection",
         "module": "func/ComboTrials/UnifiedActionConsumer",
         "field": "match_expected_action",
-        "replacement": "function() return { matched = true, reason = 'task_c_mutation' } end",
+        "replacement": "function() return { matched = true, reason = 'regression_mutation' } end",
         "test": "tools/test_unified_action_consumer.lua",
         "defect": "Every observed Action is accepted, including wrong IDs.",
     },
@@ -102,7 +102,7 @@ def main() -> None:
     parser.add_argument(
         "--output",
         type=Path,
-        default=Path("docs/audits/task-c/mutation-audit.json"),
+        default=Path("audit-output/regression-mutation.json"),
     )
     args = parser.parse_args()
     repo = args.repo_root.resolve()

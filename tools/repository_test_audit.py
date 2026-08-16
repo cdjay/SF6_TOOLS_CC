@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build the Task C phase-one baseline, test, and corpus inventory.
+"""Build the repository test, fixture, and corpus inventory.
 
 This tool is intentionally read-only with respect to production files. It runs
 the checked-in tests, inspects test sources, and inventories loose/archived

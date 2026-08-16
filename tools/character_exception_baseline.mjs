@@ -10,7 +10,7 @@ const PRESENTATION_DIR = path.join(DATA_ROOT, "command_display_overrides");
 const COMPATIBILITY_DIR = path.join(DATA_ROOT, "action_compatibility");
 const BASELINE_FILE = path.join(ROOT, "tests", "fixtures", "character_exception_baseline.json");
 const ORACLE_FILE = path.join(ROOT, "tests", "fixtures", "character_exception_legacy_oracle.json");
-const REPORT_FILE = path.join(ROOT, "docs", "audits", "CHARACTER_EXCEPTION_BASELINE.md");
+const REPORT_FILE = path.join(ROOT, "docs", "testing", "CHARACTER_EXCEPTION_ORACLE.md");
 const SEALED_BASELINE_SHA256 = "96a0a563e01477992f9931bfc469ef57286b22220e2ca8e4615f8b35c3b4ca49";
 const SEALED_ORACLE_SHA256 = "f50d4e5253175d15582342b4e5318c3cd2191f9526aeea97470de732a265cc0b";
 
@@ -378,9 +378,13 @@ function markdown(baseline, oracle) {
   const rows = [...byCharacter.entries()].sort(([a], [b]) => a.localeCompare(b))
     .map(([character, count]) => `| ${character} | ${FIGHTER_IDS[character] ?? "-"} | ${count} |`)
     .join("\n");
-  return `# Character Exception Baseline\n\n` +
+  return `# Character Exception Oracle Baseline\n\n` +
+    `Status: HISTORICAL_INTEGRITY_FIXTURE\n\n` +
     `Snapshot: 2026-08-10\n\n` +
     `This immutable audit baseline is test evidence only. Production Runtime must never load it.\n\n` +
+    `\`--check\` verifies this sealed fixture. \`--verify-source\` is diagnostic and is\n` +
+    `expected to differ after reviewed Type35 convergence; current source equality\n` +
+    `is not the oracle's contract.\n\n` +
     `## Summary\n\n` +
     `- Governance records: ${baseline.summary.records}\n` +
     `- Historical Action exceptions: ${baseline.summary.historical_action_exceptions}\n` +

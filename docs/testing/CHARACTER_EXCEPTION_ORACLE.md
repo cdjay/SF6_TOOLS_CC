@@ -1,8 +1,14 @@
-# Character Exception Baseline
+# Character Exception Oracle Baseline
+
+Status: `HISTORICAL_INTEGRITY_FIXTURE`
 
 Snapshot: 2026-08-10
 
 This immutable audit baseline is test evidence only. Production Runtime must never load it.
+
+`--check` verifies this sealed fixture. `--verify-source` is diagnostic and is
+expected to differ after reviewed Type35 convergence; current source equality
+is not the oracle's contract.
 
 ## Summary
 
