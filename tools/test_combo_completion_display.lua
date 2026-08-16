@@ -2,13 +2,24 @@ package.path = package.path
     .. ";./autorun/?.lua"
     .. ";./autorun/?/init.lua"
 
-json = json or {}
-json.load_file = function()
-    return { {} }
+local dependency_names = {
+    "func/ComboTrials_Files",
+    "func/ComboTrials/TrialDisplayState",
+}
+local previous_loaded = {}
+for _, name in ipairs(dependency_names) do
+    previous_loaded[name] = package.loaded[name]
+    package.loaded[name] = nil
 end
-fs = fs or {}
-log = log or {}
-sdk = sdk or {}
+local previous_json = json
+local previous_fs = fs
+local previous_log = log
+local previous_sdk = sdk
+
+json = { load_file = function() return { {} } end }
+fs = {}
+log = {}
+sdk = {}
 
 local ComboTrialsFiles = require("func/ComboTrials_Files")
 local TrialDisplayState = require("func/ComboTrials/TrialDisplayState")
@@ -102,5 +113,13 @@ assert(not file_system.saved_combos_display_p1[1]:find("^【完】【完】"), "
 file_system.reload_selected_combo_if_idle()
 assert(trial_state.current_file_path == file_system.saved_combos_paths_p1[1],
     "cached combo list must reload only the selected trial on mode entry")
+
+for _, name in ipairs(dependency_names) do
+    package.loaded[name] = previous_loaded[name]
+end
+json = previous_json
+fs = previous_fs
+log = previous_log
+sdk = previous_sdk
 
 print("combo completion display tests passed")

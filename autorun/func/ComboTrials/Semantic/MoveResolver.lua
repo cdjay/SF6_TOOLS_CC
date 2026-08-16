@@ -28,6 +28,18 @@ local function copy_array(value)
     return result
 end
 
+local function copy_table(value, seen)
+    if type(value) ~= "table" then return value end
+    seen = seen or {}
+    if seen[value] ~= nil then return seen[value] end
+    local result = {}
+    seen[value] = result
+    for key, item in pairs(value) do
+        result[copy_table(key, seen)] = copy_table(item, seen)
+    end
+    return result
+end
+
 local function sorted_keys(set)
     local result = {}
     for key in pairs(set) do result[#result + 1] = key end
@@ -132,7 +144,7 @@ function Resolver:resolve_action(fighter_id, action_id)
         current_move_uid = #current_move_uids == 1 and current_move_uids[1] or nil,
         production_ready = state.readiness.production_ready == true,
         authority = state.readiness.authority,
-        build = state.build,
+        build = copy_table(state.build),
     }
 end
 

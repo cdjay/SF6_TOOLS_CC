@@ -2,6 +2,12 @@ package.path = package.path
     .. ";./autorun/?.lua"
     .. ";./autorun/?/init.lua"
 
+local previous_files_module = package.loaded["func/ComboTrials_Files"]
+local previous_json = json
+local previous_fs = fs
+local previous_log = log
+local previous_sdk = sdk
+
 json = { load_file = function() return nil end }
 fs = {}
 log = {}
@@ -78,5 +84,11 @@ assert(#changes == 1
         and state.sequence == replacement
         and state.current_file_path == "replacement.json",
     "the lifecycle callback must run exactly once after validation succeeds")
+
+package.loaded["func/ComboTrials_Files"] = previous_files_module
+json = previous_json
+fs = previous_fs
+log = previous_log
+sdk = previous_sdk
 
 print("combo file load recovery tests passed")

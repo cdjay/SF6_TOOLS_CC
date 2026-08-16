@@ -47,3 +47,7 @@ sync_signal.json
 /release/
 /runtime/
 *.zip
+
+# Python tool caches
+__pycache__/
+*.py[cod]

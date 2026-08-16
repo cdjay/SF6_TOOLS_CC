@@ -55,10 +55,24 @@ assert(resolver:get_readiness().production_ready == false)
 local mutation_ok = pcall(function() resolver._graph = {} end)
 assert(mutation_ok == false, "MoveResolver instance state must be read-only")
 
+local readiness_view = resolver:get_readiness()
+local readiness_mutation_ok = pcall(function()
+    readiness_view.production_ready = true
+end)
+assert(readiness_mutation_ok == false,
+    "returned readiness metadata must remain read-only")
+assert(resolver:get_readiness().production_ready == false
+        and resolver:get_readiness().authority ~= "tampered",
+    "returned readiness metadata must not mutate resolver provenance")
+
 local replacement = resolver:resolve_action(20, 977)
 assert(replacement.status == "PROVISIONAL")
 assert(#replacement.current_move_uids == 1)
 assert(replacement.candidates[1].role == "replacement")
+local original_build_uid = replacement.build.build_uid
+replacement.build.build_uid = "tampered"
+assert(resolver:resolve_action(20, 977).build.build_uid == original_build_uid,
+    "returned build metadata must not mutate later shadow resolutions")
 
 local same_move = resolver:compare_actions(20, 976, 977)
 assert(same_move.status == "SAME_MOVE" and same_move.equivalent == true)
