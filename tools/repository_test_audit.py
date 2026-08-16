@@ -9,6 +9,7 @@ combo JSON without extracting or rewriting any corpus.
 from __future__ import annotations
 
 import argparse
+from datetime import date
 import hashlib
 import json
 import os
@@ -242,7 +243,7 @@ def test_inventory(root: Path) -> list[dict]:
                 "production_modules_exercised": modules,
                 "assertions": assertion_profile(content, path.suffix.lower()),
                 "independence_level": independence,
-                "inventory_method": "static first-pass; requires manual challenge in later Task C phases",
+                "inventory_method": "static inventory; classifications require manual governance review",
             }
         )
 
@@ -631,7 +632,7 @@ def main() -> None:
             r"D:\Program Files (x86)\Steam\steamapps\common\Street Fighter 6\reframework\data\TrainingComboTrials_data\CustomCombos"
         ),
     )
-    parser.add_argument("--audit-date", default="2026-08-15")
+    parser.add_argument("--audit-date", default=date.today().isoformat())
     parser.add_argument("--run-tests", action="store_true")
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
@@ -646,7 +647,7 @@ def main() -> None:
     archive_corpus = scan_archives(args.backup_root)
 
     payload = {
-        "schema": "sf6cc.task-c.phase1-audit.v1",
+        "schema": "sf6cc.repository.test-audit.v1",
         "audit_date": args.audit_date,
         "scope": ["Baseline", "Test Inventory", "Corpus Inventory", "Evidence Matrix inputs"],
         "git": git_metadata(root),

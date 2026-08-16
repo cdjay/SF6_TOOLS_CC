@@ -85,7 +85,7 @@ ComboTrialsImGui.init({
 })
 
 local summary = {
-    schema = "sf6cc.task-c.full-corpus-consumer.v1",
+    schema = "sf6cc.corpus.consumer.v1",
     corpus_snapshot = corpus.snapshot_id,
     target_game_build = corpus.target_game_build,
     cases = 0,
@@ -456,8 +456,8 @@ local function validate_detection(case, sequence)
                 local idless_wrong = UnifiedActionConsumer.match_expected_action(
                     idless,
                     nil,
-                    "TASK_C_WRONG_MOTION",
-                    "TASK_C_WRONG_INPUT",
+                    "CORPUS_WRONG_MOTION",
+                    "CORPUS_WRONG_INPUT",
                     nil,
                     nil,
                     nil
@@ -675,7 +675,7 @@ local handle = assert(io.open(output_file, "wb"))
 handle:write(encode(summary), "\n")
 handle:close()
 print(string.format(
-    "Task C corpus consumer: cases=%d failures=%d display_pass=%d display_fail=%d",
+    "Corpus consumer: cases=%d failures=%d display_pass=%d display_fail=%d",
     summary.cases,
     summary.failure_count,
     summary.checks.command_display_pass,

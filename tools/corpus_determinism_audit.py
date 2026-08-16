@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+from datetime import date
 import hashlib
 import importlib.util
 import json
@@ -240,6 +241,7 @@ def main() -> None:
         type=Path,
         default=Path("audit-output/corpus-determinism.json"),
     )
+    parser.add_argument("--audit-date", default=date.today().isoformat())
     args = parser.parse_args()
     repo = args.repo_root.resolve()
     output = args.output if args.output.is_absolute() else repo / args.output
@@ -252,7 +254,7 @@ def main() -> None:
     random.Random(20260815).shuffle(seeded)
     lua_locations = [location for location in locations if location.endswith(".lua")]
 
-    with tempfile.TemporaryDirectory(prefix="sf6cc-task-c-determinism-") as temporary_name:
+    with tempfile.TemporaryDirectory(prefix="sf6cc-corpus-determinism-") as temporary_name:
         temporary = Path(temporary_name)
         fresh = [
             fresh_process_order(repo, normal, "normal"),
@@ -266,8 +268,8 @@ def main() -> None:
         corpus = run_corpus_variants(repo, args.backup_root, temporary)
 
     payload = {
-        "schema": "sf6cc.task-c.determinism-audit.v1",
-        "audit_date": "2026-08-15",
+        "schema": "sf6cc.corpus.determinism-audit.v1",
+        "audit_date": args.audit_date,
         "fresh_process_test_orders": fresh,
         "lua_same_process_orders": same_process,
         "test_infrastructure_findings": [

@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+from datetime import date
 import hashlib
 import json
 from pathlib import Path
@@ -150,6 +151,7 @@ def main() -> None:
         default=Path("audit-output/historical-corpus"),
     )
     parser.add_argument("--case-order", choices=["normal", "reverse"], default="normal")
+    parser.add_argument("--audit-date", default=date.today().isoformat())
     args = parser.parse_args()
 
     repo = args.repo_root.resolve()
@@ -159,14 +161,14 @@ def main() -> None:
     consumer_output = output_dir / "all-accessible-corpus-consumer.json"
     combined_output = output_dir / "all-accessible-corpus-audit.json"
 
-    with tempfile.TemporaryDirectory(prefix="sf6cc-task-c-all-corpus-") as temporary:
+    with tempfile.TemporaryDirectory(prefix="sf6cc-historical-corpus-") as temporary:
         temporary_root = Path(temporary)
         stage = temporary_root / "cases"
         stage.mkdir()
         cases, inventory = collect_cases(args.backup_root, stage)
         if args.case_order == "reverse":
             cases.reverse()
-        snapshot_id = "ALL-ACCESSIBLE-TESTER-PACKAGES-EXACT-UNIQUE-2026-08-15"
+        snapshot_id = "ALL-ACCESSIBLE-TESTER-PACKAGES-EXACT-UNIQUE"
         case_index = {
             "snapshot_id": snapshot_id,
             "target_game_build": "mixed_or_unknown",
@@ -218,9 +220,9 @@ def main() -> None:
     roundtrip = core.load_json(roundtrip_output) if roundtrip_output.exists() else None
     consumer = core.load_json(consumer_output) if consumer_output.exists() else None
     combined = {
-        "schema": "sf6cc.task-c.all-accessible-corpus-audit.v1",
-        "audit_date": "2026-08-15",
-        "corpus_snapshot": "ALL-ACCESSIBLE-TESTER-PACKAGES-EXACT-UNIQUE-2026-08-15",
+        "schema": "sf6cc.corpus.historical-audit.v1",
+        "audit_date": args.audit_date,
+        "corpus_snapshot": snapshot_id,
         "case_order": args.case_order,
         "inventory": inventory,
         "roundtrip_run": roundtrip_run,

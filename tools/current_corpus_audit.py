@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 from collections import Counter, defaultdict
+from datetime import date
 import json
 import math
 from pathlib import Path
@@ -376,6 +377,7 @@ def main() -> None:
         default=Path("audit-output/current-corpus"),
     )
     parser.add_argument("--case-order", choices=["normal", "reverse"], default="normal")
+    parser.add_argument("--audit-date", default=date.today().isoformat())
     args = parser.parse_args()
 
     repo = args.repo_root.resolve()
@@ -405,7 +407,7 @@ def main() -> None:
     if args.case_order == "reverse":
         lua_input["cases"].reverse()
     coverage = compute_coverage(repo, lua_input)
-    with tempfile.TemporaryDirectory(prefix="sf6cc-task-c-corpus-") as temporary:
+    with tempfile.TemporaryDirectory(prefix="sf6cc-current-corpus-") as temporary:
         lua_data_path = Path(temporary) / "corpus.lua"
         lua_data_path.write_text("return " + lua_value(lua_input) + "\n", encoding="ascii")
         consumer_run = run(
@@ -421,8 +423,8 @@ def main() -> None:
     roundtrip = load_json(roundtrip_output) if roundtrip_output.exists() else None
     consumer = load_json(consumer_output) if consumer_output.exists() else None
     combined = {
-        "schema": "sf6cc.task-c.full-corpus-audit.v1",
-        "audit_date": "2026-08-15",
+        "schema": "sf6cc.corpus.current-audit.v1",
+        "audit_date": args.audit_date,
         "corpus_snapshot": manifest["snapshot_id"],
         "target_game_build": manifest["target_game_build"],
         "case_order": args.case_order,

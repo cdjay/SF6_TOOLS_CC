@@ -126,7 +126,7 @@ function main() {
     }
 
     const output = {
-        schema: "sf6cc.task-c.corpus-roundtrip.v1",
+        schema: "sf6cc.corpus.roundtrip.v1",
         corpus_snapshot: manifest.snapshot_id,
         target_game_build: manifest.target_game_build || "mixed_or_unknown",
         files: results.length,

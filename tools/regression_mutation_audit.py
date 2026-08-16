@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+from datetime import date
 import json
 import subprocess
 import tempfile
@@ -59,10 +60,10 @@ local target = require("{probe['module']}")
 target["{probe['field']}"] = {probe['replacement']}
 local ok, err = pcall(dofile, "{probe['test']}")
 if ok then
-    io.stderr:write("TASK_C_MUTATION_SURVIVED\\n")
+    io.stderr:write("REGRESSION_MUTATION_SURVIVED\\n")
     os.exit(2)
 end
-io.write("TASK_C_MUTATION_KILLED\\t", tostring(err), "\\n")
+io.write("REGRESSION_MUTATION_KILLED\\t", tostring(err), "\\n")
 '''
 
 
@@ -80,7 +81,7 @@ def run_probe(repo: Path, lua: str, probe: dict, temporary: Path) -> dict:
         check=False,
     )
     output = completed.stdout.strip()
-    killed = completed.returncode == 0 and "TASK_C_MUTATION_KILLED" in output
+    killed = completed.returncode == 0 and "REGRESSION_MUTATION_KILLED" in output
     return {
         "id": probe["id"],
         "domain": probe["domain"],
@@ -104,15 +105,16 @@ def main() -> None:
         type=Path,
         default=Path("audit-output/regression-mutation.json"),
     )
+    parser.add_argument("--audit-date", default=date.today().isoformat())
     args = parser.parse_args()
     repo = args.repo_root.resolve()
     output = args.output if args.output.is_absolute() else repo / args.output
-    with tempfile.TemporaryDirectory(prefix="sf6cc-task-c-mutation-") as name:
+    with tempfile.TemporaryDirectory(prefix="sf6cc-regression-mutation-") as name:
         temporary = Path(name)
         results = [run_probe(repo, args.lua, probe, temporary) for probe in PROBES]
     payload = {
-        "schema": "sf6cc.task-c.mutation-audit.v1",
-        "audit_date": "2026-08-15",
+        "schema": "sf6cc.regression.mutation-audit.v1",
+        "audit_date": args.audit_date,
         "scope": "controlled regression sensitivity; not a mutation score",
         "production_files_modified": False,
         "probes": results,
