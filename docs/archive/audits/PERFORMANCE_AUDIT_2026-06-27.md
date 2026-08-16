@@ -1,5 +1,8 @@
 # Performance Audit v1
 
+> Status: `HISTORICAL`. This static audit is bound to June 27, 2026 and is not
+> current performance authority.
+
 Date: 2026-06-27
 
 Branch: `codex/performance-audit-v1`

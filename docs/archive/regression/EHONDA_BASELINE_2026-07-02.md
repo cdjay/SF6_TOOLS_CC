@@ -1,5 +1,8 @@
 # EHonda Regression Baseline - 2026-07-02
 
+> Status: `HISTORICAL`. Current regression authority is executable tests; see
+> [Testing Strategy](../../TESTING_STRATEGY.md).
+
 ## Purpose
 
 This document freezes the EHonda validation baseline for the v0.9.1 Honda validation release checkpoint.

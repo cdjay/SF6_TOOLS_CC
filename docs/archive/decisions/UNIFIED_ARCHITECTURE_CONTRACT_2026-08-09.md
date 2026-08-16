@@ -1,6 +1,10 @@
 # SF6CC Unified Architecture Contract
 
-**Status**: CURRENT architecture invariant
+**Status**: `HISTORICAL_DECISION_RECORD`
+
+This contract recorded the convergence boundary on August 9, 2026. Its durable
+rules have been absorbed by `AGENTS.md`, `ARCHITECTURE.md`, the Frozen V2 spec,
+and the AC+BCM Semantic Core. It is not a second current authority.
 
 **Baseline**: `075440cf0fbb07356f57f00abcaad8253765f128`
 

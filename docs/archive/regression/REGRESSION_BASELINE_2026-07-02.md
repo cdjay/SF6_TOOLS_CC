@@ -1,5 +1,8 @@
 # Regression Baseline - 2026-07-02
 
+> Status: `HISTORICAL`. Current regression authority is executable tests; see
+> [Testing Strategy](../../TESTING_STRATEGY.md).
+
 ## Git Baseline
 
 | Field | Value |

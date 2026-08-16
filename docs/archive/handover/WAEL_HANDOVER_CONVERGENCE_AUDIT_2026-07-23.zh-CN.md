@@ -1,7 +1,7 @@
 # Wael → cdjay 交接文件技术审计与主线收敛说明
 
 > **文档状态：HISTORICAL** — 本文是 2026-07-23 基线的历史审计快照，结论仅绑定当时的仓库状态。它不是当前架构权威，不得用于决定当前设计或实现方向。
-> 当前架构权威见 [文档权威](DOCUMENTATION_AUTHORITY.md)、[架构设计](../ARCHITECTURE.zh-CN.md) 和 [AC+BCM 语义核心](AC_BCM_SEMANTIC_CORE.zh-CN.md)。
+> 当前架构权威见 [文档权威](../../DOCUMENTATION_AUTHORITY.md)、[架构设计](../../../ARCHITECTURE.zh-CN.md) 和 [AC+BCM 语义核心](../../AC_BCM_SEMANTIC_CORE.zh-CN.md)。
 >
 > 本文第159行提及 SF6CC 继续在 ComboTrials_D2D.lua 维护当前实现，而 master 已不存在该文件；主线已切换为纯 ImGui 渲染，该句在当时基线下正确但已经过时。
 

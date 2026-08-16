@@ -1,5 +1,7 @@
 # REFramework ImGui 纹理接口审计
 
+> 状态：`HISTORICAL`。本文仅记录 2026-07-23 的一次性接口审计，不是当前架构权威。
+
 审计目标是本机 Street Fighter 6 使用的 REFramework：
 
 - 版本：`1.5.9.1+487-a0e9010f`

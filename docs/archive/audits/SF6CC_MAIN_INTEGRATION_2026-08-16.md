@@ -1,5 +1,8 @@
 # SF6CC A/B/C Main Integration
 
+> Status: `HISTORICAL_BASELINE`. This is the high-value A/B/C integration
+> checkpoint. Current state is defined by the current authority documents.
+
 Date: 2026-08-16
 
 ## Baseline

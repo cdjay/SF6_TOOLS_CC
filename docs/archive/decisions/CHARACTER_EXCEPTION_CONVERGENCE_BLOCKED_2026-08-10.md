@@ -1,5 +1,9 @@
 # SF6CC Character Exception Convergence Final
 
+> Status: `HISTORICAL_DECISION_RECORD`. Retained because it explains why
+> Legacy OFF remains blocked; current counts and limitations live in current
+> authority documents.
+
 Date: 2026-08-10
 
 Final verdict: `CONVERGENCE_BLOCKED`
