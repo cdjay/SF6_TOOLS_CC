@@ -3,6 +3,7 @@ local ActionCompatibility = {
     DIRECTORY = "TrainingComboTrials_data/action_compatibility",
     SCHEMA = "xt.action_compatibility.v1",
 }
+local load_cache = {}
 
 local function trim(value)
     return type(value) == "string" and value:match("^%s*(.-)%s*$") or ""
@@ -152,6 +153,26 @@ function ActionCompatibility.load(character, game_version, loader)
         return nil, 0, "compatibility_not_found"
     end
     return ActionCompatibility.parse(document, character, game_version)
+end
+
+-- Product compatibility data does not change during one Lua session. Keep a
+-- separate cached entry for each character/build, including fail-closed
+-- missing results, while leaving load() pure for generators and tests.
+function ActionCompatibility.load_cached(character, game_version, loader)
+    local character_name = character_key(character)
+    local version = trim(game_version)
+    if character_name == "" or version == "" or type(loader) ~= "function" then
+        return ActionCompatibility.load(character, game_version, loader)
+    end
+    local key = character_name .. "\0" .. version
+    local cached = load_cache[key]
+    if cached == nil then
+        local document, count, status =
+            ActionCompatibility.load(character_name, version, loader)
+        cached = { document = document, count = count, status = status }
+        load_cache[key] = cached
+    end
+    return cached.document, cached.count, cached.status
 end
 
 function ActionCompatibility.resolve(rules, expected, observed_action_id)

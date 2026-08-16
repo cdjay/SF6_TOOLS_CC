@@ -22,6 +22,13 @@ Direct BCM Actions may share one runtime command-phase family only when the gene
 
 When a Function 3 Action has no player-visible Modern profile but its enabled BCM `norm` profile exactly matches the generated Classic command identity, the catalog may retain that direct route with `projection_scope: classic_only`. This route verifies Classic presentation only; it must not populate either Modern command slot or imply Modern control support.
 
+A Type 63 directional punch follow-up may inherit a Classic-only `>direction+P`
+verification route only when the AC relation has the exact zero-frame,
+zero-extra-parameter punch-family shape, the source owns a direct BCM `j.P`
+identity, and the target has no independent BCM binding. The target retains its
+own Action ID, no Modern command is invented, and character, fighter, or Action
+ID special cases cannot substitute for structural evidence.
+
 Presentation, detection, and audit remove only the contiguous attempt-start
 prefix made of single directions (`1`-`9`), basic dashes (`44`/`66`), and Drive
 Parry. The first following semantic Action is the first visible and detectable

@@ -193,6 +193,13 @@ const directionalResult = compiler.compileFromCatalog(
     directionalSource, directionalCatalog, {}, { actionSourceSha256: "ac-direction" });
 assert.strictEqual(directionalResult.runtime.actions["1301"], ">8+P");
 assert.strictEqual(directionalResult.runtime.validation.rules["1301"].force, false);
+assert.deepStrictEqual(
+    directionalResult.runtime.evidence.ac_derived_commands
+        .filter(item => item.derivation === "type63_directional_followup")
+        .map(item => [item.action_id, item.source_action_id, item.display, item.branch_type,
+            item.attr, item.action_frame, item.param00, item.param01, item.param02,
+            item.param03, item.param04, item.param05, item.trigger_id]),
+    [[1301, 1300, ">8+P", 63, 0, 0, 0, 1, 1, 0, 0, 0, -1]]);
 assert.strictEqual(directionalResult.runtime.actions["1311"], "2+THROW");
 assert.strictEqual(directionalResult.runtime.validation.rules["1311"].force, false);
 assert.strictEqual(directionalResult.runtime.actions["1312"], "4+THROW");

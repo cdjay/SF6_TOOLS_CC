@@ -1539,6 +1539,50 @@ assert.deepStrictEqual(strengthVariantOutput._meta.type63_strength_variant_relat
 assert.strictEqual(strengthVariantOutput._meta.audit.type63_strength_variant_route_count, 2);
 assert.strictEqual(strengthVariantOutput._meta.audit.type63_strength_variant_relation_count, 2);
 
+const directionalFollowupCatalog = { source: { character: "Fab" }, actions: {
+    "1800": { action_id: 1800, triggers: [trigger(510, profiles(
+        profile(true, "j.P", 16), null, null,
+        profile(true, "j.P", 16)),
+    { function_id: 1, cond_owner_state_flags: 4 })] }
+} };
+const directionalFollowupRuntime = {
+    character: "Fab", fighter_id: 20,
+    action_ids: [1800, 1801],
+    actions: { "1800": "j.P", "1801": ">1+P" },
+    aliases: {}, validation: { rules: {} },
+    evidence: { ac_derived_commands: [{
+        action_id: 1801, source_action_id: 1800, display: ">1+P",
+        branch_type: 63, force: false, derivation: "type63_directional_followup",
+        attr: 0, action_frame: 0, param00: 0, param01: 6, param02: 1,
+        param03: 0, param04: 0, param05: 0, trigger_id: -1
+    }] }
+};
+const directionalFollowupOutput = commandDisplay.buildCommandDisplay(
+    {}, directionalFollowupCatalog, directionalFollowupRuntime, {},
+    { generatedAt: "type63-directional-followup" });
+assert.strictEqual(directionalFollowupOutput["1801"].classic_command.display, ">1+P");
+assert.strictEqual(directionalFollowupOutput["1801"].ownership,
+    "type63_directional_followup");
+assert.strictEqual(directionalFollowupOutput["1801"].control_support, "classic_only");
+assert.strictEqual(directionalFollowupOutput["1801"].routes.length, 1);
+assert.strictEqual(directionalFollowupOutput["1801"].routes[0].source,
+    "ac_type63_directional_followup");
+assert.strictEqual(directionalFollowupOutput["1801"].routes[0].projection_scope,
+    "classic_only");
+assert.strictEqual(directionalFollowupOutput._meta.type63_directional_followup_relation_count, 1);
+assert.strictEqual(directionalFollowupOutput._meta.type63_directional_followup_route_count, 1);
+assert.deepStrictEqual(directionalFollowupOutput._meta.type63_directional_followup_relations, [{
+    source_action_id: 1800, target_action_id: 1801, display: ">1+P",
+    direction: "1", branch_type: 63, attr: 0, action_frame: 0,
+    param00: 0, param01: 6, param02: 1, param03: 0, param04: 0,
+    param05: 0, trigger_id: -1,
+    reason: "ac_type63_directional_followup_from_verified_bcm_owner"
+}]);
+assert.strictEqual(
+    directionalFollowupOutput._meta.audit.type63_directional_followup_relation_count, 1);
+assert.strictEqual(
+    directionalFollowupOutput._meta.audit.type63_directional_followup_route_count, 1);
+
 const classicOnlyDirectCatalog = { source: { character: "ClassicOnlyDirect" }, actions: {
     "8000": { action_id: 8000, triggers: [trigger(700, profiles(
         null, null, null,

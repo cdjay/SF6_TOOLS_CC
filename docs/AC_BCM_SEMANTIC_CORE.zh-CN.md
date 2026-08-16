@@ -72,6 +72,11 @@ AC 派生的强度目标只有在 Classic/Modern 分支目标唯一、强度参�
 Action ID，不得与源 Action 建立等价组；生成物必须同时记录关系、路线和审计计数，运行时
 消费者对任一字段缺失或不一致都必须拒绝加载该派生命令。
 
+AC Type 63 的方向拳派生只有在关系完整满足零帧、零附加参数、Punch family 与已知方向位
+掩码，源 Action 拥有直接 BCM `j.P` 身份且目标没有独立 BCM binding 时，才能生成
+`>方向+P` 的 Classic-only 验证路线。目标继续保留自身 Action ID，不得生成 Modern 指令，
+也不得用角色名、fighter ID 或具体 Action ID 特判替代结构证据。
+
 ## 4. 运行时唯一入口
 
 Lua 侧需要一个唯一的语义服务，暂定为 `MoveResolver`。四个消费者只能调用它：

@@ -17,6 +17,8 @@ const COMMUNITY_SEMANTIC_REASON = "verified_community_command_semantics_matched_
 const VERIFIED_ALIAS_REASON = "ac_verified_equivalent_action_variant";
 const TYPE20_DIRECTION_REASON = "ac_type20_verified_directional_air_attack";
 const TYPE63_STRENGTH_REASON = "ac_type63_classic_modern_strength_family";
+const TYPE63_DIRECTIONAL_FOLLOWUP_REASON =
+    "ac_type63_directional_followup_from_verified_bcm_owner";
 const TYPE20_HOLD_REASON = "ac_type20_verified_hold_continuation";
 const TYPE20_PHASE_REASON = "ac_type20_verified_multi_input_action_phase";
 const TYPE20_SAME_STRUCTURE_PHASE_REASON =
@@ -57,6 +59,9 @@ const RUNTIME_COMMON_ACTIONS = Object.freeze({
 });
 const AC_STRUCTURE_FIELDS = ["Category", "Combo", "Projectile", "State"];
 const AC_FULL_STRUCTURE_FIELDS = ["ActionFrame", "Category", "Combo", "Frame", "Projectile", "State"];
+const TYPE63_DIRECTION = Object.freeze({
+    1: "8", 2: "2", 4: "4", 5: "7", 6: "1", 8: "6", 9: "9", 10: "3"
+});
 
 function requiredButtonCount(profile) {
     return ((Number(profile && profile.ok_key_cond_flags || 0) >> 6) & 3) + 1;
@@ -1310,6 +1315,32 @@ function type20ActionPhaseRoute(character, relation, sourceRoute) {
         sourceRoute.display, "ac_type20_action_phase", 20,
         TYPE20_PHASE_REASON, "verified_inherited_action_phase");
     route.ac_phase_signatures = relation.signatures.map(signature => ({ ...signature }));
+    return route;
+}
+
+function type63DirectionalFollowupRoute(character, relation, trigger, norm, direction) {
+    const sourceId = Number(relation.source_action_id);
+    const targetId = Number(relation.action_id);
+    const detail = resolved(relation.display, direction, "P", ["LP", "MP", "HP"], 1);
+    const sourceRoute = routeProvenance(
+        character, sourceId, trigger, "norm", norm, detail, "bcm_profile");
+    const route = inheritedRouteFromSource(character, sourceRoute, sourceId, targetId,
+        relation.display, "ac_type63_directional_followup", 63,
+        TYPE63_DIRECTIONAL_FOLLOWUP_REASON, "verified_inherited_directional_followup");
+    route.projection_scope = "classic_only";
+    route.visible_direction = direction;
+    route.visible_button = "P";
+    route.button_candidates = ["LP", "MP", "HP"];
+    route.required_button_count = 1;
+    route.ac_attr = Number(relation.attr);
+    route.ac_action_frame = Number(relation.action_frame);
+    route.ac_param00 = Number(relation.param00);
+    route.ac_param01 = Number(relation.param01);
+    route.ac_param02 = Number(relation.param02);
+    route.ac_param03 = Number(relation.param03);
+    route.ac_param04 = Number(relation.param04);
+    route.ac_param05 = Number(relation.param05);
+    route.ac_trigger_id = Number(relation.trigger_id);
     return route;
 }
 
@@ -2854,9 +2885,14 @@ const REQUIRED_REBIND_FIELDS = [
 function assertRoute(route) {
     const classicVerification = route.projection_scope === "classic_only";
     if (classicVerification) {
-        if (route.source !== "bcm_profile" || route.profile !== "norm"
-            || route.direct_evidence !== true || route.inheritance_evidence !== false
-            || route.rebind_evidence !== false || route.confidence !== "direct_structural"
+        const directClassic = route.source === "bcm_profile" && route.profile === "norm"
+            && route.direct_evidence === true && route.inheritance_evidence === false
+            && route.rebind_evidence === false && route.confidence === "direct_structural";
+        const type63Directional = route.source === "ac_type63_directional_followup"
+            && route.profile === "norm" && route.direct_evidence === false
+            && route.inheritance_evidence === true && route.rebind_evidence === false
+            && route.confidence === "verified_inherited_directional_followup";
+        if ((!directClassic && !type63Directional)
             || typeof route.display !== "string" || route.display.trim() === "") {
             throw new Error(`Classic-only route 证据非法: ${route.display}`);
         }
@@ -3111,6 +3147,31 @@ function assertRoute(route) {
             || Number(route.inherited_from_action_id) !== Number(route.ac_path[route.ac_path.length - 2])
             || actual.size !== expected.length || expected.some(item => !actual.has(item))) {
             throw new Error(`Modern Type20 action-phase route 证据非法: ${route.display}`);
+        }
+    }
+    if (route.source === "ac_type63_directional_followup") {
+        const direction = TYPE63_DIRECTION[Number(route.ac_param01)];
+        const compactDisplay = String(route.display || "").replace(/\s+/g, "");
+        if (route.projection_scope !== "classic_only"
+            || route.inheritance_evidence !== true
+            || route.inheritance_reason !== TYPE63_DIRECTIONAL_FOLLOWUP_REASON
+            || route.confidence !== "verified_inherited_directional_followup"
+            || Number(route.ac_relation_type) !== 63 || route.ac_path.length !== 2
+            || Number(route.ac_path[0]) !== Number(route.inherited_from_action_id)
+            || Number(route.ac_path[1]) !== Number(route.display_action_id)
+            || Number(route.owner_action_id) !== Number(route.inherited_from_action_id)
+            || Number(route.bcm_owner_action_id) !== Number(route.inherited_from_action_id)
+            || route.profile !== "norm" || !Number.isFinite(Number(route.trigger_index))
+            || route.ac_attr !== 0 || route.ac_action_frame !== 0
+            || route.ac_param00 !== 0 || route.ac_param02 !== 1
+            || route.ac_param03 !== 0 || route.ac_param04 !== 0
+            || route.ac_param05 !== 0 || route.ac_trigger_id !== -1
+            || !direction || route.visible_direction !== direction
+            || route.visible_button !== "P" || route.required_button_count !== 1
+            || !Array.isArray(route.button_candidates)
+            || route.button_candidates.join(",") !== "LP,MP,HP"
+            || compactDisplay !== `>${direction}+P`) {
+            throw new Error(`Classic Type63 directional follow-up route 证据非法: ${route.display}`);
         }
     }
     if (route.source === "ac_type20_same_structure_execution_phase") {
@@ -3421,6 +3482,61 @@ function buildCommandDisplay(actionSource, bcmCatalog, runtime, supplement, opti
             progress = true;
         }
         if (!progress) break;
+    }
+
+    const appliedType63DirectionalRelations = [];
+    const type63DirectionalRelations = type63Relations
+        .filter(relation => relation.derivation === "type63_directional_followup")
+        .sort((left, right) => Number(left.action_id) - Number(right.action_id));
+    for (const relation of type63DirectionalRelations) {
+        const targetId = String(Number(relation.action_id));
+        const sourceId = String(Number(relation.source_action_id));
+        const direction = TYPE63_DIRECTION[Number(relation.param01)];
+        const sourceEntry = entries[sourceId];
+        const sourceAction = bcmCatalog.actions && bcmCatalog.actions[sourceId];
+        const sourceClassic = normalizeClassicIdentity(
+            runtime.actions && runtime.actions[sourceId] || sourceAction && sourceAction.classic_display);
+        const exactShape = Number(relation.branch_type) === 63
+            && Number(relation.attr) === 0 && Number(relation.action_frame) === 0
+            && Number(relation.param00) === 0 && Number(relation.param02) === 1
+            && Number(relation.param03) === 0 && Number(relation.param04) === 0
+            && Number(relation.param05) === 0 && Number(relation.trigger_id) === -1;
+        if (!actionSet.has(targetId) || !actionSet.has(sourceId) || entries[targetId]
+            || !sourceEntry || sourceEntry.ownership !== "direct" || !sourceAction
+            || Object.prototype.hasOwnProperty.call(bcmCatalog.actions || {}, targetId)
+            || sourceClassic !== "j.P" || !direction || !exactShape
+            || String(relation.display || "").replace(/\s+/g, "") !== `>${direction}+P`
+            || !sourceEntry.routes.some(route => route.source === "bcm_profile"
+                && route.direct_evidence === true
+                && Number(route.owner_action_id) === Number(sourceId))) continue;
+        const matchingTriggers = (sourceAction.triggers || []).filter(trigger => {
+            const norm = trigger.profiles && trigger.profiles.norm;
+            return norm && norm.enabled === true
+                && normalizeClassicIdentity(norm.notation) === "j.P";
+        });
+        if (matchingTriggers.length !== 1) continue;
+        const trigger = matchingTriggers[0];
+        const route = type63DirectionalFollowupRoute(
+            character, relation, trigger, trigger.profiles.norm, direction);
+        assertRoute(route);
+        entries[targetId] = { routes: [route], ownership: "type63_directional_followup" };
+        appliedType63DirectionalRelations.push({
+            source_action_id: Number(sourceId),
+            target_action_id: Number(targetId),
+            display: String(relation.display),
+            direction,
+            branch_type: 63,
+            attr: Number(relation.attr),
+            action_frame: Number(relation.action_frame),
+            param00: Number(relation.param00),
+            param01: Number(relation.param01),
+            param02: Number(relation.param02),
+            param03: Number(relation.param03),
+            param04: Number(relation.param04),
+            param05: Number(relation.param05),
+            trigger_id: Number(relation.trigger_id),
+            reason: TYPE63_DIRECTIONAL_FOLLOWUP_REASON
+        });
     }
 
     const type63StrengthRelations = type63Relations
@@ -3857,6 +3973,8 @@ function buildCommandDisplay(actionSource, bcmCatalog, runtime, supplement, opti
         route.source === "ac_type20_directional_air_attack").length;
     const type63StrengthRouteCount = allRoutes.filter(route =>
         route.source === "ac_type63_strength_variant").length;
+    const type63DirectionalRouteCount = allRoutes.filter(route =>
+        route.source === "ac_type63_directional_followup").length;
     const chargeContextRouteCount = allRoutes.filter(route =>
         route.charge_context_evidence === true).length;
     const superShortcutDirectionRouteCount = allRoutes.filter(route =>
@@ -3992,6 +4110,9 @@ function buildCommandDisplay(actionSource, bcmCatalog, runtime, supplement, opti
             type63_strength_variant_relation_count: appliedType63StrengthRelations.length,
             type63_strength_variant_route_count: type63StrengthRouteCount,
             type63_strength_variant_relations: appliedType63StrengthRelations,
+            type63_directional_followup_relation_count: appliedType63DirectionalRelations.length,
+            type63_directional_followup_route_count: type63DirectionalRouteCount,
+            type63_directional_followup_relations: appliedType63DirectionalRelations,
             type20_hold_route_count: type20HoldRouteCount,
             type20_action_phase_route_count: type20PhaseRouteCount,
             type20_same_structure_execution_route_count: type20SameStructureRouteCount,
@@ -4093,6 +4214,8 @@ function buildCommandDisplay(actionSource, bcmCatalog, runtime, supplement, opti
                 type20_directional_route_count: type20DirectionalRouteCount,
                 type63_strength_variant_relation_count: appliedType63StrengthRelations.length,
                 type63_strength_variant_route_count: type63StrengthRouteCount,
+                type63_directional_followup_relation_count: appliedType63DirectionalRelations.length,
+                type63_directional_followup_route_count: type63DirectionalRouteCount,
                 type20_hold_relation_count: appliedType20HoldRelations.length,
                 type20_hold_route_count: type20HoldRouteCount,
                 type20_action_phase_relation_count: appliedType20PhaseRelations.length,

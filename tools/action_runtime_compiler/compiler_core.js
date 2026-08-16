@@ -140,14 +140,17 @@ function acBranchRelations(actionSource) {
                 const targetId = Number(fields.Action);
                 const type = Number(fields.Type);
                 const key = [sourceId, targetId, type, fields.Attr, fields.ActionFrame,
-                    fields.Param00, fields.Param01, fields.Param02, fields.Param03].join(":");
+                    fields.Param00, fields.Param01, fields.Param02, fields.Param03,
+                    fields.Param04, fields.Param05, fields.TriggerID].join(":");
                 if (Number.isFinite(targetId) && !seenRelations.has(key)) {
                     seenRelations.add(key);
                     relations.push({
                         source_id: Number(sourceId), target_id: targetId, branch_type: type,
                         attr: Number(fields.Attr || 0), action_frame: Number(fields.ActionFrame || 0),
                         param00: Number(fields.Param00 || 0), param01: Number(fields.Param01 || 0),
-                        param02: Number(fields.Param02 || 0), param03: Number(fields.Param03 || 0)
+                        param02: Number(fields.Param02 || 0), param03: Number(fields.Param03 || 0),
+                        param04: Number(fields.Param04 || 0), param05: Number(fields.Param05 || 0),
+                        trigger_id: fields.TriggerID == null ? -1 : Number(fields.TriggerID)
                     });
                 }
             }
@@ -518,7 +521,25 @@ function compileFromCatalog(actionSource, bcmCatalog, behaviorRules, options) {
             };
             acDerivedCommands.push({
                 action_id: relation.target_id, source_action_id: relation.source_id,
-                display, branch_type: relation.branch_type, force
+                display, branch_type: relation.branch_type, force,
+                ...(/^j\.P$/i.test(actions[source])
+                    && relation.branch_type === 63
+                    && relation.attr === 0 && relation.action_frame === 0
+                    && relation.param00 === 0 && relation.param02 === 1
+                    && relation.param03 === 0 && relation.param04 === 0
+                    && relation.param05 === 0 && relation.trigger_id === -1
+                    ? {
+                        derivation: "type63_directional_followup",
+                        attr: relation.attr,
+                        action_frame: relation.action_frame,
+                        param00: relation.param00,
+                        param01: relation.param01,
+                        param02: relation.param02,
+                        param03: relation.param03,
+                        param04: relation.param04,
+                        param05: relation.param05,
+                        trigger_id: relation.trigger_id
+                    } : {})
             });
             progress = true;
         }

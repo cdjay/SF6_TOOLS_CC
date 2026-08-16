@@ -4,6 +4,8 @@ local M = {
 }
 
 local Type63StrengthSemantics = require("func/ComboTrials/Type63StrengthSemantics")
+local Type63DirectionalSemantics = require("func/ComboTrials/Type63DirectionalSemantics")
+local load_cache = {}
 
 local SUPPORTED_GENERATORS = {
     ac_bcm = true,
@@ -382,6 +384,12 @@ function M.parse(document, character)
     local type63_commands, type63_error = Type63StrengthSemantics.collect_commands(document)
     if type63_commands == nil then return nil, 0, type63_error end
     for action_id, command in pairs(type63_commands) do commands[action_id] = command end
+    local type63_directional_commands, type63_directional_error =
+        Type63DirectionalSemantics.collect_commands(document)
+    if type63_directional_commands == nil then return nil, 0, type63_directional_error end
+    for action_id, command in pairs(type63_directional_commands) do
+        commands[action_id] = command
+    end
     local by_action, count_or_error = read_source_groups(meta, commands, phase_evidence)
     if by_action == nil then return nil, 0, count_or_error end
     local internal_owner_by_action, internal_error =
@@ -411,6 +419,23 @@ function M.load(character, loader)
         return nil, 0, "generated_action_relations_not_found"
     end
     return M.parse(document, key)
+end
+
+-- The generated relation source is immutable product data. Cache the parsed
+-- relation table, as well as a missing/invalid result, for the Lua session so
+-- profile refreshes cannot repeatedly parse the full command-display corpus.
+function M.load_cached(character, loader)
+    local key = character_key(character)
+    if key == "" or type(loader) ~= "function" then
+        return M.load(character, loader)
+    end
+    local cached = load_cache[key]
+    if cached == nil then
+        local relations, count, status = M.load(key, loader)
+        cached = { relations = relations, count = count, status = status }
+        load_cache[key] = cached
+    end
+    return cached.relations, cached.count, cached.status
 end
 
 function M.share_source_group(relations, left_action_id, right_action_id)

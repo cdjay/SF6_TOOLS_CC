@@ -17,6 +17,8 @@ ActionCompatibility = dofile("autorun/func/ComboTrials/ActionCompatibility.lua")
 TrainingEnvironment = dofile("autorun/func/ComboTrials/TrainingEnvironment.lua")
 Type63StrengthSemantics = dofile(
     "autorun/func/ComboTrials/Type63StrengthSemantics.lua")
+Type63DirectionalSemantics = dofile(
+    "autorun/func/ComboTrials/Type63DirectionalSemantics.lua")
 do
 local honda_compatibility, honda_compatibility_count,
     honda_compatibility_status = ActionCompatibility.parse({
@@ -1851,6 +1853,127 @@ assert(motion == nil and status == "route_unverified",
     "Presentation must reject Type63 display text without complete audit evidence")
 TYPE63_STRENGTH_TEST.map._meta.audit.type63_strength_variant_relation_count = 2
 
+TYPE63_DIRECTIONAL_REASON = "ac_type63_directional_followup_from_verified_bcm_owner"
+TYPE63_DIRECTIONAL_TEST = {}
+TYPE63_DIRECTIONAL_TEST.route = {
+    display = "> 1 + P",
+    character = "Generic",
+    owner_action_id = 1800,
+    display_action_id = 1801,
+    bcm_owner_action_id = 1800,
+    trigger_index = 90,
+    profile = "norm",
+    source = "ac_type63_directional_followup",
+    projection_scope = "classic_only",
+    ac_relation_type = 63,
+    ac_path = { 1800, 1801 },
+    inherited_from_action_id = 1800,
+    confidence = "verified_inherited_directional_followup",
+    direct_evidence = false,
+    inheritance_evidence = true,
+    inheritance_reason = TYPE63_DIRECTIONAL_REASON,
+    rebind_evidence = false,
+    rebind_reason = nil,
+    runtime_common_evidence = false,
+    runtime_common_reason = nil,
+    official_semantic_evidence = false,
+    official_semantic_reason = nil,
+    community_semantic_evidence = false,
+    community_semantic_reason = nil,
+    assist_combo_evidence = false,
+    assist_combo_reason = nil,
+    charge_context_evidence = false,
+    super_shortcut_direction_evidence = false,
+    visible_direction = "1",
+    visible_button = "P",
+    button_candidates = { "LP", "MP", "HP" },
+    required_button_count = 1,
+    ac_attr = 0,
+    ac_action_frame = 0,
+    ac_param00 = 0,
+    ac_param01 = 6,
+    ac_param02 = 1,
+    ac_param03 = 0,
+    ac_param04 = 0,
+    ac_param05 = 0,
+    ac_trigger_id = -1,
+}
+TYPE63_DIRECTIONAL_TEST.map = {
+    _meta = {
+        character = "Generic",
+        type63_directional_followup_relation_count = 1,
+        type63_directional_followup_route_count = 1,
+        type63_directional_followup_relations = { {
+            source_action_id = 1800,
+            target_action_id = 1801,
+            display = ">1+P",
+            direction = "1",
+            branch_type = 63,
+            attr = 0,
+            action_frame = 0,
+            param00 = 0,
+            param01 = 6,
+            param02 = 1,
+            param03 = 0,
+            param04 = 0,
+            param05 = 0,
+            trigger_id = -1,
+            reason = TYPE63_DIRECTIONAL_REASON,
+        } },
+        audit = {
+            type63_directional_followup_relation_count = 1,
+            type63_directional_followup_route_count = 1,
+        },
+    },
+    ["1800"] = {
+        ownership = "direct",
+        classic_command = { display = "j.P", inputs = { "j.P" } },
+        routes = { {
+            display = "空中 任意键",
+            character = "Generic",
+            owner_action_id = 1800,
+            source = "bcm_profile",
+            direct_evidence = true,
+            inheritance_evidence = false,
+            rebind_evidence = false,
+            runtime_common_evidence = false,
+            official_semantic_evidence = false,
+            community_semantic_evidence = false,
+            assist_combo_evidence = false,
+            confidence = "direct_structural",
+        } },
+    },
+    ["1801"] = {
+        ownership = "type63_directional_followup",
+        classic_command = { display = ">1+P", inputs = { ">1+P" } },
+        simple_command = nil,
+        motion_command = nil,
+        routes = { TYPE63_DIRECTIONAL_TEST.route },
+    },
+}
+motion, status = get_modern_display_motion(TYPE63_DIRECTIONAL_TEST.map, { id = 1801 })
+assert(motion == "> 1 + P" and status == "strict_route",
+    "Presentation must admit an audited generic Type63 directional follow-up")
+TYPE63_DIRECTIONAL_TEST.slim = build_slim_command_display_map(TYPE63_DIRECTIONAL_TEST.map)
+assert(TYPE63_DIRECTIONAL_TEST.slim["1801"].classic == ">1+P"
+        and TYPE63_DIRECTIONAL_TEST.slim["1801"].status == "strict_route",
+    "the slim Presentation map must preserve the audited Classic Type63 follow-up")
+TYPE63_DIRECTIONAL_TEST.route.ac_param02 = 0
+motion, status = get_modern_display_motion(TYPE63_DIRECTIONAL_TEST.map, { id = 1801 })
+assert(motion == nil and status == "route_unverified",
+    "Presentation must reject a Type63 directional route whose AC shape changed")
+TYPE63_DIRECTIONAL_TEST.route.ac_param02 = 1
+TYPE63_DIRECTIONAL_TEST.route.owner_action_id = 1801
+motion, status = get_modern_display_motion(TYPE63_DIRECTIONAL_TEST.map, { id = 1801 })
+assert(motion == nil and status == "route_unverified",
+    "Presentation must reject a Type63 directional route whose BCM owner changed")
+TYPE63_DIRECTIONAL_TEST.route.owner_action_id = 1800
+TYPE63_DIRECTIONAL_TEST.map._meta.audit.type63_directional_followup_route_count = nil
+motion, status = get_modern_display_motion(TYPE63_DIRECTIONAL_TEST.map, { id = 1801 })
+assert(motion == nil and status == "route_unverified",
+    "Presentation must reject Type63 directional text without complete audit evidence")
+TYPE63_DIRECTIONAL_TEST.map._meta.audit.type63_directional_followup_route_count = 1
+
 motion, status = get_classic_display_motion(command_map, { id = 9999, motion = "Unknown" })
 assert(motion == nil and status == "action_id_missing", "missing classic IDs must reach the common audit path")
 
@@ -2963,11 +3086,14 @@ do
                 '"classic": "236+LP+MP+HP"', 1, true)
             and blanka_override_source:find('"972"', 1, true)
             and blanka_override_source:find('"classic": "4+LK"', 1, true)
-            and blanka_override_source:find('"1093"', 1, true)
             and blanka_override_source:find('"replace": true', 1, true)
+            and not blanka_override_source:find('"1075"', 1, true)
+            and not blanka_override_source:find('"1082"', 1, true)
+            and not blanka_override_source:find('"1088"', 1, true)
+            and not blanka_override_source:find('"1093"', 1, true)
             and not blanka_override_source:find(
                 '"classic": "214+LP+LK+MK"', 1, true),
-        "the shipped Blanka overrides must preserve all runtime-verified commands")
+        "the shipped Blanka overrides must retain only facts not covered by generated semantics")
     assert(blanka_compatibility_source:find(
                 '"target_game_version": "2026-08-03"', 1, true)
             and blanka_compatibility_source:find(

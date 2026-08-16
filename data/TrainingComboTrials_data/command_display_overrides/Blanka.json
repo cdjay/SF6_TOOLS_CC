@@ -41,26 +41,6 @@
       "classic": "4+LK",
       "replace": true,
       "evidence": "The completed 2026-08-05 runtime audit binds back plus LK input and hit contact to Action 972"
-    },
-    "1075": {
-      "classic": ">6+P",
-      "replace": true,
-      "evidence": "The completed 2026-08-05 runtime audit binds the recorded forward punch follow-up and hit contact to Action 1075; the generated catalog independently identifies the same command"
-    },
-    "1082": {
-      "classic": ">3+P",
-      "replace": true,
-      "evidence": "Two contacts in the completed 2026-08-05 runtime audit bind the recorded down-forward punch follow-up to Action 1082; the generated catalog independently identifies the same command"
-    },
-    "1088": {
-      "classic": ">4+P",
-      "replace": true,
-      "evidence": "The completed 2026-08-05 runtime audit binds the recorded back punch follow-up and hit contact to Action 1088; the generated catalog independently identifies the same command"
-    },
-    "1093": {
-      "classic": ">6+P",
-      "replace": true,
-      "evidence": "The completed 2026-08-05 runtime audit binds the recorded forward punch follow-up and hit contact to Action 1093; the generated catalog independently identifies the same command"
     }
   }
 }

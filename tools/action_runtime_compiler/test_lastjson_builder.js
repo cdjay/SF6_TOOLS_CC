@@ -23,7 +23,7 @@ assert.strictEqual(new Set(Object.values(registry).map(entry => Number(entry.fig
 assert.strictEqual(registry.Yasmine.fighter_id, 33);
 
 const formalRoot = path.resolve(__dirname, "../../data/TrainingComboTrials_data/command_display");
-let formalAlex = null;
+let formalAlex = null, formalBlanka = null;
 for (const [character, registryEntry] of Object.entries(registry)) {
     const formal = JSON.parse(fs.readFileSync(path.join(formalRoot, `${character}.json`), "utf8"));
     assert.ok(builder.validateOutput(formal, character, registryEntry.fighter_id) > 0);
@@ -31,6 +31,7 @@ for (const [character, registryEntry] of Object.entries(registry)) {
         >= Number(formal._meta.audit.split_command_action_count));
     assert.strictEqual(Number(formal._meta.audit.classic_projection_pending_count), 0);
     if (character === "Alex") formalAlex = formal;
+    if (character === "Blanka") formalBlanka = formal;
 }
 assert.strictEqual(formalAlex["967"].classic_command.display, ">6+LP");
 assert.strictEqual(formalAlex["968"].classic_command.display, ">6+MP");
@@ -46,6 +47,17 @@ assert.deepStrictEqual(formalAlex._meta.type63_strength_variant_relations.map(re
     [967, 968, "medium", 32, 128],
     [967, 969, "heavy", 64, 256]
 ]);
+assert.strictEqual(formalBlanka._meta.type63_directional_followup_relation_count, 48);
+assert.strictEqual(formalBlanka._meta.type63_directional_followup_route_count, 48);
+assert.strictEqual(formalBlanka._meta.audit.type63_directional_followup_relation_count, 48);
+assert.strictEqual(formalBlanka._meta.audit.type63_directional_followup_route_count, 48);
+for (const [id, display] of [[1076, ">9+P"], [1080, ">1+P"], [1091, ">3+P"]]) {
+    assert.strictEqual(formalBlanka[String(id)].classic_command.display, display);
+    assert.strictEqual(formalBlanka[String(id)].ownership, "type63_directional_followup");
+    assert.strictEqual(formalBlanka[String(id)].routes.length, 1);
+    assert.strictEqual(formalBlanka[String(id)].routes[0].source,
+        "ac_type63_directional_followup");
+}
 
 const incompleteAlex = structuredClone(formalAlex);
 const incompleteId = Object.keys(incompleteAlex).find(id => /^\d+$/.test(id)

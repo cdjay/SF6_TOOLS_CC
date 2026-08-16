@@ -232,6 +232,9 @@ acbcm/<版本>/lastjson/<Character>.json
 - `type63_strength_variant`：仅在 Classic/Modern 分支目标唯一且强度参数成对一致时，
   从同一输入族的直接 BCM 路线继承方向与续招上下文；中/强目标保持独立 Action ID，
   不建立 Action 等价组。
+- `type63_directional_followup`：仅当 Type 63 关系完整满足零帧、零附加参数、Punch family
+  和已知方向位掩码，源 Action 拥有直接 BCM `j.P` 身份且目标没有独立 BCM binding 时，
+  生成 `>方向+P` 的 Classic-only 严格验证路线；目标 Action ID 保持不变，不生成 Modern 指令。
 
 运行时读取三个指令槽，并根据派生关系生成 `>`；`/` 只用于分隔完整的简化路线与搓招路线，
 不再表示动作阶段。

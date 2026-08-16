@@ -128,6 +128,10 @@ function M.load_generated_action_relations(character, loader)
     return GeneratedActionRelations.load(character, loader)
 end
 
+function M.load_generated_action_relations_cached(character, loader)
+    return GeneratedActionRelations.load_cached(character, loader)
+end
+
 function M.generated_actions_share_source_group(relations, left_id, right_id)
     return GeneratedActionRelations.share_source_group(relations, left_id, right_id)
 end

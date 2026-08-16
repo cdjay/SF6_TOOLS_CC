@@ -2517,7 +2517,7 @@ local function assign_groups(sequence, character_name, grouping_rules)
     )
     if type(grouping_rules) ~= "table" then
         grouping_rules = CharacterRules.build_sequence_grouping_rules(
-            CharacterRules.load_for_character(resolved_character),
+        CharacterRules.load_for_character_cached(resolved_character),
             common_exceptions
         )
     end
@@ -2534,7 +2534,7 @@ ctx.ensure_run_product_rules = function(run)
         and type(run.sequence_grouping_rules) == "table" then
         return
     end
-    local character_rules = CharacterRules.load_for_character(run.character)
+    local character_rules = CharacterRules.load_for_character_cached(run.character)
     run.transcription_rules = CharacterRules.build_transcription_rules(
         character_rules,
         common_exceptions
@@ -5024,15 +5024,15 @@ local function ct_player_init(p_idx, p_state)
         end
         p_state.generated_action_relations = nil
         if p_state.profile_name ~= "Unknown" then
-            p_state.exceptions = CharacterRules.load_for_character(p_state.profile_name)
+            p_state.exceptions = CharacterRules.load_for_character_cached(p_state.profile_name)
             p_state.action_compatibility = select(1,
-                ComboTrialsModules.ActionCompatibility.load(
+                ComboTrialsModules.ActionCompatibility.load_cached(
                 p_state.profile_name,
                 SF6CCVersion.GAME_VERSION,
                 function(filename) return json.load_file(filename) end
             ))
             p_state.generated_action_relations = select(1,
-                ComboTrialsModules.UnifiedActionConsumer.load_generated_action_relations(
+                ComboTrialsModules.UnifiedActionConsumer.load_generated_action_relations_cached(
                     p_state.profile_name,
                     function(filename) return json.load_file(filename) end
                 ))

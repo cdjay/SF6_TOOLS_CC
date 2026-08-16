@@ -59,6 +59,25 @@ local document = {
                 reason = "ac_type52_same_command_runtime_phase_family",
             },
         },
+        type63_directional_followup_route_count = 1,
+        type63_directional_followup_relation_count = 1,
+        type63_directional_followup_relations = { {
+            source_action_id = 30,
+            target_action_id = 31,
+            display = ">1+P",
+            direction = "1",
+            branch_type = 63,
+            attr = 0,
+            action_frame = 0,
+            param00 = 0,
+            param01 = 6,
+            param02 = 1,
+            param03 = 0,
+            param04 = 0,
+            param05 = 0,
+            trigger_id = -1,
+            reason = "ac_type63_directional_followup_from_verified_bcm_owner",
+        } },
         internal_transition_suppression_count = 2,
         suppressed_internal_transitions = {
             {
@@ -111,6 +130,8 @@ local document = {
             ac_state_direction_route_count = 1,
             type63_strength_variant_relation_count = 1,
             type63_strength_variant_route_count = 1,
+            type63_directional_followup_relation_count = 1,
+            type63_directional_followup_route_count = 1,
             ac_command_phase_relation_count = 1,
             internal_transition_suppression_count = 2,
         },
@@ -178,6 +199,64 @@ local document = {
             required_button_count = 1,
         } },
     },
+    ["30"] = {
+        ownership = "direct",
+        classic_command = { display = "j.P", inputs = { "j.P" } },
+        routes = { {
+            display = "空中 任意键",
+            character = "Generic",
+            source = "bcm_profile",
+            direct_evidence = true,
+            inheritance_evidence = false,
+            rebind_evidence = false,
+            runtime_common_evidence = false,
+            official_semantic_evidence = false,
+            community_semantic_evidence = false,
+            assist_combo_evidence = false,
+            confidence = "direct_structural",
+            owner_action_id = 30,
+        } },
+    },
+    ["31"] = {
+        ownership = "type63_directional_followup",
+        classic_command = { display = ">1+P", inputs = { ">1+P" } },
+        routes = { {
+            display = "> 1 + P",
+            character = "Generic",
+            source = "ac_type63_directional_followup",
+            projection_scope = "classic_only",
+            owner_action_id = 30,
+            bcm_owner_action_id = 30,
+            display_action_id = 31,
+            trigger_index = 90,
+            profile = "norm",
+            inherited_from_action_id = 30,
+            ac_relation_type = 63,
+            ac_path = { 30, 31 },
+            direct_evidence = false,
+            inheritance_evidence = true,
+            rebind_evidence = false,
+            runtime_common_evidence = false,
+            official_semantic_evidence = false,
+            community_semantic_evidence = false,
+            assist_combo_evidence = false,
+            inheritance_reason = "ac_type63_directional_followup_from_verified_bcm_owner",
+            confidence = "verified_inherited_directional_followup",
+            visible_direction = "1",
+            visible_button = "P",
+            button_candidates = { "LP", "MP", "HP" },
+            required_button_count = 1,
+            ac_attr = 0,
+            ac_action_frame = 0,
+            ac_param00 = 0,
+            ac_param01 = 6,
+            ac_param02 = 1,
+            ac_param03 = 0,
+            ac_param04 = 0,
+            ac_param05 = 0,
+            ac_trigger_id = -1,
+        } },
+    },
     ["915"] = {
         ownership = "direct",
         classic_command = { display = "214+LP", inputs = { "214+LP" } },
@@ -241,6 +320,7 @@ local relations, count, status = Relations.parse(document, "Generic")
 assert(status == "loaded" and count == 2)
 assert(Relations.command_for_action(relations, 9) == "HP")
 assert(Relations.command_for_action(relations, 21) == "6+MP")
+assert(Relations.command_for_action(relations, 31) == ">1+P")
 assert(Relations.share_source_group(relations, 10, 11))
 assert(Relations.share_source_group(relations, 11, 12))
 assert(not Relations.share_source_group(relations, 9, 10))
@@ -271,6 +351,11 @@ local wrong_strength_route = clone(document)
 wrong_strength_route["21"].routes[1].visible_button = "强"
 assert(Relations.parse(wrong_strength_route, "Generic") == nil,
     "a route that disagrees with the audited strength relation must fail closed")
+
+local wrong_directional_shape = clone(document)
+wrong_directional_shape["31"].routes[1].ac_param02 = 0
+assert(Relations.parse(wrong_directional_shape, "Generic") == nil,
+    "Type63 directional follow-ups with altered AC evidence must fail closed")
 
 local incomplete_phase_evidence = clone(document)
 incomplete_phase_evidence._meta.ac_command_phase_relations[1].attr = nil

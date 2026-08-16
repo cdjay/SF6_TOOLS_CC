@@ -7,6 +7,7 @@ local CharacterRules = {
 local EXCEPTION_DIR = "TrainingComboTrials_data/exceptions"
 local COMMON_EXCEPTIONS_FILE = EXCEPTION_DIR .. "/Common.json"
 local GENERATED_SEMANTICS_DIR = "TrainingComboTrials_data/generated_semantics"
+local character_rules_cache = {}
 
 local function merge_match_rule(base, overlay)
     if not overlay then return base end
@@ -49,6 +50,18 @@ function CharacterRules.load_for_character(character_name)
         merged[action_id] = merge_match_rule(merged[action_id], rule)
     end
     return merged
+end
+
+-- Character rule assets are immutable for one Lua session. Cache both loaded
+-- and empty results so transient profile refreshes do not repeatedly parse the
+-- same product JSON or retry optional files that are intentionally absent.
+function CharacterRules.load_for_character_cached(character_name)
+    local key = tostring(character_name or ""):gsub("[^%w_]", "")
+    if key == "" then return {} end
+    if character_rules_cache[key] == nil then
+        character_rules_cache[key] = CharacterRules.load_for_character(key)
+    end
+    return character_rules_cache[key]
 end
 
 function CharacterRules.get_exception(character_rules, common_rules, action_id)

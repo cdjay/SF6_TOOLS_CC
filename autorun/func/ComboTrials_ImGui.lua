@@ -17,6 +17,7 @@ local ActionCompatibility = require("func/ComboTrials/ActionCompatibility")
 local SF6CCVersion = require("func/SF6CC_Version")
 local TrialDisplayState = require("func/ComboTrials/TrialDisplayState")
 local Type63StrengthSemantics = require("func/ComboTrials/Type63StrengthSemantics")
+local Type63DirectionalSemantics = require("func/ComboTrials/Type63DirectionalSemantics")
 
 -- Shared context (set by init)
 local ctx -- { d2d_cfg, trial_state, players, sf6_menu_state }
@@ -421,6 +422,7 @@ local function load_command_display_map(character)
         and type(meta.type20_directional_relations) == "table"
         and #meta.type20_directional_relations == type20_relations
     local type63_strength_audit_ok = Type63StrengthSemantics.validate_audit(meta, audit)
+    local type63_directional_audit_ok = Type63DirectionalSemantics.validate_audit(meta, audit)
     local type20_hold_relations = type(audit) == "table"
         and tonumber(audit.type20_hold_relation_count) or nil
     local type20_hold_routes = type(audit) == "table"
@@ -769,6 +771,7 @@ local function load_command_display_map(character)
         and verified_alias_audit_ok
         and type20_audit_ok
         and type63_strength_audit_ok
+        and type63_directional_audit_ok
         and type20_hold_audit_ok
         and type20_phase_audit_ok
         and type20_same_structure_audit_ok
@@ -800,7 +803,7 @@ local function load_command_display_map(character)
             end
             return json.load_file(filename)
         end)
-        slim._action_compatibility = select(1, ActionCompatibility.load(
+        slim._action_compatibility = select(1, ActionCompatibility.load_cached(
             key,
             SF6CCVersion.GAME_VERSION,
             function(filename)
@@ -1069,6 +1072,10 @@ local function get_modern_display_motion(modern_map, step)
     if entry.ownership == "type63_strength_variant" then
         type63_strength = Type63StrengthSemantics.validate_target(modern_map, step_id)
     end
+    local type63_directional = nil
+    if entry.ownership == "type63_directional_followup" then
+        type63_directional = Type63DirectionalSemantics.validate_target(modern_map, step_id)
+    end
     for _, route in ipairs(entry.routes) do
         local source = type(route) == "table" and tostring(route.source or "") or ""
         local route_character = type(route) == "table" and tostring(route.character or "") or ""
@@ -1144,6 +1151,9 @@ local function get_modern_display_motion(modern_map, step)
         local type63_strength_ok = source == "ac_type63_strength_variant"
             and type(type63_strength) == "table"
             and tostring(type63_strength.display or "") == tostring(route.display or "")
+        local type63_directional_ok = source == "ac_type63_directional_followup"
+            and type(type63_directional) == "table"
+            and tostring(type63_directional.display or "") == tostring(route.display or "")
         local rebind_owner = type(route) == "table" and tonumber(route.bcm_owner_action_id) or nil
         local declared_rebind = false
         local declared_rebinds = type(modern_map._meta) == "table"
@@ -1736,7 +1746,7 @@ local function get_modern_display_motion(modern_map, step)
             and (direct_ok or inherited_ok or rebind_ok or runtime_common_ok or official_semantic_ok
                 or verified_alias_ok or type20_ok or type20_hold_ok or type20_phase_ok
                 or type20_same_structure_ok
-                or type37_followup_phase_ok or type63_strength_ok
+                or type37_followup_phase_ok or type63_strength_ok or type63_directional_ok
                 or state_choice_ok
                 or target_combo_ok or structural_twin_ok
                 or assist_combo_ok)
