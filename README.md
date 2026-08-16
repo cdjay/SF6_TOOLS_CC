@@ -124,7 +124,10 @@ English entry: [README.en.md](README.en.md)
 
 如果你使用 AI 编程工具（Codex、Claude Code、Gemini CLI、Cursor、Windsurf 等），建议首先阅读 [AGENTS.zh-CN.md](AGENTS.zh-CN.md)。
 
-开发者可从干净 worktree 运行当前离线门禁：
+开发者可从干净 worktree 运行下面的 executable test inventory 入口。它只是
+正式离线门禁的一部分；作出发布结论前，必须继续执行
+[测试策略](docs/TESTING_STRATEGY.md) 中的 corpus、determinism、mutation 与
+oracle 完整命令。
 
 ```powershell
 python tools\repository_test_audit.py --repo-root . --audit-date (Get-Date -Format yyyy-MM-dd) --run-tests --output (Join-Path $env:TEMP 'sf6cc-repository-test-audit.json')

@@ -23,14 +23,14 @@ a stronger layer.
 
 The following are failure tombstones, not temporary tests:
 
-| Bugs | Test asset |
-| --- | --- |
-| BUG-B001 strict timeline parsing | `tools/test_combo_raw_input_codec.lua` |
-| BUG-B002 multi-stage chord idempotence | `tools/test_unified_action_consumer.lua` |
-| BUG-B003 atomic failed Combo loading | `tools/test_combo_file_load_recovery.lua` |
-| BUG-B004 recording cancellation | `tools/test_combo_recording_lifecycle.lua` |
-| BUG-B005 Demo cancellation on character change | `tools/test_combo_recording_lifecycle.lua` |
-| BUG-B006 Demo/telemetry cancellation on mode exit and recovery | `tools/test_combo_demo_lifecycle.lua` |
+| Bugs | Protected failure and correction | Test asset |
+| --- | --- | --- |
+| BUG-B001 strict timeline parsing | Timeline usability and Demo used different permissive parsers. One strict all-or-nothing `RawInputCodec` parser now owns both paths. | `tools/test_combo_raw_input_codec.lua` |
+| BUG-B002 multi-stage chord idempotence | Normalization removed only one adjacent precursor. The bounded projection now consumes every owned phase in the cumulative chord window in one pass. | `tools/test_unified_action_consumer.lua` |
+| BUG-B003 atomic failed Combo loading | A failed preparation fired lifecycle callbacks and stopped the old session. All fallible preparation now completes before the file-change callback. | `tools/test_combo_file_load_recovery.lua` |
+| BUG-B004 recording cancellation | Character change performed a partial reset and leaked recording/compiler state. It now routes through shared `cancel_recording()`. | `tools/test_combo_recording_lifecycle.lua` |
+| BUG-B005 Demo cancellation on character change | Character change retained Demo cursor/timeline state. It now routes through `stop_demo_playback("character_change", ...)`. | `tools/test_combo_recording_lifecycle.lua` |
+| BUG-B006 Demo/telemetry cancellation on mode exit and recovery | Mode exit and first-frame recovery used partial resets. Both now route through shared Demo cancellation, including telemetry. | `tools/test_combo_demo_lifecycle.lua` |
 
 Other `tools/test_*` files remain the executable characterization, unit,
 contract, and simulation suite. Generator/editor tests stay beside their

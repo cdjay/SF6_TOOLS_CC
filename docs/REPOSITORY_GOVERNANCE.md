@@ -13,7 +13,7 @@ Inventory date: August 16, 2026. Baseline SHA:
 | Asset | Baseline |
 | --- | ---: |
 | Git-tracked files | 499 |
-| Markdown documents | 63 |
+| Markdown documents | 61 |
 | Test inventory | 70 |
 | Executable test files | 69 |
 | Tracked Lua files | 127 |
@@ -66,6 +66,19 @@ checked in.
 | Generator/build | `action_runtime_compiler/`, `bcm_catalog_builder/`, `modern_display_builder/`, version and packaging scripts |
 | Authoring/migration active | `combo_json_editor/` and its guarded batch migrations |
 | Audit-only retained | `imgui_texture_bridge_validation.lua` |
+
+## Specific Retained Asset Decisions
+
+These unresolved or generated assets retain explicit boundaries that must not
+be lost when inventory reports are regenerated:
+
+| Asset | Current decision |
+| --- | --- |
+| `plugins/reframework-imgui-texture.dll` | Active generated Runtime asset. Keep it with `native/reframework-imgui-texture/`; source inputs support a partial rebuild, not a byte-identical toolchain guarantee. |
+| `plugins/reframework-sf6cc-atomic-file.dll` | Active restricted telemetry bridge. Keep it with its native source and fixed-path allowlist contract; it is not a general filesystem API. |
+| `data/reframework-d2d.json`, `plugins/reframework-d2d.dll` | `INVESTIGATE`. Both remain tracked but are excluded by the standard packager. Do not delete or restore release inclusion without a dependency review. |
+| `plugins/script_whitelist.dll` | `INVESTIGATE`. It remains tracked and packaged. Do not delete or replace it until provenance, security role, and required Runtime behavior are reviewed. |
+| `autorun/SF6CC_DynamicRecords.lua` | Shipped diagnostic/authoring behavior only; it is not action-semantic authority. Changes to release exposure require an explicit product review. |
 
 ## Tester Patch Inventory
 

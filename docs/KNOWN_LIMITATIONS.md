@@ -11,7 +11,7 @@ offline tests do not remove these limitations.
 | M5 | Shadow only | Candidate results are diagnostic and `production_result` remains Legacy. |
 | Frozen V2 | Unchanged | The `xt.combo_trial/2.0.0` schema and existing field meanings cannot be changed. |
 | Human review | 179 stable-Move batches remain | No batch is approved automatically; ambiguous identities remain provisional. |
-| Real-game smoke | Required, not complete | Offline tests cannot prove REFramework callback order, live game observations, input injection, or visible playback. |
+| Real-game smoke | Required; blocked pending a reviewed shadow harness; not complete | Current Main does not wire live MoveResolver shadow capture. Offline tests cannot prove REFramework callback order, live game observations, input injection, or visible playback. |
 | Legacy OFF | Blocked | Legacy exception loading and compatibility behavior remain required. |
 | Sealed oracle | 633 cases, independence `LOW` | It proves historical snapshot integrity, not independent Runtime truth. Runtime consumers execute `0 / 633` oracle cases. |
 | Real-game golden | Unavailable | There is no current high-independence golden captured from live game truth. |

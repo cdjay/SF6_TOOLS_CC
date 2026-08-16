@@ -31,8 +31,8 @@ schema overrides a general architecture document only for that schema.
 | Frozen Combo V2 | [Combo JSON Spec](COMBO_JSON_SPEC.md) | `xt.combo_trial/2.0.0` is immutable. |
 | Testing and release evidence | [Testing Strategy](TESTING_STRATEGY.md) | Test layers, official commands, gates, counts, and evidence meaning. |
 | Known limitations and blockers | [Known Limitations](KNOWN_LIMITATIONS.md) | Human review, smoke, oracle, archive, M5, and Legacy blockers. |
-| Human semantic review | [Human Review](review/HUMAN_REVIEW.md) | Active 179-batch review packet; review input only. |
-| Real-game validation | [Real-game Smoke](testing/REAL_GAME_SMOKE.md) | Active RG-01 through RG-06 procedure and required evidence. |
+| Human semantic review | [Human Review](review/HUMAN_REVIEW.md) | Active 179-batch review packet; review input only, rebuilt from explicit external SF6ACBCM inputs. |
+| Real-game validation | [Real-game Smoke](testing/REAL_GAME_SMOKE.md) | Required RG-01 through RG-06 capture contract; execution is blocked until a reviewed diagnostic shadow harness exists. |
 | Tester package workflow | [Tester Workflow](TESTER_WORKFLOW.md) | Generate, identify, verify, distribute, and roll back tester builds. |
 | Repository assets and generated files | [Repository Governance](REPOSITORY_GOVERNANCE.md) | Asset classification and retain/generate/archive policy. |
 | Product version | [Versioning](VERSIONING.md) | `data/SF6CC/version.json` is the only product-version source. |

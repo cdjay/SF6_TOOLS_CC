@@ -41,6 +41,12 @@ Every tester handoff must record:
 - requested smoke cases;
 - whether `re2_fw_config.txt` is included.
 
+There is no repository-global "latest tester package". A package is current
+only for its named test request when the handoff record identifies the reviewed
+source SHA and the delivered file still matches the recorded SHA-256. Keep the
+handoff record with the external test request or distribution channel; do not
+commit ad hoc package ledgers or infer authority from a filename or timestamp.
+
 A useful external delivery name is
 `SF6CC_test_v<version>_<short-sha>_<yyyyMMdd>.zip`. Renaming a delivery copy does
 not change the canonical package or product version.

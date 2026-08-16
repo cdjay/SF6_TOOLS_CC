@@ -1,10 +1,17 @@
 # Real-game Smoke Packet
 
-Status: `CURRENT_OPERATIONAL` / `REAL_GAME_SMOKE_REQUIRED`
+Status: `ACTIVE_PENDING_WORK` / `REAL_GAME_SMOKE_REQUIRED`
 
 Baseline date: 2026-08-15
 
-Execution state: `NOT_COMPLETE`
+Execution state: `BLOCKED_PENDING_SHADOW_HARNESS` / `NOT_COMPLETE`
+
+Current Main does not load `MoveResolver` from the composition root and does
+not expose a live shadow-capture switch. Before executing RG-01 through RG-06,
+a separately reviewed diagnostic-only harness must wire the existing shadow
+API without changing `production_result = legacy`. Repository-hygiene work
+does not create that Runtime wiring. Until the harness exists, this packet is
+the required capture contract but cannot be marked executable or complete.
 
 This is a minimal blocking packet, not a general manual test plan. Every case
 must capture both Legacy production behavior and MoveResolver shadow output.

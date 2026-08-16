@@ -125,7 +125,10 @@ Chinese entry: [README.md](README.md)
 
 If you are using AI coding assistants such as Codex, Claude Code, Gemini CLI, Cursor or Windsurf, please start with [AGENTS.md](AGENTS.md).
 
-Developers can run the current offline gate from a clean worktree:
+Developers can run the executable test inventory entry point below from a
+clean worktree. This is only one part of the official offline gate; run the
+complete corpus, determinism, mutation, and oracle commands in
+[Testing Strategy](docs/TESTING_STRATEGY.md) before making a release claim.
 
 ```powershell
 python tools\repository_test_audit.py --repo-root . --audit-date (Get-Date -Format yyyy-MM-dd) --run-tests --output (Join-Path $env:TEMP 'sf6cc-repository-test-audit.json')
