@@ -59,6 +59,7 @@ ct_default_global_flag("CT_DEMO_TRACE", false)
 ct_default_global_flag("CT_DIAGNOSTIC_TRACE", false)
 ct_default_global_flag("CT_VERIFY_TRACE", false)
 ct_default_global_flag("CT_AUTO_FILE_SCAN", false)
+ct_default_global_flag("CT_TELEMETRY_CHECKPOINT", false)
 
 pcall(function()
     if fs and fs.create_dir then fs.create_dir("TrainingComboTrials_data/exceptions") end

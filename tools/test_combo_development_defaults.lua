@@ -29,6 +29,18 @@ assert(main_source:find(
     "stun trial demo must default to enabled")
 
 local ui_source = read_all("autorun/func/ComboTrials_UI.lua")
+local telemetry_source = read_all("autorun/func/ComboTrials/Telemetry.lua")
+assert(main_source:find('ct_default_global_flag("CT_TELEMETRY_CHECKPOINT", false)', 1, true),
+    "cumulative telemetry checkpoint must default to disabled")
+assert(telemetry_source:find("local function checkpoint_enabled()", 1, true),
+    "telemetry checkpoint must be gated by an explicit opt-in flag")
+assert(telemetry_source:find(
+    "if checkpoint_enabled()\n"
+    .. '    and type(sf6cc_atomic_file) == "table"', 1, true),
+    "checkpoint initialization must not run by default")
+assert(telemetry_source:find(
+    "if checkpoint_enabled() and attempt.source == \"manual\"", 1, true),
+    "checkpoint commit must not run by default")
 assert(ui_source:find("local show_trial_overlay = true", 1, true),
     "floating trial window must default to enabled")
 assert(ui_source:find("auto_playlist_enabled == true", 1, true),

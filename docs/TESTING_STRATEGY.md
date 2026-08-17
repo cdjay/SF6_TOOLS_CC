@@ -31,6 +31,7 @@ The following are failure tombstones, not temporary tests:
 | BUG-B004 recording cancellation | Character change performed a partial reset and leaked recording/compiler state. It now routes through shared `cancel_recording()`. | `tools/test_combo_recording_lifecycle.lua` |
 | BUG-B005 Demo cancellation on character change | Character change retained Demo cursor/timeline state. It now routes through `stop_demo_playback("character_change", ...)`. | `tools/test_combo_recording_lifecycle.lua` |
 | BUG-B006 Demo/telemetry cancellation on mode exit and recovery | Mode exit and first-frame recovery used partial resets. Both now route through shared Demo cancellation, including telemetry. | `tools/test_combo_demo_lifecycle.lua` |
+| BUG-B007 synchronous checkpoint IO on game thread | 1.1.6 added forced write-through cumulative checkpoint writes on every manual terminal fact; an occasional stalled write could pause the game thread for seconds. The checkpoint is now legacy/diagnostic and disabled by default; raw `events.jsonl` facts remain sufficient for offline rebuild. | `tools/test_combo_development_defaults.lua` |
 
 Other `tools/test_*` files remain the executable characterization, unit,
 contract, and simulation suite. Generator/editor tests stay beside their

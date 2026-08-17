@@ -1,5 +1,7 @@
 -- Anonymous, append-only combo attempt telemetry for the external tray uploader.
 -- This module never performs network requests and never stores account identity.
+-- The legacy cumulative checkpoint is diagnostic-only and must never gate
+-- upload; the events.jsonl stream is the raw fact source for offline rebuild.
 
 local SF6CCVersion = require("func/SF6CC_Version")
 
@@ -38,6 +40,10 @@ local state = {
     checkpoint_error = nil,
     identity_cache = setmetatable({}, { __mode = "k" })
 }
+
+local function checkpoint_enabled()
+    return rawget(_G, "CT_TELEMETRY_CHECKPOINT") == true
+end
 
 local function add32(...)
     local total = 0
@@ -348,7 +354,9 @@ local checkpoint_producer = Checkpoint.new({
     end
 })
 
-if type(sf6cc_atomic_file) == "table" and type(sf6cc_atomic_file.write) == "function" then
+if checkpoint_enabled()
+    and type(sf6cc_atomic_file) == "table"
+    and type(sf6cc_atomic_file.write) == "function" then
     pcall(checkpoint_producer.initialize, checkpoint_producer)
 end
 
@@ -423,7 +431,7 @@ function Telemetry.finish_attempt(outcome, context)
     }
 
     local pending_prepared = false
-    if attempt.source == "manual" then
+    if checkpoint_enabled() and attempt.source == "manual" then
         local call_ok, prepare_ok, should_commit_or_error = pcall(
             checkpoint_producer.prepare_event,
             checkpoint_producer,

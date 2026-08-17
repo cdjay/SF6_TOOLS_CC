@@ -1,5 +1,10 @@
 # Combo Telemetry Cumulative Checkpoint
 
+Telemetry upload is eventually consistent and must not require synchronous
+checkpoint durability on the SF6 realtime path. This producer is a
+legacy/diagnostic aid, not an upload prerequisite or production runtime
+requirement.
+
 SF6CC continues to append the unchanged anonymous legacy stream at:
 
 ```text
@@ -22,6 +27,20 @@ Its schema is `sf6cc.combo_attempt_checkpoint.v1`, keyed exactly by
 cumulative counters. Auto demonstrations never enter the pending journal or
 state. No checkpoint file contains raw input, replay, frame streams, failure
 details, paths, accounts, or machine identity.
+
+## Legacy / Diagnostic Runtime Opt-In
+
+The cumulative producer is opt-in at runtime and is not part of the normal
+upload path. Release defaults keep
+`CT_TELEMETRY_CHECKPOINT` disabled so forced write-through atomic file writes
+do not run on the game thread during combo training. The `events.jsonl` stream
+remains enabled and is the default external interface.
+
+Set `_G.CT_TELEMETRY_CHECKPOINT = true` before or during a session to opt in.
+The first manual terminal fact initializes the pending/state/checkpoint files;
+the flag must remain enabled for checkpoint commits to continue. Disabling it
+again stops further checkpoint writes without touching the legacy event
+stream.
 
 ## Durable Files
 
@@ -69,7 +88,7 @@ or unreadable durable files fail closed and preserve the last checkpoint.
 
 ## Commit Protocol
 
-For each manual terminal fact:
+When the cumulative producer is enabled, for each manual terminal fact:
 
 1. Atomically write the projected fact to `producer-pending-v1.json`.
 2. Attempt the unchanged legacy `events.jsonl` append and check the returned

@@ -4,6 +4,30 @@ SF6CC records anonymous combo-attempt outcomes for a future tray uploader. The
 Lua runtime does not access the network and does not store usernames, account
 IDs, authentication tokens, or full player inputs.
 
+## Realtime Path Contract
+
+Telemetry upload is eventually consistent and must not require synchronous
+checkpoint durability on the SF6 realtime path. The MOD is a raw event
+producer only: it appends facts cheaply to `events.jsonl` and returns to the
+game. Aggregation, Checkpoint rebuilding, upload offset, retry, and retention
+are Client/tray responsibilities.
+
+The legacy cumulative checkpoint is diagnostic-only, disabled by default, and
+must not be treated as an upload prerequisite. `events.jsonl` carries the
+fields needed to rebuild it offline: `event_id` for idempotence,
+`occurred_at`/`started_at` timestamps, combo identity (`revision_hash`,
+`combo_id`, character, title, `sequence_length`, `declared_control`), runtime
+dimensions (`player_control`, `position_side`, `source`, `projection`,
+`position_mode`, `demo_kind`, `sf6cc_version`), and terminal `result.outcome`.
+
+## Client Responsibilities (Future)
+
+SF6CMFF Client must consume the raw `events.jsonl` spool without depending on
+MOD-generated checkpoint files. It owns offline aggregate/Checkpoint rebuild,
+upload offset, delayed and batched upload, retry, and retention. Uploads may
+happen minutes, days, or game sessions later and should prefer game idle or
+exited states.
+
 ## Runtime file
 
 Events are appended as UTF-8 JSON Lines to:

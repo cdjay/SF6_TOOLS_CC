@@ -412,12 +412,149 @@ end
 assert(#checkpoint_bytes <= Checkpoint._test.limits.max_file_bytes)
 assert(#pending_bytes <= Checkpoint._test.limits.max_pending_bytes)
 
+-- Raw event reconstruction: events.jsonl fields are sufficient for an offline
+-- Client to rebuild the cumulative counters without a runtime checkpoint.
+local function rebuild_from_raw_events(events)
+    local items = {}
+    local seen = {}
+    for _, event in ipairs(events) do
+        local event_id = event.event_id
+        if event_id and not seen[event_id] then
+            seen[event_id] = true
+            local runtime = event.runtime or {}
+            local result = event.result or {}
+            local outcome = result.outcome
+            if runtime.source == "manual" and (outcome == "success" or outcome == "fail") then
+                local key = event.combo.revision_hash .. "\0"
+                    .. runtime.player_control .. "\0"
+                    .. runtime.position_side
+                local item = items[key] or {
+                    revisionHash = event.combo.revision_hash,
+                    playerControl = runtime.player_control,
+                    positionSide = runtime.position_side,
+                    character = event.combo.character,
+                    title = event.combo.title,
+                    sequenceLength = event.combo.sequence_length,
+                    attempts = 0,
+                    successes = 0,
+                    lastPlayedAt = nil
+                }
+                item.attempts = item.attempts + 1
+                if outcome == "success" then item.successes = item.successes + 1 end
+                if event.occurred_at and (not item.lastPlayedAt or event.occurred_at > item.lastPlayedAt) then
+                    item.lastPlayedAt = event.occurred_at
+                end
+                items[key] = item
+            end
+        end
+    end
+    return items
+end
+
+local raw_events = {
+    {
+        event_id = "raw-1",
+        occurred_at = "2026-08-16T10:00:00Z",
+        combo = {
+            revision_hash = "hashed-combo", character = "Ryu", title = "Raw",
+            sequence_length = 3
+        },
+        runtime = { source = "manual", player_control = "classic", position_side = "p1" },
+        result = { outcome = "success" }
+    },
+    {
+        event_id = "raw-2",
+        occurred_at = "2026-08-16T10:01:00Z",
+        combo = {
+            revision_hash = "hashed-combo", character = "Ryu", title = "Raw",
+            sequence_length = 3
+        },
+        runtime = { source = "manual", player_control = "classic", position_side = "p1" },
+        result = { outcome = "fail" }
+    },
+    {
+        event_id = "raw-3",
+        occurred_at = "2026-08-16T10:02:00Z",
+        combo = {
+            revision_hash = "hashed-combo", character = "Ryu", title = "Raw",
+            sequence_length = 3
+        },
+        runtime = { source = "auto_demo", player_control = "classic", position_side = "p1" },
+        result = { outcome = "fail" }
+    },
+    {
+        event_id = "raw-1",
+        occurred_at = "2026-08-16T10:03:00Z",
+        combo = {
+            revision_hash = "hashed-combo", character = "Ryu", title = "Raw",
+            sequence_length = 3
+        },
+        runtime = { source = "manual", player_control = "classic", position_side = "p1" },
+        result = { outcome = "success" }
+    }
+}
+local rebuilt_items = rebuild_from_raw_events(raw_events)
+local rebuilt_item = rebuilt_items["hashed-combo\0classic\0p1"]
+assert(rebuilt_item ~= nil, "raw event rebuild must produce the cumulative key")
+assert(rebuilt_item.attempts == 2 and rebuilt_item.successes == 1,
+    "raw event rebuild must count manual facts and outcomes deterministically")
+assert(rebuilt_item.lastPlayedAt == "2026-08-16T10:01:00Z",
+    "raw event rebuild must take the latest manual timestamp")
+assert(rebuilt_item.character == "Ryu" and rebuilt_item.sequenceLength == 3,
+    "raw event rebuild must preserve identity display fields")
+
+-- Telemetry default gate: release defaults must keep checkpoint writes off.
+_G.CT_TELEMETRY_CHECKPOINT = false
+package.loaded["func/ComboTrials/Telemetry"] = nil
+local disabled_files = {}
+local disabled_events = ""
+local original_open = io.open
+fs = {
+    create_dir = function() return true end,
+    read = function(path) return disabled_files[path] end
+}
+json = { load_string = function() error("default gate does not restart state") end }
+sf6cc_atomic_file = {
+    random_epoch = function() return "fedcba9876543210fedcba9876543210" end,
+    probe = function(path) return disabled_files[path] ~= nil and "exists" or "missing" end,
+    write = function(path, bytes) disabled_files[path] = bytes return true end
+}
+io.open = function(path, mode)
+    assert(path:find("events.jsonl", 1, true) and mode == "ab", "legacy output path changed")
+    return {
+        write = function(self, ...)
+            disabled_events = disabled_events .. table.concat({ ... })
+            return self
+        end,
+        flush = function() return true end,
+        close = function() return true end
+    }
+end
+local DisabledTelemetry = require("func/ComboTrials/Telemetry")
+local disabled_context = {
+    sequence = { { action_id = 100, _xt_meta = { character = "ryu", combo_id = "default.gate" } } },
+    character = "ryu", declared_control = "classic", player_control = "classic",
+    position_side = "p1", source = "manual", engine_frame = 100
+}
+DisabledTelemetry.begin_attempt(disabled_context)
+assert(DisabledTelemetry.finish_attempt("success", { engine_frame = 120 }))
+local disabled_producer = DisabledTelemetry.get_checkpoint_producer()
+assert(disabled_producer.state == nil, "default gate must not initialize checkpoint")
+assert(disabled_files[Checkpoint.OUTPUT_FILE] == nil
+    and disabled_files[Checkpoint.STATE_FILE] == nil
+    and disabled_files[Checkpoint.PENDING_FILE] == nil,
+    "default gate must not create checkpoint files")
+assert(disabled_events:find('"outcome":"success"', 1, true),
+    "default gate must keep the legacy event stream")
+io.open = original_open
+_G.CT_TELEMETRY_CHECKPOINT = nil
+
 -- Telemetry integration: exact legacy schema and checked write/flush/close returns.
+_G.CT_TELEMETRY_CHECKPOINT = true
 package.loaded["func/ComboTrials/Telemetry"] = nil
 local integration_files = {}
 local integration_events = ""
 local io_failure
-local original_open = io.open
 fs = {
     create_dir = function() return true end,
     read = function(path) return integration_files[path] end
@@ -499,5 +636,6 @@ end
 io_failure = nil
 assert(integration_producer.state.checkpointSequence == auto_sequence + 3)
 io.open = original_open
+_G.CT_TELEMETRY_CHECKPOINT = nil
 
 print("combo attempt checkpoint tests passed")
