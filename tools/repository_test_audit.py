@@ -529,7 +529,7 @@ def scan_archives(root: Path) -> dict:
     }
 
 
-def validate_frozen_manifest(repo: Path, frozen_root: Path) -> dict:
+def validate_frozen_manifest(repo: Path, frozen_root: Path, archive_root: Path | None = None) -> dict:
     manifest_path = repo / "docs" / "backup" / "SF6CC_VALIDATED_COMBO_BACKUP_2026-08-06_V1.manifest.json"
     if not manifest_path.exists():
         return {"status": "MANIFEST_MISSING"}
@@ -561,7 +561,10 @@ def validate_frozen_manifest(repo: Path, frozen_root: Path) -> dict:
         verified += 1
     loose_source_status = "PASS" if not failures and verified == manifest.get("combo_count") else "FAIL"
     archive_declaration = manifest.get("archive", {})
-    archive_matches = list(frozen_root.parent.rglob(archive_declaration.get("filename", "__missing__")))
+    archive_search_root = archive_root if archive_root is not None else frozen_root.parent
+    archive_matches = list(archive_search_root.rglob(
+        archive_declaration.get("filename", "__missing__")
+    )) if archive_search_root.exists() else []
     archive_status = "UNAVAILABLE"
     archive_verification = None
     if archive_matches:
@@ -632,6 +635,7 @@ def main() -> None:
             r"D:\Program Files (x86)\Steam\steamapps\common\Street Fighter 6\reframework\data\TrainingComboTrials_data\CustomCombos"
         ),
     )
+    parser.add_argument("--archive-root", type=Path)
     parser.add_argument("--audit-date", default=date.today().isoformat())
     parser.add_argument("--run-tests", action="store_true")
     parser.add_argument("--output", type=Path, required=True)
@@ -656,6 +660,7 @@ def main() -> None:
             "platform": os.name,
             "backup_root": str(args.backup_root),
             "game_combo_root": str(args.game_combo_root),
+            "archive_root": None if args.archive_root is None else str(args.archive_root),
         },
         "test_inventory": {
             "count": len(inventory),
@@ -668,7 +673,9 @@ def main() -> None:
             "frozen_0803_loose": frozen_corpus,
             "all_tester_packages_loose": backup_loose,
             "all_tester_packages_archives": archive_corpus,
-            "frozen_manifest_validation": validate_frozen_manifest(root, frozen_root),
+            "frozen_manifest_validation": validate_frozen_manifest(
+                root, frozen_root, args.archive_root
+            ),
         },
         "limitations": [
             "Phase one inventories corpus identity and structural properties but does not execute production consumers over the corpus.",

@@ -75,7 +75,7 @@ be lost when inventory reports are regenerated:
 | Asset | Current decision |
 | --- | --- |
 | `plugins/reframework-imgui-texture.dll` | Active generated Runtime asset. Keep it with `native/reframework-imgui-texture/`; source inputs support a partial rebuild, not a byte-identical toolchain guarantee. |
-| `plugins/reframework-sf6cc-atomic-file.dll` | Active restricted telemetry bridge. Keep it with its native source and fixed-path allowlist contract; it is not a general filesystem API. |
+| `plugins/reframework-sf6cc-atomic-file.dll` | Active restricted Runtime JSON bridge for cumulative telemetry and combo-feedback outbox publication. Keep it with its native source and fixed-path allowlist contract; it is not a general filesystem API. |
 | `data/reframework-d2d.json`, `plugins/reframework-d2d.dll` | `INVESTIGATE`. Both remain tracked but are excluded by the standard packager. Do not delete or restore release inclusion without a dependency review. |
 | `plugins/script_whitelist.dll` | `INVESTIGATE`. It remains tracked and packaged. Do not delete or replace it until provenance, security role, and required Runtime behavior are reviewed. |
 | `autorun/SF6CC_DynamicRecords.lua` | Shipped diagnostic/authoring behavior only; it is not action-semantic authority. Changes to release exposure require an explicit product review. |

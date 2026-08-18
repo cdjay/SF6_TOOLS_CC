@@ -23,6 +23,8 @@ constexpr std::string_view k_state_path =
     "SF6_TrainingRemoteControl_data/ComboTrialTelemetry/producer-state-v1.json";
 constexpr std::string_view k_pending_path =
     "SF6_TrainingRemoteControl_data/ComboTrialTelemetry/producer-pending-v1.json";
+constexpr std::string_view k_feedback_outbox_path =
+    "SF6_TrainingRemoteControl_data/ComboFeedback/feedback-outbox-v1.json";
 
 std::string windows_error(const char* operation, DWORD code = GetLastError()) {
     char buffer[128]{};
@@ -65,8 +67,8 @@ std::optional<std::filesystem::path> allowed_target(
     std::string& error
 ) {
     if (relative != k_checkpoint_path && relative != k_state_path
-        && relative != k_pending_path) {
-        error = "path is not an allowed SF6CC telemetry file";
+        && relative != k_pending_path && relative != k_feedback_outbox_path) {
+        error = "path is not an allowed SF6CC data file";
         return std::nullopt;
     }
     std::string normalized{relative};
@@ -160,8 +162,9 @@ int lua_atomic_write(lua_State* state) {
 
     const std::string_view relative{path, path_size};
     const std::size_t maximum = relative == k_checkpoint_path ? 524288U
-        : (relative == k_pending_path ? 4096U : 1048576U);
-    if (content_size > maximum) return push_failure(state, "telemetry file exceeds native byte limit");
+        : (relative == k_pending_path ? 4096U
+            : (relative == k_feedback_outbox_path ? 262144U : 1048576U));
+    if (content_size > maximum) return push_failure(state, "SF6CC data file exceeds native byte limit");
 
     std::string error;
     auto target = allowed_target(relative, error);
@@ -207,13 +210,15 @@ int lua_random_epoch(lua_State* state) {
 void register_lua_api(lua_State* state) {
     if (state == nullptr) return;
     if (g_functions != nullptr && g_functions->lock_lua != nullptr) g_functions->lock_lua();
-    lua_createtable(state, 0, 3);
+    lua_createtable(state, 0, 4);
     lua_pushcclosure(state, lua_atomic_write, 0);
     lua_setfield(state, -2, "write");
     lua_pushcclosure(state, lua_probe, 0);
     lua_setfield(state, -2, "probe");
     lua_pushcclosure(state, lua_random_epoch, 0);
     lua_setfield(state, -2, "random_epoch");
+    lua_pushcclosure(state, lua_random_epoch, 0);
+    lua_setfield(state, -2, "random_id");
     lua_setglobal(state, "sf6cc_atomic_file");
     if (g_functions != nullptr && g_functions->unlock_lua != nullptr) g_functions->unlock_lua();
 }

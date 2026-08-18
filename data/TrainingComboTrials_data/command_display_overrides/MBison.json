@@ -19,8 +19,12 @@
     },
     "921": {
       "classic": "HK",
+      "commands": {
+        "simple": "强",
+        "motion": "强"
+      },
       "replace": true,
-      "evidence": "Revision 58 runtime audit bound a fresh HK press to MBison Action 921 during the verified aerial route"
+      "evidence": "Revision 58 runtime audit bound a fresh HK press to MBison Action 921 during the verified aerial route; four 2026-08-17 Modern recordings reproduce the same fresh 256 button mask, which the current MBison command table maps to 强"
     },
     "954": {
       "replace": true,

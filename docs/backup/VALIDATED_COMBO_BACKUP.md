@@ -64,7 +64,13 @@ SHA-256 of UTF-8 encoded concatenation of lines, where each line is canonical_pa
 
 ## Archive Location
 
-The archive is stored **outside the MOD worktree** in an external backup directory. It is not under `D:\CP\SF6CC\reframework` and will never be included in standard release packages.
+The archive is stored **outside the MOD worktree** in an external backup directory. The current local Primary is:
+
+```text
+D:\CP\SF6CC\archive\validated-combo-backups\SF6CC-Validated-Combo-Backup-2026-08-06-v1.zip
+```
+
+It is not under `D:\CP\SF6CC\reframework` and will never be included in standard release packages.
 
 ## Immutability
 

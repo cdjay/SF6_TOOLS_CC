@@ -113,9 +113,10 @@ conflicting pending file fails closed.
 
 ## Atomic Bridge
 
-`plugins/reframework-sf6cc-atomic-file.dll` accepts only the three fixed JSON
-paths above. Its tri-state probe classifies only Win32 file/path-not-found as
-`missing`; ACL, sharing, and other failures return errors.
+`plugins/reframework-sf6cc-atomic-file.dll` accepts the three fixed telemetry
+JSON paths above plus the separately documented fixed combo-feedback outbox.
+Its tri-state probe classifies only Win32 file/path-not-found as `missing`;
+ACL, sharing, and other failures return errors.
 
 Each write uses a unique same-directory temporary file, complete write,
 `FlushFileBuffers`, close, and `MoveFileExW` with replace-existing and

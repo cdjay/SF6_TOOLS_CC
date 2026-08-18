@@ -309,6 +309,53 @@ do
             and legacy_parry == "PARRY",
         "variant overrides must distinguish reused Action IDs by buttons and accept verified legacy recorded aliases")
 end
+do
+    local mbison_game_area_map, override_count, override_status =
+        command_display_overrides.merge({
+            _slim = true,
+            _followup_relations = {
+                {
+                    type = "followup",
+                    source_action_id = 918,
+                    target_action_id = 939,
+                },
+            },
+            ["910"] = {
+                classic = "[2]8+HK",
+                commands = { simple = "[2]8 + 强", motion = "[2]8 + 强" },
+                status = "strict_route",
+            },
+            ["918"] = {
+                classic = ">j.K",
+                commands = { simple = "空中 任意键", motion = "空中 任意键" },
+                status = "strict_route",
+            },
+            ["939"] = {
+                classic = ">j.P",
+                commands = { simple = "空中 任意键", motion = "空中 任意键" },
+                status = "strict_route",
+            },
+        }, "MBison", {
+            schema = "xt.command_display_overrides.v1",
+            character = "MBison",
+            entries = {
+                ["921"] = {
+                    classic = "HK",
+                    commands = { simple = "强", motion = "强" },
+                    replace = true,
+                    evidence = "four verified Modern game-area recordings",
+                },
+            },
+        })
+    assert(override_status == "loaded" and override_count == 1
+            and mbison_game_area_map["921"].classic == "HK"
+            and mbison_game_area_map["921"].commands.simple == "强"
+            and mbison_game_area_map["921"].commands.motion == "强"
+            and mbison_game_area_map["921"].metadata.control_support
+                == "classic_modern",
+        "M. Bison Action 921 must expose its verified HK input in both Modern command slots")
+    MBISON_GAME_AREA_MAP = mbison_game_area_map
+end
 local ingrid_catalog = {
     _slim = true,
     ["609"] = { classic = "HP", status = "route_unverified" },
@@ -1231,8 +1278,15 @@ end
 
 local semantic_block = assert(renderer_source:match(
     "(local function resolve_classic_common_semantic.-)\nbuild_slim_command_display_map = function"))
-assert(load(semantic_block .. "\n_G.resolve_classic_common_semantic = resolve_classic_common_semantic",
+assert(load(semantic_block
+        .. "\n_G.resolve_classic_common_semantic = resolve_classic_common_semantic"
+        .. "\n_G.merge_followup_display = merge_followup_display",
     "classic-common-semantic", "t", _G))()
+assert(merge_followup_display("空中 任意键", "空中 任意键") == "空中 任意键"
+        and merge_followup_display("空中 任意键", "任意键") == "空中 任意键 > 任意键"
+        and merge_followup_display("236+HP", "MP") == "236+HP > MP"
+        and merge_followup_display(" 强 ", "强") == "强",
+    "a followup whose display equals its source move must not duplicate the same command token")
 
 do
 local slim_map_block = assert(renderer_source:match(
@@ -1253,8 +1307,46 @@ assert(load(validation_block
         .. "\n_G.resolve_contextual_step_command_display = resolve_contextual_step_command_display"
         .. "\n_G.resolve_live_log_command_displays = resolve_live_log_command_displays"
         .. "\n_G.apply_presentation_context = apply_presentation_context"
+        .. "\n_G.setup_followup_child_sources = setup_followup_child_sources"
+        .. "\n_G.is_internal_bridge_candidate = is_internal_bridge_candidate"
+        .. "\n_G.compute_internal_bridge_suppressions = compute_internal_bridge_suppressions"
         .. "\n_G.validate_sequence_command_display = validate_sequence_command_display",
     "command-display-validation", "t", _G))()
+
+do
+    local bridge_map = {
+        _slim = true,
+        _followup_relations = {
+            { type = "followup", source_action_id = 918, target_action_id = 939 },
+        },
+        ["918"] = { classic = ">j.K", commands = { simple = "空中 任意键", motion = "空中 任意键" } },
+        ["921"] = {
+            classic = "HK",
+            commands = { simple = "强", motion = "强" },
+            metadata = { source = "command_display_override" },
+        },
+        ["939"] = { classic = ">j.P", commands = { simple = "空中 任意键", motion = "空中 任意键" } },
+    }
+    local suppressed = compute_internal_bridge_suppressions(
+        { { id = 910 }, { id = 918 }, { id = 921 }, { id = 939 } }, bridge_map)
+    assert(suppressed[3] == true and suppressed[2] == nil,
+        "a BCM-route-less step enveloped by a followup relation must be hidden as an internal bridge")
+    assert(setup_followup_child_sources(bridge_map)[939] == 918,
+        "followup child/source lookup must derive from the catalog relation")
+    local normal_map = {
+        _slim = true,
+        _followup_relations = {
+            { type = "followup", source_action_id = 918, target_action_id = 939 },
+        },
+        ["918"] = { commands = { simple = "空中 任意键" } },
+        ["921"] = { commands = { simple = "强" } },
+        ["939"] = { commands = { simple = "空中 任意键" } },
+    }
+    local not_suppressed = compute_internal_bridge_suppressions(
+        { { id = 918 }, { id = 921 }, { id = 939 } }, normal_map)
+    assert(not_suppressed[2] == nil,
+        "a normal catalog Action must not be hidden by the internal-bridge rule")
+end
 
 do
     local parser_block = assert(renderer_source:match(
@@ -2281,6 +2373,111 @@ assert(modern_validation.ok == false
         and modern_validation.unresolved_count == 1,
     "classic-to-modern projection must reject every step that would render an unresolved placeholder")
 
+resolve_modern_display_context = function()
+    return true, MBISON_GAME_AREA_MAP, "MBison", "loaded", false
+end
+for _, combo_name in ipairs({
+    "MBison_OKI_214_HP_3640_D2.7_SA0",
+    "MBison_OKI_214_HP_3870_D2.7_SA0",
+    "MBison_OKI_214_HP_3870_D2.4_SA0",
+    "MBison_OKI_214_LP_3560_D2_SA0",
+}) do
+    local validation = validate_sequence_command_display({
+        { id = 910, motion = "[2]8+HK", group_id = 1 },
+        { id = 918, motion = ">j.K", group_id = 1 },
+        { id = 921, motion = "HK", group_id = 2 },
+        { id = 939, motion = ">j.P", group_id = 2 },
+    })
+    assert(validation.ok == true
+            and validation.mode == "modern"
+            and validation.resolved_step_count == 3
+            and validation.suppressed_step_count == 1
+            and validation.unresolved_count == 0
+            and validation.visible_step_count == 3
+            and validation.visible_line_count == 1
+            and validation.steps[3].source_action_id == 921
+            and validation.steps[3].classification == "suppressed"
+            and validation.steps[4].source_action_id == 939
+            and validation.steps[4].classification == "resolved"
+            and validation.steps[4].display_motion == "空中 任意键",
+        "M. Bison game-area combo " .. combo_name
+            .. " must hide the BCM-route-less bridge 921 and chain followup 939 onto line 8")
+end
+
+do
+    -- Slim-map followup resolution must not depend on pairs() iteration order.
+    -- A child such as 939 (source 918) used to lose its display when the
+    -- unordered walk cleared the parent fields before the child was resolved
+    -- (two-pass computation is order-free). Include an unrelated action so the
+    -- hash layout differs from a bare pair, matching the live-game scenario.
+    local function followup_catalog_map()
+        local function direct(owner_id, display)
+            return {
+                display = display,
+                character = "MBison",
+                owner_action_id = owner_id,
+                source = "bcm_profile",
+                confidence = "direct_structural",
+                direct_evidence = true,
+                inheritance_evidence = false,
+                inheritance_reason = nil,
+                rebind_evidence = false,
+                rebind_reason = nil,
+                runtime_common_evidence = false,
+                runtime_common_reason = nil,
+                official_semantic_evidence = false,
+                official_semantic_reason = nil,
+                community_semantic_evidence = false,
+                community_semantic_reason = nil,
+                assist_combo_evidence = false,
+                assist_combo_reason = nil,
+                charge_context_evidence = false,
+                super_shortcut_direction_evidence = false,
+            }
+        end
+        return {
+            _meta = { character = "MBison" },
+            ["918"] = {
+                classic_command = { display = ">j.K", inputs = { ">j.K" } },
+                simple_command = { display = "空中 任意键", inputs = { "空中 任意键" } },
+                motion_command = { display = "空中 任意键", inputs = { "空中 任意键" } },
+                ownership = "direct",
+                routes = { direct(918, "空中 任意键") },
+            },
+            ["939"] = {
+                classic_command = { display = ">j.P", inputs = { ">j.P" } },
+                simple_command = { display = "空中 任意键", inputs = { "空中 任意键" } },
+                motion_command = { display = "空中 任意键", inputs = { "空中 任意键" } },
+                ownership = "direct",
+                relation = {
+                    type = "followup",
+                    source_action_id = 918,
+                    evidence = "capcom_official_followup_context_matches_source_move",
+                },
+                routes = { direct(939, "空中 任意键") },
+            },
+            ["921"] = {
+                classic_command = { display = "HK", inputs = { "HK" } },
+                simple_command = { display = "强", inputs = { "强" } },
+                motion_command = { display = "强", inputs = { "强" } },
+                ownership = "direct",
+                routes = { direct(921, "强") },
+            },
+        }
+    end
+    for _ = 1, 50 do
+        local slim = build_slim_command_display_map(followup_catalog_map())
+        local child = slim["939"]
+        local parent = slim["918"]
+        assert(type(parent.commands) == "table"
+                and parent.commands.motion == "空中 任意键",
+            "followup source 918 must keep a resolved command after slim build")
+        assert(type(child.commands) == "table"
+                and child.commands.motion == "空中 任意键",
+            "followup child 939 must resolve regardless of slim-map iteration order")
+    end
+end
+
 -- Renderer and audit must reject the same malformed display structures. These
 -- cases used to be truthy Lua values and could therefore pass runtime audit
 -- while the table rendered an unknown command (or silently reused saved text).
@@ -3185,6 +3382,10 @@ end
 do
     local mbison_override_source = read_all(
         "data/TrainingComboTrials_data/command_display_overrides/MBison.json")
+    local mbison_921_source = assert(mbison_override_source:match(
+        '"921"%s*:%s*(%b{})'))
+    local mbison_catalog_source = read_all(
+        "data/TrainingComboTrials_data/command_display/MBison.json")
     local mbison_exception_source = read_all(
         "data/TrainingComboTrials_data/exceptions/MBison.json")
     assert(mbison_override_source:find('"608"', 1, true)
@@ -3193,12 +3394,25 @@ do
             and mbison_override_source:find('"classic": "HK"', 1, true)
             and mbison_override_source:find('"653"', 1, true)
             and mbison_override_source:find('"classic": "3+HK"', 1, true)
+            and mbison_921_source:find('"simple": "强"', 1, true)
+            and mbison_921_source:find('"motion": "强"', 1, true)
             and mbison_override_source:find('"954"', 1, true)
             and mbison_override_source:find('"variants"', 1, true)
             and mbison_override_source:find('"974"', 1, true)
             and mbison_override_source:find('"recorded_motions"', 1, true)
             and mbison_override_source:find('"MP+MK"', 1, true),
-        "the shipped M. Bison overrides must preserve verified conditioned commands and legacy aliases")
+        "the shipped M. Bison overrides must resolve Action 921 in Modern mode and preserve verified conditioned commands and legacy aliases")
+    local mbison_918_source = assert(mbison_catalog_source:match(
+        '"918"%s*:%s*(%b{})'))
+    local mbison_939_source = assert(mbison_catalog_source:match(
+        '"939"%s*:%s*(%b{})'))
+    assert(mbison_918_source:find('"display": "空中 任意键"', 1, true)
+            and mbison_939_source:find('"display": "空中 任意键"', 1, true)
+            and mbison_939_source:find('"type": "followup"', 1, true)
+            and mbison_939_source:find('"source_action_id": 918', 1, true)
+            and merge_followup_display(
+                "空中 任意键", "空中 任意键") == "空中 任意键",
+        "M. Bison Action 939 is a followup of 918 with an identical air command; the display must not duplicate 任意键")
     assert(mbison_exception_source:find('"649"', 1, true)
             and mbison_exception_source:find(
                 '"transient_precursor_ids": "954"', 1, true),
@@ -3392,10 +3606,13 @@ assert(combo_imgui_source:find("trial_state._recording_preview_logs", 1, true)
         and combo_imgui_source:find("trial_state._recording_preview_sequence", 1, true),
     "recording UI must render ActionEvent-compiled live logs and trial steps")
 local combo_entry_source = read_all("autorun/TrainingComboTrials_v1.0.lua")
-assert(combo_entry_source:find('package.loaded["func/ComboTrials_ImGui"] = nil', 1, true)
-        and combo_entry_source:find('package.loaded["func/ComboTrials_ImGui"].clear_command_display_cache', 1, true)
+assert(combo_imgui_source:find("M.RENDERER_VERSION = 20260820", 1, true)
+        and combo_entry_source:find("REQUIRED_RENDERER_VERSION = 20260820", 1, true)
+        and combo_entry_source:find("cached_renderer.RENDERER_VERSION", 1, true)
+        and combo_entry_source:find('package.loaded["func/ComboTrials_ImGui"] = nil', 1, true)
+        and combo_entry_source:find("cached_renderer.clear_command_display_cache", 1, true)
         and not combo_entry_source:find("local cached_combo_trials_renderer", 1, true),
-    "the entry script must upgrade an already-cached legacy renderer exactly once")
+    "the entry script must reload the renderer when its module version changes and upgrade a legacy renderer exactly once")
 assert(combo_entry_source:find("ctx.refresh_recording_preview(session)", 1, true)
         and combo_entry_source:find("flush_recording_contacts = false", 1, true)
         and combo_entry_source:find("trial_state.sequence = compiled.steps", 1, true),

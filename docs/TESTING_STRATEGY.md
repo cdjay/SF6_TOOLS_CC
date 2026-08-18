@@ -46,17 +46,17 @@ directory, not to `docs/`.
 $tmp = Join-Path $env:TEMP ("sf6cc-gate-" + [guid]::NewGuid())
 New-Item -ItemType Directory -Force -Path $tmp | Out-Null
 
-python tools\repository_test_audit.py --repo-root . --audit-date (Get-Date -Format yyyy-MM-dd) --run-tests --output "$tmp\repository-test-audit.json"
+python tools\repository_test_audit.py --repo-root . --archive-root "D:\CP\SF6CC\archive" --audit-date (Get-Date -Format yyyy-MM-dd) --run-tests --output "$tmp\repository-test-audit.json"
 python tools\current_corpus_audit.py --repo-root . --corpus-root "D:\CP\SF6CC\reframework\release\tester_packages\0803" --output-dir "$tmp\current-corpus"
 python tools\historical_corpus_audit.py --repo-root . --backup-root "D:\CP\SF6CC\reframework\release\tester_packages" --output-dir "$tmp\historical-corpus"
 python tools\corpus_determinism_audit.py --repo-root . --backup-root "D:\CP\SF6CC\reframework\release\tester_packages" --output "$tmp\corpus-determinism.json"
 python tools\regression_mutation_audit.py --repo-root . --output "$tmp\regression-mutation.json"
 ```
 
-Expected baseline on August 16, 2026:
+Expected baseline on August 17, 2026:
 
-- Lua parse: `127 / 127`.
-- Test inventory: `70`; executable files: `69 / 69` pass.
+- Lua parse: `129 / 129`.
+- Test inventory: `71`; executable files: `70 / 70` pass.
 - Sealed oracle: `633 / 633` integrity pass.
 - Current corpus: `965 / 965`, normal and reverse, with zero roundtrip failures.
 - Historical corpus: `2,509 / 2,509` exact-unique roundtrip pass.

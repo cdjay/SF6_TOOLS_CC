@@ -1266,8 +1266,13 @@ ctx.on_combo_file_change = function(info)
     ctx.stop_demo_playback(reason, old_file, new_file, true)
 end
 
-if type(package.loaded["func/ComboTrials_ImGui"]) == "table"
-    and type(package.loaded["func/ComboTrials_ImGui"].clear_command_display_cache) ~= "function" then
+-- 渲染模块源码或指令表行为升级时必须同步递增 RENDERER_VERSION，防止 Reset
+-- Scripts 继续复用旧闭包和旧指令表缓存。
+local REQUIRED_RENDERER_VERSION = 20260820
+local cached_renderer = package.loaded["func/ComboTrials_ImGui"]
+if type(cached_renderer) ~= "table"
+    or cached_renderer.RENDERER_VERSION ~= REQUIRED_RENDERER_VERSION
+    or type(cached_renderer.clear_command_display_cache) ~= "function" then
     package.loaded["func/ComboTrials_ImGui"] = nil
 end
 ComboTrials_Renderer = require("func/ComboTrials_ImGui")

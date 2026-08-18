@@ -24,10 +24,15 @@ json = {
         if key == "community-upload" then
             return {
                 {
-                    _xt_meta = { title = titles[key], control_mode = "modern" },
+                    _xt_meta = {
+                        title = titles[key],
+                        author = "社区作者",
+                        control_mode = "modern",
+                    },
                     motion = "2+MP",
                     combo_stats = { damage = 3420, drive_used = 26750, super_used = 10000 },
                 },
+                { id = 900, motion = "236+MP", delay_from_prev = 12 },
             }
         end
         if key == "Ryu_COMBO_RAW_DR_3756_D1.1_SA1" then
@@ -113,6 +118,8 @@ assert(rows["社区投稿"].starter == "2+MP", "JSON starter must override a non
 assert(rows["社区投稿"].damage == "3420", "JSON damage must override a non-standard filename")
 assert(rows["社区投稿"].drive == "2.675", "JSON decimal drive must preserve significant precision")
 assert(rows["社区投稿"].energy == "1", "JSON super usage must override a non-standard filename")
+assert(rows["社区投稿"].author == "社区作者", "combo author must be exposed as a list column")
+assert(rows["社区投稿"].step_count == 2, "combo step count must use the normalized instruction sequence")
 
 local installed_trial_state = {}
 json.load_file = function()
@@ -181,6 +188,33 @@ assert(not centered_overlay_source:find("set_cursor_pos", 1, true),
     "centered combo text must not reposition the ImGui cursor")
 assert(ui_source:find('table_setup_column("能量", COMBO_COLUMN_FIXED, 72)', 1, true),
     "energy column is not wide enough for its header and values")
+assert(ui_source:find('table_setup_column("作者"', 1, true), "author column is missing")
+assert(ui_source:find('table_setup_column("步数"', 1, true), "step-count column is missing")
+assert(ui_source:find('table_setup_column("反馈"', 1, true), "feedback column is missing")
+assert(ui_source:find('ComboFeedback.submit', 1, true), "feedback UI does not submit through the feedback producer")
+for _, category in ipairs({ "未识别ID", "检测错误", "演示错误", "其他" }) do
+    assert(ui_source:find(category, 1, true), "feedback category is missing: " .. category)
+end
+assert(ui_source:find("不支持中文输入", 1, true), "feedback text input must explain the IME limitation")
+assert(ui_source:find("imgui.input_text_multiline", 1, true),
+    "feedback description must use the supported multiline text binding")
+assert(ui_source:find('imgui.text("问题类型")', 1, true),
+    "feedback category label must be rendered above its control")
+assert(ui_source:find('"##ComboFeedbackCategory"', 1, true),
+    "feedback category control must use a hidden ImGui label")
+assert(ui_source:find('imgui.text("具体描述（可选）")', 1, true),
+    "feedback description label must be rendered above its control")
+assert(ui_source:find('"##ComboFeedbackDescription"', 1, true),
+    "feedback description control must use a hidden ImGui label")
+assert(ui_source:find("local FEEDBACK_WINDOW_FLAGS", 1, true)
+        and ui_source:find("(1 << 5)", 1, true),
+    "feedback window must disable title-bar collapsing")
+local frame_callback_pos = assert(ui_source:find("re.on_frame(function()", 1, true),
+    "combo UI frame callback is missing")
+assert(ui_source:find("draw_combo_feedback_window()", frame_callback_pos, true),
+    "feedback window must render from the standalone frame lifecycle")
+assert(not ui_source:find("re.on_draw_ui(draw_combo_feedback_window)", 1, true),
+    "feedback window must not depend on the REFramework script tree being expanded")
 assert(ui_source:find("local max_visible = 20", 1, true),
     "combo popup must show up to twenty rows")
 assert(ui_source:find("local needs_vertical_scroll = #items > max_visible", 1, true),
@@ -193,7 +227,7 @@ assert(not ui_source:find("selected == true", 1, true),
     "selected combo row must not use the menu-item checkmark")
 assert(ui_source:find("texture.draw_window", 1, true), "starter icons are not drawn in the popup window layer")
 assert(ui_source:find("renderer.parse_starter_icons", 1, true), "starter notation parser is not reused")
-for _, header in ipairs({ "C/完", "名称", "起手", "伤害", "斗气", "能量" }) do
+for _, header in ipairs({ "C/完", "名称", "作者", "步数", "起手", "伤害", "斗气", "能量", "反馈" }) do
     assert(ui_source:find('table_setup_column("' .. header .. '"', 1, true), "missing table column: " .. header)
 end
 assert(not ui_source:find("imgui.selectable", 1, true), "unsupported REFramework selectable binding was used")

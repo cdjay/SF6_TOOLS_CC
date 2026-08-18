@@ -14,6 +14,7 @@ local TrainingMenuRegistry = require("func/Training_MenuRegistry")
 local SharedUI = require("func/Training_SharedUI")
 local SceneState = require("func/ComboTrials/SceneState")
 local RawInputCodec = require("func/ComboTrials/RawInputCodec")
+local ComboFeedback = require("func/ComboTrials/ComboFeedback")
 
 local M = {}
 local ctx
@@ -102,9 +103,14 @@ local COMBO_TABLE_FLAGS = (1 << 3) | (1 << 4) | (1 << 6) | (1 << 7) | (1 << 9)
 local COMBO_TABLE_SCROLL_Y = 1 << 25
 local COMBO_COLUMN_FIXED = 1 << 4
 local COMBO_COLUMN_STRETCH = 1 << 3
+local COMBO_COLUMN_NO_SORT = 1 << 9
 local COMBO_SORT_ASCENDING = 1
 local COMBO_SORT_DESCENDING = 2
 local COMBO_STARTER_COLUMN_WIDTH = 140
+local COMBO_AUTHOR_COLUMN_WIDTH = 120
+local COMBO_STEP_COLUMN_WIDTH = 52
+local COMBO_FEEDBACK_COLUMN_WIDTH = 64
+local FEEDBACK_WINDOW_FLAGS = (1 << 1) | (1 << 2) | (1 << 3) | (1 << 5) | (1 << 8)
 local COMBO_TABLE_BG_TARGET_ROW = 1
 local COMBO_SELECTED_ROW_BG_COLOR = 0xCC802460
 local COMBO_TABLE_ROW_HEADERS = 1
@@ -115,6 +121,23 @@ local _combo_sort_cache = {
     column = nil,
     direction = nil,
     order = {},
+}
+local FEEDBACK_CATEGORIES = {
+    { code = "unrecognized_action_id", label = "未识别ID" },
+    { code = "detection_error", label = "检测错误" },
+    { code = "demo_error", label = "演示错误" },
+    { code = "other", label = "其他" },
+}
+local FEEDBACK_CATEGORY_LABELS = {}
+for index, item in ipairs(FEEDBACK_CATEGORIES) do
+    FEEDBACK_CATEGORY_LABELS[index] = item.label
+end
+local combo_feedback_state = {
+    visible = false,
+    info = nil,
+    category_index = 1,
+    description = "",
+    error = nil,
 }
 local _combo_starter_icon_files = {
     ["1"] = "1.png",
@@ -267,19 +290,128 @@ local function combo_sort_value(column, info, item)
 
     local key = nil
     if column == 1 then key = "name"
-    elseif column == 2 then key = "starter"
-    elseif column == 3 then key = "damage"
-    elseif column == 4 then key = "drive"
-    elseif column == 5 then key = "energy"
+    elseif column == 2 then key = "author"
+    elseif column == 3 then key = "step_count"
+    elseif column == 4 then key = "starter"
+    elseif column == 5 then key = "damage"
+    elseif column == 6 then key = "drive"
+    elseif column == 7 then key = "energy"
     end
 
     local value = type(info) == "table" and tostring(info[key] or "") or ""
     if value == "" then
         if column == 1 then return tostring(item or ""):lower(), false end
-        return nil, column >= 3
+        return nil, column == 3 or (column >= 5 and column <= 7)
     end
-    if column >= 3 then return tonumber(value), true end
+    if column == 3 or (column >= 5 and column <= 7) then return tonumber(value), true end
     return value:lower(), false
+end
+
+local function open_combo_feedback(info)
+    combo_feedback_state.visible = true
+    combo_feedback_state.info = info
+    combo_feedback_state.category_index = 1
+    combo_feedback_state.description = ""
+    combo_feedback_state.error = nil
+end
+
+local function combo_feedback_error_text(reason)
+    local messages = {
+        invalid_category = "请选择有效的问题类型。",
+        description_too_long = "描述过长，请控制在 1024 bytes 以内。",
+        combo_load_failed = "无法读取该连段文件。",
+        identity_failed = "无法生成该连段的稳定身份。",
+        outbox_full = "本地反馈队列已满，请先启动 Client 上传。",
+        invalid_outbox_schema = "本地反馈队列格式无效，已保留原文件。",
+        invalid_outbox_items = "本地反馈队列内容无效，已保留原文件。",
+        invalid_outbox_item = "本地反馈队列存在无效项目，已保留原文件。",
+        native_atomic_probe_unavailable = "原子文件插件不可用。",
+        native_atomic_write_unavailable = "原子文件插件不可用。",
+    }
+    return messages[tostring(reason)] or ("反馈保存失败：" .. tostring(reason or "unknown"))
+end
+
+local function draw_combo_feedback_window()
+    if combo_feedback_state.visible ~= true then return end
+    local info = combo_feedback_state.info
+    if type(info) ~= "table" then
+        combo_feedback_state.visible = false
+        return
+    end
+
+    local display = imgui.get_display_size()
+    local sw = display and display.x or 1920
+    local sh = display and display.y or 1080
+    local window_w = math.max(460, math.min(620, sw - 40))
+    local window_h = combo_feedback_state.error and 304 or 286
+    imgui.set_next_window_size(Vector2f.new(window_w, window_h), 1)
+    imgui.set_next_window_pos(Vector2f.new((sw - window_w) * 0.5, (sh - window_h) * 0.5), 1)
+
+    if imgui.begin_window("连段反馈##ComboFeedbackWindow", nil, FEEDBACK_WINDOW_FLAGS) then
+        imgui.text("连段：" .. combo_row_value(info, "name"))
+        imgui.text_colored(
+            "作者：" .. combo_row_value(info, "author")
+                .. "    步数：" .. combo_row_value(info, "step_count"),
+            0xFFBBBBBB
+        )
+        imgui.separator()
+
+        imgui.text("问题类型")
+        imgui.push_item_width(window_w - 32)
+        local changed_category, category_index = imgui.combo(
+            "##ComboFeedbackCategory",
+            combo_feedback_state.category_index,
+            FEEDBACK_CATEGORY_LABELS
+        )
+        if changed_category then combo_feedback_state.category_index = category_index end
+        imgui.pop_item_width()
+        imgui.text("具体描述（可选）")
+        local changed_description, description = imgui.input_text_multiline(
+            "##ComboFeedbackDescription",
+            combo_feedback_state.description,
+            Vector2f.new(window_w - 32, 76),
+            0
+        )
+        if changed_description then combo_feedback_state.description = description end
+        imgui.text_colored(
+            "不支持中文输入；如需中文描述，请在游戏外复制后粘贴。",
+            0xFF77BBFF
+        )
+
+        if combo_feedback_state.error then
+            imgui.text_colored(combo_feedback_state.error, 0xFF6666FF)
+        end
+
+        local button_cursor = imgui.get_cursor_pos()
+        imgui.set_cursor_pos(Vector2f.new(window_w - 244, button_cursor.y))
+        if imgui.button("提交反馈##ComboFeedbackSubmit", Vector2f.new(120, 0)) then
+            local category = FEEDBACK_CATEGORIES[combo_feedback_state.category_index]
+                or FEEDBACK_CATEGORIES[1]
+            local ok, result = ComboFeedback.submit({
+                file_path = info.filepath,
+                character = info.character,
+                declared_control = info.control_type,
+                display_step_count = info.step_count,
+                category = category.code,
+                description = combo_feedback_state.description,
+            })
+            if ok then
+                combo_feedback_state.visible = false
+                combo_feedback_state.info = nil
+                if _G.show_custom_ticker then
+                    _G.show_custom_ticker("反馈已保存，等待 Client 上传", 2.0)
+                end
+            else
+                combo_feedback_state.error = combo_feedback_error_text(result)
+            end
+        end
+        imgui.same_line()
+        if imgui.button("取消##ComboFeedbackCancel", Vector2f.new(100, 0)) then
+            combo_feedback_state.visible = false
+            combo_feedback_state.info = nil
+        end
+    end
+    imgui.end_window()
 end
 
 local function combo_table_sort_state()
@@ -367,7 +499,7 @@ local function combo_openable(label, current_idx, items, info_items, force_open,
     -- Reserve one additional line so short lists never hide their final row.
     local popup_h = ((visible_count + 2) * line_h) + 18
     local available_w = math.max(360, (ctx.cached_sw or 1920) - btn_screen_x - 16)
-    local popup_w = math.min(math.max(btn_width or 0, 920), available_w)
+    local popup_w = math.min(math.max(btn_width or 0, 1180), available_w)
 
     local should_open = force_open or clicked
     if should_open then
@@ -390,22 +522,28 @@ local function combo_openable(label, current_idx, items, info_items, force_open,
 
         local table_flags = COMBO_TABLE_FLAGS
         if needs_vertical_scroll then table_flags = table_flags | COMBO_TABLE_SCROLL_Y end
-        if imgui.begin_table("##ComboListTable" .. label, 6, table_flags, Vector2f.new(0, 0)) then
+        if imgui.begin_table("##ComboListTable" .. label, 9, table_flags, Vector2f.new(0, 0)) then
             imgui.table_setup_column("C/完", COMBO_COLUMN_FIXED, 58)
             imgui.table_setup_column("名称", COMBO_COLUMN_STRETCH, 1)
+            imgui.table_setup_column("作者", COMBO_COLUMN_FIXED, COMBO_AUTHOR_COLUMN_WIDTH)
+            imgui.table_setup_column("步数", COMBO_COLUMN_FIXED, COMBO_STEP_COLUMN_WIDTH)
             imgui.table_setup_column("起手", COMBO_COLUMN_FIXED, COMBO_STARTER_COLUMN_WIDTH)
             imgui.table_setup_column("伤害", COMBO_COLUMN_FIXED, 76)
             imgui.table_setup_column("斗气", COMBO_COLUMN_FIXED, 58)
             imgui.table_setup_column("能量", COMBO_COLUMN_FIXED, 72)
+            imgui.table_setup_column("反馈", COMBO_COLUMN_FIXED | COMBO_COLUMN_NO_SORT, COMBO_FEEDBACK_COLUMN_WIDTH)
             if needs_vertical_scroll then imgui.table_setup_scroll_freeze(0, 1) end
             imgui.table_next_row(COMBO_TABLE_ROW_HEADERS)
             for column_idx, header in ipairs({
                 { "C/完", true, 58 },
                 { "名称", false },
+                { "作者", false },
+                { "步数", true, COMBO_STEP_COLUMN_WIDTH },
                 { "起手", false },
                 { "伤害", true, 76 },
                 { "斗气", true, 58 },
                 { "能量", true, 72 },
+                { "反馈", true, COMBO_FEEDBACK_COLUMN_WIDTH },
             }) do
                 imgui.table_set_column_index(column_idx - 1)
                 combo_table_header(header[1], header[2], header[3])
@@ -435,6 +573,10 @@ local function combo_openable(label, current_idx, items, info_items, force_open,
                 imgui.table_next_column()
                 row_clicked = combo_table_cell(combo_row_value(info, "name"), row_id .. "Name", false, row_color, nil) or row_clicked
                 imgui.table_next_column()
+                row_clicked = combo_table_cell(combo_row_value(info, "author"), row_id .. "Author", false, row_color, COMBO_AUTHOR_COLUMN_WIDTH) or row_clicked
+                imgui.table_next_column()
+                row_clicked = combo_table_cell(combo_row_value(info, "step_count"), row_id .. "Steps", true, row_color, COMBO_STEP_COLUMN_WIDTH) or row_clicked
+                imgui.table_next_column()
                 row_clicked = combo_starter_cell(info, row_id .. "Starter", row_color, line_h) or row_clicked
                 imgui.table_next_column()
                 row_clicked = combo_table_cell(combo_row_value(info, "damage"), row_id .. "Damage", true, row_color, 76) or row_clicked
@@ -442,6 +584,11 @@ local function combo_openable(label, current_idx, items, info_items, force_open,
                 row_clicked = combo_table_cell(combo_row_value(info, "drive"), row_id .. "Drive", true, row_color, 58) or row_clicked
                 imgui.table_next_column()
                 row_clicked = combo_table_cell(combo_row_value(info, "energy"), row_id .. "Energy", true, row_color, 72) or row_clicked
+                imgui.table_next_column()
+                if imgui.button("反馈##" .. row_id, Vector2f.new(COMBO_FEEDBACK_COLUMN_WIDTH - 8, 0)) then
+                    open_combo_feedback(info)
+                    if imgui.close_current_popup then pcall(imgui.close_current_popup) end
+                end
 
                 if row_clicked then
                     new_idx = i
@@ -1422,6 +1569,14 @@ local function _ctui_runtime_allowed()
 end
 
 re.on_frame(function()
+    if combo_feedback_state.visible == true then
+        if _ctui_scene_allowed() then
+            draw_combo_feedback_window()
+        else
+            combo_feedback_state.visible = false
+            combo_feedback_state.info = nil
+        end
+    end
     if d2d_cfg then
         SharedUI.set_floating_width_pct(d2d_cfg.bar_width_pct)
     end

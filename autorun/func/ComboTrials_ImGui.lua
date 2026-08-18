@@ -7,6 +7,7 @@ local sdk = sdk
 local imgui = imgui
 
 local M = {}
+M.RENDERER_VERSION = 20260820
 local RuntimeSafety = require("func/RuntimeSafety")
 local Canvas = require("func/ImGuiCanvas")
 local SequenceGrouping = require("func/ComboTrials/SequenceGrouping")
@@ -1770,11 +1771,27 @@ local function resolve_classic_common_semantic(entry, classic, motion, status)
     return classic
 end
 
+-- 派生指令拼接时，若前置与后续的显示文本完全相同，就只保留后续一项，
+-- 避免同一动作在同一行重复成“空中 任意键 > 空中 任意键”。
+local function merge_followup_display(parent, child)
+    local trimmed_parent = trim_string(parent)
+    local trimmed_child = trim_string(child)
+    if trimmed_child ~= "" and trimmed_parent == trimmed_child then
+        return trimmed_child
+    end
+    return parent .. " > " .. child
+end
+
 -- 指令映射包含大量生成期审计与路由证据。加载时先用完整数据完成严格校验和
 -- 路由解析，随后只保留运行时实际需要的 action id、显示文本与解析状态，避免
 -- 多个约 490KB 的角色表长期驻留并触发周期性 GC 卡顿。
 build_slim_command_display_map = function(loaded)
     local slim = { _slim = true }
+    local catalog_meta = type(loaded) == "table" and loaded._meta or nil
+    if type(catalog_meta) == "table"
+        and type(catalog_meta.followup_relations) == "table" then
+        slim._followup_relations = catalog_meta.followup_relations
+    end
     for action_id, entry in pairs(loaded) do
         if type(entry) == "table" and tostring(action_id):match("^%d+$") then
             local motion, status = get_modern_display_motion(loaded, { id = action_id })
@@ -1888,12 +1905,27 @@ build_slim_command_display_map = function(loaded)
             local parent = resolve(item.relation.source_action_id, slot, stack)
             stack[key] = nil
             if not parent then return nil end
-            return parent .. " > " .. local_motion
+            return merge_followup_display(parent, local_motion)
+        end
+        -- Compute followup-merged commands first without mutating entries.
+        -- Reading and clearing item fields inside one unordered pairs() walk
+        -- makes the result depend on iteration order: a child processed after
+        -- its parent would find the parent fields already cleared and lose its
+        -- followup display (e.g. MBison 918->939). Two passes are order-free.
+        local resolved_commands = {}
+        for action_id, item in pairs(slim) do
+            if tostring(action_id):match("^%d+$") and type(item) == "table" then
+                resolved_commands[action_id] = {
+                    simple = resolve(action_id, "simple", {}),
+                    manual = resolve(action_id, "motion", {}),
+                }
+            end
         end
         for action_id, item in pairs(slim) do
             if tostring(action_id):match("^%d+$") and type(item) == "table" then
-                local simple = resolve(action_id, "simple", {})
-                local manual = resolve(action_id, "motion", {})
+                local computed = resolved_commands[action_id]
+                local simple = computed.simple
+                local manual = computed.manual
                 if simple or manual then
                     item.commands = {
                         simple = simple or manual,
@@ -2421,6 +2453,66 @@ end
 -- trial table would render. `unresolved` contains only steps that would receive
 -- the localized unresolved placeholder. A missing/invalid command map is also
 -- fail-closed through `ok=false`, but remains distinct in `map_status`; in
+-- AC/BCM 派生关系被精简进指令表后，用于在显示层把真实续招接续到前置动作所在
+-- 的行，并识别夹在其中的无 BCM 路由内部执行阶段（例如 918→921→939，921 无
+-- 独立按键路由）。这些决定只影响显示与指令完整性审计，不改变 Action 检测。
+local function setup_followup_child_sources(command_map)
+    local child_source = {}
+    local relations = type(command_map) == "table"
+        and command_map._followup_relations or nil
+    if type(relations) == "table" then
+        for _, relation in ipairs(relations) do
+            if type(relation) == "table" and tostring(relation.type or "") == "followup" then
+                local child = tonumber(relation.target_action_id)
+                local source = tonumber(relation.source_action_id)
+                if child ~= nil and source ~= nil then
+                    child_source[child] = source
+                end
+            end
+        end
+    end
+    return child_source
+end
+
+local function is_internal_bridge_candidate(command_map, step)
+    if type(command_map) ~= "table" or type(step) ~= "table" then return false end
+    local entry = command_map[tostring(step.id or "")]
+    if type(entry) ~= "table" then
+        -- 目录里没有这条 Action：AC/BCM 没有给它独立按键路由。
+        return true
+    end
+    -- 覆盖型指令只源于运行时观测，不属于生成图的 BCM 按键路由；它只有在被
+    -- 派生前后夹住时才按内部执行阶段隐藏，避免伪装成一次真实输入。
+    local metadata = type(entry.metadata) == "table" and entry.metadata or nil
+    return type(metadata) == "table"
+        and tostring(metadata.source or "") == "command_display_override"
+end
+
+local function compute_internal_bridge_suppressions(sequence, command_map)
+    local suppress = {}
+    if type(sequence) ~= "table" then return suppress end
+    local child_source = setup_followup_child_sources(command_map)
+    local n = #sequence
+    local i = 1
+    while i <= n do
+        if not is_internal_bridge_candidate(command_map, sequence[i]) then
+            i = i + 1
+        else
+            local run_start = i
+            while i <= n and is_internal_bridge_candidate(command_map, sequence[i]) do
+                i = i + 1
+            end
+            local run_end = i - 1
+            local prev_id = run_start > 1 and tonumber(sequence[run_start - 1].id) or nil
+            local next_id = run_end < n and tonumber(sequence[run_end + 1].id) or nil
+            if prev_id ~= nil and next_id ~= nil and child_source[next_id] == prev_id then
+                for j = run_start, run_end do suppress[j] = true end
+            end
+        end
+    end
+    return suppress
+end
+
 -- classic mode the renderer preserves recorded text instead of manufacturing a
 -- placeholder when the whole map is unavailable.
 local function validate_sequence_command_display(sequence)
@@ -2472,15 +2564,33 @@ local function validate_sequence_command_display(sequence)
     local previous_effective_owner_id = nil
     local previous_visible_group_key = nil
     local display_language = sequence_display_language(sequence)
+    local suppress_map = compute_internal_bridge_suppressions(sequence, command_map)
+    local child_source = setup_followup_child_sources(command_map)
+    local last_visible_action_id = nil
     for index, step in ipairs(sequence) do
         local resolution
-        resolution, previous_effective_owner_id =
-            resolve_contextual_step_command_display(
-                command_map,
-                step,
-                is_modern,
-                previous_effective_owner_id
-            )
+        if suppress_map[index] then
+            resolution = {
+                motion = nil,
+                raw_motion = nil,
+                route_status = "suppressed_internal_bridge",
+                catalog_route_status = nil,
+                failure_status = nil,
+                suppressed = true,
+                unresolved = false,
+                effective_action_id = tonumber(step.id),
+                projected_action_id = nil,
+                metadata = nil,
+            }
+        else
+            resolution, previous_effective_owner_id =
+                resolve_contextual_step_command_display(
+                    command_map,
+                    step,
+                    is_modern,
+                    previous_effective_owner_id
+                )
+        end
         local classification = nil
         local display_motion = nil
         if resolution.suppressed then
@@ -2550,11 +2660,16 @@ local function validate_sequence_command_display(sequence)
         local visible_line_index = nil
         if visible then
             result.visible_step_count = result.visible_step_count + 1
-            if previous_visible_group_key ~= group_key then
+            local effective_action = resolution.effective_action_id
+            local chain_followup = last_visible_action_id ~= nil
+                and effective_action ~= nil
+                and child_source[effective_action] == last_visible_action_id
+            if previous_visible_group_key ~= group_key and not chain_followup then
                 result.visible_line_count = result.visible_line_count + 1
             end
             previous_visible_group_key = group_key
             visible_line_index = result.visible_line_count
+            last_visible_action_id = effective_action
         end
         result.steps[#result.steps + 1] = {
             index = index,
@@ -2609,7 +2724,11 @@ local function build_display_lines(sequence)
 
     local previous_effective_owner_id = nil
     local display_language = sequence_display_language(sequence)
+    local suppress_map = compute_internal_bridge_suppressions(sequence, modern_map)
+    local child_source = setup_followup_child_sources(modern_map)
+    local last_placed_action_id = nil
     for i, raw_step in ipairs(sequence) do
+        if not suppress_map[i] then
         local step = raw_step
         local include_step = true
         local modern_unavailable = false
@@ -2662,7 +2781,12 @@ local function build_display_lines(sequence)
             local gid = step.group_id or i
             local separate_line = type(presentation_context) == "table"
                 and presentation_context.separate_line == true
-            if #lines == 0 or lines[#lines].group_id ~= gid or separate_line then
+            local cur_action = resolution.effective_action_id
+            local chain_followup = last_placed_action_id ~= nil
+                and cur_action ~= nil
+                and child_source[cur_action] == last_placed_action_id
+            local same_group = #lines > 0 and lines[#lines].group_id == gid
+            if #lines == 0 or (not same_group and not chain_followup) or separate_line then
                 table.insert(lines, {
                     group_id = gid,
                     first = i,
@@ -2675,6 +2799,8 @@ local function build_display_lines(sequence)
                 table.insert(lines[#lines].steps, step)
                 lines[#lines].modern_unavailable = lines[#lines].modern_unavailable or modern_unavailable
             end
+            last_placed_action_id = resolution.effective_action_id
+        end
         end
     end
     return lines, classic_modern_projection == true

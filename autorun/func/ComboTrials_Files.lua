@@ -402,11 +402,12 @@ local function combo_info_from_file(filepath, char_name)
         return sanitize_utf8_display(title)
     end
 
-    local xt_meta = sequence[1]._xt_meta
-    local xt_title = type(xt_meta) == "table" and clean_title(xt_meta.title) or nil
+    local xt_meta = type(sequence[1]._xt_meta) == "table" and sequence[1]._xt_meta or nil
+    local xt_title = xt_meta and clean_title(xt_meta.title) or nil
 
-    local wtt_meta = sequence[1]._wtt_cn_meta
-    local wtt_title = type(wtt_meta) == "table" and clean_title(wtt_meta.title) or nil
+    local wtt_meta = type(sequence[1]._wtt_cn_meta) == "table" and sequence[1]._wtt_cn_meta or nil
+    local wtt_title = wtt_meta and clean_title(wtt_meta.title) or nil
+    local display_meta = xt_meta or wtt_meta or {}
 
     local title = xt_title or wtt_title or ""
     local fallback_name = fallback:gsub("%.[Jj][Ss][Oo][Nn]$", "")
@@ -420,6 +421,9 @@ local function combo_info_from_file(filepath, char_name)
         damage = columns.damage,
         drive = columns.drive,
         energy = columns.energy,
+        author = clean_title(display_meta.author) or "不明",
+        step_count = #presentation_sequence,
+        character = clean_title(display_meta.character) or clean_title(char_name) or "Unknown",
         control_type = control_type,
         filepath = filepath,
     }, nil, control_type
