@@ -7164,6 +7164,94 @@
         ]
       }
     ],
+    "assist_combo_chain_count": 3,
+    "assist_combo_chains": [
+      {
+        "strength": "弱",
+        "steps": [
+          {
+            "position": 1,
+            "action_ids": [
+              623,
+              624
+            ]
+          },
+          {
+            "position": 2,
+            "action_ids": [
+              601
+            ]
+          },
+          {
+            "position": 3,
+            "action_ids": [
+              900
+            ]
+          }
+        ]
+      },
+      {
+        "strength": "中",
+        "steps": [
+          {
+            "position": 1,
+            "action_ids": [
+              618
+            ]
+          },
+          {
+            "position": 2,
+            "action_ids": [
+              977,
+              999
+            ]
+          },
+          {
+            "position": 3,
+            "action_ids": [
+              1205
+            ]
+          }
+        ]
+      },
+      {
+        "strength": "强",
+        "steps": [
+          {
+            "position": 1,
+            "action_ids": [
+              604
+            ]
+          },
+          {
+            "position": 2,
+            "action_ids": [
+              618
+            ]
+          },
+          {
+            "position": 3,
+            "action_ids": [
+              902,
+              906
+            ]
+          },
+          {
+            "position": 4,
+            "action_ids": [
+              1024,
+              1217
+            ]
+          },
+          {
+            "position": 5,
+            "action_ids": [
+              1217
+            ]
+          }
+        ]
+      }
+    ],
     "classic_projection_relations": [],
     "unresolved_candidate_count": 27,
     "unresolved_candidates": [
@@ -9105,6 +9193,7 @@
       "ac_command_phase_relation_count": 0,
       "assist_combo_candidate_count": 14,
       "assist_combo_relation_count": 1,
+      "assist_combo_chain_count": 3,
       "assist_combo_route_count": 1,
       "assist_combo_duplicate_display_count": 3,
       "assist_combo_normalized_to_existing_count": 10,

@@ -2063,7 +2063,8 @@ local function draw_combo_trials_menu_ui()
         imgui.text_colored("现代模式指令显示", COLORS.Orange)
         imgui.text_colored("简化：优先显示 SP、AUTO 等现代快捷输入。", COLORS.DarkGrey)
         imgui.text_colored("搓招：显示方向指令与攻击键输入。", COLORS.DarkGrey)
-        imgui.text_colored("可同时勾选；同时勾选即显示两套指令。“>”表示派生动作顺序。", COLORS.DarkGrey)
+        imgui.text_colored("AUTO连：把按住 AUTO 的连段折叠为 AUTO + [强>强>强]。", COLORS.DarkGrey)
+        imgui.text_colored("简化/搓招可叠加；“>”表示派生动作顺序。", COLORS.DarkGrey)
         local classic_support_changed, classic_support_checked = imgui.checkbox(
             "现代模式下显示经典连段",
             d2d_cfg.allow_classic_trials_in_modern == true
@@ -2078,25 +2079,18 @@ local function draw_combo_trials_menu_ui()
             end
         end
         local modern_mode = tostring(d2d_cfg.modern_display_mode or "simple")
-        local show_simple = modern_mode == "simple" or modern_mode == "all"
-        local show_motion = modern_mode == "motion" or modern_mode == "all"
+        local MODERN_MODE_LABELS = { "简化", "搓招", "AUTO连" }
+        local MODERN_MODE_KEYS = { "simple", "motion", "auto" }
+        local modern_mode_index = 1
+        for index, key in ipairs(MODERN_MODE_KEYS) do
+            if key == modern_mode then modern_mode_index = index end
+        end
         imgui.push_style_color(0, COLORS.Orange)
-        local simple_changed, simple_checked = imgui.checkbox("简化##ModernDisplaySimple", show_simple)
-        imgui.same_line()
-        local motion_changed, motion_checked = imgui.checkbox("搓招##ModernDisplayMotion", show_motion)
+        local mm_changed, mm_index =
+            imgui.combo("现代指令显示##ModernDisplayMode", modern_mode_index, MODERN_MODE_LABELS)
         imgui.pop_style_color(1)
-        if simple_changed or motion_changed then
-            -- Never allow both choices to be disabled: the last active choice stays checked.
-            if not simple_checked and not motion_checked then
-                if simple_changed then simple_checked = true else motion_checked = true end
-            end
-            if simple_checked and motion_checked then
-                d2d_cfg.modern_display_mode = "all"
-            elseif motion_checked then
-                d2d_cfg.modern_display_mode = "motion"
-            else
-                d2d_cfg.modern_display_mode = "simple"
-            end
+        if mm_changed and mm_index then
+            d2d_cfg.modern_display_mode = MODERN_MODE_KEYS[mm_index] or "simple"
             if ctx.save_d2d_config then ctx.save_d2d_config() end
         end
 

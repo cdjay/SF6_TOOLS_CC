@@ -3413,10 +3413,37 @@ do
             and merge_followup_display(
                 "空中 任意键", "空中 任意键") == "空中 任意键",
         "M. Bison Action 939 is a followup of 918 with an identical air command; the display must not duplicate 任意键")
+    local mbison_strong_steps = assert(mbison_catalog_source:match(
+        '"strength": "强"%s*,%s*"steps"%s*:%s*(%b[])'))
+    assert(mbison_catalog_source:find('"assist_combo_chains"', 1, true)
+            and mbison_catalog_source:find('"assist_combo_chain_count": 3', 1, true)
+            and mbison_strong_steps:find('604', 1, true)
+            and mbison_strong_steps:find('618', 1, true)
+            and mbison_strong_steps:find('902', 1, true)
+            and mbison_strong_steps:find('906', 1, true),
+        "the M. Bison catalog must declare the 强 AUTO-auto chain 604->618->906/902 for AUTO连 folding")
     assert(mbison_exception_source:find('"649"', 1, true)
             and mbison_exception_source:find(
                 '"transient_precursor_ids": "954"', 1, true),
         "the shipped M. Bison rules must preserve the verified 954-to-649 transient precursor")
+end
+do
+    local slim = build_slim_command_display_map({ _meta = {
+        character = "MBison",
+        assist_combo_chains = {
+            {
+                strength = "强",
+                steps = {
+                    { position = 1, action_ids = { 604 } },
+                    { position = 2, action_ids = { 618 } },
+                },
+            },
+        },
+    } })
+    assert(type(slim._assist_combo_chains) == "table"
+            and #slim._assist_combo_chains == 1
+            and slim._assist_combo_chains[1].strength == "强",
+        "slim command maps must carry assist-auto chains for AUTO连 folding")
 end
 local alex_override_source = read_all(
     "data/TrainingComboTrials_data/command_display_overrides/Alex.json")

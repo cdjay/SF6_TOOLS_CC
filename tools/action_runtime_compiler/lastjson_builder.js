@@ -188,6 +188,30 @@ function validateOutput(output, character, fighterId) {
                 throw new Error(`${character} 经典投影关系契约无效。`);
             }
         }
+        const chains = Array.isArray(meta.assist_combo_chains) ? meta.assist_combo_chains : [];
+        const chainCount = Number(meta.assist_combo_chain_count);
+        if (!Number.isInteger(chainCount) || chainCount !== chains.length
+            || Number(audit.assist_combo_chain_count) !== chainCount) {
+            throw new Error(`${character} AUTO连 链审计不一致。`);
+        }
+        for (const chain of chains) {
+            if (!chain || typeof chain.strength !== "string" || chain.strength.trim() === ""
+                || !Array.isArray(chain.steps) || chain.steps.length === 0) {
+                throw new Error(`${character} AUTO连 链结构无效。`);
+            }
+            let prior = null;
+            for (const step of chain.steps) {
+                const position = Number(step && step.position);
+                const actionIds = step && step.action_ids;
+                if (!Number.isInteger(position) || position < 1
+                    || (prior !== null && position <= prior)
+                    || !Array.isArray(actionIds) || actionIds.length === 0
+                    || actionIds.some(id => !Number.isInteger(Number(id)))) {
+                    throw new Error(`${character} AUTO连 链步骤无效。`);
+                }
+                prior = position;
+            }
+        }
     }
     return count;
 }

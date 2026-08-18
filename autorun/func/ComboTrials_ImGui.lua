@@ -509,6 +509,8 @@ local function load_command_display_map(character)
         and tonumber(audit.assist_combo_duplicate_display_count) or nil
     local assist_combo_normalized = type(audit) == "table"
         and tonumber(audit.assist_combo_normalized_to_existing_count) or nil
+    local assist_combo_chain_count = type(audit) == "table"
+        and tonumber(audit.assist_combo_chain_count) or nil
     local assist_combo_audit_ok = assist_combo_candidates ~= nil and assist_combo_relations ~= nil
         and assist_combo_routes ~= nil and assist_combo_duplicates ~= nil
         and assist_combo_normalized ~= nil
@@ -526,6 +528,49 @@ local function load_command_display_map(character)
         and tonumber(meta.assist_combo_normalized_to_existing_count) == assist_combo_normalized
         and type(meta.assist_combo_relations) == "table"
         and #meta.assist_combo_relations == assist_combo_relations
+    if assist_combo_audit_ok
+        and (assist_combo_chain_count ~= nil or meta.assist_combo_chains ~= nil) then
+        local chains = type(meta.assist_combo_chains) == "table"
+            and meta.assist_combo_chains or {}
+        local expected = assist_combo_chain_count
+            or (assist_combo_chain_count == nil and #chains) or nil
+        if expected == nil
+            or tonumber(meta.assist_combo_chain_count) ~= expected
+            or #chains ~= expected then
+            assist_combo_audit_ok = false
+        else
+            local seen_action_positions = {}
+            local valid = true
+            for _, chain in ipairs(chains) do
+                if type(chain) ~= "table"
+                    or type(chain.strength) ~= "string" or chain.strength == ""
+                    or type(chain.steps) ~= "table" or #chain.steps == 0 then
+                    valid = false
+                    break
+                end
+                local prior_position = nil
+                for _, step in ipairs(chain.steps) do
+                    local position = step ~= nil and tonumber(step.position) or nil
+                    local action_ids = type(step) == "table" and step.action_ids or nil
+                    if position == nil or position < 1
+                        or (prior_position ~= nil and position <= prior_position)
+                        or type(action_ids) ~= "table" or #action_ids == 0 then
+                        valid = false
+                        break
+                    end
+                    for _, action in ipairs(action_ids) do
+                        local aid = tonumber(action)
+                        if aid == nil then valid = false; break end
+                        seen_action_positions[aid] = true
+                    end
+                    if not valid then break end
+                    prior_position = position
+                end
+                if not valid then break end
+            end
+            assist_combo_audit_ok = assist_combo_audit_ok and valid
+        end
+    end
     local paired_sprt_sp_relations = type(audit) == "table"
         and tonumber(audit.paired_sprt_sp_relation_count) or nil
     local paired_sprt_sp_routes = type(audit) == "table"
@@ -1792,6 +1837,10 @@ build_slim_command_display_map = function(loaded)
         and type(catalog_meta.followup_relations) == "table" then
         slim._followup_relations = catalog_meta.followup_relations
     end
+    if type(catalog_meta) == "table"
+        and type(catalog_meta.assist_combo_chains) == "table" then
+        slim._assist_combo_chains = catalog_meta.assist_combo_chains
+    end
     for action_id, entry in pairs(loaded) do
         if type(entry) == "table" and tostring(action_id):match("^%d+$") then
             local motion, status = get_modern_display_motion(loaded, { id = action_id })
@@ -2727,6 +2776,100 @@ local function build_display_lines(sequence)
     local suppress_map = compute_internal_bridge_suppressions(sequence, modern_map)
     local child_source = setup_followup_child_sources(modern_map)
     local last_placed_action_id = nil
+    -- AUTO连(assist combo) chain collapsing: a maximal run of consecutive steps
+    -- that march through one assist-combo chain (position +1 each step) is
+    -- rendered as a single held-AUTO input such as AUTO + [强>强>强]. Prefix
+    -- termination is natural (only the steps actually present fold), and a
+    -- step may accept several action ids so resource-dependent terminal
+    -- variants stay on the same chain. Non-auto mode leaves every step as-is.
+    local auto_mode = false
+    do
+        local mode = ctx and ctx.d2d_cfg and ctx.d2d_cfg.modern_display_mode or "simple"
+        if type(mode) == "string" and mode:find("auto", 1, true) then
+            auto_mode = true
+        end
+    end
+    local auto_group = {}
+    local auto_strength_for_step = {}
+    if auto_mode and type(modern_map) == "table"
+        and type(modern_map._assist_combo_chains) == "table" then
+        local chain_position_for_action = {}
+        for chain_index, chain in ipairs(modern_map._assist_combo_chains) do
+            if type(chain) == "table" and type(chain.steps) == "table" then
+                for _, step in ipairs(chain.steps) do
+                    local position = type(step) == "table" and tonumber(step.position) or nil
+                    local action_ids = type(step) == "table" and step.action_ids or nil
+                    if position ~= nil and type(action_ids) == "table" then
+                        for _, action in ipairs(action_ids) do
+                            local aid = tonumber(action)
+                            if aid ~= nil then
+                                local bucket = chain_position_for_action[aid]
+                                if bucket == nil then
+                                    bucket = {}
+                                    chain_position_for_action[aid] = bucket
+                                end
+                                bucket[#bucket + 1] = {
+                                    chain_index = chain_index,
+                                    position = position,
+                                    strength = chain.strength,
+                                }
+                            end
+                        end
+                    end
+                end
+            end
+        end
+        local n = #sequence
+        local i = 1
+        local run_index = 0
+        while i <= n do
+            local step = sequence[i]
+            local candidates = step and chain_position_for_action[tonumber(step.id)] or nil
+            local base = nil
+            if type(candidates) == "table" then
+                for _, candidate in ipairs(candidates) do
+                    if candidate.position == 1 then base = candidate break end
+                end
+            end
+            if base == nil then
+                i = i + 1
+            else
+                local run_start = i
+                local run_end = i
+                local current_chain = base.chain_index
+                local current_position = 1
+                i = i + 1
+                while i <= n do
+                    local next_step = sequence[i]
+                    local next_group = next_step
+                        and chain_position_for_action[tonumber(next_step.id)] or nil
+                    local follow = nil
+                    if type(next_group) == "table" then
+                        for _, candidate in ipairs(next_group) do
+                            if candidate.chain_index == current_chain
+                                and candidate.position == current_position + 1 then
+                                follow = candidate
+                                break
+                            end
+                        end
+                    end
+                    if follow == nil then break end
+                    run_end = i
+                    current_position = follow.position
+                    i = i + 1
+                end
+                if run_end > run_start then
+                    run_index = run_index + 1
+                    local key = "assist_chain:" .. tostring(run_index)
+                    local strength = base.strength
+                    for j = run_start, run_end do
+                        auto_group[j] = key
+                        auto_strength_for_step[j] = strength
+                    end
+                end
+            end
+        end
+    end
     for i, raw_step in ipairs(sequence) do
         if not suppress_map[i] then
         local step = raw_step
@@ -2778,7 +2921,10 @@ local function build_display_lines(sequence)
             step._ct_counter_label_type = counter_policy
         end
         if include_step then
-            local gid = step.group_id or i
+            if auto_strength_for_step[i] ~= nil then
+                step._auto_chain_strength = auto_strength_for_step[i]
+            end
+            local gid = auto_group[i] or step.group_id or i
             local separate_line = type(presentation_context) == "table"
                 and presentation_context.separate_line == true
             local cur_action = resolution.effective_action_id
@@ -2808,6 +2954,44 @@ end
 
 local function merge_group_log_item(steps)
     local motions = {}
+
+    -- AUTO连 chain: the whole line is one held-AUTO input, so render it as a
+    -- single bracket group instead of the internal expansion.
+    local auto_strength = type(steps) == "table"
+        and steps[1] and steps[1]._auto_chain_strength or nil
+    if type(steps) == "table" and auto_strength ~= nil and #steps > 0 then
+        local parts = {}
+        for _ = 1, #steps do parts[#parts + 1] = tostring(auto_strength) end
+        local first = steps[1]
+        local last = steps[#steps]
+        local has_modern_display = false
+        local ui_result_text = nil
+        local ui_result_kind = nil
+        local counter_label_type = nil
+        for _, s in ipairs(steps) do
+            if s._ct_modern_display then has_modern_display = true end
+            if s.ui_result_text then
+                ui_result_text = s.ui_result_text
+                ui_result_kind = s.ui_result_kind
+            end
+            if s._ct_counter_label_type ~= nil then
+                counter_label_type = s._ct_counter_label_type
+            end
+        end
+        return {
+            motion = "AUTO + [" .. table.concat(parts, " > ") .. "]",
+            is_holdable = false,
+            expected_combo = last and last.expected_combo,
+            actual_combo = last and last.actual_combo,
+            has_hit = true,
+            combo_stats = first and first.combo_stats,
+            facing_left = first and first.facing_left,
+            _ct_modern_display = has_modern_display,
+            _ct_counter_label_type = counter_label_type,
+            ui_result_text = ui_result_text,
+            ui_result_kind = ui_result_kind,
+        }
+    end
 
     -- Count holdable steps
     local holdable_count = 0
@@ -3081,7 +3265,7 @@ local function parse_motion_to_icons(log_entry, trial_mode, should_flip, reverse
         -- A modern display can contain alternate routes separated by / or |.
         -- Treat those separators as token boundaries so the final button of
         -- the first route (for example `SP + 强/236236 + 弱`) becomes an icon.
-        local sep = "[%s%+%{%}/|]"
+        local sep = "[%s%+%{%}/|%[%]]"
         for _ = 1, 3 do
             local before = src
             src = src:gsub("^" .. token .. "$", repl)

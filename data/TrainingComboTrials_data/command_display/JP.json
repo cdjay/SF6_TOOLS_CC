@@ -9995,8 +9995,110 @@
       "followup_relation_count": 0,
       "command_slot_overflow_count": 0,
       "ac_automatic_transition_route_count": 0,
-      "replaces_profile_route_count": 0
+      "replaces_profile_route_count": 0,
+      "assist_combo_chain_count": 3
     },
-    "description": "JP unified Classic and Modern command projections generated from one verified AC ActionGraph, BCM profiles, runtime semantics, and Capcom command semantics."
+    "description": "JP unified Classic and Modern command projections generated from one verified AC ActionGraph, BCM profiles, runtime semantics, and Capcom command semantics.",
+    "assist_combo_chains": [
+      {
+        "strength": "弱",
+        "steps": [
+          {
+            "position": 1,
+            "action_ids": [
+              618,
+              620
+            ]
+          },
+          {
+            "position": 2,
+            "action_ids": [
+              602
+            ]
+          },
+          {
+            "position": 3,
+            "action_ids": [
+              900
+            ]
+          }
+        ]
+      },
+      {
+        "strength": "中",
+        "steps": [
+          {
+            "position": 1,
+            "action_ids": [
+              616
+            ]
+          },
+          {
+            "position": 2,
+            "action_ids": [
+              901,
+              904
+            ]
+          },
+          {
+            "position": 3,
+            "action_ids": [
+              958,
+              1211
+            ]
+          },
+          {
+            "position": 4,
+            "action_ids": [
+              640
+            ]
+          },
+          {
+            "position": 5,
+            "action_ids": [
+              917
+            ]
+          },
+          {
+            "position": 6,
+            "action_ids": [
+              901
+            ]
+          }
+        ]
+      },
+      {
+        "strength": "强",
+        "steps": [
+          {
+            "position": 1,
+            "action_ids": [
+              604
+            ]
+          },
+          {
+            "position": 2,
+            "action_ids": [
+              971,
+              977
+            ]
+          },
+          {
+            "position": 3,
+            "action_ids": [
+              958,
+              1235
+            ]
+          },
+          {
+            "position": 4,
+            "action_ids": [
+              1235
+            ]
+          }
+        ]
+      }
+    ],
+    "assist_combo_chain_count": 3
   }
 }

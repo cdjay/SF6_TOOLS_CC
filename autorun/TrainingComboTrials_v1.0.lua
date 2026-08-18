@@ -1110,10 +1110,14 @@ local function save_d2d_config()
 end
 load_d2d_config()
 d2d_cfg.show_combo_count = false
-if d2d_cfg.modern_display_mode ~= "simple"
-    and d2d_cfg.modern_display_mode ~= "motion"
-    and d2d_cfg.modern_display_mode ~= "all" then
-    d2d_cfg.modern_display_mode = "simple"
+do
+    local function valid_modern_display_mode(mode)
+        if type(mode) ~= "string" then return false end
+        return mode == "simple" or mode == "motion" or mode == "auto"
+    end
+    if not valid_modern_display_mode(d2d_cfg.modern_display_mode) then
+        d2d_cfg.modern_display_mode = "simple"
+    end
 end
 d2d_cfg.allow_classic_trials_in_modern = d2d_cfg.allow_classic_trials_in_modern == true
 

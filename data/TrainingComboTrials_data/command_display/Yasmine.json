@@ -15702,8 +15702,134 @@
       "followup_relation_count": 0,
       "command_slot_overflow_count": 0,
       "ac_automatic_transition_route_count": 0,
-      "replaces_profile_route_count": 0
+      "replaces_profile_route_count": 0,
+      "assist_combo_chain_count": 3
     },
-    "description": "Yasmine unified Classic and Modern command projections generated from one verified AC ActionGraph, BCM profiles, runtime semantics, and Capcom command semantics."
+    "description": "Yasmine unified Classic and Modern command projections generated from one verified AC ActionGraph, BCM profiles, runtime semantics, and Capcom command semantics.",
+    "assist_combo_chains": [
+      {
+        "strength": "弱",
+        "steps": [
+          {
+            "position": 1,
+            "action_ids": [
+              636,
+              637,
+              638
+            ]
+          },
+          {
+            "position": 2,
+            "action_ids": [
+              602,
+              604,
+              625
+            ]
+          },
+          {
+            "position": 3,
+            "action_ids": [
+              606,
+              928
+            ]
+          },
+          {
+            "position": 4,
+            "action_ids": [
+              929,
+              932
+            ]
+          },
+          {
+            "position": 5,
+            "action_ids": [
+              933
+            ]
+          }
+        ]
+      },
+      {
+        "strength": "中",
+        "steps": [
+          {
+            "position": 1,
+            "action_ids": [
+              628
+            ]
+          },
+          {
+            "position": 2,
+            "action_ids": [
+              932,
+              940
+            ]
+          },
+          {
+            "position": 3,
+            "action_ids": [
+              933,
+              941
+            ]
+          },
+          {
+            "position": 4,
+            "action_ids": [
+              1210
+            ]
+          },
+          {
+            "position": 5,
+            "action_ids": [
+              1057
+            ]
+          },
+          {
+            "position": 6,
+            "action_ids": [
+              612
+            ]
+          },
+          {
+            "position": 7,
+            "action_ids": [
+              986
+            ]
+          }
+        ]
+      },
+      {
+        "strength": "强",
+        "steps": [
+          {
+            "position": 1,
+            "action_ids": [
+              612
+            ]
+          },
+          {
+            "position": 2,
+            "action_ids": [
+              1053,
+              1062
+            ]
+          },
+          {
+            "position": 3,
+            "action_ids": [
+              612,
+              1214
+            ]
+          },
+          {
+            "position": 4,
+            "action_ids": [
+              986,
+              1214
+            ]
+          }
+        ]
+      }
+    ],
+    "assist_combo_chain_count": 3
   }
 }

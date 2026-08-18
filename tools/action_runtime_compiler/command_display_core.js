@@ -1412,6 +1412,51 @@ function assistComboRelations(bcmCatalog, actionSet) {
     return relations;
 }
 
+function assistComboChains(bcmCatalog, actionSet) {
+    // Rebuild AUTO连(assist combo) chains from the raw recipe steps. Each row is
+    // one action fired at a (strength, recipe, step) position, so grouping by
+    // strength and step yields the ordered chain. A strength may have several
+    // recipes that diverge at later positions (e.g. resource-dependent terminal
+    // supers); collecting the union of action ids per position keeps those
+    // variants on the same foldable chain.
+    const byStrength = new Map();
+    for (const row of bcmCatalog.assist_combo_recipes || []) {
+        const actionId = Number(row && row.action_id);
+        const strength = String(row && row.assist_strength || "");
+        const step = Number(row && row.step_index);
+        if (!Number.isInteger(actionId) || !actionSet.has(String(actionId))
+            || !["弱", "中", "强"].includes(strength)
+            || !Number.isInteger(step) || step < 0) continue;
+        let chain = byStrength.get(strength);
+        if (!chain) {
+            chain = { strength, steps: [] };
+            byStrength.set(strength, chain);
+        }
+        while (chain.steps.length < step + 1) chain.steps.push(null);
+        let position = chain.steps[step];
+        if (!position) {
+            position = { position: step + 1, action_ids: [] };
+            chain.steps[step] = position;
+        }
+        if (!position.action_ids.includes(actionId)) {
+            position.action_ids.push(actionId);
+        }
+    }
+    const chains = [...byStrength.values()];
+    const order = { "弱": 0, "中": 1, "强": 2 };
+    chains.sort((left, right) => order[left.strength] - order[right.strength]);
+    return chains.filter(chain => {
+        chain.steps = chain.steps.filter(Boolean);
+        return chain.steps.length >= 2
+            && chain.steps.every(step => {
+                const ids = step.action_ids.filter(
+                    id => Number.isInteger(id)).sort((a, b) => a - b);
+                step.action_ids = ids;
+                return ids.length > 0;
+            });
+    });
+}
+
 function assistComboRoute(character, relation) {
     const first = relation.occurrences[0];
     return {
@@ -3778,6 +3823,7 @@ function buildCommandDisplay(actionSource, bcmCatalog, runtime, supplement, opti
     // evidence already provides an Action entry, the Assist step reaches that
     // same Action but is not an additional move-command route for the UI.
     const assistComboCandidates = assistComboRelations(bcmCatalog, actionSet);
+    const assistComboChainList = assistComboChains(bcmCatalog, actionSet);
     const appliedAssistComboRelations = [];
     let assistComboDuplicateDisplayCount = 0;
     let assistComboNormalizedToExistingCount = 0;
@@ -4052,6 +4098,8 @@ function buildCommandDisplay(actionSource, bcmCatalog, runtime, supplement, opti
             ac_command_phase_relation_count: appliedCommandPhaseRelations.length,
             ac_command_phase_relations: appliedCommandPhaseRelations,
             assist_combo_relations: appliedAssistComboRelations,
+            assist_combo_chain_count: assistComboChainList.length,
+            assist_combo_chains: assistComboChainList,
             classic_projection_relations: classicProjectionRelations,
             unresolved_candidate_count: unresolvedCandidates.length,
             unresolved_candidates: unresolvedCandidates,
@@ -4115,6 +4163,7 @@ function buildCommandDisplay(actionSource, bcmCatalog, runtime, supplement, opti
                 ac_command_phase_relation_count: appliedCommandPhaseRelations.length,
                 assist_combo_candidate_count: assistComboCandidates.length,
                 assist_combo_relation_count: appliedAssistComboRelations.length,
+                assist_combo_chain_count: assistComboChainList.length,
                 assist_combo_route_count: assistComboRouteCount,
                 assist_combo_duplicate_display_count: assistComboDuplicateDisplayCount,
                 assist_combo_normalized_to_existing_count: assistComboNormalizedToExistingCount,
