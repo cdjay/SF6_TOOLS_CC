@@ -225,7 +225,10 @@ acbcm/<版本>/lastjson/<Character>.json
 - Function 3 只有 Classic `norm` 直连证据时，保留 `projection_scope: classic_only` 路线用于严格验证，但不生成 Modern 指令槽；
 - Function 1 只有 Classic `norm` 直连证据时使用同一条 Classic-only 验证规则；若 Action 同时出现在 Assist Combo recipe，Classic `norm` 与 Modern Assist route 并存，二者互不替代；
 - Function 2 在两类直接 BCM 证据下保留 Classic-only 验证路线：空中单一拳脚必须让 `norm`、按钮掩码、攻击类型位与 Classic 身份全部精确一致；地面命令必须拥有非空 BCM command 输入序列、攻击键与完全一致的 `norm`/Classic 身份，且没有可见 Modern 路线。无真实 command 的方向、移动与内部状态不使用该回退；
-- 无独立 BCM owner 的执行阶段只有在 AC 图满足精确零参数 Type 2+4 终止结构，或满足同核心结构的 Type 2 三段阶段链（共享 Type 13 出口的编号链或零参数终止链）时才标记为内部阶段并隐藏；Action ID 仍保留给检测和 V2 事实层；
+- 无独立 BCM owner 的执行阶段只有在 AC 图满足精确零参数 Type 2+4 终止结构、同核心结构的 Type 2 三段阶段链、多个直接 BCM owner 汇入同一零参数 Type 13 终止节点、多个直接空中普通技 owner 经 `Type 13 / Param00=1` 汇入同一落地阶段并经 `Type 20 / Param01=2` 退出，或唯一 Type 36 阶段经零参数 Type 13 退出到终止节点时，才标记为内部阶段并隐藏；落地阶段的额外来源只接受无 BCM owner 的精确 Type 5/54 配对；Action ID 仍保留给检测和 V2 事实层；
+- 无独立 BCM owner 的 Type 20 终止节点只有在与父 Action 核心结构一致，且 AC 完整列出弱/中/强三档拳选择时，才继承父 Action 的同一指令投影；
+- 无独立 BCM owner 的 Type 20 动作阶段还可在 AC 精确包含六条按键/阶段分支、父 Action 唯一 Type 0 同级出口、子 Action 唯一 Type 5 退出，并且父 Action 有直接 BCM、子 Action 无 BCM 时继承父指令；该规则只认完整结构，不依赖角色名、Fighter ID 或 Action ID；
+- 同时拥有直接 BCM 部署命令、且由多个同结构 BCM owner 通过精确 `Type 20 + Attr 288` 延迟关系汇入的 Action，标记为 `contextual_dual_role`；独立部署时正常显示，同组命中动作之后再次发生时强制另起一行，不修改 Action/V2/检测/回放；
 - `relation`：派生动作通过 `type: followup` 和 `source_action_id` 引用前置动作。
 - `type37_followup_execution_phase`：仅投影官网已确认派生动作的精确
   `Type 37 + Attr 64` 一对一执行阶段，保留实战实际发生的 Action ID。

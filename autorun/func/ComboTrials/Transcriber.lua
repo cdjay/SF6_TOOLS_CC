@@ -4,7 +4,7 @@
 local Transcriber = {
     name = "ComboTrials.Transcriber",
     REPORT_SCHEMA = "sf6cc.combo_transcription_report.v1",
-    VALIDATION_REVISION = 45,
+    VALIDATION_REVISION = 46,
     OUTPUT_ROOT = "TrainingComboTrials_data/TranscribedCandidates",
     REPORT_ROOT = "TrainingComboTrials_data/TranscriptionReports",
 }
@@ -114,6 +114,34 @@ end
 local function first_step(sequence)
     return type(sequence) == "table" and type(sequence[1]) == "table"
         and sequence[1] or {}
+end
+
+local function canonical_control_mode(meta)
+    meta = type(meta) == "table" and meta or {}
+    for _, key in ipairs({
+        "control_mode",
+        "control_type",
+        "timeline_input_profile",
+    }) do
+        local value = tostring(meta[key] or ""):lower()
+        if value == "classic" or value == "modern" or value == "unknown" then
+            return value
+        end
+    end
+    local input_type = tonumber(meta.input_type)
+    if input_type == 1 then return "modern" end
+    if input_type == 0 then return "classic" end
+    -- The frozen legacy family is Classic when it carries no control marker.
+    return "classic"
+end
+
+local function stamp_control_mode(meta)
+    local mode = canonical_control_mode(meta)
+    meta.control_mode = mode
+    meta.control_type = mode
+    meta.timeline_input_profile = mode
+    meta.input_type = mode == "modern" and 1
+        or (mode == "classic" and 0 or nil)
 end
 
 local function expected_outcome(sequence)
@@ -2572,6 +2600,7 @@ function Transcriber.build_candidate(source_sequence, compiled, version_info, no
     meta.updated_at = now
     if meta.created_at == nil then meta.created_at = now end
     meta.schema = tonumber(version_info and version_info.schema) or meta.schema or 2
+    stamp_control_mode(meta)
     meta.versions = type(meta.versions) == "table" and meta.versions or {}
     meta.versions.game = {
         id = game_id,

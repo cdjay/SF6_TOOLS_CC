@@ -1,5 +1,6 @@
 local M = {
     name = "ComboTrials.GeneratedActionRelations",
+    RUNTIME_VERSION = 2026082002,
     DIRECTORY = "TrainingComboTrials_data/command_display",
 }
 
@@ -16,11 +17,40 @@ local INTERNAL_TRANSITION_OWNERSHIP = {
     ac_type2_numbered_execution_phase = "internal_execution_phase",
     ac_type2_same_structure_execution_phase = "internal_execution_phase",
     ac_type2_type4_terminal_execution_phase = "internal_execution_phase",
+    ac_type13_terminal_execution_phase = "internal_execution_phase",
+    ac_type13_air_landing_execution_phase = "internal_execution_phase",
+    ac_type36_type13_execution_phase = "internal_execution_phase",
     ac_type37_automatic_execution_phase = "internal_execution_phase",
 }
 
 local TYPE37_AUTOMATIC_EXECUTION_REASON =
     "ac_type37_unique_automatic_execution_phase"
+local TYPE13_TERMINAL_EXECUTION_REASON =
+    "ac_type13_zero_parameter_multi_owner_terminal_execution_phase"
+local TYPE13_AIR_LANDING_EXECUTION_REASON =
+    "ac_type13_multi_owner_air_landing_execution_phase"
+local TYPE36_TYPE13_EXECUTION_REASON =
+    "ac_type36_zero_parameter_phase_with_type13_terminal_exit"
+local TYPE20_ACTION_PHASE_REASON =
+    "ac_type20_verified_multi_input_action_phase"
+local TYPE20_SIX_BRANCH_PHASE_REASON =
+    "ac_type20_verified_six_branch_action_phase"
+
+local TYPE20_ACTION_PHASE_SIGNATURES = {
+    ["0:8:0:1"] = true,
+    ["0:32:0:2"] = true,
+    ["0:8192:0:3"] = true,
+    ["1:8192:0:3"] = true,
+}
+
+local TYPE20_SIX_BRANCH_PHASE_SIGNATURES = {
+    ["0:5:1:16:0:3"] = true,
+    ["0:5:0:16:0:3"] = true,
+    ["0:5:0:256:0:2"] = true,
+    ["256:0:2:256:0:2"] = true,
+    ["0:5:0:64:0:1"] = true,
+    ["256:0:2:64:0:1"] = true,
+}
 
 local function character_key(value)
     return tostring(value or ""):gsub("[^%w_]", "")
@@ -41,6 +71,36 @@ local function strict_array(value)
         end
     end
     return count
+end
+
+local function sorted_unique_action_ids(value, minimum_count, forbidden)
+    local count = strict_array(value)
+    if count == nil or count < minimum_count then return nil end
+    local ids = {}
+    for index, item in ipairs(value) do
+        local action_id = integer(item)
+        if action_id == nil or forbidden and forbidden[action_id]
+            or (index > 1 and ids[index - 1] >= action_id) then
+            return nil
+        end
+        ids[index] = action_id
+    end
+    return ids
+end
+
+local function exact_execution_branch(value, branch_type, attr, param00)
+    return type(value) == "table"
+        and integer(value.branch_type) == branch_type
+        and integer(value.attr) == attr
+        and integer(value.action_frame) == 0
+        and integer(value.param00) == param00
+        and integer(value.param01) == 0
+        and integer(value.param02) == 0
+        and integer(value.param03) == 0
+        and integer(value.param04) == 0
+        and integer(value.param05) == 0
+        and integer(value.trigger_id) == nil
+        and tonumber(value.trigger_id) == -1
 end
 
 local function exact_string_array(value, expected)
@@ -344,6 +404,105 @@ local function read_internal_execution_phases(document, meta)
                 and fingerprint_fields[3] == "Projectile"
                 and fingerprint_fields[4] == "State"
                 and relation.reason == TYPE37_AUTOMATIC_EXECUTION_REASON
+        elseif type(relation) == "table"
+            and relation.kind == "ac_type13_terminal_execution_phase" then
+            local source_action_ids = relation.source_action_ids
+            relation_shape_ok = source_action_id == nil
+                and strict_array(source_action_ids) ~= nil
+                and #source_action_ids >= 2
+                and integer(relation.branch_type) == 13
+                and integer(relation.attr) == 0
+                and integer(relation.action_frame) == 0
+                and integer(relation.param00) == 0
+                and integer(relation.param01) == 0
+                and integer(relation.param02) == 0
+                and integer(relation.param03) == 0
+                and integer(relation.param04) == 0
+                and integer(relation.param05) == 0
+                and integer(relation.trigger_id) == nil
+                and tonumber(relation.trigger_id) == -1
+                and relation.reason == TYPE13_TERMINAL_EXECUTION_REASON
+            if relation_shape_ok then
+                for index, value in ipairs(source_action_ids) do
+                    local owner = integer(value)
+                    if owner == nil or owner == target_action_id
+                        or (index > 1 and integer(source_action_ids[index - 1]) >= owner) then
+                        relation_shape_ok = false
+                        break
+                    end
+                end
+            end
+        elseif type(relation) == "table"
+            and relation.kind == "ac_type13_air_landing_execution_phase" then
+            local exit_target_action_id = integer(relation.exit_target_action_id)
+            local forbidden = {}
+            if target_action_id ~= nil then forbidden[target_action_id] = true end
+            if exit_target_action_id ~= nil then forbidden[exit_target_action_id] = true end
+            local source_action_ids = sorted_unique_action_ids(
+                relation.source_action_ids, 2, forbidden)
+            local source_set = {}
+            if source_action_ids ~= nil then
+                for _, action_id in ipairs(source_action_ids) do
+                    source_set[action_id] = true
+                    forbidden[action_id] = true
+                end
+            end
+            local auxiliary_source_action_ids = sorted_unique_action_ids(
+                relation.auxiliary_source_action_ids, 0, forbidden)
+            local auxiliary_branches = relation.auxiliary_branches
+            relation_shape_ok = source_action_id == nil
+                and target_action_id ~= nil
+                and exit_target_action_id ~= nil
+                and target_action_id ~= exit_target_action_id
+                and source_action_ids ~= nil
+                and auxiliary_source_action_ids ~= nil
+                and integer(relation.branch_type) == 13
+                and integer(relation.attr) == 0
+                and integer(relation.action_frame) == 0
+                and integer(relation.param00) == 1
+                and integer(relation.param01) == 0
+                and integer(relation.param02) == 0
+                and integer(relation.param03) == 0
+                and integer(relation.param04) == 0
+                and integer(relation.param05) == 0
+                and integer(relation.trigger_id) == nil
+                and tonumber(relation.trigger_id) == -1
+                and integer(relation.exit_branch_type) == 20
+                and integer(relation.exit_attr) == 0
+                and integer(relation.exit_action_frame) == 0
+                and integer(relation.exit_param00) == 0
+                and integer(relation.exit_param01) == 2
+                and integer(relation.exit_param02) == 0
+                and integer(relation.exit_param03) == 0
+                and integer(relation.exit_param04) == 0
+                and integer(relation.exit_param05) == 0
+                and integer(relation.exit_trigger_id) == nil
+                and tonumber(relation.exit_trigger_id) == -1
+                and strict_array(auxiliary_branches) == 2
+                and exact_execution_branch(auxiliary_branches[1], 5, 256, 0)
+                and exact_execution_branch(auxiliary_branches[2], 54, 256, 160)
+                and relation.reason == TYPE13_AIR_LANDING_EXECUTION_REASON
+        elseif type(relation) == "table"
+            and relation.kind == "ac_type36_type13_execution_phase" then
+            local tail_action_id = integer(relation.tail_action_id)
+            relation_shape_ok = source_action_id ~= nil and target_action_id ~= nil
+                and tail_action_id ~= nil
+                and source_action_id ~= target_action_id
+                and source_action_id ~= tail_action_id
+                and target_action_id ~= tail_action_id
+                and integer(relation.branch_type) == 36
+                and integer(relation.exit_branch_type) == 13
+                and integer(relation.attr) == 0
+                and integer(relation.action_frame) == 0
+                and integer(relation.param00) == 0
+                and integer(relation.param01) == 0
+                and integer(relation.param02) == 0
+                and integer(relation.param03) == 0
+                and integer(relation.param04) == 0
+                and integer(relation.param05) == 0
+                and integer(relation.trigger_id) == nil
+                and tonumber(relation.trigger_id) == -1
+                and relation.reason == TYPE36_TYPE13_EXECUTION_REASON
         end
         if target_action_id == nil
             or expected_ownership == nil
@@ -359,13 +518,170 @@ local function read_internal_execution_phases(document, meta)
         end
         seen_targets[target_action_id] = true
         if expected_ownership == "internal_execution_phase" then
-            if source_action_id == nil or source_action_id == target_action_id then
-                return nil, "invalid_internal_execution_owner"
+            if relation.kind == "ac_type13_terminal_execution_phase"
+                or relation.kind == "ac_type13_air_landing_execution_phase" then
+                owner_by_action[target_action_id] = {}
+                for _, value in ipairs(relation.source_action_ids) do
+                    owner_by_action[target_action_id][integer(value)] = true
+                end
+                if relation.kind == "ac_type13_air_landing_execution_phase" then
+                    for _, value in ipairs(relation.auxiliary_source_action_ids) do
+                        owner_by_action[target_action_id][integer(value)] = true
+                    end
+                end
+            else
+                if source_action_id == nil or source_action_id == target_action_id then
+                    return nil, "invalid_internal_execution_owner"
+                end
+                owner_by_action[target_action_id] = { [source_action_id] = true }
             end
-            owner_by_action[target_action_id] = source_action_id
         end
     end
     return owner_by_action
+end
+
+local function type20_action_phase_signatures(value, reason)
+    local expected_count = reason == TYPE20_ACTION_PHASE_REASON and 4
+        or (reason == TYPE20_SIX_BRANCH_PHASE_REASON and 6 or nil)
+    if expected_count == nil or strict_array(value) ~= expected_count then return nil end
+    local field_names = reason == TYPE20_ACTION_PHASE_REASON
+        and { "param00", "param01", "param02", "param03" }
+        or { "attr", "action_frame", "param00", "param01", "param02", "param03" }
+    local expected_signatures = reason == TYPE20_ACTION_PHASE_REASON
+        and TYPE20_ACTION_PHASE_SIGNATURES or TYPE20_SIX_BRANCH_PHASE_SIGNATURES
+    local signatures = {}
+    for _, signature in ipairs(value) do
+        if type(signature) ~= "table" then return nil end
+        local parts = {}
+        for _, field_name in ipairs(field_names) do
+            local field_value = integer(signature[field_name])
+            if field_value == nil then return nil end
+            parts[#parts + 1] = tostring(field_value)
+        end
+        local key = table.concat(parts, ":")
+        if expected_signatures[key] ~= true
+            or signatures[key] == true then
+            return nil
+        end
+        signatures[key] = true
+    end
+    return signatures
+end
+
+local function type20_exit_signature(value, branch_type, action_frame, param00)
+    if type(value) ~= "table" or integer(value.target_action_id) == nil
+        or integer(value.branch_type) ~= branch_type
+        or integer(value.attr) ~= 0
+        or integer(value.action_frame) ~= action_frame
+        or integer(value.param00) ~= param00
+        or integer(value.param01) ~= 0
+        or integer(value.param02) ~= 0
+        or integer(value.param03) ~= 0
+        or integer(value.param04) ~= 0
+        or integer(value.param05) ~= 0
+        or tonumber(value.trigger_id) ~= -1 then
+        return nil
+    end
+    return true
+end
+
+local function read_type20_action_phases(document, meta, commands, owner_by_action)
+    local relations = type(meta) == "table"
+        and meta.type20_action_phase_relations or nil
+    local audit = type(meta) == "table" and meta.audit or nil
+    local declared_route_count = type(meta) == "table"
+        and tonumber(meta.type20_action_phase_route_count) or nil
+    local audited_relation_count = type(audit) == "table"
+        and tonumber(audit.type20_action_phase_relation_count) or nil
+    local audited_route_count = type(audit) == "table"
+        and tonumber(audit.type20_action_phase_route_count) or nil
+    if relations == nil and declared_route_count == nil
+        and audited_relation_count == nil and audited_route_count == nil then
+        return owner_by_action, {}
+    end
+    if strict_array(relations) == nil
+        or audited_relation_count == nil
+        or audited_relation_count ~= #relations
+        or declared_route_count == nil
+        or audited_route_count == nil
+        or audited_route_count ~= declared_route_count then
+        return nil, nil, "invalid_type20_action_phase_audit"
+    end
+
+    local seen_targets = {}
+    local command_owner_by_action = {}
+    local route_count = 0
+    for _, relation in ipairs(relations) do
+        local source_action_id = integer(relation and relation.source_action_id)
+        local target_action_id = integer(relation and relation.target_action_id)
+        local source = source_action_id ~= nil
+            and document[tostring(source_action_id)] or nil
+        local target = target_action_id ~= nil
+            and document[tostring(target_action_id)] or nil
+        local reason = type(relation) == "table" and relation.reason or nil
+        local signatures = type(relation) == "table"
+            and type20_action_phase_signatures(relation.signatures, reason) or nil
+        local six_branch = reason == TYPE20_SIX_BRANCH_PHASE_REASON
+        if source_action_id == nil or target_action_id == nil
+            or source_action_id == target_action_id
+            or tonumber(relation.branch_type) ~= 20
+            or (reason ~= TYPE20_ACTION_PHASE_REASON
+                and reason ~= TYPE20_SIX_BRANCH_PHASE_REASON)
+            or signatures == nil
+            or (six_branch and (
+                type20_exit_signature(relation.source_exit_signature, 0, 5, 0) == nil
+                or type20_exit_signature(relation.exit_signature, 5, 8, 1) == nil))
+            or seen_targets[target_action_id] == true
+            or owner_by_action[target_action_id] ~= nil
+            or type(source) ~= "table" or source.ownership ~= "direct"
+            or commands[source_action_id] == nil
+            or type(target) ~= "table"
+            or target.ownership ~= "type20_action_phase"
+            or strict_array(target.routes) == nil
+            or #target.routes == 0 then
+            return nil, nil, "invalid_type20_action_phase_relation"
+        end
+
+        local valid_route_count = 0
+        for _, route in ipairs(target.routes) do
+            if type(route) == "table"
+                and route.source == (six_branch
+                    and "ac_type20_six_branch_action_phase"
+                    or "ac_type20_action_phase")
+                and integer(route.owner_action_id) == source_action_id
+                and integer(route.bcm_owner_action_id) == source_action_id
+                and integer(route.inherited_from_action_id) == source_action_id
+                and integer(route.display_action_id) == target_action_id
+                and integer(route.ac_relation_type) == 20
+                and strict_array(route.ac_path) == 2
+                and integer(route.ac_path[1]) == source_action_id
+                and integer(route.ac_path[2]) == target_action_id
+                and type20_action_phase_signatures(route.ac_phase_signatures, reason) ~= nil
+                and exact_value(route.ac_phase_signatures, relation.signatures)
+                and (not six_branch or (
+                    type20_exit_signature(route.ac_source_exit_signature, 0, 5, 0) ~= nil
+                    and exact_value(route.ac_source_exit_signature, relation.source_exit_signature)
+                    and type20_exit_signature(route.ac_exit_signature, 5, 8, 1) ~= nil
+                    and exact_value(route.ac_exit_signature, relation.exit_signature)))
+                and route.direct_evidence == false
+                and route.inheritance_evidence == true
+                and route.inheritance_reason == reason
+                and route.confidence == "verified_inherited_action_phase" then
+                valid_route_count = valid_route_count + 1
+            end
+        end
+        if valid_route_count ~= #target.routes then
+            return nil, nil, "invalid_type20_action_phase_route"
+        end
+        route_count = route_count + valid_route_count
+        seen_targets[target_action_id] = true
+        owner_by_action[target_action_id] = { [source_action_id] = true }
+        command_owner_by_action[target_action_id] = { [source_action_id] = true }
+    end
+    if route_count ~= audited_route_count then
+        return nil, nil, "invalid_type20_action_phase_route_audit"
+    end
+    return owner_by_action, command_owner_by_action
 end
 
 function M.parse(document, character)
@@ -387,12 +703,17 @@ function M.parse(document, character)
     local internal_owner_by_action, internal_error =
         read_internal_execution_phases(document, meta)
     if internal_owner_by_action == nil then return nil, 0, internal_error end
+    local command_owner_by_action
+    internal_owner_by_action, command_owner_by_action, internal_error = read_type20_action_phases(
+        document, meta, commands, internal_owner_by_action)
+    if internal_owner_by_action == nil then return nil, 0, internal_error end
     return {
         _validated = true,
         character = key,
         by_action = by_action,
         commands = commands,
         internal_owner_by_action = internal_owner_by_action,
+        command_owner_by_action = command_owner_by_action,
     }, count_or_error, "loaded"
 end
 
@@ -429,7 +750,17 @@ function M.is_internal_phase_of(relations, source_action_id, target_action_id)
     local source = integer(source_action_id)
     local target = integer(target_action_id)
     return source ~= nil and target ~= nil
-        and relations.internal_owner_by_action[target] == source
+        and type(relations.internal_owner_by_action[target]) == "table"
+        and relations.internal_owner_by_action[target][source] == true
+end
+
+function M.is_command_owner_of(relations, source_action_id, target_action_id)
+    if type(relations) ~= "table" or relations._validated ~= true then return false end
+    local source = integer(source_action_id)
+    local target = integer(target_action_id)
+    return source ~= nil and target ~= nil
+        and type(relations.command_owner_by_action[target]) == "table"
+        and relations.command_owner_by_action[target][source] == true
 end
 
 return M

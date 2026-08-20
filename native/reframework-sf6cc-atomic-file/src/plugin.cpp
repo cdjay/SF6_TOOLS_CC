@@ -5,12 +5,15 @@
 #include <bcrypt.h>
 
 #include <array>
+#include <algorithm>
 #include <cstdint>
 #include <cstdio>
+#include <cwctype>
 #include <filesystem>
 #include <optional>
 #include <string>
 #include <string_view>
+#include <vector>
 
 namespace {
 
@@ -25,6 +28,7 @@ constexpr std::string_view k_pending_path =
     "SF6_TrainingRemoteControl_data/ComboTrialTelemetry/producer-pending-v1.json";
 constexpr std::string_view k_feedback_outbox_path =
     "SF6_TrainingRemoteControl_data/ComboFeedback/feedback-outbox-v1.json";
+constexpr std::string_view k_combo_root = "TrainingComboTrials_data/CustomCombos/";
 
 std::string windows_error(const char* operation, DWORD code = GetLastError()) {
     char buffer[128]{};
@@ -76,6 +80,83 @@ std::optional<std::filesystem::path> allowed_target(
         if (character == '/') character = '\\';
     }
     return g_data_root / std::filesystem::path{normalized};
+}
+
+std::optional<std::filesystem::path> allowed_combo_target(
+    std::string_view relative,
+    std::string& error
+) {
+    if (relative.empty() || relative.size() > 1024 || relative.find('\0') != std::string_view::npos) {
+        error = "invalid combo path";
+        return std::nullopt;
+    }
+
+    std::string normalized{relative};
+    for (char& character : normalized) {
+        if (character == '\\') character = '/';
+    }
+    if (!normalized.starts_with(k_combo_root) || normalized.find("//") != std::string::npos) {
+        error = "combo path is outside the allowed root";
+        return std::nullopt;
+    }
+
+    std::filesystem::path relative_path{normalized};
+    if (relative_path.is_absolute() || relative_path.has_root_name() || relative_path.has_root_directory()) {
+        error = "absolute combo paths are not allowed";
+        return std::nullopt;
+    }
+
+    std::vector<std::filesystem::path> components;
+    for (const auto& component : relative_path) {
+        if (component.empty() || component == L"." || component == L"..") {
+            error = "invalid combo path component";
+            return std::nullopt;
+        }
+        components.push_back(component);
+    }
+    if (components.size() != 4
+        || components[0] != L"TrainingComboTrials_data"
+        || components[1] != L"CustomCombos"
+        || components[2].empty()
+        || components[3].empty()) {
+        error = "combo path must identify one character JSON file";
+        return std::nullopt;
+    }
+
+    auto extension = components[3].extension().wstring();
+    std::transform(extension.begin(), extension.end(), extension.begin(), std::towlower);
+    if (extension != L".json") {
+        error = "combo target must be a JSON file";
+        return std::nullopt;
+    }
+
+    const auto combo_root = g_data_root / L"TrainingComboTrials_data" / L"CustomCombos";
+    const auto target = g_data_root / relative_path;
+    std::error_code canonical_error;
+    const auto canonical_root = std::filesystem::weakly_canonical(combo_root, canonical_error);
+    if (canonical_error) {
+        error = "resolve combo root failed: " + canonical_error.message();
+        return std::nullopt;
+    }
+    const auto canonical_parent = std::filesystem::weakly_canonical(target.parent_path(), canonical_error);
+    if (canonical_error || canonical_parent.parent_path() != canonical_root) {
+        error = canonical_error
+            ? "resolve combo directory failed: " + canonical_error.message()
+            : "combo directory escapes the allowed root";
+        return std::nullopt;
+    }
+
+    const DWORD attributes = GetFileAttributesW(target.c_str());
+    if (attributes == INVALID_FILE_ATTRIBUTES) {
+        error = windows_error("GetFileAttributesW");
+        return std::nullopt;
+    }
+    if ((attributes & FILE_ATTRIBUTE_DIRECTORY) != 0
+        || (attributes & FILE_ATTRIBUTE_REPARSE_POINT) != 0) {
+        error = "combo target must be a regular file";
+        return std::nullopt;
+    }
+    return target;
 }
 
 bool write_all(HANDLE file, const char* bytes, std::size_t size, std::string& error) {
@@ -199,6 +280,19 @@ int lua_probe(lua_State* state) {
     return push_failure(state, windows_error("GetFileAttributesW", code));
 }
 
+int lua_remove_combo(lua_State* state) {
+    std::size_t path_size = 0;
+    const char* path = lua_tolstring(state, 1, &path_size);
+    if (path == nullptr) return push_failure(state, "remove_combo requires path");
+
+    std::string error;
+    auto target = allowed_combo_target(std::string_view{path, path_size}, error);
+    if (!target) return push_failure(state, error);
+    if (!DeleteFileW(target->c_str())) return push_failure(state, windows_error("DeleteFileW"));
+    lua_pushboolean(state, 1);
+    return 1;
+}
+
 int lua_random_epoch(lua_State* state) {
     std::string error;
     auto epoch = random_hex_16(error);
@@ -210,7 +304,7 @@ int lua_random_epoch(lua_State* state) {
 void register_lua_api(lua_State* state) {
     if (state == nullptr) return;
     if (g_functions != nullptr && g_functions->lock_lua != nullptr) g_functions->lock_lua();
-    lua_createtable(state, 0, 4);
+    lua_createtable(state, 0, 5);
     lua_pushcclosure(state, lua_atomic_write, 0);
     lua_setfield(state, -2, "write");
     lua_pushcclosure(state, lua_probe, 0);
@@ -219,6 +313,8 @@ void register_lua_api(lua_State* state) {
     lua_setfield(state, -2, "random_epoch");
     lua_pushcclosure(state, lua_random_epoch, 0);
     lua_setfield(state, -2, "random_id");
+    lua_pushcclosure(state, lua_remove_combo, 0);
+    lua_setfield(state, -2, "remove_combo");
     lua_setglobal(state, "sf6cc_atomic_file");
     if (g_functions != nullptr && g_functions->unlock_lua != nullptr) g_functions->unlock_lua();
 }

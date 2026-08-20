@@ -3022,6 +3022,34 @@
       }
     ]
   },
+  "732": {
+    "classic_command": null,
+    "simple_command": null,
+    "motion_command": null,
+    "control_support": "unknown",
+    "source": "ac_bcm+capcom_official_semantics",
+    "ownership": "internal_execution_phase",
+    "suppress_display": true,
+    "transition_evidence": {
+      "kind": "ac_type36_type13_execution_phase",
+      "source_action_id": 731,
+      "target_action_id": 732,
+      "tail_action_id": 733,
+      "branch_type": 36,
+      "exit_branch_type": 13,
+      "attr": 0,
+      "action_frame": 0,
+      "param00": 0,
+      "param01": 0,
+      "param02": 0,
+      "param03": 0,
+      "param04": 0,
+      "param05": 0,
+      "trigger_id": -1,
+      "reason": "ac_type36_zero_parameter_phase_with_type13_terminal_exit"
+    },
+    "routes": []
+  },
   "850": {
     "classic_command": {
       "display": "6+DI",
@@ -4860,10 +4888,70 @@
     },
     "control_support": "classic_only",
     "source": "ac_bcm+capcom_official_semantics",
-    "ownership": "classic_runtime",
+    "ownership": "direct",
     "simple_command": null,
     "motion_command": null,
-    "routes": []
+    "routes": [
+      {
+        "display": "63214+LK",
+        "character": "Blanka",
+        "owner_action_id": 954,
+        "trigger_index": 74,
+        "profile": "norm",
+        "command_no": 14,
+        "command_index": 7,
+        "raw_direction_inputs": [
+          8,
+          10,
+          6,
+          4
+        ],
+        "raw_button_mask": 128,
+        "raw_button_condition": 81952,
+        "raw_dc_exc_flags": 0,
+        "raw_ng_key_flags": 0,
+        "visible_direction": null,
+        "visible_button": null,
+        "button_candidates": [],
+        "required_button_count": 1,
+        "source": "bcm_profile",
+        "ac_relation_type": null,
+        "ac_path": [],
+        "inherited_from_action_id": null,
+        "confidence": "direct_structural",
+        "direct_evidence": true,
+        "inheritance_evidence": false,
+        "inheritance_reason": null,
+        "rebind_evidence": false,
+        "rebind_reason": null,
+        "runtime_common_evidence": false,
+        "runtime_common_reason": null,
+        "official_semantic_evidence": false,
+        "official_semantic_reason": null,
+        "community_semantic_evidence": false,
+        "community_semantic_reason": null,
+        "assist_combo_evidence": false,
+        "assist_combo_reason": null,
+        "charge_context_evidence": false,
+        "charge_context_profile": null,
+        "charge_context_direction": null,
+        "charge_context_manual_direction": null,
+        "charge_context_direction_profile": null,
+        "charge_context_command_no": null,
+        "charge_context_command_index": null,
+        "charge_context_notation": null,
+        "charge_context_source_action_id": null,
+        "charge_context_source_trigger_indices": [],
+        "charge_context_relation": null,
+        "charge_context_reason": null,
+        "super_shortcut_direction_evidence": false,
+        "super_shortcut_direction_profile": null,
+        "super_shortcut_direction": null,
+        "super_shortcut_direction_notation": null,
+        "super_shortcut_direction_reason": null,
+        "projection_scope": "classic_only"
+      }
+    ]
   },
   "958": {
     "classic_command": {
@@ -4947,10 +5035,70 @@
     },
     "control_support": "classic_only",
     "source": "ac_bcm+capcom_official_semantics",
-    "ownership": "classic_runtime",
+    "ownership": "direct",
     "simple_command": null,
     "motion_command": null,
-    "routes": []
+    "routes": [
+      {
+        "display": "63214+HK",
+        "character": "Blanka",
+        "owner_action_id": 962,
+        "trigger_index": 76,
+        "profile": "norm",
+        "command_no": 14,
+        "command_index": 7,
+        "raw_direction_inputs": [
+          8,
+          10,
+          6,
+          4
+        ],
+        "raw_button_mask": 512,
+        "raw_button_condition": 81952,
+        "raw_dc_exc_flags": 0,
+        "raw_ng_key_flags": 0,
+        "visible_direction": null,
+        "visible_button": null,
+        "button_candidates": [],
+        "required_button_count": 1,
+        "source": "bcm_profile",
+        "ac_relation_type": null,
+        "ac_path": [],
+        "inherited_from_action_id": null,
+        "confidence": "direct_structural",
+        "direct_evidence": true,
+        "inheritance_evidence": false,
+        "inheritance_reason": null,
+        "rebind_evidence": false,
+        "rebind_reason": null,
+        "runtime_common_evidence": false,
+        "runtime_common_reason": null,
+        "official_semantic_evidence": false,
+        "official_semantic_reason": null,
+        "community_semantic_evidence": false,
+        "community_semantic_reason": null,
+        "assist_combo_evidence": false,
+        "assist_combo_reason": null,
+        "charge_context_evidence": false,
+        "charge_context_profile": null,
+        "charge_context_direction": null,
+        "charge_context_manual_direction": null,
+        "charge_context_direction_profile": null,
+        "charge_context_command_no": null,
+        "charge_context_command_index": null,
+        "charge_context_notation": null,
+        "charge_context_source_action_id": null,
+        "charge_context_source_trigger_indices": [],
+        "charge_context_relation": null,
+        "charge_context_reason": null,
+        "super_shortcut_direction_evidence": false,
+        "super_shortcut_direction_profile": null,
+        "super_shortcut_direction": null,
+        "super_shortcut_direction_notation": null,
+        "super_shortcut_direction_reason": null,
+        "projection_scope": "classic_only"
+      }
+    ]
   },
   "966": {
     "classic_command": {
@@ -9015,7 +9163,7 @@
       "supr",
       "sprt"
     ],
-    "direct_route_count": 106,
+    "direct_route_count": 108,
     "inherited_route_count": 3,
     "rebind_route_count": 0,
     "runtime_common_route_count": 6,
@@ -9034,6 +9182,9 @@
     "type63_strength_variant_relations": [],
     "type20_hold_route_count": 0,
     "type20_action_phase_route_count": 0,
+    "type20_terminal_command_phase_route_count": 0,
+    "type20_delayed_effect_route_count": 0,
+    "type20_same_structure_execution_route_count": 0,
     "type37_followup_execution_phase_route_count": 0,
     "charge_context_route_count": 6,
     "super_shortcut_direction_route_count": 6,
@@ -9352,8 +9503,27 @@
     "ac_state_neutral_relations": [],
     "ac_type13_neutral_route_count": 0,
     "ac_type13_neutral_relations": [],
-    "internal_transition_suppression_count": 0,
-    "suppressed_internal_transitions": [],
+    "internal_transition_suppression_count": 1,
+    "suppressed_internal_transitions": [
+      {
+        "kind": "ac_type36_type13_execution_phase",
+        "source_action_id": 731,
+        "target_action_id": 732,
+        "tail_action_id": 733,
+        "branch_type": 36,
+        "exit_branch_type": 13,
+        "attr": 0,
+        "action_frame": 0,
+        "param00": 0,
+        "param01": 0,
+        "param02": 0,
+        "param03": 0,
+        "param04": 0,
+        "param05": 0,
+        "trigger_id": -1,
+        "reason": "ac_type36_zero_parameter_phase_with_type13_terminal_exit"
+      }
+    ],
     "split_command_action_count": 80,
     "followup_relation_count": 0,
     "followup_relations": [],
@@ -9437,6 +9607,9 @@
     "type20_directional_relations": [],
     "type20_hold_relations": [],
     "type20_action_phase_relations": [],
+    "type20_terminal_command_phase_relations": [],
+    "type20_delayed_effect_relations": [],
+    "type20_same_structure_execution_relations": [],
     "type37_followup_execution_phase_relations": [],
     "target_combo_repeat_relations": [],
     "structural_twin_relations": [],
@@ -9464,6 +9637,99 @@
             "wt_action_trigger": 0,
             "wt_action_strength": 0,
             "wt_action_is_air": false
+          }
+        ]
+      }
+    ],
+    "assist_combo_chain_count": 3,
+    "assist_combo_chains": [
+      {
+        "strength": "弱",
+        "steps": [
+          {
+            "position": 1,
+            "action_ids": [
+              607,
+              623
+            ]
+          },
+          {
+            "position": 2,
+            "action_ids": [
+              614
+            ]
+          },
+          {
+            "position": 3,
+            "action_ids": [
+              867,
+              926
+            ]
+          }
+        ]
+      },
+      {
+        "strength": "中",
+        "steps": [
+          {
+            "position": 1,
+            "action_ids": [
+              642
+            ]
+          },
+          {
+            "position": 2,
+            "action_ids": [
+              625
+            ]
+          },
+          {
+            "position": 3,
+            "action_ids": [
+              867,
+              885
+            ]
+          },
+          {
+            "position": 4,
+            "action_ids": [
+              1200
+            ]
+          }
+        ]
+      },
+      {
+        "strength": "强",
+        "steps": [
+          {
+            "position": 1,
+            "action_ids": [
+              604
+            ]
+          },
+          {
+            "position": 2,
+            "action_ids": [
+              1001
+            ]
+          },
+          {
+            "position": 3,
+            "action_ids": [
+              1004
+            ]
+          },
+          {
+            "position": 4,
+            "action_ids": [
+              867
+            ]
+          },
+          {
+            "position": 5,
+            "action_ids": [
+              1215
+            ]
           }
         ]
       }
@@ -10788,7 +11054,7 @@
         "reason": "profile_disabled_or_missing"
       }
     ],
-    "unmapped_action_count": 371,
+    "unmapped_action_count": 368,
     "unmapped_action_ids": [
       1,
       2,
@@ -10968,7 +11234,6 @@
       725,
       726,
       727,
-      732,
       733,
       734,
       735,
@@ -11040,12 +11305,10 @@
       950,
       951,
       952,
-      954,
       955,
       956,
       959,
       960,
-      962,
       963,
       964,
       967,
@@ -11198,6 +11461,12 @@
       "type20_hold_route_count": 0,
       "type20_action_phase_relation_count": 0,
       "type20_action_phase_route_count": 0,
+      "type20_terminal_command_phase_relation_count": 0,
+      "type20_terminal_command_phase_route_count": 0,
+      "type20_delayed_effect_relation_count": 0,
+      "type20_delayed_effect_route_count": 0,
+      "type20_same_structure_execution_relation_count": 0,
+      "type20_same_structure_execution_route_count": 0,
       "type37_followup_execution_phase_relation_count": 0,
       "type37_followup_execution_phase_route_count": 0,
       "charge_context_route_count": 6,
@@ -11211,6 +11480,7 @@
       "ac_command_phase_relation_count": 0,
       "assist_combo_candidate_count": 15,
       "assist_combo_relation_count": 1,
+      "assist_combo_chain_count": 3,
       "assist_combo_route_count": 1,
       "assist_combo_duplicate_display_count": 2,
       "assist_combo_normalized_to_existing_count": 12,
@@ -11225,111 +11495,17 @@
       "ac_state_neutral_route_count": 0,
       "ac_type13_neutral_relation_count": 0,
       "ac_type13_neutral_route_count": 0,
-      "internal_transition_suppression_count": 0,
+      "internal_transition_suppression_count": 1,
       "split_command_action_count": 80,
       "classic_command_action_count": 138,
       "shared_command_action_count": 80,
       "classic_projection_pending_count": 0,
-      "command_display_action_count": 138,
+      "command_display_action_count": 139,
       "followup_relation_count": 0,
       "command_slot_overflow_count": 0,
       "ac_automatic_transition_route_count": 0,
-      "replaces_profile_route_count": 0,
-      "assist_combo_chain_count": 3
+      "replaces_profile_route_count": 0
     },
-    "description": "Blanka unified Classic and Modern command projections generated from one verified AC ActionGraph, BCM profiles, runtime semantics, and Capcom command semantics.",
-    "assist_combo_chains": [
-      {
-        "strength": "弱",
-        "steps": [
-          {
-            "position": 1,
-            "action_ids": [
-              607,
-              623
-            ]
-          },
-          {
-            "position": 2,
-            "action_ids": [
-              614
-            ]
-          },
-          {
-            "position": 3,
-            "action_ids": [
-              867,
-              926
-            ]
-          }
-        ]
-      },
-      {
-        "strength": "中",
-        "steps": [
-          {
-            "position": 1,
-            "action_ids": [
-              642
-            ]
-          },
-          {
-            "position": 2,
-            "action_ids": [
-              625
-            ]
-          },
-          {
-            "position": 3,
-            "action_ids": [
-              867,
-              885
-            ]
-          },
-          {
-            "position": 4,
-            "action_ids": [
-              1200
-            ]
-          }
-        ]
-      },
-      {
-        "strength": "强",
-        "steps": [
-          {
-            "position": 1,
-            "action_ids": [
-              604
-            ]
-          },
-          {
-            "position": 2,
-            "action_ids": [
-              1001
-            ]
-          },
-          {
-            "position": 3,
-            "action_ids": [
-              1004
-            ]
-          },
-          {
-            "position": 4,
-            "action_ids": [
-              867
-            ]
-          },
-          {
-            "position": 5,
-            "action_ids": [
-              1215
-            ]
-          }
-        ]
-      }
-    ],
-    "assist_combo_chain_count": 3
+    "description": "Blanka unified Classic and Modern command projections generated from one verified AC ActionGraph, BCM profiles, runtime semantics, and Capcom command semantics."
   }
 }

@@ -17,6 +17,7 @@ local normalize_sequence_counter_types, normalize_sequence_semantics
 local normalize_sequence_scene_state, assign_groups
 local normalize_action_sequence
 local restore_trial_dummy_action_type
+local remove_file
 local XT_SCHEMA_MAX = 2
 local schema_warning_paths = {}
 
@@ -719,6 +720,42 @@ local function find_combo_path_index(paths, old_path, old_idx)
     return math.min(old_idx or 1, #paths)
 end
 
+local function normalized_combo_path(path)
+    if type(path) ~= "string" or path == "" then return nil end
+    local normalized = path:gsub("\\", "/")
+    if normalized:find("%z") or normalized:find("//", 1, true) then return nil end
+    if normalized:sub(1, 1) == "/" or normalized:match("^%a:/") then return nil end
+    if normalized:sub(-5):lower() ~= ".json" then return nil end
+    for segment in normalized:gmatch("[^/]+") do
+        if segment == "." or segment == ".." then return nil end
+    end
+    return normalized
+end
+
+local function listed_combo_path(player_idx, requested_path)
+    local requested = normalized_combo_path(requested_path)
+    if not requested then return nil, "invalid_path" end
+
+    local character = players[player_idx] and players[player_idx].profile_name or nil
+    if type(character) ~= "string" or character == "" or character == "Unknown" then
+        return nil, "invalid_player"
+    end
+    local expected_prefix = ("TrainingComboTrials_data/CustomCombos/" .. character .. "/"):lower()
+    if requested:sub(1, #expected_prefix):lower() ~= expected_prefix then
+        return nil, "path_not_listed"
+    end
+
+    local paths = player_idx == 0
+        and file_system.saved_combos_all_paths_p1 or file_system.saved_combos_all_paths_p2
+    for _, candidate in ipairs(paths or {}) do
+        local normalized = normalized_combo_path(candidate)
+        if normalized and normalized:lower() == requested:lower() then
+            return candidate
+        end
+    end
+    return nil, "path_not_listed"
+end
+
 local function reload_selected_combo_if_idle()
     if trial_state.is_playing or trial_state.is_recording or trial_state._xt_pending_save or (ctx.demo_state and ctx.demo_state.is_playing) then return end
 
@@ -755,6 +792,37 @@ function M.refresh_combo_list_preserve_selection(reload_current_file)
     if reload_current_file then
         reload_selected_combo_if_idle()
     end
+end
+
+function M.delete_combo_file(player_idx, requested_path)
+    if player_idx ~= 0 and player_idx ~= 1 then return false, "invalid_player" end
+    local path, path_error = listed_combo_path(player_idx, requested_path)
+    if not path then return false, path_error end
+    if type(remove_file) ~= "function" then return false, "delete_unavailable" end
+
+    local paths = player_idx == 0 and file_system.saved_combos_paths_p1 or file_system.saved_combos_paths_p2
+    local selected_key = player_idx == 0 and "selected_file_idx_p1" or "selected_file_idx_p2"
+    local old_idx = file_system[selected_key] or 1
+    local old_selected_path = paths and paths[old_idx] or nil
+    local current_path = trial_state.current_file_path or trial_state.current_file
+
+    local called, removed, remove_error = pcall(remove_file, path)
+    if not called or removed ~= true then
+        diag_combo_files("delete failed path=" .. tostring(path)
+            .. " error=" .. tostring(called and remove_error or removed))
+        return false, "delete_failed"
+    end
+
+    if not update_combo_file_list(player_idx) then return true, "refresh_failed" end
+    local refreshed_paths = player_idx == 0
+        and file_system.saved_combos_paths_p1 or file_system.saved_combos_paths_p2
+    file_system[selected_key] = find_combo_path_index(refreshed_paths, old_selected_path, old_idx)
+
+    if tostring(current_path or "") == tostring(path)
+        or tostring(old_selected_path or "") == tostring(path) then
+        reload_selected_combo_if_idle()
+    end
+    return true
 end
 
 function M.refresh_combo_list(recent_saved_player)
@@ -797,6 +865,13 @@ function M.init(context, opts)
         or ActionSequenceNormalizer.normalize
     assign_groups = assert(opts.assign_groups, "ComboTrials_Files requires assign_groups")
     restore_trial_dummy_action_type = opts.restore_trial_dummy_action_type
+    remove_file = opts.remove_file or function(path)
+        if type(sf6cc_atomic_file) ~= "table"
+            or type(sf6cc_atomic_file.remove_combo) ~= "function" then
+            return nil, "native combo delete unavailable"
+        end
+        return sf6cc_atomic_file.remove_combo(path)
+    end
 
     file_system.combo_file_warnings = file_system.combo_file_warnings or {}
     file_system.warn_combo_file_once = warn_combo_file_once
@@ -810,6 +885,7 @@ function M.init(context, opts)
     file_system.scan_combo_files = scan_combo_files
     file_system.update_combo_file_list = update_combo_file_list
     file_system.refresh_combo_list_preserve_selection = M.refresh_combo_list_preserve_selection
+    file_system.delete_combo_file = M.delete_combo_file
     file_system.reload_selected_combo_if_idle = M.reload_selected_combo_if_idle
     file_system.mark_combo_display_completed = M.mark_combo_display_completed
 

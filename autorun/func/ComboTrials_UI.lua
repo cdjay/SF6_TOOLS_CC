@@ -110,6 +110,9 @@ local COMBO_STARTER_COLUMN_WIDTH = 140
 local COMBO_AUTHOR_COLUMN_WIDTH = 120
 local COMBO_STEP_COLUMN_WIDTH = 52
 local COMBO_FEEDBACK_COLUMN_WIDTH = 64
+local COMBO_DELETE_COLUMN_WIDTH = 56
+local COMBO_DELETE_TEXT_COLOR = 0xFF5555FF
+local COMBO_POPUP_FLAGS = (1 << 3) | (1 << 4)
 local FEEDBACK_WINDOW_FLAGS = (1 << 1) | (1 << 2) | (1 << 3) | (1 << 5) | (1 << 8)
 local COMBO_TABLE_BG_TARGET_ROW = 1
 local COMBO_SELECTED_ROW_BG_COLOR = 0xCC802460
@@ -494,7 +497,6 @@ local function combo_openable(label, current_idx, items, info_items, force_open,
     local line_h = imgui.calc_text_size("W").y + 6
     local max_visible = 20
     local visible_count = math.max(1, math.min(#items, max_visible))
-    local needs_vertical_scroll = #items > max_visible
     -- Header and icon-backed menu rows consume more than one bare text line.
     -- Reserve one additional line so short lists never hide their final row.
     local popup_h = ((visible_count + 2) * line_h) + 18
@@ -515,14 +517,16 @@ local function combo_openable(label, current_idx, items, info_items, force_open,
 
     local changed = false
     local new_idx = current_idx
+    local delete_request = nil
 
     imgui.set_next_window_size(Vector2f.new(popup_w, popup_h), 1)
-    if imgui.begin_popup(popup_id) then
+    if imgui.begin_popup(popup_id, COMBO_POPUP_FLAGS) then
         _G.ComboTrials_DropdownOpen = true
 
-        local table_flags = COMBO_TABLE_FLAGS
-        if needs_vertical_scroll then table_flags = table_flags | COMBO_TABLE_SCROLL_Y end
-        if imgui.begin_table("##ComboListTable" .. label, 9, table_flags, Vector2f.new(0, 0)) then
+        local table_flags = COMBO_TABLE_FLAGS | COMBO_TABLE_SCROLL_Y
+        local table_outer_height = math.max(line_h * 3, popup_h - 18)
+        if imgui.begin_table("##ComboListTable" .. label, 10, table_flags,
+                Vector2f.new(0, table_outer_height)) then
             imgui.table_setup_column("C/完", COMBO_COLUMN_FIXED, 58)
             imgui.table_setup_column("名称", COMBO_COLUMN_STRETCH, 1)
             imgui.table_setup_column("作者", COMBO_COLUMN_FIXED, COMBO_AUTHOR_COLUMN_WIDTH)
@@ -532,7 +536,8 @@ local function combo_openable(label, current_idx, items, info_items, force_open,
             imgui.table_setup_column("斗气", COMBO_COLUMN_FIXED, 58)
             imgui.table_setup_column("能量", COMBO_COLUMN_FIXED, 72)
             imgui.table_setup_column("反馈", COMBO_COLUMN_FIXED | COMBO_COLUMN_NO_SORT, COMBO_FEEDBACK_COLUMN_WIDTH)
-            if needs_vertical_scroll then imgui.table_setup_scroll_freeze(0, 1) end
+            imgui.table_setup_column("删除", COMBO_COLUMN_FIXED | COMBO_COLUMN_NO_SORT, COMBO_DELETE_COLUMN_WIDTH)
+            imgui.table_setup_scroll_freeze(0, 1)
             imgui.table_next_row(COMBO_TABLE_ROW_HEADERS)
             for column_idx, header in ipairs({
                 { "C/完", true, 58 },
@@ -544,6 +549,7 @@ local function combo_openable(label, current_idx, items, info_items, force_open,
                 { "斗气", true, 58 },
                 { "能量", true, 72 },
                 { "反馈", true, COMBO_FEEDBACK_COLUMN_WIDTH },
+                { "删除", true, COMBO_DELETE_COLUMN_WIDTH },
             }) do
                 imgui.table_set_column_index(column_idx - 1)
                 combo_table_header(header[1], header[2], header[3])
@@ -589,6 +595,17 @@ local function combo_openable(label, current_idx, items, info_items, force_open,
                     open_combo_feedback(info)
                     if imgui.close_current_popup then pcall(imgui.close_current_popup) end
                 end
+                imgui.table_next_column()
+                imgui.push_style_color(0, COMBO_DELETE_TEXT_COLOR)
+                local delete_clicked = imgui.button(
+                    "删除##" .. row_id,
+                    Vector2f.new(COMBO_DELETE_COLUMN_WIDTH - 8, 0)
+                )
+                imgui.pop_style_color(1)
+                if delete_clicked then
+                    delete_request = type(info) == "table" and info.filepath or nil
+                    if imgui.close_current_popup then pcall(imgui.close_current_popup) end
+                end
 
                 if row_clicked then
                     new_idx = i
@@ -606,6 +623,21 @@ local function combo_openable(label, current_idx, items, info_items, force_open,
     else
         _G.ComboTrials_DropdownOpen = false
         _dropdown_highlight_idx = nil
+    end
+
+    if delete_request and file_system and type(file_system.delete_combo_file) == "function" then
+        local ok, reason = file_system.delete_combo_file(0, delete_request)
+        if ok then
+            _combo_sort_cache.items = nil
+            if _G.show_custom_ticker then
+                _G.show_custom_ticker(
+                    reason == "refresh_failed" and "连段文件已删除，请手动刷新列表" or "连段文件已删除",
+                    2.0
+                )
+            end
+        elseif _G.show_custom_ticker then
+            _G.show_custom_ticker("删除失败：" .. tostring(reason or "unknown"), 2.0)
+        end
     end
 
     return changed, new_idx

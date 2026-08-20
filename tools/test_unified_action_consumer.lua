@@ -382,6 +382,21 @@ local generated_document = {
                 reason = "ac_type52_same_command_runtime_phase_family",
             },
         },
+        type20_action_phase_route_count = 1,
+        type20_action_phase_relations = {
+            {
+                source_action_id = 900,
+                target_action_id = 901,
+                signatures = {
+                    { param00 = 0, param01 = 8, param02 = 0, param03 = 1 },
+                    { param00 = 0, param01 = 32, param02 = 0, param03 = 2 },
+                    { param00 = 0, param01 = 8192, param02 = 0, param03 = 3 },
+                    { param00 = 1, param01 = 8192, param02 = 0, param03 = 3 },
+                },
+                branch_type = 20,
+                reason = "ac_type20_verified_multi_input_action_phase",
+            },
+        },
         internal_transition_suppression_count = 2,
         suppressed_internal_transitions = {
             {
@@ -427,6 +442,8 @@ local generated_document = {
             ac_state_direction_relation_count = 1,
             ac_state_direction_route_count = 1,
             ac_command_phase_relation_count = 1,
+            type20_action_phase_relation_count = 1,
+            type20_action_phase_route_count = 1,
             internal_transition_suppression_count = 2,
         },
     },
@@ -457,6 +474,39 @@ local generated_document = {
             trigger_index = 73, profile = "sprt", command_no = 2, command_index = 1,
             raw_direction_inputs = { 2, 6, 4 }, raw_button_mask = 16,
             raw_button_condition = 81952, raw_dc_exc_flags = 0, raw_ng_key_flags = 0,
+        } },
+    },
+    ["900"] = {
+        ownership = "direct",
+        classic_command = { display = "236+K", inputs = { "236+K" } },
+        routes = { {
+            source = "bcm_profile", direct_evidence = true, owner_action_id = 900,
+            trigger_index = 80, profile = "sprt", command_no = 0, command_index = 1,
+            raw_direction_inputs = { 2, 3, 6 }, raw_button_mask = 8,
+            raw_button_condition = 81952, raw_dc_exc_flags = 0, raw_ng_key_flags = 0,
+        } },
+    },
+    ["901"] = {
+        ownership = "type20_action_phase",
+        classic_command = { display = "236+K", inputs = { "236+K" } },
+        routes = { {
+            source = "ac_type20_action_phase",
+            owner_action_id = 900,
+            bcm_owner_action_id = 900,
+            inherited_from_action_id = 900,
+            display_action_id = 901,
+            ac_relation_type = 20,
+            ac_path = { 900, 901 },
+            ac_phase_signatures = {
+                { param00 = 0, param01 = 8, param02 = 0, param03 = 1 },
+                { param00 = 0, param01 = 32, param02 = 0, param03 = 2 },
+                { param00 = 0, param01 = 8192, param02 = 0, param03 = 3 },
+                { param00 = 1, param01 = 8192, param02 = 0, param03 = 3 },
+            },
+            direct_evidence = false,
+            inheritance_evidence = true,
+            inheritance_reason = "ac_type20_verified_multi_input_action_phase",
+            confidence = "verified_inherited_action_phase",
         } },
     },
     ["953"] = {
@@ -551,6 +601,45 @@ local generated_variant_match = consumer.match_expected_action(
 assert(generated_variant_match.matched == true
         and generated_variant_match.match_reason == "generated_source_group",
     "runtime validation must advance on a strict AC source-group variant")
+assert(consumer.matches_expected_action_id(
+        { id = 901, motion = "236+K" }, 900, nil, nil, generated_relations),
+    "a direct BCM owner must satisfy its generated Type20 terminal phase checkpoint")
+local type20_owner_match = consumer.match_expected_action(
+    { id = 901, motion = "236+K" }, 900, "236+K", "236+K",
+    nil, nil, generated_relations)
+assert(type20_owner_match.matched == true
+        and type20_owner_match.match_reason == "generated_command_owner",
+    "detector and audit matching must consume the generated Type20 command owner")
+local missing_type20_phase = consumer.plan_unreported_command_phase_skip({
+    previous_step = { id = 900, motion = "236+K" },
+    expected_step = { id = 901, motion = "236+K", delay_from_prev = 5 },
+    next_step = { id = 970, motion = "214+PP", delay_from_prev = 17 },
+    actual_action_id = 970,
+    actual_motion = "214+PP",
+    actual_input = "214+PP",
+    actual_frame = 19512,
+    last_played_frame = 19490,
+    generated_action_relations = generated_relations,
+})
+assert(missing_type20_phase ~= nil
+        and missing_type20_phase.reason == "generated_command_phase_unreported"
+        and missing_type20_phase.virtual_frame == 19495
+        and missing_type20_phase.next_action_match.matched == true
+        and missing_type20_phase.next_action_match.match_reason == "id",
+    "an unreported strict Type20 terminal phase must yield to the next real Action while preserving cumulative timing")
+assert(consumer.plan_unreported_command_phase_skip({
+        previous_step = { id = 900 },
+        expected_step = { id = 901, delay_from_prev = 5 },
+        next_step = { id = 970, delay_from_prev = 17 },
+        actual_action_id = 901,
+        actual_frame = 19495,
+        last_played_frame = 19490,
+        generated_action_relations = generated_relations,
+    }) == nil,
+    "an observed Type20 terminal phase must remain an exact frozen checkpoint")
+assert(not consumer.matches_expected_action_id(
+        { id = 900, motion = "236+K" }, 901, nil, nil, generated_relations),
+    "a later terminal phase must not replace an expected direct BCM owner")
 assert(consumer.should_admit_ignored_expected_action(
         true, { id = 101 }, 102, nil, nil, generated_relations),
     "input-truth admission must accept the same generated source variant")
@@ -588,6 +677,17 @@ local yasmine_3020_internal = consumer.classify_runtime_transition({
 assert(yasmine_3020_internal.ignored == true
         and yasmine_3020_internal.reason == "generated_internal_execution_phase",
     "Yasmine 3020 must ignore the generated residue of the verified 1062 step")
+local type20_action_phase = consumer.classify_runtime_transition({
+    previous_step = { id = 900, motion = "236+K" },
+    expected_step = { id = 942, motion = "214+HK" },
+    expected_action_matches_current = false,
+    actual_action_id = 901,
+    input_anchor_kind = "button_release",
+    generated_action_relations = generated_relations,
+})
+assert(type20_action_phase.ignored == true
+        and type20_action_phase.reason == "generated_internal_execution_phase",
+    "a verified Type20 action phase must not fail the next frozen checkpoint")
 assert(consumer.classify_runtime_transition({
         previous_step = { id = 951 },
         expected_step = { id = 17 },
@@ -658,6 +758,15 @@ assert(main_source:find(
         1,
         true
     ), "main entry must load the unified consumer gateway")
+assert(main_source:find(
+        'package.loaded["func/ComboTrials/GeneratedActionRelations"].RUNTIME_VERSION ~= 2026082002',
+        1,
+        true
+    ) and main_source:find(
+        'package.loaded["func/ComboTrials/UnifiedActionConsumer"].RUNTIME_VERSION ~= 2026082001',
+        1,
+        true
+    ), "Reset Scripts must invalidate stale generated-relation and consumer modules")
 assert(not main_source:find("ComboTrialsModules.ActionEventCompiler", 1, true),
     "main entry must not bypass the capture gateway")
 assert(not main_source:find(

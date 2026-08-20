@@ -7,7 +7,7 @@ local sdk = sdk
 local imgui = imgui
 
 local M = {}
-M.RENDERER_VERSION = 20260820
+M.RENDERER_VERSION = 2026082005
 local RuntimeSafety = require("func/RuntimeSafety")
 local Canvas = require("func/ImGuiCanvas")
 local SequenceGrouping = require("func/ComboTrials/SequenceGrouping")
@@ -178,6 +178,11 @@ local VERIFIED_ALIAS_REASON = "ac_verified_equivalent_action_variant"
 local TYPE20_DIRECTION_REASON = "ac_type20_verified_directional_air_attack"
 local TYPE20_HOLD_REASON = "ac_type20_verified_hold_continuation"
 local TYPE20_PHASE_REASON = "ac_type20_verified_multi_input_action_phase"
+local TYPE20_SIX_BRANCH_PHASE_REASON =
+    "ac_type20_verified_six_branch_action_phase"
+local TYPE20_TERMINAL_COMMAND_PHASE_REASON =
+    "ac_type20_complete_punch_strength_terminal_command_phase"
+local TYPE20_DELAYED_EFFECT_REASON = "ac_type20_multi_owner_delayed_contact_effect"
 local TYPE20_SAME_STRUCTURE_PHASE_REASON =
     "ac_type20_verified_same_structure_execution_phase"
 local TYPE37_FOLLOWUP_PHASE_REASON = "ac_type37_verified_followup_execution_phase"
@@ -197,11 +202,63 @@ local AC_NUMBERED_EXECUTION_PHASE_REASON =
     "ac_type2_numbered_same_structure_execution_phase"
 local AC_SAME_STRUCTURE_EXECUTION_PHASE_REASON =
     "ac_type2_same_structure_zero_parameter_execution_phase"
+local AC_TYPE13_TERMINAL_EXECUTION_PHASE_REASON =
+    "ac_type13_zero_parameter_multi_owner_terminal_execution_phase"
+local AC_TYPE13_AIR_LANDING_EXECUTION_PHASE_REASON =
+    "ac_type13_multi_owner_air_landing_execution_phase"
+local AC_TYPE36_TYPE13_EXECUTION_PHASE_REASON =
+    "ac_type36_zero_parameter_phase_with_type13_terminal_exit"
 local AC_TYPE37_AUTOMATIC_EXECUTION_PHASE_REASON =
     "ac_type37_unique_automatic_execution_phase"
 local TARGET_COMBO_REPEAT_REASON = "bcm_turn_around_target_combo_repeats_parent_button"
 local STRUCTURAL_TWIN_REASON = "ac_bcm_unique_structural_twin_with_internal_use_super_delta"
 local ASSIST_COMBO_REASON = "bcm_assist_combo_recipe_direct_input_sequence"
+
+local function valid_contextual_effect_relation(relation, target_action_id)
+    if type(relation) ~= "table"
+        or tonumber(relation.target_action_id) ~= tonumber(target_action_id)
+        or tonumber(relation.branch_type) ~= 20
+        or tonumber(relation.attr) ~= 288
+        or (tonumber(relation.action_frame) or 0) <= 0
+        or tonumber(relation.param00) ~= 1
+        or tonumber(relation.param02) ~= 1
+        or tonumber(relation.param03) ~= 2
+        or tonumber(relation.param04) ~= 0
+        or tonumber(relation.param05) ~= 0
+        or tonumber(relation.trigger_id) ~= -1
+        or relation.reason ~= TYPE20_DELAYED_EFFECT_REASON
+        or type(relation.fingerprint_fields) ~= "table"
+        or table.concat(relation.fingerprint_fields, ":")
+            ~= "Category:Combo:Projectile:State"
+        or type(relation.source_action_ids) ~= "table"
+        or #relation.source_action_ids < 2 then
+        return false
+    end
+    for index, source_id in ipairs(relation.source_action_ids) do
+        source_id = tonumber(source_id)
+        if source_id == nil or source_id == tonumber(target_action_id)
+            or (index > 1 and tonumber(relation.source_action_ids[index - 1]) >= source_id) then
+            return false
+        end
+    end
+    return true
+end
+
+local function same_contextual_effect_relation(left, right)
+    if not valid_contextual_effect_relation(left, left and left.target_action_id)
+        or not valid_contextual_effect_relation(right, right and right.target_action_id)
+        or tonumber(left.target_action_id) ~= tonumber(right.target_action_id)
+        or tonumber(left.action_frame) ~= tonumber(right.action_frame)
+        or tonumber(left.param01) ~= tonumber(right.param01)
+        or #left.source_action_ids ~= #right.source_action_ids then
+        return false
+    end
+    for index, source_id in ipairs(left.source_action_ids) do
+        if tonumber(source_id) ~= tonumber(right.source_action_ids[index]) then return false end
+    end
+    return true
+end
+
 local RUNTIME_COMMON_ACTIONS = {
     [17] = "66",
     [18] = "44",
@@ -445,6 +502,38 @@ local function load_command_display_map(character)
         and tonumber(meta.type20_action_phase_route_count) == type20_phase_routes
         and type(meta.type20_action_phase_relations) == "table"
         and #meta.type20_action_phase_relations == type20_phase_relations
+    local has_type20_terminal_phase_audit = type(audit) == "table"
+        and (audit.type20_terminal_command_phase_relation_count ~= nil
+            or audit.type20_terminal_command_phase_route_count ~= nil)
+    local type20_terminal_phase_relations = has_type20_terminal_phase_audit
+        and tonumber(audit.type20_terminal_command_phase_relation_count) or nil
+    local type20_terminal_phase_routes = has_type20_terminal_phase_audit
+        and tonumber(audit.type20_terminal_command_phase_route_count) or nil
+    local type20_terminal_phase_audit_ok = not has_type20_terminal_phase_audit
+        or (type20_terminal_phase_relations ~= nil and type20_terminal_phase_routes ~= nil
+            and type20_terminal_phase_relations >= 0
+            and type20_terminal_phase_routes >= type20_terminal_phase_relations
+            and type20_terminal_phase_relations == math.floor(type20_terminal_phase_relations)
+            and type20_terminal_phase_routes == math.floor(type20_terminal_phase_routes)
+            and tonumber(meta.type20_terminal_command_phase_route_count)
+                == type20_terminal_phase_routes
+            and type(meta.type20_terminal_command_phase_relations) == "table"
+            and #meta.type20_terminal_command_phase_relations
+                == type20_terminal_phase_relations)
+    local type20_delayed_effect_relations = type(audit) == "table"
+        and tonumber(audit.type20_delayed_effect_relation_count) or nil
+    local type20_delayed_effect_routes = type(audit) == "table"
+        and tonumber(audit.type20_delayed_effect_route_count) or nil
+    local type20_delayed_effect_audit_ok = type20_delayed_effect_relations ~= nil
+        and type20_delayed_effect_routes ~= nil
+        and type20_delayed_effect_relations >= 0
+        and type20_delayed_effect_routes >= 0
+        and type20_delayed_effect_routes <= type20_delayed_effect_relations
+        and type20_delayed_effect_relations == math.floor(type20_delayed_effect_relations)
+        and type20_delayed_effect_routes == math.floor(type20_delayed_effect_routes)
+        and tonumber(meta.type20_delayed_effect_route_count) == type20_delayed_effect_routes
+        and type(meta.type20_delayed_effect_relations) == "table"
+        and #meta.type20_delayed_effect_relations == type20_delayed_effect_relations
     local has_type20_same_structure_audit = type(audit) == "table"
         and (audit.type20_same_structure_execution_relation_count ~= nil
             or audit.type20_same_structure_execution_route_count ~= nil)
@@ -818,6 +907,8 @@ local function load_command_display_map(character)
         and type63_strength_audit_ok
         and type20_hold_audit_ok
         and type20_phase_audit_ok
+        and type20_terminal_phase_audit_ok
+        and type20_delayed_effect_audit_ok
         and type20_same_structure_audit_ok
         and type37_followup_phase_audit_ok
         and target_combo_audit_ok
@@ -1075,6 +1166,156 @@ local function get_modern_display_motion(modern_map, step)
                         and fingerprints[1] == "Category" and fingerprints[2] == "Combo"
                         and fingerprints[3] == "Projectile" and fingerprints[4] == "State"
                         and relation.reason == AC_TYPE37_AUTOMATIC_EXECUTION_PHASE_REASON
+                elseif same and evidence.kind == "ac_type13_terminal_execution_phase" then
+                    local source_action_ids = relation.source_action_ids
+                    local evidence_source_ids = evidence.source_action_ids
+                    same = entry.ownership == "internal_execution_phase"
+                        and type(source_action_ids) == "table" and #source_action_ids >= 2
+                        and type(evidence_source_ids) == "table"
+                        and #evidence_source_ids == #source_action_ids
+                        and tonumber(relation.branch_type) == 13
+                        and tonumber(relation.attr) == 0
+                        and tonumber(relation.action_frame) == 0
+                        and tonumber(relation.param00) == 0
+                        and tonumber(relation.param01) == 0
+                        and tonumber(relation.param02) == 0
+                        and tonumber(relation.param03) == 0
+                        and tonumber(relation.param04) == 0
+                        and tonumber(relation.param05) == 0
+                        and tonumber(relation.trigger_id) == -1
+                        and relation.reason == AC_TYPE13_TERMINAL_EXECUTION_PHASE_REASON
+                    if same then
+                        for index, source_id in ipairs(source_action_ids) do
+                            if tonumber(source_id) == nil
+                                or tonumber(source_id) == step_id
+                                or tonumber(evidence_source_ids[index]) ~= tonumber(source_id)
+                                or (index > 1 and tonumber(source_action_ids[index - 1])
+                                    >= tonumber(source_id)) then
+                                same = false
+                                break
+                            end
+                        end
+                    end
+                elseif same and evidence.kind == "ac_type13_air_landing_execution_phase" then
+                    local source_action_ids = relation.source_action_ids
+                    local evidence_source_ids = evidence.source_action_ids
+                    local auxiliary_source_ids = relation.auxiliary_source_action_ids
+                    local evidence_auxiliary_ids = evidence.auxiliary_source_action_ids
+                    local exit_target_action_id = tonumber(relation.exit_target_action_id)
+                    local auxiliary_branches = relation.auxiliary_branches
+                    local evidence_auxiliary_branches = evidence.auxiliary_branches
+                    local function exact_auxiliary_branch(value, branch_type, param00)
+                        return type(value) == "table"
+                            and tonumber(value.branch_type) == branch_type
+                            and tonumber(value.attr) == 256
+                            and tonumber(value.action_frame) == 0
+                            and tonumber(value.param00) == param00
+                            and tonumber(value.param01) == 0
+                            and tonumber(value.param02) == 0
+                            and tonumber(value.param03) == 0
+                            and tonumber(value.param04) == 0
+                            and tonumber(value.param05) == 0
+                            and tonumber(value.trigger_id) == -1
+                    end
+                    same = entry.ownership == "internal_execution_phase"
+                        and type(source_action_ids) == "table" and #source_action_ids >= 2
+                        and type(evidence_source_ids) == "table"
+                        and #evidence_source_ids == #source_action_ids
+                        and type(auxiliary_source_ids) == "table"
+                        and type(evidence_auxiliary_ids) == "table"
+                        and #evidence_auxiliary_ids == #auxiliary_source_ids
+                        and exit_target_action_id ~= nil and exit_target_action_id ~= step_id
+                        and exit_target_action_id == tonumber(evidence.exit_target_action_id)
+                        and tonumber(relation.branch_type) == 13
+                        and tonumber(evidence.branch_type) == 13
+                        and tonumber(relation.attr) == 0 and tonumber(evidence.attr) == 0
+                        and tonumber(relation.action_frame) == 0
+                        and tonumber(evidence.action_frame) == 0
+                        and tonumber(relation.param00) == 1 and tonumber(evidence.param00) == 1
+                        and tonumber(relation.param01) == 0 and tonumber(evidence.param01) == 0
+                        and tonumber(relation.param02) == 0 and tonumber(evidence.param02) == 0
+                        and tonumber(relation.param03) == 0 and tonumber(evidence.param03) == 0
+                        and tonumber(relation.param04) == 0 and tonumber(evidence.param04) == 0
+                        and tonumber(relation.param05) == 0 and tonumber(evidence.param05) == 0
+                        and tonumber(relation.trigger_id) == -1
+                        and tonumber(evidence.trigger_id) == -1
+                        and tonumber(relation.exit_branch_type) == 20
+                        and tonumber(evidence.exit_branch_type) == 20
+                        and tonumber(relation.exit_attr) == 0 and tonumber(evidence.exit_attr) == 0
+                        and tonumber(relation.exit_action_frame) == 0
+                        and tonumber(evidence.exit_action_frame) == 0
+                        and tonumber(relation.exit_param00) == 0
+                        and tonumber(evidence.exit_param00) == 0
+                        and tonumber(relation.exit_param01) == 2
+                        and tonumber(evidence.exit_param01) == 2
+                        and tonumber(relation.exit_param02) == 0
+                        and tonumber(evidence.exit_param02) == 0
+                        and tonumber(relation.exit_param03) == 0
+                        and tonumber(evidence.exit_param03) == 0
+                        and tonumber(relation.exit_param04) == 0
+                        and tonumber(evidence.exit_param04) == 0
+                        and tonumber(relation.exit_param05) == 0
+                        and tonumber(evidence.exit_param05) == 0
+                        and tonumber(relation.exit_trigger_id) == -1
+                        and tonumber(evidence.exit_trigger_id) == -1
+                        and type(auxiliary_branches) == "table" and #auxiliary_branches == 2
+                        and type(evidence_auxiliary_branches) == "table"
+                        and #evidence_auxiliary_branches == 2
+                        and exact_auxiliary_branch(auxiliary_branches[1], 5, 0)
+                        and exact_auxiliary_branch(auxiliary_branches[2], 54, 160)
+                        and exact_auxiliary_branch(evidence_auxiliary_branches[1], 5, 0)
+                        and exact_auxiliary_branch(evidence_auxiliary_branches[2], 54, 160)
+                        and relation.reason == AC_TYPE13_AIR_LANDING_EXECUTION_PHASE_REASON
+                    local seen_sources = {}
+                    if same then
+                        for index, source_id in ipairs(source_action_ids) do
+                            local numeric_id = tonumber(source_id)
+                            if numeric_id == nil or numeric_id == step_id
+                                or numeric_id == exit_target_action_id
+                                or tonumber(evidence_source_ids[index]) ~= numeric_id
+                                or (index > 1 and tonumber(source_action_ids[index - 1])
+                                    >= numeric_id) then
+                                same = false
+                                break
+                            end
+                            seen_sources[numeric_id] = true
+                        end
+                    end
+                    if same then
+                        for index, source_id in ipairs(auxiliary_source_ids) do
+                            local numeric_id = tonumber(source_id)
+                            if numeric_id == nil or numeric_id == step_id
+                                or numeric_id == exit_target_action_id
+                                or seen_sources[numeric_id] == true
+                                or tonumber(evidence_auxiliary_ids[index]) ~= numeric_id
+                                or (index > 1 and tonumber(auxiliary_source_ids[index - 1])
+                                    >= numeric_id) then
+                                same = false
+                                break
+                            end
+                        end
+                    end
+                elseif same and evidence.kind == "ac_type36_type13_execution_phase" then
+                    local source_action_id = tonumber(relation.source_action_id)
+                    local tail_action_id = tonumber(relation.tail_action_id)
+                    same = entry.ownership == "internal_execution_phase"
+                        and source_action_id ~= nil and source_action_id ~= step_id
+                        and source_action_id == tonumber(evidence.source_action_id)
+                        and tail_action_id ~= nil and tail_action_id ~= source_action_id
+                        and tail_action_id ~= step_id
+                        and tail_action_id == tonumber(evidence.tail_action_id)
+                        and tonumber(relation.branch_type) == 36
+                        and tonumber(relation.exit_branch_type) == 13
+                        and tonumber(relation.attr) == 0
+                        and tonumber(relation.action_frame) == 0
+                        and tonumber(relation.param00) == 0
+                        and tonumber(relation.param01) == 0
+                        and tonumber(relation.param02) == 0
+                        and tonumber(relation.param03) == 0
+                        and tonumber(relation.param04) == 0
+                        and tonumber(relation.param05) == 0
+                        and tonumber(relation.trigger_id) == -1
+                        and relation.reason == AC_TYPE36_TYPE13_EXECUTION_PHASE_REASON
                 else
                     same = false
                 end
@@ -1176,6 +1417,34 @@ local function get_modern_display_motion(modern_map, step)
             and route.runtime_common_evidence ~= true and route.runtime_common_reason == nil
             and step_id ~= nil and tonumber(route.owner_action_id) == step_id
             and route.confidence == "direct_structural" and route_character == map_character
+        local contextual_effect_ok = false
+        if source == "ac_type20_delayed_effect_dual_role"
+            and entry.ownership == "contextual_dual_role"
+            and route.direct_evidence == true and route.inheritance_evidence == false
+            and route.rebind_evidence ~= true and route.rebind_reason == nil
+            and route.runtime_common_evidence ~= true and route.runtime_common_reason == nil
+            and route.contextual_effect_evidence == true
+            and route.contextual_effect_reason == TYPE20_DELAYED_EFFECT_REASON
+            and route.projection_scope == "classic_only"
+            and route.profile == "norm"
+            and step_id ~= nil and tonumber(route.owner_action_id) == step_id
+            and route.confidence == "direct_structural" and route_character == map_character
+            and type(route.display) == "string"
+            and type(route.contextual_effect_bcm_notation) == "string"
+            and trim_string(route.display):gsub("^>%s*", ""):gsub("%s+", "")
+                == trim_string(route.contextual_effect_bcm_notation):gsub("%s+", "")
+            and valid_contextual_effect_relation(
+                route.contextual_effect_relation, step_id) then
+            local declarations = type(modern_map._meta) == "table"
+                and modern_map._meta.type20_delayed_effect_relations or nil
+            for _, relation in ipairs(type(declarations) == "table" and declarations or {}) do
+                if same_contextual_effect_relation(
+                    route.contextual_effect_relation, relation) then
+                    contextual_effect_ok = true
+                    break
+                end
+            end
+        end
         local ac_path = type(route) == "table" and route.ac_path or nil
         local inherited_ok = source == "ac_type63_throw"
             and route.direct_evidence == false and route.inheritance_evidence == true
@@ -1454,6 +1723,151 @@ local function get_modern_display_motion(modern_map, step)
             and tonumber(route.display_action_id) == step_id
             and route.confidence == "verified_inherited_action_phase"
             and route_character == map_character and phase_signature_ok
+        local six_branch_signatures = {
+            ["0:5:1:16:0:3"] = true,
+            ["0:5:0:16:0:3"] = true,
+            ["0:5:0:256:0:2"] = true,
+            ["256:0:2:256:0:2"] = true,
+            ["0:5:0:64:0:1"] = true,
+            ["256:0:2:64:0:1"] = true,
+        }
+        local six_branch_signature_ok = false
+        if type(route.ac_phase_signatures) == "table"
+            and #route.ac_phase_signatures == 6 then
+            local signatures = {}
+            for _, signature in ipairs(route.ac_phase_signatures) do
+                if type(signature) == "table" then
+                    local key = string.format("%s:%s:%s:%s:%s:%s",
+                        tostring(signature.attr), tostring(signature.action_frame),
+                        tostring(signature.param00), tostring(signature.param01),
+                        tostring(signature.param02), tostring(signature.param03))
+                    signatures[key] = (signatures[key] or 0) + 1
+                end
+            end
+            six_branch_signature_ok = true
+            for key in pairs(six_branch_signatures) do
+                if signatures[key] ~= 1 then
+                    six_branch_signature_ok = false
+                    break
+                end
+            end
+        end
+        local function exact_phase_exit(value, branch_type, action_frame, param00)
+            return type(value) == "table"
+                and tonumber(value.target_action_id) ~= nil
+                and tonumber(value.branch_type) == branch_type
+                and tonumber(value.attr) == 0
+                and tonumber(value.action_frame) == action_frame
+                and tonumber(value.param00) == param00
+                and tonumber(value.param01) == 0
+                and tonumber(value.param02) == 0
+                and tonumber(value.param03) == 0
+                and tonumber(value.param04) == 0
+                and tonumber(value.param05) == 0
+                and tonumber(value.trigger_id) == -1
+        end
+        local declared_type20_six_branch = false
+        if type(type20_phase_declarations) == "table" and six_branch_signature_ok then
+            for _, relation in ipairs(type20_phase_declarations) do
+                if type(relation) == "table"
+                    and tonumber(relation.source_action_id) == inherited_source
+                    and tonumber(relation.target_action_id) == step_id
+                    and tonumber(relation.branch_type) == 20
+                    and relation.reason == TYPE20_SIX_BRANCH_PHASE_REASON
+                    and type(relation.signatures) == "table" and #relation.signatures == 6
+                    and exact_phase_exit(relation.source_exit_signature, 0, 5, 0)
+                    and exact_phase_exit(relation.exit_signature, 5, 8, 1) then
+                    declared_type20_six_branch = true
+                    break
+                end
+            end
+        end
+        local type20_six_branch_ok = source == "ac_type20_six_branch_action_phase"
+            and entry.ownership == "type20_action_phase"
+            and declared_type20_six_branch and six_branch_signature_ok
+            and route.direct_evidence == false and route.inheritance_evidence == true
+            and route.rebind_evidence == false and route.runtime_common_evidence == false
+            and route.official_semantic_evidence == false
+            and route.community_semantic_evidence == false
+            and route.inheritance_reason == TYPE20_SIX_BRANCH_PHASE_REASON
+            and tonumber(route.ac_relation_type) == 20 and inherited_source ~= nil
+            and step_id ~= nil and type(ac_path) == "table" and #ac_path >= 2
+            and tonumber(ac_path[#ac_path - 1]) == inherited_source
+            and tonumber(ac_path[#ac_path]) == step_id
+            and tonumber(route.display_action_id) == step_id
+            and route.confidence == "verified_inherited_action_phase"
+            and route_character == map_character
+            and exact_phase_exit(route.ac_source_exit_signature, 0, 5, 0)
+            and exact_phase_exit(route.ac_exit_signature, 5, 8, 1)
+        local terminal_phase_signature_ok = false
+        local required_terminal_phase_signatures = {
+            ["256:0:0:112:0:1"] = true,
+            ["256:0:0:32:0:2"] = true,
+            ["256:0:0:256:0:3"] = true,
+        }
+        if type(route.ac_phase_signatures) == "table" and #route.ac_phase_signatures == 3 then
+            local signatures = {}
+            for _, signature in ipairs(route.ac_phase_signatures) do
+                if type(signature) == "table" then
+                    local key = string.format("%s:%s:%s:%s:%s:%s",
+                        tostring(signature.attr), tostring(signature.action_frame),
+                        tostring(signature.param00), tostring(signature.param01),
+                        tostring(signature.param02), tostring(signature.param03))
+                    signatures[key] = (signatures[key] or 0) + 1
+                end
+            end
+            terminal_phase_signature_ok = true
+            for key in pairs(required_terminal_phase_signatures) do
+                if signatures[key] ~= 1 then
+                    terminal_phase_signature_ok = false
+                    break
+                end
+            end
+        end
+        local declared_type20_terminal_phase = false
+        local terminal_phase_declarations = type(modern_map._meta) == "table"
+            and modern_map._meta.type20_terminal_command_phase_relations or nil
+        if type(terminal_phase_declarations) == "table" and terminal_phase_signature_ok then
+            for _, relation in ipairs(terminal_phase_declarations) do
+                local fingerprints = type(relation) == "table"
+                    and relation.fingerprint_fields or nil
+                if type(relation) == "table"
+                    and tonumber(relation.source_action_id) == inherited_source
+                    and tonumber(relation.target_action_id) == step_id
+                    and tonumber(relation.branch_type) == 20
+                    and type(relation.signatures) == "table" and #relation.signatures == 3
+                    and type(fingerprints) == "table" and #fingerprints == 4
+                    and fingerprints[1] == "Category" and fingerprints[2] == "Combo"
+                    and fingerprints[3] == "Projectile" and fingerprints[4] == "State"
+                    and relation.reason == TYPE20_TERMINAL_COMMAND_PHASE_REASON then
+                    declared_type20_terminal_phase = true
+                    break
+                end
+            end
+        end
+        local terminal_route_fingerprints = route.ac_fingerprint_fields
+        local type20_terminal_phase_ok = source == "ac_type20_terminal_command_phase"
+            and entry.ownership == "type20_action_phase"
+            and declared_type20_terminal_phase
+            and route.direct_evidence == false and route.inheritance_evidence == true
+            and route.rebind_evidence == false and route.runtime_common_evidence == false
+            and route.official_semantic_evidence == false
+            and route.community_semantic_evidence == false
+            and route.inheritance_reason == TYPE20_TERMINAL_COMMAND_PHASE_REASON
+            and tonumber(route.ac_relation_type) == 20 and inherited_source ~= nil
+            and step_id ~= nil and type(ac_path) == "table" and #ac_path >= 2
+            and tonumber(ac_path[#ac_path - 1]) == inherited_source
+            and tonumber(ac_path[#ac_path]) == step_id
+            and tonumber(route.display_action_id) == step_id
+            and tonumber(route.bcm_owner_action_id) == tonumber(route.owner_action_id)
+            and route.confidence == "verified_inherited_action_phase"
+            and route_character == map_character and terminal_phase_signature_ok
+            and type(terminal_route_fingerprints) == "table"
+            and #terminal_route_fingerprints == 4
+            and terminal_route_fingerprints[1] == "Category"
+            and terminal_route_fingerprints[2] == "Combo"
+            and terminal_route_fingerprints[3] == "Projectile"
+            and terminal_route_fingerprints[4] == "State"
         local same_structure_signature_ok = false
         local required_same_structure_signatures = {
             ["256:0:1:256:0:3"] = true,
@@ -1780,8 +2194,11 @@ local function get_modern_display_motion(modern_map, step)
             and tostring(route.display or "") == assist_expected_display
         local display = type(route) == "table" and route.display or nil
         if charge_context_ok and super_shortcut_ok
-            and (direct_ok or inherited_ok or rebind_ok or runtime_common_ok or official_semantic_ok
+            and (direct_ok or contextual_effect_ok
+                or inherited_ok or rebind_ok or runtime_common_ok or official_semantic_ok
                 or verified_alias_ok or type20_ok or type20_hold_ok or type20_phase_ok
+                or type20_six_branch_ok
+                or type20_terminal_phase_ok
                 or type20_same_structure_ok
                 or type37_followup_phase_ok or type63_strength_ok
                 or state_choice_ok
@@ -1841,6 +2258,10 @@ build_slim_command_display_map = function(loaded)
         and type(catalog_meta.assist_combo_chains) == "table" then
         slim._assist_combo_chains = catalog_meta.assist_combo_chains
     end
+    if type(catalog_meta) == "table"
+        and type(catalog_meta.type20_delayed_effect_relations) == "table" then
+        slim._contextual_effect_relations = catalog_meta.type20_delayed_effect_relations
+    end
     for action_id, entry in pairs(loaded) do
         if type(entry) == "table" and tostring(action_id):match("^%d+$") then
             local motion, status = get_modern_display_motion(loaded, { id = action_id })
@@ -1856,6 +2277,8 @@ build_slim_command_display_map = function(loaded)
                     for _, route in ipairs(type(entry.routes) == "table" and entry.routes or {}) do
                         if type(route) == "table"
                             and (route.source == "ac_type20_action_phase"
+                                or route.source == "ac_type20_six_branch_action_phase"
+                                or route.source == "ac_type20_terminal_command_phase"
                                 or route.source == "ac_type20_same_structure_execution_phase")
                             and route.confidence == "verified_inherited_action_phase" then
                             local candidate = tonumber(route.inherited_from_action_id)
@@ -2523,6 +2946,16 @@ local function setup_followup_child_sources(command_map)
     return child_source
 end
 
+local function is_same_command_phase(metadata, previous_action_id)
+    if type(metadata) ~= "table"
+        or tostring(metadata.ownership or "") ~= "type20_action_phase" then
+        return false
+    end
+    local owner = tonumber(metadata.inherited_from_action_id)
+    local previous = tonumber(previous_action_id)
+    return owner ~= nil and previous ~= nil and owner == previous
+end
+
 local function is_internal_bridge_candidate(command_map, step)
     if type(command_map) ~= "table" or type(step) ~= "table" then return false end
     local entry = command_map[tostring(step.id or "")]
@@ -2560,6 +2993,53 @@ local function compute_internal_bridge_suppressions(sequence, command_map)
         end
     end
     return suppress
+end
+
+local function setup_contextual_effect_targets(command_map)
+    local targets = {}
+    local relations = type(command_map) == "table"
+        and command_map._contextual_effect_relations or nil
+    for _, relation in ipairs(type(relations) == "table" and relations or {}) do
+        local target_id = tonumber(relation and relation.target_action_id)
+        if target_id ~= nil and valid_contextual_effect_relation(relation, target_id) then
+            targets[target_id] = relation
+        end
+    end
+    return targets
+end
+
+local function compute_contextual_effect_line_breaks(sequence, command_map)
+    local line_breaks = {}
+    if type(sequence) ~= "table" then return line_breaks end
+    local targets = setup_contextual_effect_targets(command_map)
+    for index = 2, #sequence do
+        local previous = sequence[index - 1]
+        local current = sequence[index]
+        local relation = targets[tonumber(current and current.id)]
+        local same_group = type(previous) == "table" and type(current) == "table"
+            and previous.group_id ~= nil and current.group_id ~= nil
+            and tostring(previous.group_id) == tostring(current.group_id)
+        local contact_result = current and (current.has_contact == true or current.has_hit == true)
+        local previous_contact = previous
+            and (previous.has_contact == true or previous.has_hit == true)
+        local combo_advanced = (tonumber(current and current.expected_combo) or 0)
+            > (tonumber(previous and previous.expected_combo) or 0)
+        local damage_advanced = (tonumber(current and current.damage_at_step) or 0)
+            > (tonumber(previous and previous.damage_at_step) or 0)
+        if relation and same_group and previous_contact and contact_result
+            and (combo_advanced or damage_advanced)
+            and (tonumber(current.delay_from_prev) or 0)
+                >= (tonumber(relation.action_frame) or math.huge) then
+            line_breaks[index] = true
+        end
+    end
+    return line_breaks
+end
+
+local function requires_separate_display_line(presentation_context, contextual_effect_break)
+    return contextual_effect_break == true
+        or (type(presentation_context) == "table"
+            and presentation_context.separate_line == true)
 end
 
 -- classic mode the renderer preserves recorded text instead of manufacturing a
@@ -2614,6 +3094,8 @@ local function validate_sequence_command_display(sequence)
     local previous_visible_group_key = nil
     local display_language = sequence_display_language(sequence)
     local suppress_map = compute_internal_bridge_suppressions(sequence, command_map)
+    local contextual_effect_line_breaks =
+        compute_contextual_effect_line_breaks(sequence, command_map)
     local child_source = setup_followup_child_sources(command_map)
     local last_visible_action_id = nil
     for index, step in ipairs(sequence) do
@@ -2702,18 +3184,21 @@ local function validate_sequence_command_display(sequence)
         end
         local group_key = tostring(step.group_id ~= nil
             and step.group_id or ("step:" .. tostring(index)))
-        if type(presentation_context) == "table"
-            and presentation_context.separate_line == true then
+        if requires_separate_display_line(
+            presentation_context, contextual_effect_line_breaks[index]) then
             group_key = group_key .. ":context:" .. tostring(index)
         end
         local visible_line_index = nil
+        local same_command_phase = visible
+            and is_same_command_phase(resolution.metadata, last_visible_action_id)
         if visible then
             result.visible_step_count = result.visible_step_count + 1
             local effective_action = resolution.effective_action_id
             local chain_followup = last_visible_action_id ~= nil
                 and effective_action ~= nil
                 and child_source[effective_action] == last_visible_action_id
-            if previous_visible_group_key ~= group_key and not chain_followup then
+            if previous_visible_group_key ~= group_key
+                and not chain_followup and not same_command_phase then
                 result.visible_line_count = result.visible_line_count + 1
             end
             previous_visible_group_key = group_key
@@ -2737,6 +3222,7 @@ local function validate_sequence_command_display(sequence)
             require_recorded_motion_match = require_recorded_motion_match,
             recorded_motion_matches = recorded_motion_matches,
             presentation_context = presentation_context,
+            same_command_phase = same_command_phase,
         }
     end
 
@@ -2774,6 +3260,8 @@ local function build_display_lines(sequence)
     local previous_effective_owner_id = nil
     local display_language = sequence_display_language(sequence)
     local suppress_map = compute_internal_bridge_suppressions(sequence, modern_map)
+    local contextual_effect_line_breaks =
+        compute_contextual_effect_line_breaks(sequence, modern_map)
     local child_source = setup_followup_child_sources(modern_map)
     local last_placed_action_id = nil
     -- AUTO连(assist combo) chain collapsing: a maximal run of consecutive steps
@@ -2925,14 +3413,19 @@ local function build_display_lines(sequence)
                 step._auto_chain_strength = auto_strength_for_step[i]
             end
             local gid = auto_group[i] or step.group_id or i
-            local separate_line = type(presentation_context) == "table"
-                and presentation_context.separate_line == true
+            local separate_line = requires_separate_display_line(
+                presentation_context, contextual_effect_line_breaks[i])
             local cur_action = resolution.effective_action_id
             local chain_followup = last_placed_action_id ~= nil
                 and cur_action ~= nil
                 and child_source[cur_action] == last_placed_action_id
+            local same_command_phase =
+                is_same_command_phase(resolution.metadata, last_placed_action_id)
+            step._ct_same_command_phase = same_command_phase
             local same_group = #lines > 0 and lines[#lines].group_id == gid
-            if #lines == 0 or (not same_group and not chain_followup) or separate_line then
+            if #lines == 0
+                or (not same_group and not chain_followup and not same_command_phase)
+                or separate_line then
                 table.insert(lines, {
                     group_id = gid,
                     first = i,
@@ -2950,6 +3443,10 @@ local function build_display_lines(sequence)
         end
     end
     return lines, classic_modern_projection == true
+end
+
+local function strip_line_leading_followup(motion)
+    return tostring(motion or ""):gsub("^%s*>%s*", "")
 end
 
 local function merge_group_log_item(steps)
@@ -3005,10 +3502,18 @@ local function merge_group_log_item(steps)
         -- For follow-ups: ensure > is BEFORE [AIR]/J. (not reversed)
         m = m:gsub("^(%[AIR%])%s*(>)", "%2%1")
         m = m:gsub("^(J%.)%s*(>)", "%2%1")
-        if step_index > 1 then
+        if step_index == 1 then
+            -- A follow-up marker describes a relationship to a visible item
+            -- on the same line. Once grouping starts a new line, the prefix is
+            -- orphaned and must not render as a standalone triangle.
+            m = strip_line_leading_followup(m)
+        else
             m = SequenceGrouping.ensure_followup_prefix(m)
         end
-        if s.is_holdable then
+        if s._ct_same_command_phase == true then
+            -- The Action remains in V2/detection, but its command was already
+            -- rendered by the immediately preceding BCM owner Action.
+        elseif s.is_holdable then
             if holdable_count > 3 then
                 -- Only display the first holdable with "(xN)", ignore the rest
                 if not first_holdable_done then
@@ -3033,8 +3538,21 @@ local function merge_group_log_item(steps)
 
     local first = steps[1]
     local last  = steps[#steps]
+    local has_same_command_phase = false
+    for _, s in ipairs(steps) do
+        if s._ct_same_command_phase == true then
+            has_same_command_phase = true
+            break
+        end
+    end
     local all_hit = true
-    for _, s in ipairs(steps) do if not s.has_hit then all_hit = false; break end end
+    if has_same_command_phase then
+        all_hit = last.has_hit == true
+    else
+        for _, s in ipairs(steps) do
+            if not s.has_hit then all_hit = false break end
+        end
+    end
     local has_modern_display = false
     for _, s in ipairs(steps) do
         if s._ct_modern_display then has_modern_display = true; break end
@@ -3066,6 +3584,15 @@ local function merge_group_log_item(steps)
         ui_result_text = ui_result_text,
         ui_result_kind = ui_result_kind,
     }
+end
+
+local function display_line_log_item(steps)
+    if type(steps) ~= "table" or type(steps[1]) ~= "table" then return {} end
+    if #steps > 1 then return merge_group_log_item(steps) end
+    local item = {}
+    for key, value in pairs(steps[1]) do item[key] = value end
+    item.motion = strip_line_leading_followup(item.motion)
+    return item
 end
 
 -- =========================================================
@@ -4260,7 +4787,7 @@ local function imgui_draw_inner()
         -- Draw text and icons for each visible display line
         for dl_idx = start_idx, math.min(start_idx + visible - 1, n_lines) do
             local dl = display_lines[dl_idx]
-            local log_item = (#dl.steps > 1) and merge_group_log_item(dl.steps) or dl.steps[1]
+            local log_item = display_line_log_item(dl.steps)
 
             -- Number of validated follow-ups in this group (to swap followup -> validfollowup)
             if mode == "playing" and #dl.steps > 1 then

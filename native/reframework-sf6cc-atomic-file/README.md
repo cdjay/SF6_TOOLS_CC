@@ -8,6 +8,7 @@ sf6cc_atomic_file.write(relative_path, complete_bytes)
 sf6cc_atomic_file.probe(relative_path)
 sf6cc_atomic_file.random_epoch()
 sf6cc_atomic_file.random_id()
+sf6cc_atomic_file.remove_combo(relative_path)
 ```
 
 `write` accepts only the tracked producer's checkpoint, durable-state,
@@ -32,6 +33,13 @@ Lua producer fails closed without generating a replacement epoch.
 lowercase hexadecimal characters. It is called only when no checkpoint and no
 durable producer state exist. `random_id` uses the same cryptographic generator
 for independent feedback item IDs without assigning epoch semantics.
+
+`remove_combo` is a separate bounded operation for the in-game Combo list. It
+accepts only one existing regular JSON file at exactly
+`TrainingComboTrials_data/CustomCombos/<character>/<filename>.json`. Absolute
+paths, parent traversal, deeper paths, non-JSON files, directories, and
+reparse-point targets are rejected. The telemetry and feedback `write`/`probe`
+allowlist remains fixed and unchanged.
 
 Build with the same pinned REFramework source and x64 Visual Studio toolchain
 documented by `native/reframework-imgui-texture`.

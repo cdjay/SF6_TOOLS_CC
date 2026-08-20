@@ -6,6 +6,14 @@ require("func/SharedHooks")
 local SF6CCVersion = require("func/SF6CC_Version")
 local RuntimeSafety = require("func/RuntimeSafety")
 local GS = require("func/GameState")
+if type(package.loaded["func/ComboTrials/GeneratedActionRelations"]) ~= "table"
+    or package.loaded["func/ComboTrials/GeneratedActionRelations"].RUNTIME_VERSION ~= 2026082002 then
+    package.loaded["func/ComboTrials/GeneratedActionRelations"] = nil
+end
+if type(package.loaded["func/ComboTrials/UnifiedActionConsumer"]) ~= "table"
+    or package.loaded["func/ComboTrials/UnifiedActionConsumer"].RUNTIME_VERSION ~= 2026082001 then
+    package.loaded["func/ComboTrials/UnifiedActionConsumer"] = nil
+end
 local ComboTrialsModules = {
     DebugTrace = require("func/ComboTrials/DebugTrace"),
     ActionCompatibility = require("func/ComboTrials/ActionCompatibility"),
@@ -1272,7 +1280,7 @@ end
 
 -- 渲染模块源码或指令表行为升级时必须同步递增 RENDERER_VERSION，防止 Reset
 -- Scripts 继续复用旧闭包和旧指令表缓存。
-local REQUIRED_RENDERER_VERSION = 20260820
+local REQUIRED_RENDERER_VERSION = 2026082005
 local cached_renderer = package.loaded["func/ComboTrials_ImGui"]
 if type(cached_renderer) ~= "table"
     or cached_renderer.RENDERER_VERSION ~= REQUIRED_RENDERER_VERSION
@@ -3958,11 +3966,9 @@ function ct_should_ignore_duplicate_previous_pressure_action(prev_step, expected
     return ct_is_zero_combo_pressure_validation_step(prev_step)
 end
 
-function ct_try_skip_unreported_same_action_pressure_step(args)
+function ct_try_skip_unreported_intermediate_step(args)
     if type(args) ~= "table" then return nil end
     if not args.expected or args.action_match_matched then return nil end
-    if ct_step_requires_action(args.expected) then return nil end
-    if not ct_is_unreported_same_action_pressure_step(args.prev_step, args.expected) then return nil end
 
     local state = args.state
     local sequence = state and state.sequence or nil
@@ -3975,20 +3981,40 @@ function ct_try_skip_unreported_same_action_pressure_step(args)
 
     local next_exception = args.get_match_rule
         and args.get_match_rule(next_expected) or nil
-    local next_action_match = args.ActionConsumer.match_expected_action(
-        next_expected,
-        args.act_id,
-        args.motion,
-        args.input,
-        next_exception,
-        args.action_compatibility,
-        args.generated_action_relations
-    )
-    if not next_action_match or not next_action_match.matched then return nil end
 
     local validation_frame = args.synthetic and (args.synthetic_frame or engine_frame_count) or engine_frame_count
     local last_played = state.last_played_frame or validation_frame
-    local virtual_frame = validation_frame - (tonumber(next_expected.delay_from_prev) or 0)
+    local pressure_skip = not ct_step_requires_action(args.expected)
+        and ct_is_unreported_same_action_pressure_step(args.prev_step, args.expected)
+    local generated_skip = args.ActionConsumer.plan_unreported_command_phase_skip({
+        previous_step = args.prev_step,
+        expected_step = args.expected,
+        next_step = next_expected,
+        actual_action_id = args.act_id,
+        actual_motion = args.motion,
+        actual_input = args.input,
+        actual_frame = validation_frame,
+        last_played_frame = last_played,
+        next_exception = next_exception,
+        compatibility_rules = args.action_compatibility,
+        generated_action_relations = args.generated_action_relations,
+    })
+    if not pressure_skip and not generated_skip then return nil end
+
+    local next_action_match = generated_skip and generated_skip.next_action_match
+        or args.ActionConsumer.match_expected_action(
+            next_expected,
+            args.act_id,
+            args.motion,
+            args.input,
+            next_exception,
+            args.action_compatibility,
+            args.generated_action_relations
+        )
+    if not next_action_match or not next_action_match.matched then return nil end
+
+    local virtual_frame = generated_skip and generated_skip.virtual_frame
+        or (validation_frame - (tonumber(next_expected.delay_from_prev) or 0))
     local min_virtual_frame = last_played + (tonumber(args.expected.delay_from_prev) or 0)
     if virtual_frame < min_virtual_frame then virtual_frame = min_virtual_frame end
 
@@ -4006,7 +4032,8 @@ function ct_try_skip_unreported_same_action_pressure_step(args)
 
     local probe = args.match_probe
     if probe then
-        probe.branch = "pressure_same_action_unreported_skip"
+        probe.branch = generated_skip and generated_skip.reason
+            or "pressure_same_action_unreported_skip"
         probe.reject_reason = nil
         probe.skipped_step = next_step_idx - 1
         probe.skipped_expected_id = args.expected.id
@@ -6854,9 +6881,8 @@ local function ct_player_process_actions(p_idx, p_state, actions_to_process)
                                 edge_type = action_match.edge_type,
                                 synthetic = action_match.synthetic
                             }
-                            if expected and not action_match.matched
-                                and ct_is_unreported_same_action_pressure_step(trace_prev_step, expected) then
-                                _pf.pressure_skip = ct_try_skip_unreported_same_action_pressure_step({
+                            if expected and not action_match.matched then
+                                _pf.unreported_step_skip = ct_try_skip_unreported_intermediate_step({
                                     state = trial_state,
                                     expected = expected,
                                     prev_step = trace_prev_step,
@@ -6883,12 +6909,12 @@ local function ct_player_process_actions(p_idx, p_state, actions_to_process)
                                     DebugTrace = DebugTrace,
                                     match_probe = match_probe
                                 })
-                                if _pf.pressure_skip then
-                                    expected = _pf.pressure_skip.expected
-                                    action_match = _pf.pressure_skip.action_match
-                                    trace_prev_step = _pf.pressure_skip.prev_step
-                                    _pf.pressure_skip = nil
-                                    match_probe = build_match_probe(expected, "intentional_action_after_pressure_same_skip")
+                                if _pf.unreported_step_skip then
+                                    expected = _pf.unreported_step_skip.expected
+                                    action_match = _pf.unreported_step_skip.action_match
+                                    trace_prev_step = _pf.unreported_step_skip.prev_step
+                                    _pf.unreported_step_skip = nil
+                                    match_probe = build_match_probe(expected, "intentional_action_after_unreported_step_skip")
                                     match_probe.action_match = {
                                         matched = action_match.matched,
                                         match_reason = action_match.match_reason,
@@ -6899,7 +6925,7 @@ local function ct_player_process_actions(p_idx, p_state, actions_to_process)
                                         synthetic = action_match.synthetic
                                     }
                                 else
-                                    _pf.pressure_skip = nil
+                                    _pf.unreported_step_skip = nil
                                 end
                             end
                             local skip_current_action = false

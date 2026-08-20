@@ -5906,6 +5906,35 @@
       }
     ]
   },
+  "928": {
+    "classic_command": null,
+    "simple_command": null,
+    "motion_command": null,
+    "control_support": "unknown",
+    "source": "ac_bcm+capcom_official_semantics",
+    "ownership": "internal_execution_phase",
+    "suppress_display": true,
+    "transition_evidence": {
+      "kind": "ac_type13_terminal_execution_phase",
+      "source_action_ids": [
+        920,
+        924
+      ],
+      "target_action_id": 928,
+      "branch_type": 13,
+      "attr": 0,
+      "action_frame": 0,
+      "param00": 0,
+      "param01": 0,
+      "param02": 0,
+      "param03": 0,
+      "param04": 0,
+      "param05": 0,
+      "trigger_id": -1,
+      "reason": "ac_type13_zero_parameter_multi_owner_terminal_execution_phase"
+    },
+    "routes": []
+  },
   "931": {
     "classic_command": {
       "display": "j.K",
@@ -6552,6 +6581,37 @@
       }
     ]
   },
+  "944": {
+    "classic_command": null,
+    "simple_command": null,
+    "motion_command": null,
+    "control_support": "unknown",
+    "source": "ac_bcm+capcom_official_semantics",
+    "ownership": "internal_execution_phase",
+    "suppress_display": true,
+    "transition_evidence": {
+      "kind": "ac_type13_terminal_execution_phase",
+      "source_action_ids": [
+        940,
+        941,
+        942,
+        943
+      ],
+      "target_action_id": 944,
+      "branch_type": 13,
+      "attr": 0,
+      "action_frame": 0,
+      "param00": 0,
+      "param01": 0,
+      "param02": 0,
+      "param03": 0,
+      "param04": 0,
+      "param05": 0,
+      "trigger_id": -1,
+      "reason": "ac_type13_zero_parameter_multi_owner_terminal_execution_phase"
+    },
+    "routes": []
+  },
   "949": {
     "classic_command": {
       "display": "j.214+K",
@@ -6690,6 +6750,35 @@
         "super_shortcut_direction_reason": null
       }
     ]
+  },
+  "950": {
+    "classic_command": null,
+    "simple_command": null,
+    "motion_command": null,
+    "control_support": "unknown",
+    "source": "ac_bcm+capcom_official_semantics",
+    "ownership": "internal_execution_phase",
+    "suppress_display": true,
+    "transition_evidence": {
+      "kind": "ac_type13_terminal_execution_phase",
+      "source_action_ids": [
+        949,
+        951
+      ],
+      "target_action_id": 950,
+      "branch_type": 13,
+      "attr": 0,
+      "action_frame": 0,
+      "param00": 0,
+      "param01": 0,
+      "param02": 0,
+      "param03": 0,
+      "param04": 0,
+      "param05": 0,
+      "trigger_id": -1,
+      "reason": "ac_type13_zero_parameter_multi_owner_terminal_execution_phase"
+    },
+    "routes": []
   },
   "951": {
     "classic_command": {
@@ -7337,6 +7426,116 @@
       }
     ]
   },
+  "966": {
+    "classic_command": {
+      "display": "214+P",
+      "inputs": [
+        "214+P"
+      ]
+    },
+    "control_support": "classic_modern",
+    "source": "ac_bcm+capcom_official_semantics",
+    "ownership": "type20_action_phase",
+    "simple_command": {
+      "display": "2 + SP",
+      "inputs": [
+        "2 + SP"
+      ]
+    },
+    "motion_command": null,
+    "routes": [
+      {
+        "display": "2 + SP",
+        "character": "Kimberly",
+        "owner_action_id": 965,
+        "trigger_index": 98,
+        "profile": "sprt",
+        "command_no": -1,
+        "command_index": -1,
+        "raw_direction_inputs": [],
+        "raw_button_mask": 32,
+        "raw_button_condition": 16416,
+        "raw_dc_exc_flags": 2,
+        "raw_ng_key_flags": 0,
+        "visible_direction": "2",
+        "visible_button": "SP",
+        "button_candidates": [],
+        "required_button_count": 1,
+        "source": "ac_type20_terminal_command_phase",
+        "ac_relation_type": 20,
+        "ac_path": [
+          965,
+          966
+        ],
+        "inherited_from_action_id": 965,
+        "confidence": "verified_inherited_action_phase",
+        "direct_evidence": false,
+        "inheritance_evidence": true,
+        "inheritance_reason": "ac_type20_complete_punch_strength_terminal_command_phase",
+        "rebind_evidence": false,
+        "rebind_reason": null,
+        "runtime_common_evidence": false,
+        "runtime_common_reason": null,
+        "official_semantic_evidence": false,
+        "official_semantic_reason": null,
+        "community_semantic_evidence": false,
+        "community_semantic_reason": null,
+        "assist_combo_evidence": false,
+        "assist_combo_reason": null,
+        "charge_context_evidence": false,
+        "charge_context_profile": null,
+        "charge_context_direction": null,
+        "charge_context_manual_direction": null,
+        "charge_context_direction_profile": null,
+        "charge_context_command_no": null,
+        "charge_context_command_index": null,
+        "charge_context_notation": null,
+        "charge_context_source_action_id": null,
+        "charge_context_source_trigger_indices": [],
+        "charge_context_relation": null,
+        "charge_context_reason": null,
+        "super_shortcut_direction_evidence": false,
+        "super_shortcut_direction_profile": null,
+        "super_shortcut_direction": null,
+        "super_shortcut_direction_notation": null,
+        "super_shortcut_direction_reason": null,
+        "display_action_id": 966,
+        "bcm_owner_action_id": 965,
+        "ac_phase_signatures": [
+          {
+            "attr": 256,
+            "action_frame": 0,
+            "param00": 0,
+            "param01": 112,
+            "param02": 0,
+            "param03": 1
+          },
+          {
+            "attr": 256,
+            "action_frame": 0,
+            "param00": 0,
+            "param01": 32,
+            "param02": 0,
+            "param03": 2
+          },
+          {
+            "attr": 256,
+            "action_frame": 0,
+            "param00": 0,
+            "param01": 256,
+            "param02": 0,
+            "param03": 3
+          }
+        ],
+        "ac_fingerprint_fields": [
+          "Category",
+          "Combo",
+          "Projectile",
+          "State"
+        ]
+      }
+    ]
+  },
   "970": {
     "classic_command": {
       "display": "214+PP",
@@ -7908,10 +8107,97 @@
     },
     "control_support": "classic_only",
     "source": "ac_bcm+capcom_official_semantics",
-    "ownership": "classic_runtime",
+    "ownership": "contextual_dual_role",
     "simple_command": null,
     "motion_command": null,
-    "routes": []
+    "routes": [
+      {
+        "display": ">22+HP",
+        "character": "Kimberly",
+        "owner_action_id": 979,
+        "trigger_index": 70,
+        "profile": "norm",
+        "command_no": 9,
+        "command_index": 4,
+        "raw_direction_inputs": [
+          1073741824,
+          2,
+          1073741824,
+          2
+        ],
+        "raw_button_mask": 64,
+        "raw_button_condition": 81952,
+        "raw_dc_exc_flags": 0,
+        "raw_ng_key_flags": 0,
+        "visible_direction": null,
+        "visible_button": null,
+        "button_candidates": [],
+        "required_button_count": 1,
+        "source": "ac_type20_delayed_effect_dual_role",
+        "ac_relation_type": null,
+        "ac_path": [],
+        "inherited_from_action_id": null,
+        "confidence": "direct_structural",
+        "direct_evidence": true,
+        "inheritance_evidence": false,
+        "inheritance_reason": null,
+        "rebind_evidence": false,
+        "rebind_reason": null,
+        "runtime_common_evidence": false,
+        "runtime_common_reason": null,
+        "official_semantic_evidence": false,
+        "official_semantic_reason": null,
+        "community_semantic_evidence": false,
+        "community_semantic_reason": null,
+        "assist_combo_evidence": false,
+        "assist_combo_reason": null,
+        "charge_context_evidence": false,
+        "charge_context_profile": null,
+        "charge_context_direction": null,
+        "charge_context_manual_direction": null,
+        "charge_context_direction_profile": null,
+        "charge_context_command_no": null,
+        "charge_context_command_index": null,
+        "charge_context_notation": null,
+        "charge_context_source_action_id": null,
+        "charge_context_source_trigger_indices": [],
+        "charge_context_relation": null,
+        "charge_context_reason": null,
+        "super_shortcut_direction_evidence": false,
+        "super_shortcut_direction_profile": null,
+        "super_shortcut_direction": null,
+        "super_shortcut_direction_notation": null,
+        "super_shortcut_direction_reason": null,
+        "projection_scope": "classic_only",
+        "contextual_effect_evidence": true,
+        "contextual_effect_reason": "ac_type20_multi_owner_delayed_contact_effect",
+        "contextual_effect_bcm_notation": "22+HP",
+        "contextual_effect_relation": {
+          "source_action_ids": [
+            975,
+            977
+          ],
+          "target_action_id": 979,
+          "branch_type": 20,
+          "attr": 288,
+          "action_frame": 9,
+          "param00": 1,
+          "param01": 8,
+          "param02": 1,
+          "param03": 2,
+          "param04": 0,
+          "param05": 0,
+          "trigger_id": -1,
+          "fingerprint_fields": [
+            "Category",
+            "Combo",
+            "Projectile",
+            "State"
+          ],
+          "reason": "ac_type20_multi_owner_delayed_contact_effect"
+        }
+      }
+    ]
   },
   "981": {
     "classic_command": {
@@ -8291,6 +8577,63 @@
         "super_shortcut_direction_reason": null
       }
     ]
+  },
+  "1024": {
+    "classic_command": null,
+    "simple_command": null,
+    "motion_command": null,
+    "control_support": "unknown",
+    "source": "ac_bcm+capcom_official_semantics",
+    "ownership": "internal_execution_phase",
+    "suppress_display": true,
+    "transition_evidence": {
+      "kind": "ac_type36_type13_execution_phase",
+      "source_action_id": 1023,
+      "target_action_id": 1024,
+      "tail_action_id": 1025,
+      "branch_type": 36,
+      "exit_branch_type": 13,
+      "attr": 0,
+      "action_frame": 0,
+      "param00": 0,
+      "param01": 0,
+      "param02": 0,
+      "param03": 0,
+      "param04": 0,
+      "param05": 0,
+      "trigger_id": -1,
+      "reason": "ac_type36_zero_parameter_phase_with_type13_terminal_exit"
+    },
+    "routes": []
+  },
+  "1031": {
+    "classic_command": null,
+    "simple_command": null,
+    "motion_command": null,
+    "control_support": "unknown",
+    "source": "ac_bcm+capcom_official_semantics",
+    "ownership": "internal_execution_phase",
+    "suppress_display": true,
+    "transition_evidence": {
+      "kind": "ac_type13_terminal_execution_phase",
+      "source_action_ids": [
+        1015,
+        1023
+      ],
+      "target_action_id": 1031,
+      "branch_type": 13,
+      "attr": 0,
+      "action_frame": 0,
+      "param00": 0,
+      "param01": 0,
+      "param02": 0,
+      "param03": 0,
+      "param04": 0,
+      "param05": 0,
+      "trigger_id": -1,
+      "reason": "ac_type13_zero_parameter_multi_owner_terminal_execution_phase"
+    },
+    "routes": []
   },
   "1200": {
     "classic_command": {
@@ -9602,8 +9945,8 @@
       "supr",
       "sprt"
     ],
-    "direct_route_count": 119,
-    "inherited_route_count": 5,
+    "direct_route_count": 120,
+    "inherited_route_count": 6,
     "rebind_route_count": 0,
     "runtime_common_route_count": 6,
     "official_semantic_route_count": 3,
@@ -9621,6 +9964,9 @@
     "type63_strength_variant_relations": [],
     "type20_hold_route_count": 0,
     "type20_action_phase_route_count": 2,
+    "type20_terminal_command_phase_route_count": 1,
+    "type20_delayed_effect_route_count": 1,
+    "type20_same_structure_execution_route_count": 0,
     "type37_followup_execution_phase_route_count": 0,
     "charge_context_route_count": 0,
     "super_shortcut_direction_route_count": 5,
@@ -9682,9 +10028,106 @@
     "ac_state_neutral_relations": [],
     "ac_type13_neutral_route_count": 0,
     "ac_type13_neutral_relations": [],
-    "internal_transition_suppression_count": 0,
-    "suppressed_internal_transitions": [],
-    "split_command_action_count": 95,
+    "internal_transition_suppression_count": 5,
+    "suppressed_internal_transitions": [
+      {
+        "kind": "ac_type13_terminal_execution_phase",
+        "source_action_ids": [
+          920,
+          924
+        ],
+        "target_action_id": 928,
+        "branch_type": 13,
+        "attr": 0,
+        "action_frame": 0,
+        "param00": 0,
+        "param01": 0,
+        "param02": 0,
+        "param03": 0,
+        "param04": 0,
+        "param05": 0,
+        "trigger_id": -1,
+        "reason": "ac_type13_zero_parameter_multi_owner_terminal_execution_phase"
+      },
+      {
+        "kind": "ac_type13_terminal_execution_phase",
+        "source_action_ids": [
+          940,
+          941,
+          942,
+          943
+        ],
+        "target_action_id": 944,
+        "branch_type": 13,
+        "attr": 0,
+        "action_frame": 0,
+        "param00": 0,
+        "param01": 0,
+        "param02": 0,
+        "param03": 0,
+        "param04": 0,
+        "param05": 0,
+        "trigger_id": -1,
+        "reason": "ac_type13_zero_parameter_multi_owner_terminal_execution_phase"
+      },
+      {
+        "kind": "ac_type13_terminal_execution_phase",
+        "source_action_ids": [
+          949,
+          951
+        ],
+        "target_action_id": 950,
+        "branch_type": 13,
+        "attr": 0,
+        "action_frame": 0,
+        "param00": 0,
+        "param01": 0,
+        "param02": 0,
+        "param03": 0,
+        "param04": 0,
+        "param05": 0,
+        "trigger_id": -1,
+        "reason": "ac_type13_zero_parameter_multi_owner_terminal_execution_phase"
+      },
+      {
+        "kind": "ac_type36_type13_execution_phase",
+        "source_action_id": 1023,
+        "target_action_id": 1024,
+        "tail_action_id": 1025,
+        "branch_type": 36,
+        "exit_branch_type": 13,
+        "attr": 0,
+        "action_frame": 0,
+        "param00": 0,
+        "param01": 0,
+        "param02": 0,
+        "param03": 0,
+        "param04": 0,
+        "param05": 0,
+        "trigger_id": -1,
+        "reason": "ac_type36_zero_parameter_phase_with_type13_terminal_exit"
+      },
+      {
+        "kind": "ac_type13_terminal_execution_phase",
+        "source_action_ids": [
+          1015,
+          1023
+        ],
+        "target_action_id": 1031,
+        "branch_type": 13,
+        "attr": 0,
+        "action_frame": 0,
+        "param00": 0,
+        "param01": 0,
+        "param02": 0,
+        "param03": 0,
+        "param04": 0,
+        "param05": 0,
+        "trigger_id": -1,
+        "reason": "ac_type13_zero_parameter_multi_owner_terminal_execution_phase"
+      }
+    ],
+    "split_command_action_count": 96,
     "followup_relation_count": 1,
     "followup_relations": [
       {
@@ -9701,7 +10144,7 @@
       "sprt"
     ],
     "ac_relation_route_counts": {
-      "20": 2,
+      "20": 3,
       "29": 2,
       "63": 1
     },
@@ -9858,6 +10301,73 @@
         "reason": "ac_type20_verified_multi_input_action_phase"
       }
     ],
+    "type20_terminal_command_phase_relations": [
+      {
+        "source_action_id": 965,
+        "target_action_id": 966,
+        "branch_type": 20,
+        "signatures": [
+          {
+            "attr": 256,
+            "action_frame": 0,
+            "param00": 0,
+            "param01": 112,
+            "param02": 0,
+            "param03": 1
+          },
+          {
+            "attr": 256,
+            "action_frame": 0,
+            "param00": 0,
+            "param01": 32,
+            "param02": 0,
+            "param03": 2
+          },
+          {
+            "attr": 256,
+            "action_frame": 0,
+            "param00": 0,
+            "param01": 256,
+            "param02": 0,
+            "param03": 3
+          }
+        ],
+        "fingerprint_fields": [
+          "Category",
+          "Combo",
+          "Projectile",
+          "State"
+        ],
+        "reason": "ac_type20_complete_punch_strength_terminal_command_phase"
+      }
+    ],
+    "type20_delayed_effect_relations": [
+      {
+        "source_action_ids": [
+          975,
+          977
+        ],
+        "target_action_id": 979,
+        "branch_type": 20,
+        "attr": 288,
+        "action_frame": 9,
+        "param00": 1,
+        "param01": 8,
+        "param02": 1,
+        "param03": 2,
+        "param04": 0,
+        "param05": 0,
+        "trigger_id": -1,
+        "fingerprint_fields": [
+          "Category",
+          "Combo",
+          "Projectile",
+          "State"
+        ],
+        "reason": "ac_type20_multi_owner_delayed_contact_effect"
+      }
+    ],
+    "type20_same_structure_execution_relations": [],
     "type37_followup_execution_phase_relations": [],
     "target_combo_repeat_relations": [],
     "structural_twin_relations": [],
@@ -9933,6 +10443,104 @@
             "wt_action_trigger": 0,
             "wt_action_strength": 0,
             "wt_action_is_air": false
+          }
+        ]
+      }
+    ],
+    "assist_combo_chain_count": 3,
+    "assist_combo_chains": [
+      {
+        "strength": "弱",
+        "steps": [
+          {
+            "position": 1,
+            "action_ids": [
+              616,
+              618
+            ]
+          },
+          {
+            "position": 2,
+            "action_ids": [
+              612
+            ]
+          },
+          {
+            "position": 3,
+            "action_ids": [
+              957
+            ]
+          }
+        ]
+      },
+      {
+        "strength": "中",
+        "steps": [
+          {
+            "position": 1,
+            "action_ids": [
+              607
+            ]
+          },
+          {
+            "position": 2,
+            "action_ids": [
+              905,
+              958
+            ]
+          },
+          {
+            "position": 3,
+            "action_ids": [
+              934
+            ]
+          },
+          {
+            "position": 4,
+            "action_ids": [
+              1211
+            ]
+          }
+        ]
+      },
+      {
+        "strength": "强",
+        "steps": [
+          {
+            "position": 1,
+            "action_ids": [
+              608
+            ]
+          },
+          {
+            "position": 2,
+            "action_ids": [
+              603
+            ]
+          },
+          {
+            "position": 3,
+            "action_ids": [
+              646
+            ]
+          },
+          {
+            "position": 4,
+            "action_ids": [
+              902
+            ]
+          },
+          {
+            "position": 5,
+            "action_ids": [
+              910
+            ]
+          },
+          {
+            "position": 6,
+            "action_ids": [
+              1220
+            ]
           }
         ]
       }
@@ -12430,7 +13038,7 @@
         "reason": "profile_disabled_or_missing"
       }
     ],
-    "unmapped_action_count": 295,
+    "unmapped_action_count": 288,
     "unmapped_action_ids": [
       1,
       2,
@@ -12639,20 +13247,15 @@
       925,
       926,
       927,
-      928,
       932,
       933,
       935,
       936,
       937,
       938,
-      944,
-      950,
       959,
       961,
       963,
-      966,
-      979,
       980,
       982,
       983,
@@ -12690,13 +13293,11 @@
       1019,
       1020,
       1021,
-      1024,
       1025,
       1026,
       1027,
       1028,
       1029,
-      1031,
       1150,
       1160,
       1163,
@@ -12764,6 +13365,12 @@
       "type20_hold_route_count": 0,
       "type20_action_phase_relation_count": 2,
       "type20_action_phase_route_count": 2,
+      "type20_terminal_command_phase_relation_count": 1,
+      "type20_terminal_command_phase_route_count": 1,
+      "type20_delayed_effect_relation_count": 1,
+      "type20_delayed_effect_route_count": 1,
+      "type20_same_structure_execution_relation_count": 0,
+      "type20_same_structure_execution_route_count": 0,
       "type37_followup_execution_phase_relation_count": 0,
       "type37_followup_execution_phase_route_count": 0,
       "charge_context_route_count": 0,
@@ -12777,6 +13384,7 @@
       "ac_command_phase_relation_count": 0,
       "assist_combo_candidate_count": 15,
       "assist_combo_relation_count": 3,
+      "assist_combo_chain_count": 3,
       "assist_combo_route_count": 3,
       "assist_combo_duplicate_display_count": 3,
       "assist_combo_normalized_to_existing_count": 9,
@@ -12791,116 +13399,17 @@
       "ac_state_neutral_route_count": 0,
       "ac_type13_neutral_relation_count": 0,
       "ac_type13_neutral_route_count": 0,
-      "internal_transition_suppression_count": 0,
-      "split_command_action_count": 95,
-      "classic_command_action_count": 103,
-      "shared_command_action_count": 95,
+      "internal_transition_suppression_count": 5,
+      "split_command_action_count": 96,
+      "classic_command_action_count": 104,
+      "shared_command_action_count": 96,
       "classic_projection_pending_count": 0,
-      "command_display_action_count": 103,
+      "command_display_action_count": 109,
       "followup_relation_count": 1,
       "command_slot_overflow_count": 0,
       "ac_automatic_transition_route_count": 0,
-      "replaces_profile_route_count": 0,
-      "assist_combo_chain_count": 3
+      "replaces_profile_route_count": 0
     },
-    "description": "Kimberly unified Classic and Modern command projections generated from one verified AC ActionGraph, BCM profiles, runtime semantics, and Capcom command semantics.",
-    "assist_combo_chains": [
-      {
-        "strength": "弱",
-        "steps": [
-          {
-            "position": 1,
-            "action_ids": [
-              616,
-              618
-            ]
-          },
-          {
-            "position": 2,
-            "action_ids": [
-              612
-            ]
-          },
-          {
-            "position": 3,
-            "action_ids": [
-              957
-            ]
-          }
-        ]
-      },
-      {
-        "strength": "中",
-        "steps": [
-          {
-            "position": 1,
-            "action_ids": [
-              607
-            ]
-          },
-          {
-            "position": 2,
-            "action_ids": [
-              905,
-              958
-            ]
-          },
-          {
-            "position": 3,
-            "action_ids": [
-              934
-            ]
-          },
-          {
-            "position": 4,
-            "action_ids": [
-              1211
-            ]
-          }
-        ]
-      },
-      {
-        "strength": "强",
-        "steps": [
-          {
-            "position": 1,
-            "action_ids": [
-              608
-            ]
-          },
-          {
-            "position": 2,
-            "action_ids": [
-              603
-            ]
-          },
-          {
-            "position": 3,
-            "action_ids": [
-              646
-            ]
-          },
-          {
-            "position": 4,
-            "action_ids": [
-              902
-            ]
-          },
-          {
-            "position": 5,
-            "action_ids": [
-              910
-            ]
-          },
-          {
-            "position": 6,
-            "action_ids": [
-              1220
-            ]
-          }
-        ]
-      }
-    ],
-    "assist_combo_chain_count": 3
+    "description": "Kimberly unified Classic and Modern command projections generated from one verified AC ActionGraph, BCM profiles, runtime semantics, and Capcom command semantics."
   }
 }

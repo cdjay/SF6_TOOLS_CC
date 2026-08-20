@@ -452,6 +452,7 @@ const officialSemantics = {
 const output = commandDisplay.buildCommandDisplay(actionSource, catalog, runtime, {}, {
     generatedAt: "test", officialSemantics, officialSemanticsSha256: "official"
 });
+
 assert.strictEqual(output._meta.schema, "xt.command_display.v1");
 assert.strictEqual(output._meta.strict_policy, commandDisplay.STRICT_POLICY);
 assert.deepStrictEqual(output._meta.classic_profile_order, ["norm", "sprt"]);
@@ -597,6 +598,18 @@ assert.strictEqual(kimberlyCatalog["636"].routes[0].display, "空中 9");
 assert.strictEqual(kimberlyCatalog["636"].routes[0].profile, "sprt");
 assert.strictEqual(kimberlyCatalog["634"].ownership, "classic_runtime");
 assert.strictEqual(kimberlyCatalog["634"].routes.length, 0);
+assert.strictEqual(kimberlyCatalog["944"].suppress_display, true);
+assert.strictEqual(kimberlyCatalog["944"].transition_evidence.kind,
+    "ac_type13_terminal_execution_phase");
+assert.deepStrictEqual(kimberlyCatalog["944"].transition_evidence.source_action_ids,
+    [940, 941, 942, 943]);
+assert.strictEqual(kimberlyCatalog["1024"].suppress_display, true);
+assert.strictEqual(kimberlyCatalog["1024"].transition_evidence.kind,
+    "ac_type36_type13_execution_phase");
+assert.strictEqual(kimberlyCatalog["966"].ownership, "type20_action_phase");
+assert.strictEqual(kimberlyCatalog["966"].classic_command.display, "214+P");
+assert.strictEqual(kimberlyCatalog["966"].routes[0].source,
+    "ac_type20_terminal_command_phase");
 assert.strictEqual(modernText(output["640"]), "2 + 中");
 assert.strictEqual(modernText(output["627"]), "AUTO + 弱");
 assert.strictEqual(modernText(output["642"]), "空中 AUTO + 强");
@@ -1175,6 +1188,83 @@ assert.strictEqual(phaseOutput._meta.audit.type20_action_phase_relation_count, 1
 const rejectedPhase = commandDisplay.buildCommandDisplay(makeType20ActionPhaseSource(false), phaseCatalog,
     phaseRuntime, {}, { generatedAt: "type20-action-phase-negative" });
 assertNoModernCommand(rejectedPhase["3101"]);
+
+function makeType20SixBranchActionPhaseSource(complete) {
+    let id = 1;
+    const objects = [], records = [];
+    const add = object => {
+        const result = { object_id: id++, ...object };
+        objects.push(result);
+        return result.object_id;
+    };
+    const shared = {};
+    for (const name of ["Category", "Combo", "Projectile", "State"]) {
+        shared[name] = add({ object_type: `Type20SixBranch.${name}`, fields: [] });
+    }
+    const branchObject = (target, type, attr, frame, p00, p01, p03) =>
+        add({ object_type: "CharacterAsset.BranchKey", fields: [
+            ["Action", target], ["Type", type], ["Attr", attr], ["ActionFrame", frame],
+            ["Param00", p00], ["Param01", p01], ["Param02", 0], ["Param03", p03],
+            ["Param04", 0], ["Param05", 0], ["TriggerID", -1]
+        ].map(([name, value]) => ({ name, value: scalar(value) })) });
+    const signatures = [
+        [0, 5, 1, 16, 3],
+        [0, 5, 0, 16, 3],
+        [0, 5, 0, 256, 2],
+        [256, 0, 2, 256, 2],
+        [0, 5, 0, 64, 1],
+        [256, 0, 2, 64, 1]
+    ];
+    if (!complete) signatures.pop();
+    const sourceItems = signatures.map(([attr, frame, p00, p01, p03], index) => ({
+        index,
+        value: ref(branchObject(3121, 20, attr, frame, p00, p01, p03))
+    }));
+    sourceItems.push({
+        index: sourceItems.length,
+        value: ref(branchObject(3123, 0, 0, 5, 0, 0, 0))
+    });
+    const targetItems = [{ index: 0, value: ref(branchObject(3122, 5, 0, 8, 1, 0, 0)) }];
+    const addAction = (actionId, items, structure) => {
+        const keys = add({ object_type: "Type20SixBranch.Keys", items });
+        const root = add({ object_type: "FAB.ACTION", fields: [
+            { name: "ActionID", value: scalar(actionId) },
+            { name: "Frame", value: scalar(50) },
+            ...Object.entries(structure || {}).map(([name, objectId]) => ({ name, value: ref(objectId) })),
+            { name: "Keys", value: ref(keys) }
+        ] });
+        records.push({ source_scope: "character", native_action_id: actionId,
+            action_ref: ref(root) });
+    };
+    addAction(3120, sourceItems, shared);
+    addAction(3121, targetItems, shared);
+    addAction(3122, [], {});
+    addAction(3123, [], {});
+    return { objects, records };
+}
+const sixBranchPhaseCatalog = { source: { character: "SixBranchActionPhase" }, actions: {
+    "3120": { action_id: 3120, triggers: [trigger(3120, profiles(
+        profile(true, "4+MK", 256, 16416), null,
+        profile(true, "Normal", 2147483648, 0),
+        profile(true, "4+HP", 64, 16416)), { function_id: 1 })] }
+} };
+const sixBranchPhaseRuntime = { character: "SixBranchActionPhase", fighter_id: 107,
+    action_ids: [3120, 3121, 3122, 3123], aliases: {}, sources: {}, validation: { rules: {} },
+    actions: { "3120": "4+HP", "3121": "4+HP" },
+    evidence: { ac_derived_commands: [], alias_relations: [] } };
+const sixBranchPhaseOutput = commandDisplay.buildCommandDisplay(
+    makeType20SixBranchActionPhaseSource(true), sixBranchPhaseCatalog,
+    sixBranchPhaseRuntime, {}, { generatedAt: "type20-six-branch-action-phase" });
+assert.strictEqual(modernText(sixBranchPhaseOutput["3121"]), "4 + 强");
+assert.strictEqual(sixBranchPhaseOutput["3121"].classic_command.display, "4+HP");
+assert.strictEqual(sixBranchPhaseOutput["3121"].ownership, "type20_action_phase");
+assert.strictEqual(sixBranchPhaseOutput["3121"].routes[0].source,
+    "ac_type20_six_branch_action_phase");
+assert.strictEqual(sixBranchPhaseOutput._meta.audit.type20_action_phase_relation_count, 1);
+const rejectedSixBranchPhase = commandDisplay.buildCommandDisplay(
+    makeType20SixBranchActionPhaseSource(false), sixBranchPhaseCatalog,
+    sixBranchPhaseRuntime, {}, { generatedAt: "type20-six-branch-action-phase-negative" });
+assertNoModernCommand(rejectedSixBranchPhase["3121"]);
 
 function makeType20SameStructureExecutionSource(complete) {
     let id = 1;
@@ -1822,8 +1912,11 @@ function makeInternalExecutionPhaseSource() {
         const branchRefs = branchSpecs.map(spec => {
             const values = {
                 Action: spec.action, Type: spec.type, Attr: spec.attr || 0,
-                ActionFrame: 0, Param00: spec.p00 || 0, Param01: 0,
-                Param02: 0, Param03: 0, Param04: 0, Param05: 0, TriggerID: -1
+                ActionFrame: spec.frame || 0, Param00: spec.p00 || 0,
+                Param01: spec.p01 || 0, Param02: spec.p02 || 0,
+                Param03: spec.p03 || 0, Param04: spec.p04 || 0,
+                Param05: spec.p05 || 0,
+                TriggerID: spec.triggerId == null ? -1 : spec.triggerId
             };
             return ref(addObject({
                 kind: "managed-object", object_type: "CharacterAsset.BranchKey",
@@ -1872,6 +1965,56 @@ function makeInternalExecutionPhaseSource() {
     addAction(8232, []);
     addAction(8220, [{ action: 8221, type: 2 }]);
     addAction(8221, []);
+    // A zero-parameter Type 13 convergence into a BCM-less terminal Action is
+    // an automatic execution phase shared by the directly-owned strength family.
+    for (const sourceId of [8240, 8241, 8242, 8243]) {
+        addAction(sourceId, [{ action: 8244, type: 13 }]);
+    }
+    addAction(8244, []);
+    // A unique zero-parameter Type 36 phase followed by a zero-parameter
+    // Type 13 tail is likewise an internal execution chain, not a new command.
+    addAction(8250, [{ action: 8251, type: 36 }]);
+    addAction(8251, [{ action: 8252, type: 13 }]);
+    addAction(8252, []);
+    // A terminal Type 20 target selected by the complete punch-strength family
+    // is another runtime phase of the source command.
+    addAction(8260, [
+        { action: 8261, type: 20, attr: 256, p01: 112, p03: 1 },
+        { action: 8261, type: 20, attr: 256, p01: 32, p03: 2 },
+        { action: 8261, type: 20, attr: 256, p01: 256, p03: 3 }
+    ]);
+    addAction(8261, []);
+    // Multiple input owners may schedule one dual-role Action as a delayed
+    // contact effect. The target remains a real Action and a valid standalone
+    // command; presentation may separate its contextual occurrence into a new line.
+    addAction(8270, [
+        { action: 8272, type: 20, attr: 288, frame: 9,
+            p00: 1, p01: 8, p02: 1, p03: 2 }
+    ]);
+    addAction(8271, [
+        { action: 8272, type: 20, attr: 288, frame: 9,
+            p00: 1, p01: 8, p02: 1, p03: 2 }
+    ]);
+    addAction(8272, []);
+    // Direct aerial normals converge through Param00=1 Type 13 into one
+    // BCM-less landing phase. Auxiliary execution owners may reach the same
+    // phase only through the exact paired Type 5/54 shape seen in AC.
+    addAction(8280, [{ action: 8284, type: 13, p00: 1 }]);
+    addAction(8281, [{ action: 8284, type: 13, p00: 1 }]);
+    addAction(8284, [{ action: 8285, type: 20, p01: 2 }]);
+    addAction(8285, []);
+    for (const auxiliaryId of [8288, 8289]) {
+        addAction(auxiliaryId, [
+            { action: 8284, type: 5, attr: 256 },
+            { action: 8284, type: 54, attr: 256, p00: 160 }
+        ]);
+    }
+    // The same graph must remain visible/unresolved when one direct owner is
+    // not an aerial normal. Type 13 alone is not sufficient evidence.
+    addAction(8300, [{ action: 8304, type: 13, p00: 1 }]);
+    addAction(8301, [{ action: 8304, type: 13, p00: 1 }]);
+    addAction(8304, [{ action: 8305, type: 20, p01: 2 }]);
+    addAction(8305, []);
     return { records, objects };
 }
 
@@ -1883,13 +2026,55 @@ const internalPhaseCatalog = { source: { character: "InternalPhase" }, actions: 
     "8230": { action_id: 8230, triggers: [trigger(823, profiles(
         profile(true, "214+PP", 112)), { function_id: 2 })] },
     "8220": { action_id: 8220, triggers: [trigger(822, profiles(
-        profile(true, "236+HP", 64)), { function_id: 2 })] }
+        profile(true, "236+HP", 64)), { function_id: 2 })] },
+    "8240": { action_id: 8240, triggers: [trigger(824, profiles(
+        profile(true, "214+LP", 16)), { function_id: 2 })] },
+    "8241": { action_id: 8241, triggers: [trigger(825, profiles(
+        profile(true, "214+MP", 32)), { function_id: 2 })] },
+    "8242": { action_id: 8242, triggers: [trigger(826, profiles(
+        profile(true, "214+HP", 64)), { function_id: 2 })] },
+    "8243": { action_id: 8243, triggers: [trigger(827, profiles(
+        profile(true, "214+PP", 112)), { function_id: 2 })] },
+    "8250": { action_id: 8250, triggers: [trigger(828, profiles(
+        profile(true, "j.236+PP", 112)), { function_id: 2 })] },
+    "8260": { action_id: 8260, triggers: [trigger(829, profiles(
+        null, profile(true, "2", 32)),
+        { function_id: 2 })] },
+    "8270": { action_id: 8270, triggers: [trigger(830, profiles(
+        profile(true, "22+LP", 16)), { function_id: 2 })] },
+    "8271": { action_id: 8271, triggers: [trigger(831, profiles(
+        profile(true, "22+MP", 32)), { function_id: 2 })] },
+    "8272": { action_id: 8272, triggers: [trigger(832, profiles(null, null, null,
+        profile(true, "22+HP", 64, 82016, { command_no: 9, command_index: 4,
+            inputs: [{ direction: "5", raw_mask: 1073741824 },
+                { direction: "2", raw_mask: 2 },
+                { direction: "5", raw_mask: 1073741824 },
+                { direction: "2", raw_mask: 2 }] })),
+        { function_id: 2, use_sprt: false, use_super: false })] },
+    "8280": { action_id: 8280, triggers: [trigger(833, profiles(null, null, null,
+        profile(true, "j.LP", 16)),
+        { function_id: 1, cond_owner_state_flags: 4 })] },
+    "8281": { action_id: 8281, triggers: [trigger(834, profiles(null, null, null,
+        profile(true, "j.HK", 512)),
+        { function_id: 1, cond_owner_state_flags: 4 })] },
+    "8300": { action_id: 8300, triggers: [trigger(835, profiles(null, null, null,
+        profile(true, "j.MP", 32)),
+        { function_id: 1, cond_owner_state_flags: 4 })] },
+    "8301": { action_id: 8301, triggers: [trigger(836, profiles(null, null, null,
+        profile(true, "MP", 32)),
+        { function_id: 1, cond_owner_state_flags: 0 })] }
 } };
 const internalPhaseRuntime = {
     character: "InternalPhase", fighter_id: 201,
-    action_ids: [8200, 8201, 8210, 8211, 8212, 8220, 8221, 8230, 8231, 8232, 8299],
+    action_ids: [8200, 8201, 8210, 8211, 8212, 8220, 8221, 8230, 8231, 8232,
+        8240, 8241, 8242, 8243, 8244, 8250, 8251, 8252, 8260, 8261,
+        8270, 8271, 8272, 8280, 8281, 8284, 8285, 8288, 8289, 8299,
+        8300, 8301, 8304, 8305],
     actions: { "8200": "236+MP", "8210": "623+MK",
-        "8220": "236+HP", "8230": "214+PP" },
+        "8220": "236+HP", "8230": "214+PP",
+        "8240": "214+LP", "8241": "214+MP", "8242": "214+HP",
+        "8243": "214+PP", "8250": "j.236+PP", "8260": "214+P",
+        "8270": "22+LP", "8271": ">22+MP", "8272": ">22+HP" },
     aliases: {}, sources: { ac_sha256: "ac", bcm_sha256: "bcm" },
     validation: { rules: {} }, evidence: { ac_derived_commands: [] }
 };
@@ -1913,6 +2098,67 @@ assert.strictEqual(internalPhaseOutput["8232"].suppress_display, true);
 assert.strictEqual(internalPhaseOutput["8232"].transition_evidence.phase_index, 2);
 assert.strictEqual(internalPhaseOutput["8221"], undefined,
     "a lone Type 2 edge must not be guessed as an internal execution phase");
+assert.strictEqual(internalPhaseOutput["8244"].suppress_display, true);
+assert.strictEqual(internalPhaseOutput["8244"].ownership, "internal_execution_phase");
+assert.strictEqual(internalPhaseOutput["8244"].transition_evidence.kind,
+    "ac_type13_terminal_execution_phase");
+assert.deepStrictEqual(internalPhaseOutput["8244"].transition_evidence.source_action_ids,
+    [8240, 8241, 8242, 8243]);
+assert.strictEqual(internalPhaseOutput["8251"].suppress_display, true);
+assert.strictEqual(internalPhaseOutput["8251"].transition_evidence.kind,
+    "ac_type36_type13_execution_phase");
+assert.strictEqual(internalPhaseOutput["8261"].ownership, "type20_action_phase");
+assert.strictEqual(internalPhaseOutput["8261"].classic_command.display, "214+P");
+assert.strictEqual(modernText(internalPhaseOutput["8261"]), "2 + SP");
+assert.strictEqual(internalPhaseOutput["8261"].routes[0].source,
+    "ac_type20_terminal_command_phase");
+assert.strictEqual(internalPhaseOutput["8272"].ownership, "contextual_dual_role");
+assert.strictEqual(internalPhaseOutput["8272"].classic_command.display, ">22+HP");
+assert.strictEqual(internalPhaseOutput["8272"].routes[0].source,
+    "ac_type20_delayed_effect_dual_role");
+assert.deepStrictEqual(internalPhaseOutput._meta.type20_delayed_effect_relations, [{
+    source_action_ids: [8270, 8271],
+    target_action_id: 8272,
+    branch_type: 20,
+    attr: 288,
+    action_frame: 9,
+    param00: 1,
+    param01: 8,
+    param02: 1,
+    param03: 2,
+    param04: 0,
+    param05: 0,
+    trigger_id: -1,
+    fingerprint_fields: ["Category", "Combo", "Projectile", "State"],
+    reason: "ac_type20_multi_owner_delayed_contact_effect"
+}]);
+assert.strictEqual(internalPhaseOutput["8284"].suppress_display, true);
+assert.strictEqual(internalPhaseOutput["8284"].ownership, "internal_execution_phase");
+assert.strictEqual(internalPhaseOutput["8284"].transition_evidence.kind,
+    "ac_type13_air_landing_execution_phase");
+assert.deepStrictEqual(internalPhaseOutput["8284"].transition_evidence.source_action_ids,
+    [8280, 8281]);
+assert.deepStrictEqual(internalPhaseOutput["8284"].transition_evidence.auxiliary_source_action_ids,
+    [8288, 8289]);
+assert.ok(!internalPhaseOutput["8304"] || internalPhaseOutput["8304"].suppress_display !== true,
+    "a non-aerial Type 13 owner must not suppress the target as a landing phase");
+
+const jamieOverride = JSON.parse(fs.readFileSync(
+    "data/TrainingComboTrials_data/command_display_overrides/Jamie.json", "utf8"));
+const generatedJamie = JSON.parse(fs.readFileSync(
+    "data/TrainingComboTrials_data/command_display/Jamie.json", "utf8"));
+assert.strictEqual(jamieOverride.entries["657"], undefined,
+    "the generated Jamie landing phase must not be replaced by a display override");
+assert.strictEqual(jamieOverride.entries["1001"], undefined,
+    "the generated Jamie Modern 3+SP route must not be replaced by a Classic-only override");
+assert.strictEqual(jamieOverride.entries["667"], undefined,
+    "the generated Jamie Modern jump continuation must not be replaced by a Classic-only override");
+assert.strictEqual(jamieOverride.entries["999"], undefined,
+    "the generated Jamie Modern 1+SP route must not be replaced by a Classic-only override");
+assert.strictEqual(generatedJamie["657"].suppress_display, true);
+assert.strictEqual(generatedJamie["667"].motion_command.display, "> 8");
+assert.strictEqual(generatedJamie["999"].simple_command.display, "1 + SP");
+assert.strictEqual(generatedJamie["1001"].simple_command.display, "3 + SP");
 
 const deterministic = commandDisplay.buildCommandDisplay(actionSource, catalog, runtime, {}, {
     generatedAt: "test", officialSemantics, officialSemanticsSha256: "official"

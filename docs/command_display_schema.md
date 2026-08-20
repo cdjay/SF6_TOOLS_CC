@@ -57,13 +57,35 @@ AC/BCM 批量导出还会从同一指令结果与同版本 OFF 快照生成网�
 
 经典投影依次使用已编译运行时语义、稳定公共 Action、BCM `classic_display`，并允许经过严格
 验证的等价 Action、结构同源 Action 和 command-entry rebind 继承同一经典指令。经验证的
-Type20 保持续段和动作阶段可继承父节点经典投影；其余现代内部阶段只允许通过 AC 完整结构、
+Type20 保持续段和动作阶段可继承父节点经典投影；其中无独立 BCM owner 的终止动作阶段，
+必须同时满足核心结构一致与 AC 弱/中/强三档拳选择完整，才可继承同一指令。其余现代内部阶段只允许通过 AC 完整结构、
 BCM 条件距离和 Assist Combo 强度取得可审计的经典投影。每条推导都会写入
 `classic_projection_relations`；正式生成要求 `classic_projection_pending_count` 为零，否则整批拒绝发布。
 
 三个指令槽是每条 Action 记录的强制字段。某种控制方式确实没有可执行输入时，该槽写为
 `null`；不得为了消除空值而伪造指令。显示层选择简化或搓招时，允许回退到另一个已验证的现代槽。
 修复动作关系、投影规则或未识别 Action ID 后，必须重新生成整张角色表，使三个槽在同一次生成中更新。
+
+`>` 只表示同一可见行内的派生关系。若分组或上下文规则让该 Action 成为新行首项，渲染器
+必须去掉孤立的行首 `>`；指令资产中的原始投影及同一行后续派生标记保持不变。
+
+内部执行阶段只在可审计的封闭结构中隐藏：精确 Type 2 阶段链、多个直接 BCM owner
+汇入同一零参数 Type 13 终止节点、多个空中普通技 owner 经 `Type 13 / Param00=1`
+汇入同一落地阶段并由该阶段经 `Type 20 / Param01=2` 退出，或唯一 Type 36 阶段经
+Type 13 退出到无 BCM 终止节点。落地阶段允许的额外来源只能是无 BCM owner 的精确
+`Type 5 + Type 54` 配对执行关系。
+这些规则不改写 V2 Action ID，也不把录制 motion 当作新的语义权威。
+
+无独立 BCM owner 的 Type 20 动作阶段仅在 AC 同时满足精确六分支签名、父 Action 唯一
+Type 0 同级出口、子 Action 唯一 Type 5 退出，且父 Action 有直接 BCM、子 Action 无 BCM
+时继承父 Action 指令。该结构规则不得使用角色、Fighter ID 或具体 Action ID 特判。
+当录制事实连续包含 BCM owner 与其已验证的 Type 20 动作阶段时，Presentation 将两条 Action
+保留在同一显示行，并只绘制一次共享指令；检测、V2 Action 列表和回放仍逐条保留原始事实。
+
+同一 Action 同时具有直接 BCM 部署命令和 AC 延迟效果角色时，生成器将其标记为
+`contextual_dual_role`。该 Action 独立出现时仍显示原始部署命令；仅当它与前一条命中 Action
+处于同一录制组、延迟达到 AC `ActionFrame`，并继续推进 Combo 或伤害时，展示层强制让它
+另起一行，避免与前一条投技或攻击合并。Action 事实、指令文本、V2、检测与回放均保持不变。
 
 ## 运行时边界
 

@@ -34,26 +34,6 @@
       "classic": "2+MP",
       "replace": true,
       "evidence": "Verified relative raw-input runtime replays bind a fresh 2+MP press and hit contact to Jamie Action 626; the generated catalog lists the same Classic command without a verified route"
-    },
-    "657": {
-      "classic": "7+HK",
-      "replace": true,
-      "evidence": "Verified relative raw-input runtime replays bind a fresh 7+HK press and hit contact to Jamie Action 657"
-    },
-    "667": {
-      "classic": ">8",
-      "replace": true,
-      "evidence": "Verified relative raw-input runtime replays bind an upward transition to Jamie Action 667 after a recorded standing normal"
-    },
-    "999": {
-      "classic": "236+LK",
-      "replace": true,
-      "evidence": "Verified relative raw-input runtime replays bind a 236+LK press and hit contact to Jamie Action 999; the generated catalog lists the same Classic command without a verified route"
-    },
-    "1001": {
-      "classic": "236+HK",
-      "replace": true,
-      "evidence": "Verified relative raw-input runtime replays bind a 236+HK press and hit contact to Jamie Action 1001; the generated catalog lists the same Classic command without a verified route"
     }
   }
 }

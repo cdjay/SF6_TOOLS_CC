@@ -7714,11 +7714,21 @@ assert(candidate[1]._xt_meta.created_at == "old"
 assert(candidate[1]._xt_meta.versions.game.id == "sf6"
         and candidate[1]._xt_meta.versions.game.version == "2026-08-03",
     "candidate metadata must stamp the canonical recording game version")
+assert(candidate[1]._xt_meta.control_mode == "classic"
+        and candidate[1]._xt_meta.control_type == "classic"
+        and candidate[1]._xt_meta.timeline_input_profile == "classic"
+        and candidate[1]._xt_meta.input_type == 0,
+    "legacy transcription must emit a complete canonical classic control declaration")
 
 local synchronized_candidate = assert(transcriber.build_candidate({
     {
         id = 600,
         motion = "LP",
+        _xt_meta = {
+            control_type = "modern",
+            timeline_input_profile = "modern",
+            input_type = 1,
+        },
         recorded_by = 0,
         scene_state = {
             recorded_by = 0,
@@ -7759,6 +7769,11 @@ assert(synchronized_candidate[1].snapshot_gauges.attacker.current_hp == 10000
 assert(synchronized_candidate[1]._xt_meta.transcription.synchronized_legacy_scene_fields == 4
     and #synchronized_candidate[1]._xt_meta.transcription.source_advisories == 1,
     "candidate metadata must disclose compatibility rewrites and source drift")
+assert(synchronized_candidate[1]._xt_meta.control_mode == "modern"
+        and synchronized_candidate[1]._xt_meta.control_type == "modern"
+        and synchronized_candidate[1]._xt_meta.timeline_input_profile == "modern"
+        and synchronized_candidate[1]._xt_meta.input_type == 1,
+    "transcription must canonicalize a legacy Modern control declaration")
 
 local verified = transcriber.verify_candidate(candidate, result, {
     raw_inputs = candidate[1].relative_raw_inputs,

@@ -5382,10 +5382,69 @@
     },
     "control_support": "classic_only",
     "source": "ac_bcm+capcom_official_semantics",
-    "ownership": "classic_runtime",
+    "ownership": "direct",
     "simple_command": null,
     "motion_command": null,
-    "routes": []
+    "routes": [
+      {
+        "display": "214+LK",
+        "character": "Terry",
+        "owner_action_id": 955,
+        "trigger_index": 74,
+        "profile": "norm",
+        "command_no": 2,
+        "command_index": 1,
+        "raw_direction_inputs": [
+          2,
+          6,
+          4
+        ],
+        "raw_button_mask": 128,
+        "raw_button_condition": 81952,
+        "raw_dc_exc_flags": 0,
+        "raw_ng_key_flags": 0,
+        "visible_direction": null,
+        "visible_button": null,
+        "button_candidates": [],
+        "required_button_count": 1,
+        "source": "bcm_profile",
+        "ac_relation_type": null,
+        "ac_path": [],
+        "inherited_from_action_id": null,
+        "confidence": "direct_structural",
+        "direct_evidence": true,
+        "inheritance_evidence": false,
+        "inheritance_reason": null,
+        "rebind_evidence": false,
+        "rebind_reason": null,
+        "runtime_common_evidence": false,
+        "runtime_common_reason": null,
+        "official_semantic_evidence": false,
+        "official_semantic_reason": null,
+        "community_semantic_evidence": false,
+        "community_semantic_reason": null,
+        "assist_combo_evidence": false,
+        "assist_combo_reason": null,
+        "charge_context_evidence": false,
+        "charge_context_profile": null,
+        "charge_context_direction": null,
+        "charge_context_manual_direction": null,
+        "charge_context_direction_profile": null,
+        "charge_context_command_no": null,
+        "charge_context_command_index": null,
+        "charge_context_notation": null,
+        "charge_context_source_action_id": null,
+        "charge_context_source_trigger_indices": [],
+        "charge_context_relation": null,
+        "charge_context_reason": null,
+        "super_shortcut_direction_evidence": false,
+        "super_shortcut_direction_profile": null,
+        "super_shortcut_direction": null,
+        "super_shortcut_direction_notation": null,
+        "super_shortcut_direction_reason": null,
+        "projection_scope": "classic_only"
+      }
+    ]
   },
   "956": {
     "classic_command": {
@@ -5396,10 +5455,69 @@
     },
     "control_support": "classic_only",
     "source": "ac_bcm+capcom_official_semantics",
-    "ownership": "classic_runtime",
+    "ownership": "direct",
     "simple_command": null,
     "motion_command": null,
-    "routes": []
+    "routes": [
+      {
+        "display": "214+MK",
+        "character": "Terry",
+        "owner_action_id": 956,
+        "trigger_index": 75,
+        "profile": "norm",
+        "command_no": 2,
+        "command_index": 1,
+        "raw_direction_inputs": [
+          2,
+          6,
+          4
+        ],
+        "raw_button_mask": 256,
+        "raw_button_condition": 81952,
+        "raw_dc_exc_flags": 0,
+        "raw_ng_key_flags": 0,
+        "visible_direction": null,
+        "visible_button": null,
+        "button_candidates": [],
+        "required_button_count": 1,
+        "source": "bcm_profile",
+        "ac_relation_type": null,
+        "ac_path": [],
+        "inherited_from_action_id": null,
+        "confidence": "direct_structural",
+        "direct_evidence": true,
+        "inheritance_evidence": false,
+        "inheritance_reason": null,
+        "rebind_evidence": false,
+        "rebind_reason": null,
+        "runtime_common_evidence": false,
+        "runtime_common_reason": null,
+        "official_semantic_evidence": false,
+        "official_semantic_reason": null,
+        "community_semantic_evidence": false,
+        "community_semantic_reason": null,
+        "assist_combo_evidence": false,
+        "assist_combo_reason": null,
+        "charge_context_evidence": false,
+        "charge_context_profile": null,
+        "charge_context_direction": null,
+        "charge_context_manual_direction": null,
+        "charge_context_direction_profile": null,
+        "charge_context_command_no": null,
+        "charge_context_command_index": null,
+        "charge_context_notation": null,
+        "charge_context_source_action_id": null,
+        "charge_context_source_trigger_indices": [],
+        "charge_context_relation": null,
+        "charge_context_reason": null,
+        "super_shortcut_direction_evidence": false,
+        "super_shortcut_direction_profile": null,
+        "super_shortcut_direction": null,
+        "super_shortcut_direction_notation": null,
+        "super_shortcut_direction_reason": null,
+        "projection_scope": "classic_only"
+      }
+    ]
   },
   "957": {
     "classic_command": {
@@ -7168,7 +7286,7 @@
       "supr",
       "sprt"
     ],
-    "direct_route_count": 90,
+    "direct_route_count": 92,
     "inherited_route_count": 1,
     "rebind_route_count": 0,
     "runtime_common_route_count": 6,
@@ -7187,6 +7305,9 @@
     "type63_strength_variant_relations": [],
     "type20_hold_route_count": 0,
     "type20_action_phase_route_count": 0,
+    "type20_terminal_command_phase_route_count": 0,
+    "type20_delayed_effect_route_count": 0,
+    "type20_same_structure_execution_route_count": 0,
     "type37_followup_execution_phase_route_count": 0,
     "charge_context_route_count": 0,
     "super_shortcut_direction_route_count": 7,
@@ -7327,6 +7448,9 @@
     "type20_directional_relations": [],
     "type20_hold_relations": [],
     "type20_action_phase_relations": [],
+    "type20_terminal_command_phase_relations": [],
+    "type20_delayed_effect_relations": [],
+    "type20_same_structure_execution_relations": [],
     "type37_followup_execution_phase_relations": [],
     "target_combo_repeat_relations": [],
     "structural_twin_relations": [],
@@ -7378,6 +7502,97 @@
             "wt_action_trigger": 0,
             "wt_action_strength": 0,
             "wt_action_is_air": false
+          }
+        ]
+      }
+    ],
+    "assist_combo_chain_count": 3,
+    "assist_combo_chains": [
+      {
+        "strength": "弱",
+        "steps": [
+          {
+            "position": 1,
+            "action_ids": [
+              630,
+              631,
+              632
+            ]
+          },
+          {
+            "position": 2,
+            "action_ids": [
+              601,
+              602,
+              619
+            ]
+          },
+          {
+            "position": 3,
+            "action_ids": [
+              931,
+              942
+            ]
+          }
+        ]
+      },
+      {
+        "strength": "中",
+        "steps": [
+          {
+            "position": 1,
+            "action_ids": [
+              623
+            ]
+          },
+          {
+            "position": 2,
+            "action_ids": [
+              916
+            ]
+          },
+          {
+            "position": 3,
+            "action_ids": [
+              1200
+            ]
+          }
+        ]
+      },
+      {
+        "strength": "强",
+        "steps": [
+          {
+            "position": 1,
+            "action_ids": [
+              606
+            ]
+          },
+          {
+            "position": 2,
+            "action_ids": [
+              917,
+              931
+            ]
+          },
+          {
+            "position": 3,
+            "action_ids": [
+              957,
+              1230
+            ]
+          },
+          {
+            "position": 4,
+            "action_ids": [
+              942
+            ]
+          },
+          {
+            "position": 5,
+            "action_ids": [
+              1230
+            ]
           }
         ]
       }
@@ -9188,7 +9403,7 @@
         "reason": "profile_disabled_or_missing"
       }
     ],
-    "unmapped_action_count": 226,
+    "unmapped_action_count": 224,
     "unmapped_action_ids": [
       1,
       2,
@@ -9388,8 +9603,6 @@
       946,
       947,
       948,
-      955,
-      956,
       1150,
       1157,
       1160,
@@ -9453,6 +9666,12 @@
       "type20_hold_route_count": 0,
       "type20_action_phase_relation_count": 0,
       "type20_action_phase_route_count": 0,
+      "type20_terminal_command_phase_relation_count": 0,
+      "type20_terminal_command_phase_route_count": 0,
+      "type20_delayed_effect_relation_count": 0,
+      "type20_delayed_effect_route_count": 0,
+      "type20_same_structure_execution_relation_count": 0,
+      "type20_same_structure_execution_route_count": 0,
       "type37_followup_execution_phase_relation_count": 0,
       "type37_followup_execution_phase_route_count": 0,
       "charge_context_route_count": 0,
@@ -9466,6 +9685,7 @@
       "ac_command_phase_relation_count": 0,
       "assist_combo_candidate_count": 17,
       "assist_combo_relation_count": 2,
+      "assist_combo_chain_count": 3,
       "assist_combo_route_count": 2,
       "assist_combo_duplicate_display_count": 3,
       "assist_combo_normalized_to_existing_count": 12,
@@ -9489,100 +9709,8 @@
       "followup_relation_count": 0,
       "command_slot_overflow_count": 0,
       "ac_automatic_transition_route_count": 0,
-      "replaces_profile_route_count": 0,
-      "assist_combo_chain_count": 3
+      "replaces_profile_route_count": 0
     },
-    "description": "Terry unified Classic and Modern command projections generated from one verified AC ActionGraph, BCM profiles, runtime semantics, and Capcom command semantics.",
-    "assist_combo_chains": [
-      {
-        "strength": "弱",
-        "steps": [
-          {
-            "position": 1,
-            "action_ids": [
-              630,
-              631,
-              632
-            ]
-          },
-          {
-            "position": 2,
-            "action_ids": [
-              601,
-              602,
-              619
-            ]
-          },
-          {
-            "position": 3,
-            "action_ids": [
-              931,
-              942
-            ]
-          }
-        ]
-      },
-      {
-        "strength": "中",
-        "steps": [
-          {
-            "position": 1,
-            "action_ids": [
-              623
-            ]
-          },
-          {
-            "position": 2,
-            "action_ids": [
-              916
-            ]
-          },
-          {
-            "position": 3,
-            "action_ids": [
-              1200
-            ]
-          }
-        ]
-      },
-      {
-        "strength": "强",
-        "steps": [
-          {
-            "position": 1,
-            "action_ids": [
-              606
-            ]
-          },
-          {
-            "position": 2,
-            "action_ids": [
-              917,
-              931
-            ]
-          },
-          {
-            "position": 3,
-            "action_ids": [
-              957,
-              1230
-            ]
-          },
-          {
-            "position": 4,
-            "action_ids": [
-              942
-            ]
-          },
-          {
-            "position": 5,
-            "action_ids": [
-              1230
-            ]
-          }
-        ]
-      }
-    ],
-    "assist_combo_chain_count": 3
+    "description": "Terry unified Classic and Modern command projections generated from one verified AC ActionGraph, BCM profiles, runtime semantics, and Capcom command semantics."
   }
 }

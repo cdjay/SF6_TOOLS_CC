@@ -27,11 +27,6 @@
       "replace": true,
       "evidence": "Verified relative raw-input runtime replay binds a fresh 3+HP press and hit contact to Marisa Action 678"
     },
-    "684": {
-      "classic": "4+HP",
-      "replace": true,
-      "evidence": "Verified relative raw-input runtime replay binds a fresh 4+HP press and hit contact to Marisa Action 684"
-    },
     "687": {
       "classic": "3+HP",
       "replace": true,

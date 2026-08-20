@@ -3219,6 +3219,62 @@
       }
     ]
   },
+  "741": {
+    "classic_command": null,
+    "simple_command": null,
+    "motion_command": null,
+    "control_support": "unknown",
+    "source": "ac_bcm+capcom_official_semantics",
+    "ownership": "internal_execution_phase",
+    "suppress_display": true,
+    "transition_evidence": {
+      "kind": "ac_type36_type13_execution_phase",
+      "source_action_id": 719,
+      "target_action_id": 741,
+      "tail_action_id": 745,
+      "branch_type": 36,
+      "exit_branch_type": 13,
+      "attr": 0,
+      "action_frame": 0,
+      "param00": 0,
+      "param01": 0,
+      "param02": 0,
+      "param03": 0,
+      "param04": 0,
+      "param05": 0,
+      "trigger_id": -1,
+      "reason": "ac_type36_zero_parameter_phase_with_type13_terminal_exit"
+    },
+    "routes": []
+  },
+  "742": {
+    "classic_command": null,
+    "simple_command": null,
+    "motion_command": null,
+    "control_support": "unknown",
+    "source": "ac_bcm+capcom_official_semantics",
+    "ownership": "internal_execution_phase",
+    "suppress_display": true,
+    "transition_evidence": {
+      "kind": "ac_type36_type13_execution_phase",
+      "source_action_id": 720,
+      "target_action_id": 742,
+      "tail_action_id": 746,
+      "branch_type": 36,
+      "exit_branch_type": 13,
+      "attr": 0,
+      "action_frame": 0,
+      "param00": 0,
+      "param01": 0,
+      "param02": 0,
+      "param03": 0,
+      "param04": 0,
+      "param05": 0,
+      "trigger_id": -1,
+      "reason": "ac_type36_zero_parameter_phase_with_type13_terminal_exit"
+    },
+    "routes": []
+  },
   "760": {
     "classic_command": {
       "display": "RAW DR",
@@ -7013,6 +7069,95 @@
       }
     ]
   },
+  "1052": {
+    "classic_command": null,
+    "simple_command": null,
+    "motion_command": null,
+    "control_support": "unknown",
+    "source": "ac_bcm+capcom_official_semantics",
+    "ownership": "internal_execution_phase",
+    "suppress_display": true,
+    "transition_evidence": {
+      "kind": "ac_type13_terminal_execution_phase",
+      "source_action_ids": [
+        1048,
+        1049,
+        1058,
+        1059
+      ],
+      "target_action_id": 1052,
+      "branch_type": 13,
+      "attr": 0,
+      "action_frame": 0,
+      "param00": 0,
+      "param01": 0,
+      "param02": 0,
+      "param03": 0,
+      "param04": 0,
+      "param05": 0,
+      "trigger_id": -1,
+      "reason": "ac_type13_zero_parameter_multi_owner_terminal_execution_phase"
+    },
+    "routes": []
+  },
+  "1053": {
+    "classic_command": null,
+    "simple_command": null,
+    "motion_command": null,
+    "control_support": "unknown",
+    "source": "ac_bcm+capcom_official_semantics",
+    "ownership": "internal_execution_phase",
+    "suppress_display": true,
+    "transition_evidence": {
+      "kind": "ac_type13_terminal_execution_phase",
+      "source_action_ids": [
+        1047,
+        1057
+      ],
+      "target_action_id": 1053,
+      "branch_type": 13,
+      "attr": 0,
+      "action_frame": 0,
+      "param00": 0,
+      "param01": 0,
+      "param02": 0,
+      "param03": 0,
+      "param04": 0,
+      "param05": 0,
+      "trigger_id": -1,
+      "reason": "ac_type13_zero_parameter_multi_owner_terminal_execution_phase"
+    },
+    "routes": []
+  },
+  "1054": {
+    "classic_command": null,
+    "simple_command": null,
+    "motion_command": null,
+    "control_support": "unknown",
+    "source": "ac_bcm+capcom_official_semantics",
+    "ownership": "internal_execution_phase",
+    "suppress_display": true,
+    "transition_evidence": {
+      "kind": "ac_type13_terminal_execution_phase",
+      "source_action_ids": [
+        1050,
+        1060
+      ],
+      "target_action_id": 1054,
+      "branch_type": 13,
+      "attr": 0,
+      "action_frame": 0,
+      "param00": 0,
+      "param01": 0,
+      "param02": 0,
+      "param03": 0,
+      "param04": 0,
+      "param05": 0,
+      "trigger_id": -1,
+      "reason": "ac_type13_zero_parameter_multi_owner_terminal_execution_phase"
+    },
+    "routes": []
+  },
   "1057": {
     "classic_command": {
       "display": "623+LK",
@@ -10311,6 +10456,9 @@
     "type63_strength_variant_relations": [],
     "type20_hold_route_count": 0,
     "type20_action_phase_route_count": 0,
+    "type20_terminal_command_phase_route_count": 0,
+    "type20_delayed_effect_route_count": 0,
+    "type20_same_structure_execution_route_count": 0,
     "type37_followup_execution_phase_route_count": 0,
     "charge_context_route_count": 0,
     "super_shortcut_direction_route_count": 8,
@@ -10335,8 +10483,104 @@
     "ac_state_neutral_relations": [],
     "ac_type13_neutral_route_count": 0,
     "ac_type13_neutral_relations": [],
-    "internal_transition_suppression_count": 0,
-    "suppressed_internal_transitions": [],
+    "internal_transition_suppression_count": 5,
+    "suppressed_internal_transitions": [
+      {
+        "kind": "ac_type36_type13_execution_phase",
+        "source_action_id": 719,
+        "target_action_id": 741,
+        "tail_action_id": 745,
+        "branch_type": 36,
+        "exit_branch_type": 13,
+        "attr": 0,
+        "action_frame": 0,
+        "param00": 0,
+        "param01": 0,
+        "param02": 0,
+        "param03": 0,
+        "param04": 0,
+        "param05": 0,
+        "trigger_id": -1,
+        "reason": "ac_type36_zero_parameter_phase_with_type13_terminal_exit"
+      },
+      {
+        "kind": "ac_type36_type13_execution_phase",
+        "source_action_id": 720,
+        "target_action_id": 742,
+        "tail_action_id": 746,
+        "branch_type": 36,
+        "exit_branch_type": 13,
+        "attr": 0,
+        "action_frame": 0,
+        "param00": 0,
+        "param01": 0,
+        "param02": 0,
+        "param03": 0,
+        "param04": 0,
+        "param05": 0,
+        "trigger_id": -1,
+        "reason": "ac_type36_zero_parameter_phase_with_type13_terminal_exit"
+      },
+      {
+        "kind": "ac_type13_terminal_execution_phase",
+        "source_action_ids": [
+          1048,
+          1049,
+          1058,
+          1059
+        ],
+        "target_action_id": 1052,
+        "branch_type": 13,
+        "attr": 0,
+        "action_frame": 0,
+        "param00": 0,
+        "param01": 0,
+        "param02": 0,
+        "param03": 0,
+        "param04": 0,
+        "param05": 0,
+        "trigger_id": -1,
+        "reason": "ac_type13_zero_parameter_multi_owner_terminal_execution_phase"
+      },
+      {
+        "kind": "ac_type13_terminal_execution_phase",
+        "source_action_ids": [
+          1047,
+          1057
+        ],
+        "target_action_id": 1053,
+        "branch_type": 13,
+        "attr": 0,
+        "action_frame": 0,
+        "param00": 0,
+        "param01": 0,
+        "param02": 0,
+        "param03": 0,
+        "param04": 0,
+        "param05": 0,
+        "trigger_id": -1,
+        "reason": "ac_type13_zero_parameter_multi_owner_terminal_execution_phase"
+      },
+      {
+        "kind": "ac_type13_terminal_execution_phase",
+        "source_action_ids": [
+          1050,
+          1060
+        ],
+        "target_action_id": 1054,
+        "branch_type": 13,
+        "attr": 0,
+        "action_frame": 0,
+        "param00": 0,
+        "param01": 0,
+        "param02": 0,
+        "param03": 0,
+        "param04": 0,
+        "param05": 0,
+        "trigger_id": -1,
+        "reason": "ac_type13_zero_parameter_multi_owner_terminal_execution_phase"
+      }
+    ],
     "split_command_action_count": 93,
     "followup_relation_count": 0,
     "followup_relations": [],
@@ -10423,6 +10667,9 @@
     "type20_directional_relations": [],
     "type20_hold_relations": [],
     "type20_action_phase_relations": [],
+    "type20_terminal_command_phase_relations": [],
+    "type20_delayed_effect_relations": [],
+    "type20_same_structure_execution_relations": [],
     "type37_followup_execution_phase_relations": [],
     "target_combo_repeat_relations": [],
     "structural_twin_relations": [],
@@ -10537,6 +10784,97 @@
             "wt_action_trigger": 0,
             "wt_action_strength": 0,
             "wt_action_is_air": false
+          }
+        ]
+      }
+    ],
+    "assist_combo_chain_count": 3,
+    "assist_combo_chains": [
+      {
+        "strength": "弱",
+        "steps": [
+          {
+            "position": 1,
+            "action_ids": [
+              620,
+              621,
+              622
+            ]
+          },
+          {
+            "position": 2,
+            "action_ids": [
+              601,
+              602
+            ]
+          },
+          {
+            "position": 3,
+            "action_ids": [
+              1012
+            ]
+          }
+        ]
+      },
+      {
+        "strength": "中",
+        "steps": [
+          {
+            "position": 1,
+            "action_ids": [
+              616
+            ]
+          },
+          {
+            "position": 2,
+            "action_ids": [
+              1024,
+              1028
+            ]
+          },
+          {
+            "position": 3,
+            "action_ids": [
+              1219,
+              1225
+            ]
+          }
+        ]
+      },
+      {
+        "strength": "强",
+        "steps": [
+          {
+            "position": 1,
+            "action_ids": [
+              605
+            ]
+          },
+          {
+            "position": 2,
+            "action_ids": [
+              1014,
+              1015
+            ]
+          },
+          {
+            "position": 3,
+            "action_ids": [
+              628,
+              1234
+            ]
+          },
+          {
+            "position": 4,
+            "action_ids": [
+              1024
+            ]
+          },
+          {
+            "position": 5,
+            "action_ids": [
+              1234
+            ]
           }
         ]
       }
@@ -12671,7 +13009,7 @@
         "reason": "profile_disabled_or_missing"
       }
     ],
-    "unmapped_action_count": 433,
+    "unmapped_action_count": 428,
     "unmapped_action_ids": [
       1,
       2,
@@ -12938,8 +13276,6 @@
       730,
       731,
       732,
-      741,
-      742,
       743,
       745,
       746,
@@ -13066,9 +13402,6 @@
       1044,
       1045,
       1051,
-      1052,
-      1053,
-      1054,
       1055,
       1061,
       1067,
@@ -13143,6 +13476,12 @@
       "type20_hold_route_count": 0,
       "type20_action_phase_relation_count": 0,
       "type20_action_phase_route_count": 0,
+      "type20_terminal_command_phase_relation_count": 0,
+      "type20_terminal_command_phase_route_count": 0,
+      "type20_delayed_effect_relation_count": 0,
+      "type20_delayed_effect_route_count": 0,
+      "type20_same_structure_execution_relation_count": 0,
+      "type20_same_structure_execution_route_count": 0,
       "type37_followup_execution_phase_relation_count": 0,
       "type37_followup_execution_phase_route_count": 0,
       "charge_context_route_count": 0,
@@ -13156,6 +13495,7 @@
       "ac_command_phase_relation_count": 0,
       "assist_combo_candidate_count": 17,
       "assist_combo_relation_count": 4,
+      "assist_combo_chain_count": 3,
       "assist_combo_route_count": 4,
       "assist_combo_duplicate_display_count": 3,
       "assist_combo_normalized_to_existing_count": 10,
@@ -13170,109 +13510,17 @@
       "ac_state_neutral_route_count": 0,
       "ac_type13_neutral_relation_count": 0,
       "ac_type13_neutral_route_count": 0,
-      "internal_transition_suppression_count": 0,
+      "internal_transition_suppression_count": 5,
       "split_command_action_count": 93,
       "classic_command_action_count": 99,
       "shared_command_action_count": 93,
       "classic_projection_pending_count": 0,
-      "command_display_action_count": 99,
+      "command_display_action_count": 104,
       "followup_relation_count": 0,
       "command_slot_overflow_count": 0,
       "ac_automatic_transition_route_count": 0,
-      "replaces_profile_route_count": 0,
-      "assist_combo_chain_count": 3
+      "replaces_profile_route_count": 0
     },
-    "description": "Mai unified Classic and Modern command projections generated from one verified AC ActionGraph, BCM profiles, runtime semantics, and Capcom command semantics.",
-    "assist_combo_chains": [
-      {
-        "strength": "弱",
-        "steps": [
-          {
-            "position": 1,
-            "action_ids": [
-              620,
-              621,
-              622
-            ]
-          },
-          {
-            "position": 2,
-            "action_ids": [
-              601,
-              602
-            ]
-          },
-          {
-            "position": 3,
-            "action_ids": [
-              1012
-            ]
-          }
-        ]
-      },
-      {
-        "strength": "中",
-        "steps": [
-          {
-            "position": 1,
-            "action_ids": [
-              616
-            ]
-          },
-          {
-            "position": 2,
-            "action_ids": [
-              1024,
-              1028
-            ]
-          },
-          {
-            "position": 3,
-            "action_ids": [
-              1219,
-              1225
-            ]
-          }
-        ]
-      },
-      {
-        "strength": "强",
-        "steps": [
-          {
-            "position": 1,
-            "action_ids": [
-              605
-            ]
-          },
-          {
-            "position": 2,
-            "action_ids": [
-              1014,
-              1015
-            ]
-          },
-          {
-            "position": 3,
-            "action_ids": [
-              628,
-              1234
-            ]
-          },
-          {
-            "position": 4,
-            "action_ids": [
-              1024
-            ]
-          },
-          {
-            "position": 5,
-            "action_ids": [
-              1234
-            ]
-          }
-        ]
-      }
-    ],
-    "assist_combo_chain_count": 3
+    "description": "Mai unified Classic and Modern command projections generated from one verified AC ActionGraph, BCM profiles, runtime semantics, and Capcom command semantics."
   }
 }

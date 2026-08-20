@@ -19,6 +19,11 @@ const TYPE20_DIRECTION_REASON = "ac_type20_verified_directional_air_attack";
 const TYPE63_STRENGTH_REASON = "ac_type63_classic_modern_strength_family";
 const TYPE20_HOLD_REASON = "ac_type20_verified_hold_continuation";
 const TYPE20_PHASE_REASON = "ac_type20_verified_multi_input_action_phase";
+const TYPE20_SIX_BRANCH_PHASE_REASON =
+    "ac_type20_verified_six_branch_action_phase";
+const TYPE20_TERMINAL_COMMAND_PHASE_REASON =
+    "ac_type20_complete_punch_strength_terminal_command_phase";
+const TYPE20_DELAYED_EFFECT_REASON = "ac_type20_multi_owner_delayed_contact_effect";
 const TYPE20_SAME_STRUCTURE_PHASE_REASON =
     "ac_type20_verified_same_structure_execution_phase";
 const TYPE37_FOLLOWUP_PHASE_REASON = "ac_type37_verified_followup_execution_phase";
@@ -35,6 +40,12 @@ const BCM_ZERO_INPUT_TRANSITION_REASON = "bcm_function2_normal_has_no_player_vis
 const AC_TERMINAL_EXECUTION_PHASE_REASON = "ac_type2_type4_zero_parameter_terminal_execution_phase";
 const AC_NUMBERED_EXECUTION_PHASE_REASON = "ac_type2_numbered_same_structure_execution_phase";
 const AC_SAME_STRUCTURE_EXECUTION_PHASE_REASON = "ac_type2_same_structure_zero_parameter_execution_phase";
+const AC_TYPE13_TERMINAL_EXECUTION_PHASE_REASON =
+    "ac_type13_zero_parameter_multi_owner_terminal_execution_phase";
+const AC_TYPE13_AIR_LANDING_EXECUTION_PHASE_REASON =
+    "ac_type13_multi_owner_air_landing_execution_phase";
+const AC_TYPE36_TYPE13_EXECUTION_PHASE_REASON =
+    "ac_type36_zero_parameter_phase_with_type13_terminal_exit";
 const AC_TYPE37_AUTOMATIC_EXECUTION_PHASE_REASON =
     "ac_type37_unique_automatic_execution_phase";
 const TARGET_COMBO_REPEAT_REASON = "bcm_turn_around_target_combo_repeats_parent_button";
@@ -1313,6 +1324,45 @@ function type20ActionPhaseRoute(character, relation, sourceRoute) {
     return route;
 }
 
+function type20SixBranchActionPhaseRoute(character, relation, sourceRoute) {
+    const sourceId = Number(relation.source_action_id);
+    const targetId = Number(relation.target_action_id);
+    const route = inheritedRouteFromSource(character, sourceRoute, sourceId, targetId,
+        sourceRoute.display, "ac_type20_six_branch_action_phase", 20,
+        TYPE20_SIX_BRANCH_PHASE_REASON, "verified_inherited_action_phase");
+    route.ac_phase_signatures = relation.signatures.map(signature => ({ ...signature }));
+    route.ac_source_exit_signature = { ...relation.source_exit_signature };
+    route.ac_exit_signature = { ...relation.exit_signature };
+    return route;
+}
+
+function type20TerminalCommandPhaseRoute(character, relation, sourceRoute) {
+    const sourceId = Number(relation.source_action_id);
+    const targetId = Number(relation.target_action_id);
+    const route = inheritedRouteFromSource(character, sourceRoute, sourceId, targetId,
+        sourceRoute.display, "ac_type20_terminal_command_phase", 20,
+        TYPE20_TERMINAL_COMMAND_PHASE_REASON, "verified_inherited_action_phase");
+    route.ac_phase_signatures = relation.signatures.map(signature => ({ ...signature }));
+    route.ac_fingerprint_fields = [...relation.fingerprint_fields];
+    return route;
+}
+
+function type20DelayedEffectDualRoleRoute(character, relation, trigger, profile, display) {
+    const targetId = Number(relation.target_action_id);
+    const detail = resolved(display, null, null, [], requiredButtonCount(profile));
+    const route = {
+        display,
+        ...routeProvenance(character, targetId, trigger, "norm", profile, detail,
+            "ac_type20_delayed_effect_dual_role"),
+        projection_scope: "classic_only",
+        contextual_effect_evidence: true,
+        contextual_effect_reason: TYPE20_DELAYED_EFFECT_REASON,
+        contextual_effect_bcm_notation: String(profile.notation || ""),
+        contextual_effect_relation: { ...relation }
+    };
+    return route;
+}
+
 function type20SameStructureExecutionRoute(character, relation, sourceRoute) {
     const sourceId = Number(relation.source_action_id);
     const targetId = Number(relation.target_action_id);
@@ -1702,6 +1752,17 @@ function strictInternalExecutionPhaseRelations(actionSource, bcmCatalog, actionS
         [id, actionBranches(root, objects).filter(branch => Number(branch.Action) !== id)]));
     const hasBcm = actionId => Object.prototype.hasOwnProperty.call(
         bcmCatalog.actions || {}, String(actionId));
+    const isDirectAerialNormalOwner = actionId => {
+        const action = bcmCatalog.actions && bcmCatalog.actions[String(actionId)];
+        const triggers = action && action.triggers || [];
+        if (triggers.length !== 1) return false;
+        const trigger = triggers[0], conditions = trigger.conditions || {};
+        const norm = trigger.profiles && trigger.profiles.norm;
+        return Number(conditions.function_id) === 1
+            && Number(conditions.cond_owner_state_flags) === 4
+            && norm && norm.enabled === true
+            && /^j\.(?:LP|MP|HP|LK|MK|HK)$/.test(String(norm.notation || ""));
+    };
     const incomingByTarget = new Map();
     for (const [sourceId, branches] of branchesByAction) {
         for (const branch of branches) {
@@ -1713,6 +1774,133 @@ function strictInternalExecutionPhaseRelations(actionSource, bcmCatalog, actionS
     }
 
     const relations = [];
+
+    for (const [targetId, incoming] of incomingByTarget) {
+        const sources = [...new Set(incoming.map(item => item.source_action_id))]
+            .sort((left, right) => left - right);
+        const targetBranches = branchesByAction.get(targetId) || [];
+        if (hasBcm(targetId) || sources.length < 2 || incoming.length !== sources.length
+            || targetBranches.length !== 0 || sources.some(sourceId => !hasBcm(sourceId))
+            || incoming.some(item => !exactExecutionBranch(item.branch, 13, 0, 0))) continue;
+        relations.push({
+            kind: "ac_type13_terminal_execution_phase",
+            source_action_ids: sources,
+            target_action_id: targetId,
+            branch_type: 13,
+            attr: 0,
+            action_frame: 0,
+            param00: 0,
+            param01: 0,
+            param02: 0,
+            param03: 0,
+            param04: 0,
+            param05: 0,
+            trigger_id: -1,
+            reason: AC_TYPE13_TERMINAL_EXECUTION_PHASE_REASON
+        });
+    }
+
+    for (const [targetId, incoming] of incomingByTarget) {
+        const targetBranches = branchesByAction.get(targetId) || [];
+        if (hasBcm(targetId) || targetBranches.length !== 1) continue;
+        const exit = targetBranches[0], exitTargetId = Number(exit.Action);
+        if (!exactStateBranch(exit, 20, 0, 2) || !actions.has(exitTargetId)
+            || hasBcm(exitTargetId)) continue;
+
+        const directIncoming = incoming.filter(item =>
+            isDirectAerialNormalOwner(item.source_action_id)
+                && exactStateBranch(item.branch, 13, 1, 0));
+        const directSources = [...new Set(directIncoming.map(item => item.source_action_id))]
+            .sort((left, right) => left - right);
+        if (directSources.length < 2 || directIncoming.length !== directSources.length) continue;
+
+        const directSourceSet = new Set(directSources);
+        const auxiliaryIncoming = incoming.filter(item =>
+            !directSourceSet.has(item.source_action_id));
+        const auxiliarySources = [...new Set(auxiliaryIncoming.map(item => item.source_action_id))]
+            .sort((left, right) => left - right);
+        let auxiliaryShapeOk = auxiliaryIncoming.length === auxiliarySources.length * 2;
+        for (const sourceId of auxiliarySources) {
+            const sourceIncoming = auxiliaryIncoming.filter(item => item.source_action_id === sourceId);
+            auxiliaryShapeOk = auxiliaryShapeOk && !hasBcm(sourceId)
+                && sourceIncoming.length === 2
+                && sourceIncoming.some(item => exactExecutionBranch(item.branch, 5, 256, 0))
+                && sourceIncoming.some(item => exactExecutionBranch(item.branch, 54, 256, 160));
+        }
+        if (!auxiliaryShapeOk
+            || incoming.length !== directIncoming.length + auxiliaryIncoming.length) continue;
+
+        relations.push({
+            kind: "ac_type13_air_landing_execution_phase",
+            source_action_ids: directSources,
+            auxiliary_source_action_ids: auxiliarySources,
+            target_action_id: targetId,
+            exit_target_action_id: exitTargetId,
+            branch_type: 13,
+            attr: 0,
+            action_frame: 0,
+            param00: 1,
+            param01: 0,
+            param02: 0,
+            param03: 0,
+            param04: 0,
+            param05: 0,
+            trigger_id: -1,
+            exit_branch_type: 20,
+            exit_attr: 0,
+            exit_action_frame: 0,
+            exit_param00: 0,
+            exit_param01: 2,
+            exit_param02: 0,
+            exit_param03: 0,
+            exit_param04: 0,
+            exit_param05: 0,
+            exit_trigger_id: -1,
+            auxiliary_branches: [
+                { branch_type: 5, attr: 256, action_frame: 0, param00: 0,
+                    param01: 0, param02: 0, param03: 0, param04: 0, param05: 0,
+                    trigger_id: -1 },
+                { branch_type: 54, attr: 256, action_frame: 0, param00: 160,
+                    param01: 0, param02: 0, param03: 0, param04: 0, param05: 0,
+                    trigger_id: -1 }
+            ],
+            reason: AC_TYPE13_AIR_LANDING_EXECUTION_PHASE_REASON
+        });
+    }
+
+    for (const [middleId, incoming] of incomingByTarget) {
+        const middleBranches = branchesByAction.get(middleId) || [];
+        if (hasBcm(middleId) || incoming.length !== 1 || middleBranches.length !== 1) continue;
+        const sourceId = Number(incoming[0].source_action_id);
+        const entry = incoming[0].branch;
+        const exit = middleBranches[0];
+        const tailId = Number(exit.Action);
+        const tailIncoming = incomingByTarget.get(tailId) || [];
+        if (!hasBcm(sourceId) || !exactExecutionBranch(entry, 36, 0, 0)
+            || !exactExecutionBranch(exit, 13, 0, 0)
+            || !actions.has(tailId) || hasBcm(tailId)
+            || tailIncoming.length !== 1
+            || Number(tailIncoming[0].source_action_id) !== middleId
+            || (branchesByAction.get(tailId) || []).length !== 0) continue;
+        relations.push({
+            kind: "ac_type36_type13_execution_phase",
+            source_action_id: sourceId,
+            target_action_id: middleId,
+            tail_action_id: tailId,
+            branch_type: 36,
+            exit_branch_type: 13,
+            attr: 0,
+            action_frame: 0,
+            param00: 0,
+            param01: 0,
+            param02: 0,
+            param03: 0,
+            param04: 0,
+            param05: 0,
+            trigger_id: -1,
+            reason: AC_TYPE36_TYPE13_EXECUTION_PHASE_REASON
+        });
+    }
     for (const [targetId, incoming] of incomingByTarget) {
         const sources = [...new Set(incoming.map(item => item.source_action_id))];
         const targetBranches = branchesByAction.get(targetId) || [];
@@ -2256,6 +2444,228 @@ function strictType20ActionPhaseRelations(actionSource, actionSet) {
     }
     return output.sort((left, right) => left.source_action_id - right.source_action_id
         || left.target_action_id - right.target_action_id);
+}
+
+function strictType20SixBranchActionPhaseRelations(actionSource, bcmCatalog, actionSet) {
+    const { objects, actions } = characterActionGraph(actionSource, actionSet);
+    const branchesByAction = new Map([...actions].map(([id, root]) =>
+        [id, actionBranches(root, objects).filter(branch => Number(branch.Action) !== id)]));
+    const incomingSources = new Map();
+    for (const [sourceId, branches] of branchesByAction) for (const branch of branches) {
+        const targetId = Number(branch.Action);
+        if (!actions.has(targetId)) continue;
+        if (!incomingSources.has(targetId)) incomingSources.set(targetId, new Set());
+        incomingSources.get(targetId).add(sourceId);
+    }
+    const expected = new Set([
+        "0:5:1:16:0:3", "0:5:0:16:0:3",
+        "0:5:0:256:0:2", "256:0:2:256:0:2",
+        "0:5:0:64:0:1", "256:0:2:64:0:1"
+    ]);
+    const hasBcm = actionId => Object.prototype.hasOwnProperty.call(
+        bcmCatalog.actions || {}, String(actionId));
+    const output = [];
+    for (const [sourceId, sourceRoot] of actions) {
+        if (!hasBcm(sourceId)) continue;
+        const branches = branchesByAction.get(sourceId) || [];
+        const grouped = new Map();
+        for (const branch of branches) {
+            const targetId = Number(branch.Action);
+            if (Number(branch.Type) !== 20 || !actions.has(targetId)) continue;
+            if (!grouped.has(targetId)) grouped.set(targetId, []);
+            grouped.get(targetId).push(branch);
+        }
+        for (const [targetId, phaseBranches] of grouped) {
+            if (phaseBranches.length !== expected.size) continue;
+            const targetRoot = actions.get(targetId);
+            if (!targetRoot || hasBcm(targetId)
+                || (incomingSources.get(targetId) || new Set()).size !== 1) continue;
+            const sourceExits = branches.filter(branch => Number(branch.Action) !== targetId);
+            if (sourceExits.length !== 1) continue;
+            const sourceExit = sourceExits[0];
+            if (!actions.has(Number(sourceExit.Action)) || Number(sourceExit.Type) !== 0
+                || Number(sourceExit.Attr) !== 0 || Number(sourceExit.ActionFrame) !== 5
+                || Number(sourceExit.Param00) !== 0 || Number(sourceExit.Param01) !== 0
+                || Number(sourceExit.Param02) !== 0 || Number(sourceExit.Param03) !== 0
+                || Number(sourceExit.Param04) !== 0 || Number(sourceExit.Param05) !== 0
+                || Number(sourceExit.TriggerID) !== -1) continue;
+
+            const signatures = [];
+            let valid = true;
+            for (const branch of phaseBranches) {
+            if (Number(branch.Type) !== 20 || Number(branch.Param02) !== 0
+                || Number(branch.Param04) !== 0 || Number(branch.Param05) !== 0
+                || Number(branch.TriggerID) !== -1) {
+                valid = false;
+                break;
+            }
+            signatures.push({
+                attr: Number(branch.Attr), action_frame: Number(branch.ActionFrame),
+                param00: Number(branch.Param00), param01: Number(branch.Param01),
+                param02: Number(branch.Param02), param03: Number(branch.Param03)
+            });
+            }
+            const actual = new Set(signatures.map(item =>
+                `${item.attr}:${item.action_frame}:${item.param00}:${item.param01}:`
+                + `${item.param02}:${item.param03}`));
+            if (!valid || actual.size !== expected.size
+                || [...expected].some(signature => !actual.has(signature))) continue;
+
+            const exits = branchesByAction.get(targetId) || [];
+            if (exits.length !== 1) continue;
+            const exit = exits[0];
+            if (!actions.has(Number(exit.Action)) || Number(exit.Type) !== 5
+                || Number(exit.Attr) !== 0 || Number(exit.ActionFrame) !== 8
+                || Number(exit.Param00) !== 1 || Number(exit.Param01) !== 0
+                || Number(exit.Param02) !== 0 || Number(exit.Param03) !== 0
+                || Number(exit.Param04) !== 0 || Number(exit.Param05) !== 0
+                || Number(exit.TriggerID) !== -1) continue;
+            signatures.sort((left, right) => left.param03 - right.param03
+                || left.param01 - right.param01 || left.attr - right.attr
+                || left.action_frame - right.action_frame || left.param00 - right.param00);
+            output.push({
+                source_action_id: sourceId,
+                target_action_id: targetId,
+                branch_type: 20,
+                signatures,
+                source_exit_signature: {
+                    target_action_id: Number(sourceExit.Action),
+                    branch_type: 0,
+                    attr: 0,
+                    action_frame: 5,
+                    param00: 0,
+                    param01: 0,
+                    param02: 0,
+                    param03: 0,
+                    param04: 0,
+                    param05: 0,
+                    trigger_id: -1
+                },
+                exit_signature: {
+                    target_action_id: Number(exit.Action),
+                    branch_type: 5,
+                    attr: 0,
+                    action_frame: 8,
+                    param00: 1,
+                    param01: 0,
+                    param02: 0,
+                    param03: 0,
+                    param04: 0,
+                    param05: 0,
+                    trigger_id: -1
+                },
+                reason: TYPE20_SIX_BRANCH_PHASE_REASON
+            });
+        }
+    }
+    return output.sort((left, right) => left.source_action_id - right.source_action_id
+        || left.target_action_id - right.target_action_id);
+}
+
+function strictType20TerminalCommandPhaseRelations(actionSource, bcmCatalog, actionSet) {
+    const { objects, actions } = characterActionGraph(actionSource, actionSet);
+    const branchesByAction = new Map([...actions].map(([id, root]) =>
+        [id, actionBranches(root, objects).filter(branch => Number(branch.Action) !== id)]));
+    const hasBcm = actionId => Object.prototype.hasOwnProperty.call(
+        bcmCatalog.actions || {}, String(actionId));
+    const expected = new Set(["256:0:0:112:0:1", "256:0:0:32:0:2", "256:0:0:256:0:3"]);
+    const output = [];
+    for (const [sourceId, sourceRoot] of actions) {
+        if (!hasBcm(sourceId)) continue;
+        const branches = branchesByAction.get(sourceId) || [];
+        const grouped = new Map();
+        for (const branch of branches) {
+            const targetId = Number(branch.Action);
+            if (!actions.has(targetId) || hasBcm(targetId)
+                || Number(branch.Type) !== 20 || Number(branch.Attr) !== 256
+                || Number(branch.ActionFrame) !== 0 || Number(branch.Param00) !== 0
+                || Number(branch.Param02) !== 0 || Number(branch.Param04) !== 0
+                || Number(branch.Param05) !== 0 || Number(branch.TriggerID) !== -1) continue;
+            if (!grouped.has(targetId)) grouped.set(targetId, []);
+            grouped.get(targetId).push({
+                attr: Number(branch.Attr), action_frame: Number(branch.ActionFrame),
+                param00: Number(branch.Param00), param01: Number(branch.Param01),
+                param02: Number(branch.Param02), param03: Number(branch.Param03)
+            });
+        }
+        for (const [targetId, signatures] of grouped) {
+            const actual = new Set(signatures.map(item =>
+                `${item.attr}:${item.action_frame}:${item.param00}:${item.param01}:`
+                + `${item.param02}:${item.param03}`));
+            const targetRoot = actions.get(targetId);
+            const sourceStructure = actionStructureCategory(sourceRoot, objects);
+            if (signatures.length !== expected.size || actual.size !== expected.size
+                || [...expected].some(signature => !actual.has(signature))
+                || (branchesByAction.get(targetId) || []).length !== 0
+                || sourceStructure == null
+                || actionStructureCategory(targetRoot, objects) !== sourceStructure) continue;
+            signatures.sort((left, right) => left.param03 - right.param03
+                || left.param01 - right.param01);
+            output.push({
+                source_action_id: sourceId,
+                target_action_id: targetId,
+                branch_type: 20,
+                signatures,
+                fingerprint_fields: [...AC_STRUCTURE_FIELDS]
+            });
+        }
+    }
+    return output.sort((left, right) => left.source_action_id - right.source_action_id
+        || left.target_action_id - right.target_action_id);
+}
+
+function strictType20DelayedEffectRelations(actionSource, bcmCatalog, actionSet) {
+    const { objects, actions } = characterActionGraph(actionSource, actionSet);
+    const hasBcm = actionId => Object.prototype.hasOwnProperty.call(
+        bcmCatalog.actions || {}, String(actionId));
+    const grouped = new Map();
+    for (const [sourceId, sourceRoot] of actions) {
+        if (!hasBcm(sourceId)) continue;
+        for (const branch of actionBranches(sourceRoot, objects)) {
+            const targetId = Number(branch.Action);
+            if (!actions.has(targetId) || !hasBcm(targetId)
+                || Number(branch.Type) !== 20 || Number(branch.Attr) !== 288
+                || Number(branch.ActionFrame) <= 0 || Number(branch.Param00) !== 1
+                || Number(branch.Param02) !== 1 || Number(branch.Param03) !== 2
+                || Number(branch.Param04) !== 0 || Number(branch.Param05) !== 0
+                || Number(branch.TriggerID) !== -1) continue;
+            const signature = [Number(branch.Attr), Number(branch.ActionFrame),
+                Number(branch.Param00), Number(branch.Param01), Number(branch.Param02),
+                Number(branch.Param03), Number(branch.Param04), Number(branch.Param05),
+                Number(branch.TriggerID)].join(":");
+            const key = `${targetId}:${signature}`;
+            if (!grouped.has(key)) grouped.set(key, { targetId, branch, sources: [] });
+            grouped.get(key).sources.push(sourceId);
+        }
+    }
+
+    const output = [];
+    for (const candidate of grouped.values()) {
+        const sourceIds = [...new Set(candidate.sources)].sort((left, right) => left - right);
+        const targetRoot = actions.get(candidate.targetId);
+        const targetStructure = actionStructureCategory(targetRoot, objects);
+        if (sourceIds.length < 2 || targetStructure == null
+            || sourceIds.some(sourceId =>
+                actionStructureCategory(actions.get(sourceId), objects) !== targetStructure)) continue;
+        const branch = candidate.branch;
+        output.push({
+            source_action_ids: sourceIds,
+            target_action_id: candidate.targetId,
+            branch_type: 20,
+            attr: Number(branch.Attr),
+            action_frame: Number(branch.ActionFrame),
+            param00: Number(branch.Param00),
+            param01: Number(branch.Param01),
+            param02: Number(branch.Param02),
+            param03: Number(branch.Param03),
+            param04: Number(branch.Param04),
+            param05: Number(branch.Param05),
+            trigger_id: Number(branch.TriggerID),
+            fingerprint_fields: [...AC_STRUCTURE_FIELDS],
+            reason: TYPE20_DELAYED_EFFECT_REASON
+        });
+    }
+    return output.sort((left, right) => left.target_action_id - right.target_action_id);
 }
 
 function strictType20SameStructureExecutionRelations(actionSource, bcmCatalog, actionSet) {
@@ -2899,7 +3309,8 @@ const REQUIRED_REBIND_FIELDS = [
 function assertRoute(route) {
     const classicVerification = route.projection_scope === "classic_only";
     if (classicVerification) {
-        if (route.source !== "bcm_profile" || route.profile !== "norm"
+        if (!["bcm_profile", "ac_type20_delayed_effect_dual_role"].includes(route.source)
+            || route.profile !== "norm"
             || route.direct_evidence !== true || route.inheritance_evidence !== false
             || route.rebind_evidence !== false || route.confidence !== "direct_structural"
             || typeof route.display !== "string" || route.display.trim() === "") {
@@ -2920,6 +3331,34 @@ function assertRoute(route) {
         .filter(value => value === true).length;
     if (evidenceCount !== 1) {
         throw new Error(`Modern route evidence 必须明确 direct、inherited、rebind、runtime-common、official-semantic 或 community-semantic 六选一: ${route.display}`);
+    }
+    if (route.source === "ac_type20_delayed_effect_dual_role") {
+        const relation = route.contextual_effect_relation;
+        const sourceIds = relation && relation.source_action_ids;
+        if (route.contextual_effect_evidence !== true
+            || route.contextual_effect_reason !== TYPE20_DELAYED_EFFECT_REASON
+            || typeof route.contextual_effect_bcm_notation !== "string"
+            || canonicalClassicIdentity(route.display).replace(/^>/, "")
+                !== canonicalClassicIdentity(route.contextual_effect_bcm_notation)
+            || !Array.isArray(sourceIds) || sourceIds.length < 2
+            || sourceIds.some((id, index) => !Number.isFinite(Number(id))
+                || Number(id) === Number(route.owner_action_id)
+                || (index > 0 && Number(sourceIds[index - 1]) >= Number(id)))
+            || Number(relation.target_action_id) !== Number(route.owner_action_id)
+            || Number(relation.branch_type) !== 20 || Number(relation.attr) !== 288
+            || Number(relation.action_frame) <= 0 || Number(relation.param00) !== 1
+            || Number(relation.param02) !== 1 || Number(relation.param03) !== 2
+            || Number(relation.param04) !== 0 || Number(relation.param05) !== 0
+            || Number(relation.trigger_id) !== -1
+            || relation.reason !== TYPE20_DELAYED_EFFECT_REASON
+            || JSON.stringify(relation.fingerprint_fields) !== JSON.stringify(AC_STRUCTURE_FIELDS)) {
+            throw new Error(`Modern delayed-effect dual-role route 证据非法: ${route.display}`);
+        }
+    } else if (route.contextual_effect_evidence === true
+        || route.contextual_effect_reason != null
+        || route.contextual_effect_bcm_notation != null
+        || route.contextual_effect_relation != null) {
+        throw new Error(`非 delayed-effect route 不得携带上下文效果证据: ${route.display}`);
     }
     if (route.charge_context_evidence === true) {
         const direction = String(route.charge_context_direction || "");
@@ -3156,6 +3595,57 @@ function assertRoute(route) {
             || Number(route.inherited_from_action_id) !== Number(route.ac_path[route.ac_path.length - 2])
             || actual.size !== expected.length || expected.some(item => !actual.has(item))) {
             throw new Error(`Modern Type20 action-phase route 证据非法: ${route.display}`);
+        }
+    }
+    if (route.source === "ac_type20_six_branch_action_phase") {
+        const signatures = Array.isArray(route.ac_phase_signatures) ? route.ac_phase_signatures : [];
+        const actual = new Set(signatures.map(item =>
+            `${item.attr}:${item.action_frame}:${item.param00}:${item.param01}:`
+            + `${item.param02}:${item.param03}`));
+        const expected = [
+            "0:5:1:16:0:3", "0:5:0:16:0:3",
+            "0:5:0:256:0:2", "256:0:2:256:0:2",
+            "0:5:0:64:0:1", "256:0:2:64:0:1"
+        ];
+        const exit = route.ac_exit_signature || {};
+        const sourceExit = route.ac_source_exit_signature || {};
+        if (route.inheritance_evidence !== true
+            || route.inheritance_reason !== TYPE20_SIX_BRANCH_PHASE_REASON
+            || route.confidence !== "verified_inherited_action_phase"
+            || Number(route.ac_relation_type) !== 20 || route.ac_path.length < 2
+            || Number(route.ac_path[route.ac_path.length - 1]) !== Number(route.display_action_id)
+            || Number(route.inherited_from_action_id) !== Number(route.ac_path[route.ac_path.length - 2])
+            || actual.size !== expected.length || expected.some(item => !actual.has(item))
+            || Number(sourceExit.branch_type) !== 0 || Number(sourceExit.attr) !== 0
+            || Number(sourceExit.action_frame) !== 5 || Number(sourceExit.param00) !== 0
+            || Number(sourceExit.param01) !== 0 || Number(sourceExit.param02) !== 0
+            || Number(sourceExit.param03) !== 0 || Number(sourceExit.param04) !== 0
+            || Number(sourceExit.param05) !== 0 || Number(sourceExit.trigger_id) !== -1
+            || !Number.isInteger(Number(sourceExit.target_action_id))
+            || Number(exit.branch_type) !== 5 || Number(exit.attr) !== 0
+            || Number(exit.action_frame) !== 8 || Number(exit.param00) !== 1
+            || Number(exit.param01) !== 0 || Number(exit.param02) !== 0
+            || Number(exit.param03) !== 0 || Number(exit.param04) !== 0
+            || Number(exit.param05) !== 0 || Number(exit.trigger_id) !== -1
+            || !Number.isInteger(Number(exit.target_action_id))) {
+            throw new Error(`Modern Type20 six-branch action-phase route 证据非法: ${route.display}`);
+        }
+    }
+    if (route.source === "ac_type20_terminal_command_phase") {
+        const signatures = Array.isArray(route.ac_phase_signatures) ? route.ac_phase_signatures : [];
+        const actual = new Set(signatures.map(item =>
+            `${item.attr}:${item.action_frame}:${item.param00}:${item.param01}:`
+            + `${item.param02}:${item.param03}`));
+        const expected = ["256:0:0:112:0:1", "256:0:0:32:0:2", "256:0:0:256:0:3"];
+        if (route.inheritance_evidence !== true
+            || route.inheritance_reason !== TYPE20_TERMINAL_COMMAND_PHASE_REASON
+            || route.confidence !== "verified_inherited_action_phase"
+            || Number(route.ac_relation_type) !== 20 || route.ac_path.length < 2
+            || Number(route.ac_path[route.ac_path.length - 1]) !== Number(route.display_action_id)
+            || Number(route.inherited_from_action_id) !== Number(route.ac_path[route.ac_path.length - 2])
+            || actual.size !== expected.length || expected.some(item => !actual.has(item))
+            || JSON.stringify(route.ac_fingerprint_fields) !== JSON.stringify(AC_STRUCTURE_FIELDS)) {
+            throw new Error(`Modern Type20 terminal command-phase route 证据非法: ${route.display}`);
         }
     }
     if (route.source === "ac_type20_same_structure_execution_phase") {
@@ -3721,7 +4211,11 @@ function buildCommandDisplay(actionSource, bcmCatalog, runtime, supplement, opti
     suppressedInternalTransitions.sort((left, right) =>
         Number(left.target_action_id) - Number(right.target_action_id));
 
-    const type20PhaseCandidates = strictType20ActionPhaseRelations(actionSource, actionSet);
+    const type20PhaseCandidates = [
+        ...strictType20ActionPhaseRelations(actionSource, actionSet),
+        ...strictType20SixBranchActionPhaseRelations(actionSource, bcmCatalog, actionSet)
+    ].sort((left, right) => left.source_action_id - right.source_action_id
+        || left.target_action_id - right.target_action_id);
     const appliedType20PhaseRelations = [];
     let type20PhaseRouteCount = 0;
     for (const relation of type20PhaseCandidates) {
@@ -3732,11 +4226,40 @@ function buildCommandDisplay(actionSource, bcmCatalog, runtime, supplement, opti
         const sourceRoutes = sourceEntry.routes.filter(route => route.direct_evidence === true
             && route.inheritance_evidence === false && Number(route.owner_action_id) === Number(sourceId));
         if (!sourceRoutes.length || sourceRoutes.length !== sourceEntry.routes.length) continue;
-        const routes = sourceRoutes.map(route => type20ActionPhaseRoute(character, relation, route));
+        const sixBranch = relation.reason === TYPE20_SIX_BRANCH_PHASE_REASON;
+        const routes = sourceRoutes.map(route => sixBranch
+            ? type20SixBranchActionPhaseRoute(character, relation, route)
+            : type20ActionPhaseRoute(character, relation, route));
         for (const route of routes) assertRoute(route);
         entries[targetId] = { routes, ownership: "type20_action_phase" };
-        appliedType20PhaseRelations.push({ ...relation, reason: TYPE20_PHASE_REASON });
+        appliedType20PhaseRelations.push({
+            ...relation,
+            reason: sixBranch ? TYPE20_SIX_BRANCH_PHASE_REASON : TYPE20_PHASE_REASON
+        });
         type20PhaseRouteCount += routes.length;
+    }
+
+    const type20TerminalPhaseCandidates = strictType20TerminalCommandPhaseRelations(
+        actionSource, bcmCatalog, actionSet);
+    const appliedType20TerminalPhaseRelations = [];
+    let type20TerminalPhaseRouteCount = 0;
+    for (const relation of type20TerminalPhaseCandidates) {
+        const sourceId = String(relation.source_action_id);
+        const targetId = String(relation.target_action_id);
+        const sourceEntry = entries[sourceId];
+        if (!sourceEntry || entries[targetId]) continue;
+        const sourceRoutes = sourceEntry.routes.filter(route => route.direct_evidence === true
+            && route.inheritance_evidence === false
+            && Number(route.owner_action_id) === Number(sourceId));
+        if (!sourceRoutes.length || sourceRoutes.length !== sourceEntry.routes.length) continue;
+        const routes = sourceRoutes.map(route =>
+            type20TerminalCommandPhaseRoute(character, relation, route));
+        for (const route of routes) assertRoute(route);
+        entries[targetId] = { routes, ownership: "type20_action_phase" };
+        appliedType20TerminalPhaseRelations.push({
+            ...relation, reason: TYPE20_TERMINAL_COMMAND_PHASE_REASON
+        });
+        type20TerminalPhaseRouteCount += routes.length;
     }
 
     const type20SameStructureCandidates = strictType20SameStructureExecutionRelations(
@@ -3853,6 +4376,33 @@ function buildCommandDisplay(actionSource, bcmCatalog, runtime, supplement, opti
     unresolvedCandidates.sort((left, right) => left.action_id - right.action_id
         || Number(left.trigger_index || -1) - Number(right.trigger_index || -1)
         || String(left.profile).localeCompare(String(right.profile)));
+
+    const type20DelayedEffectRelations = strictType20DelayedEffectRelations(
+        actionSource, bcmCatalog, actionSet);
+    let type20DelayedEffectRouteCount = 0;
+    for (const relation of type20DelayedEffectRelations) {
+        const id = String(relation.target_action_id);
+        if (entries[id]) continue;
+        const action = bcmCatalog.actions && bcmCatalog.actions[id];
+        const classicDisplay = runtime.actions && runtime.actions[id]
+            || action && action.classic_display;
+        const displayIdentity = canonicalClassicIdentity(classicDisplay);
+        const bcmIdentity = displayIdentity.replace(/^>/, "");
+        if (!action || !displayIdentity.startsWith(">") || !bcmIdentity) continue;
+        const candidates = (action.triggers || []).filter(trigger => {
+            const norm = trigger.profiles && trigger.profiles.norm;
+            return isDirectFunction2Command(trigger, bcmIdentity)
+                && norm && canonicalClassicIdentity(norm.notation) === bcmIdentity;
+        });
+        if (candidates.length !== 1) continue;
+        const trigger = candidates[0];
+        const route = type20DelayedEffectDualRoleRoute(
+            character, relation, trigger, trigger.profiles.norm,
+            String(classicDisplay).trim());
+        assertRoute(route);
+        entries[id] = { routes: [route], ownership: "contextual_dual_role" };
+        type20DelayedEffectRouteCount += 1;
+    }
 
     // A direct trigger can expose only a Classic norm command. Preserve that
     // BCM identity when no other route was generated. Function 1 Assist Combo
@@ -4040,6 +4590,8 @@ function buildCommandDisplay(actionSource, bcmCatalog, runtime, supplement, opti
             type63_strength_variant_relations: appliedType63StrengthRelations,
             type20_hold_route_count: type20HoldRouteCount,
             type20_action_phase_route_count: type20PhaseRouteCount,
+            type20_terminal_command_phase_route_count: type20TerminalPhaseRouteCount,
+            type20_delayed_effect_route_count: type20DelayedEffectRouteCount,
             type20_same_structure_execution_route_count: type20SameStructureRouteCount,
             type37_followup_execution_phase_route_count: type37FollowupPhaseRouteCount,
             charge_context_route_count: chargeContextRouteCount,
@@ -4091,6 +4643,8 @@ function buildCommandDisplay(actionSource, bcmCatalog, runtime, supplement, opti
             type20_directional_relations: appliedType20Relations,
             type20_hold_relations: appliedType20HoldRelations,
             type20_action_phase_relations: appliedType20PhaseRelations,
+            type20_terminal_command_phase_relations: appliedType20TerminalPhaseRelations,
+            type20_delayed_effect_relations: type20DelayedEffectRelations,
             type20_same_structure_execution_relations: appliedType20SameStructureRelations,
             type37_followup_execution_phase_relations: appliedType37FollowupPhaseRelations,
             target_combo_repeat_relations: appliedTargetComboRelations,
@@ -4145,6 +4699,11 @@ function buildCommandDisplay(actionSource, bcmCatalog, runtime, supplement, opti
                 type20_hold_route_count: type20HoldRouteCount,
                 type20_action_phase_relation_count: appliedType20PhaseRelations.length,
                 type20_action_phase_route_count: type20PhaseRouteCount,
+                type20_terminal_command_phase_relation_count:
+                    appliedType20TerminalPhaseRelations.length,
+                type20_terminal_command_phase_route_count: type20TerminalPhaseRouteCount,
+                type20_delayed_effect_relation_count: type20DelayedEffectRelations.length,
+                type20_delayed_effect_route_count: type20DelayedEffectRouteCount,
                 type20_same_structure_execution_relation_count:
                     appliedType20SameStructureRelations.length,
                 type20_same_structure_execution_route_count: type20SameStructureRouteCount,

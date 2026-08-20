@@ -7,6 +7,11 @@
       "replace": true,
       "evidence": "Verified facing-relative raw-input runtime replay binds a fresh 2+MP press and hit contact to Kimberly Action 613"
     },
+    "980": {
+      "classic": "5252+MP+HP",
+      "replace": true,
+      "evidence": "Current Capcom command semantics and verified raw-input replay both bind the two-stock 5252+MP+HP command to Kimberly Action 980"
+    },
     "983": {
       "classic": ">22+MP+HP",
       "replace": true,

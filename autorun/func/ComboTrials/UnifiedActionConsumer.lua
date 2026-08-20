@@ -14,6 +14,7 @@ local TrainingEnvironment = require("func/ComboTrials/TrainingEnvironment")
 
 local M = {
     name = "ComboTrials.UnifiedActionConsumer",
+    RUNTIME_VERSION = 2026082001,
     CHORD_COMPLETION_WINDOW = ActionMatcher.CHORD_COMPLETION_WINDOW,
     CHORD_ACTION_VISIBILITY_GRACE = ActionMatcher.CHORD_ACTION_VISIBILITY_GRACE,
     PLAYER_ACTION_BIND_WINDOW = ActionMatcher.PLAYER_ACTION_BIND_WINDOW,
@@ -196,6 +197,11 @@ function M.matches_expected_action_id(
             expected and expected.id,
             actual_action_id
         )
+        or GeneratedActionRelations.is_command_owner_of(
+            generated_action_relations,
+            actual_action_id,
+            expected and expected.id
+        )
 end
 
 function M.should_admit_ignored_expected_action(
@@ -275,7 +281,71 @@ function M.match_expected_action(
         result.matched = true
         result.match_reason = "generated_source_group"
     end
+    if result.matched ~= true
+        and GeneratedActionRelations.is_command_owner_of(
+            generated_action_relations,
+            actual_action_id,
+            expected and expected.id
+        ) then
+        result.matched = true
+        result.match_reason = "generated_command_owner"
+    end
     return result
+end
+
+function M.plan_unreported_command_phase_skip(params)
+    params = type(params) == "table" and params or {}
+    local previous_step = params.previous_step
+    local expected_step = params.expected_step
+    local next_step = params.next_step
+    if type(previous_step) ~= "table"
+        or type(expected_step) ~= "table"
+        or type(next_step) ~= "table" then
+        return nil
+    end
+
+    local current_match = M.match_expected_action(
+        expected_step,
+        params.actual_action_id,
+        params.actual_motion,
+        params.actual_input,
+        params.expected_exception,
+        params.compatibility_rules,
+        params.generated_action_relations
+    )
+    if current_match.matched == true then return nil end
+    if not GeneratedActionRelations.is_command_owner_of(
+        params.generated_action_relations,
+        previous_step.id,
+        expected_step.id
+    ) then
+        return nil
+    end
+
+    local next_action_match = M.match_expected_action(
+        next_step,
+        params.actual_action_id,
+        params.actual_motion,
+        params.actual_input,
+        params.next_exception,
+        params.compatibility_rules,
+        params.generated_action_relations
+    )
+    if next_action_match.matched ~= true then return nil end
+
+    local actual_frame = tonumber(params.actual_frame)
+    local last_played_frame = tonumber(params.last_played_frame)
+    if not actual_frame or not last_played_frame then return nil end
+    local virtual_frame = actual_frame - (tonumber(next_step.delay_from_prev) or 0)
+    local minimum_frame = last_played_frame
+        + (tonumber(expected_step.delay_from_prev) or 0)
+    if virtual_frame < minimum_frame then virtual_frame = minimum_frame end
+
+    return {
+        reason = "generated_command_phase_unreported",
+        virtual_frame = virtual_frame,
+        next_action_match = next_action_match,
+    }
 end
 
 return M

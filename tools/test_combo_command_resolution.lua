@@ -1270,11 +1270,43 @@ assert(not renderer_source:find("CharacterRules", 1, true),
 assert(renderer_source:find("resolve_live_log_command_displays", 1, true)
         and renderer_source:find("oldest_source_index + 1", 1, true),
     "live display must resolve from one real predecessor before the visible window")
+SequenceGrouping = dofile("autorun/func/ComboTrials/SequenceGrouping.lua")
+do
+    local merge_group_block = assert(renderer_source:match(
+    "(local function strip_line_leading_followup.-)\n%-%- =========================================================\n%-%- parse_motion_to_icons"))
+    assert(load(merge_group_block
+            .. "\n_G.merge_group_log_item = merge_group_log_item"
+            .. "\n_G.display_line_log_item = display_line_log_item",
+        "merge-group-log-item", "t", _G))()
+    local standalone_followup_line = display_line_log_item({
+        { motion = ">22+HP", has_hit = true },
+    })
+    local chained_followup_line = display_line_log_item({
+        { motion = "2PP", has_hit = true },
+        { motion = ">HP", has_hit = true },
+    })
+    local same_command_phase_line = display_line_log_item({
+        { motion = "4 + 强", has_hit = false },
+        { motion = "4 + 强", has_hit = true, _ct_same_command_phase = true },
+    })
+    assert(standalone_followup_line.motion == "22+HP"
+            and chained_followup_line.motion == "2PP >HP"
+            and same_command_phase_line.motion == "4 + 强"
+            and same_command_phase_line.has_hit == true,
+        "a line-leading follow-up marker must be hidden while an inline follow-up remains visible")
+end
 local classic_block = assert(renderer_source:match(
     "(local function get_player_visible_transition_motion.-)\nlocal function get_command_display"))
 trim_string = function(value)
     return tostring(value or ""):match("^%s*(.-)%s*$")
 end
+
+CONTEXTUAL_EFFECT_BLOCK_TEST = assert(renderer_source:match(
+    "(local function valid_contextual_effect_relation.-)\nlocal RUNTIME_COMMON_ACTIONS"))
+assert(load(CONTEXTUAL_EFFECT_BLOCK_TEST
+        .. "\n_G.valid_contextual_effect_relation = valid_contextual_effect_relation"
+        .. "\n_G.same_contextual_effect_relation = same_contextual_effect_relation",
+    "contextual-effect-relations", "t", _G))()
 
 local semantic_block = assert(renderer_source:match(
     "(local function resolve_classic_common_semantic.-)\nbuild_slim_command_display_map = function"))
@@ -1302,6 +1334,7 @@ assert(load(classic_block .. "\n_G.get_classic_display_motion = get_classic_disp
 local validation_block = assert(renderer_source:match(
     "(local function select_modern_display_motion.-)\nlocal function build_display_lines"
 ))
+TYPE20_DELAYED_EFFECT_REASON = "ac_type20_multi_owner_delayed_contact_effect"
 assert(load(validation_block
         .. "\n_G.resolve_step_command_display = resolve_step_command_display"
         .. "\n_G.resolve_contextual_step_command_display = resolve_contextual_step_command_display"
@@ -1310,6 +1343,8 @@ assert(load(validation_block
         .. "\n_G.setup_followup_child_sources = setup_followup_child_sources"
         .. "\n_G.is_internal_bridge_candidate = is_internal_bridge_candidate"
         .. "\n_G.compute_internal_bridge_suppressions = compute_internal_bridge_suppressions"
+        .. "\n_G.compute_contextual_effect_line_breaks = compute_contextual_effect_line_breaks"
+        .. "\n_G.requires_separate_display_line = requires_separate_display_line"
         .. "\n_G.validate_sequence_command_display = validate_sequence_command_display",
     "command-display-validation", "t", _G))()
 
@@ -1346,6 +1381,85 @@ do
         { { id = 918 }, { id = 921 }, { id = 939 } }, normal_map)
     assert(not_suppressed[2] == nil,
         "a normal catalog Action must not be hidden by the internal-bridge rule")
+end
+
+do
+    CONTEXTUAL_EFFECT_MAP_TEST = {
+        _slim = true,
+        _contextual_effect_relations = {
+            {
+                source_action_ids = { 975, 977 },
+                target_action_id = 979,
+                branch_type = 20,
+                attr = 288,
+                action_frame = 9,
+                param00 = 1,
+                param01 = 8,
+                param02 = 1,
+                param03 = 2,
+                param04 = 0,
+                param05 = 0,
+                trigger_id = -1,
+                fingerprint_fields = { "Category", "Combo", "Projectile", "State" },
+                reason = "ac_type20_multi_owner_delayed_contact_effect",
+            },
+        },
+        ["715"] = { classic = "Throw", status = "strict_route" },
+        ["979"] = { classic = ">22+HP", status = "strict_route" },
+    }
+    CONTEXTUAL_EFFECT_LINE_BREAKS_TEST = compute_contextual_effect_line_breaks({
+        { id = 715, group_id = 2, expected_combo = 2, damage_at_step = 861,
+            has_contact = true, has_hit = true },
+        { id = 979, group_id = 2, delay_from_prev = 119,
+            expected_combo = 3, damage_at_step = 1221,
+            has_contact = true, has_hit = true },
+    }, CONTEXTUAL_EFFECT_MAP_TEST)
+    assert(CONTEXTUAL_EFFECT_LINE_BREAKS_TEST[2] == true
+            and CONTEXTUAL_EFFECT_LINE_BREAKS_TEST[1] == nil,
+        "a dual-role command after contact must start a new presentation line")
+    assert(requires_separate_display_line(nil, true) == true
+            and requires_separate_display_line({ separate_line = true }, false) == true
+            and requires_separate_display_line(nil, false) == false,
+        "validation and runtime rendering must share one separate-line decision")
+    resolve_modern_display_context = function()
+        return false, CONTEXTUAL_EFFECT_MAP_TEST, "StructuralFixture", "loaded", false
+    end
+    CONTEXTUAL_EFFECT_VALIDATION_TEST = validate_sequence_command_display({
+        {
+            id = 715,
+            motion = "Throw",
+            group_id = 2,
+            expected_combo = 2,
+            damage_at_step = 861,
+            has_contact = true,
+            has_hit = true,
+            _xt_meta = { character = "StructuralFixture", language = "zh-CN" },
+        },
+        {
+            id = 979,
+            motion = ">22+HP",
+            group_id = 2,
+            delay_from_prev = 119,
+            expected_combo = 3,
+            damage_at_step = 1221,
+            has_contact = true,
+            has_hit = true,
+        },
+    })
+    assert(CONTEXTUAL_EFFECT_VALIDATION_TEST.ok == true
+            and CONTEXTUAL_EFFECT_VALIDATION_TEST.visible_step_count == 2
+            and CONTEXTUAL_EFFECT_VALIDATION_TEST.visible_line_count == 2
+            and CONTEXTUAL_EFFECT_VALIDATION_TEST.steps[1].display_motion == "Throw"
+            and CONTEXTUAL_EFFECT_VALIDATION_TEST.steps[2].display_motion == ">22+HP"
+            and CONTEXTUAL_EFFECT_VALIDATION_TEST.steps[2].classification == "resolved"
+            and CONTEXTUAL_EFFECT_VALIDATION_TEST.steps[1].visible_line_index == 1
+            and CONTEXTUAL_EFFECT_VALIDATION_TEST.steps[2].visible_line_index == 2,
+        "a real dual-role command must remain visible but not merge into the preceding throw")
+    CONTEXTUAL_EFFECT_STANDALONE_TEST = compute_contextual_effect_line_breaks({
+        { id = 979, group_id = 1, has_contact = false, has_hit = false },
+    }, CONTEXTUAL_EFFECT_MAP_TEST)
+    assert(CONTEXTUAL_EFFECT_STANDALONE_TEST[1] == nil,
+        "the same dual-role Action needs no synthetic line break as a standalone setup command")
 end
 
 do
@@ -1519,6 +1633,12 @@ local same_structure_evidence = {
 }
 AC_TYPE37_AUTOMATIC_EXECUTION_PHASE_REASON =
     "ac_type37_unique_automatic_execution_phase"
+AC_TYPE13_TERMINAL_EXECUTION_PHASE_REASON =
+    "ac_type13_zero_parameter_multi_owner_terminal_execution_phase"
+AC_TYPE13_AIR_LANDING_EXECUTION_PHASE_REASON =
+    "ac_type13_multi_owner_air_landing_execution_phase"
+AC_TYPE36_TYPE13_EXECUTION_PHASE_REASON =
+    "ac_type36_zero_parameter_phase_with_type13_terminal_exit"
 local type37_automatic_evidence = {
     kind = "ac_type37_automatic_execution_phase",
     source_action_id = 8240,
@@ -1532,12 +1652,87 @@ local type37_automatic_evidence = {
     fingerprint_fields = { "Category", "Combo", "Projectile", "State" },
     reason = AC_TYPE37_AUTOMATIC_EXECUTION_PHASE_REASON,
 }
+local type13_terminal_evidence = {
+    kind = "ac_type13_terminal_execution_phase",
+    source_action_ids = { 940, 941, 942, 943 },
+    target_action_id = 944,
+    branch_type = 13,
+    attr = 0,
+    action_frame = 0,
+    param00 = 0,
+    param01 = 0,
+    param02 = 0,
+    param03 = 0,
+    param04 = 0,
+    param05 = 0,
+    trigger_id = -1,
+    reason = AC_TYPE13_TERMINAL_EXECUTION_PHASE_REASON,
+}
+local type13_air_landing_evidence = {
+    kind = "ac_type13_air_landing_execution_phase",
+    source_action_ids = { 650, 651, 652, 653, 654, 655, 656 },
+    auxiliary_source_action_ids = { 1159, 1166 },
+    target_action_id = 657,
+    exit_target_action_id = 6,
+    branch_type = 13,
+    attr = 0,
+    action_frame = 0,
+    param00 = 1,
+    param01 = 0,
+    param02 = 0,
+    param03 = 0,
+    param04 = 0,
+    param05 = 0,
+    trigger_id = -1,
+    exit_branch_type = 20,
+    exit_attr = 0,
+    exit_action_frame = 0,
+    exit_param00 = 0,
+    exit_param01 = 2,
+    exit_param02 = 0,
+    exit_param03 = 0,
+    exit_param04 = 0,
+    exit_param05 = 0,
+    exit_trigger_id = -1,
+    auxiliary_branches = {
+        {
+            branch_type = 5, attr = 256, action_frame = 0,
+            param00 = 0, param01 = 0, param02 = 0, param03 = 0,
+            param04 = 0, param05 = 0, trigger_id = -1,
+        },
+        {
+            branch_type = 54, attr = 256, action_frame = 0,
+            param00 = 160, param01 = 0, param02 = 0, param03 = 0,
+            param04 = 0, param05 = 0, trigger_id = -1,
+        },
+    },
+    reason = AC_TYPE13_AIR_LANDING_EXECUTION_PHASE_REASON,
+}
+local type36_type13_evidence = {
+    kind = "ac_type36_type13_execution_phase",
+    source_action_id = 1023,
+    target_action_id = 1024,
+    tail_action_id = 1025,
+    branch_type = 36,
+    exit_branch_type = 13,
+    attr = 0,
+    action_frame = 0,
+    param00 = 0,
+    param01 = 0,
+    param02 = 0,
+    param03 = 0,
+    param04 = 0,
+    param05 = 0,
+    trigger_id = -1,
+    reason = AC_TYPE36_TYPE13_EXECUTION_PHASE_REASON,
+}
 local phase_map = {
     _meta = {
         character = "InternalPhase",
         suppressed_internal_transitions = {
             terminal_evidence, numbered_evidence, same_structure_evidence,
-            type37_automatic_evidence,
+            type37_automatic_evidence, type13_terminal_evidence,
+            type13_air_landing_evidence, type36_type13_evidence,
         },
     },
     ["8201"] = {
@@ -1564,6 +1759,24 @@ local phase_map = {
         routes = {},
         transition_evidence = type37_automatic_evidence,
     },
+    ["944"] = {
+        ownership = "internal_execution_phase",
+        suppress_display = true,
+        routes = {},
+        transition_evidence = type13_terminal_evidence,
+    },
+    ["657"] = {
+        ownership = "internal_execution_phase",
+        suppress_display = true,
+        routes = {},
+        transition_evidence = type13_air_landing_evidence,
+    },
+    ["1024"] = {
+        ownership = "internal_execution_phase",
+        suppress_display = true,
+        routes = {},
+        transition_evidence = type36_type13_evidence,
+    },
 }
 local terminal_motion, terminal_status = get_modern_display_motion(phase_map, { id = 8201 })
 assert(terminal_motion == nil and terminal_status == "suppress_transition",
@@ -1579,11 +1792,27 @@ local type37_automatic_motion, type37_automatic_status =
     get_modern_display_motion(phase_map, { id = 8241 })
 assert(type37_automatic_motion == nil and type37_automatic_status == "suppress_transition",
     "an exact Type37 automatic execution phase must remain hidden")
+local type13_terminal_motion, type13_terminal_status =
+    get_modern_display_motion(phase_map, { id = 944 })
+assert(type13_terminal_motion == nil and type13_terminal_status == "suppress_transition",
+    "an exact multi-owner Type13 terminal execution phase must remain hidden")
+local type13_air_landing_motion, type13_air_landing_status =
+    get_modern_display_motion(phase_map, { id = 657 })
+assert(type13_air_landing_motion == nil
+        and type13_air_landing_status == "suppress_transition",
+    "an exact multi-owner Type13 air-landing execution phase must remain hidden")
+local type36_type13_motion, type36_type13_status =
+    get_modern_display_motion(phase_map, { id = 1024 })
+assert(type36_type13_motion == nil and type36_type13_status == "suppress_transition",
+    "an exact Type36 phase with a Type13 terminal exit must remain hidden")
 local phase_slim = build_slim_command_display_map(phase_map)
 assert(phase_slim["8201"].status == "suppress_transition"
         and phase_slim["8211"].status == "suppress_transition"
         and phase_slim["8231"].status == "suppress_transition"
-        and phase_slim["8241"].status == "suppress_transition",
+        and phase_slim["8241"].status == "suppress_transition"
+        and phase_slim["944"].status == "suppress_transition"
+        and phase_slim["657"].status == "suppress_transition"
+        and phase_slim["1024"].status == "suppress_transition",
     "slim cache construction must preserve audited transition suppression")
 type37_automatic_evidence.action_frames[2] = 0
 type37_automatic_motion, type37_automatic_status =
@@ -1596,6 +1825,156 @@ numbered_motion, numbered_status = get_modern_display_motion(phase_map, { id = 8
 assert(numbered_motion == nil and numbered_status == "invalid_suppress_transition",
     "a mutated numbered execution phase declaration must fail closed")
 numbered_evidence.attr = 288
+type13_terminal_evidence.source_action_ids = { 940, 943, 942 }
+type13_terminal_motion, type13_terminal_status =
+    get_modern_display_motion(phase_map, { id = 944 })
+assert(type13_terminal_motion == nil and type13_terminal_status == "invalid_suppress_transition",
+    "an unsorted or incomplete Type13 owner set must fail closed")
+type13_terminal_evidence.source_action_ids = { 940, 941, 942, 943 }
+type13_air_landing_evidence.auxiliary_branches[2].param00 = 159
+type13_air_landing_motion, type13_air_landing_status =
+    get_modern_display_motion(phase_map, { id = 657 })
+assert(type13_air_landing_motion == nil
+        and type13_air_landing_status == "invalid_suppress_transition",
+    "a malformed air-landing auxiliary relation must fail closed")
+type13_air_landing_evidence.auxiliary_branches[2].param00 = 160
+end
+
+do
+TYPE20_TERMINAL_COMMAND_PHASE_REASON =
+    "ac_type20_complete_punch_strength_terminal_command_phase"
+local terminal_signatures = {
+    { attr = 256, action_frame = 0, param00 = 0, param01 = 112, param02 = 0, param03 = 1 },
+    { attr = 256, action_frame = 0, param00 = 0, param01 = 32, param02 = 0, param03 = 2 },
+    { attr = 256, action_frame = 0, param00 = 0, param01 = 256, param02 = 0, param03 = 3 },
+}
+local terminal_relation = {
+    source_action_id = 965,
+    target_action_id = 966,
+    branch_type = 20,
+    signatures = terminal_signatures,
+    fingerprint_fields = { "Category", "Combo", "Projectile", "State" },
+    reason = TYPE20_TERMINAL_COMMAND_PHASE_REASON,
+}
+local terminal_route = {
+    display = "2 + SP",
+    character = "Kimberly",
+    owner_action_id = 965,
+    display_action_id = 966,
+    bcm_owner_action_id = 965,
+    source = "ac_type20_terminal_command_phase",
+    ac_relation_type = 20,
+    ac_path = { 965, 966 },
+    inherited_from_action_id = 965,
+    confidence = "verified_inherited_action_phase",
+    direct_evidence = false,
+    inheritance_evidence = true,
+    inheritance_reason = TYPE20_TERMINAL_COMMAND_PHASE_REASON,
+    rebind_evidence = false,
+    runtime_common_evidence = false,
+    official_semantic_evidence = false,
+    community_semantic_evidence = false,
+    assist_combo_evidence = false,
+    charge_context_evidence = false,
+    super_shortcut_direction_evidence = false,
+    ac_phase_signatures = terminal_signatures,
+    ac_fingerprint_fields = { "Category", "Combo", "Projectile", "State" },
+}
+local terminal_map = {
+    _meta = {
+        character = "Kimberly",
+        type20_terminal_command_phase_relations = { terminal_relation },
+    },
+    ["966"] = {
+        ownership = "type20_action_phase",
+        routes = { terminal_route },
+    },
+}
+local terminal_inherited_motion, terminal_inherited_status =
+    get_modern_display_motion(terminal_map, { id = 966 })
+assert(terminal_inherited_motion == "2 + SP" and terminal_inherited_status == "strict_route",
+    "a complete punch-strength Type20 terminal phase must inherit one command")
+terminal_route.ac_phase_signatures[1].param01 = 16
+terminal_inherited_motion, terminal_inherited_status =
+    get_modern_display_motion(terminal_map, { id = 966 })
+assert(terminal_inherited_motion == nil and terminal_inherited_status == "route_unverified",
+    "an incomplete Type20 punch-strength family must fail closed")
+end
+
+do
+TYPE20_SIX_BRANCH_PHASE_REASON =
+    "ac_type20_verified_six_branch_action_phase"
+local signatures = {
+    { attr = 0, action_frame = 5, param00 = 0, param01 = 64, param02 = 0, param03 = 1 },
+    { attr = 256, action_frame = 0, param00 = 2, param01 = 64, param02 = 0, param03 = 1 },
+    { attr = 0, action_frame = 5, param00 = 0, param01 = 256, param02 = 0, param03 = 2 },
+    { attr = 256, action_frame = 0, param00 = 2, param01 = 256, param02 = 0, param03 = 2 },
+    { attr = 0, action_frame = 5, param00 = 0, param01 = 16, param02 = 0, param03 = 3 },
+    { attr = 0, action_frame = 5, param00 = 1, param01 = 16, param02 = 0, param03 = 3 },
+}
+local source_exit = {
+    target_action_id = 687, branch_type = 0, attr = 0, action_frame = 5,
+    param00 = 0, param01 = 0, param02 = 0, param03 = 0,
+    param04 = 0, param05 = 0, trigger_id = -1,
+}
+local target_exit = {
+    target_action_id = 685, branch_type = 5, attr = 0, action_frame = 8,
+    param00 = 1, param01 = 0, param02 = 0, param03 = 0,
+    param04 = 0, param05 = 0, trigger_id = -1,
+}
+local relation = {
+    source_action_id = 686,
+    target_action_id = 684,
+    branch_type = 20,
+    signatures = signatures,
+    source_exit_signature = source_exit,
+    exit_signature = target_exit,
+    reason = TYPE20_SIX_BRANCH_PHASE_REASON,
+}
+local route = {
+    display = "4 + 强",
+    character = "Marisa",
+    owner_action_id = 686,
+    display_action_id = 684,
+    bcm_owner_action_id = 686,
+    source = "ac_type20_six_branch_action_phase",
+    ac_relation_type = 20,
+    ac_path = { 686, 684 },
+    inherited_from_action_id = 686,
+    confidence = "verified_inherited_action_phase",
+    direct_evidence = false,
+    inheritance_evidence = true,
+    inheritance_reason = TYPE20_SIX_BRANCH_PHASE_REASON,
+    rebind_evidence = false,
+    runtime_common_evidence = false,
+    official_semantic_evidence = false,
+    community_semantic_evidence = false,
+    assist_combo_evidence = false,
+    charge_context_evidence = false,
+    super_shortcut_direction_evidence = false,
+    ac_phase_signatures = signatures,
+    ac_source_exit_signature = source_exit,
+    ac_exit_signature = target_exit,
+}
+local six_branch_map = {
+    _meta = {
+        character = "Marisa",
+        type20_action_phase_relations = { relation },
+    },
+    ["684"] = {
+        ownership = "type20_action_phase",
+        routes = { route },
+    },
+}
+local six_branch_motion, six_branch_status =
+    get_modern_display_motion(six_branch_map, { id = 684 })
+assert(six_branch_motion == "4 + 强" and six_branch_status == "strict_route",
+    "a strict six-branch Type20 phase must inherit its direct BCM owner command")
+route.ac_exit_signature.action_frame = 7
+six_branch_motion, six_branch_status =
+    get_modern_display_motion(six_branch_map, { id = 684 })
+assert(six_branch_motion == nil and six_branch_status == "route_unverified",
+    "a mutated six-branch Type20 exit must fail closed")
 end
 
 do
@@ -2372,6 +2751,36 @@ assert(modern_validation.ok == false
         and modern_validation.resolved_step_count == 1
         and modern_validation.unresolved_count == 1,
     "classic-to-modern projection must reject every step that would render an unresolved placeholder")
+
+MARISA_COMMAND_PHASE_MAP = {
+    _slim = true,
+    ["686"] = {
+        commands = { motion = "4 + 强" },
+        status = "strict_route",
+    },
+    ["684"] = {
+        commands = { motion = "4 + 强" },
+        status = "strict_route",
+        metadata = {
+            ownership = "type20_action_phase",
+            inherited_from_action_id = 686,
+        },
+    },
+}
+resolve_modern_display_context = function()
+    return true, MARISA_COMMAND_PHASE_MAP, "Marisa", "loaded", true
+end
+MARISA_COMMAND_PHASE_VALIDATION = validate_sequence_command_display({
+    { id = 686, motion = "4+HP", group_id = 5, expected_combo = 0, has_hit = false },
+    { id = 684, motion = "4+HP", group_id = 6, expected_combo = 6, has_hit = true },
+})
+assert(MARISA_COMMAND_PHASE_VALIDATION.ok == true
+        and MARISA_COMMAND_PHASE_VALIDATION.visible_step_count == 2
+        and MARISA_COMMAND_PHASE_VALIDATION.visible_line_count == 1
+        and MARISA_COMMAND_PHASE_VALIDATION.steps[1].visible_line_index == 1
+        and MARISA_COMMAND_PHASE_VALIDATION.steps[2].visible_line_index == 1
+        and MARISA_COMMAND_PHASE_VALIDATION.steps[2].same_command_phase == true,
+    "a validated Type20 command phase must preserve both Actions but render as one input line")
 
 resolve_modern_display_context = function()
     return true, MBISON_GAME_AREA_MAP, "MBison", "loaded", false
@@ -3499,6 +3908,8 @@ local kimberly_override_source = read_all(
     "data/TrainingComboTrials_data/command_display_overrides/Kimberly.json")
 assert(kimberly_override_source:find('"613"', 1, true)
         and kimberly_override_source:find('"classic": "2+MP"', 1, true)
+        and kimberly_override_source:find('"980"', 1, true)
+        and kimberly_override_source:find('"classic": "5252+MP+HP"', 1, true)
         and kimberly_override_source:find('"983"', 1, true)
         and kimberly_override_source:find('"classic": ">22+MP+HP"', 1, true)
         and kimberly_override_source:find('"replace": true', 1, true),
@@ -3633,8 +4044,8 @@ assert(combo_imgui_source:find("trial_state._recording_preview_logs", 1, true)
         and combo_imgui_source:find("trial_state._recording_preview_sequence", 1, true),
     "recording UI must render ActionEvent-compiled live logs and trial steps")
 local combo_entry_source = read_all("autorun/TrainingComboTrials_v1.0.lua")
-assert(combo_imgui_source:find("M.RENDERER_VERSION = 20260820", 1, true)
-        and combo_entry_source:find("REQUIRED_RENDERER_VERSION = 20260820", 1, true)
+assert(combo_imgui_source:find("M.RENDERER_VERSION = 2026082005", 1, true)
+        and combo_entry_source:find("REQUIRED_RENDERER_VERSION = 2026082005", 1, true)
         and combo_entry_source:find("cached_renderer.RENDERER_VERSION", 1, true)
         and combo_entry_source:find('package.loaded["func/ComboTrials_ImGui"] = nil', 1, true)
         and combo_entry_source:find("cached_renderer.clear_command_display_cache", 1, true)
