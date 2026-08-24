@@ -8110,10 +8110,16 @@ ctx.reset_visuals = function()
     step_combo_reset_gc()
 end
 ctx.reset_trial_steps_and_load = function(player_idx)
+    local restarting_active_trial = trial_state.is_playing == true
+        and not (demo_state and demo_state.is_playing)
     local paths = (player_idx == 0) and file_system.saved_combos_paths_p1 or file_system.saved_combos_paths_p2
     local idx = (player_idx == 0) and (file_system.selected_file_idx_p1 or 1) or (file_system.selected_file_idx_p2 or 1)
     local path = paths and paths[idx] or nil
     if path and load_combo_from_file(path, true) then
+        -- File installation marks the session inactive. Preserve the active
+        -- restart so start_trial does not restore the old environment first.
+        trial_state.is_playing = restarting_active_trial
+        if restarting_active_trial then trial_state.playing_player = player_idx end
         start_trial(player_idx)
     elseif #trial_state.sequence > 0 then
         trial_state.is_playing = true

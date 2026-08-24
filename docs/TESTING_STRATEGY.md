@@ -32,6 +32,7 @@ The following are failure tombstones, not temporary tests:
 | BUG-B005 Demo cancellation on character change | Character change retained Demo cursor/timeline state. It now routes through `stop_demo_playback("character_change", ...)`. | `tools/test_combo_recording_lifecycle.lua` |
 | BUG-B006 Demo/telemetry cancellation on mode exit and recovery | Mode exit and first-frame recovery used partial resets. Both now route through shared Demo cancellation, including telemetry. | `tools/test_combo_demo_lifecycle.lua` |
 | BUG-B007 synchronous checkpoint IO on game thread | 1.1.6 added forced write-through cumulative checkpoint writes on every manual terminal fact; an occasional stalled write could pause the game thread for seconds. The checkpoint is now legacy/diagnostic and disabled by default; raw `events.jsonl` facts remain sufficient for offline rebuild. | `tools/test_combo_development_defaults.lua` |
+| BUG-B008 duplicate active-trial reset | Reloading the selected Combo cleared the active-session flag before restart, so old environment restoration could request one refresh and queue the selected environment for a second refresh. Active resets now preserve their lifecycle state across the required disk reload. | `tools/test_combo_trial_reset_lifecycle.lua` |
 
 Other `tools/test_*` files remain the executable characterization, unit,
 contract, and simulation suite. Generator/editor tests stay beside their
