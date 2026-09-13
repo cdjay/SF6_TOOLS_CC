@@ -517,6 +517,17 @@ local function draw_scope(scope)
     end
 end
 
+function M.draw_scope(scope_id)
+    load_config()
+    local scope = registry[scope_id]
+    if not scope then
+        imgui.text_colored("快捷键模块尚未加载。", 0xFF888888)
+        return false
+    end
+    draw_scope(scope)
+    return true
+end
+
 function M.draw_menu()
     load_config()
     imgui.text_colored(string.format(

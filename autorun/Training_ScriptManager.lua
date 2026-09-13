@@ -344,6 +344,7 @@ local TRAINING_MODE_MODULES = {
     { id = 2, label = "确认训练" },
     { id = 5, label = "随机斩杀" },
 }
+TRAINING_MODE_MODULES[1].settings_panel = "combo_config"
 
 local TSM_MODE_NAMES = { [0] = "已关闭" }
 local ENABLED_TRAINER_MODES = { [0] = true }
@@ -554,6 +555,19 @@ local function draw_top_floating_bar()
         if SharedUI.sf6_rect_button(btn.label .. "##top_" .. btn.id, is_active, mode_btn_w, control_h) then
             _G.CurrentTrainerMode = btn.id
         end
+        if btn.settings_panel then
+            imgui.same_line(0, sp)
+            local gear_ok, gear_err = pcall(
+                SharedUI.draw_quick_settings_gear,
+                TrainingMenuRegistry,
+                btn.settings_panel,
+                close_size
+            )
+            if not gear_ok then
+                local message = "[Training_ScriptManager] quick settings gear: " .. tostring(gear_err)
+                if log and log.error then log.error(message) else print(message) end
+            end
+        end
     end
 
     imgui.same_line(0, sp)
@@ -592,6 +606,15 @@ local function draw_top_floating_bar()
     end
 
     SharedUI.end_floating_window_top()
+    local panel_ok, panel_err = pcall(
+        SharedUI.draw_open_quick_settings,
+        TrainingMenuRegistry,
+        TrainingHotkeys
+    )
+    if not panel_ok then
+        local message = "[Training_ScriptManager] quick settings panel: " .. tostring(panel_err)
+        if log and log.error then log.error(message) else print(message) end
+    end
 end
 
 -- ==========================================

@@ -2053,78 +2053,86 @@ local function draw_transcription_debug_tools()
     end
 end
 
+local function draw_combo_trials_quick_settings()
+    if not ctx or not d2d_cfg then
+        imgui.text_colored("连段训练配置尚未加载。", COLORS.DarkGrey)
+        return
+    end
+
+    local changed, new_val = imgui.checkbox("分离为浮动窗口", show_trial_overlay)
+    if changed then show_trial_overlay = new_val end
+
+    local auto_c, auto_v = imgui.checkbox("自动播放全部连段", ctx.demo_state and ctx.demo_state.auto_playlist_enabled == true)
+    if auto_c and ctx.demo_state then ctx.demo_state.auto_playlist_enabled = auto_v == true end
+    local asd_c, asd_v = imgui.checkbox("允许晕厥连段使用演示", _G._allow_stun_demo or false)
+    if asd_c then _G._allow_stun_demo = asd_v end
+    if d2d_cfg.show_trial_notes == nil then d2d_cfg.show_trial_notes = true end
+    local notes_c, notes_v = imgui.checkbox("显示备注", d2d_cfg.show_trial_notes)
+    if notes_c then
+        d2d_cfg.show_trial_notes = notes_v
+        if ctx.save_d2d_config then ctx.save_d2d_config() end
+    end
+    if d2d_cfg.auto_next_trial == nil then d2d_cfg.auto_next_trial = false end
+    local ant_c, ant_v = imgui.checkbox("成功后自动进入下一个连段", d2d_cfg.auto_next_trial)
+    if ant_c then
+        d2d_cfg.auto_next_trial = ant_v
+        if ctx.save_d2d_config then ctx.save_d2d_config() end
+    end
+    imgui.same_line()
+    if imgui.button("清除完成标记") and ctx.clear_completed_trials then
+        ctx.clear_completed_trials()
+    end
+    if d2d_cfg.auto_retry_on_fail == nil then d2d_cfg.auto_retry_on_fail = false end
+    local arf_c, arf_v = imgui.checkbox("失败后自动重试（无需手动重置）", d2d_cfg.auto_retry_on_fail)
+    if arf_c then
+        d2d_cfg.auto_retry_on_fail = arf_v
+        if ctx.save_d2d_config then ctx.save_d2d_config() end
+    end
+
+    imgui.spacing()
+    imgui.separator()
+    imgui.spacing()
+    imgui.text_colored("现代模式指令显示", COLORS.Orange)
+    imgui.text_colored("简化：优先显示 SP、AUTO 等现代快捷输入。", COLORS.DarkGrey)
+    imgui.text_colored("搓招：显示方向指令与攻击键输入。", COLORS.DarkGrey)
+    imgui.text_colored("AUTO连：把按住 AUTO 的连段折叠为 AUTO + [强>强>强]。", COLORS.DarkGrey)
+    imgui.text_colored("简化/搓招可叠加；“>”表示派生动作顺序。", COLORS.DarkGrey)
+    local classic_support_changed, classic_support_checked = imgui.checkbox(
+        "现代模式下显示经典连段",
+        d2d_cfg.allow_classic_trials_in_modern == true
+    )
+    if classic_support_changed then
+        d2d_cfg.allow_classic_trials_in_modern = classic_support_checked == true
+        if ctx.save_d2d_config then ctx.save_d2d_config() end
+        if file_system and file_system.refresh_combo_list_preserve_selection then
+            file_system.refresh_combo_list_preserve_selection(false)
+        elseif refresh_combo_list then
+            refresh_combo_list()
+        end
+    end
+    local modern_mode = tostring(d2d_cfg.modern_display_mode or "simple")
+    local MODERN_MODE_LABELS = { "简化", "搓招", "AUTO连" }
+    local MODERN_MODE_KEYS = { "simple", "motion", "auto" }
+    local modern_mode_index = 1
+    for index, key in ipairs(MODERN_MODE_KEYS) do
+        if key == modern_mode then modern_mode_index = index end
+    end
+    imgui.push_style_color(0, COLORS.Orange)
+    local mm_changed, mm_index =
+        imgui.combo("现代指令显示##ModernDisplayMode", modern_mode_index, MODERN_MODE_LABELS)
+    imgui.pop_style_color(1)
+    if mm_changed and mm_index then
+        d2d_cfg.modern_display_mode = MODERN_MODE_KEYS[mm_index] or "simple"
+        if ctx.save_d2d_config then ctx.save_d2d_config() end
+    end
+end
+
 local function draw_combo_trials_menu_ui()
     if not _ctui_runtime_allowed() then return end
     local ok, err = pcall(function()
         local p_state = players[ui_state.viewed_player]
         imgui.spacing()
-
-        local changed, new_val = imgui.checkbox("分离为浮动窗口", show_trial_overlay)
-        if changed then show_trial_overlay = new_val end
-
-        local auto_c, auto_v = imgui.checkbox("自动播放全部连段", ctx.demo_state and ctx.demo_state.auto_playlist_enabled == true)
-        if auto_c and ctx.demo_state then ctx.demo_state.auto_playlist_enabled = auto_v == true end
-        local asd_c, asd_v = imgui.checkbox("允许晕厥连段使用演示", _G._allow_stun_demo or false)
-        if asd_c then _G._allow_stun_demo = asd_v end
-        if d2d_cfg.show_trial_notes == nil then d2d_cfg.show_trial_notes = true end
-        local notes_c, notes_v = imgui.checkbox("显示备注", d2d_cfg.show_trial_notes)
-        if notes_c then
-            d2d_cfg.show_trial_notes = notes_v
-            if ctx.save_d2d_config then ctx.save_d2d_config() end
-        end
-        if d2d_cfg.auto_next_trial == nil then d2d_cfg.auto_next_trial = false end
-        local ant_c, ant_v = imgui.checkbox("成功后自动进入下一个连段", d2d_cfg.auto_next_trial)
-        if ant_c then
-            d2d_cfg.auto_next_trial = ant_v
-            if ctx.save_d2d_config then ctx.save_d2d_config() end
-        end
-        imgui.same_line()
-        if imgui.button("清除完成标记") and ctx.clear_completed_trials then
-            ctx.clear_completed_trials()
-        end
-        if d2d_cfg.auto_retry_on_fail == nil then d2d_cfg.auto_retry_on_fail = false end
-        local arf_c, arf_v = imgui.checkbox("失败后自动重试（无需手动重置）", d2d_cfg.auto_retry_on_fail)
-        if arf_c then
-            d2d_cfg.auto_retry_on_fail = arf_v
-            if ctx.save_d2d_config then ctx.save_d2d_config() end
-        end
-
-        imgui.spacing()
-        imgui.separator()
-        imgui.spacing()
-        imgui.text_colored("现代模式指令显示", COLORS.Orange)
-        imgui.text_colored("简化：优先显示 SP、AUTO 等现代快捷输入。", COLORS.DarkGrey)
-        imgui.text_colored("搓招：显示方向指令与攻击键输入。", COLORS.DarkGrey)
-        imgui.text_colored("AUTO连：把按住 AUTO 的连段折叠为 AUTO + [强>强>强]。", COLORS.DarkGrey)
-        imgui.text_colored("简化/搓招可叠加；“>”表示派生动作顺序。", COLORS.DarkGrey)
-        local classic_support_changed, classic_support_checked = imgui.checkbox(
-            "现代模式下显示经典连段",
-            d2d_cfg.allow_classic_trials_in_modern == true
-        )
-        if classic_support_changed then
-            d2d_cfg.allow_classic_trials_in_modern = classic_support_checked == true
-            if ctx.save_d2d_config then ctx.save_d2d_config() end
-            if file_system and file_system.refresh_combo_list_preserve_selection then
-                file_system.refresh_combo_list_preserve_selection(false)
-            elseif refresh_combo_list then
-                refresh_combo_list()
-            end
-        end
-        local modern_mode = tostring(d2d_cfg.modern_display_mode or "simple")
-        local MODERN_MODE_LABELS = { "简化", "搓招", "AUTO连" }
-        local MODERN_MODE_KEYS = { "simple", "motion", "auto" }
-        local modern_mode_index = 1
-        for index, key in ipairs(MODERN_MODE_KEYS) do
-            if key == modern_mode then modern_mode_index = index end
-        end
-        imgui.push_style_color(0, COLORS.Orange)
-        local mm_changed, mm_index =
-            imgui.combo("现代指令显示##ModernDisplayMode", modern_mode_index, MODERN_MODE_LABELS)
-        imgui.pop_style_color(1)
-        if mm_changed and mm_index then
-            d2d_cfg.modern_display_mode = MODERN_MODE_KEYS[mm_index] or "simple"
-            if ctx.save_d2d_config then ctx.save_d2d_config() end
-        end
+        draw_combo_trials_quick_settings()
 
         if not show_trial_overlay then
             imgui.separator()
@@ -2900,6 +2908,10 @@ local function draw_combo_trials_menu_ui()
 end
 
 TrainingMenuRegistry.register("combo_config", draw_combo_trials_menu_ui)
+TrainingMenuRegistry.register_quick("combo_config", draw_combo_trials_quick_settings, {
+    title = "连段训练设置",
+    hotkey_scope = "combo_trials",
+})
 
 -- =========================================================
 -- Public API

@@ -548,5 +548,225 @@ function UI.sf6_rect_button(label, is_selected, width, height, shape_kind)
     return clicked
 end
 
+-- ==========================================
+-- EXTERNAL QUICK SETTINGS
+-- ==========================================
+local quick_settings_state = {
+    open_panel = nil,
+    anchor_x = 0,
+    anchor_y = 0,
+    gear_rect = nil,
+    gear_handle = nil,
+    gear_load_failed = false,
+    toggled_this_frame = false,
+}
+
+local QUICK_SETTINGS_GEAR_PATH = "ui_icons/settings_white.png"
+local QUICK_SETTINGS_WINDOW_BG = 0xF51C1A19
+local QUICK_SETTINGS_WINDOW_BORDER = 0xFF8F8178
+local QUICK_SETTINGS_TITLE_COLOR = 0xFFFFFFFF
+local QUICK_SETTINGS_SECTION_COLOR = 0xFF77C9FF
+local QUICK_SETTINGS_WINDOW_FLAGS = (1 << 0) | (1 << 1) | (1 << 2)
+
+local function _quick_settings_ensure_gear()
+    local state = quick_settings_state
+    if state.gear_handle or state.gear_load_failed then return state.gear_handle end
+    if type(texture) ~= "table" or type(texture.load) ~= "function" then
+        state.gear_load_failed = true
+        return nil
+    end
+    local ok, handle = pcall(texture.load, QUICK_SETTINGS_GEAR_PATH)
+    if ok and handle then
+        state.gear_handle = handle
+        return handle
+    end
+    state.gear_load_failed = true
+    return nil
+end
+
+local function _quick_settings_point_in_rect(x, y, rect)
+    return rect
+        and x >= rect.x and x <= rect.x + rect.w
+        and y >= rect.y and y <= rect.y + rect.h
+end
+
+local function _quick_settings_mouse_position()
+    if type(imgui.get_mouse) ~= "function" then return nil, nil end
+    local ok, mouse = pcall(imgui.get_mouse)
+    if not ok or not mouse then return nil, nil end
+    local xy_ok, x, y = pcall(function() return mouse.x, mouse.y end)
+    if not xy_ok then return nil, nil end
+    return x, y
+end
+
+function UI.quick_settings_is_open(panel_id)
+    return quick_settings_state.open_panel == panel_id
+end
+
+function UI.close_quick_settings()
+    quick_settings_state.open_panel = nil
+end
+
+function UI.draw_quick_settings_gear(menu_registry, panel_id, size)
+    size = math.max(1, tonumber(size) or 28)
+    local cursor = imgui.get_cursor_screen_pos()
+    imgui.push_style_color(21, 0x00000000)
+    imgui.push_style_color(22, 0x00000000)
+    imgui.push_style_color(23, 0x00000000)
+    imgui.push_style_color(0, 0x00000000)
+    local clicked = imgui.button(
+        "设置##quick_settings_" .. tostring(panel_id),
+        Vector2f.new(size, size)
+    )
+    local hovered = imgui.is_item_hovered()
+    local pressed = imgui.is_item_active()
+    imgui.pop_style_color(4)
+
+    local state = quick_settings_state
+    state.anchor_x = cursor.x
+    state.anchor_y = cursor.y + size
+    state.gear_rect = { x = cursor.x, y = cursor.y, w = size, h = size }
+
+    local draw_list = imgui.get_window_draw_list()
+    if draw_list then
+        local palette = UI.rect_button_colors
+        local colors
+        if pressed then
+            colors = UI.quick_settings_is_open(panel_id) and palette.selected_pressed or palette.pressed
+        elseif hovered then
+            colors = UI.quick_settings_is_open(panel_id) and palette.selected_hover or palette.hover
+        else
+            colors = UI.quick_settings_is_open(panel_id) and palette.selected or palette.normal
+        end
+        draw_list:add_rect_filled(
+            Vector2f.new(cursor.x, cursor.y),
+            Vector2f.new(cursor.x + size, cursor.y + size),
+            colors.fill,
+            0.0,
+            0
+        )
+        draw_list:add_rect(
+            Vector2f.new(cursor.x, cursor.y),
+            Vector2f.new(cursor.x + size, cursor.y + size),
+            colors.border,
+            0.0,
+            0,
+            1.0
+        )
+    end
+
+    local icon = _quick_settings_ensure_gear()
+    if icon and type(texture.draw_window) == "function" then
+        local icon_size = math.max(8, math.floor(size * 0.58 + 0.5))
+        local icon_x = cursor.x + math.floor((size - icon_size) * 0.5)
+        local icon_y = cursor.y + math.floor((size - icon_size) * 0.5)
+        pcall(texture.draw_window, icon, icon_x, icon_y, icon_size, icon_size)
+    elseif draw_list then
+        local fallback = "S"
+        local text_size = imgui.calc_text_size(fallback)
+        draw_list:add_text(
+            Vector2f.new(
+                cursor.x + (size - text_size.x) * 0.5,
+                cursor.y + (size - text_size.y) * 0.5
+            ),
+            0xFFFFFFFF,
+            fallback
+        )
+    end
+
+    if hovered then imgui.set_tooltip("连段训练设置") end
+    if clicked then
+        if UI.quick_settings_is_open(panel_id) then
+            state.open_panel = nil
+        else
+            state.open_panel = panel_id
+        end
+        state.toggled_this_frame = true
+    end
+    return clicked
+end
+
+local function _draw_quick_settings_header(title, scale, window_width)
+    local close_size = math.max(24, math.floor(30 * scale + 0.5))
+    local cursor_y = imgui.get_cursor_pos().y
+    imgui.text_colored(title, QUICK_SETTINGS_TITLE_COLOR)
+    imgui.set_cursor_pos(Vector2f.new(window_width - close_size - 14 * scale, cursor_y - 5 * scale))
+    if UI.sf6_rect_button("X##close_quick_settings", false, close_size, close_size, "close") then
+        UI.close_quick_settings()
+    end
+    imgui.set_cursor_pos(Vector2f.new(14 * scale, cursor_y + close_size + 2 * scale))
+    imgui.separator()
+end
+
+function UI.draw_open_quick_settings(menu_registry, hotkeys)
+    local state = quick_settings_state
+    local panel_id = state.open_panel
+    if not panel_id then
+        state.toggled_this_frame = false
+        return false
+    end
+
+    local spec = menu_registry.get_quick_spec(panel_id) or {}
+    local sw, sh = UI.get_screen_size()
+    local scale = math.max(0.65, sh / 1080.0)
+    local padding = 14 * scale
+    local panel_w = math.min(math.max(520 * scale, sw * 0.34), sw - 24 * scale)
+    local panel_h = math.min(sh * 0.84, 900 * scale)
+    local panel_x = math.max(12 * scale, math.min(state.anchor_x, sw - panel_w - 12 * scale))
+    local panel_y = math.max(sh * 0.052, state.anchor_y + 4 * scale)
+    if panel_y + panel_h > sh - 12 * scale then panel_h = sh - panel_y - 12 * scale end
+    local panel_rect = { x = panel_x, y = panel_y, w = panel_w, h = panel_h }
+
+    imgui.push_style_color(2, QUICK_SETTINGS_WINDOW_BG)
+    imgui.push_style_color(5, QUICK_SETTINGS_WINDOW_BORDER)
+    imgui.push_style_var(4, 1.0)
+    imgui.push_style_var(2, Vector2f.new(padding, padding))
+    imgui.set_next_window_pos(Vector2f.new(panel_x, panel_y), 1)
+    imgui.set_next_window_size(Vector2f.new(panel_w, panel_h), 1)
+    local panel_font = UI.get_floating_fonts(sh)
+    if panel_font then imgui.push_font(panel_font) end
+
+    local visible = imgui.begin_window(
+        "SF6CCQuickSettings##" .. tostring(panel_id),
+        true,
+        QUICK_SETTINGS_WINDOW_FLAGS
+    )
+    if visible then
+        UI.publish_rect(panel_x, panel_y, panel_w, panel_h)
+        _draw_quick_settings_header(spec.title or "功能设置", scale, panel_w)
+        if state.open_panel then
+            imgui.spacing()
+            imgui.text_colored("常用设置", QUICK_SETTINGS_SECTION_COLOR)
+            imgui.spacing()
+            menu_registry.draw_quick(panel_id)
+
+            local hotkey_scope = spec.hotkey_scope
+            if type(hotkey_scope) == "string" and hotkey_scope ~= "" then
+                imgui.spacing()
+                imgui.separator()
+                imgui.spacing()
+                imgui.text_colored("快捷键", QUICK_SETTINGS_SECTION_COLOR)
+                imgui.text_colored("点击绑定后，按下键盘、手柄或游戏输入；ESC 取消。", 0xFF999999)
+                imgui.spacing()
+                hotkeys.draw_scope(hotkey_scope)
+            end
+        end
+    end
+    imgui.end_window()
+    if panel_font then imgui.pop_font() end
+    imgui.pop_style_var(2)
+    imgui.pop_style_color(2)
+
+    if state.open_panel and not state.toggled_this_frame and imgui.is_mouse_clicked(0) then
+        local mouse_x, mouse_y = _quick_settings_mouse_position()
+        if mouse_x and not _quick_settings_point_in_rect(mouse_x, mouse_y, panel_rect)
+            and not _quick_settings_point_in_rect(mouse_x, mouse_y, state.gear_rect) then
+            UI.close_quick_settings()
+        end
+    end
+    state.toggled_this_frame = false
+    return true
+end
+
 
 return UI
