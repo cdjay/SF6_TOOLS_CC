@@ -247,6 +247,61 @@ corrupt A/B JSON. Preserve the tested runtime without additional menu changes;
 failure-only boundary diagnostics remain pending separate cleanup/revalidation.
 No commit, release package or push was performed for this acceptance.
 
+The accepted standalone runtime was saved in commit `82b7d4f` before the next
+menu-only iteration. That iteration changes native row order/separators and
+display labels only: character/config labels, bilingual character details and
+the UI term 栏位. Selection still does not import, import still requires its
+existing confirmation, notes remain notes, and no config-rename operation was
+added. NativeRecordingSession and its tested allocation order are untouched.
+The user subsequently accepted the display-only iteration in game.
+
+The next scoped change replaces the native edit-notes row with configuration
+title editing. It reuses the native dialog and deferred transaction, changes
+only the saved JSON title, preserves the file path and refreshes selection by
+that path. It does not rename files, import recordings or change the accepted
+80-slot initialization. Blank titles are rejected; overlength existing titles
+use an empty prefill for replacement, never a silently truncated write. Offline
+storage/controller/native-dialog/menu checks pass (78/79 Lua files overall;
+the existing Combo top-level-local ceiling failure remains). Live title editing
+acceptance is pending.
+
+At 2026-09-15 03:21:31, following Lua-only deployment and an in-training
+Reset Scripts, the user reported pagination missing again. The unchanged
+NativeRecordingSession hash above failed at slot 23: created/retained refs=1,
+private-array-owned refs=2, then immediately after Init refs=0/type unavailable;
+InputData remained unavailable before/after DeepCopy. Read-only MCP confirmed
+FighterID 28 still had eight RecordSlots. This reopens initialization stability:
+private-array ownership is not a complete fix, and the offline simulated
+single-reference-loss test is not a reproducer of this new 2-to-0 native loss.
+Numerous Lua reference-release warnings also occurred during Reset; their
+causal relationship is not established. The error preceded config autoload.
+No runtime repair, config deletion, pointer write or automatic retry was made.
+Log and deployed session source were retained in the system temporary directory
+`sf6cc-reset-slot23-20260915-032354`. An unchanged-code cold restart is the next
+operator comparison; do not claim that either hot reset or cold start is now
+proven reliable, or attribute this incident to fabricated configuration files.
+
+The user's subsequent unchanged-code cold start at 03:26:09 also failed:
+03:27:06 reports slot 52 with the same private-array refs=2 to initialized
+refs=0/type-unavailable transition. This excludes a Reset-only explanation.
+To test the title-edit regression hypothesis without changing allocation or
+configuration data, only the five title-edit runtime modules were returned to
+the previously accepted menu-display version; associated tests were restored.
+The candidate and cold-start log are retained in the system temporary directory
+`sf6cc-title-rollback-20260915-032902`. Seven focused test files pass on the
+rollback. An identical-config cold-start comparison of this rollback is pending;
+neither title-edit causality nor initialization recovery is yet established.
+
+After that scoped rollback, the user confirmed pagination recovered on the
+03:33:14 cold start. The new log shows the standalone entry at 03:33:25 and no
+TrainingLibrary initialization failure at inspection. Configurations and the
+allocation module were not changed during rollback. This is a positive
+before/after comparison implicating the title-edit change set, not proof of a
+specific releasing instruction or deterministic root cause. Keep the rollback
+deployed; title editing remains withdrawn. Any reimplementation must isolate
+the triggering change instead of dismissing it as unrelated or changing the
+accepted pagination mechanism at the same time.
+
 The active review procedures are [Human Review](review/HUMAN_REVIEW.md) and
 [Real-game Smoke](testing/REAL_GAME_SMOKE.md). Do not close a limitation by
 editing this file alone; close the underlying evidence or architecture gate

@@ -11,17 +11,17 @@ function M.new(make,arr,library,editor)
         return data
     end
     for p=1,Layout.EXPANDED_RECORDS/8 do
-        local rows={row("header",function() return "槽位名称  "..p.." / "..count() end)}
+        local rows={row("header",function() return "栏位名称  "..p.." / "..count() end)}
         for n=(p-1)*8+1,p*8 do
             rows[#rows+1]=row("slot",function()
                 local name=library.slot_name(n)
-                return "槽位"..n.."："..(name~="" and name or "默认名称")
+                return "栏位"..n.."："..(name~="" and name or "默认名称")
             end,n)
         end
         rows[#rows+1]=row("previous","上一页")
         rows[#rows+1]=row("next","下一页")
         rows[#rows+1]=row("back","返回")
-        pages[p]=make(22,"槽位名称",true)
+        pages[p]=make(22,"栏位名称",true)
         for _,data in ipairs(rows) do kinds[address(data)].page=p end
         pages[p]:set_field("_ChildData",arr(rows))
     end

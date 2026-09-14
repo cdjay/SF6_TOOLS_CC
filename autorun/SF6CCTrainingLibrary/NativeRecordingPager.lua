@@ -31,7 +31,7 @@ function M.control(api, own, capacity, page_size)
     local options=own(api.create_managed_array("app.training.TrainingMenuData",count))
     local labels={}
     for i=1,count do
-        labels[i]=string.format("%d / %d（槽位 %d-%d）",i,count,(i-1)*page_size+1,math.min(i*page_size,capacity))
+        labels[i]=string.format("%d / %d（栏位 %d-%d）",i,count,(i-1)*page_size+1,math.min(i*page_size,capacity))
         local option=item(0,labels[i])
         options:call("SetValue(System.Object, System.Int32)",option,i-1)
     end

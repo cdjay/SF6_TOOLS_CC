@@ -27,7 +27,7 @@ local function fixture(mode)
         local title = { call = function(_, method, value)
             if method == "get_Name" then return "e_text_title" end
             if method == "get_Child" or method == "get_Next" then return nil end
-            assert(method == "set_Message" and value == (mode=="slot" and "槽位80名称" or "\u{5907}\u{6ce8}")); s.titles = s.titles + 1
+            assert(method == "set_Message" and value == (mode=="slot" and "栏位80名称" or "\u{5907}\u{6ce8}")); s.titles = s.titles + 1
         end, get_type_definition = function() return type_ref("via.gui.Text") end }
         local root = { call = function(_, method)
             if method == "get_Name" then return "c_main" end

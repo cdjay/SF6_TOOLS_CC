@@ -171,7 +171,7 @@ local function build_picker_pages()
     -- Titles, rows and click targets share one catalog until explicit navigation.
     local entries = {}
     for i, entry in ipairs(Library.entries) do
-        entries[i] = { path = entry.path, filename = entry.filename, label = Library.labels[i] }
+        entries[i] = { path = entry.path, filename = entry.filename, label = Library.selection_label(i) }
     end
     owner.picker_entries = entries
     owner.revision = Library.revision
@@ -200,10 +200,9 @@ local function build_picker_pages()
             if not option_templates[i] then
                 option_templates[i] = menu_data(0, function()
                     local entry = owner.picker_entries[index]
-                    local file = entry and (entry.filename or entry.path:match("([^/\\]+)$") or entry.path) or ""
                     local selected = Library.selection()
-                    return (entry and selected and selected.path == entry.path and "【已选】" or "") .. index .. ". " .. file
-                        .. " | " .. (entry and entry.label or "")
+                    return (entry and selected and selected.path == entry.path and "【已选】" or "") .. index .. ". "
+                        .. (entry and entry.label or "")
                 end, true)
                 option_indices[address(option_templates[i])] = i
             end
@@ -228,17 +227,17 @@ local function install(tm)
     if tonumber(read(first, "_FuncType")) ~= RECORD_PAGE
         or tonumber(read(second, "_FuncType")) ~= PLAY_PAGE then return end
     if not Library.loaded then Library.refresh() end
-    local choice = menu_data(0, function() return "训练配置：" .. Library.selection_label() end, true)
+    local choice = menu_data(0, function() return "切换训练配置：" .. Library.selection_label() end, true)
     local import = menu_data(0, import_title, true, nil, "覆盖当前木人配置；导入前自动备份。")
-    local export = menu_data(0, "导出当前配置", true, nil, "导出 P2 录像槽、反击设置及注释。")
+    local export = menu_data(0, "导出当前配置", true, nil, "导出 P2 录像栏位、反击设置及注释。")
     local refresh = menu_data(0, "刷新配置列表", true)
-    local save = menu_data(0, "保存当前配置", true, nil, "更新选中的配置文件，保存全部录像槽及三类反击；覆盖前备份原文件。")
+    local save = menu_data(0, "保存当前配置", true, nil, "更新选中的配置文件，保存全部录像栏位及三类反击；覆盖前备份原文件。")
     local status = menu_data(0, function() return Library.status_ok and "结果：" .. Library.status or "注意：" .. Library.status end,
         true, nil, function() return Library.status end, true)
     local details = {}
     local note_editor = State.editor
     for _, field in ipairs({ { "file", "文件：" }, { "character", "角色：" }, { "saved", "保存时间：" },
-        { "slots", "槽位：" }, { "notes", "备注：" } }) do
+        { "slots", "栏位：" }, { "notes", "备注：" } }) do
         local key, prefix = field[1], field[2]
         local edit_note = key == "notes" and note_editor ~= nil
         details[#details + 1] = menu_data(0, function()
@@ -246,8 +245,10 @@ local function install(tm)
             return prefix .. Library.selection_details()[key]
         end, true, nil, nil, not edit_note)
     end
-    local page = menu_data(22, "导入导出", true, { choice, import, export, refresh, status,
-        details[1], details[2], details[3], details[4], details[5], save })
+    local edit_separator = menu_data(4, "", true, nil, nil, true)
+    local info_separator = menu_data(4, "", true, nil, nil, true)
+    local rows = { choice, import, save, export, refresh, edit_separator, details[5] }
+    local page = menu_data(22, "导入导出", true)
     local installed = arr({ first, second, page })
     -- Keep the detached original array alive for restoration on script reset.
     original:add_ref()
@@ -259,14 +260,18 @@ local function install(tm)
             [address(refresh)] = "refresh", [address(status)] = "status", [address(save)] = "save" },
         original_type = tonumber(read(selector, "_Type")) }
     for _, item in ipairs(details) do owner.kinds[address(item)] = "detail" end
+    owner.kinds[address(edit_separator)], owner.kinds[address(info_separator)] = "detail", "detail"
     if note_editor then owner.kinds[address(details[5])] = "notes" end
     if note_editor and Library.can_edit_slot_names() then
-        local names=menu_data(0,"修改槽位名称",true,nil,"选择固定槽位改名；导出配置后保留。")
+        local names=menu_data(0,"修改栏位名称",true,nil,"选择固定栏位改名；导出配置后保留。")
         owner.kinds[address(names)]="names"
         owner.name_browser=NamePage.new(menu_data,arr,Library,note_editor)
-        page:set_field("_ChildData",arr({choice,import,export,refresh,status,
-            details[1],details[2],details[3],details[4],details[5],names,save}))
+        rows[#rows + 1] = names
     end
+    for _, item in ipairs({ info_separator, details[1], details[2], details[3], details[4], status }) do
+        rows[#rows + 1] = item
+    end
+    page:set_field("_ChildData", arr(rows))
     build_picker_pages()
     selector:set_field("_ChildData", installed)
     -- The captured prefab has separate two/three-item views at ItemType 18/19.

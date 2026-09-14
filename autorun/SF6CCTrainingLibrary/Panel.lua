@@ -171,9 +171,9 @@ end
 local function draw_options()
     local changed
 
-    changed, options.only_import_valid = imgui.checkbox("只导入有效槽", options.only_import_valid)
+    changed, options.only_import_valid = imgui.checkbox("只导入有效栏位", options.only_import_valid)
     imgui.same_line()
-    changed, options.clear_empty_slots = imgui.checkbox("清空空槽", options.clear_empty_slots)
+    changed, options.clear_empty_slots = imgui.checkbox("清空空栏位", options.clear_empty_slots)
     imgui.same_line()
     changed, options.reject_fighter_mismatch = imgui.checkbox("角色 ID 不匹配时拒绝", options.reject_fighter_mismatch)
     imgui.same_line()
@@ -182,12 +182,12 @@ end
 
 local function draw_slots_table(slots)
     if not slots then
-        imgui.text_colored("没有可显示的槽位数据。", 0xFF888888)
+        imgui.text_colored("没有可显示的栏位数据。", 0xFF888888)
         return
     end
 
     if imgui.begin_table("SF6CCDynamicRecordsSlots", 6, 1 << 0) then
-        imgui.table_setup_column("槽", 0, 30)
+        imgui.table_setup_column("栏位", 0, 30)
         imgui.table_setup_column("有效", 0, 50)
         imgui.table_setup_column("启用", 0, 50)
         imgui.table_setup_column("帧数", 0, 60)
@@ -238,7 +238,7 @@ local function draw_reversal_table(reversals)
             local entries = reversals[group.key]
             if type(entries) == "table" then
                 for _, entry in ipairs(entries) do
-                    imgui.text("槽 " .. tostring(entry.slot or "-")
+                    imgui.text("栏位 " .. tostring(entry.slot or "-")
                         .. " | active=" .. tostring(entry.active)
                         .. " | type=" .. tostring(entry.type)
                         .. " | skill=" .. tostring(entry.skill_index)

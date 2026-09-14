@@ -217,8 +217,8 @@ test("shared controller keeps selection locked and publishes completion only onc
     for _ = 1, 100 do stats.tick = stats.tick + 1; library.tick() end
     assert(not library.has_pending() and library.status_ok, library.status)
     assert(library.result_revision == revision + 1 and stats.writes == 432)
-    assert(library.status:find("已导入 2 个录像槽", 1, true))
-    assert(library.status:find("已初始化 2 个空槽", 1, true))
+    assert(library.status:find("已导入 2 个录像栏位", 1, true))
+    assert(library.status:find("已初始化 2 个空栏位", 1, true))
 end)
 test("script reset cleanup is bounded and does not write imported input", function()
     local records, stats, ctx, tick, _, settings = fixture(0)

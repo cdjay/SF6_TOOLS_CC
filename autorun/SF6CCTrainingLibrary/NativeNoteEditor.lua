@@ -65,7 +65,7 @@ function Editor.install()
             end
         end
         if #titles ~= 1 then return false end
-        titles[1]:call("set_Message", active and active.slot and ("槽位"..active.slot.."名称") or "备注")
+        titles[1]:call("set_Message", active and active.slot and ("栏位"..active.slot.."名称") or "备注")
         return true
     end
     local function hide()
@@ -117,7 +117,7 @@ function Editor.install()
         pending = Library.begin_note_edit(slot)
         if not pending then return false end
         pending.deadline = os.time() + 10
-        status(true, slot and "关闭暂停菜单后修改槽位名称；导出配置后保留" or "关闭暂停菜单后编辑所选配置的备注")
+        status(true, slot and "关闭暂停菜单后修改栏位名称；导出配置后保留" or "关闭暂停菜单后编辑所选配置的备注")
         return true
     end
     local function update()

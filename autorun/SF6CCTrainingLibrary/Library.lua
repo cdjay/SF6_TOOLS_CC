@@ -1,5 +1,6 @@
 -- Shared library selection and deferred operations for native and ImGui menus.
 local Compatibility = require("SF6CCTrainingLibrary/TrainingConfigCompatibility")
+local character_name = require("SF6CCTrainingLibrary/CharacterNames")
 local M = {}
 
 function M.new(records, context, choices)
@@ -54,7 +55,7 @@ function M.new(records, context, choices)
         local function number(value) return type(value) == "number" and tostring(value) or "?" end
         return {
             file = entry.filename or entry.path:match("([^/\\]+)$") or entry.path,
-            character = text(meta.fighter_name, "未知角色") .. " / ID " .. number(meta.fighter_id)
+            character = character_name(meta.fighter_name) .. " / ID " .. number(meta.fighter_id)
                 .. " / " .. text(meta.source_player, "未知方位"),
             saved = text(meta.created_at, "未记录保存时间"),
             slots = "有效录像 " .. number(meta.valid_slots) .. "/" .. number(meta.record_slots or 8)
@@ -66,8 +67,8 @@ function M.new(records, context, choices)
     function self.selection_label(index)
         local entry = self.entries[index or self.selected]
         if not entry then return "（暂无配置）" end
-        local file = entry.filename or entry.path:match("([^/\\]+)$") or entry.path
-        return (self.labels[index or self.selected] or "未命名配置") .. " [" .. file .. "]"
+        return character_name((entry.metadata or {}).fighter_name) .. " ["
+            .. (self.labels[index or self.selected] or "未命名配置") .. "]"
     end
     function self.select(index)
         if pending or note_edit or type(index) ~= "number" or index % 1 ~= 0 or not self.entries[index] then return false end
@@ -124,7 +125,7 @@ function M.new(records, context, choices)
         if kind == "import" then
             if self.expansion_error and type(entry.metadata.record_slots)=="number"
                 and entry.metadata.record_slots>8 then
-                status(false, "录像槽扩展启动失败，当前仍为8槽；配置未导入、文件未修改")
+                status(false, "录像栏位扩展启动失败，当前仍为8栏位；配置未导入、文件未修改")
                 return false
             end
             local compatible, reason = self.selection_compatibility(ctx)
@@ -169,7 +170,7 @@ function M.new(records, context, choices)
         if not ctx or ctx.busy ~= false then status(false, err or "请先停止录制和播放"); return nil end
         if slot~=nil then
             if self.expansion_error then
-                status(false, "录像槽扩展启动失败，原生改名未接入；名称未修改")
+                status(false, "录像栏位扩展启动失败，原生改名未接入；名称未修改")
                 return nil
             end
             if type(slot)~="number" or slot%1~=0 or slot<1 or slot>self.slot_capacity() then return nil end
@@ -241,7 +242,7 @@ function M.new(records, context, choices)
         if job.kind == "slot_name" then
             local ok,success,msg=pcall(records.set_slot_name,job.slot,job.text)
             self.result_revision=self.result_revision+1
-            status(ok and success,ok and msg or "槽位改名失败，录像未修改")
+            status(ok and success,ok and msg or "栏位改名失败，录像未修改")
             return
         end
         if job.kind == "notes" then
@@ -266,7 +267,7 @@ function M.new(records, context, choices)
         if ok and success == true and type(receipt) == "table" and receipt.kind == "initializing" then
             job.task = receipt.task
             pending = job
-            status(true, "正在初始化 " .. tostring(receipt.count) .. " 个空录像槽，请稍候")
+            status(true, "正在初始化 " .. tostring(receipt.count) .. " 个空录像栏位，请稍候")
             return
         end
         self.result_revision = self.result_revision + 1
@@ -285,16 +286,16 @@ function M.new(records, context, choices)
         if job.kind == "export" or job.kind == "save" then
             status(true, "已" .. verb .. "：" .. tostring(path and path:match("([^/\\]+)$") or "新配置"))
         elseif type(receipt) == "table" and receipt.kind == "import" then
-            local summary = "已导入 " .. tostring(receipt.written) .. " 个录像槽，清空 " .. tostring(receipt.cleared)
+            local summary = "已导入 " .. tostring(receipt.written) .. " 个录像栏位，清空 " .. tostring(receipt.cleared)
                 .. " 个，恢复 " .. tostring(receipt.reversals) .. " 项反击设置"
             if (receipt.initialized_slots or 0) > 0 then
-                summary = summary .. "；已初始化 " .. tostring(receipt.initialized_slots) .. " 个空槽"
+                summary = summary .. "；已初始化 " .. tostring(receipt.initialized_slots) .. " 个空栏位"
             end
             if receipt.apply_state == "failed" then
                 diagnostic(msg); status(false, summary .. "；即时应用失败，请查看日志及自动备份")
             else status(true, summary .. (receipt.apply_state == "skipped" and "；未启用即时应用" or "；已应用")) end
         else
-            status(true, "配置已导入，请核对录像槽及播放效果")
+            status(true, "配置已导入，请核对录像栏位及播放效果")
         end
     end
     return self

@@ -57,7 +57,7 @@ function M.new(api,threads,current,allowed,library,report)
     end
     local function guard(fn)
         local ok,err=pcall(fn)
-        if not ok then stopped=true; targets={}; pcall(report,"槽位名称显示暂停："..tostring(err)) end
+        if not ok then stopped=true; targets={}; pcall(report,"栏位名称显示暂停："..tostring(err)) end
     end
     local self={}
     function self.install()

@@ -14,7 +14,7 @@ function M.new(deps)
     local hook_error, save_generation = nil, 0
     local self = {}
     local function report(message)
-        library.status_ok, library.status = false, "录像槽扩展暂停：" .. tostring(message)
+        library.status_ok, library.status = false, "录像栏位扩展暂停：" .. tostring(message)
         if deps.log then deps.log(tostring(message)) end
     end
     local function find(address)
@@ -184,7 +184,7 @@ function M.new(deps)
         if not attached then report(why); stopped = true; return end
         library.expansion_error = nil
         if library.reset_slot_names then library.reset_slot_names() end
-        library.status_ok, library.status = true, "录像槽已扩展至 " .. Session.CAPACITY .. " 个"
+        library.status_ok, library.status = true, "录像栏位已扩展至 " .. Session.CAPACITY .. " 个"
         if library.autoload then library.autoload(ctx.fighter_id) end
     end
     function self.reset()

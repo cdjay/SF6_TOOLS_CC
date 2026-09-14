@@ -28,7 +28,7 @@ test("unmounted expansion rejects oversized import and rename before queueing", 
     records.set_slot_name=function() error("must not rename an unattached native row") end
     lib.expansion_error="[slot 1 / copy] invalid native object"
     assert(not lib.request("import") and not lib.has_pending())
-    assert(lib.status:find("当前仍为8槽",1,true))
+    assert(lib.status:find("当前仍为8栏位",1,true))
     assert(not lib.can_edit_slot_names() and not lib.begin_note_edit(1))
     ctx.menu_closed=true; lib.tick()
     assert(calls.import==0)
@@ -171,11 +171,12 @@ test("selection details follow file without rereading JSON", function()
             active_slots = 1, active_reversals = 3, description = path }
     end
     assert(lib.refresh())
-    assert(lib.selection_label() == "same [a.json]")
+    assert(lib.selection_label() == "不知火舞 Mai [same]")
     assert(lib.select(2))
     for _ = 1, 100 do
         local d = lib.selection_details()
         assert(d.file == "b.json" and d.saved == "2026-09-13 19:01:00")
+        assert(d.character == "不知火舞 Mai / ID 28 / P2")
         assert(d.slots == "有效录像 2/8，启用 1；启用反击 3/30" and d.notes == "configs/b.json")
     end
     assert(reads == 2)
@@ -214,7 +215,7 @@ test("Chinese outcome comes from receipt, not English diagnostic parsing", funct
             kind = "import", written = 3, cleared = 5, reversals = 30, apply_state = "applied" }
     end
     assert(lib.request("import")); ctx.menu_closed = true; lib.tick()
-    assert(lib.status == "已导入 3 个录像槽，清空 5 个，恢复 30 项反击设置；已应用")
+    assert(lib.status == "已导入 3 个录像栏位，清空 5 个，恢复 30 项反击设置；已应用")
     records.import_from_file = function()
         return true, "ForceApply failed", "backup.json", "", {
             kind = "import", written = 3, cleared = 5, reversals = 30, apply_state = "failed" }

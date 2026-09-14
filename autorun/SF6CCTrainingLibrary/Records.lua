@@ -326,7 +326,7 @@ function M.set_slot_name(slot,text)
     -- Names belong to fixed slots, not a recording signature. Editing does not
     -- mutate recordings or persist until the user exports the configuration.
     M._annotations.record_slots[slot]={slot=slot,text=text}
-    return true,"槽位名称已修改；请导出配置以保留"
+    return true,"栏位名称已修改；请导出配置以保留"
 end
 
 function M.reset_slot_names() M._annotations=empty_annotations() end
@@ -1660,8 +1660,8 @@ function M.clear_current_configuration()
 
     local force_ok, force_msg = force_apply(rec_func)
     local result = "已清空 " .. tostring(record_count_or_err or 0)
-        .. " 个录像槽和 " .. tostring(reversal_count_or_nil or 0)
-        .. " 个反击槽。自动备份：data/" .. tostring(backup_path)
+        .. " 个录像栏位和 " .. tostring(reversal_count_or_nil or 0)
+        .. " 个反击栏位。自动备份：data/" .. tostring(backup_path)
         .. "。" .. tostring(reversal_msg_or_nil or "")
     if not force_ok then
         result = result .. "。ForceApply 失败：" .. tostring(force_msg)

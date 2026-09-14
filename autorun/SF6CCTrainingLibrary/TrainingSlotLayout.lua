@@ -62,11 +62,11 @@ function M.check_native(data, record_capacity)
     if not layout then return false, err end
     record_capacity = (record_capacity == 9 or record_capacity == M.EXPANDED_RECORDS) and record_capacity or M.NATIVE_RECORDS
     if layout.records.span > record_capacity then
-        return false, "录像配置超过当前已挂载的 " .. record_capacity .. " 槽；文件未修改"
+        return false, "录像配置超过当前已挂载的 " .. record_capacity .. " 栏位；文件未修改"
     end
     for _, group in ipairs(groups) do
         if layout.reversals[group].span > M.NATIVE_REVERSALS then
-            return false, "当前未启用原生反击扩容，每组最多 10 槽；文件未修改"
+            return false, "当前未启用原生反击扩容，每组最多 10 栏位；文件未修改"
         end
     end
     return true
