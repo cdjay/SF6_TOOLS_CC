@@ -53,6 +53,10 @@
 
 ## 安装边界
 
+独立打包使用 `tools/package_release.ps1 -TrainingLibraryOnly`，沿用当前产品版本并附提交号，输出到 `release/<版本>/SF6CC_TrainingLibrary_v<版本>_<提交号>/`，不覆盖同版本主 MOD 包。
+包含独立入口、全部私有模块、离线编辑器、游戏区的 REFramework `dinput8.dll`，以及游戏区 `configs/*.json` 和有效的 `last_selected.json`。不包含历史备份、缓存或未保存的游戏内编辑。
+此模式会附带当前个人配置，仅在明确需要分享这些配置时使用；不会修改源配置。接收方关闭游戏后安装，已有兼容 REFramework 可保留原 DLL。该快照不是新的主 MOD 版本。
+
 - 唯一入口：`autorun/SF6CC_TrainingLibrary.lua`。
 - 随附完整的 `autorun/SF6CCTrainingLibrary/` 目录，不能只发送入口 Lua。
 - 只依赖支持现有 SDK 接口的 REFramework；不依赖 SF6CC 主 MOD、client、C#、额外 DLL、图片或字体。

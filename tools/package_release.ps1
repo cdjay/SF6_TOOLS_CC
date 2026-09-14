@@ -7,10 +7,14 @@ param(
     [switch]$DryRun,
     [switch]$AllowImmutable,
     [switch]$UpdateRepoManifest,
-    [switch]$TrainingConfigManagerOnly
+    [switch]$TrainingConfigManagerOnly,
+    [switch]$TrainingLibraryOnly
 )
 
 $ErrorActionPreference = "Stop"
+if ($TrainingLibraryOnly -and $TrainingConfigManagerOnly) {
+    throw "Choose either the standalone training library or the legacy configuration manager."
+}
 
 function Resolve-ExistingPath {
     param(
@@ -524,7 +528,16 @@ $baseOutputPath = Resolve-OutputRoot -Path $OutputDir -AllowCreate (-not [bool]$
 $outputPath = Join-Path $baseOutputPath $releaseVersion
 $sourceManifestVersion = Get-SourceManifestVersion -WorkspacePath $workspacePath
 
-if ($TrainingConfigManagerOnly) {
+if ($TrainingLibraryOnly) {
+    $componentPackageName = "SF6CC_TrainingLibrary_v${releaseVersion}_$($headCommit.Substring(0, 7))"
+    $componentZipName = "$componentPackageName.zip"
+    # Keep component snapshots separate from the immutable full release output.
+    $outputPath = Join-Path $outputPath $componentPackageName
+    $componentPackagePath = Join-Path $outputPath $componentPackageName
+    $componentZipPath = Join-Path $outputPath $componentZipName
+    $packageFilenames = @($componentZipName)
+}
+elseif ($TrainingConfigManagerOnly) {
     $componentPackageName = "XiaoTun_SF6_TrainingConfigManager_v$releaseVersion"
     $componentZipName = "$componentPackageName.zip"
     $componentPackagePath = Join-Path $outputPath $componentPackageName
@@ -579,12 +592,78 @@ Write-PlanSummary -ReleaseVersion $releaseVersion `
     -WillOverwrite $willOverwrite `
     -BackupPath $plannedBackupPath
 
-if (-not $TrainingConfigManagerOnly) {
+if (-not $TrainingConfigManagerOnly -and -not $TrainingLibraryOnly) {
     $null = Get-CommandDisplaySourceState -SourceRoot $workspacePath
 }
 
 if ($DryRun) {
     Write-Host "Dry run complete. No package files were generated."
+    return
+}
+
+if ($TrainingLibraryOnly) {
+    $gameRootPath = Resolve-ExistingPath -Path $GameRoot -Label "Game root"
+    $dinputPath = Resolve-ExistingPath -Path (Join-Path $gameRootPath "dinput8.dll") -Label "REFramework"
+    $configRoot = Resolve-ExistingPath -Path (Join-Path $gameRootPath "reframework\data\SF6CC_TrainingConfigs\configs") -Label "Current training configurations"
+    $modules = @(& git -C $workspacePath ls-files -- "autorun/SF6CCTrainingLibrary/*.lua")
+    if ($LASTEXITCODE -ne 0 -or $modules.Count -eq 0) { throw "Standalone modules are missing." }
+    $untracked = @(& git -C $workspacePath ls-files --others --exclude-standard -- autorun/SF6CCTrainingLibrary)
+    if ($LASTEXITCODE -ne 0 -or $untracked.Count -gt 0) { throw "Untracked standalone dependencies must be reviewed before packaging." }
+    $configs = @(Get-ChildItem -LiteralPath $configRoot -File -Filter '*.json')
+    foreach ($file in $configs) {
+        $config = Get-Content -LiteralPath $file.FullName -Raw | ConvertFrom-Json
+        if ($config.schema -notin @('sf6cc.training_setup.v2', 'sf6cc.dynamic_records.v1') -or
+            $null -eq $config.fighter_id -or $null -eq $config.slots) {
+            throw "Invalid training configuration: $($file.Name)"
+        }
+    }
+    if ($willOverwrite) {
+        $null = Backup-VersionOutput -VersionOutputPath $outputPath -OutputRoot $baseOutputPath -ReleaseVersion $releaseVersion
+    }
+    New-Item -ItemType Directory -Path $componentPackagePath -Force | Out-Null
+    Copy-SelectedTrackedReframeworkFiles -SourceRoot $workspacePath -PackageRoot $componentPackagePath -RelativePaths @(
+        @('autorun/SF6CC_TrainingLibrary.lua', 'autorun/SF6CC_TrainingLibrary.md',
+            'data/SF6CC_TrainingConfigs/editor/SF6CC_TrainingConfigEditor.html') + $modules
+    )
+    Copy-Item -LiteralPath $dinputPath -Destination (Join-Path $componentPackagePath 'dinput8.dll')
+    $dataTarget = Join-Path $componentPackagePath 'reframework\data\SF6CC_TrainingConfigs'
+    $configsTarget = Join-Path $dataTarget 'configs'
+    New-Item -ItemType Directory -Path $configsTarget -Force | Out-Null
+    foreach ($file in $configs) {
+        Copy-Item -LiteralPath $file.FullName -Destination (Join-Path $configsTarget $file.Name)
+    }
+    $selectionPath = Join-Path (Split-Path -Parent $configRoot) 'last_selected.json'
+    if (Test-Path -LiteralPath $selectionPath) {
+        $selection = Get-Content -LiteralPath $selectionPath -Raw | ConvertFrom-Json
+        foreach ($entry in $selection.PSObject.Properties) {
+            $expected = @($configs | ForEach-Object { "SF6CC_TrainingConfigs/configs/$($_.Name)" })
+            if ($entry.Value -notin $expected) { throw "Selected configuration is not included: $($entry.Value)" }
+        }
+        Copy-Item -LiteralPath $selectionPath -Destination (Join-Path $dataTarget 'last_selected.json')
+    }
+    @'
+# 独立木人库安装包
+
+关闭游戏后，将 dinput8.dll 和 reframework 文件夹解压到 Street Fighter 6 游戏根目录。
+已经安装兼容 REFramework 的玩家可保留原 dinput8.dll；无需安装 SF6CC 主 MOD。
+autorun/SF6CC_TrainingLibrary.lua 与 autorun/SF6CCTrainingLibrary/ 必须一起安装。
+不要同时启用旧 SF6CC_DynamicRecords.lua 或 TrainingSlots/NativeLibraryPilot/NativeNotes 测试入口。
+本包包含当前游戏区保存的配置及上次选中配置；安装前请保留接收方的同名文件。
+没有包含历史备份、日志、缓存，也不包含尚未保存到 JSON 的游戏内编辑。
+进入离线训练场，在原生录像设置的“导入导出”页使用。配置按 P2 角色校验。
+“重置所有栏位（清空）”清空录像及三类反击，保留栏位数量，不删除配置文件。
+这是独立开发快照，不是新的主 MOD 版本；重置功能的实机验收仍待完成。
+'@ | Set-Content -LiteralPath (Join-Path $componentPackagePath '安装说明.txt') -Encoding UTF8
+    $inventory = @(Get-ChildItem -LiteralPath $componentPackagePath -Recurse -File | ForEach-Object {
+        [ordered]@{ path = $_.FullName.Substring($componentPackagePath.Length + 1).Replace('\', '/');
+            bytes = $_.Length; sha256 = (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash }
+    })
+    [ordered]@{ component = 'SF6CC_TrainingLibrary'; product_version = $releaseVersion;
+        commit = $headCommit; configurations = $configs.Count; files = $inventory } |
+        ConvertTo-Json -Depth 6 | Set-Content -LiteralPath (Join-Path $componentPackagePath 'package_manifest.json') -Encoding UTF8
+    New-ZipFromDirectory -SourceDirectory $componentPackagePath -ZipPath $componentZipPath
+    Write-Host "Standalone training library packaged with $($modules.Count) modules and $($configs.Count) configurations."
+    Write-Host "Package: $componentZipPath"
     return
 }
 

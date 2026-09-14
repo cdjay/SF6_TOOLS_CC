@@ -83,4 +83,21 @@ if (-not $mismatchRejected) {
     throw "Release packager accepted a mismatched explicit version."
 }
 
+$componentOutput = Join-Path ([System.IO.Path]::GetTempPath()) ("sf6cc-component-plan-" + [guid]::NewGuid().ToString('N'))
+$componentPlan = & $packageScript -Workspace $workspacePath -TrainingLibraryOnly -OutputDir $componentOutput -DryRun *>&1 | Out-String
+$shortCommit = (& git -C $workspacePath rev-parse --short=7 HEAD).Trim()
+if ($componentPlan -notmatch [regex]::Escape("SF6CC_TrainingLibrary_v${productVersion}_${shortCommit}.zip") -or
+    $componentPlan -match 'XiaoTun_SF6_TrainingMOD' -or (Test-Path -LiteralPath $componentOutput)) {
+    throw 'Standalone dry run must plan only its component snapshot without creating output.'
+}
+$conflictRejected = $false
+try {
+    & $packageScript -TrainingLibraryOnly -TrainingConfigManagerOnly -DryRun | Out-Null
+} catch {
+    $conflictRejected = $_.Exception.Message -match 'Choose either'
+}
+if (-not $conflictRejected) { throw 'Standalone and legacy component modes must be mutually exclusive.' }
+if ((Get-FileHash -Algorithm SHA256 -LiteralPath $versionPath).Hash -ne $beforeHash) {
+    throw 'Packaging tests changed the canonical product version.'
+}
 Write-Host "release version tests passed"
