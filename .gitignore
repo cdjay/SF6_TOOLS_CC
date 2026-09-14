@@ -42,6 +42,7 @@ sync_signal.json
 /images/buttonsAndArrows/* 鎷疯礉.png
 
 # Debug/dump files
+/data/SF6CC_TrainingConfigs/last_selected.json
 /exam/
 *.log
 *.trace

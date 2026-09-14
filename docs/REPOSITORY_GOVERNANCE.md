@@ -41,6 +41,11 @@ checked in.
 | Phase report | Remove after durable conclusions are absorbed | Task completion reports and count/SHA-only summaries |
 | Runtime/user data | Ignore and never package as source | Web state, replay slots, telemetry, caches, logs, local configs |
 
+The offline recording-bank tooling keeps its pinned dkjson 2.8 test dependency
+under `tools/training_record_bank/vendor`, with the original MIT license, source
+URL and verified SHA-256. It is test/tool source, not a Runtime dependency or
+release asset. Interchange/build output belongs in system temporary storage.
+
 ## Test Classification
 
 - `PERMANENT_REGRESSION`: BUG-B001 through BUG-B006 and other tests with a
