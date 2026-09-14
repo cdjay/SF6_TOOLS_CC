@@ -338,6 +338,15 @@ Combo locals ceiling failure remains the only failing Lua test file (79/80).
 The user subsequently confirmed the two-click switch feature works normally.
 This accepts the reported menu workflow; no additional lifetime fix is implied.
 
+The accepted switch was committed as `f7e0cfe`. The next candidate adds a native
+clear-current-configuration row below refresh, routed through the shared idle
+queue to the existing Records clear backend. It clears all allocated recording
+slots, annotations and all three reversal groups, retaining the bank and saved
+configuration files. Backend backup and failure behavior is unchanged: native
+write failures are not transactional rollback, and ForceApply warnings remain
+part of the result. Native clear, retained pagination and subsequent reimport
+still require live acceptance; no allocation or lifecycle fix is claimed.
+
 The active review procedures are [Human Review](review/HUMAN_REVIEW.md) and
 [Real-game Smoke](testing/REAL_GAME_SMOKE.md). Do not close a limitation by
 editing this file alone; close the underlying evidence or architecture gate

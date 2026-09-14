@@ -106,6 +106,54 @@ local function fixture(capacity, fault, native_slots)
     end
     return backend, stats, ctx, advance, data, settings, fighter, slots, env
 end
+test("clear empties all eighty recordings and thirty reversals without replacing the bank or files", function()
+    local records, stats, ctx, _, _, _, fighter, slots = fixture(3600, nil, 80)
+    local bank = fighter:get_field("RecordSlots")
+    local reversals = ctx.data:get_field("ReversalSetting"):get_field("FighterDataList"):call("get_Item", 28)
+    for i = 1, 80 do
+        local slot = slots[i - 1]
+        slot:set_field("Frame", 120); slot:set_field("Weight", 5)
+        slot:set_field("IsValid", true); slot:set_field("IsActive", true)
+        slot:get_field("InputData"):set_field("Num", 120)
+        assert(records.set_slot_name(i, "测试" .. i))
+    end
+    for _, field in ipairs({ "DownReversalDatas", "GuardReversalDatas", "DamageReversalDatas" }) do
+        for i = 0, 9 do
+            local slot = reversals:get_field(field):call("get_Item", i)
+            for key, value in pairs({ IsActive = true, IsValid = true, IsFrame = true,
+                Type = 1, SkillIndex = 79, Delay = 12, Count = 3, Level = 2, Frame = 7 }) do
+                slot:set_field(key, value)
+            end
+        end
+    end
+    local ok, msg = records.clear_current_configuration()
+    assert(ok, msg)
+    assert(msg:find("80", 1, true) and msg:find("30", 1, true))
+    assert(fighter:get_field("RecordSlots") == bank and bank:get_size() == 80)
+    for i = 1, 80 do
+        local slot = slots[i - 1]
+        assert(slot:get_field("Frame") == 0 and slot:get_field("Weight") == 1)
+        assert(not slot:get_field("IsValid") and not slot:get_field("IsActive"))
+        assert(slot:get_field("InputData"):get_field("Num") == 0 and records.get_slot_name(i) == "")
+    end
+    for _, field in ipairs({ "DownReversalDatas", "GuardReversalDatas", "DamageReversalDatas" }) do
+        for i = 0, 9 do
+            local slot = reversals:get_field(field):call("get_Item", i)
+            assert(not slot:get_field("IsActive") and slot:get_field("Type") == -1 and slot:get_field("SkillIndex") == -1)
+        end
+    end
+    assert(stats.backups == 1 and stats.forces == 1 and stats.reads == 0 and not stats.exported)
+    assert(#stats.starts == 0 and stats.writes == 0)
+end)
+
+test("clear stops before native writes when the existing automatic backup fails", function()
+    local records, stats, _, _, _, _, _, slots = fixture(3600)
+    slots[0]:set_field("Frame", 100)
+    records.backup_current = function() return false, "backup failure" end
+    assert(not records.clear_current_configuration())
+    assert(slots[0]:get_field("Frame") == 100 and stats.forces == 0)
+end)
+
 test("empty slots initialize then import once from one read and one backup", function()
     local records, stats, ctx, tick, _, settings, fighter, slots = fixture(0)
     local ok, msg, _, _, receipt = records.begin_import("config.json", { force_apply_after_import = true }, ctx)

@@ -111,7 +111,7 @@ json = { dump_file = function() writes = writes + 1; error("No disk writes allow
 package.preload["SF6CCTrainingLibrary/Context"] = function() return {
     is_training_allowed=function() return training end, pause_open=function() return gs.in_pause_menu end,
 } end
-local requests, imported, exported, saved = {}, 0, 0, 0
+local requests, imported, exported, saved, cleared = {}, 0, 0, 0, 0
 local catalog = { { path = "a.json" }, { path = "b.json" } }
 local library_context = { allowed = true, session = tm, data = tm._tData,
     fighter_id = 19, busy = false, menu_closed = false }
@@ -127,6 +127,7 @@ local lib = dofile(os.getenv("SF6CC_TRAINING_LIBRARY_TEST_SOURCE") or "autorun/S
     import_from_file = function(path) imported = imported + 1; requests[#requests + 1] = path; return true, "Imported" end,
     export_new = function() exported = exported + 1; return true, "Exported", "b.json" end,
     save_current = function(path) saved = saved + 1; return true, "Saved", path end,
+    clear_current_configuration = function() cleared = cleared + 1; return true, "已清空80个录像栏位和30个反击栏位" end,
 }, function() return library_context end)
 package.preload["SF6CCTrainingLibrary/Library"] = function() return { shared = function() return lib end } end
 assert(loadfile(path))()
@@ -268,7 +269,7 @@ check("Presentation order and native separators preserve action rows",function()
     local rows=page._ChildData.items
     assert(title(rows[1])=="切换训练配置：爱德 Ed [a.json]")
     assert(title(rows[2])=="保存当前配置" and title(rows[3])=="导出当前配置")
-    assert(title(rows[4])=="刷新配置列表")
+    assert(title(rows[4])=="刷新配置列表" and title(rows[5])=="重置所有栏位（清空）")
     for _,row in ipairs(rows) do assert(title(row)~="导入所选配置") end
     local separators=0
     for _,row in ipairs(rows) do
@@ -437,6 +438,33 @@ check("File-list paging cancels confirmation and does not consume a stale row",f
     assert(param.body_parent==picker)
     assert(click(first,picker)==0 and not lib.has_pending())
     click(picker_row(picker,"返回"),picker)
+end)
+check("Clear row queues once after pause close without importing or changing files",function()
+    local before_import,before_export,before_save=imported,exported,saved
+    local selected,revision=lib.selection().path,lib.revision
+    library_context.menu_closed=false
+    assert(click(find("重置所有栏位（清空）"),page)==1 and lib.has_pending())
+    assert(click(find("重置所有栏位（清空）"),page)==0)
+    lib.tick(); assert(cleared==0)
+    library_context.menu_closed=true; lib.tick(); lib.tick()
+    assert(cleared==1 and lib.status_ok and not lib.has_pending())
+    assert(imported==before_import and exported==before_export and saved==before_save)
+    assert(lib.selection().path==selected and lib.revision==revision)
+    assert(title(find("结果：")):find("已清空80",1,true))
+    library_context.menu_closed=false
+end)
+check("Native rebuild callbacks cannot queue clear",function()
+    local old=tm._UIFunc.call
+    local nested=0
+    tm._UIFunc.call=function(...)
+        local outer=storage
+        assert(click(find("重置所有栏位（清空）"),page)==0 and not lib.has_pending())
+        storage=outer; nested=nested+1
+        return old(...)
+    end
+    open_picker()
+    tm._UIFunc.call=old
+    assert(nested==1 and cleared==1)
 end)
 check("Scene changes cancel a confirmed import before any recording write",function()
     local before=imported

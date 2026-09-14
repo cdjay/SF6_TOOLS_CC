@@ -116,7 +116,7 @@ function M.new(records, context, choices)
     end
     function self.request(kind)
         if pending or note_edit then return false end
-        if kind ~= "import" and kind ~= "export" and kind ~= "refresh" and kind ~= "save" then return false end
+        if kind ~= "import" and kind ~= "export" and kind ~= "refresh" and kind ~= "save" and kind ~= "clear" then return false end
         local ctx, err = safe_context()
         if not ctx then status(false, err); return false end
         if ctx.busy ~= false then status(false, "请先停止录制、播放或连段训练"); return false end
@@ -239,6 +239,17 @@ function M.new(records, context, choices)
         local job = pending
         pending = nil
         if job.kind == "refresh" then self.refresh(); return end
+        if job.kind == "clear" then
+            local ok, success, msg = pcall(records.clear_current_configuration)
+            self.result_revision = self.result_revision + 1
+            if not ok or success ~= true then
+                diagnostic(ok and msg or success)
+                status(false, "清空未完成，请查看日志及自动备份")
+            else
+                status(true, msg or "已清空全部录像栏位和三类反击，已保存的配置文件未修改")
+            end
+            return
+        end
         if job.kind == "slot_name" then
             local ok,success,msg=pcall(records.set_slot_name,job.slot,job.text)
             self.result_revision=self.result_revision+1

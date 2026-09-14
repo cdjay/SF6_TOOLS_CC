@@ -21,6 +21,38 @@ local function fixture()
     return lib, ctx, calls, records, files
 end
 local function test(name, fn) fn(); passed = passed + 1; print("PASS " .. name) end
+
+test("clear works without saved files, waits for pause close and never changes catalog", function()
+    local lib, ctx, calls, records = fixture()
+    local cleared = 0
+    records.clear_current_configuration = function()
+        cleared = cleared + 1
+        return true, "全部清空", "backup.json"
+    end
+    assert(lib.request("clear") and not lib.request("clear"))
+    lib.tick(); assert(cleared == 0)
+    ctx.menu_closed = true
+    lib.tick(); lib.tick()
+    assert(cleared == 1 and not lib.has_pending() and lib.status_ok)
+    assert(lib.status == "全部清空" and lib.result_revision == 1 and lib.revision == 0)
+    assert(calls.list == 0 and calls.import == 0 and calls.export == 0 and not lib.selection())
+end)
+
+test("clear rejects busy or changed environments and reports backend failures without retry", function()
+    local lib, ctx, _, records = fixture()
+    local cleared = 0
+    records.clear_current_configuration = function() cleared = cleared + 1; return false, "failed" end
+    ctx.busy = true; assert(not lib.request("clear"))
+    ctx.busy = false; ctx.allowed = false; assert(not lib.request("clear"))
+    ctx.allowed = true; assert(lib.request("clear"))
+    ctx.session = {}; ctx.menu_closed = true; lib.tick()
+    assert(cleared == 0 and not lib.has_pending())
+    assert(lib.request("clear")); lib.tick(); lib.tick()
+    assert(cleared == 1 and not lib.status_ok and not lib.has_pending())
+    records.clear_current_configuration = function() cleared = cleared + 1; error("clear failure") end
+    assert(lib.request("clear")); lib.tick(); lib.tick()
+    assert(cleared == 2 and not lib.status_ok and not lib.has_pending())
+end)
 test("unmounted expansion rejects oversized import and rename before queueing", function()
     local lib, ctx, calls, records = fixture()
     lib.refresh()

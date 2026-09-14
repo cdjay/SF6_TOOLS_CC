@@ -228,6 +228,7 @@ local function install(tm)
     local choice = menu_data(0, function() return "切换训练配置：" .. Library.selection_label() end, true)
     local export = menu_data(0, "导出当前配置", true, nil, "导出 P2 录像栏位、反击设置及注释。")
     local refresh = menu_data(0, "刷新配置列表", true)
+    local clear = menu_data(0, "重置所有栏位（清空）", true, nil, "清空当前训练的全部录像栏位和三类反击设置；保留栏位数量，不删除已保存的配置文件。")
     local save = menu_data(0, "保存当前配置", true, nil, "更新选中的配置文件，保存全部录像栏位及三类反击；覆盖前备份原文件。")
     local status = menu_data(0, function() return Library.status_ok and "结果：" .. Library.status or "注意：" .. Library.status end,
         true, nil, function() return Library.status end, true)
@@ -244,7 +245,7 @@ local function install(tm)
     end
     local edit_separator = menu_data(4, "", true, nil, nil, true)
     local info_separator = menu_data(4, "", true, nil, nil, true)
-    local rows = { choice, save, export, refresh, edit_separator, details[5] }
+    local rows = { choice, save, export, refresh, clear, edit_separator, details[5] }
     local page = menu_data(22, "导入导出", true)
     local installed = arr({ first, second, page })
     -- Keep the detached original array alive for restoration on script reset.
@@ -254,7 +255,7 @@ local function install(tm)
         installed = installed, page = page, choice = choice, revision = Library.revision,
         picker_pages = {}, picker_entries = {}, picker_count = 1,
         kinds = { [address(choice)] = "choice", [address(export)] = "export",
-            [address(refresh)] = "refresh", [address(status)] = "status", [address(save)] = "save" },
+            [address(refresh)] = "refresh", [address(clear)] = "clear", [address(status)] = "status", [address(save)] = "save" },
         original_type = tonumber(read(selector, "_Type")) }
     for _, item in ipairs(details) do owner.kinds[address(item)] = "detail" end
     owner.kinds[address(edit_separator)], owner.kinds[address(info_separator)] = "detail", "detail"
@@ -427,11 +428,12 @@ local ok, err = pcall(function()
                     local editor = State.editor
                     if editor and editor.request() then storage.sf6cc_library_result = 1
                     else refresh_library_page(args[4]) end
-                elseif kind == "export" or kind == "refresh" or kind == "save" then
+                elseif kind == "export" or kind == "refresh" or kind == "save" or kind == "clear" then
+                    if in_layout() or owner.refreshing or Library.has_pending() then return end
                     owner.armed_path = nil
                     if Library.request(kind) then storage.sf6cc_library_result = 1 end
                 end
-                if (kind == "export" or kind == "refresh" or kind == "save")
+                if (kind == "export" or kind == "refresh" or kind == "save" or kind == "clear")
                     and storage.sf6cc_library_result == 0 then refresh_library_page(args[4]) end
             end)
             if not success then
