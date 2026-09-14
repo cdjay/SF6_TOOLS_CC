@@ -163,10 +163,6 @@ local function restore()
     owner = nil
     Library.cancel()
 end
-local function import_title()
-    if owner and owner.armed_path then return "确认导入（再次按确定）" end
-    return "导入所选配置"
-end
 local function build_picker_pages()
     -- Titles, rows and click targets share one catalog until explicit navigation.
     local entries = {}
@@ -201,9 +197,11 @@ local function build_picker_pages()
                 option_templates[i] = menu_data(0, function()
                     local entry = owner.picker_entries[index]
                     local selected = Library.selection()
-                    return (entry and selected and selected.path == entry.path and "【已选】" or "") .. index .. ". "
+                    local marker = entry and selected and selected.path == entry.path
+                        and (owner.armed_path == entry.path and "【再次确认切换】" or "【已选】") or ""
+                    return marker .. index .. ". "
                         .. (entry and entry.label or "")
-                end, true)
+                end, true, nil, "切换将导入此配置，丢弃当前未保存的修改。")
                 option_indices[address(option_templates[i])] = i
             end
             rows[#rows + 1] = option_templates[i]
@@ -228,7 +226,6 @@ local function install(tm)
         or tonumber(read(second, "_FuncType")) ~= PLAY_PAGE then return end
     if not Library.loaded then Library.refresh() end
     local choice = menu_data(0, function() return "切换训练配置：" .. Library.selection_label() end, true)
-    local import = menu_data(0, import_title, true, nil, "覆盖当前木人配置；导入前自动备份。")
     local export = menu_data(0, "导出当前配置", true, nil, "导出 P2 录像栏位、反击设置及注释。")
     local refresh = menu_data(0, "刷新配置列表", true)
     local save = menu_data(0, "保存当前配置", true, nil, "更新选中的配置文件，保存全部录像栏位及三类反击；覆盖前备份原文件。")
@@ -247,7 +244,7 @@ local function install(tm)
     end
     local edit_separator = menu_data(4, "", true, nil, nil, true)
     local info_separator = menu_data(4, "", true, nil, nil, true)
-    local rows = { choice, import, save, export, refresh, edit_separator, details[5] }
+    local rows = { choice, save, export, refresh, edit_separator, details[5] }
     local page = menu_data(22, "导入导出", true)
     local installed = arr({ first, second, page })
     -- Keep the detached original array alive for restoration on script reset.
@@ -256,7 +253,7 @@ local function install(tm)
         record_page = first, play_page = second, library_selected = false,
         installed = installed, page = page, choice = choice, revision = Library.revision,
         picker_pages = {}, picker_entries = {}, picker_count = 1,
-        kinds = { [address(choice)] = "choice", [address(import)] = "import", [address(export)] = "export",
+        kinds = { [address(choice)] = "choice", [address(export)] = "export",
             [address(refresh)] = "refresh", [address(status)] = "status", [address(save)] = "save" },
         original_type = tonumber(read(selector, "_Type")) }
     for _, item in ipairs(details) do owner.kinds[address(item)] = "detail" end
@@ -364,7 +361,7 @@ local ok, err = pcall(function()
         local data = read(sdk.to_managed_object(args[5]), "Data")
         if (ft == RECORD_PAGE and data == owner.record_page) or (ft == PLAY_PAGE and data == owner.play_page) then
             owner.library_selected, owner.visible_param = false, nil
-            owner.picker_index = nil
+            owner.picker_index, owner.armed_path = nil, nil
             if owner.name_browser then owner.name_browser.close() end
         end
         local kind, option_index
@@ -400,30 +397,31 @@ local ok, err = pcall(function()
                     owner.picker_index = math.min(owner.picker_count, math.floor((Library.selected - 1) / FILES_PER_PAGE) + 1)
                     if not refresh_library_page(args[4]) then owner.picker_index = nil end
                 elseif kind == "file" or kind == "picker_back" or kind == "picker_previous" or kind == "picker_next" then
-                    if in_layout() or owner.refreshing or not owner.picker_index then return end
+                    if in_layout() or owner.refreshing or not owner.picker_index or Library.has_pending() then return end
                     if owner.picker_revision ~= Library.revision then
-                        owner.picker_index = nil
+                        owner.picker_index, owner.armed_path = nil, nil
                     elseif kind == "file" then
                         if math.floor((option_index - 1) / FILES_PER_PAGE) + 1 ~= owner.picker_index then return end
+                        local view = sdk.to_managed_object(args[5])
+                        if read(view, "ParentData") ~= owner.picker_pages[owner.picker_index].data then return end
+                        local entry = owner.picker_entries[option_index]
+                        local selected = Library.selection()
+                        local confirmed = entry and selected and owner.armed_path == entry.path and selected.path == entry.path
                         if not Library.select(option_index) then return end
-                        owner.picker_index, owner.armed_path = nil, nil
-                    elseif kind == "picker_back" then owner.picker_index = nil
+                        if confirmed then
+                            owner.picker_index, owner.armed_path = nil, nil
+                            if Library.request("import") then storage.sf6cc_library_result = 1; return end
+                        else
+                            owner.armed_path = entry.path
+                        end
+                    elseif kind == "picker_back" then owner.picker_index, owner.armed_path = nil, nil
                     else
+                        owner.armed_path = nil
                         local next_page = owner.picker_index + (kind == "picker_next" and 1 or -1)
                         if next_page < 1 or next_page > owner.picker_count then return end
                         owner.picker_index = next_page
                     end
                     refresh_library_page(args[4])
-                elseif kind == "import" then
-                    local entry = Library.selection()
-                    if entry and owner.armed_path == entry.path then
-                        owner.armed_path = nil
-                        if Library.request("import") then storage.sf6cc_library_result = 1 end
-                    elseif entry then
-                        owner.armed_path = entry.path
-                    else
-                        Library.status_ok, Library.status = false, "请先选择配置"
-                    end
                 elseif kind == "notes" then
                     owner.armed_path = nil
                     local editor = State.editor
@@ -433,7 +431,7 @@ local ok, err = pcall(function()
                     owner.armed_path = nil
                     if Library.request(kind) then storage.sf6cc_library_result = 1 end
                 end
-                if (kind == "export" or kind == "refresh" or kind == "import" or kind == "save")
+                if (kind == "export" or kind == "refresh" or kind == "save")
                     and storage.sf6cc_library_result == 0 then refresh_library_page(args[4]) end
             end)
             if not success then
@@ -482,7 +480,7 @@ local ok, err = pcall(function()
                 or read(owner.selector, "_ChildData") ~= owner.installed
                 or sdk.to_managed_object(args[2]) ~= read(tm, "_UITrainingMenu")
                 or not library_page_visible(owner.visible_param) then return false end
-            owner.picker_index = nil
+            owner.picker_index, owner.armed_path = nil, nil
             if owner.name_browser then owner.name_browser.close() end
             return refresh_library_page(owner.visible_param)
         end)

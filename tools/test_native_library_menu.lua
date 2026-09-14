@@ -112,13 +112,14 @@ package.preload["SF6CCTrainingLibrary/Context"] = function() return {
     is_training_allowed=function() return training end, pause_open=function() return gs.in_pause_menu end,
 } end
 local requests, imported, exported, saved = {}, 0, 0, 0
+local catalog = { { path = "a.json" }, { path = "b.json" } }
 local library_context = { allowed = true, session = tm, data = tm._tData,
     fighter_id = 19, busy = false, menu_closed = false }
 local lib = dofile(os.getenv("SF6CC_TRAINING_LIBRARY_TEST_SOURCE") or "autorun/SF6CCTrainingLibrary/Library.lua").new({
     set_slot_name=name_test and function() return true end or nil,
     get_record_capacity=function() return 80 end,
     get_slot_name=function(i) return "name"..i end,
-    list_configs = function() return { { path = "a.json" }, { path = "b.json" } } end,
+    list_configs = function() return catalog end,
     read_config_metadata = function(path)
         return { title = path, fighter_name = "Ed", fighter_id = 19, source_player = "P2",
             description = path == "a.json" and "note A" or "note B" }
@@ -250,6 +251,7 @@ local function title(row)
     return result.text
 end
 local page=selector._ChildData:get_element(2)
+gs.in_pause_menu=true
 local function click(row,parent)
     local param=object({body_parent=parent,get_type_definition=function() return td("app.training.UIFlowTrainingMenu.Param") end})
     local skip,result=call_hook(FUNCTION,{0,tm._UIFunc,345,param,object({Data=row,ParentData=parent}),0},99)
@@ -265,9 +267,9 @@ end
 check("Presentation order and native separators preserve action rows",function()
     local rows=page._ChildData.items
     assert(title(rows[1])=="切换训练配置：爱德 Ed [a.json]")
-    assert(title(rows[2])=="导入所选配置")
-    assert(title(rows[3])=="保存当前配置" and title(rows[4])=="导出当前配置")
-    assert(title(rows[5])=="刷新配置列表")
+    assert(title(rows[2])=="保存当前配置" and title(rows[3])=="导出当前配置")
+    assert(title(rows[4])=="刷新配置列表")
+    for _,row in ipairs(rows) do assert(title(row)~="导入所选配置") end
     local separators=0
     for _,row in ipairs(rows) do
         if row._Type==4 then
@@ -282,22 +284,24 @@ check("Presentation order and native separators preserve action rows",function()
     assert(title(rows[#rows-1]):match("^栏位："))
     assert(rows[#rows].IsCantFocus)
 end)
-check("Selecting a configuration still does not import",function()
+local selected_picker, selected_row
+check("First configuration click selects and stays in picker without importing",function()
     local _,param=click(find("切换训练配置"),page)
     local picker=param.body_parent
     assert(picker~=page)
     local second=picker._ChildData:get_element(2)
     assert(title(second)=="2. 爱德 Ed [b.json]")
-    click(second,picker)
+    local result,after=click(second,picker)
+    assert(result==0 and after.body_parent==picker)
     assert(lib.selection().path=="b.json" and imported==0 and not lib.has_pending())
+    assert(title(second):find("确认",1,true))
+    selected_picker,selected_row=picker,second
 end)
-check("Import still requires two confirmations and closed-menu execution",function()
-    local row=find("导入所选配置")
-    assert(click(row,page)==0 and not lib.has_pending())
-    assert(title(row)=="确认导入（再次按确定）")
-    assert(click(row,page)==1 and lib.has_pending())
+check("Second click imports once, only after menu closes",function()
+    assert(click(selected_row,selected_picker)==1 and lib.has_pending())
+    click(selected_row,selected_picker)
     lib.tick(); assert(imported==0)
-    library_context.menu_closed=true; lib.tick()
+    library_context.menu_closed=true; lib.tick(); lib.tick()
     assert(imported==1 and requests[1]=="b.json")
     library_context.menu_closed=false
 end)
@@ -336,5 +340,113 @@ check("Chinese character labels never modify IDs or source metadata",function()
     assert(character("Future Fighter")=="Future Fighter")
     assert(character(nil)=="未知角色")
     assert(lib.selection().metadata.fighter_name=="Ed" and lib.selection().metadata.fighter_id==19)
+end)
+local function open_picker()
+    local _,param=click(find("切换训练配置"),page)
+    return param.body_parent,param
+end
+local function picker_row(picker,prefix)
+    for _,row in ipairs(picker._ChildData.items) do
+        if title(row):sub(1,#prefix)==prefix then return row end
+    end
+    error("missing picker row "..prefix)
+end
+check("Already selected file still requires two clicks; changing target cancels confirmation",function()
+    local before=imported
+    lib.select(1)
+    local picker=open_picker()
+    local a,b=picker._ChildData:get_element(1),picker._ChildData:get_element(2)
+    assert(click(a,picker)==0 and not lib.has_pending())
+    assert(click(b,picker)==0 and not lib.has_pending())
+    assert(click(a,picker)==0 and not lib.has_pending())
+    click(picker_row(picker,"返回"),picker)
+    picker=open_picker()
+    assert(click(a,picker)==0 and not lib.has_pending())
+    click(picker_row(picker,"返回"),picker)
+    assert(imported==before)
+end)
+check("Foreign parent, shared selection change and stale catalog cannot confirm import",function()
+    lib.select(1)
+    local picker=open_picker()
+    local a=picker._ChildData:get_element(1)
+    assert(click(a,page)==0 and not lib.has_pending())
+    assert(click(a,picker)==0 and not lib.has_pending())
+    assert(lib.select(2))
+    assert(click(a,picker)==0 and not lib.has_pending())
+    lib.refresh()
+    local result,param=click(a,picker)
+    assert(result==0 and param.body_parent==page and not lib.has_pending())
+end)
+check("Native rebuild callbacks cannot count as a second user click",function()
+    local picker=open_picker()
+    local row=picker._ChildData:get_element(1)
+    local old=tm._UIFunc.call
+    local nested=0
+    tm._UIFunc.call=function(...)
+        local outer=storage
+        assert(click(row,picker)==0 and not lib.has_pending())
+        storage=outer
+        nested=nested+1
+        return old(...)
+    end
+    local result=click(row,picker)
+    tm._UIFunc.call=old
+    assert(result==0 and nested==1 and not lib.has_pending())
+    click(picker_row(picker,"返回"),picker)
+end)
+check("Rejected import returns to status page and retains compatibility guard",function()
+    local picker=open_picker()
+    local row=picker._ChildData:get_element(1)
+    click(row,picker)
+    local meta=lib.selection().metadata
+    local fighter=meta.fighter_id
+    meta.fighter_id=28
+    local result,param=click(row,picker)
+    assert(result==0 and param.body_parent==page and not lib.has_pending() and not lib.status_ok)
+    meta.fighter_id=fighter
+end)
+check("Native back and closing pause discard armed confirmation",function()
+    local picker=open_picker()
+    local row=picker._ChildData:get_element(1)
+    local _,param=click(row,picker)
+    local view=object({Data=row,ParentData=picker})
+    param._ViewDataList={call=function(_,method)
+        if method=="get_Count" then return 1 end
+        assert(method=="get_Item"); return view
+    end}
+    local skip=call_hook("app.training.UITrainingMenu:OnCancelStart()",{0,tm._UITrainingMenu},0)
+    assert(skip=="skip" and param.body_parent==page)
+    picker=open_picker()
+    assert(click(row,picker)==0 and not lib.has_pending())
+    gs.in_pause_menu=false; tick(30); gs.in_pause_menu=true
+    picker=open_picker()
+    assert(click(row,picker)==0 and not lib.has_pending())
+    click(picker_row(picker,"返回"),picker)
+end)
+check("File-list paging cancels confirmation and does not consume a stale row",function()
+    for i=3,9 do catalog[i]={path="config"..i..".json"} end
+    lib.refresh("a.json")
+    local picker=open_picker()
+    local first=picker._ChildData:get_element(1)
+    click(first,picker)
+    local _,param=click(picker_row(picker,"下一页"),picker)
+    local second=param.body_parent
+    assert(second~=picker)
+    assert(click(first,second)==0 and not lib.has_pending())
+    _,param=click(picker_row(second,"上一页"),second)
+    assert(param.body_parent==picker)
+    assert(click(first,picker)==0 and not lib.has_pending())
+    click(picker_row(picker,"返回"),picker)
+end)
+check("Scene changes cancel a confirmed import before any recording write",function()
+    local before=imported
+    local picker=open_picker()
+    local row=picker._ChildData:get_element(1)
+    click(row,picker)
+    assert(click(row,picker)==1 and lib.has_pending())
+    library_context.menu_closed=true
+    library_context.session={}
+    lib.tick()
+    assert(imported==before and not lib.has_pending())
 end)
 print(passed.." native menu presentation checks passed (fake SDK)")

@@ -324,6 +324,20 @@ configuration-renaming workflow and accompanying UI regression check, not all
 reset/lifetime scenarios or a root-cause explanation of the previous candidate.
 No new commit, package or push was made for this acceptance.
 
+The accepted minimal title-edit version was subsequently committed as `421c021`
+at the user's request, before beginning the next feature. The new native-menu
+candidate removes the separate import row and moves its two-confirmation action
+to the file picker: first click selects and remains in the picker, second click
+on the same file queues the existing import. Navigation, cancellation and stale
+catalog checks clear confirmation, and layout callbacks cannot confirm a file.
+The sole changed runtime file is NativeMenu.lua; no import, bank, pager or
+title-edit backend is changed. Thirty-two fake-SDK menu checks pass, with live
+two-click interaction and cold-start pagination still pending. The existing
+Combo locals ceiling failure remains the only failing Lua test file (79/80).
+
+The user subsequently confirmed the two-click switch feature works normally.
+This accepts the reported menu workflow; no additional lifetime fix is implied.
+
 The active review procedures are [Human Review](review/HUMAN_REVIEW.md) and
 [Real-game Smoke](testing/REAL_GAME_SMOKE.md). Do not close a limitation by
 editing this file alone; close the underlying evidence or architecture gate
