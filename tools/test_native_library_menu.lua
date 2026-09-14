@@ -312,9 +312,9 @@ check("Reordered save and export retain their existing controller actions",funct
     library_context.menu_closed=false
 end)
 if note_test then
-    check("Notes remain notes, never configuration renaming",function()
+    check("Configuration rename uses existing editor request without new arguments",function()
         local before=note_requests
-        assert(click(find("编辑备注"),page)==1)
+        assert(click(find("修改训练配置名称"),page)==1)
         assert(note_requests==before+1 and requested_slot==nil)
         assert(saved==1 and imported==1)
     end)

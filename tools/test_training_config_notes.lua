@@ -16,7 +16,7 @@ local function fixture(mode)
         decode = function(raw) return copy(raw == "original bytes" and s.data or encodes[raw]) end,
         encode = function(data)
             if mode == "encode_error" then error("bad") end
-            local raw = "encoded" .. data.description
+            local raw = "encoded" .. data.title .. data.description
             if mode == "large" then raw=raw..string.rep(" ",5*1024*1024) end
             if mode == "oversize" then raw=raw..string.rep(" ",16*1024*1024) end
             encodes[raw] = copy(data)
@@ -41,19 +41,19 @@ local function fixture(mode)
 end
 local n = 0
 local function test(name, fn) fn(); n = n + 1; print("PASS notes store: " .. name) end
-test("only description changes, exact original backup precedes write", function()
+test("only title changes, exact original backup precedes write", function()
     local s = fixture(); local edit = assert(s.store.prepare(PATH))
-    assert(#s.writes == 0 and edit.description == "old")
+    assert(#s.writes == 0 and edit.text == "title")
     assert(edit.save("\u{5907}\u{6ce8}"))
     assert(#s.writes == 2 and s.writes[1].path ~= PATH and s.writes[1].raw == "original bytes")
-    assert(s.saved.description == "\u{5907}\u{6ce8}" and s.saved.title == "title" and s.saved.created_at == "date")
+    assert(s.saved.title == "\u{5907}\u{6ce8}" and s.saved.description == "old" and s.saved.created_at == "date")
     assert(s.saved.slots[1].buff[3] == 3 and s.saved.slots[1].untouched and s.saved.unknown.future == "keep")
     assert(not edit.save("again") and #s.writes == 2)
 end)
-test("cancel by discarding transaction has no writes; unchanged and clearing", function()
+test("cancel and unchanged title have no writes; empty name is rejected", function()
     local s = fixture(); assert(s.store.prepare(PATH)); assert(#s.writes == 0)
-    assert(s.store.prepare(PATH).save("old") and #s.writes == 0)
-    assert(s.store.prepare(PATH).save("") and s.saved.description == "")
+    assert(s.store.prepare(PATH).save("title") and #s.writes == 0)
+    assert(not s.store.prepare(PATH).save("") and #s.writes == 0)
 end)
 test("external edit or deletion is not overwritten", function()
     for _, raw in ipairs({ "external change", false }) do
@@ -65,7 +65,7 @@ for _, mode in ipairs({ "encode_error", "roundtrip_loss", "backup_failure", "wri
     test(mode, function()
         local s = fixture(mode); local edit = assert(s.store.prepare(PATH))
         local ok, message = edit.save("new"); assert(not ok)
-        if mode == "restore_failure" then assert(message:find("notes_", 1, true))
+        if mode == "restore_failure" then assert(message:find("name_", 1, true))
         elseif mode == "concurrent_backup" then assert(s.files[PATH] == "external change")
         else assert(s.files[PATH] == "original bytes") end
     end)
@@ -77,13 +77,16 @@ test("schema and path scope protect unrelated files", function()
     end
     s.data.schema = "xt.combo_trial"; assert(not s.store.prepare(PATH) and #s.writes == 0)
 end)
-test("invalid or overlength notes cannot write or silently truncate", function()
+test("invalid names cannot write; long existing title is not silently truncated", function()
     local s = fixture()
     for _, text in ipairs({ string.rep("x", 16), "<tag>", "a\nb", string.char(255) }) do
         assert(not s.store.prepare(PATH).save(text))
     end
-    s.data.description = string.rep("x", 16)
-    assert(not s.store.prepare(PATH) and #s.writes == 0)
+    s.data.title = string.rep("x", 16)
+    assert(s.store.prepare(PATH).text == "" and #s.writes == 0)
+    s.data.description = string.rep("old note", 20)
+    assert(s.store.prepare(PATH).save("replacement"))
+    assert(s.saved.title == "replacement" and s.saved.description == s.data.description)
 end)
 test("backend loads note dependency during autorun, not deferred callback", function()
     local startup, reads, writes, loads = true, 0, 0, 0
@@ -108,7 +111,7 @@ test("backend loads note dependency during autorun, not deferred callback", func
     startup = false
     assert(reads == 0 and writes == 0)
     local ok, edit = pcall(backend.prepare_note_edit, PATH)
-    assert(ok and edit and edit.description == "", tostring(edit))
+    assert(ok and edit and edit.text == "", tostring(edit))
     assert(loads == 1 and reads == 1 and writes == 0)
 end)
 

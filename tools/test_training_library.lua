@@ -223,10 +223,10 @@ test("Chinese outcome comes from receipt, not English diagnostic parsing", funct
     assert(lib.request("import")); lib.tick()
     assert(not lib.status_ok and not lib.status:find("ForceApply", 1, true))
 end)
-test("note transaction locks selected file and defers prepare/save IO", function()
+test("configuration name transaction locks selected file and defers prepare/save IO", function()
     local lib, ctx, calls, records = fixture()
     assert(lib.refresh()); local prep, commit = 0, 0
-    local edit = { description = "old" }
+    local edit = { text = "old" }
     records.prepare_note_edit = function(path) prep = prep + 1; assert(path == "configs/a.json"); return edit end
     records.commit_note_edit = function(e, text) commit = commit + 1; assert(e == edit and text == "new"); return true, "saved" end
     local token = assert(lib.begin_note_edit())
@@ -238,10 +238,10 @@ test("note transaction locks selected file and defers prepare/save IO", function
     assert(lib.selection().path == "configs/a.json" and calls.import == 0 and calls.export == 0)
     assert(not lib.submit_note_edit(token, "again"))
 end)
-test("cancellation and changed context never commit notes", function()
+test("cancellation and changed context never commit configuration names", function()
     local lib, ctx, _, records = fixture(); lib.refresh()
     local commits = 0
-    records.prepare_note_edit = function() return { description = "" } end
+    records.prepare_note_edit = function() return { text = "" } end
     records.commit_note_edit = function() commits = commits + 1 end
     local token = lib.begin_note_edit(); ctx.menu_closed = true; lib.prepare_note_edit(token)
     lib.cancel_note_edit(token); assert(not lib.has_pending() and not lib.submit_note_edit(token, "x"))

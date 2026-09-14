@@ -241,7 +241,7 @@ local function install(tm)
         local key, prefix = field[1], field[2]
         local edit_note = key == "notes" and note_editor ~= nil
         details[#details + 1] = menu_data(0, function()
-            if edit_note then return "编辑备注：" .. Library.selection_details().notes end
+            if edit_note then return "修改训练配置名称" end
             return prefix .. Library.selection_details()[key]
         end, true, nil, nil, not edit_note)
     end

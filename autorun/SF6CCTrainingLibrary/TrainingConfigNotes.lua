@@ -52,11 +52,12 @@ function M.new(deps)
             or (data.description ~= nil and type(data.description) ~= "string") then
             return nil, "配置不可读或格式不支持，未修改文件"
         end
-        local initial = data.description or ""
-        if not snapshot_update and not valid_note(initial) then return nil, "现有备注超出原生输入限制，未修改文件" end
+        local initial = data.title or ""
+        if not snapshot_update and type(initial) ~= "string" then return nil, "配置名称格式无效，未修改文件" end
         local consumed = false
-        return { description = initial, save = function(text)
-            if consumed then return false, "备注编辑已结束" end
+        -- The native editor replaces an overlength title; cancel never truncates the file.
+        return { text = valid_note(initial) and initial or "", save = function(text)
+            if consumed then return false, "配置编辑已结束" end
             consumed = true
             if snapshot_update then
                 if type(text) ~= "table" or text.schema ~= data.schema or not data.fighter_id
@@ -66,7 +67,11 @@ function M.new(deps)
                     or type(text.annotations) ~= "table" then
                     return false, "配置角色或快照格式不匹配，未覆盖文件"
                 end
-            elseif not valid_note(text) then return false, "备注应为最多15个字符，且不能包含控制符或标记" end
+            else
+                if not valid_note(text) then return false, "配置名称应为最多15个字符，且不能包含控制符或标记" end
+                text = text:match("^%s*(.-)%s*$")
+                if text == "" then return false, "配置名称不能为空，文件未修改" end
+            end
             if read(path) ~= raw then return false, "配置已被外部修改或删除，请刷新后重试" end
             if snapshot_update then
                 -- Keep the selected file's title, description and unknown metadata.
@@ -74,8 +79,8 @@ function M.new(deps)
                     data[key] = text[key]
                 end
             else
-                if text == initial then return true, "备注未变化", path end
-                data.description = text
+                if text == initial then return true, "配置名称未变化", path end
+                data.title = text
             end
             local ok, encoded = pcall(deps.encode, data)
             if not ok or type(encoded) ~= "string" or encoded == "" then return false, "配置序列化失败，原文件未修改" end
@@ -86,7 +91,7 @@ function M.new(deps)
             local backup
             for _ = 1, 100 do
                 serial = serial + 1
-                local candidate = "SF6CC_TrainingConfigs/backups/" .. (snapshot_update and "update_" or "notes_")
+                local candidate = "SF6CC_TrainingConfigs/backups/" .. (snapshot_update and "update_" or "name_")
                     .. deps.stamp() .. "_" .. serial .. ".json"
                 if not deps.exists(candidate) then backup = candidate; break end
             end
@@ -100,7 +105,7 @@ function M.new(deps)
                 return false, restored and "配置保存失败，原文件已恢复"
                     or ("配置保存失败，请从备份恢复：" .. backup)
             end
-            return true, snapshot_update and "配置已保存" or "备注已保存", path
+            return true, snapshot_update and "配置已保存" or "配置名称已保存", path
         end }
     end
     return { prepare = function(path) return prepare(path, false) end,

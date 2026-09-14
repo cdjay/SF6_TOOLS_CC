@@ -9,9 +9,12 @@ local function fixture(mode)
         list_configs = function() return {
             { path = "a.json", filename = "a.json" }, { path = "b.json", filename = "b.json" },
         } end,
-        read_config_metadata = function() return { description = s.saved or "old" } end,
-        prepare_note_edit = function() return { description = s.saved or "old" } end,
-        commit_note_edit = function(_, text) s.saves = s.saves + 1; s.saved = text; return true, "saved" end,
+        read_config_metadata = function() return { title = s.saved or "old", description = "preserved note" } end,
+        prepare_note_edit = function() return { text = s.saved or "old" } end,
+        commit_note_edit = function(_, text)
+            if text:match("^%s*$") then return false, "empty title" end
+            s.saves = s.saves + 1; s.saved = text; return true, "saved"
+        end,
     }
     if mode=="slot" then
         records.get_record_capacity=function() return 80 end
@@ -27,7 +30,7 @@ local function fixture(mode)
         local title = { call = function(_, method, value)
             if method == "get_Name" then return "e_text_title" end
             if method == "get_Child" or method == "get_Next" then return nil end
-            assert(method == "set_Message" and value == (mode=="slot" and "栏位80名称" or "\u{5907}\u{6ce8}")); s.titles = s.titles + 1
+            assert(method == "set_Message" and value == (mode=="slot" and "栏位80名称" or "训练配置名称")); s.titles = s.titles + 1
         end, get_type_definition = function() return type_ref("via.gui.Text") end }
         local root = { call = function(_, method)
             if method == "get_Name" then return "c_main" end
@@ -123,13 +126,14 @@ local function check(name, fn) fn(); n = n + 1; print("PASS native notes: " .. n
 check("prefill, native title, deferred save and refreshed metadata", function()
     local s = fixture(); s.open(); assert(s.titles == 1 and s.editor.title_changed)
     assert(not s.lib.select(1)); s.confirm("\u{5907}\u{6ce8}")
-    assert(s.saves == 1 and s.lib.selection().metadata.description == "\u{5907}\u{6ce8}" and not s.lib.has_pending())
+    assert(s.saves == 1 and s.lib.selection().metadata.title == "\u{5907}\u{6ce8}" and not s.lib.has_pending())
+    assert(s.lib.selection().metadata.description == "preserved note")
 end)
-check("nil cancel discards; empty confirmation clears", function()
+check("nil cancel discards; empty configuration name cannot save", function()
     local s = fixture(); s.open()
     s.fire("Cancel()", s.widget); s.fire("InvokeResultEvent(System.String)", s.widget, nil, true)
     s.ended = true; s.advance(); assert(s.saves == 0 and not s.lib.has_pending())
-    s.open(); s.confirm(""); assert(s.saves == 1 and s.saved == "")
+    s.open(); s.confirm(""); assert(s.saves == 0 and s.saved == nil and not s.lib.status_ok)
 end)
 check("repeated edits reuse delegate and never reuse a finished transaction", function()
     local s = fixture(); s.open(); s.confirm("first"); s.open(); s.confirm("second")

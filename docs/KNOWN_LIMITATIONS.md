@@ -302,6 +302,28 @@ deployed; title editing remains withdrawn. Any reimplementation must isolate
 the triggering change instead of dismissing it as unrelated or changing the
 accepted pagination mechanism at the same time.
 
+The recovered menu baseline was committed as `8224814`. A subsequent minimal
+title-edit candidate reuses the existing editor request and deferred file job,
+replacing only the edited JSON field and prefill text contract. It introduces
+no new editor mode, native hook or request argument. Four Lua modules were
+deployed; Records, the entry, native bank/pager modules and configuration files
+were unchanged. The real controller/store integration test covers title-only
+writes, stable path selection, repeated edits, cancellation and conflicts.
+Offline results are 79/80 Lua test files (same existing Combo locals failure).
+Cold-start pagination followed by title editing is still awaiting user
+acceptance; this candidate is not proof of the initialization failure's cause.
+
+The user subsequently accepted the minimal candidate with four screenshots:
+configuration label shows 测试配置功能; recording page 10/10 displays slots
+73-80; playback paging and the renamed first slot remain visible; the reversal
+recording picker shows the same slot name and entries beyond slot 8. A read-only
+check confirmed title 测试配置功能, FighterID 28 and 80 slots in the unchanged
+filename Mai_20260915_024812.json. The log for the 03:44:55 entry load had no
+TrainingLibrary initialization error at inspection. This accepts the reported
+configuration-renaming workflow and accompanying UI regression check, not all
+reset/lifetime scenarios or a root-cause explanation of the previous candidate.
+No new commit, package or push was made for this acceptance.
+
 The active review procedures are [Human Review](review/HUMAN_REVIEW.md) and
 [Real-game Smoke](testing/REAL_GAME_SMOKE.md). Do not close a limitation by
 editing this file alone; close the underlying evidence or architecture gate

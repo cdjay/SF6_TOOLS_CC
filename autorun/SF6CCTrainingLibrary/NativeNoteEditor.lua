@@ -65,7 +65,7 @@ function Editor.install()
             end
         end
         if #titles ~= 1 then return false end
-        titles[1]:call("set_Message", active and active.slot and ("栏位"..active.slot.."名称") or "备注")
+        titles[1]:call("set_Message", active and active.slot and ("栏位"..active.slot.."名称") or "训练配置名称")
         return true
     end
     local function hide()
@@ -112,12 +112,12 @@ function Editor.install()
     end)
     function M.request(slot)
         if stopped or not ready or halted or pending or active or Library.has_pending() then
-            status(false, "备注编辑暂不可用，或有其他操作尚未完成"); return false
+            status(false, "名称编辑暂不可用，或有其他操作尚未完成"); return false
         end
         pending = Library.begin_note_edit(slot)
         if not pending then return false end
         pending.deadline = os.time() + 10
-        status(true, slot and "关闭暂停菜单后修改栏位名称；导出配置后保留" or "关闭暂停菜单后编辑所选配置的备注")
+        status(true, slot and "关闭暂停菜单后修改栏位名称；导出配置后保留" or "关闭暂停菜单后修改训练配置名称（最多15个字符）")
         return true
     end
     local function update()
@@ -156,13 +156,13 @@ function Editor.install()
             if job.aborted or job.phase == "cancel" then Library.cancel_note_edit(job)
             elseif job.result_phase == "decide" and job.callback_seen and job.text ~= nil then
                 Library.submit_note_edit(job, job.text)
-            else Library.cancel_note_edit(job); status(false, "未收到有效的确认结果，备注未保存") end
+            else Library.cancel_note_edit(job); status(false, "未收到有效的确认结果，名称未保存") end
             release_prefill(job)
             job.text, active = nil, nil
             return
         end
         if job.hide_requested and os.time() > job.hide_deadline then
-            halted = true; status(false, "请按游戏返回键关闭弹窗，备注未保存"); return
+            halted = true; status(false, "请按游戏返回键关闭弹窗，名称未保存"); return
         end
         if not same(ctx, job) or os.time() > job.deadline then hide(); return end
         if not job.shown and job.widget:call("get_IsShow") == true then
@@ -183,7 +183,7 @@ function Editor.install()
             pending = nil
             if active and active.widget then hide() else release_prefill(active); active = nil end
             if log and log.error then log.error("[NativeNoteEditor] Stopped: " .. tostring(detail)) end
-            status(false, "备注编辑已停止，文件未修改，请正常关闭弹窗")
+            status(false, "名称编辑已停止，文件未修改，请正常关闭弹窗")
         end
     end)
     re.on_script_reset(function()

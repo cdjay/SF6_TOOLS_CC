@@ -185,7 +185,7 @@ function M.new(records, context, choices)
     function self.cancel_note_edit(token)
         if token == nil or note_edit ~= token then return end
         note_edit = nil
-        status(true, "已取消备注编辑，文件未修改")
+        status(true, "已取消编辑，文件未修改")
     end
     function self.prepare_note_edit(token)
         local ctx = note_context(token)
@@ -203,14 +203,14 @@ function M.new(records, context, choices)
             return nil
         end
         token.edit = edit
-        return edit.description
+        return edit.text
     end
     function self.submit_note_edit(token, text)
         if not note_context(token) or not token.edit then self.cancel_note_edit(token); return false end
         pending = { kind = token.slot and "slot_name" or "notes", slot=token.slot, path = token.path, edit = token.edit, text = text,
             session = token.session, data = token.data, fighter_id = token.fighter_id }
         note_edit = nil
-        status(true, token.slot and "名称已确认，关闭弹窗后应用" or "备注已确认，关闭弹窗后保存")
+        status(true, token.slot and "名称已确认，关闭弹窗后应用" or "配置名称已确认，关闭弹窗后保存")
         return true
     end
     function self.tick()
@@ -248,9 +248,9 @@ function M.new(records, context, choices)
         if job.kind == "notes" then
             local ok, success, msg = pcall(records.commit_note_edit, job.edit, job.text)
             self.result_revision = self.result_revision + 1
-            if not ok or success ~= true then status(false, ok and msg or "备注保存失败，请检查原文件备份"); return end
-            if not self.refresh(job.path) then status(false, "备注已保存，但列表刷新失败，请手动刷新"); return end
-            status(true, msg or "备注已保存")
+            if not ok or success ~= true then status(false, ok and msg or "配置名称保存失败，请检查原文件备份"); return end
+            if not self.refresh(job.path) then status(false, "配置名称已保存，但列表刷新失败，请手动刷新"); return end
+            status(true, msg or "配置名称已保存")
             return
         end
         local ok, success, msg, path, payload, receipt
