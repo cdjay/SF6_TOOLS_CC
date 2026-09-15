@@ -1,4 +1,4 @@
--- Native navigation only: never rebuild widgets from an update callback.
+-- Commit owned native spins before their repaint; queue other command paths.
 -- Message routing follows the MIT-licensed Wael NativeOptions technique.
 local M = {}
 local DYNAMIC = 345
@@ -16,7 +16,7 @@ function M.control(api, own, capacity, page_size)
         local guid = assert(api.find_type_definition("System.Guid")):get_field("Empty"):get_data(nil):NewGuid()
         local key = M.key(guid)
         assert(key ~= string.rep("0", 32) and not texts[key], "invalid pager GUID")
-        local row = own(api.create_instance("app.training.TrainingMenuData"))
+        local row = own(api.create_instance_global("app.training.TrainingMenuData"))
         for key, value in pairs({ _Type = kind, _FuncType = DYNAMIC, IsEnabled = true,
             IsCantFocus = false, IsNotFocusFunc = false, _Interval = 1, _Interval_Option = 1,
             _GuidIcon = -1, _GuidAddIcon = -1, VisibleCase = 0 }) do row:set_field(key, value) end
@@ -39,11 +39,15 @@ function M.control(api, own, capacity, page_size)
     return row,texts,labels
 end
 
-function M.new(api, threads, current, allowed, report)
+function M.new(api, threads, current, allowed, report, blocked, readable)
+    readable = readable or allowed
     local self, depths, layouts, spins, refreshing, stopped = {}, {}, {}, {}, false, false
+    local pending
     local function equal(a,b) return a and b and a:get_address()==b:get_address() end
-    local function menu(owner)
-        if not allowed() then return nil end
+    local function menu(owner, presentation)
+        if presentation then
+            if not readable() then return nil end
+        elseif not allowed() then return nil end
         local entry = current()
         if not entry or entry.phase ~= "active" or entry.released then return nil end
         local actual = api.to_managed_object(owner)
@@ -51,11 +55,12 @@ function M.new(api, threads, current, allowed, report)
         if not actual or not expected or actual:get_address() ~= expected:get_address() then return nil end
         return entry.menu, entry
     end
-    local function spin_context(owner)
-        local m,entry=menu(owner); if not m then return end
+    local function spin_context(owner, presentation)
+        local m,entry=menu(owner,presentation); if not m then return end
         local layout=layouts[threads.get_id()]
         if depths[threads.get_id()] then
-            return m,layout and m.pager_info(layout) or nil,layout
+            local row=layout and m.pager_for_layout(layout)
+            return m,row and m.pager_info(row) or nil,row
         end
         -- No remembered row from an earlier layout: resolve the current native focus.
         local ui=entry.manager:get_field("_UITrainingMenu")
@@ -63,7 +68,11 @@ function M.new(api, threads, current, allowed, report)
         local group=param and param:get_field("_SecondaryList")
         local list=param and param:get_field("_ViewDataList")
         if not group or not list then return end
-        local focus=group:call("GetFocusIndex")
+        -- During opening, the cursor may still belong to the previous page.
+        -- Read the spinner being initialized, never treat it as user input.
+        local focus
+        if presentation and not allowed() then focus=param:get_field("_SecondarySpinIndex")
+        else focus=group:call("GetFocusIndex") end
         local count=list:call("get_Count")
         if type(count)~="number" or count<0 or count>32 then return end
         if type(focus)~="number" or focus%1~=0 or focus<0 or focus>=count then return end
@@ -75,18 +84,44 @@ function M.new(api, threads, current, allowed, report)
     local function change(ui,m,entry,param,data,parent,wanted)
         if stopped or refreshing then return end
         local info=m.pager_info(data)
-        if not info or wanted<0 or wanted>=info.count or wanted==info.index then return end
+        if not info or wanted<0 or wanted>=info.count then return end
         assert(param:get_type_definition():get_full_name()=="app.training.UIFlowTrainingMenu.Param",
             "unexpected pager parameter")
-        refreshing=true
+        if wanted==info.index then pending=nil; return end
+        -- Session owns the menu roots. Borrowed UI wrappers never cross ticks;
+        -- addresses are identity checks only, never converted back to objects.
+        pending={entry=entry,ui=ui:get_address(),param=param:get_address(),
+            data=data:get_address(),parent=parent:get_address(),index=info.index,wanted=wanted,ticks=0}
+    end
+    function self.cancel() pending=nil end
+    function self.tick()
+        if stopped or not pending then return end
         local ok,err=pcall(function()
+            local job=pending
+            local entry=current()
+            if not allowed() or entry~=job.entry or entry.phase~="active" or entry.released then
+                pending=nil; return
+            end
+            if next(depths) or next(spins) or refreshing or (blocked and blocked()) then
+                job.ticks=0; return
+            end
+            local ui=entry.manager:get_field("_UIFunc")
+            if not ui or ui:get_address()~=job.ui then pending=nil; return end
+            local m,info,data,parent,param,live=spin_context(ui)
+            if live~=entry or not info or info.index~=job.index
+                or param:get_address()~=job.param or data:get_address()~=job.data
+                or parent:get_address()~=job.parent then pending=nil; return end
+            job.ticks=job.ticks+1
+            if job.ticks<2 then return end
+            pending=nil
+            refreshing=true
             entry.with_menu_navigation(ui,data,parent,function()
-                assert(m.navigate(data,parent,wanted),"pager navigation refused")
-                assert(ui:call(VIEW,param,parent,0)==true,"pager view update failed")
+                assert(m.navigate(data,parent,job.wanted),"pager navigation refused")
+                m.invalidate_view(param,data,parent)
             end)
         end)
         refreshing=false
-        if not ok then stopped=true; pcall(report,tostring(err)) end
+        if not ok then pending=nil; stopped=true; pcall(report,tostring(err)) end
     end
     function self.install()
         local function method(kind, signature)
@@ -103,7 +138,7 @@ function M.new(api, threads, current, allowed, report)
         local option_text=method("app.training.TrainingMenuFunc","GetOptionText(app.training.TrainingFuncType)")
         local spin=method("app.training.UIFlowTrainingMenu.Param","OnUpdateSpin()")
         -- GetOptionIndex also probes neighbouring options. Only the ViewData
-        -- selection committed by the native setter authorizes a page rebuild.
+        -- selection committed by the native setter authorizes a row rebind.
         api.hook(spin,function(args)
             local storage=threads.get_hook_storage()
             local id=threads.get_id()
@@ -140,7 +175,7 @@ function M.new(api, threads, current, allowed, report)
             local storage=threads.get_hook_storage()
             storage.sf6cc_pager_previous_layout=layouts[id]
             layouts[id]=nil
-            local ok,data=pcall(function() if menu(args[2]) then return api.to_managed_object(args[4]) end end)
+            local ok,data=pcall(function() if menu(args[2],true) then return api.to_managed_object(args[4]) end end)
             if ok then layouts[id]=data end
         end, function(retval)
             local id=threads.get_id(); local depth=(depths[id] or 1)-1
@@ -167,37 +202,87 @@ function M.new(api, threads, current, allowed, report)
             end)
         end
         value_hook(focus,"sf6cc_pager_focus",function(args)
-            local m=menu(args[2]); local v=api.to_managed_object(args[4])
+            local m=menu(args[2],true); local v=api.to_managed_object(args[4])
             if m and v and m.owns_pager(v:get_field("Data"),v:get_field("ParentData")) then
                 return m.pager_info(v:get_field("Data")).index
             end
         end)
         value_hook(index,"sf6cc_pager_index",function(args)
-            local _,info=spin_context(args[2]); if not info then return end
-            if stopped or depths[threads.get_id()] then return info.index end
+            local _,info=spin_context(args[2],true); if not info then return end
+            if stopped or depths[threads.get_id()] or not allowed() then return info.index end
             local wanted=api.to_int64(args[4]) & 0xFFFFFFFF
             if wanted>=0x80000000 then wanted=wanted-0x100000000 end
             wanted=wanted % info.count
             return wanted
         end)
         value_hook(option_text,"sf6cc_pager_option_text",function(args)
-            local _,info=spin_context(args[2]); return info and info.label or nil
+            local _,info=spin_context(args[2],true); return info and info.label or nil
         end)
         api.hook(action, function(args)
             local storage = threads.get_hook_storage()
             storage.sf6cc_record_pager_result = nil
             local ok, err = pcall(function()
-                if (api.to_int64(args[3]) & 0xFFFFFFFF) ~= DYNAMIC then return end
+                local kind=api.to_int64(args[3]) & 0xFFFFFFFF
+                if kind~=DYNAMIC and kind~=118 and kind~=131 then return end
                 local m, entry = menu(args[2]); if not m then return end
                 local view_data = api.to_managed_object(args[5]); if not view_data then return end
                 local data, parent = view_data:get_field("Data"), view_data:get_field("ParentData")
-                if not m.owns_pager(data, parent) then return end
-                storage.sf6cc_record_pager_result = 0
+                local enabled=m.command_active and m.command_active(data,parent)
+                if enabled~=nil and (not enabled or stopped) then
+                    storage.sf6cc_record_pager_result=0; return
+                end
+                if kind~=DYNAMIC then return end
+                local owned=m.owns_pager(data,parent)
+                if owned then storage.sf6cc_record_pager_result=0 end
                 if stopped or depths[threads.get_id()] or refreshing then return end
-                if spins[threads.get_id()] then return end
+                local spin=spins[threads.get_id()]
+                if spin then
+                    if blocked and blocked() then return end
+                    local ui=api.to_managed_object(args[2])
+                    local param=api.to_managed_object(args[4])
+                    if spin.m~=m or spin.entry~=entry or not equal(ui,spin.ui)
+                        or not equal(param,spin.param) then return end
+                    local live,info,live_data,live_parent,live_param,live_entry,v=spin_context(ui)
+                    if live~=m or live_entry~=entry or not info or info.index~=spin.index
+                        or not equal(live_data,spin.data) or not equal(live_parent,spin.parent)
+                        or not equal(live_param,param) or not equal(v,spin.view) then return end
+                    local wanted=v:get_field("Index")
+                    if type(wanted)~="number" or wanted%1~=0 or wanted<0 or wanted>=info.count then return end
+                    local argument=api.to_int64(args[6]) & 0xFFFFFFFF
+                    if owned then
+                        if not equal(view_data,v) or not equal(data,live_data)
+                            or not equal(parent,live_parent) or argument~=wanted then return end
+                    else
+                        -- UpdateSpinBox also passes a temporary child ViewData.
+                        -- Its int argument is the spinner row, not the page value.
+                        if not equal(parent,live_data) then return end
+                        local options=live_data:get_field("_ChildData")
+                        if not options or options:get_size()~=info.count
+                            or not equal(data,options:get_element(wanted)) then return end
+                        local spinner=param:get_field("_SecondarySpinIndex")
+                        local views=param:get_field("_ViewDataList")
+                        local count=views and views:call("get_Count")
+                        if type(spinner)~="number" or spinner%1~=0 or spinner<0
+                            or type(count)~="number" or count>32 or spinner>=count
+                            or argument~=spinner or not equal(views:call("get_Item",spinner),v) then return end
+                    end
+                    storage.sf6cc_record_pager_result=0
+                    pending=nil
+                    if wanted==info.index then return end
+                    -- UpdateSpinBox has committed Index and will repaint after
+                    -- this Function callback. Do not invoke a native refresh.
+                    refreshing=true
+                    entry.with_menu_navigation(ui,live_data,live_parent,function()
+                        assert(m.navigate(live_data,live_parent,wanted),"native spin navigation refused")
+                        m.invalidate_view(param,live_data,live_parent)
+                    end)
+                    refreshing=false
+                    return
+                end
+                if not owned then return end
                 local wanted=api.to_int64(args[6]) & 0xFFFFFFFF
                 local info=m.pager_info(data)
-                if wanted>=info.count or wanted==info.index then return end
+                if wanted>=info.count then return end
                 local param = assert(api.to_managed_object(args[4]))
                 local ui = api.to_managed_object(args[2])
                 change(ui,m,entry,param,data,parent,wanted)
@@ -211,18 +296,24 @@ function M.new(api, threads, current, allowed, report)
         api.hook(active, function(args)
             local storage = threads.get_hook_storage()
             storage.sf6cc_record_pager_active = nil
-            local ok, owned = pcall(function()
-                if (api.to_int64(args[3]) & 0xFFFFFFFF) ~= DYNAMIC then return false end
-                local m = menu(args[2]); if not m then return false end
+            local ok, enabled = pcall(function()
+                local kind=api.to_int64(args[3]) & 0xFFFFFFFF
+                if kind~=DYNAMIC and kind~=118 and kind~=131 then return end
+                local m = menu(args[2],true); if not m then return end
                 local v = api.to_managed_object(args[4])
-                return v and m.owns_pager(v:get_field("Data"), v:get_field("ParentData"))
+                if not v then return end
+                local data,parent=v:get_field("Data"),v:get_field("ParentData")
+                local usable=m.command_active and m.command_active(data,parent)
+                if usable~=nil and (not usable or stopped) then return false end
+                if m.owns_pager(data,parent) then return not stopped end
             end)
-            if ok and owned then
-                storage.sf6cc_record_pager_active = true
+            if ok and enabled~=nil then
+                storage.sf6cc_record_pager_active = enabled
                 return api.PreHookResult.SKIP_ORIGINAL
             end
         end, function(retval)
-            if threads.get_hook_storage().sf6cc_record_pager_active then return api.to_ptr(stopped and 0 or 1) end
+            local enabled=threads.get_hook_storage().sf6cc_record_pager_active
+            if enabled~=nil then return api.to_ptr(enabled and 1 or 0) end
             return retval
         end)
         api.hook(message, function(args)

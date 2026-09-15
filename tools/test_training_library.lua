@@ -22,6 +22,47 @@ local function fixture()
 end
 local function test(name, fn) fn(); passed = passed + 1; print("PASS " .. name) end
 
+test("abandon drops an initializing job without native cleanup or context access",function()
+    local lib,ctx,calls,records=fixture()
+    local cancelled=0
+    records.begin_import=function()
+        return true,"initializing",nil,nil,{kind="initializing",count=1,
+            task={tick=function() return false end,cancel=function() cancelled=cancelled+1 end}}
+    end
+    lib.refresh(); assert(lib.request("import")); ctx.menu_closed=true; lib.tick()
+    assert(lib.has_pending())
+    local reads=calls.context
+    lib.abandon(); assert(not lib.has_pending() and calls.context==reads and cancelled==0)
+    lib.tick(); assert(cancelled==0)
+end)
+
+test("backup and restore are deferred jobs with captured options and session checks",function()
+    for _,kind in ipairs({"backup","restore"}) do
+        local lib,ctx,_,records=fixture()
+        local applied=0
+        records.backup_current=function() applied=applied+1; return true,"backed up" end
+        records.restore_latest_backup=function(options)
+            assert(options.clear_empty_slots); applied=applied+1; return true,"restored"
+        end
+        assert(lib.request(kind)); lib.tick(); assert(applied==0)
+        lib.options.clear_empty_slots=false
+        ctx.menu_closed=true; lib.tick(); lib.tick()
+        assert(applied==1 and not lib.has_pending())
+        assert(lib.request(kind)); ctx.session={}; lib.tick(); assert(applied==1)
+    end
+end)
+test("input error requests cancellation, native cleanup waits for the safe job tick",function()
+    local lib,ctx,_,records=fixture()
+    local cancelled=0
+    records.begin_import=function()
+        return true,"initializing",nil,nil,{kind="initializing",count=1,
+            task={tick=function() return false end,cancel=function() cancelled=cancelled+1 end}}
+    end
+    lib.refresh(); lib.request("import"); ctx.menu_closed=true; lib.tick()
+    lib.request_cancel(); assert(cancelled==0 and lib.has_pending())
+    lib.tick(); lib.tick(); assert(cancelled==1 and not lib.has_pending())
+end)
+
 test("clear works without saved files, waits for pause close and never changes catalog", function()
     local lib, ctx, calls, records = fixture()
     local cleared = 0
@@ -173,6 +214,8 @@ test("failed automatic load is not retried by redraw", function()
 end)
 test("runtime context uses verified recorder getters and rejects stale context", function()
     local saved_sdk = sdk
+    local saved_context=package.loaded["SF6CCTrainingLibrary/Context"]
+    local saved_records=package.loaded["SF6CCTrainingLibrary/Records"]
     local rec = { call = function(_, name)
         assert(name == "IsRecording" or name == "IsReplayNow"); return false
     end }
@@ -187,11 +230,14 @@ test("runtime context uses verified recorder getters and rejects stale context",
     end }
     package.loaded["SF6CCTrainingLibrary/Context"] = { is_training_allowed = function() return true end }
     package.loaded["SF6CCTrainingLibrary/Records"] = { get_context = function() return { fighter_id = 19 } end }
-    local ctx = Module.runtime_context()
+    local runtime_module=dofile("autorun/SF6CCTrainingLibrary/Library.lua")
+    local ctx = runtime_module.runtime_context()
     assert(ctx.session == tm and ctx.data == rec and ctx.fighter_id == 19 and ctx.menu_closed and not ctx.busy)
     rec.call = function() return nil end
-    assert(Module.runtime_context().busy)
+    assert(runtime_module.runtime_context().busy)
     sdk = saved_sdk
+    package.loaded["SF6CCTrainingLibrary/Context"]=saved_context
+    package.loaded["SF6CCTrainingLibrary/Records"]=saved_records
 end)
 test("selection details follow file without rereading JSON", function()
     local lib, _, _, records = fixture()

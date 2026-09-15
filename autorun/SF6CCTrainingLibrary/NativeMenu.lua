@@ -1,12 +1,13 @@
 -- SF6CC native recording-menu pilot: shared library backend, deferred operations.
 -- Research build. Do not include in releases until real-game acceptance completes.
--- Revision 6: snapshot file lists; native navigation owns all visible rebuilds.
+-- Input callbacks enqueue; pre LateUpdateBehavior owns page construction.
 -- Native text technique adapted from Wael Hadjmouldi's MIT-licensed NativeOptions.
 local State = require("SF6CCTrainingLibrary/State")
 local Safety = require("SF6CCTrainingLibrary/Context")
 local Library = require("SF6CCTrainingLibrary/Library").shared()
 local NamePage = require("SF6CCTrainingLibrary/NativeRecordingNamePage")
 local owner, tick, stopped, failed = nil, 0, false, false
+local pending_refresh
 local layout_depths = {}
 local function in_layout() return (layout_depths[thread.get_id()] or 0) > 0 end
 local option_templates = {}
@@ -14,7 +15,7 @@ local option_indices = {}
 local texts, trace_count = {}, 0
 local RECORD, SELECTOR, RECORD_PAGE, PLAY_PAGE, DYNAMIC = 4, 106, 107, 108, 345
 local VIEW_UPDATE = "ViewUpdate(app.training.BaseParam, app.training.TrainingMenuData, System.Int32)"
-local FILES_PER_PAGE = 8
+local FILES_PER_PAGE = 6
 local function trace(message)
     if trace_count >= 16 then return end
     trace_count = trace_count + 1
@@ -76,6 +77,13 @@ end
 local function current_manager()
     return sdk.get_managed_singleton("app.training.TrainingManager")
 end
+local function generation()
+    return State.runtime and State.runtime.generation and State.runtime.generation() or 0
+end
+local function same_training(tm)
+    return owner and tm == owner.tm and read(tm,"_tData") == owner.data
+        and generation() == owner.generation
+end
 local function current_selector(tm)
     if not tm or read(tm, "_IsInit") ~= true then return nil end
     local ui = read(tm, "_UIData")
@@ -87,15 +95,18 @@ local function current_selector(tm)
             local children = read(tab, "_ChildData")
             if not children or children:get_size() ~= 1 then return nil end
             local selector = children:get_element(0)
+            local layout = tonumber(read(selector, "_Type"))
             if tonumber(read(selector, "_FuncType")) ~= SELECTOR
-                or tonumber(read(selector, "_Type")) ~= 18 then return nil end
+                or (layout ~= 18 and layout ~= 19) then return nil end
             return selector, ui
         end
     end
 end
 local function owned_menu_call(args)
     if not owner or stopped then return false end
-    return sdk.to_managed_object(args[2]) == read(owner.tm, "_UIFunc")
+    local tm=current_manager()
+    if not same_training(tm) then return false end
+    return sdk.to_managed_object(args[2]) == read(tm, "_UIFunc")
 end
 local function owned_view(ptr)
     if not owner then return nil end
@@ -107,29 +118,18 @@ local function owned_view(ptr)
     if index and index <= #owner.picker_entries then return "file", index end
     return owner.kinds[address(data)]
 end
-local function refresh_library_page(ptr, target)
+local function refresh_library_page(ptr)
     local current = owner
-    if not current or current.refreshing then return end
-    current.refreshing = true
+    if not current or current.refreshing or current.refresh_failed or stopped then return false end
     local ok, detail = pcall(function()
         local param = assert(sdk.to_managed_object(ptr), "Missing native menu parameter")
         assert(param:get_type_definition():get_full_name() == "app.training.UIFlowTrainingMenu.Param",
             "Unexpected native menu parameter type")
-        -- Original Record/Play Function calls use this UI-only body update path.
-        local page = target or (current.name_browser and current.name_browser.current())
-            or (current.picker_index and current.picker_pages[current.picker_index].data) or current.page
-        local updated = read(current.tm, "_UIFunc"):call(VIEW_UPDATE, param, page, 0)
-        assert(updated == true, "Native page update did not succeed")
-        if current.visible_param ~= param then param:add_ref() end
-        current.visible_param = param
-        current.drawn_selection, current.drawn_revision = Library.selected, Library.revision
+        -- Retain only numeric identities for borrowed UI parameters. Resolve
+        -- fresh wrappers at execution; never reconstruct a pointer from these.
+        pending_refresh={owner=current,param=address(param),func=address(read(current.tm,"_UIFunc")),ticks=0}
     end)
-    current.refreshing = false
-    if ok then trace("Library body updated through native ViewUpdate.")
-    else
-        current.visible_param = nil
-        trace("Library body update failed: " .. tostring(detail))
-    end
+    if not ok then trace("Library refresh request rejected: " .. tostring(detail)) end
     return ok
 end
 local function library_page_visible(param)
@@ -149,10 +149,13 @@ local function library_page_visible(param)
     return false
 end
 local function restore()
+    pending_refresh=nil
     if not owner then return end
     local tm = current_manager()
-    -- Never write through a cached object from a different scene/manager.
-    if tm == owner.tm and read(tm, "_UIData") == owner.ui
+    local selector = current_selector(tm)
+    -- A new UI wrapper may reuse our selector. Only restore if it is still
+    -- reachable from the live UI, or the original owner is unchanged.
+    if ((tm == owner.tm and read(tm, "_UIData") == owner.ui) or selector == owner.selector)
         and read(owner.selector, "_ChildData") == owner.installed then
         owner.selector:set_field("_ChildData", owner.original)
         if tonumber(read(owner.selector, "_Type")) == 19 then
@@ -208,11 +211,57 @@ local function build_picker_pages()
         end
         if p > 1 then rows[#rows + 1] = cached.previous end
         if p < pages then rows[#rows + 1] = cached.next end
+        rows[#rows + 1] = owner.export
+        rows[#rows + 1] = owner.refresh
         rows[#rows + 1] = cached.back
+        assert(#rows<=13,"native configuration picker exceeds row budget")
         -- Reuse native arrays across refreshes instead of accumulating refs.
         local key = #rows .. ":" .. tostring(p < pages)
         if not cached.arrays[key] then cached.arrays[key] = arr(rows) end
         cached.data:set_field("_ChildData", cached.arrays[key])
+    end
+end
+local function flush_refresh()
+    local job=pending_refresh
+    if not job then return end
+    local tm=current_manager()
+    if stopped or failed or not Safety.is_training_allowed() or Safety.pause_open()~=true
+        or owner~=job.owner or not same_training(tm) or not owner.library_selected
+        or read(tm,"_UIData")~=owner.ui or current_selector(tm)~=owner.selector
+        or read(owner.selector,"_ChildData")~=owner.installed then
+        pending_refresh=nil
+        if owner==job.owner then owner.refresh_picker=nil; owner.armed_path=nil end
+        return
+    end
+    if next(layout_depths) or owner.refreshing or Library.has_pending() then job.ticks=0; return end
+    local func=read(tm,"_UIFunc")
+    local param=read(read(tm,"_UITrainingMenu"),"_ParamData")
+    if address(func)~=job.func or address(param)~=job.param then
+        pending_refresh=nil; owner.refresh_picker=nil; owner.armed_path=nil; return
+    end
+    job.ticks=job.ticks+1
+    if job.ticks<2 then return end
+    pending_refresh=nil
+    local current=owner
+    current.refreshing=true
+    local ok,detail=pcall(function()
+        if current.refresh_picker then
+            build_picker_pages()
+            current.picker_index=math.min(current.picker_count,math.floor((Library.selected-1)/FILES_PER_PAGE)+1)
+            current.picker_revision=Library.revision
+            current.refresh_picker=nil
+        end
+        local page=(current.name_browser and current.name_browser.current())
+            or (current.picker_index and current.picker_pages[current.picker_index].data) or current.page
+        assert(func:call(VIEW_UPDATE,param,page,0)==true,"Native page update did not succeed")
+        current.drawn_selection,current.drawn_revision=Library.selected,Library.revision
+    end)
+    current.refreshing=false
+    if ok then trace("Deferred library body update completed.")
+    else
+        current.refresh_failed=true
+        Library.status_ok,Library.status=false,"原生菜单刷新异常，请完全退出并重启游戏；不要重置脚本或继续切换"
+        trace("Library body update failed: "..tostring(detail))
     end
 end
 local function install(tm)
@@ -245,14 +294,14 @@ local function install(tm)
     end
     local edit_separator = menu_data(4, "", true, nil, nil, true)
     local info_separator = menu_data(4, "", true, nil, nil, true)
-    local rows = { choice, save, export, refresh, clear, edit_separator, details[5] }
+    local rows = { choice, save, clear, edit_separator, details[5] }
     local page = menu_data(22, "导入导出", true)
     local installed = arr({ first, second, page })
-    -- Keep the detached original array alive for restoration on script reset.
+    -- Keep the detached original array alive for normal training-exit restoration.
     original:add_ref()
-    owner = { tm = tm, ui = ui, selector = selector, original = original,
+    owner = { tm = tm, data = read(tm,"_tData"), generation = generation(), ui = ui, selector = selector, original = original,
         record_page = first, play_page = second, library_selected = false,
-        installed = installed, page = page, choice = choice, revision = Library.revision,
+        installed = installed, page = page, choice = choice, export=export, refresh=refresh, revision = Library.revision,
         picker_pages = {}, picker_entries = {}, picker_count = 1,
         kinds = { [address(choice)] = "choice", [address(export)] = "export",
             [address(refresh)] = "refresh", [address(clear)] = "clear", [address(status)] = "status", [address(save)] = "save" },
@@ -269,6 +318,7 @@ local function install(tm)
     for _, item in ipairs({ info_separator, details[1], details[2], details[3], details[4], status }) do
         rows[#rows + 1] = item
     end
+    assert(#rows<=13,"native library page exceeds row budget")
     page:set_field("_ChildData", arr(rows))
     build_picker_pages()
     selector:set_field("_ChildData", installed)
@@ -360,8 +410,16 @@ local ok, err = pcall(function()
         if not owned_menu_call(args) then return end
         local ft = sdk.to_int64(args[3]) & 0xFFFFFFFF
         local data = read(sdk.to_managed_object(args[5]), "Data")
-        if (ft == RECORD_PAGE and data == owner.record_page) or (ft == PLAY_PAGE and data == owner.play_page) then
-            owner.library_selected, owner.visible_param = false, nil
+        local selected = ft == SELECTOR and (sdk.to_int64(args[6]) & 0xFFFFFFFF) or nil
+        -- Invalidate before native selector navigation; its page callback may
+        -- arrive after our deferred refresh. Layout probes are not user input.
+        local leaving_library = ft == SELECTOR and data == owner.selector
+            and (selected == 0 or selected == 1) and not in_layout() and not owner.refreshing
+        if leaving_library or (ft == RECORD_PAGE and data == owner.record_page)
+            or (ft == PLAY_PAGE and data == owner.play_page) then
+            pending_refresh=nil
+            owner.refresh_picker=nil
+            owner.library_selected = false
             owner.picker_index, owner.armed_path = nil, nil
             if owner.name_browser then owner.name_browser.close() end
         end
@@ -373,6 +431,7 @@ local ok, err = pcall(function()
             local success, detail = pcall(function()
                 if kind == "page" then
                     if owner.refreshing or in_layout() then return end
+                    owner.refresh_picker=nil
                     owner.picker_index = nil
                     if owner.name_browser then owner.name_browser.close() end
                     owner.library_selected = true
@@ -380,6 +439,7 @@ local ok, err = pcall(function()
                     refresh_library_page(args[4])
                 elseif kind == "names" or kind == "name_item" then
                     if in_layout() or owner.refreshing or Library.has_pending() then return end
+                    owner.refresh_picker=nil
                     owner.armed_path=nil
                     if kind=="names" then
                         owner.picker_index=nil
@@ -393,7 +453,8 @@ local ok, err = pcall(function()
                 elseif kind == "choice" then
                     if in_layout() or owner.refreshing or Library.has_pending() then return end
                     owner.armed_path = nil
-                    if owner.revision ~= Library.revision then build_picker_pages() end
+                    owner.library_selected=true
+                    if owner.revision ~= Library.revision then owner.refresh_picker=true end
                     owner.picker_revision = Library.revision
                     owner.picker_index = math.min(owner.picker_count, math.floor((Library.selected - 1) / FILES_PER_PAGE) + 1)
                     if not refresh_library_page(args[4]) then owner.picker_index = nil end
@@ -437,7 +498,7 @@ local ok, err = pcall(function()
                     and storage.sf6cc_library_result == 0 then refresh_library_page(args[4]) end
             end)
             if not success then
-                Library.cancel()
+                Library.request_cancel()
                 Library.status_ok, Library.status = false, "菜单操作失败，详细原因见日志"
                 trace("Menu action failed: " .. tostring(detail))
             end
@@ -474,17 +535,21 @@ local ok, err = pcall(function()
     -- Intercept only our visible subpage's normal native Back event. No flow is
     -- force-ended and no game menu is opened by this pilot.
     sdk.hook(cancel_method, function(args)
-        if not owner or stopped or not owner.visible_param
-            or (not owner.picker_index and not (owner.name_browser and owner.name_browser.current())) then return end
+        if not owner or stopped or owner.refreshing or in_layout() then return end
         local ok, handled = pcall(function()
             local tm = current_manager()
+            if not same_training(tm) or sdk.to_managed_object(args[2])~=read(tm,"_UITrainingMenu") then return false end
+            pending_refresh=nil
+            owner.refresh_picker,owner.armed_path=nil,nil
+            if not owner.picker_index and not (owner.name_browser and owner.name_browser.current()) then return false end
+            local param=read(read(tm,"_UITrainingMenu"),"_ParamData")
             if tm ~= owner.tm or read(tm, "_UIData") ~= owner.ui
                 or read(owner.selector, "_ChildData") ~= owner.installed
                 or sdk.to_managed_object(args[2]) ~= read(tm, "_UITrainingMenu")
-                or not library_page_visible(owner.visible_param) then return false end
+                or not library_page_visible(param) then return false end
             owner.picker_index, owner.armed_path = nil, nil
             if owner.name_browser then owner.name_browser.close() end
-            return refresh_library_page(owner.visible_param)
+            return refresh_library_page(param)
         end)
         if ok and handled then return sdk.PreHookResult.SKIP_ORIGINAL end
     end, function(retval) return retval end)
@@ -523,27 +588,42 @@ end
 
 re.on_pre_application_entry("LateUpdateBehavior", function()
     if failed or stopped then return end
+    local refreshed,refresh_error=pcall(flush_refresh)
+    if not refreshed then
+        pending_refresh=nil
+        if owner then owner.refresh_failed=true end
+        trace("Deferred refresh cancelled: "..tostring(refresh_error))
+    end
     tick = tick + 1
     if tick % 30 ~= 0 then return end
     local success, detail = pcall(function()
         if not Safety.is_training_allowed() then restore(); return end
         local tm = current_manager()
+        if owner and not same_training(tm) then
+            restore()
+            if Safety.pause_open() ~= false then return end
+        end
         if Safety.pause_open() == true and owner and tm == owner.tm
             and read(tm, "_UIData") == owner.ui and read(owner.selector, "_ChildData") == owner.installed then
             if owner.drawn_selection ~= Library.selected or owner.drawn_revision ~= Library.revision then
                 owner.armed_path = nil
             end
-            -- A cached Param is not permission to rebuild native widgets here.
-            -- ViewUpdate reaches native list/spin rebuilding and has crashed
-            -- outside native navigation. Adopt shared changes on the next entry.
+            -- Shared changes are adopted by the next explicitly queued navigation.
             return
         end
         if Safety.pause_open() ~= false then return end
         if owner then
-            owner.visible_param = nil
+            pending_refresh=nil
             owner.picker_index = nil
             if tm == owner.tm and read(tm, "_UIData") == owner.ui
                 and read(owner.selector, "_ChildData") == owner.installed then
+                -- Native layout can revert independently of our child array.
+                if current_selector(tm) == owner.selector and read(owner.selector,"_Type") == 18
+                    and owner.installed:get_size() == 3 and owner.installed:get_element(2) == owner.page then
+                    owner.selector:set_field("_Type",19)
+                    assert(read(owner.selector,"_Type") == 19,"library selector layout restoration failed")
+                    trace("Restored owned library selector from two-item to three-item layout.")
+                end
                 owner.armed_path = nil
                 if owner.revision ~= Library.revision then
                     build_picker_pages()
@@ -562,8 +642,11 @@ re.on_pre_application_entry("LateUpdateBehavior", function()
     end
 end)
 re.on_script_reset(function()
-    local success, detail = pcall(restore)
     stopped = true
-    if not success then log.error("[NativeLibraryPilot] Restore failed: " .. tostring(detail)) end
+    pending_refresh=nil
+    Library.abandon()
+    -- This Lua state will not receive a later safe update. Normal training exit
+    -- restores live menu data; Reset must not mutate it or release its roots.
+    if owner and log.warn then log.warn("[NativeLibraryPilot] Reset with native UI mounted: restart the game before using the plugin.") end
 end)
 trace("Revision 6 loaded. Close native menu briefly to install the library tab.")

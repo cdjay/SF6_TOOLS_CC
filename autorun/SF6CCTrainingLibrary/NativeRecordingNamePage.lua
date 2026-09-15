@@ -21,6 +21,7 @@ function M.new(make,arr,library,editor)
         rows[#rows+1]=row("previous","上一页")
         rows[#rows+1]=row("next","下一页")
         rows[#rows+1]=row("back","返回")
+        assert(#rows<=13,"native name picker exceeds row budget")
         pages[p]=make(22,"栏位名称",true)
         for _,data in ipairs(rows) do kinds[address(data)].page=p end
         pages[p]:set_field("_ChildData",arr(rows))

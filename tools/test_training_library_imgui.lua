@@ -15,6 +15,7 @@ local noop = function() end
 local modules = {
     ["SF6CCTrainingLibrary/Records"] = records,
     ["SF6CCTrainingLibrary/Library"] = { shared = function() return library end },
+    ["SF6CCTrainingLibrary/State"] = {},
 }
 local env = setmetatable({
     require = function(name) return assert(modules[name], name) end,
@@ -55,6 +56,12 @@ library.request = function(kind) assert(kind == "refresh"); queued = queued + 1;
 env.imgui.small_button = function() return true end
 panel()
 assert(queued == 1 and scans == before_scans, "ImGui refresh must enqueue, not mutate the native-visible catalog during drawing")
+env.imgui.small_button=function() return false end
+env.imgui.button=function(label) return label=="清空" end
+records.clear_current_configuration=function() error("native clear called from ImGui rendering") end
+local clear_queued=0
+library.request=function(kind) assert(kind=="clear"); clear_queued=clear_queued+1; return true end
+panel(); assert(clear_queued==1,"ImGui clear bypassed the safe job queue")
 print("PASS duplicate titles: distinct stable IDs, same visible text, native labels unchanged")
 print("PASS selection without import, cached redraw, reorder and empty list")
 print("PASS ImGui refresh defers catalog changes to the shared closed-menu queue")

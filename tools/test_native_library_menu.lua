@@ -12,6 +12,7 @@ if note_test then
     end }
 end
 local hooks, frames, resets, writes, messages = {}, {}, {}, 0, {}
+local safe_phase = false
 local original0, original1 = { _Type = 22, _FuncType = 107 }, { _Type = 22, _FuncType = 108 }
 local function array(items)
     return {
@@ -40,6 +41,7 @@ local rec = object({ RecordType = 1 })
 local tm = object({ _IsInit = true, _UIData = ui, _UIFunc = object({}), _UITrainingMenu = object({}), _tData = object({ RecordSetting = rec }) })
 local refresh_calls = 0
 tm._UIFunc.call = function(_, signature, param, page, index)
+    assert(safe_phase,"ViewUpdate re-entered from an input callback")
     assert(signature == "ViewUpdate(app.training.BaseParam, app.training.TrainingMenuData, System.Int32)")
     assert(page._Type == 22 and page._FuncType == 345 and index == 0)
     refresh_calls = refresh_calls + 1
@@ -77,6 +79,10 @@ local function td(name)
 end
 local function managed_new()
     local o = object({})
+    o.set_field=function(self,k,v)
+        assert(safe_phase,"native menu data write outside LateUpdateBehavior")
+        self[k]=v
+    end
     o.call = function(self, method, v)
         if method:match("^set_") then
             local name = method:match("^set_([^%(]+)")
@@ -131,12 +137,23 @@ local lib = dofile(os.getenv("SF6CC_TRAINING_LIBRARY_TEST_SOURCE") or "autorun/S
 }, function() return library_context end)
 package.preload["SF6CCTrainingLibrary/Library"] = function() return { shared = function() return lib end } end
 assert(loadfile(path))()
-local function tick(n) for _ = 1, n do for _, f in ipairs(frames) do f() end end end
-local function call_hook(signature, args, original_return)
+local function tick(n)
+    local previous=safe_phase; safe_phase=true
+    for _ = 1, n do for _, f in ipairs(frames) do f() end end
+    safe_phase=previous
+end
+local function call_hook(signature, args, original_return, defer)
+    local input=signature:find(":Function(",1,true) or signature:find(":OnCancelStart(",1,true)
+    if input and args[2]==tm._UIFunc and args[4] and args[4].get_type_definition then
+        tm._UITrainingMenu._ParamData=args[4]
+        gs.in_pause_menu=true
+    end
     local h = assert(hooks[signature], signature)
     storage = {}
     local result = h.pre(args)
-    return result, h.post(original_return)
+    local value=h.post(original_return)
+    if input and not defer and not safe_phase then tick(2) end
+    return result,value
 end
 local passed = 0
 local function check(name, f) f(); passed = passed + 1; print("PASS " .. name) end
@@ -157,6 +174,22 @@ end)
 check("Record selector uses native three-item layout without changing semantic function", function()
     assert(selector._Type == 19, "Third child alone leaves the native two-item layout active")
     assert(selector._FuncType == 106 and rec.RecordType == 1)
+end)
+check("Owned third tab restores a reverted two-item layout only while closed",function()
+    local installed=selector._ChildData
+    local before=guid_next
+    selector._Type=18; gs.in_pause_menu=true; tick(60)
+    assert(selector._Type==18,"rewrote visible native layout")
+    gs.in_pause_menu=false; tick(30)
+    assert(selector._Type==19,"owned third tab remains hidden by two-item layout")
+    assert(selector._ChildData==installed and guid_next==before,"layout repair allocated new menu rows")
+    assert(rec.RecordType==1 and writes==0)
+    selector._Type=17; tick(30)
+    assert(selector._Type==17,"rewrote an unknown native layout")
+    local page=installed.items[3]
+    installed.items[3]=object({_Type=22,_FuncType=999}); selector._Type=18; tick(30)
+    assert(selector._Type==18,"rewrote a third page replaced by another owner")
+    installed.items[3]=page; selector._Type=19
 end)
 check("Captured native GUID is not replaced by a custom empty guide", function()
     local native = captured_guid("6e495d5428620145974a822107a8199d")
@@ -206,9 +239,56 @@ check("Third-page confirmation refreshes native content without changing recordi
     local param = object({ body_parent = original1 })
     param.get_type_definition = function() return td("app.training.UIFlowTrainingMenu.Param") end
     local before = refresh_calls
-    local skip, result = call_hook("app.training.TrainingMenuFunc:Function(app.training.TrainingFuncType, app.training.BaseParam, app.training.UIFlowTrainingMenu.Param.ViewData, System.Int32)", { 0, tm._UIFunc, 345, param, view, 0 }, 1)
+    local skip, result = call_hook("app.training.TrainingMenuFunc:Function(app.training.TrainingFuncType, app.training.BaseParam, app.training.UIFlowTrainingMenu.Param.ViewData, System.Int32)", { 0, tm._UIFunc, 345, param, view, 0 }, 1,true)
     assert(skip == "skip" and result == 0 and rec.RecordType == 1 and writes == 0)
+    assert(refresh_calls==before,"input rebuilt the page inline")
+    tick(1); assert(refresh_calls==before,"page rebuilt without two safe ticks")
+    tick(1)
     assert(refresh_calls == before + 1 and param.body_parent == view.Data, "Selected third tab kept the previous page body")
+end)
+check("Queued page rebuild is cancelled by native parameter replacement, tab switch or pause close",function()
+    local fn="app.training.TrainingMenuFunc:Function(app.training.TrainingFuncType, app.training.BaseParam, app.training.UIFlowTrainingMenu.Param.ViewData, System.Int32)"
+    for _,change in ipairs({"param","tab","selector_record","selector_play","cancel","close","scene"}) do
+        local view=object({Data=selector._ChildData:get_element(2)})
+        local param=object({get_type_definition=function() return td("app.training.UIFlowTrainingMenu.Param") end})
+        local before=refresh_calls
+        call_hook(fn,{0,tm._UIFunc,345,param,view,0},1,true)
+        if change=="param" then tm._UITrainingMenu._ParamData=object({})
+        elseif change=="tab" then call_hook(fn,{0,tm._UIFunc,107,param,object({Data=original0}),0},1,true)
+        elseif change=="selector_record" or change=="selector_play" then
+            -- The native page callback need not arrive before the deferred job.
+            local selected=change=="selector_record" and 0 or 1
+            local skip,result=call_hook(fn,{0,tm._UIFunc,106,param,object({Data=selector}),selected},1,true)
+            assert(skip==nil and result==1,"intercepted normal native tab selection")
+        elseif change=="cancel" then call_hook("app.training.UITrainingMenu:OnCancelStart()",{0,tm._UITrainingMenu},0,true)
+        elseif change=="close" then gs.in_pause_menu=false
+        else training=false end
+        tick(2); assert(refresh_calls==before,"stale refresh: "..change)
+        gs.in_pause_menu=true; training=true; tick(2)
+        assert(refresh_calls==before,"cancelled refresh revived: "..change)
+    end
+    -- Scene cancellation may cross the periodic teardown tick; restore the
+    -- fixture through the normal closed-menu install path before later cases.
+    gs.in_pause_menu=false; tick(30); gs.in_pause_menu=true
+end)
+check("Selector layout queries and foreign selectors cannot cancel an owned refresh",function()
+    local fn="app.training.TrainingMenuFunc:Function(app.training.TrainingFuncType, app.training.BaseParam, app.training.UIFlowTrainingMenu.Param.ViewData, System.Int32)"
+    local view_hook=hooks["app.training.TrainingMenuFunc:ViewUpdate(app.training.BaseParam, app.training.TrainingMenuData, System.Int32)"]
+    for _,probe in ipairs({"layout","index","foreign"}) do
+        local param=object({get_type_definition=function() return td("app.training.UIFlowTrainingMenu.Param") end})
+        local before=refresh_calls
+        call_hook(fn,{0,tm._UIFunc,345,param,object({Data=selector._ChildData:get_element(2)}),0},1,true)
+        if probe=="layout" then
+            view_hook.pre({})
+            call_hook(fn,{0,tm._UIFunc,106,param,object({Data=selector}),0},1,true)
+            view_hook.post(true)
+        elseif probe=="index" then
+            call_hook("app.training.TrainingMenuFunc:GetOptionIndex(app.training.TrainingFuncType, System.Int32, app.training.TrainingFuncType)",{0,tm._UIFunc,106,0,0},0,true)
+        else
+            call_hook(fn,{0,tm._UIFunc,106,param,object({Data=object({_FuncType=106})}),0},1,true)
+        end
+        tick(2); assert(refresh_calls==before+1,"non-navigation query cancelled refresh: "..probe)
+    end
 end)
 check("Other mods' dynamic rows are untouched", function()
     local view = object({ Data = object({ _FuncType = 345 }) })
@@ -234,6 +314,10 @@ check("Native body refresh failure does not escape to the game callback", functi
         { 0, tm._UIFunc, 345, param, view, 0 }, 1)
     tm._UIFunc.call = original_call
     assert(skip == "skip" and result == 0 and rec.RecordType == 1 and writes == 0)
+    local before=refresh_calls; tick(10)
+    assert(refresh_calls==before,"failed native refresh was retried")
+    gs.in_pause_menu=false; training=false; tick(30)
+    training=true; tick(30)
 end)
 check("Native recorder never receives the UI-only mode 2", function()
     local skip = call_hook("app.training.tf_RecordSetting.FuncData:ChangeRecordSetting(app.training.RECORD_TYPE)", { 0, object({ _tData = tm._tData }), 2 }, 0)
@@ -259,8 +343,8 @@ local function click(row,parent)
     assert(skip=="skip")
     return result,param
 end
-local function find(prefix)
-    for _,row in ipairs(page._ChildData.items) do
+local function find(prefix,parent)
+    for _,row in ipairs((parent or page)._ChildData.items) do
         if title(row):sub(1,#prefix)==prefix then return row end
     end
     error("missing menu row "..prefix)
@@ -268,9 +352,11 @@ end
 check("Presentation order and native separators preserve action rows",function()
     local rows=page._ChildData.items
     assert(title(rows[1])=="切换训练配置：爱德 Ed [a.json]")
-    assert(title(rows[2])=="保存当前配置" and title(rows[3])=="导出当前配置")
-    assert(title(rows[4])=="刷新配置列表" and title(rows[5])=="重置所有栏位（清空）")
-    for _,row in ipairs(rows) do assert(title(row)~="导入所选配置") end
+    assert(title(rows[2])=="保存当前配置" and title(rows[3])=="重置所有栏位（清空）")
+    assert(#rows<=13)
+    for _,row in ipairs(rows) do
+        assert(title(row)~="导入所选配置" and title(row)~="导出当前配置" and title(row)~="刷新配置列表")
+    end
     local separators=0
     for _,row in ipairs(rows) do
         if row._Type==4 then
@@ -290,6 +376,8 @@ check("First configuration click selects and stays in picker without importing",
     local _,param=click(find("切换训练配置"),page)
     local picker=param.body_parent
     assert(picker~=page)
+    assert(#picker._ChildData.items<=13)
+    assert(find("导出当前配置",picker) and find("刷新配置列表",picker))
     local second=picker._ChildData:get_element(2)
     assert(title(second)=="2. 爱德 Ed [b.json]")
     local result,after=click(second,picker)
@@ -311,7 +399,8 @@ check("Reordered save and export retain their existing controller actions",funct
     library_context.menu_closed=true; lib.tick()
     assert(saved==1 and exported==0 and imported==1)
     library_context.menu_closed=false
-    assert(click(find("导出当前配置"),page)==1)
+    local _,param=click(find("切换训练配置"),page)
+    assert(click(find("导出当前配置",param.body_parent),param.body_parent)==1)
     library_context.menu_closed=true; lib.tick()
     assert(saved==1 and exported==1 and imported==1)
     library_context.menu_closed=false
@@ -439,6 +528,23 @@ check("File-list paging cancels confirmation and does not consume a stale row",f
     assert(click(first,picker)==0 and not lib.has_pending())
     click(picker_row(picker,"返回"),picker)
 end)
+check("All configuration picker pages stay within thirteen rows with export and refresh",function()
+    for i=10,20 do catalog[i]={path="config"..i..".json"} end
+    lib.refresh("a.json")
+    local picker=open_picker()
+    for p=1,4 do
+        assert(#picker._ChildData.items<=13,"configuration page exceeded native row budget")
+        assert(find("导出当前配置",picker) and find("刷新配置列表",picker))
+        if p<4 then
+            local _,param=click(picker_row(picker,"下一页"),picker)
+            picker=param.body_parent
+        end
+    end
+    assert(click(find("刷新配置列表",picker),picker)==1 and lib.has_pending())
+    library_context.menu_closed=true; lib.tick()
+    assert(not lib.has_pending())
+    library_context.menu_closed=false
+end)
 check("Clear row queues once after pause close without importing or changing files",function()
     local before_import,before_export,before_save=imported,exported,saved
     local selected,revision=lib.selection().path,lib.revision
@@ -476,5 +582,39 @@ check("Scene changes cancel a confirmed import before any recording write",funct
     library_context.session={}
     lib.tick()
     assert(imported==before and not lib.has_pending())
+end)
+check("Re-entering with reused UI and a new training data owner rebuilds the library page",function()
+    gs.in_pause_menu=false
+    local old=selector._ChildData:get_element(2)
+    tm._tData=object({RecordSetting=object({RecordType=0})})
+    tick(60)
+    local fresh=selector._ChildData:get_element(2)
+    assert(fresh~=old,"library reused the previous training data owner")
+    assert(title(fresh)=="导入导出")
+    local view=object({Data=fresh,ParentData=selector})
+    local skip=call_hook("app.training.TrainingMenuFunc:Function(app.training.TrainingFuncType, app.training.BaseParam, app.training.UIFlowTrainingMenu.Param.ViewData, System.Int32)",
+        {0,tm._UIFunc,345,{},view,0},1)
+    assert(skip=="skip")
+end)
+check("Release generation rebuilds the library even when native owners are reused",function()
+    local old=selector._ChildData:get_element(2)
+    require("SF6CCTrainingLibrary/State").runtime={generation=function() return 1 end}
+    tick(60)
+    local fresh=selector._ChildData:get_element(2)
+    assert(fresh~=old and title(fresh)=="导入导出")
+end)
+check("New native UI wrapper reusing our selector can restore and rebuild it",function()
+    local old=selector._ChildData:get_element(2)
+    tm._tData=object({RecordSetting=object({RecordType=0})})
+    tm._UIData=object({_MenuData=array({root})})
+    tick(60)
+    local fresh=selector._ChildData:get_element(2)
+    assert(fresh~=old and title(fresh)=="导入导出")
+end)
+check("script Reset never rewrites native page arrays or layout",function()
+    local rows,kind=selector._ChildData,selector._Type
+    for _,reset in ipairs(resets) do reset() end
+    assert(selector._ChildData==rows and selector._Type==kind,"Reset mutated native UI")
+    local before=refresh_calls; tick(10); assert(refresh_calls==before)
 end)
 print(passed.." native menu presentation checks passed (fake SDK)")

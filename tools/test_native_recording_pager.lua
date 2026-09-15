@@ -12,7 +12,9 @@ local function fixture(page_count)
     page_count=page_count or 2
     local hooks, tls, tid, updates, turns, reports={}, {}, 1, 0, 0, {}
     local selected=0
+    local hook_depth=0
     local enabled=true
+    local readable=true
     local function obj(id,fields)
         return {get_address=function() return id end,get_field=function(_,key) return (fields or {})[key] end}
     end
@@ -20,7 +22,7 @@ local function fixture(page_count)
     local view_fields={Data=data,ParentData=parent,Index=0}
     local view=obj(4,view_fields)
     local focused=view
-    local param=obj(7,{_SecondaryList={call=function() return 2 end},_ViewDataList={call=function(_,name,index)
+    local param=obj(7,{_SecondarySpinIndex=2,_SecondaryList={call=function() return 2 end},_ViewDataList={call=function(_,name,index)
         if name=="get_Count" then return 3 end
         return index==2 and focused or obj(90+index,{Index=0,Data=other,ParentData=parent}) end}})
     param.get_type_definition=function() return {get_full_name=function() return "app.training.UIFlowTrainingMenu.Param" end} end
@@ -31,9 +33,15 @@ local function fixture(page_count)
         return fn()
     end
     entry.menu={owns_pager=function(a,b) return a==data and b==parent end,
+        pager_for_layout=function(row) if row==data or row==parent then return data end end,
         navigate=function(a,b,index) assert(a==data and b==parent); turns=turns+1; selected=index; view_fields.Index=index; return true end,
         pager_info=function(row) if row==data then return {index=selected,count=page_count,label=tostring(selected+1).." / "..page_count} end end,
         text=function(key) if key=="01"..string.rep("00",15) then return "page "..turns end end}
+    entry.menu.invalidate_view=function(p,row,node)
+        assert(hook_depth==0,"dirty request re-entered an input hook")
+        assert(p==param and row==data and node==parent)
+        updates=updates+1
+    end
     local api={PreHookResult={SKIP_ORIGINAL="skip"},
         find_type_definition=function() return {get_method=function(_,name) return name end} end,
         hook=function(name,pre,post) hooks[name]={pre,post} end,
@@ -42,35 +50,79 @@ local function fixture(page_count)
         create_managed_string=function(text) return {text=text,add_ref=function() end} end}
     local threads={get_id=function() return tid end,get_hook_storage=function() return tls end}
     local controller=Pager.new(api,threads,function() return entry end,function() return enabled end,
-        function(err) reports[#reports+1]=err end)
+        function(err) reports[#reports+1]=err end,nil,function() return readable end)
     controller.install()
-    local function call(name,args,body)
+    local function tick(count) for _=1,count or 2 do controller.tick() end end
+    local function call(name,args,body,defer)
         if name==SPIN and not hooks[name] then if body then body() end; return nil,99 end
+        hook_depth=hook_depth+1
         local previous=tls; tls={}
         local h=assert(hooks[name]); local skip=h[1](args)
         if body then body() end
         local result=h[2](99); tls=previous
+        hook_depth=hook_depth-1
+        if hook_depth==0 and not defer and (name==SPIN or name==FUNCTION) then tick() end
         return skip,result
     end
     local action=function(target,wanted)
         return call(FUNCTION,{0,ui,345,param,target or view,wanted or 1})
     end
-    function ui:call(name,p,node,index)
-        assert(name==VIEW and p==param and node==parent and index==0)
-        updates=updates+1
-        call(VIEW,{},function() action() end)
-        return true
+    function ui:call()
+        error("forced native page rebuild is forbidden")
     end
     return {call=call,action=action,ui=ui,data=data,parent=parent,view=view,other=other,obj=obj,
-        param=param,entry=entry,api=api,reports=reports,
+        param=param,entry=entry,api=api,reports=reports,tick=tick,
         stats=function() return turns,updates end,
         commit=function(value) view_fields.Index=value end,
         selected=function() return selected end,
         focus=function(value) focused=value end,
-        enabled=function(value) enabled=value end,thread=function(value) tid=value end}
+        enabled=function(value) enabled=value end,readable=function(value) readable=value end,
+        thread=function(value) tid=value end}
 end
 local n=0
 local function test(name,fn) fn(); n=n+1; print("PASS "..name) end
+test("reopening reads the owned page before the menu-open flag becomes true",function()
+    local f=fixture(10); f.action(); f.enabled(false)
+    f.call(VIEW,{0,f.ui,f.param,f.parent,0},function()
+        local skip,index=f.call(FOCUS,{0,f.ui,345,f.view})
+        assert(skip=="skip" and index==1,"initialization must read page2 instead of native page1")
+        local _,option=f.call(INDEX,{0,f.ui,345,0,345})
+        assert(option==1,"parent-page layout lost its owned pager")
+        local _,label=f.call(TEXT,{0,f.ui,345})
+        assert(label.text=="2 / 10")
+        assert(f.action()==nil,"read permission must not enable closed-menu actions")
+    end)
+    local _,index=f.call(INDEX,{0,f.ui,345,0,345})
+    assert(index==1,"opening-time candidate probes must not select page1")
+    assert(f.selected()==1 and f.stats()==1)
+end)
+test("parent page layout resolves only its pager and restores nested layout scope",function()
+    local f=fixture(10); f.action()
+    f.call(VIEW,{0,f.ui,f.param,f.parent,0},function()
+        local _,value=f.call(INDEX,{0,f.ui,345,0,345}); assert(value==1)
+        f.call(VIEW,{0,f.ui,f.param,f.other,0},function()
+            assert(f.call(INDEX,{0,f.ui,345,0,345})==nil)
+        end)
+        local _,label=f.call(TEXT,{0,f.ui,345}); assert(label.text=="2 / 10")
+    end)
+end)
+test("initialization read permission cannot escape its session or owned row",function()
+    local f=fixture(); f.enabled(false)
+    f.readable(false); assert(f.call(FOCUS,{0,f.ui,345,f.view})==nil)
+    f.readable(true); assert(f.call(FOCUS,{0,f.other,345,f.view})==nil)
+    assert(f.call(FOCUS,{0,f.ui,345,f.obj(80,{Data=f.data,ParentData=f.other})})==nil)
+    f.entry.released=true; assert(f.call(FOCUS,{0,f.ui,345,f.view})==nil)
+    f.entry.released=false; f.entry.phase="retired"
+    assert(f.call(FOCUS,{0,f.ui,345,f.view})==nil)
+    assert(f.stats()==0)
+end)
+test("committed spin waits two safe ticks before touching native page rows",function()
+    local f=fixture(10)
+    f.call(SPIN,{0,f.param},function() f.commit(1) end,true)
+    assert(f.stats()==0 and f.selected()==0)
+    f.tick(1); assert(f.stats()==0)
+    f.tick(1); assert(f.stats()==1 and f.selected()==1)
+end)
 test("ten-page right arrow follows committed selection, not the following candidate query",function()
     local f=fixture(10)
     for selected=1,9 do
@@ -168,17 +220,23 @@ test("spin scope never survives its callback or leaks across threads",function()
     f.call(INDEX,{0,f.ui,345,1,345}); assert(f.stats()==0)
     f.call(SPIN,{0,f.param},function() end); assert(f.stats()==0)
 end)
-test("spin rebuild failure disables navigation without repeated native calls",function()
-    local f=fixture(); f.ui.call=function() error("native view rejected") end
+test("spin dirty request failure disables navigation without repeated native calls",function()
+    local f=fixture(); f.entry.menu.invalidate_view=function() error("native dirty request rejected") end
     f.call(SPIN,{0,f.param},function() f.call(INDEX,{0,f.ui,345,1,345}); f.commit(1) end)
     assert(#f.reports==1 and f.stats()==1)
     f.call(SPIN,{0,f.param},function() f.call(INDEX,{0,f.ui,345,0,345}); f.commit(0) end)
     assert(#f.reports==1 and f.stats()==1)
 end)
-test("native spin change navigates once and rebuild cannot turn another page",function()
+test("native spin change navigates once and later natural layout cannot turn another page",function()
     local f=fixture(); local skip,result=f.action()
     assert(skip=="skip" and result==0)
     local turns,updates=f.stats(); assert(turns==1 and updates==1 and #f.reports==0)
+    f.call(VIEW,{0,f.ui,f.param,f.parent,0},function()
+        local _,focus=f.call(FOCUS,{0,f.ui,345,f.view}); assert(focus==1)
+        local _,option=f.call(INDEX,{0,f.ui,345,0,345}); assert(option==1)
+        f.action()
+    end)
+    assert(f.stats()==1)
 end)
 test("foreign dynamic rows and wrong parent pass through unchanged",function()
     local f=fixture()
@@ -211,8 +269,8 @@ test("navigation failure is contained, disables owned button and never retries",
     f.action(); assert(#f.reports==1 and f.stats()==0)
     local a,b=f.call(ACTIVE,{0,f.ui,345,f.view}); assert(a=="skip" and b==0)
 end)
-test("view refresh failure does not escape or reenter",function()
-    local f=fixture(); f.ui.call=function() error("refresh failure") end
+test("view dirty request failure does not escape or reenter",function()
+    local f=fixture(); f.entry.menu.invalidate_view=function() error("dirty request failure") end
     assert(f.action()=="skip"); assert(#f.reports==1 and f.stats()==1)
     f.action(); assert(f.stats()==1)
 end)

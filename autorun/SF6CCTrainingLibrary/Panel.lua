@@ -6,6 +6,7 @@ local re = re
 
 local DynamicRecords = require("SF6CCTrainingLibrary/Records")
 local Library = require("SF6CCTrainingLibrary/Library").shared()
+local State = require("SF6CCTrainingLibrary/State")
 
 local options = Library.options
 
@@ -56,24 +57,6 @@ local function refresh_slots(silent)
     last_snapshot = snapshot
     if not silent then set_status(true, "Refreshed") end
     return true
-end
-
-local function run_action(label, fn, on_success)
-    if Library.has_pending() then return end
-    Library.cancel()
-    local ok, success, msg, path, payload = pcall(fn)
-    if not ok then
-        set_status(false, label .. " crashed: " .. tostring(success))
-        return
-    end
-    set_status(success == true, msg)
-    if success == true and on_success then
-        local callback_ok, callback_err = pcall(on_success, path, payload)
-        if not callback_ok then
-            set_status(false, label .. " succeeded, UI refresh failed: " .. tostring(callback_err))
-        end
-    end
-    refresh_slots(true)
 end
 
 local function import_selected_config()
@@ -127,6 +110,10 @@ local function draw_config_selector()
 end
 
 local function draw_primary_actions()
+    if imgui.button("重新加载分页") then
+        if State.runtime then State.runtime.request_reload()
+        else set_status(false, "分页模块未启动，请重启游戏") end
+    end
     if imgui.button("保存当前配置") then Library.request("save") end
     imgui.same_line()
     if imgui.button("导出配置") then
@@ -140,11 +127,7 @@ local function draw_primary_actions()
     imgui.same_line()
 
     if imgui.button("清空") then
-        run_action("Clear", function()
-            return DynamicRecords.clear_current_configuration()
-        end, function()
-            refresh_slots(true)
-        end)
+        Library.request("clear")
     end
 end
 
@@ -155,16 +138,12 @@ local function draw_debug_actions()
     imgui.same_line()
 
     if imgui.button("备份当前完整配置") then
-        run_action("Backup", function()
-            return DynamicRecords.backup_current()
-        end)
+        Library.request("backup")
     end
     imgui.same_line()
 
     if imgui.button("恢复最近备份") then
-        run_action("Restore", function()
-            return DynamicRecords.restore_latest_backup(options)
-        end)
+        Library.request("restore")
     end
 end
 

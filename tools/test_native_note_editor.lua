@@ -156,7 +156,7 @@ check("context change, timeout, reset release the file without saving", function
         if mode == "scene" then s.ctx.allowed = false; s.advance()
         elseif mode == "timeout" then s.now = 121; s.advance()
         else s.reset() end
-        assert(s.hides == 1 and s.saves == 0 and not s.lib.has_pending())
+        assert(s.hides == (mode=="reset" and 0 or 1) and s.saves == 0 and not s.lib.has_pending())
     end
 end)
 check("pending context change and unsupported interface cannot open", function()

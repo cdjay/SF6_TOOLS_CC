@@ -1,6 +1,8 @@
 -- Shared library selection and deferred operations for native and ImGui menus.
 local Compatibility = require("SF6CCTrainingLibrary/TrainingConfigCompatibility")
 local character_name = require("SF6CCTrainingLibrary/CharacterNames")
+-- Autorun search paths are unavailable on first use from a deferred callback.
+local Safety = require("SF6CCTrainingLibrary/Context")
 local M = {}
 
 function M.new(records, context, choices)
@@ -8,7 +10,7 @@ function M.new(records, context, choices)
         revision = 0, result_revision = 0, status = "就绪", status_ok = true,
         options = { only_import_valid = false, clear_empty_slots = true,
             reject_fighter_mismatch = true, force_apply_after_import = true } }
-    local pending, note_edit
+    local pending, note_edit, cancel_requested
     local remembered = choices and choices.load() or {}
     if type(remembered) ~= "table" then remembered = {} end
     local function remember(fighter, path)
@@ -116,7 +118,8 @@ function M.new(records, context, choices)
     end
     function self.request(kind)
         if pending or note_edit then return false end
-        if kind ~= "import" and kind ~= "export" and kind ~= "refresh" and kind ~= "save" and kind ~= "clear" then return false end
+        if kind ~= "import" and kind ~= "export" and kind ~= "refresh" and kind ~= "save" and kind ~= "clear"
+            and kind ~= "backup" and kind ~= "restore" then return false end
         local ctx, err = safe_context()
         if not ctx then status(false, err); return false end
         if ctx.busy ~= false then status(false, "请先停止录制、播放或连段训练"); return false end
@@ -139,8 +142,17 @@ function M.new(records, context, choices)
         return true
     end
     function self.cancel()
+        cancel_requested=nil
         if pending and pending.task then pcall(pending.task.cancel, safe_context()) end
         if pending or note_edit then pending, note_edit = nil, nil; status(false, "环境改变，操作已取消") end
+    end
+    function self.request_cancel()
+        cancel_requested=pending or note_edit
+    end
+    function self.abandon()
+        -- Lua reset cannot safely run native task cleanup on its callback thread.
+        -- Do not inspect the context, restore recorder settings or close a widget.
+        pending,note_edit,cancel_requested=nil,nil,nil
     end
     function self.autoload(fighter)
         local path = remembered[tostring(fighter)]
@@ -214,6 +226,11 @@ function M.new(records, context, choices)
         return true
     end
     function self.tick()
+        if cancel_requested then
+            local target=cancel_requested
+            cancel_requested=nil
+            if target==pending or target==note_edit then self.cancel(); return end
+        end
         if not pending then return end
         if pending.running then return end
         local ctx = safe_context()
@@ -239,6 +256,14 @@ function M.new(records, context, choices)
         local job = pending
         pending = nil
         if job.kind == "refresh" then self.refresh(); return end
+        if job.kind=="backup" or job.kind=="restore" then
+            local action=job.kind=="backup" and records.backup_current or records.restore_latest_backup
+            local ok,success,msg=pcall(action,job.options)
+            self.result_revision=self.result_revision+1
+            status(ok and success==true,ok and msg or "备份操作失败，请查看日志")
+            if not ok then diagnostic(success) end
+            return
+        end
         if job.kind == "clear" then
             local ok, success, msg = pcall(records.clear_current_configuration)
             self.result_revision = self.result_revision + 1
@@ -313,8 +338,7 @@ function M.new(records, context, choices)
 end
 
 function M.runtime_context()
-    local safety = require("SF6CCTrainingLibrary/Context")
-    if not safety.is_training_allowed() then return { allowed = false } end
+    if not Safety.is_training_allowed() then return { allowed = false } end
     local tm = sdk.get_managed_singleton("app.training.TrainingManager")
     if not tm or tm:get_field("_IsInit") ~= true then return { allowed = false } end
     local record = tm:call("get_RecordFunc")

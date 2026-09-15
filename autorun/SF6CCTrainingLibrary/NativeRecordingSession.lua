@@ -1,5 +1,6 @@
 -- Bank allocation/lifecycle use the entry thread; paging uses scoped native UI navigation.
 local Menu = require("SF6CCTrainingLibrary/NativeRecordingMenu")
+local Seed = require("SF6CCTrainingLibrary/NativeRecordingSeed")
 local M = { CAPACITY = require("SF6CCTrainingLibrary/TrainingSlotLayout").EXPANDED_RECORDS }
 local SLOT = "app.training.TrainingData.TM_RecordSetting.SlotData"
 local SET = "SetValue(System.Object, System.Int32)"
@@ -74,6 +75,11 @@ function M.prepare(api, threads, ctx, protection)
                 and same(self.manager:get_field("_tData"), self.data)
         end
         if not game_thread() then return false end
+        if stage == "menu_reload" then
+            return self.phase == "active" and not self.released and idle()
+                and same(self.manager:get_field("_tData"), self.data)
+                and same(self.fighter:get_field("RecordSlots"), self.array)
+        end
         if stage == "menu_discard" then return self.phase == "prepared" end
         if stage == "menu_retire" or stage == "detach" then return self.released or idle() end
         if stage == "menu_dispose" or stage == "dispose" then return self.phase == "retired" end
@@ -81,8 +87,8 @@ function M.prepare(api, threads, ctx, protection)
     end
     local recording = { capacity = M.CAPACITY, fighter_id = ctx.fighter_id }
     local attached = false
-    function recording.verify()
-        assert(self.array:get_size() == M.CAPACITY and self.original:get_size() == 8)
+    function recording.verify(allow_empty)
+        assert(self.array:get_size() == M.CAPACITY and self.original:get_size() == self.original_count)
         local slots, inputs, buffers = {}, {}, {}
         local function reserve(seen, value, message)
             if not value then return end
@@ -91,7 +97,7 @@ function M.prepare(api, threads, ctx, protection)
             seen[address] = true
         end
         for _, source in ipairs({ self.original, self.original_copy }) do
-            for i = 0, 7 do
+            for i = 0, self.original_count - 1 do
                 local slot = assert(source:get_element(i))
                 reserve(slots, slot, "protected slot alias")
                 local input = assert(slot:get_field("InputData"))
@@ -104,11 +110,14 @@ function M.prepare(api, threads, ctx, protection)
             reserve(slots, slot, "slot alias")
             local input = assert(slot:get_field("InputData"))
             reserve(inputs, input, "input alias")
-            local buffer = assert(input:get_field("buff"))
+            local buffer = input:get_field("buff")
             reserve(buffers, buffer, "input buffer alias")
-            assert(buffer:get_size() > 0 and buffer:get_size() <= 3600, "buffer capacity")
+            local length = buffer and buffer:get_size() or 0
+            assert((length > 0 and length <= 3600) or (allow_empty and length == 0
+                and slot:get_field("Frame") == 0 and input:get_field("Num") == 0
+                and not slot:get_field("IsValid")), "buffer capacity")
         end
-        for i = 0, 7 do
+        for i = 0, self.original_count - 1 do
             local a, b = self.array:get_element(i), self.original:get_element(i)
             assert(not same(a, b) and a:get_field("Frame") == b:get_field("Frame"), "slot clone")
             local ai, bi = a:get_field("InputData"), b:get_field("InputData")
@@ -130,6 +139,12 @@ function M.prepare(api, threads, ctx, protection)
     function recording.detach(supplied)
         assert(supplied == permit and permit.allows("detach", self.fighter, ctx.fighter_id))
         local current = self.fighter:get_field("RecordSlots")
+        -- Release may clear/replace the game's bank before our next update.
+        -- Drop only our attachment claim; never restore over that new bank.
+        if self.released and not same(current, self.array) and not same(current, self.original) then
+            attached = false
+            return true
+        end
         assert(same(current, self.array) or same(current, self.original), "foreign bank replacement")
         if not self.released then self.gdata:call("DeepCopy", self.idle_gdata) end
         local selection = self.baseline:get_field("SelectChildIndex")
@@ -147,8 +162,8 @@ function M.prepare(api, threads, ctx, protection)
         assert(same(owner, self.manager:get_field("_UIFunc"))
             and same(self.manager:get_field("_tData"), self.data)
             and self.menu.owns_pager(row, parent), "foreign menu navigation")
-        -- The native Function callback may run on another game thread. Only
-        -- page-array changes are permitted here, never bank attach/detach/save.
+        -- Deferred UI updates may use a different thread than bank mounting.
+        -- Only page-array changes are permitted, never bank attach/detach/save.
         navigation = { thread = threads.get_id() }
         local ok, result = pcall(callback)
         navigation = nil
@@ -162,15 +177,24 @@ function M.prepare(api, threads, ctx, protection)
         self.phase = ok and "active" or "attach_uncertain"
         return ok, err
     end
+    function self.reload_menu()
+        if game_thread() and self.phase == "active" and not self.released and (navigation or not idle()) then
+            return false, "等待原生录像状态空闲", true
+        end
+        if not permit.allows("menu_reload", self.manager, ctx.fighter_id) or navigation then
+            return false, "分页恢复条件不满足，未修改录像"
+        end
+        return self.menu.reload()
+    end
     function self.retire()
         if self.phase == "retired" then return true end
         assert(game_thread(), "retire thread")
-        if navigation then return false, "native menu navigation still active" end
-        if not self.released and not idle() then return false, "recorder still busy" end
+        if navigation then return false, "native menu navigation still active", true end
+        if not self.released and not idle() then return false, "recorder still busy", true end
         -- Validate the bank before Menu.retire restores any visible rows.
         -- An unknown replacement must leave both UI and recordings untouched.
         local current = self.fighter:get_field("RecordSlots")
-        if not same(current, self.array) and not same(current, self.original) then
+        if not self.released and not same(current, self.array) and not same(current, self.original) then
             return false, "recording bank changed; restart required (menu and recordings left unchanged)"
         end
         local ok, err = self.menu.retire()
@@ -195,81 +219,139 @@ function M.prepare(api, threads, ctx, protection)
     end
     local ok, err = xpcall(function()
         assert(protection and game_thread(), "save hooks unavailable")
-        own(self.manager); own(self.data)
-        self.record = own(ctx.record_func)
+        stage = "menu preflight"
+        local valid, reason = Menu.validate_native(self.manager)
+        if not valid then self.preflight_failed = true; error(reason, 0) end
+        stage = "context"
+        -- Borrowed engine objects already have a Lua wrapper reference. Keep
+        -- those wrappers here; per-module release would consume a shared ref.
+        self.record = assert(ctx.record_func)
         assert(same(self.record:get_field("_tData"), self.data), "recorder owner mismatch")
-        self.gdata = own(self.record:get_field("_gData"))
-        assert(idle(), "recorder not idle")
+        self.gdata = assert(self.record:get_field("_gData"))
+        -- This check precedes all allocations. A character transition may still
+        -- have a pending native request even when IsRecording/IsReplayNow are false.
+        if not idle() then self.context_deferred = true; return end
         stage = "recorder baseline"
-        self.idle_gdata = own(api.create_instance("app.training.tf_RecordSetting.GameLocalData"))
+        -- Promote before Lua wrapping; this baseline outlives later native allocations.
+        self.idle_gdata = own(api.create_instance_global("app.training.tf_RecordSetting.GameLocalData"))
         self.idle_gdata:call("Init"); self.idle_gdata:call("DeepCopy", self.gdata)
         self.fighter, self.original = bank(self.data)
-        own(self.fighter); own(self.original)
-        assert(self.original:get_size() == 8, "expected original eight slots; cold restart required")
+        self.original_count = self.original:get_size()
+        assert(self.original_count == 8 or self.original_count == M.CAPACITY,
+            "unsupported original recording count: " .. tostring(self.original_count))
+        -- A cold training entry may already contain eighty native slots. Clone
+        -- the complete bank; never adopt unknown objects or truncate recordings.
+        for i = 0, self.original_count - 1 do
+            local slot = assert(self.original:get_element(i), "original slot missing")
+            local input = assert(slot:get_field("InputData"), "original InputData missing")
+            local frames, num = slot:get_field("Frame"), input:get_field("Num")
+            assert(type(frames) == "number" and frames % 1 == 0 and frames >= 0 and frames <= 3600,
+                "original recording frame count invalid")
+            assert(type(num) == "number" and num % 1 == 0 and num >= 0 and num <= 3600,
+                "original input count invalid")
+            local buffer = input:get_field("buff")
+            local length = buffer and buffer:get_size() or 0
+            assert(length >= num and length <= 3600, "original input buffer length invalid")
+            assert(length > 0 or (frames == 0 and num == 0 and not slot:get_field("IsValid")),
+                "recorded slot has no buffer")
+        end
         -- Native auto-save receives the entry baseline, never the temporary bank.
         stage = "save baseline duplicate"
         self.baseline = own(self.data:call("Duplicate"))
         assert(not same(self.baseline, self.data), "save baseline aliases live data")
         local _, original_copy = bank(self.baseline)
-        assert(original_copy:get_size() == 8 and not same(original_copy, self.original), "save baseline bank")
+        assert(original_copy:get_size() == self.original_count and not same(original_copy, self.original), "save baseline bank")
         self.original_copy = original_copy
-        stage = "recording template"
-        local template = self.original:get_element(0)
-        for i = 0, 7 do
-            local candidate = self.original:get_element(i)
-            if candidate:get_field("IsValid") and candidate:get_field("Frame") > 0 then
-                template = candidate
-                break
+        if self.original_count == M.CAPACITY or self.original_count == 8 then
+            stage = "working bank duplicate"
+            if self.original_count == 8 then
+                stage = "native recording seed duplicate"
+                self.working_data = Seed.build(api,self.data,ctx.fighter_id,M.CAPACITY,own)
+            else
+                self.working_data = own(self.data:call("Duplicate"))
             end
-        end
-        stage = "recording array allocation"
-        self.array = own(api.create_managed_array(SLOT, M.CAPACITY))
-        for i = 0, M.CAPACITY - 1 do
-            stage = "slot " .. (i + 1) .. " / init"
-            -- Only keep the current slot's boundary snapshots; emit on failure.
-            -- The global factory alone did not resolve the live lifetime loss.
-            slot_lifetime = {}
-            local slot = api.create_instance_global(SLOT)
-            slot_lifetime[#slot_lifetime + 1] = lifetime_snapshot("created", slot)
-            own(slot)
-            slot_lifetime[#slot_lifetime + 1] = lifetime_snapshot("retained", slot)
-            -- Give Init a native owner, not only Lua wrapper roots. This array
-            -- stays private until every slot and the original bank are verified.
-            stage = "slot " .. (i + 1) .. " / array insertion"
-            self.array:call(SET, slot, i)
-            assert(same(self.array:get_element(i), slot), "private slot insertion readback")
-            slot_lifetime[#slot_lifetime + 1] = lifetime_snapshot("array_owned", slot)
-            stage = "slot " .. (i + 1) .. " / init"
-            slot:call("Init")
-            slot_lifetime[#slot_lifetime + 1] = lifetime_snapshot("initialized", slot)
-            local initialized_input = slot:get_field("InputData") ~= nil
-            -- Native DeepCopy copies the inline Guid at its actual size. Lua's
-            -- generic Title setter can copy boxed-size bytes over InputData.
-            local source = i < 8 and self.original:get_element(i) or template
-            assert(source:get_field("InputData"), "slot " .. (i + 1) .. ": source InputData empty")
-            stage = "slot " .. (i + 1) .. " / copy"
-            slot_lifetime[#slot_lifetime + 1] = lifetime_snapshot("before_copy", slot)
-            slot:call("DeepCopy", source)
-            slot_lifetime[#slot_lifetime + 1] = lifetime_snapshot("copied", slot)
-            local input = slot:get_field("InputData")
-            if not input then
-                error("slot " .. (i + 1) .. ": native DeepCopy left InputData empty (Init="
-                    .. tostring(initialized_input) .. "); " .. input_failure_details(slot, source))
+            assert(not same(self.working_data, self.data) and not same(self.working_data, self.baseline),
+                "working copy aliases protected data")
+            local _, copied_bank = bank(self.working_data)
+            assert(not same(copied_bank, self.original) and not same(copied_bank, self.original_copy),
+                "working bank aliases protected bank")
+            self.array = own(copied_bank)
+            -- Validate every reference before filling any empty copied buffer.
+            recording.verify(true)
+            for i = 0, M.CAPACITY - 1 do
+                local slot = self.array:get_element(i)
+                local input = slot:get_field("InputData")
+                if i >= self.original_count then
+                    input:set_field("Num",0)
+                    slot:set_field("Frame",0); slot:set_field("IsValid",false)
+                    slot:set_field("IsActive",false); slot:set_field("Weight",1)
+                end
+                local buffer = input:get_field("buff")
+                if i >= self.original_count or not buffer or buffer:get_size() == 0 then
+                    input:set_field("buff", own(api.create_managed_array("System.UInt16", 3600)))
+                end
             end
-            stage = "slot " .. (i + 1) .. " / buffer"
-            local buffer = input:get_field("buff")
-            if i >= 8 then
-                buffer = own(api.create_managed_array("System.UInt16", 3600))
-                input:set_field("buff", buffer); input:set_field("Num", 0)
-                slot:set_field("Frame", 0); slot:set_field("IsValid", false)
-                slot:set_field("IsActive", false); slot:set_field("Weight", 1)
-            elseif not buffer or buffer:get_size() == 0 then
-                assert(slot:get_field("Frame") == 0 and input:get_field("Num") == 0
-                    and not slot:get_field("IsValid"), "recorded slot has no buffer")
-                buffer = own(api.create_managed_array("System.UInt16", 3600))
-                input:set_field("buff", buffer)
+        else
+            stage = "recording template"
+            local template = self.original:get_element(0)
+            for i = 0, self.original_count - 1 do
+                local candidate = self.original:get_element(i)
+                if candidate:get_field("IsValid") and candidate:get_field("Frame") > 0 then
+                    template = candidate
+                    break
+                end
             end
-            assert(not buffer or buffer:get_size() <= 3600, "buffer capacity")
+            stage = "recording array allocation"
+            self.array = own(api.create_managed_array(SLOT, M.CAPACITY))
+            for i = 0, M.CAPACITY - 1 do
+                stage = "slot " .. (i + 1) .. " / init"
+                -- Only keep the current slot's boundary snapshots; emit on failure.
+                -- The global factory alone did not resolve the live lifetime loss.
+                slot_lifetime = {}
+                local slot = api.create_instance_global(SLOT)
+                slot_lifetime[#slot_lifetime + 1] = lifetime_snapshot("created", slot)
+                own(slot)
+                slot_lifetime[#slot_lifetime + 1] = lifetime_snapshot("retained", slot)
+                -- Give Init a native owner, not only Lua wrapper roots. This array
+                -- stays private until every slot and the original bank are verified.
+                stage = "slot " .. (i + 1) .. " / array insertion"
+                self.array:call(SET, slot, i)
+                assert(same(self.array:get_element(i), slot), "private slot insertion readback")
+                slot_lifetime[#slot_lifetime + 1] = lifetime_snapshot("array_owned", slot)
+                stage = "slot " .. (i + 1) .. " / init"
+                slot:call("Init")
+                slot_lifetime[#slot_lifetime + 1] = lifetime_snapshot("initialized", slot)
+                assert(slot:get_reference_count() > 0 and slot:get_type_definition(),
+                    "native slot expired during Init; copy refused")
+                local initialized_input = slot:get_field("InputData") ~= nil
+                -- Native DeepCopy copies the inline Guid at its actual size. Lua's
+                -- generic Title setter can copy boxed-size bytes over InputData.
+                local source = i < self.original_count and self.original:get_element(i) or template
+                assert(source:get_field("InputData"), "slot " .. (i + 1) .. ": source InputData empty")
+                stage = "slot " .. (i + 1) .. " / copy"
+                slot_lifetime[#slot_lifetime + 1] = lifetime_snapshot("before_copy", slot)
+                slot:call("DeepCopy", source)
+                slot_lifetime[#slot_lifetime + 1] = lifetime_snapshot("copied", slot)
+                local input = slot:get_field("InputData")
+                if not input then
+                    error("slot " .. (i + 1) .. ": native DeepCopy left InputData empty (Init="
+                        .. tostring(initialized_input) .. "); " .. input_failure_details(slot, source))
+                end
+                stage = "slot " .. (i + 1) .. " / buffer"
+                local buffer = input:get_field("buff")
+                if i >= self.original_count then
+                    buffer = own(api.create_managed_array("System.UInt16", 3600))
+                    input:set_field("buff", buffer); input:set_field("Num", 0)
+                    slot:set_field("Frame", 0); slot:set_field("IsValid", false)
+                    slot:set_field("IsActive", false); slot:set_field("Weight", 1)
+                elseif not buffer or buffer:get_size() == 0 then
+                    assert(slot:get_field("Frame") == 0 and input:get_field("Num") == 0
+                        and not slot:get_field("IsValid"), "recorded slot has no buffer")
+                    buffer = own(api.create_managed_array("System.UInt16", 3600))
+                    input:set_field("buff", buffer)
+                end
+                assert(not buffer or buffer:get_size() <= 3600, "buffer capacity")
+            end
         end
         slot_lifetime = nil
         stage = "recording ownership verification"
@@ -285,6 +367,7 @@ function M.prepare(api, threads, ctx, protection)
         return debug.traceback("[" .. stage .. "] " .. tostring(detail) .. evidence, 2)
     end)
     if not ok then self.phase = "failed"; return nil, tostring(err), self end
+    if self.context_deferred then return nil, "recorder not idle", nil, true end
     return self
 end
 return M

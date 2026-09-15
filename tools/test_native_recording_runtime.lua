@@ -2,272 +2,541 @@ package.path = "autorun/?.lua;" .. package.path
 local Runtime = require("SF6CCTrainingLibrary/NativeRecordingRuntime")
 local passed = 0
 local function test(name, fn) fn(); passed = passed + 1; print("PASS " .. name) end
-local function fixture(options)
-    options = options or {}
-    local address, hooks, tls, tid, objects = 100, {}, {}, 7, {}
-    local slot_allocations = 0
-    local function obj(fields)
-        address = address + 1
-        local o = { fields = fields or {}, id = address, refs = 1 }
-        objects[address] = o
-        function o:get_address() return self.id end
-        function o:get_field(k)
-            -- SDK parse_data/set_data uses boxed Guid size (32), while the
-            -- inline Title occupies 16 bytes followed immediately by InputData.
-            if k=="Title" and options.guid_overcopy then
-                return {guid=self.fields.Title, trailing_input=self.fields.InputData}
-            end
-            return self.fields[k]
-        end
-        function o:set_field(k,v)
-            if options.menu_structs and type(v)=="table" and v.inline_struct then
-                error("unsafe boxed-size inline menu struct copy: "..k)
-            end
-            if k=="Title" and options.guid_overcopy then
-                self.fields.Title=v.guid; self.fields.InputData=v.trailing_input; return
-            end
-            self.fields[k] = v
-        end
-        function o:add_ref()
-            assert(not self.expired, "cannot retain an invalid native object")
-            if self.local_object then
-                -- REFramework #1448/#1504: promotion can leave a second Lua
-                -- wrapper whose finalizer releases the promoted native ref.
-                self.local_object = false; self.refs = 1
-                self.orphan_finalizer = true
-            elseif not self.init_ref_loss then
-                self.refs = self.refs + 1
-            end
-            if self.expire_stage == "retain" then self:expire() end
-        end
-        function o:expire() self.expired=true; self.refs=0; self.kind=nil; self.fields={} end
-        function o:release() self.refs = self.refs - 1; assert(self.refs >= 0) end
-        function o:get_reference_count() return self.refs end
-        function o:get_type_definition()
-            if self.refs == 0 then return nil end
-            return {
-            get_full_name=function() return self.kind end,
-            get_field=function(_,key) assert(key=="InputData"); return {get_offset_from_base=function() return 48 end} end,
-            get_method=function(_,signature) return {get_function=function() return signature=="Init()" and "0x1000" or "0x2000" end} end,
-        } end
-        function o:read_qword(offset)
-            assert(offset==48)
-            if self.missing_input and options.raw_input then return options.raw_input end
-            return self.fields.InputData and self.fields.InputData.id or 0
-        end
-        function o:get_size() return #self.items end
-        function o:get_element(i)
-            local item=self.items[i+1]
-            -- Inject corruption at completed-bank validation, independent of
-            -- whether insertion happens before or after native initialization.
-            if self.slot_array and i==79 and options.alias and not self.alias_injected
-                and item and item.fields.InputData and item.fields.InputData.fields.buff then
-                self.alias_injected=true
-                local donor=options.alias_original or self.items[9]
-                if options.alias=="slot" then self.items[i+1]=donor
-                elseif options.alias=="input" then item.fields.InputData=donor.fields.InputData
-                elseif options.alias=="buffer" then item.fields.InputData.fields.buff=donor.fields.InputData.fields.buff end
-            end
-            return self.items[i+1]
-        end
-        function o:call(name,a,b)
-            if name=="Init" and self.init_ref_loss then
-                self:release()
-                if self.refs==0 then self:expire() end
-            end
-            if name == self.expire_stage then self:expire() end
-            if self.orphan_finalizer then
-                self.orphan_finalizer = false; self:release()
-                if self.refs == 0 then self.fields = {}; self.kind = nil end
-            end
-            if self.refs == 0 then return nil end
-            local property=name:match("^set_(%w+)%(")
-            if options.menu_structs and property then self.fields["_"..property]=a; return end
-            if name=="set_MessageID(System.Guid)" then self.fields._MessageID=a; return end
-            if name=="set_GuideMessage(System.Guid)" then self.fields._GuideMessage=a; return end
-            if name=="ViewUpdate(app.training.BaseParam, app.training.TrainingMenuData, System.Int32)" then return true end
-            if name == "get_Count" then return #self.items end
-            if name == "get_Item" then return self.items[a+1] end
-            if name == "GetFighterIndex" then assert(a==28); return 0 end
-            if name == "SetValue(System.Object, System.Int32)" then
-                assert(not a.expired,"cannot insert an invalid native object")
-                local old=self.items[b+1]
-                if old~=a then
-                    if old then old:release() end
-                    a.refs=a.refs+1
-                end
-                self.items[b+1] = a
-                return
-            end
-            if name == "Init" then
-                if self.missing_input then return end
-                if self.kind:find("SlotData",1,true) then self.fields = { Frame=0,Weight=1,IsValid=false,
-                    IsActive=false,InputData=obj({Num=0}) } end
-                return
-            end
-            if name == "IsRecording" or name == "IsReplayNow" then return false end
-            if name == "DeepCopy" then
-                if self.missing_input then return end
-                if options.copy_error and self.kind and self.kind:find("SlotData",1,true) then
-                    error("sol_lua_push: test address is not a managed object")
-                end
-                for k,v in pairs(a.fields) do self.fields[k] = v end
-                if a.fields.InputData then
-                    local input=obj({Num=a.fields.InputData.fields.Num})
-                    local buff=obj(); buff.items={}
-                    for i,v in ipairs(a.fields.InputData.fields.buff and a.fields.InputData.fields.buff.items or {}) do
-                        buff.items[i]=v
-                    end
-                    input.fields.buff=buff; self.fields.InputData=input
-                end
-                return
-            end
-            error("unexpected call: " .. name)
-        end
-        return o
-    end
-    local function array(items) local a=obj(); a.items=items or {}; return a end
-    local original={}
-    for i=1,8 do original[i]=obj({Frame=i,Weight=1,IsValid=true,IsActive=true,Title="native-frame-format-"..i,
-        InputData=obj({Num=i,buff=array({i})})}) end
-    local fighter=obj({FighterID=28,RecordSlots=array(original)})
-    local data=obj({RecordSetting=obj({FighterDataList=array({fighter})})})
-    local basecall=data.call
-    function data:call(name,...)
-        if name~="Duplicate" then return basecall(self,name,...) end
-        local copies={}
-        for i=1,8 do copies[i]=obj(); copies[i]:call("DeepCopy",original[i]) end
-        return obj({RecordSetting=obj({FighterDataList=array({obj({FighterID=28,RecordSlots=array(copies)})})})})
-    end
-    local pages={}
-    for _, spec in ipairs({{107,118},{108,131}}) do
-        local rows={obj({_FuncType=spec[1]==107 and 0 or 130,_Type=spec[1]==107 and 9 or 0})}
-        for i=0,7 do
-            local fields={_FuncType=spec[2],_SlotID=i}
-            if options.menu_structs then
-                for _,key in ipairs({"_MessageID","_SubMessageID","_GuideMessage","_GuideMessageID","_EndWordsGuid","_LimitValue"}) do
-                    fields[key]={inline_struct=true,key=key}
-                end
-            end
-            rows[#rows+1]=obj(fields)
-        end
-        rows[#rows+1]=obj({_FuncType=0,_Type=4})
-        rows[#rows+1]=obj({_FuncType=109})
-        rows[#rows+1]=obj({_FuncType=113})
-        pages[#pages+1]=obj({_FuncType=spec[1],_ChildData=array(rows)})
-    end
-    local manager=obj({_tData=data,_UIData=obj({_MenuData=array({obj({_FuncType=4,
-        _ChildData=array({obj({_FuncType=106,_ChildData=array(pages)})})})})})})
-    manager.fields._UIFunc=obj()
-    local record=obj({_tData=data,_gData=obj({ReqType=0,State=0,SlotID=0})})
-    local ctx={allowed=true,session=manager,data=data,fighter_id=28,busy=false,menu_closed=true,record_func=record}
-    local stats={cancel=0,autoload=0}
-    local library={cancel=function() stats.cancel=stats.cancel+1 end,has_pending=function() return false end,
-        autoload=function(id) assert(id==28); stats.autoload=stats.autoload+1 end}
-    local api={PreHookResult={SKIP_ORIGINAL="skip"}}
-    function api.find_type_definition(kind)
-        if kind=="System.Guid" then
-            return {get_field=function() return {get_data=function() return {NewGuid=function()
-                address=address+1; local id=address
-                return {read_byte=function(_,i) return i==0 and id%255+1 or 0 end}
-            end} end} end}
-        end
-        return {get_method=function(_,name) return name end,
-            get_field=function(_,name) assert(name=="Success"); return {get_data=function() return 1 end} end,
-            get_fields=function()
-                local list={}
-                local keys={"_FuncType","_SlotID"}
-                if options.menu_structs then
-                    for _,key in ipairs({"_MessageID","_SubMessageID","_GuideMessage","_GuideMessageID","_EndWordsGuid","_LimitValue"}) do keys[#keys+1]=key end
-                end
-                for _,key in ipairs(keys) do list[#list+1]={is_static=function() return false end,
-                    get_name=function() return key end} end
-                return list
-            end}
-    end
-    local function create_instance(kind, global)
-        local value=obj(); value.kind=kind
-        if kind=="app.training.TrainingData.TM_RecordSetting.SlotData" then
-            slot_allocations=slot_allocations+1
-            value.missing_input=slot_allocations==options.missing_input_at
-            -- Installed add_ref deduplicates a global object's Lua reference.
-            -- Reproduce the observed 1 -> 0 loss across Init, without assuming
-            -- which engine/framework operation released it.
-            value.init_ref_loss=slot_allocations==options.init_ref_loss_at
-            if slot_allocations==options.expire_slot then
-                value.expire_stage=options.expire_stage
-                if value.expire_stage=="create" then value:expire() end
-            end
-            if slot_allocations==options.promotion_gc_at and not global then
-                value.local_object=true; value.refs=-1
-            end
-        end
-        return value
-    end
-    function api.create_instance(kind) return create_instance(kind, false) end
-    function api.create_instance_global(kind) return create_instance(kind, true) end
-    function api.create_managed_array(kind,n)
-        local values={}; for i=1,n do values[i]=false end
-        local result=array(values)
-        result.slot_array=kind=="app.training.TrainingData.TM_RecordSetting.SlotData"
-        return result
-    end
-    function api.hook(method,pre,post) hooks[method]={pre,post} end
-    function api.to_int64(value) return value end
-    function api.to_ptr(value) return value end
-    function api.to_managed_object(value) return value end
-    local threads={get_id=function() return tid end,get_hook_storage=function() return tls end}
-    local session
-    local runtime=Runtime.new({api=api,threads=threads,library=library,context=function() return ctx end,
-        log=function(message) stats.error=message; stats.logs=(stats.logs or 0)+1 end,
-        prepare=function(...)
-            local value,err,failed=require("SF6CCTrainingLibrary/NativeRecordingSession").prepare(...)
-            session=value; return value,err,failed
-        end})
-    local function tick() for _=1,15 do runtime.tick() end end
-    local function call(name,owner,result,between)
-        local old=tls
-        tls={}; local h=assert(hooks[name]); h[1]({0,owner}); if between then between() end
-        local value=h[2](result); tls=old; return value
-    end
-    local function navigate(page_index)
-        local page=pages[page_index]
-        local v=obj({Data=page.fields._ChildData:get_element(0),ParentData=page})
-        local param=obj(); param.kind="app.training.UIFlowTrainingMenu.Param"
-        local h=assert(hooks["Function(app.training.TrainingFuncType, app.training.BaseParam, app.training.UIFlowTrainingMenu.Param.ViewData, System.Int32)"])
-        local previous=tls; tls={}
-        local wanted=page.fields._ChildData:get_element(1).fields._SlotID==8 and 0 or 1
-        local skip=h[1]({0,manager.fields._UIFunc,345,param,v,wanted})
-        local result=h[2](99); tls=previous
-        return skip,result
-    end
-    local function arrow(page_index,wanted)
-        local page=pages[page_index]
-        local v=obj({Data=page.fields._ChildData:get_element(0),ParentData=page,Index=0})
-        local group=obj(); group.call=function() return 1 end
-        local param=obj({_SecondaryList=group,_ViewDataList=array({obj({Index=0}),v})})
-        param.kind="app.training.UIFlowTrainingMenu.Param"
-        manager.fields._UITrainingMenu=obj({_ParamData=param})
-        local old=tls; tls={}
-        local spin=assert(hooks["OnUpdateSpin()"]); spin[1]({0,param})
-        local outer=tls; tls={}
-        local getter=assert(hooks["GetOptionIndex(app.training.TrainingFuncType, System.Int32, app.training.TrainingFuncType)"])
-        getter[1]({0,manager.fields._UIFunc,345,wanted,345})
-        local result=getter[2](99); tls=outer
-        v.fields.Index=result
-        assert(page.fields._ChildData:get_element(1).fields._SlotID~=wanted*8,
-            "page rebuilt before native setter returned")
-        spin[2](0); tls=old
-        return result
-    end
-    return {runtime=runtime,tick=tick,call=call,ctx=ctx,stats=stats,fighter=fighter,data=data,manager=manager,
-        pages=pages,obj=obj,array=array,record=record,objects=objects,thread=function(id) tid=id end,navigate=navigate,
-        session=function() return session end,arrow=arrow,original=original}
+local fixture = require("tools.fixtures.native_recording_runtime")
+local function pre_seed_fixture(options)
+    options=options or {}
+    options.session=require("tools.fixtures.native_recording_session_pre_seed")
+    return fixture(options)
 end
+
+test("captured temporary child-option callback paints the selected page on its first click",function()
+    for _,page_index in ipairs({1,2}) do
+        local f=fixture(); f.runtime.install_hooks(); f.tick(); f.ctx.menu_closed=false
+        local allocations=f.native_work.allocations
+        for _,wanted in ipairs({1,2,3,2,0}) do
+            local painted
+            f.option_arrow(page_index,wanted,true,function(page)
+                painted=page.fields._ChildData:get_element(1).fields._SlotID
+            end)
+            assert(painted==wanted*8,"child callback painted old page: wanted="..wanted.." slot="..painted)
+            f.ui_tick(3)
+            assert(f.pages[page_index].fields._ChildData:get_element(1).fields._SlotID==wanted*8)
+        end
+        assert(f.native_work.allocations==allocations,"pager allocated native objects")
+        assert(not f.native_work.view_updates,"forced native refresh")
+    end
+end)
+
+test("temporary child spin rejects foreign ownership, selection and spinner arguments",function()
+    for _,change in ipairs({
+        function(f,args) args[5].fields.ParentData=f.obj() end,
+        function(f,args) args[5].fields.Data=f.obj() end,
+        function(_,args) args[5].fields.Data=args[5].fields.ParentData.fields._ChildData:get_element(2) end,
+        function(f,args) args[4]=f.obj() end,
+        function(_,args) args[6]=2 end,
+        function(_,args) args[4].fields._SecondarySpinIndex=0; args[6]=0 end,
+        function(_,args) args[5].fields.ParentData.fields._ChildData.items={} end,
+    }) do
+        local f=fixture(); f.runtime.install_hooks(); f.tick(); f.ctx.menu_closed=false
+        local painted
+        f.option_arrow(1,1,true,function(page) painted=page.fields._ChildData:get_element(1).fields._SlotID end,
+            function(args) change(f,args); return args end)
+        assert(painted==0,"unverified child callback changed visible data")
+        assert(not f.stats.error,"invalid child callback stopped pager: "..tostring(f.stats.error))
+    end
+end)
+
+test("temporary child action outside its native spin cannot request navigation",function()
+    local f=fixture(); f.runtime.install_hooks(); f.tick(); f.ctx.menu_closed=false
+    local page,v,param=f.focus_page(1)
+    local row=v.fields.Data
+    local child=f.obj({Data=row.fields._ChildData:get_element(1),ParentData=row,Index=0})
+    v.fields.Index=1
+    local skip=f.hook_call("Function(app.training.TrainingFuncType, app.training.BaseParam, app.training.UIFlowTrainingMenu.Param.ViewData, System.Int32)",
+        {0,f.manager.fields._UIFunc,345,param,child,1})
+    f.ui_tick(3)
+    assert(skip==nil and page.fields._ChildData:get_element(1).fields._SlotID==0)
+end)
+
+test("temporary child spin waits while a library operation blocks navigation",function()
+    local f=fixture(); f.runtime.install_hooks(); f.tick(); f.ctx.menu_closed=false
+    f.stats.pending=true
+    local painted
+    f.option_arrow(1,1,true,function(page) painted=page.fields._ChildData:get_element(1).fields._SlotID end)
+    assert(painted==0,"blocked child action committed navigation")
+    f.ui_tick(3); assert(f.pages[1].fields._ChildData:get_element(1).fields._SlotID==0)
+    f.stats.pending=false; f.ui_tick(2)
+    assert(f.pages[1].fields._ChildData:get_element(1).fields._SlotID==8)
+end)
+
+test("native spin repaint sees the newly committed page without a second click",function()
+    for _,page_index in ipairs({1,2}) do
+        local f=fixture(); f.runtime.install_hooks(); f.tick(); f.ctx.menu_closed=false
+        local allocations=f.native_work.allocations
+        local painted={}
+        for _,wanted in ipairs({1,2,3,2,1,0}) do
+            f.arrow(page_index,wanted,true,function(page)
+                painted[#painted+1]=page.fields._ChildData:get_element(1).fields._SlotID
+            end)
+            assert(painted[#painted]==wanted*8,
+                "native repaint saw previous page: wanted="..wanted.." first_slot="..painted[#painted])
+            f.ui_tick(3)
+            assert(f.pages[page_index].fields._ChildData:get_element(1).fields._SlotID==wanted*8,
+                "post-spin fallback applied page twice")
+        end
+        assert(f.native_work.allocations==allocations,"native spin allocated menu objects")
+        assert(not f.native_work.view_updates,"forced native refresh")
+    end
+end)
+
+test("native spin does not commit a foreign callback or an uncommitted value",function()
+    for _,change in ipairs({
+        function(f,args) args[4]=f.obj(); return args end,
+        function(f,args) args[5]=f.obj({Data=args[5].fields.Data,ParentData=args[5].fields.ParentData,Index=1}); return args end,
+        function(_,args) args[6]=2; return args end,
+    }) do
+        local f=fixture(); f.runtime.install_hooks(); f.tick(); f.ctx.menu_closed=false
+        local painted
+        f.arrow(1,1,true,function(page) painted=page.fields._ChildData:get_element(1).fields._SlotID end,
+            function(args) return change(f,args) end)
+        assert(painted==0,"foreign or uncommitted spin changed visible data")
+        f.ui_tick(2)
+        assert(f.pages[1].fields._ChildData:get_element(1).fields._SlotID==8,
+            "verified post-spin fallback lost the native selection")
+    end
+end)
+
+test("native spin waits while a library operation blocks navigation",function()
+    local f=fixture(); f.runtime.install_hooks(); f.tick(); f.ctx.menu_closed=false
+    f.stats.pending=true
+    local painted
+    f.arrow(1,1,true,function(page) painted=page.fields._ChildData:get_element(1).fields._SlotID end)
+    assert(painted==0,"blocked operation committed native spin")
+    f.stats.pending=false
+    f.ui_tick(2)
+    assert(f.pages[1].fields._ChildData:get_element(1).fields._SlotID==8)
+end)
+
+test("reopening may read page2 while commands remain blocked until the menu is open",function()
+    local f=fixture(); f.runtime.install_hooks(); f.tick(); f.ctx.menu_closed=false
+    f.arrow(1,1)
+    local rows=f.pages[1].fields._ChildData
+    f.ctx.menu_closed=true
+    assert(f.read_page_focus(1)==1,"opening initialization fell back to page1")
+    assert(f.navigate(1)==nil and f.pages[1].fields._ChildData==rows)
+    f.ctx.allowed=false
+    assert(f.read_page_focus(1)==99,"read permission escaped offline training")
+end)
+
+test("pager input only queues, two safe ticks rebind and mark once without native allocation",function()
+    for _,source in ipairs({"arrow","navigate"}) do
+        local f=fixture(); f.runtime.install_hooks(); f.tick(); f.ctx.menu_closed=false
+        local before=f.pages[1].fields._ChildData
+        local allocations=f.native_work.allocations
+        if source=="arrow" then f.arrow(1,1,true) else f.navigate(1,true) end
+        assert(f.pages[1].fields._ChildData==before,"inline input callback rebuilt the page")
+        assert(not f.native_work.view_updates,"inline ViewUpdate")
+        f.ui_tick(1); assert(before:get_element(1).fields._SlotID==0,"rebound before two safe ticks")
+        f.ui_tick(1); assert(f.pages[1].fields._ChildData:get_element(1).fields._SlotID==8)
+        f.ui_tick(5); assert(f.native_work.dirty_updates==1,"repeated deferred invalidation")
+        assert(not f.native_work.view_updates and f.pages[1].fields._ChildData==before)
+        assert(f.native_work.allocations==allocations,"paging allocated native data")
+    end
+end)
+
+test("pending page is superseded or cancelled by rapid reverse input",function()
+    local f=fixture(); f.runtime.install_hooks(); f.tick(); f.ctx.menu_closed=false
+    f.arrow(1,1,true); f.ui_tick(1); f.arrow(1,2,true)
+    f.ui_tick(); assert(f.pages[1].fields._ChildData:get_element(1).fields._SlotID==16)
+    f.arrow(1,3,true); f.arrow(1,2,true); f.ui_tick()
+    assert(f.native_work.dirty_updates==1,"reverse to committed page must cancel pending move")
+end)
+
+test("pending page never survives native context replacement or reset",function()
+    for _,change in ipairs({"focus","param","owner","close","exit","release","reset"}) do
+        local f=fixture(); f.runtime.install_hooks(); f.tick(); f.ctx.menu_closed=false
+        f.arrow(1,1,true)
+        if change=="focus" then f.focus_page(2)
+        elseif change=="param" then f.focus_page(1)
+        elseif change=="owner" then f.manager.fields._UIFunc=f.obj()
+        elseif change=="close" then f.ctx.menu_closed=true
+        elseif change=="exit" then f.ctx.allowed=false
+        elseif change=="release" then f.session().released=true
+        else f.runtime.reset() end
+        f.ui_tick(5); assert(not f.native_work.dirty_updates,"stale navigation: "..change)
+        f.ctx.menu_closed=false; f.ctx.allowed=true; f.ui_tick(5)
+        assert(not f.native_work.dirty_updates,"cancelled request revived: "..change)
+    end
+end)
+
+test("library dialog or job delays row invalidation until two unblocked ticks",function()
+    local f=fixture(); f.runtime.install_hooks(); f.tick(); f.ctx.menu_closed=false
+    f.arrow(1,1,true); f.stats.pending=true; f.ui_tick(5)
+    assert(not f.native_work.dirty_updates)
+    f.stats.pending=false; f.ui_tick(1); assert(not f.native_work.dirty_updates)
+    f.ui_tick(1); assert(f.native_work.dirty_updates==1)
+end)
+
+test("deferred dirty flag failure is reported once and never retried",function()
+    local f=fixture({fail_dirty=true}); f.runtime.install_hooks(); f.tick(); f.ctx.menu_closed=false
+    f.arrow(1,1,true); f.ui_tick(5)
+    assert(f.stats.error and f.stats.error:find("injected dirty flag failure",1,true))
+    assert(f.native_work.dirty_writes==1 and not f.native_work.view_updates)
+    f.navigate(1,true); f.ui_tick(5); assert(f.native_work.dirty_writes==1)
+end)
+
+test("automatic startup bypasses failing per-slot Init for an existing eighty-slot bank",function()
+    local f=fixture({native_capacity=80,expire_slot=53,expire_stage="Init"})
+    f.runtime.install_hooks(); f.tick()
+    assert(f.runtime.state()=="active",f.stats.error or "automatic paging missing")
+    assert(f.stats.autoload==1 and f.native_work.duplicates==2)
+end)
+
+test("native menu factory avoids the local promotion finalizer model",function()
+    local f=fixture({menu_promotion_gc=true})
+    f.runtime.install_hooks(); f.tick()
+    assert(f.runtime.state()=="active",f.stats.error or "menu promotion lost rows")
+end)
+
+-- Locks down the factory selected by the live differential, not native GC behavior.
+for _,capacity in ipairs({8,80}) do
+    test("recorder baseline uses global factory with native capacity "..capacity,function()
+        local f=fixture({native_capacity=capacity})
+        f.runtime.install_hooks(); f.tick()
+        assert(f.runtime.state()=="active",f.stats.error or "preparation failed")
+        assert((f.native_work.recorder_local_creations or 0)==0,"recorder baseline used local factory")
+        assert(f.native_work.recorder_global_creations==1,"expected one global recorder baseline")
+        local session=f.session()
+        assert(session.idle_gdata~=session.gdata,"recorder baseline aliases live state")
+        assert(session.idle_gdata:get_reference_count()>0)
+    end)
+end
+
+test("expanded menu rows gain native array ownership before later row allocations",function()
+    -- Models the observed sole-Lua-reference window, not the unknown releasing instruction.
+    local f=fixture({menu_single_ref_reclaim=true})
+    f.runtime.install_hooks(); f.tick()
+    assert((f.native_work.reclaim_checks or 0)>0,"lifetime stress did not run")
+    assert(f.runtime.state()=="active",f.stats.error or "menu not mounted")
+    assert((f.native_work.invalid_insertions or 0)==0)
+end)
+
+-- These faults test diagnostic attribution and refusal, not the native crash cause.
+for _,spec in ipairs({
+    {event="create",stage="after_create"},
+    {event="read:_MessageID",stage="after_read:_MessageID"},
+    {event="call:set_MessageID(System.Guid)",stage="after_write:_MessageID"},
+}) do
+    test("construction diagnosis catches earlier row corruption at "..spec.event,function()
+        local injected=false
+        local f=fixture({menu_structs=true,construction_fault=function(event,subject,objects,work)
+            if injected or work.menu_creations~=5 or event~=spec.event then return end
+            for _,row in pairs(objects) do
+                if row.kind=="app.training.TrainingMenuData" and row.fields._SlotID==3
+                    and row.fields._FuncType==118 then
+                    injected=true; row:expire(); row.refs=1688060279
+                    return
+                end
+            end
+            error("construction fault target missing")
+        end})
+        local bank,rows=f.fighter.fields.RecordSlots,f.pages[1].fields._ChildData
+        f.runtime.install_hooks(); f.tick()
+        assert(injected,"fault did not run")
+        local message=f.stats.error or ""
+        for _,part in ipairs({"origin=expanded_slot","slot=4","refs=1688060279",
+            "stage=construction_slot_5:"..spec.stage}) do
+            assert(message:find(part,1,true),"missing boundary "..part..": "..message)
+        end
+        assert(f.native_work.menu_creations==5,"continued allocating after corruption")
+        assert(f.fighter.fields.RecordSlots==bank and f.pages[1].fields._ChildData==rows)
+        assert((f.native_work.invalid_insertions or 0)==0)
+        local allocations,logs=f.native_work.allocations,f.stats.logs
+        f.tick(450)
+        assert(f.native_work.allocations==allocations and f.stats.logs==logs,"retried failed construction")
+    end)
+end
+
+for _,spec in ipairs({
+    {origin="expanded_slot",slot=1,page=107,window=1},
+    {origin="expanded_slot",slot=8,page=108,window=2},
+    {origin="native_slot",slot=1,page=107,window=1},
+    {origin="native_footer",row=10,page=107,window=1},
+    {origin="pager",page=107,window=1},
+}) do
+    test("expired menu diagnostic identifies "..spec.origin.." on page "..spec.page,function()
+        local victim
+        local f=fixture({menu_fault_window=spec.window,menu_fault=function(objects,pages)
+            local page=pages[spec.page==107 and 1 or 2]
+            if spec.origin=="native_slot" then victim=page.fields._ChildData:get_element(spec.slot)
+            elseif spec.origin=="native_footer" then victim=page.fields._ChildData:get_element(spec.row)
+            else
+                for _,value in pairs(objects) do
+                    local fields=value.fields
+                    local matches=spec.origin=="pager" and fields._FuncType==345 and fields._Type==1
+                        or spec.origin=="expanded_slot" and value.kind=="app.training.TrainingMenuData"
+                            and fields._SlotID==spec.slot-1
+                            and fields._FuncType==(spec.page==107 and 118 or 131)
+                    if matches then victim=value; break end
+                end
+            end
+            assert(victim,"fault target missing")
+            victim:expire()
+        end})
+        local bank=f.fighter.fields.RecordSlots
+        local rows=f.pages[1].fields._ChildData
+        f.runtime.install_hooks(); f.tick()
+        local message=f.stats.error or ""
+        for _,part in ipairs({"[DEBUG-SF6CC-menu-lifetime]","origin="..spec.origin,
+            "page="..spec.page,"stage=after_window_allocation","last=before_window_allocation",
+            "address="..victim.id,"refs=0","last_refs="}) do
+            assert(message:find(part,1,true),"missing diagnostic "..part..": "..message)
+        end
+        if spec.slot then assert(message:find("slot="..spec.slot,1,true),message) end
+        assert((f.native_work.invalid_insertions or 0)==0)
+        assert((f.native_work.expired_type_reads or 0)==0,"dereferenced a known expired menu row")
+        assert(f.fighter.fields.RecordSlots==bank and f.pages[1].fields._ChildData==rows)
+        local allocations,logs=f.native_work.allocations,f.stats.logs
+        f.tick(450)
+        assert(f.native_work.allocations==allocations and f.stats.logs==logs,"automatic retry after dead row")
+    end)
+end
+
+test("menu lifetime diagnosis stops at slot assignment before reading expired fields",function()
+    local f=fixture({menu_expire_on_assignment=3})
+    local bank=f.fighter.fields.RecordSlots
+    f.runtime.install_hooks(); f.tick()
+    local message=f.stats.error or ""
+    for _,part in ipairs({"[DEBUG-SF6CC-menu-lifetime]","origin=expanded_slot","page=107",
+        "slot=4","stage=slot assignment:_SlotID","last=after copy:_FuncType","refs=0"}) do
+        assert(message:find(part,1,true),message)
+    end
+    assert(f.fighter.fields.RecordSlots==bank and (f.native_work.invalid_insertions or 0)==0)
+    assert((f.native_work.expired_type_reads or 0)==0)
+end)
+
+test("automatic readiness requires consecutive stable idle checks and resets across interruptions",function()
+    local f=fixture(); f.runtime.install_hooks()
+    f.tick(30)
+    assert(f.native_work.allocations==0,"allocated before layout stabilized")
+    f.ctx.busy=true; f.tick(15)
+    f.ctx.busy=false; f.tick(30)
+    assert(f.native_work.allocations==0)
+    f.stats.pending=true; f.tick(15)
+    f.stats.pending=false; f.tick(30)
+    assert(f.native_work.allocations==0)
+    f.ctx.save_busy=true; f.tick(15)
+    f.ctx.save_busy=false; f.tick(30)
+    assert(f.native_work.allocations==0)
+    f.ctx.menu_closed=false; f.tick(15)
+    f.ctx.menu_closed=true; f.tick(30)
+    assert(f.native_work.allocations==0)
+    f.tick(15)
+    assert(f.runtime.state()=="active" and f.stats.autoload==1)
+end)
+
+test("automatic paging waits for native layout without allocations and recovers when ready",function()
+    local f=fixture()
+    local header=f.pages[1].fields._ChildData:get_element(0)
+    header.fields._FuncType=345
+    f.runtime.install_hooks()
+    for i=1,100 do f.tick() end
+    assert(f.native_work.allocations==0 and f.native_work.duplicates==0)
+    header.fields._FuncType=0
+    f.tick()
+    assert(f.runtime.state()=="active",f.stats.error or "no automatic recovery")
+    assert(f.stats.autoload==1)
+end)
+
+test("owned pagination restores automatically while idle without changing recordings or importing",function()
+    local f=fixture()
+    local rows={f.pages[1].fields._ChildData,f.pages[2].fields._ChildData}
+    f.runtime.install_hooks(); f.tick()
+    local bank=f.fighter.fields.RecordSlots
+    local work=f.native_work.allocations
+    f.pages[1].fields._ChildData=rows[1]; f.pages[2].fields._ChildData=rows[2]
+    f.ctx.menu_closed=false; f.tick()
+    assert(f.pages[1].fields._ChildData==rows[1])
+    f.ctx.menu_closed=true; f.ctx.busy=true; f.tick()
+    assert(f.pages[1].fields._ChildData==rows[1])
+    f.ctx.busy=false; f.tick()
+    assert(f.pages[1].fields._ChildData~=rows[1] and f.pages[2].fields._ChildData~=rows[2])
+    assert(f.fighter.fields.RecordSlots==bank and f.native_work.allocations==work)
+    assert(f.stats.autoload==1 and f.stats.names_reset==1)
+    local writes=f.native_work.menu_writes
+    for i=1,100 do f.tick() end
+    assert(f.native_work.menu_writes==writes and f.native_work.allocations==work,
+        "healthy menus must not be rewritten or recreated by automatic checks")
+end)
+
+test("manual reload recovers failed per-slot initialization without importing or changing names",function()
+    local f=pre_seed_fixture({expire_slot=67,expire_stage="Init"})
+    f.runtime.install_hooks(); f.tick()
+    assert(f.runtime.state()=="unloaded" and f.stats.error:find("slot 67",1,true))
+    local original=f.fighter.fields.RecordSlots
+    f.ctx.menu_closed=false
+    assert(f.runtime.request_reload())
+    assert(not f.runtime.request_reload())
+    f.tick(); assert(f.runtime.state()=="unloaded")
+    f.ctx.menu_closed=true; f.tick()
+    assert(f.runtime.state()=="active",f.stats.error)
+    assert(f.stats.autoload==0 and f.stats.names_reset==0,"manual reload must not import or reset names")
+    assert(f.session().array~=original and f.session().array:get_element(79).fields.Frame==0)
+    f.runtime.reset(); assert(f.fighter.fields.RecordSlots==original)
+end)
+
+test("manual reload restores owned page rows without replacing recordings",function()
+    local f=fixture()
+    local rows={f.pages[1].fields._ChildData,f.pages[2].fields._ChildData}
+    f.runtime.install_hooks(); f.tick()
+    local bank=f.fighter.fields.RecordSlots
+    bank:get_element(79).fields.Frame=100
+    f.pages[1].fields._ChildData=rows[1]; f.pages[2].fields._ChildData=rows[2]
+    assert(f.runtime.request_reload()); f.tick()
+    assert(f.fighter.fields.RecordSlots==bank and bank:get_element(79).fields.Frame==100)
+    assert(f.pages[1].fields._ChildData~=rows[1] and f.pages[2].fields._ChildData~=rows[2])
+    assert(f.stats.autoload==1,"menu reload must not auto-import again")
+    assert(f.stats.names_reset==1,"menu reload must not reset names again")
+end)
+
+test("manual reload refuses foreign menu or bank without partially restoring pages",function()
+    for _,fault in ipairs({"menu","bank"}) do
+        local f=fixture(); local rows=f.pages[1].fields._ChildData
+        f.runtime.install_hooks(); f.tick()
+        f.pages[1].fields._ChildData=rows
+        if fault=="menu" then f.pages[2].fields._ChildData=f.array({})
+        else f.fighter.fields.RecordSlots=f.array({}) end
+        local bank=f.fighter.fields.RecordSlots
+        assert(f.runtime.request_reload()); f.tick()
+        assert(f.pages[1].fields._ChildData==rows and f.fighter.fields.RecordSlots==bank)
+        assert(f.stats.logs==1 and f.stats.autoload==1)
+        local reads=f.stats.context_reads
+        for i=1,100 do assert(not f.runtime.request_reload()) end
+        assert(f.stats.context_reads==reads and f.stats.logs==1)
+    end
+end)
+
+test("manual failure locks further reload attempts instead of accumulating failed native objects",function()
+    local f=fixture({native_capacity=80})
+    f.original[79].fields.InputData=nil
+    f.runtime.install_hooks(); f.tick()
+    assert(f.runtime.request_reload()); f.tick()
+    local work=f.native_work.allocations
+    local copies,logs=f.native_work.duplicates,f.stats.logs
+    for i=1,100 do assert(not f.runtime.request_reload()); f.tick() end
+    assert(f.native_work.allocations==work and f.stats.autoload==0)
+    assert(f.native_work.duplicates==copies and f.stats.logs==logs)
+    f.ctx.allowed=false; f.tick()
+    f.ctx.allowed=true; f.tick()
+    assert(not f.runtime.request_reload() and f.native_work.allocations==work)
+end)
+
+test("stale recording headers after script toggle are rejected before native allocation or copying",function()
+    local f=fixture({native_capacity=80})
+    f.pages[1].fields._ChildData:get_element(0).fields._FuncType=345
+    local bank=f.fighter.fields.RecordSlots
+    f.runtime.install_hooks(); f.tick()
+    assert(f.runtime.request_reload()); f.tick()
+    assert(f.runtime.state()=="unloaded" and f.stats.error:find("recording header layout changed",1,true))
+    assert(f.native_work.allocations==0 and f.native_work.duplicates==0,"stale menu reached the native allocator")
+    assert(f.call("SaveSaveData",f.manager.id,f.data.id)==f.data.id)
+    for i=1,100 do assert(not f.runtime.request_reload()); f.tick() end
+    assert(f.fighter.fields.RecordSlots==bank and f.native_work.allocations==0)
+    for i=1,100 do f.tick() end
+    assert(f.stats.logs==1,"blocked clicks must not spam native failure logs")
+end)
+
+test("manual reload refuses busy state and cancels on environment change",function()
+    local f=fixture(); f.runtime.install_hooks()
+    f.ctx.busy=true; assert(not f.runtime.request_reload())
+    f.ctx.busy=false; assert(f.runtime.request_reload())
+    f.ctx.allowed=false; f.tick()
+    assert(f.runtime.state()=="unloaded" and f.stats.autoload==0)
+    assert(not f.runtime.request_reload())
+    f.ctx.allowed=true; f.runtime.reset(); assert(not f.runtime.request_reload())
+end)
+
+test("existing native eighty-slot bank gets ten pages without truncation or live-data reuse",function()
+    local f=fixture({native_capacity=80})
+    local original=f.fighter.fields.RecordSlots
+    local rows=f.pages[1].fields._ChildData
+    f.runtime.install_hooks(); f.tick()
+    assert(f.runtime.state()=="active",f.stats.error or "pagination missing for existing eighty-slot bank")
+    local s=f.session()
+    assert(s.array~=original and s.original==original and s.original_copy:get_size()==80)
+    assert(f.stats.autoload==1 and f.pages[1].fields._ChildData~=rows)
+    for i=0,79 do
+        local slot=s.array:get_element(i)
+        local source=original:get_element(i)
+        assert(slot~=source and slot.fields.Frame==i+1 and slot.fields.IsValid)
+        assert(slot.fields.InputData~=source.fields.InputData)
+        assert(slot.fields.InputData.fields.Num==i+1)
+        assert(slot.fields.InputData.fields.buff~=source.fields.InputData.fields.buff)
+        assert(slot.fields.InputData.fields.buff.items[i+1]==i+1)
+    end
+    f.ctx.menu_closed=false
+    assert(f.arrow(1,9)==9)
+    assert(f.pages[1].fields._ChildData:get_element(1).fields._SlotID==72)
+    assert(f.arrow(2,9)==9)
+    assert(f.pages[2].fields._ChildData:get_element(8).fields._SlotID==79)
+    s.array:get_element(79).fields.Frame=200
+    local saved=f.call("SaveSaveData",f.manager.id,f.data.id)
+    assert(saved==s.baseline.id and s.original_copy:get_element(79).fields.Frame==80)
+    f.ctx.menu_closed=true; f.runtime.reset()
+    assert(f.fighter.fields.RecordSlots==original and original:get_size()==80)
+    assert(original:get_element(79).fields.Frame==80 and f.pages[1].fields._ChildData==rows)
+end)
+
+test("unsupported native counts stay untouched and are not retried",function()
+    for _,count in ipairs({0,9,79,81}) do
+        local f=fixture({native_capacity=count})
+        local bank,rows=f.fighter.fields.RecordSlots,f.pages[1].fields._ChildData
+        f.runtime.install_hooks(); f.tick(); f.tick()
+        assert(f.runtime.state()=="unloaded" and f.stats.autoload==0 and f.stats.logs==1)
+        assert(f.fighter.fields.RecordSlots==bank and f.pages[1].fields._ChildData==rows)
+        assert(f.stats.error:find("unsupported original recording count: "..count,1,true))
+    end
+end)
+
+test("preexisting eighty-slot banks reject missing inputs, invalid lengths and source aliases",function()
+    for _,fault in ipairs({"input","length","frame","slot_alias","input_alias","buffer_alias"}) do
+        local f=fixture({native_capacity=80})
+        local bank,rows=f.fighter.fields.RecordSlots,f.pages[1].fields._ChildData
+        local slot,first=f.original[80],f.original[1]
+        if fault=="input" then slot.fields.InputData=nil
+        elseif fault=="length" then slot.fields.InputData.fields.Num=3601
+        elseif fault=="frame" then slot.fields.Frame=-1
+        elseif fault=="slot_alias" then bank.items[80]=first
+        elseif fault=="input_alias" then slot.fields.InputData=first.fields.InputData
+        else slot.fields.InputData.fields.buff=first.fields.InputData.fields.buff end
+        f.runtime.install_hooks(); f.tick(); f.tick()
+        assert(f.runtime.state()=="unloaded" and f.stats.autoload==0 and f.stats.logs==1,fault)
+        assert(f.fighter.fields.RecordSlots==bank and f.pages[1].fields._ChildData==rows,fault)
+    end
+end)
+
+test("all-empty preexisting eighty-slot bank retains its original buffers across reset",function()
+    local f=fixture({native_capacity=80})
+    local bank=f.fighter.fields.RecordSlots
+    for _,slot in ipairs(f.original) do
+        slot.fields.Frame=0; slot.fields.IsValid=false; slot.fields.IsActive=false
+        slot.fields.InputData.fields.Num=0; slot.fields.InputData.fields.buff=nil
+    end
+    f.runtime.install_hooks(); f.tick()
+    assert(f.runtime.state()=="active",f.stats.error)
+    for i=0,79 do
+        local slot=f.session().array:get_element(i)
+        assert(slot.fields.Frame==0 and not slot.fields.IsValid)
+        assert(slot.fields.InputData.fields.buff:get_size()==3600)
+        assert(f.original[i+1].fields.InputData.fields.buff==nil)
+    end
+    f.runtime.reset()
+    assert(f.fighter.fields.RecordSlots==bank and bank:get_size()==80)
+end)
 
 test("private native bank retains slots across the observed Init reference loss",function()
     for _,index in ipairs({1,23,57,80}) do
-        local f=fixture({init_ref_loss_at=index})
+        local f=pre_seed_fixture({init_ref_loss_at=index})
         f.runtime.install_hooks(); f.tick()
         assert(f.runtime.state()=="active",f.stats.error or "paging was not mounted")
         local slot=f.fighter.fields.RecordSlots:get_element(index-1)
@@ -281,7 +550,7 @@ end)
 
 test("upstream promotion model uses global factory (not a live-game reproducer)",function()
     for _,index in ipairs({1,23,52,80}) do
-        local f=fixture({promotion_gc_at=index})
+        local f=pre_seed_fixture({promotion_gc_at=index})
         f.runtime.install_hooks(); f.tick()
         assert(f.runtime.state()=="active",f.stats.error or "pagination missing after native slot lifetime loss")
         assert(f.fighter.fields.RecordSlots:get_size()==80 and f.stats.autoload==1)
@@ -295,7 +564,7 @@ end)
 
 test("failure-only lifetime boundaries distinguish creation retention init and copy",function()
     for _,spec in ipairs({{"create","created"},{"retain","retained"},{"Init","initialized"},{"DeepCopy","copied"}}) do
-        local f=fixture({expire_slot=57,expire_stage=spec[1]})
+        local f=pre_seed_fixture({expire_slot=57,expire_stage=spec[1]})
         local bank=f.fighter.fields.RecordSlots; local rows=f.pages[1].fields._ChildData
         f.runtime.install_hooks(); f.tick()
         assert(f.runtime.state()=="unloaded" and f.stats.autoload==0)
@@ -311,7 +580,7 @@ end)
 
 test("late empty input reports raw field and native call identity without mounting or retrying",function()
     for _,raw in ipairs({0,123456}) do
-        local f=fixture({missing_input_at=34,raw_input=raw})
+        local f=pre_seed_fixture({missing_input_at=34,raw_input=raw})
         local bank=f.fighter.fields.RecordSlots; local rows=f.pages[1].fields._ChildData
         f.runtime.install_hooks(); f.tick()
         assert(f.runtime.state()=="unloaded" and f.stats.autoload==0)
@@ -325,7 +594,7 @@ test("late empty input reports raw field and native call identity without mounti
 end)
 
 test("failed expansion preserves stage and stack without touching original eight slots",function()
-    local f=fixture({copy_error=true})
+    local f=pre_seed_fixture({copy_error=true})
     local original=f.fighter.fields.RecordSlots
     local rows=f.pages[1].fields._ChildData
     f.runtime.install_hooks(); f.tick()
@@ -545,18 +814,143 @@ test("worker save returns independent original-eight baseline without allocation
     assert(f.call("SaveSaveData",99999,88888)==88888)
     f.thread(7); f.ctx.allowed=false; f.tick(); assert(f.fighter.fields.RecordSlots:get_size()==8)
 end)
+for _,cleanup in ipairs({"retire","discard"}) do
+test("shared borrowed wrappers survive menu and session "..cleanup,function()
+    local f
+    f=fixture(cleanup=="discard" and {menu_fault=function() f.ctx.save_busy=true end} or nil)
+    local borrowed={f.manager,f.data,f.fighter,f.record,f.record.fields._gData,
+        f.fighter.fields.RecordSlots}
+    for _,page in ipairs(f.pages) do
+        borrowed[#borrowed+1]=page
+        borrowed[#borrowed+1]=page.fields._ChildData
+    end
+    -- Sdk.cpp deduplicates add_ref for the same Lua wrapper. Explicit release
+    -- consumes that shared reference, not a separate module-owned reference.
+    for _,value in ipairs(borrowed) do
+        value.refs=2
+        value.lua_owned=true
+        value.manual_releases=0
+        value.add_ref=function(self) assert(self.lua_owned) end
+        value.release=function(self)
+            self.manual_releases=self.manual_releases+1
+            if self.lua_owned then self.refs=self.refs-1; self.lua_owned=false end
+        end
+    end
+    f.runtime.install_hooks(); f.tick()
+    local old=f.session()
+    if cleanup=="retire" then
+        assert(f.runtime.state()=="active",f.stats.error)
+        f.call("Release",f.manager.id,0,function()
+            f.manager.fields._tData=nil
+            -- Only model the engine releasing its direct TrainingData reference.
+            -- The fixture still holds the Lua wrapper, as another consumer can.
+            f.data.refs=f.data.refs-1
+        end)
+        f.ctx.allowed=false; f.tick()
+        assert(f.runtime.state()=="unloaded",f.stats.error)
+    end
+    assert(old and old.phase=="closed",f.stats.error)
+    for _,value in ipairs(borrowed) do
+        assert(value.manual_releases==0 and value.lua_owned and value:get_type_definition(),
+            "cleanup released a borrowed Lua wrapper still referenced by another consumer")
+    end
+end)
+end
+
 test("release hook only notifies; game thread restores after native release",function()
     local f=fixture(); f.runtime.install_hooks(); f.tick(); f.thread(22)
     f.call("Release",f.manager.id,0)
     assert(f.fighter.fields.RecordSlots:get_size()==80)
     f.thread(7); f.ctx.allowed=false; f.tick(); assert(f.fighter.fields.RecordSlots:get_size()==8)
 end)
-test("reset in idle restores native rows and recorder selection",function()
+
+test("native Release replacing the bank restores owned menus and allows a fresh training session",function()
+    local f=fixture(); local native_rows=f.pages[1].fields._ChildData
+    f.runtime.install_hooks(); f.tick()
+    f.ctx.menu_closed=false; assert(f.arrow(1,9)==9)
+    f.ctx.menu_closed=true
+    local old=f.session()
+    f.thread(22)
+    f.call("Release",f.manager.id,0,function()
+        f.fighter.fields.RecordSlots=f.array(f.original)
+    end)
+    local new_bank=f.fighter.fields.RecordSlots
+    f.thread(7); f.ctx.allowed=false; f.tick()
+    assert(f.fighter.fields.RecordSlots==new_bank,"retirement overwrote the game's replacement bank")
+    assert(f.pages[1].fields._ChildData==native_rows,"released session left its pager behind")
+    assert(old.phase=="closed" and f.runtime.state()=="unloaded",f.stats.error)
+    f.ctx.allowed=true; f.tick()
+    assert(f.runtime.state()=="active" and f.session()~=old and f.stats.autoload==2)
+    f.ctx.menu_closed=false
+    local pager=f.pages[1].fields._ChildData:get_element(0)
+    assert(f.session().menu.pager_info(pager).index==0)
+    assert(f.arrow(1,9)==9)
+    assert(not f.stats.logs,"normal released-bank replacement must not log errors")
+end)
+
+test("failed retirement reports once rather than repeating native work every tick",function()
+    local f=fixture(); f.runtime.install_hooks(); f.tick()
+    f.fighter.fields.RecordSlots=f.array({})
+    f.ctx.allowed=false
+    for i=1,100 do f.tick() end
+    assert(f.stats.logs==1,"retirement kept logging the same error")
+end)
+
+test("initial recorder busy state waits without allocation and recovers in the same context",function()
+    for _,field in ipairs({"ReqType","State"}) do
+        local f=fixture(); local rows=f.pages[1].fields._ChildData
+        local bank=f.fighter.fields.RecordSlots
+        f.record.fields._gData.fields[field]=1
+        f.runtime.install_hooks(); f.tick(450)
+        assert(f.native_work.allocations==0 and f.native_work.duplicates==0,"busy preflight allocated native data")
+        assert(f.fighter.fields.RecordSlots==bank and f.pages[1].fields._ChildData==rows)
+        assert(not f.stats.logs,"transient busy state became an expansion error")
+        f.record.fields._gData.fields[field]=0; f.tick()
+        assert(f.runtime.state()=="active",f.stats.error or "transient busy state latched forever")
+        assert(f.fighter.fields.RecordSlots:get_size()==80 and not f.stats.logs)
+    end
+end)
+
+test("temporary native recorder request defers automatic recovery without locking it",function()
+    local f=fixture(); local rows=f.pages[1].fields._ChildData
+    f.runtime.install_hooks(); f.tick()
+    f.pages[1].fields._ChildData=rows
+    f.record.fields._gData.fields.ReqType=1
+    for i=1,10 do f.tick() end
+    assert(f.pages[1].fields._ChildData==rows and not f.stats.logs)
+    f.record.fields._gData.fields.ReqType=0; f.tick()
+    assert(f.pages[1].fields._ChildData~=rows and not f.stats.logs)
+end)
+
+test("released session clears prior recovery block without overwriting replacement bank",function()
+    local f=fixture(); f.runtime.install_hooks(); f.tick()
+    f.fighter.fields.RecordSlots=f.array(f.original)
+    f.tick(); assert(f.stats.logs==1)
+    local bank=f.fighter.fields.RecordSlots
+    f.call("Release",f.manager.id,0)
+    f.ctx.allowed=false; f.tick()
+    assert(f.fighter.fields.RecordSlots==bank)
+    f.ctx.allowed=true; f.tick()
+    assert(f.runtime.state()=="active" and f.stats.autoload==2 and f.stats.logs==1)
+end)
+test("safe update shutdown in idle restores native rows and recorder selection",function()
     local f=fixture(); f.runtime.install_hooks(); f.tick()
     f.record.fields._gData.fields.SlotID=8
     f.runtime.reset()
     assert(f.fighter.fields.RecordSlots:get_size()==8 and f.record.fields._gData.fields.SlotID==0)
     f.tick(); assert(f.fighter.fields.RecordSlots:get_size()==8)
+end)
+test("script Reset outside safe update abandons jobs without native cancellation or menu writes",function()
+    local f=fixture(); f.runtime.install_hooks(); f.tick()
+    local bank=f.fighter.fields.RecordSlots
+    local rows=f.pages[1].fields._ChildData
+    local writes=f.native_work.menu_writes
+    local cancelled=f.stats.cancel
+    f.ui_phase(false); f.runtime.reset(); f.ui_tick(5)
+    assert(f.stats.cancel==cancelled,"script Reset ran native task cancellation")
+    assert(f.stats.abandoned==1 and f.runtime.state()=="stopped")
+    assert(f.pages[1].fields._ChildData==rows and f.native_work.menu_writes==writes)
+    assert(f.fighter.fields.RecordSlots==bank and f.stats.error)
 end)
 
 test("foreign bank refusal cannot restore only the menu and leave eighty recordings",function()
@@ -575,7 +969,7 @@ test("foreign bank refusal cannot restore only the menu and leave eighty recordi
     assert(s.phase=="active" and s.menu.state()=="attached","failed preflight must not partially retire")
 end)
 
-test("fresh runtime refuses a residual eighty-slot bank without taking ownership or retrying",function()
+test("fresh runtime refuses an incomplete residual eighty-slot bank without taking ownership or retrying",function()
     local f=fixture()
     local leftover={}; for i=1,80 do leftover[i]=f.obj({Frame=i}) end
     local bank=f.array(leftover); f.fighter.fields.RecordSlots=bank
@@ -612,4 +1006,187 @@ test("older finish callback cannot release a later save generation",function()
     f.ctx.allowed=false; f.tick(); assert(snapshot.refs==refs)
     f.call("FinishSave",controller,1); f.tick(); assert(snapshot.refs==refs-1)
 end)
+test("bounded save diagnosis distinguishes missing data and matched completion without native writes",function()
+    local events={}
+    local f=fixture({trace=function(event,values) events[#events+1]={event=event,values=values} end})
+    f.runtime.install_hooks(); f.tick()
+    local snapshot=f.objects[f.call("SaveSaveData",f.manager.id,f.data.id)]
+    local allocations=f.native_work.allocations
+    local writes=f.native_work.menu_writes
+    local controller=f.obj({saveKey="TRAINING_SAVE_DATA"})
+    f.call("FinishSave",controller,1)
+    assert(events[3].event=="finish_pre" and events[3].values.detail.reason=="no_saved_data")
+    assert(f.session().issued==1 and f.session().completed==0)
+    controller.fields.saveDataIns=f.obj({List=f.array({snapshot})})
+    f.call("FinishSave",controller,1)
+    assert(events[5].values.detail.matches==1 and f.session().completed==1)
+    assert(f.native_work.allocations==allocations and f.native_work.menu_writes==writes)
+    local function scalar(value)
+        if type(value)=="table" then
+            assert(not value.get_address and not value.fields,"trace retained native wrapper")
+            for _,v in pairs(value) do scalar(v) end
+        else assert(type(value)~="function" and type(value)~="userdata") end
+    end
+    scalar(events)
+    for _=1,100 do f.call("FinishSave",controller,1) end
+    assert(#events==48,"save diagnosis exceeded its bound")
+end)
+
+test("failed save diagnostic callback cannot block save substitution or completion",function()
+    local f=fixture({trace=function() error("trace failure") end})
+    f.runtime.install_hooks(); f.tick()
+    local snapshot=f.objects[f.call("SaveSaveData",f.manager.id,f.data.id)]
+    assert(snapshot==f.session().baseline and f.session().readers==0)
+    local controller=f.obj({saveKey="TRAINING_SAVE_DATA",saveDataIns=f.obj({List=f.array({snapshot})})})
+    f.call("FinishSave",controller,1)
+    assert(f.session().completed==1 and not f.stats.error)
+end)
+
+test("real capture mismatch reports original versus snapshot identity without releasing the session",function()
+    local events={}
+    local f=fixture({save_success=2,trace=function(event,values) events[event]=values end})
+    f.runtime.install_hooks(); f.tick()
+    local entry=f.session()
+    local snapshot=f.objects[f.call("SaveSaveData",f.manager.id,f.data.id)]
+    assert(events.save_post.detail.input_address==f.data.id)
+    assert(events.save_post.detail.output_address==snapshot.id)
+    assert(events.save_post.entries[1].baseline_address==snapshot.id)
+    local copy=f.obj(); copy.kind="app.training.TrainingData"
+    copy.fields.RecordSetting=snapshot.fields.RecordSetting
+    local controller=f.obj({saveKey="TRAINING_SAVE_DATA",saveDataIns=f.obj({List=f.array({copy})})})
+    f.call("FinishSave",controller,2)
+    assert(events.finish_pre.detail.saved0_address==copy.id)
+    assert(events.finish_pre.detail.saved0_type=="app.training.TrainingData")
+    assert(events.finish_pre.detail.saved0_fighter28_capacity==8)
+    assert(events.finish_pre.detail.matches==0)
+    f.call("Release",f.manager.id,0); f.ctx.allowed=false; f.tick()
+    assert(entry.phase=="retired" and entry.issued==1 and entry.completed==0,
+        "observation must not turn a distinct storage object into an unsafe release permit")
+end)
+
+test("failed optional saved-object detail read cannot affect a valid completion",function()
+    local events={}
+    local f=fixture({trace=function(event,values) events[event]=values end})
+    f.runtime.install_hooks(); f.tick()
+    local snapshot=f.objects[f.call("SaveSaveData",f.manager.id,f.data.id)]
+    snapshot.get_type_definition=function() error("diagnostic read failed") end
+    local controller=f.obj({saveKey="TRAINING_SAVE_DATA",saveDataIns=f.obj({List=f.array({snapshot})})})
+    f.call("FinishSave",controller,1)
+    assert(f.session().completed==1 and not f.stats.error)
+    assert(events.finish_pre.detail.detail_error,"optional failure was not identified")
+end)
+
+local function storage_save(f, controller, during)
+    local snapshot,copy
+    f.call("StartSaveDirectSlot(System.Int32, System.String)",controller,1,function()
+        snapshot=f.objects[f.call("SaveSaveData",f.manager.id,f.data.id)]
+        copy=f.obj({RecordSetting=snapshot.fields.RecordSetting})
+        copy.kind="app.training.TrainingData"
+        controller.fields.saveDataIns=f.obj({List=f.array({copy})})
+        if during then during() end
+    end)
+    return snapshot,copy
+end
+
+test("captured native save handoff closes retired sessions even when storage holds a different object",function()
+    local f=fixture({save_success=2}); f.runtime.install_hooks(); f.tick()
+    local entry=f.session()
+    local controller=f.obj({saveKey="TRAINING_SAVE_DATA"})
+    local snapshot,copy=storage_save(f,controller)
+    assert(snapshot~=copy and snapshot~=f.data)
+    f.call("FinishSave",controller,2,function() controller.fields.saveDataIns=nil end)
+    assert(entry.completed==1,"successful correlated storage copy was not acknowledged")
+    f.call("Release",f.manager.id,0); f.ctx.allowed=false; f.tick()
+    assert(entry.phase=="closed","successful save left the old session occupying the retention cap")
+end)
+
+test("six real-shaped save and reentry cycles do not exhaust the four retained sessions",function()
+    local f=fixture({save_success=2}); f.runtime.install_hooks()
+    for _=1,6 do
+        f.ctx.allowed=true; f.tick()
+        assert(f.runtime.state()=="active",f.stats.error)
+        local entry=f.session()
+        local controller=f.obj({saveKey="TRAINING_SAVE_DATA"})
+        storage_save(f,controller)
+        f.call("FinishSave",controller,2)
+        f.call("Release",f.manager.id,0); f.ctx.allowed=false; f.tick()
+        assert(entry.phase=="closed" and f.runtime.state()=="unloaded")
+    end
+    assert(f.stats.autoload==6 and not f.stats.error)
+end)
+
+test("newer save finishing before older save cannot release outstanding readers",function()
+    local f=fixture({save_success=2}); f.runtime.install_hooks(); f.tick()
+    local a=f.obj({saveKey="TRAINING_SAVE_DATA"})
+    local b=f.obj({saveKey="TRAINING_SAVE_DATA"})
+    storage_save(f,a,function() storage_save(f,b) end)
+    local entry=f.session()
+    f.call("FinishSave",b,2)
+    assert(entry.completed==1 and entry.issued==2)
+    f.ctx.allowed=false; f.tick(); assert(entry.phase=="retired")
+    f.call("FinishSave",b,2); assert(entry.completed==1,"duplicate completion counted twice")
+    f.call("FinishSave",a,2); f.tick(); assert(entry.phase=="closed")
+end)
+
+test("storage handoff requires controller container contents and success to match",function()
+    local f=fixture({save_success=2}); f.runtime.install_hooks(); f.tick()
+    local a=f.obj({saveKey="TRAINING_SAVE_DATA"})
+    storage_save(f,a)
+    local saved=a.fields.saveDataIns
+    local list=saved.fields.List
+    local b=f.obj({saveKey="TRAINING_SAVE_DATA",saveDataIns=saved})
+    f.call("FinishSave",b,2)
+    a.fields.saveDataIns=f.obj({List=list}); f.call("FinishSave",a,2)
+    a.fields.saveDataIns=saved; saved.fields.List=f.array({f.data}); f.call("FinishSave",a,2)
+    saved.fields.List=list; f.call("FinishSave",a,0)
+    assert(f.session().completed==0)
+    f.call("FinishSave",a,2); assert(f.session().completed==1)
+end)
+
+test("foreign thread save cannot join the caller's native storage handoff",function()
+    local f=fixture({save_success=2}); f.runtime.install_hooks(); f.tick()
+    local controller=f.obj({saveKey="TRAINING_SAVE_DATA"})
+    storage_save(f,controller,function()
+        f.thread(22); f.call("SaveSaveData",f.manager.id,f.data.id); f.thread(7)
+    end)
+    f.call("FinishSave",controller,2)
+    assert(f.session().issued==2 and f.session().completed==1)
+    f.ctx.allowed=false; f.tick(); assert(f.session().phase=="retired")
+end)
+
+test("failed start does not authorize completion or leak its call scope",function()
+    local f=fixture({save_success=2}); f.runtime.install_hooks(); f.tick()
+    local controller=f.obj({saveKey="TRAINING_SAVE_DATA"})
+    f.call("StartSaveDirectSlot(System.Int32, System.String)",controller,0,function()
+        local result=f.call("SaveSaveData",f.manager.id,f.data.id)
+        controller.fields.saveDataIns=f.obj({List=f.array({f.objects[result]})})
+    end)
+    f.call("FinishSave",controller,2); assert(f.session().completed==0)
+    -- A subsequent independent handoff can complete only its own ticket.
+    storage_save(f,controller); f.call("FinishSave",controller,2)
+    assert(f.session().issued==2 and f.session().completed==1)
+end)
+
+test("finish captured before a newer start cannot acknowledge the newer save",function()
+    local f=fixture({save_success=2}); f.runtime.install_hooks(); f.tick()
+    local controller=f.obj({saveKey="TRAINING_SAVE_DATA"})
+    storage_save(f,controller)
+    f.call("FinishSave",controller,2,function() storage_save(f,controller) end)
+    assert(f.session().issued==2 and f.session().completed==1)
+    f.ctx.allowed=false; f.tick(); assert(f.session().phase=="retired")
+    f.call("FinishSave",controller,2); f.tick(); assert(f.session().phase=="closed")
+end)
+
+test("unconfirmed saves remain bounded and never turn an overflow into completion",function()
+    local f=fixture({save_success=2}); f.runtime.install_hooks(); f.tick()
+    local controller=f.obj({saveKey="TRAINING_SAVE_DATA"})
+    for _=1,65 do storage_save(f,controller) end
+    local entry=f.session()
+    local count=0; for _ in pairs(entry.pending_saves) do count=count+1 end
+    assert(count==64 and entry.issued==65)
+    f.call("FinishSave",controller,2)
+    f.ctx.allowed=false; f.tick()
+    assert(entry.completed==0 and entry.phase=="retired")
+end)
+
 print(passed .. " native runtime integration tests passed (fake SDK)")

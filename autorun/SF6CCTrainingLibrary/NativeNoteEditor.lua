@@ -187,10 +187,12 @@ function Editor.install()
         end
     end)
     re.on_script_reset(function()
+        stopped = true
         Library.cancel_note_edit(pending or active)
         pending = nil
-        if active and active.widget then hide() end
-        stopped = true
+        -- Never call RequestHide while Lua is being reset. A live native dialog
+        -- requires a game restart; normal cancel/timeout still closes it safely.
+        if active then active.aborted=true end
     end)
     function M.available() return ready and not stopped and not halted end
     return M

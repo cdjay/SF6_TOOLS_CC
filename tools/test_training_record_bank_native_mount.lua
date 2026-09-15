@@ -13,8 +13,9 @@ local function fixture()
         local function live() assert(o.refs>0,"released native access") end
         function o:add_ref() self.refs=self.refs+1 end
         function o:release() live(); self.refs=self.refs-1; releases=releases+1 end
-        function o:get_reference_count() live(); return self.refs end
-        function o:get_address() live(); return self.id end
+        -- Identity/refcount remain observable before retaining a new local object.
+        function o:get_reference_count() return self.refs end
+        function o:get_address() return self.id end
         function o:get_size() live(); return self.size end
         function o:get_field(key) live(); return self.fields[key] end
         function o:set_field(key,value)
@@ -43,6 +44,11 @@ local function fixture()
                 self.items[index]=value
                 if type(value)=="table" and value.refs then value.refs=value.refs+1 end
             end
+        end
+        -- Initial reference fields own their children just like set_field;
+        -- otherwise replacing a field incorrectly consumes the Lua wrapper ref.
+        for _,value in pairs(o.fields) do
+            if type(value)=="table" and value.refs then value.refs=value.refs+1 end
         end
         return o
     end
@@ -73,6 +79,7 @@ local function fixture()
             end}
         end,
     }
+    api.create_instance_global=function(kind) return api.create_instance(kind) end
     local function page(kind,slot_kind)
         local rows={object(MENU,{_FuncType=kind==107 and 0 or 130,_Type=kind==107 and 9 or 0})}
         for i=0,7 do rows[#rows+1]=object(MENU,{_FuncType=slot_kind,_SlotID=i,_Title=77}) end
@@ -117,7 +124,13 @@ test("eight rows per page preserve both footer settings and all nine recordings"
         assert(rows:get_size()==12)
         assert(rows:get_element(0):get_field("_FuncType")==345,"pager must reuse the native header position")
         assert(rows:get_element(10)==pair[2]:get_element(10) and rows:get_element(11)==pair[2]:get_element(11))
-        for i=0,7 do assert(rows:get_element(i+1)==pair[2]:get_element(i+1),"native slot position moved") end
+        for i=0,7 do
+            local private,original=rows:get_element(i+1),pair[2]:get_element(i+1)
+            assert(private~=original,"private window aliases a borrowed row")
+            for _,key in ipairs({"_SlotID","_FuncType","_Title"}) do
+                assert(private:get_field(key)==original:get_field(key),"native slot position or content moved")
+            end
+        end
         assert(rows:get_element(9)==pair[2]:get_element(pair[3]==118 and 9 or 0))
         local pager=rows:get_element(0)
         assert(pager:get_field("_Type")==1 and pager:get_field("_ChildData"):get_size()==2)
@@ -161,18 +174,18 @@ test("silent function-type copy failure reports readback without attaching",func
     assert(f.record:get_field("_ChildData")==f.record_rows)
 end)
 
-test("silent ninth slot assignment failure reports stage and actual value",function()
+test("silent private slot assignment failure reports stage and actual value",function()
     local f=fixture(); local create=f.api.create_instance
     f.api.create_instance=function(kind)
         local row=create(kind); local set=row.set_field
         function row:set_field(key,value)
-            if key=="_SlotID" and value==8 then return end
+            if key=="_SlotID" and value==3 and self.fields[key]==3 then self.fields[key]=2; return end
             return set(self,key,value)
         end
         return row
     end
     local m,err=prepare(f)
-    assert(not m and err:find("slot assignment mismatch: field=_SlotID expected=8 (number) actual=7 (number)",1,true))
+    assert(not m and err:find("slot assignment mismatch: field=_SlotID expected=3 (number) actual=2 (number)",1,true))
     assert(f.fighter:get_field("RecordSlots")==f.original)
     assert(f.play:get_field("_ChildData")==f.play_rows)
 end)
@@ -181,7 +194,7 @@ test("empty field enumeration is distinguished from a failed setter",function()
     local f=fixture()
     f.api.find_type_definition=function() return {get_fields=function() return {} end} end
     local m,err=prepare(f)
-    assert(not m and err:find("ninth row field enumeration empty",1,true))
+    assert(not m and err:find("private row field enumeration empty",1,true))
     assert(f.fighter:get_field("RecordSlots")==f.original)
 end)
 
@@ -203,17 +216,20 @@ test("pager rejects a foreign parent and reports page ranges",function()
     local f=fixture(); local m=assert(prepare(f)); assert(m.attach())
     local pager=f.record:get_field("_ChildData"):get_element(0)
     local key=require("SF6CCTrainingLibrary/NativeRecordingPager").key(pager:get_field("_MessageID"))
+    assert(m.pager_for_layout(f.record)==pager and m.pager_for_layout(pager)==pager)
+    assert(m.pager_for_layout(f.play)~=pager and m.pager_for_layout(f.record_rows)==nil)
     assert(m.text(key)=="页码" and m.pager_info(pager).label:find("1-8",1,true))
     assert(not m.navigate(pager,f.play,1))
     assert(m.navigate(pager,f.record,1) and m.pager_info(pager).label:find("9-9",1,true))
     assert(not m.navigate(pager,f.record,-1) and not m.navigate(pager,f.record,2))
-    assert(m.retire() and m.text(key)==nil and not m.navigate(pager,f.record) and m.close())
+    assert(m.retire() and m.text(key)==nil and m.pager_for_layout(f.record)==nil
+        and not m.navigate(pager,f.record) and m.close())
 end)
 
-test("partial page switch failure can retire every owned page array",function()
+test("partial row rebind failure can retire every owned page array",function()
     local f=fixture(); local m=assert(prepare(f)); assert(m.attach())
     local pager=f.record:get_field("_ChildData"):get_element(0)
-    f.record.fail_field="_ChildData"
+    f.record:get_field("_ChildData"):get_element(1).fail_field="_SlotID"
     assert(not pcall(m.navigate,pager,f.record,1))
     assert(m.retire() and f.record:get_field("_ChildData")==f.record_rows and m.close())
 end)

@@ -324,12 +324,38 @@ The native recording library is a standalone, still-experimental plugin with
 entry `autorun/SF6CC_TrainingLibrary.lua` and private modules under
 `autorun/SF6CCTrainingLibrary/`. It does not require legacy SF6CC autoruns,
 GameState/RuntimeSafety publishers, the menu registry, client, C# or custom fonts.
-The entry owns one deferred job queue per Lua state. Its native menu and own
-REFramework panel share `Library`; browsing never imports. `Records`, extracted
+The accepted entry owns one pre-LateUpdate lifecycle/job/pager callback per Lua
+state. Only its REFramework panel is enabled; native root/subtab/editor and
+automatic imports remain disabled. Manual operations share `Library`; browsing
+never imports. Factory wrapper retention remains diagnostic and bounded, not a
+claim of leak-free ownership. `Records`, extracted
 from the previous backend, owns file validation, backup, native slot
 access and final import. `TrainingRecordImport` owns only the bounded, update-driven
 empty-slot initialization lifecycle, using an adapter supplied by `Records`.
 It does not own files, character semantics or menu rendering.
+
+The September 15 native-UI containment disables the old `NativeMenu` subtab:
+its explicit `ViewUpdate` call failed again after closing/reopening the menu.
+The experimental `NativeLibraryTab` is currently not loaded by the source or
+game entry. Its first combined smoke reproduced the allocation-time crash in
+recording menu preparation; the containment entry has been restored. This
+does not establish that the new tab caused the allocation failure.
+It is a read-only, three-row root tab based on WTT's published root-page
+installation, not restored import/export functionality. It appends while the
+offline training menu is closed, preserving all native/foreign roots; native
+navigation owns rendering. Its layout hook only observes calls and scopes
+primitive getters, never invokes a refresh. Plugin-private GUIDs identify its
+own page across Lua states; no unowned DYNAMIC pages are removed. It reads
+cached Library metadata, never scans files or issues library operations.
+New menu allocations are retained, with four mounts per Lua state as a research
+limit; no native objects are released/restored from reset or stale scene
+callbacks. This is not a validated native UI disposal/hot-reload contract.
+Cold-start, category-switch and close/reopen smoke are required before adding
+interactive controls. Existing recording/backend behavior is outside this change.
+That root-only differential is historical. As of September16 the canonical
+entry and all22 private Lua modules match the accepted manual-library game
+deployment byte for byte; no root tab is loaded. See Known Limitations for the
+remaining ownership-release warnings and acceptance boundaries.
 
 An explicit import validates the whole configuration and backs up before starting
 native recording. Only empty, unallocated slots are initialized. The final write
@@ -367,20 +393,57 @@ complete reversal persistence or native Type/SkillIndex conversion; both remain
 pending, and the game's ten-entry reversal execution limit remains in force.
 
 `SF6CC_TrainingLibrary.lua` composes the fixed 80-slot runtime in autorun:
+Session preparation has a distinct allocation-free transient outcome: a busy
+native recorder returns `(nil, reason, nil, true)`. Runtime waits and repeats
+the existing readiness checks without retaining a failed lease or latching the
+context. This outcome is only valid before native allocation; initialization,
+copy and menu failures retain their existing fail-closed/no-retry policy.
 `NativeRecordingSession` owns independent recordings and an entry save baseline,
-`NativeRecordingMenu` owns prebuilt eight-row recording/playback windows and
-preserves native slot/footer row positions. The pager replaces the empty record
+using `NativeRecordingSeed` for original-eight banks. A detached duplicate gets
+an eighty-reference seed array; a second native Duplicate creates independent
+slots, inputs and buffers. The seed is never mounted or saved. Full-bank alias
+validation precedes clearing the added recordings and final attachment. Existing
+eighty-slot banks retain the prior direct-duplicate path. The old per-slot Lua
+Init constructor is preserved in a test-only fixture for six historical fault
+checks, not chosen by the production bank path.
+`NativeRecordingMenu` now owns one stable eight-row private window per recording/
+playback page (two-module candidate deployed 2026-09-15 22:56; not live accepted). The
+80-entry recording bank is unchanged. Each window clones the eight original
+rows once, preserving the borrowed originals for retirement. It rebinds those
+same private rows by page offset instead of allocating 72 additional slot rows
+per page or selecting among ten native arrays. Native slot/footer positions are
+preserved. The pager replaces the empty record
 header; the playback start hint moves to the separator row. Short pages retain
 non-focusable blank rows, so neither the slots nor footer move between pages.
-`NativeRecordingPager` routes only owned spin-row/message identities and rebuilds
-the visible body only inside native input navigation, with recursive layout
-calls suppressed. Paging never swaps or filters the recording bank. Page arrays
+`NativeRecordingPager` routes only owned spin-row/message identities. Within a
+correlated native OnUpdateSpin -> Function scope, a verified committed ViewData.Index
+rebinds the owned stable rows before the engine's following UpdateSecondaryList.
+Owner, parameter, focused ViewData, pager, parent and argument must all agree;
+the Function may carry either the live pager ViewData or a temporary child-option
+ViewData. The child route requires its parent to be the captured pager, its data
+to be the exact selected child, and its Int32 argument to identify the current
+spinner row (whose live ViewData must match the capture), not the page value.
+blocked, foreign or uncommitted callbacks cannot take this path. No new hook or
+native refresh call is introduced. The00:55 direct-row-only correction failed
+the first-click live test. The01:14 trace identified temporary child-option
+callbacks on both clicks, rejected before synchronous commit despite valid focus.
+The child-route correction passes74 Runtime simulations and27 related test files;
+it was deployed2026-09-16 at01:22 as a Pager-only update. At01:33 the user
+completed the requested checks and confirmed a single click now repaints.
+This accepts the repaint fix, not startup/teardown safety or root-tab integration.
+Other input paths queue a selection; two
+unblocked UI update ticks later they re-resolve the live owner, parameter,
+focus and page. The implementation rebinds existing private rows and
+marks their owned `ViewData.IsUpdate` fields, including the pager. It never calls
+`ViewUpdate` or `UpdateSecondaryList`; natural ViewUpdate calls are observed only.
+Whether the engine consumes these dirty flags for immediate visible refresh is
+NOT verified. Paging never swaps or filters the recording bank. Window arrays
 are retained through the existing session lease; no per-click native allocation
-is needed for rows/arrays, and no cached UI parameter is rebuilt on a timer.
+is needed for rows/arrays. No borrowed UI wrapper is queued across ticks.
 Native UI Function callbacks need not share the bank's UpdateBehavior thread.
 The session grants a synchronous navigation scope only after validating the
-current UI owner and owned pager/parent identities. This scope permits page
-array changes on that callback thread only, is cleared even on errors, and
+current UI owner and owned pager/parent identities. This scope permits private
+row binding and owned view dirty flags on that UI update thread only, is cleared even on errors, and
 blocks retirement while active. Bank attach/detach/disposal retain their
 original update-thread checks; UI navigation cannot authorize those operations.
 The native SPIN control owns mouse arrows and left/right input. Read-only focus
@@ -390,15 +453,84 @@ The group focus indexes the ViewData list; ViewData.Index is an option value,
 not a list position. GetOptionIndex is a pure candidate lookup; it must not
 authorize navigation because neighbouring availability queries can follow the
 selected value. A validated synchronous Param.OnUpdateSpin scope reads the
-same owned ViewData.Index after the native setter returns, then commits and
-refreshes that page once. No cached parameter survives the callback.
-Unscoped layout queries cannot select a page; Function remains a guarded
-confirmation path, not the sole source of spin changes. These paths have
-simulation coverage. On 2026-09-14 the user accepted the updated live pagination,
-layout, recording and playback; this does not certify unrelated save boundaries.
+same owned ViewData.Index after the native setter returns, then queues that
+selection once. Failed partial binding disables every command in that window;
+a failed deferred operation stops that controller without automatic retries.
+Names resolve through the same current row-to-slot binding. No cached parameter
+survives the callback.
+Unscoped layout queries cannot select a page; Function is a guarded native-spin
+commit point or queued confirmation path, not the sole source of spin changes. These paths have
+simulation coverage. Earlier user acceptance of paging/recording/playback does
+not certify this fixed-window candidate, current startup/teardown safety or
+unrelated save boundaries. The game retains the pre-observer diagnostic entry
+with only NativeRecordingMenu/NativeRecordingPager updated to the fixed-window
+candidate. This two-file deployment does not establish the cause of the earlier
+initialization crash. That entry still disables configuration autoload/editing;
+startup acceptance must precede pagination and recording tests.
+The 2026-09-15 23:31 live run failed this startup gate: playback private row1
+expired during row2 creation, followed by the prior native AV signature.
+Eight-row windows reduce allocations but do not establish safe ownership.
+The temporary focus observer has been removed. The game entry is now a one-shot
+the archived MountRetained Runtime diagnostic with NativeLibraryTab loading
+omitted (deployed2026-09-16 at00:41; one mounted-runtime startup passed at00:44,
+45 allocations and180 active updates). Menu interaction and repeated lifecycle
+safety remain unverified; root-tab causality is not established. It now ticks Runtime
+and permits recording-bank/page attachment with production save/retirement guards.
+Configuration autoload and the root tab are disabled. The preceding private
+Session.prepare with18 dormant hooks passed one run at00:35. It includes bank-rooting,
+validation and private-buffer work, though no empty buffer needed filling in
+the preceding no-hook run at00:29. The dormant-hook comparison did not tick Runtime
+or assign it the private Session and therefore did not test active hook behavior.
+Root-tab installation preceded the archived crash, but causality is unproven.
+The preceding adapter path with private
+recorder Init/DeepCopy, two data duplicates and real Menu.prepare passed one run
+at00:19; the variant without recorder baseline passed one run at00:10.
+Full-runtime safety remains unverified.
+The optional Runtime trace callback receives at most48 scalar lifecycle/save
+events, never native wrappers; trace failures cannot change save behavior.
+It diagnoses unresolved save-completion correlation. The four-retained-session
+cap is unchanged: the01:55 fifth-entry refusal reached this cap, whereas the
+subsequent Reset triggered a separate initialization AV. Missing confirmation
+must not authorize forced disposal or be labelled active IO without evidence.
+At02:05 and02:17, FinishSave Success=2 did not match the baseline address. The
+02:17 scoped trace identified one StartSaveDirectSlot call with a substituted
+baseline and a distinct storage item. Controller/container/item identities
+then remained identical through FinishSave. Native code reads confirm the
+intermediate data transformation; full deep-copy semantics are not inferred.
+`NativeSaveCompletion` now binds each substituted-save ticket to that synchronous
+start invocation and its post-start storage identity. Finish captures the exact
+binding before native cleanup, and Success acknowledges only those tickets.
+Completed is an acknowledgement count, not a high-water generation: out-of-order
+or duplicate callbacks cannot complete another save. Failed, replaced, foreign
+or uncorrelated saves remain retained. Direct unscoped baseline returns require
+exactly one pending ticket. Pending-ticket overflow above64 fails closed.
+Optional bounded scalar trace reads remain protected and disabled by default.
+The temporary two-hook observer is removed from the candidate entry; Runtime
+alone owns StartSaveDirectSlot observation. Retirement still waits for all
+tickets, zero readers and navigation quiescence on the existing update thread.
+At02:29 the first live entry/exit matched one ticket, acknowledged Success=2,
+and completed retire/close before Runtime reported unloaded. This validates one
+actual completion path only. At02:36 one same-process reentry with user-verified
+pagination also completed save/retire/close. Long-run and Reset safety, the
+separate initialization crash and full-library reintegration remain unverified;
+retained diagnostic factory wrappers increased45->90 across those two entries.
+On2026-09-16 at01:36 the RuntimeWithoutRoot reentry failed during new playback
+row2 construction: row1 refs2->0, followed by the same0x146F25612 AV. The root
+tab is therefore not required for this initialization signature. First-session
+repaint acceptance does not establish row lifetime or exit/reentry safety.
+Both window modules are unchanged; the existing native bank
+(8 or80) is preserved at its actual incoming count, not forced down to8.
+The former retained entry is preserved for explicit restoration. Initialization
+is unresolved; deployment, evidence and dump limitations are in Known Limitations.
 `NativeRecordingRuntime` owns training-entry loading, hook notifications and
 game-thread retirement. Existing TrainingLibrary imports/exports remain the
 only configuration workflow. Last successful configuration is remembered per P2;
+`Library` must load its Context dependency at module initialization, independent
+of whether an editor or native menu is enabled. First-time deferred require is
+not valid under REFramework's autorun search-path lifetime. The manual-only
+entry exposed this missing dependency; context failure blocked operations and
+mounting. Runtime-context tests must exercise the real loader boundary rather
+than replace the context function with a permanently ready stub.
 exit discards unsaved recordings without a JSON save. Native training autosaves
 during expansion receive the entry training baseline, not current temporary
 changes; explicit library export is required to preserve the user's setup.
