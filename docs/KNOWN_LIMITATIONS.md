@@ -5,6 +5,149 @@ Status: `CURRENT`
 This is the sole current list of evidence and architecture blockers. Green
 offline tests do not remove these limitations.
 
+Cold-deployed candidate at2026-09-16 04:58: the existing Release pre-hook now invalidates a
+scalar presentation-session identity. NativeLibraryTab binds that identity and
+the Runtime instance before serving callbacks, including message/layout getters.
+Tests reproduced stale callback dispatch while state() still reports active;
+the new guard blocks it before native argument access, preserves in-flight
+post-hook returns and re-adopts reused resources without allocation. All30
+related Lua test files pass (25 root contracts,88 Runtime integration cases).
+These are fake-SDK dispatch tests, NOT a reproduction/fix of the04:40 crash.
+After closure confirmation and process-absence checks, only Runtime and
+NativeLibraryTab changed;114 files unchanged, zero added/removed. The entry and
+configs remain unchanged. Previous/candidate code and hash inventories are in
+system temp sf6cc-library-session-guard-20260916-045815. User accepted the whole
+requested smoke: paging/library, Mai-Bison-Mai switching, exit/reentry and save.
+The captured session-guard-user-accepted.log confirms matched save completion
+at05:03:25 (issued1/completed1/readers0), retirement/close at05:03:26 and root
+re-adoption at05:03:36. All24 deployed autorun hashes match the manifest.
+Object-release ownership and Function reentrancy warnings remain; this is one
+accepted run, not proof of crash-free lifetime or the earlier crash's cause.
+No additional game changes or repeated smoke requested at this checkpoint.
+
+Save-row user smoke: native Save Current Configuration and automatic menu
+closure worked; user reports recording intact. Screenshot shows Mai config
+Mai_20260916_030520.json saved at04:41:35 with7/80 valid recordings and a success
+message in the existing panel. Native guide repaint and a clear/reimport
+roundtrip were not separately confirmed. User also reports ONE character-switch
+crash before restart; repeated1P/2P switching after restart worked.
+The matching04:40:18 dump is preserved in system temp
+sf6cc-library-save-row-20260916-043544/character-switch-044018.dmp, SHA256
+20136C7BB3C5E42520B5E27905F5308ABF024DFACAA4ADA800466AE16A04BE39.
+Offline CDB confirms c0000005 at146f25612, R9=0, through the same original
+UpdateVM entry as earlier failures. This establishes the repeated endpoint,
+not the invalidating writer or causality of the save action/root tab.
+Current framework log starts after that crash, so the prior pre-crash plugin
+sequence is unavailable in this log. The new run log and screenshot are saved
+as save-and-repeat-character-switch-accepted.log and save-accepted.png. Code
+hashes still match the deployed pilot. Four ownership-release warnings persist
+in the normal run. Deferred hooks did NOT establish crash-free character
+switching. Further feature deployment is paused; no live debugger, runtime
+changes, forced Reset, or additional reproduction was requested. Asked only
+which player/characters were involved and whether save had already been used.
+
+Deferred-root same-process exit/reentry ACCEPTED by the user. Log shows native
+save fence retired with issued1/completed1/readers0/released=true at04:28:56,
+then Runtime active at04:29:07 and the owned root adopted at04:29:08. Deployed
+autorun hashes match the pilot manifest. Accepted entry/root copies and
+empty-root-reentry-accepted.log are retained in system temp
+sf6cc-deferred-library-root-20260916-042329. This bounds functional acceptance
+to the tested run, not a general crash-free lifecycle guarantee.
+
+The next source stage, DEPLOYED at2026-09-16 04:35 after confirmed closure and
+process-absence checks, replaces the existing blank row with Save
+Current Configuration. Only NativeLibraryTab changes: it delegates to shared
+Library.request("save"), returning the established native close code1 only
+when the request is accepted. Existing entry/Library execute after menu closure;
+no file/native recording writes occur in the button handler. Root navigation,
+foreign rows, layout callbacks and dormant Runtime cannot queue saves. Pending
+jobs suppress duplicates; rejection stays open, request exceptions cancel the
+queue through the existing deferred cancellation API. The guide reads cached
+selection/status, without a file scan or forced native refresh. Selection still
+uses the existing management panel during this one-button pilot. Nineteen root
+contracts and30 related test files pass; save/close acceptance and remaining
+native validation limits are recorded above. Preview with deploy_deferred_library_root.ps1 -Stage SaveRow
+allowlists only the root module. Deployment changed exactly that file, leaving
+110 files unchanged and none added/removed. Rollback copies and manifests are
+in system temp sf6cc-library-save-row-20260916-043544. No commit, package or data
+editing was performed. Native guide repaint remains unconfirmed.
+
+Deferred-hook empty-root pilot DEPLOYED at2026-09-16 04:23 after user closure
+confirmation and process-absence checks. Only entry and NativeLibraryTab changed;
+109 files unchanged, none added/removed. Rollback copies and hashes are in
+system temp sf6cc-deferred-library-root-20260916-042329. Sixteen root contracts
+and the stub-root/manual-entry harness passed again. User accepted initial
+entry, paging and root navigation/close-reopen. Screenshots show the blank
+Library after Reversal and recording page1/10 with both native footer settings.
+Log confirms Runtime active at04:26:53.494, root installed at04:26:53.734 and
+180 active updates survived. Autorun hashes still match the deployment.
+Evidence: empty-root-navigation-accepted.log, empty-root-accepted.png and
+recording-footer-paging-accepted.png in that temp directory. No expiry/AV or
+Lua ownership-release marker was found in this captured run. This is initial
+functional acceptance only; the subsequent same-process reentry acceptance is
+recorded above. Do not Reset; the later save-only pilot is described above.
+
+User revalidated the restored0d27b37 baseline: training entry, paging and
+character switching all normal. Captured log shows active mounts at04:20:34
+and04:20:49, each surviving180 updates. All deployed autorun file hashes match
+the rollback baseline. Evidence: rollback-paging-character-switch-accepted.log
+in system temp sf6cc-empty-library-root-20260916-035026. Four Lua ownership
+release warnings and Function reentrancy warnings remain; this is functional
+acceptance, not a lifetime-safety proof or causal proof against the rejected tab.
+The deferred-hook candidate has a separate preview-by-default deployment helper
+under exam/native-training-library/deploy_deferred_library_root.ps1. Its preview
+passed16 root contracts and the stub-root/manual-entry harness without game
+writes. The subsequent cold deployment above changes only
+entry + NativeLibraryTab are allowlisted. No config controls are added this round.
+
+The empty-root source now defers ALL native method lookups/hook registration
+until recording Runtime is active, offline training is allowed and the native
+menu is confirmed closed. The rejected pilot only delayed page allocation:
+its module load eagerly installed seven hooks and its message hook decoded GUIDs
+before any root existed. A new contract test failed on this eager SDK access,
+then passed after deferral. Dormant/failed hooks pass through without native
+argument/owner reads; partial setup stops once without publishing/retrying.
+Sixteen root contract checks and30 related test files pass. The separate staged
+entry harness stubs the root module and verifies manual jobs, not native root
+integration. These tests establish startup isolation, NOT a reproduction or
+fix of the native lifetime crash. This source change is now a game-only pilot;
+canonical entry and committed checkpoint0d27b37 still leave root support disabled.
+
+Offline CDB inspection of the latest03:53:26 dump confirms a null dereference
+at146f25612 (R9=0) from the original UpdateVM application-entry call. This is
+the same previously identified endpoint, not a newly identified writer. The
+small dump omits the relevant object heap bytes; it cannot recover the first
+invalidating operation. No live debugger was attached. Upstream SDK sources
+were read at the run's logged commit0a07faae46a6fc1c51cd1699a0cf99a3f9c2679f;
+no DLL, allocator, GC control or reference-count policy was changed.
+
+Empty-root pilot REJECTED after two user-reported startup/entry crashes.
+At2026-09-16 03:56, with the game process absent, restored only the game entry
+and NativeLibraryTab from the verified pre-deployment copies for0d27b37;
+109 other files unchanged, none added/removed. Configurations are untouched.
+Evidence/manifests: system temp sf6cc-empty-library-root-20260916-035026,
+failed-second-launch.log and rollback-result.json. Only the second crash log
+has been verified. At03:53:26.364, recording menu construction reported a
+previously retained row expired (refs2 ->0, type unavailable) after creating
+slot7; at03:53:26.368 native access violation c0000005 occurred at146f25612.
+No active Runtime or successful root installation was logged. This does not
+prove the tab insertion caused the failure or identify the invalidating native
+instruction. Offline contract tests cannot reproduce this native lifetime
+failure; the rollback contains the candidate, not a proven crash fix. Suspend
+the pilot's navigation test instructions until a discriminating diagnosis exists.
+
+Checkpoint committed as0d27b37 (not pushed/packaged). Subsequent uncommitted
+root-tab pilot places an EMPTY library page immediately after REVERSAL(5),
+confirmed through live read-only metadata. One blank focus target preserves
+native navigation; no configuration reads/jobs/editor/autoload. Installation
+requires active recording Runtime and closed native pause menu. Native and
+foreign roots retain their relative order. Eleven root contract checks,30
+related test files and staged-entry integration passed before the failed smoke.
+Game is restored to the checkpoint; the pilot helper must not be redeployed.
+Canonical entry still does not load it. Root navigation/close-reopen/reentry
+must be validated before restoring actual library controls. Existing release
+warnings are unchanged. This is not an accepted new UI or lifecycle fix.
+
 Baseline consolidation: canonical entry and22 private Lua modules now match
 the currently user-accepted game deployment byte for byte. Seed expansion and
 allocation-free busy deferral are included; native root/editor and autoload

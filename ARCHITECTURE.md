@@ -336,25 +336,57 @@ It does not own files, character semantics or menu rendering.
 
 The September 15 native-UI containment disables the old `NativeMenu` subtab:
 its explicit `ViewUpdate` call failed again after closing/reopening the menu.
-The experimental `NativeLibraryTab` is currently not loaded by the source or
-game entry. Its first combined smoke reproduced the allocation-time crash in
-recording menu preparation; the containment entry has been restored. This
+The experimental `NativeLibraryTab` is not loaded by the canonical source entry.
+Its first combined smoke reproduced the allocation-time crash in
+recording menu preparation and was withdrawn. This
 does not establish that the new tab caused the allocation failure.
-It is a read-only, three-row root tab based on WTT's published root-page
-installation, not restored import/export functionality. It appends while the
-offline training menu is closed, preserving all native/foreign roots; native
+The subsequent empty-root candidate was also withdrawn after two reported
+entry crashes. The latest log records an expired recording-menu row before
+Runtime became active, followed by native access violation; no successful
+root installation was logged. The two deployed files were restored to0d27b37.
+This is containment, not proof of root-tab causality or lifetime safety.
+The revised source, cold-deployed as a game-only pilot at September16 04:23,
+defers hook registration as well as mounting
+until recording Runtime is active and the offline training menu is closed.
+Loading the optional module must not touch the SDK; dormant hooks must not
+read native arguments/owners. Partial setup failure stops without retry. These
+are offline startup-isolation contracts, not proof of native lifetime safety.
+The lifetime-guard candidate, cold-deployed on September16 at04:58, adds Runtime.presentation_session():
+a scalar generation, valid only while the active recording session is neither
+releasing nor released. The existing Release pre-hook invalidates it before
+native teardown; successful attachment advances it. This does not change
+state(), save completion, ownership or retirement timing. The root binds both
+the Runtime instance and generation, rejecting new stale callbacks before SDK
+access. A closed-menu update re-adopts reused native resources under the new
+generation. Already-skipped calls still complete their post-hook return.
+This guards a reproduced dispatch window, not the unknown native crash writer.
+The user accepted one full character-switch/exit-reentry/paging/save smoke of
+this candidate. The captured log confirms retirement after matched save
+completion and root re-adoption; ownership/reentrancy warnings still remain.
+The accepted pilot is a single-row root tab based on WTT's published root-page
+installation. The blank-page entry/navigation/exit-reentry smoke passed in one
+process. The September16 04:35 single-module follow-on turns that row into Save Current Configuration,
+delegating to the existing Library request queue and native close-result protocol;
+it does not own recording IO or add imports/selection/editor functionality.
+Its guide reads cached shared selection/status without native refresh. It inserts after the
+native REVERSAL root while recording Runtime is active and the offline training
+menu is closed, preserving all native/foreign roots; native
 navigation owns rendering. Its layout hook only observes calls and scopes
 primitive getters, never invokes a refresh. Plugin-private GUIDs identify its
-own page across Lua states; no unowned DYNAMIC pages are removed. It reads
-cached Library metadata, never scans files or issues library operations.
+own page across Lua states; no unowned DYNAMIC pages are removed. The existing
+single focus row is reused; no additional native row allocation is introduced.
 New menu allocations are retained, with four mounts per Lua state as a research
 limit; no native objects are released/restored from reset or stale scene
 callbacks. This is not a validated native UI disposal/hot-reload contract.
 Cold-start, category-switch and close/reopen smoke are required before adding
 interactive controls. Existing recording/backend behavior is outside this change.
-That root-only differential is historical. As of September16 the canonical
-entry and all22 private Lua modules match the accepted manual-library game
-deployment byte for byte; no root tab is loaded. See Known Limitations for the
+At checkpoint0d27b37 the canonical entry and all22 private Lua modules matched
+the accepted manual-library game deployment byte for byte, with no root tab
+loaded. The current two-file pilot differs only in entry and root module;
+empty-root acceptance is recorded above. Save-row execution and native closure
+passed user smoke, but a character-switch crash recurred at the prior UpdateVM
+endpoint; deferred registration is not a demonstrated lifetime fix. Further
+feature deployment is paused. See Known Limitations for the
 remaining ownership-release warnings and acceptance boundaries.
 
 An explicit import validates the whole configuration and backs up before starting

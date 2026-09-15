@@ -15,6 +15,7 @@ function M.new(deps)
     local entries, active, attempted, stopped, ready = {}, nil, nil, false, false
     local ticks, owner_thread, warned = 0, nil, false
     local hook_error, save_generation, release_generation = nil, 0, 0
+    local presentation_generation = 0
     local reload_request, reload_blocked
     local candidate, stable_checks = nil, 0
     local pager
@@ -214,7 +215,9 @@ function M.new(deps)
             return result
         end)
         hook(release, function(args)
-            threads.get_hook_storage().sf6cc_release_entry = find(api.to_int64(args[2]))
+            local entry = find(api.to_int64(args[2]))
+            threads.get_hook_storage().sf6cc_release_entry = entry
+            if entry then entry.releasing = true end
         end, function(retval)
             local entry = threads.get_hook_storage().sf6cc_release_entry
             if entry then
@@ -389,6 +392,7 @@ function M.new(deps)
         entries[#entries + 1], active = entry, entry
         local attached, why = entry.attach()
         if not attached then report(why); stopped = true; return end
+        presentation_generation = presentation_generation + 1
         library.expansion_error = nil
         if not manual_reload and library.reset_slot_names then library.reset_slot_names() end
         library.status_ok, library.status = true, manual_reload and "分页已重新加载，未导入配置，当前栏位名称保留"
@@ -418,6 +422,15 @@ function M.new(deps)
     end
     function self.state() return stopped and "stopped" or (active and active.phase or "unloaded") end
     function self.generation() return release_generation end
+    -- Scalar identity only: UI consumers must not retain native session objects.
+    -- Release invalidates it before the next throttled lifecycle tick can retire.
+    function self.presentation_session()
+        if not stopped and active and active.phase == "active"
+            and not active.releasing and not active.released then
+            return presentation_generation
+        end
+        return nil
+    end
     return self
 end
 return M
