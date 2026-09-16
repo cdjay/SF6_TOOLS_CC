@@ -611,7 +611,7 @@ if ($TrainingLibraryOnly) {
     if ($LASTEXITCODE -ne 0 -or $untracked.Count -gt 0) { throw "Untracked standalone dependencies must be reviewed before packaging." }
     $configs = @(Get-ChildItem -LiteralPath $configRoot -File -Filter '*.json')
     foreach ($file in $configs) {
-        $config = Get-Content -LiteralPath $file.FullName -Raw | ConvertFrom-Json
+        $config = Get-Content -LiteralPath $file.FullName -Raw -Encoding UTF8 | ConvertFrom-Json
         if ($config.schema -notin @('sf6cc.training_setup.v2', 'sf6cc.dynamic_records.v1') -or
             $null -eq $config.fighter_id -or $null -eq $config.slots) {
             throw "Invalid training configuration: $($file.Name)"
@@ -635,7 +635,7 @@ if ($TrainingLibraryOnly) {
     }
     $selectionPath = Join-Path (Split-Path -Parent $configRoot) 'last_selected.json'
     if (Test-Path -LiteralPath $selectionPath) {
-        $selection = Get-Content -LiteralPath $selectionPath -Raw | ConvertFrom-Json
+        $selection = Get-Content -LiteralPath $selectionPath -Raw -Encoding UTF8 | ConvertFrom-Json
         foreach ($entry in $selection.PSObject.Properties) {
             $expected = @($configs | ForEach-Object { "SF6CC_TrainingConfigs/configs/$($_.Name)" })
             if ($entry.Value -notin $expected) { throw "Selected configuration is not included: $($entry.Value)" }
