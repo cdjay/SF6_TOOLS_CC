@@ -50,9 +50,9 @@ local function write(target,source)
     return result
 end
 discover[1]({0,param,group,0})
-assert(write(text)=="<PLUNUM> 对空")
-name="改名"; assert(write(text)=="<PLUNUM> 改名")
-name="{0}"; assert(write(text)=="<PLUNUM> {{0}}")
+assert(write(text)=="<PLUNUM> - 对空")
+name="改名"; assert(write(text)=="<PLUNUM> - 改名")
+name="{0}"; assert(write(text)=="<PLUNUM> - {{0}}")
 name=""; assert(write(text)=="栏位<PLUNUM>")
 name="对空"; assert(write(obj())=="栏位<PLUNUM>")
 assert(write(text,"{0}帧")=="{0}帧")
@@ -63,13 +63,13 @@ children[1]=group
 for i=1,100 do
     name=i%2==0 and "配置A" or "配置B"
     discover[1]({0,param,group,0})
-    assert(write(text)=="<PLUNUM> "..name,"later imports/renames stopped updating")
+    assert(write(text)=="<PLUNUM> - "..name,"later imports/renames stopped updating")
 end
 local secondary=param.fields._SecondaryList
 param.fields._SecondaryList=nil
 assert(write(text)=="栏位<PLUNUM>","transient missing list must be ignored")
 param.fields._SecondaryList=secondary
-assert(write(text)=="<PLUNUM> "..name,"missing list permanently stopped name rendering")
+assert(write(text)=="<PLUNUM> - "..name,"missing list permanently stopped name rendering")
 param.fields._ViewDataList.fields.items[1].fields.Data=obj()
 assert(write(text)=="栏位<PLUNUM>","stale row identity wrote a different slot")
 assert(#errors==0)

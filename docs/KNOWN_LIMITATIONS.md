@@ -5,6 +5,23 @@ Status: `CURRENT`
 This is the sole current list of evidence and architecture blockers. Green
 offline tests do not remove these limitations.
 
+September17 recovery evidence supersedes blanket restart-only guidance:
+the user disabled/re-enabled the script inside training, observed waiting, then
+pressed pagination reload and received the stop/restart message. They exited
+training, reloaded outside training and reentered successfully; the screenshot
+reports 6 imported recordings, 74 cleared slots and 30 restored reversal entries,
+and the user confirms usability. This is one successful outside-training recovery
+without restarting the game, not proof of safe in-training reload, every Reset
+mechanism, repeated-cycle stability or completed native cleanup. No lifecycle
+logic or stop-message policy changed in this release.
+
+Version1.1.14 also changes only the native named-slot display to
+"number - description", without outer brackets, for recording/playback and reversal
+labels. Empty descriptions retain native defaults. Saved annotations, frame text,
+configuration labels and confirmation markers are unchanged. Focused offline
+regressions cover reused rows, name changes and all three reversal scopes; the
+post-removal appearance has not been separately accepted by the user.
+
 InlineClear is prepared, not deployed. User rejected SlotListLayout's ticker-only
 clear confirmation: it must match import's inline confirmation. First activation
 now marks the existing clear row without notifying or queuing work; the second

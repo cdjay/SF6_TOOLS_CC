@@ -96,9 +96,9 @@ local function test(name,fn)fn(); n=n+1; print("PASS "..name)end
 
 test("captured overview writer uses the edited recording name just like its picker",function()
     local f=fixture(); f.names[1]="对空练习"
-    f.update(nil,function() assert(f.write(1)=="<PLUNUM> 对空练习") end)
+    f.update(nil,function() assert(f.write(1)=="<PLUNUM> - 对空练习") end)
     f.overview_update(nil,0,function()
-        assert(f.write(1)=="<PLUNUM> 对空练习","overview kept default slot label while picker has edited name")
+        assert(f.write(1)=="<PLUNUM> - 对空练习","overview kept default slot label while picker has edited name")
     end)
 end)
 
@@ -110,7 +110,7 @@ test("all three overview groups resolve recording identity rather than reversal 
         for _,slot in ipairs({9,80}) do
             f.reversals[group+1].fields.SkillIndex=slot-1
             f.overview_update(nil,0,function()
-                assert(f.write(1)=="<PLUNUM> "..f.names[slot],"overview row1 must name its referenced recording")
+                assert(f.write(1)=="<PLUNUM> - "..f.names[slot],"overview row1 must name its referenced recording")
                 assert(f.write(2)=="栏位<PLUNUM>","foreign row format argument was renamed")
                 assert(f.write(slot,"e_txt_center")=="栏位<PLUNUM>")
                 assert(f.write(slot,nil,"空栏")=="空栏")
@@ -119,9 +119,9 @@ test("all three overview groups resolve recording identity rather than reversal 
         end
     end
     f.reversals[3].fields.IsActive=false
-    f.overview_update(nil,0,function() assert(f.write(1)=="<PLUNUM> 反击","disabled valid recording still has a name") end)
+    f.overview_update(nil,0,function() assert(f.write(1)=="<PLUNUM> - 反击","disabled valid recording still has a name") end)
     f.names[80]="新说明"
-    f.overview_update(nil,0,function() assert(f.write(1)=="<PLUNUM> 新说明") end)
+    f.overview_update(nil,0,function() assert(f.write(1)=="<PLUNUM> - 新说明") end)
     f.names[80]=""
     f.overview_update(nil,0,function() assert(f.write(1)=="栏位<PLUNUM>") end)
 end)
@@ -130,16 +130,16 @@ test("overview resolves the row SlotID rather than its visible list position",fu
     local f=fixture()
     f.overview_row.fields._SlotID=1
     f.reversal_fighter.fields.DownReversalDatas.fields.items[2]=f.obj({Type=4,SkillIndex=79,IsValid=true})
-    f.overview_update(nil,0,function() assert(f.write(2)=="<PLUNUM> 反击") end)
+    f.overview_update(nil,0,function() assert(f.write(2)=="<PLUNUM> - 反击") end)
 end)
 
 test("overview parent selects the displayed group even when the global tab value is stale",function()
     local f=fixture()
     f.setting.fields.ReversalType=0
     f.overview_parent.fields._FuncType=135; f.reversals[2].fields.SkillIndex=8
-    f.overview_update(nil,0,function() assert(f.write(1)=="<PLUNUM> 截空") end)
+    f.overview_update(nil,0,function() assert(f.write(1)=="<PLUNUM> - 截空") end)
     f.overview_parent.fields._FuncType=136; f.reversals[3].fields.SkillIndex=79
-    f.overview_update(nil,0,function() assert(f.write(1)=="<PLUNUM> 反击") end)
+    f.overview_update(nil,0,function() assert(f.write(1)=="<PLUNUM> - 反击") end)
 end)
 
 for _,change in ipairs({"empty","normal","invalid","recording","row","type","func","fighter","group","session","bank","released","training"}) do
@@ -165,20 +165,20 @@ end
 test("overview scope cannot leak into picker, nested foreign calls, threads or later controls",function()
     local f=fixture(); f.reversal.fields.SkillIndex=8
     f.overview_update(nil,0,function()
-        assert(f.write(1)=="<PLUNUM> 截空")
+        assert(f.write(1)=="<PLUNUM> - 截空")
         f.overview_update(f.obj(),0,function() assert(f.write(9)=="栏位<PLUNUM>") end)
         f.overview_update(nil,99,function() assert(f.write(9)=="栏位<PLUNUM>") end)
-        assert(f.write(1)=="<PLUNUM> 截空")
+        assert(f.write(1)=="<PLUNUM> - 截空")
         f.thread(2); assert(f.write(9)=="栏位<PLUNUM>"); f.thread(1)
-        f.update(nil,function() assert(f.write(80)=="<PLUNUM> 反击") end)
-        assert(f.write(1)=="<PLUNUM> 截空")
+        f.update(nil,function() assert(f.write(80)=="<PLUNUM> - 反击") end)
+        assert(f.write(1)=="<PLUNUM> - 截空")
         f.reversal.fields.SkillIndex=79
         assert(f.write(9)=="栏位<PLUNUM>","changed recording reused previous name")
     end)
     assert(f.write(9)=="栏位<PLUNUM>","overview label survived after returning")
     f.update(nil,function()
         f.overview_update(f.obj(),0,function() assert(f.write(80)=="栏位<PLUNUM>") end)
-        assert(f.write(80)=="<PLUNUM> 反击")
+        assert(f.write(80)=="<PLUNUM> - 反击")
     end)
 end)
 
@@ -190,15 +190,15 @@ test("overview read failure stops its own names without disabling the accepted p
     f.overview_update(nil,0,function() assert(f.write(9)=="栏位<PLUNUM>") end)
     views.call=original
     f.overview_update(nil,0,function() assert(f.write(9)=="栏位<PLUNUM>") end)
-    f.update(nil,function() assert(f.write(9)=="<PLUNUM> 截空") end)
+    f.update(nil,function() assert(f.write(9)=="<PLUNUM> - 截空") end)
 end)
 
 test("reversal recording picker uses current edited names including slot80",function()
     local f=fixture()
     f.update(nil,function()
-        assert(f.write(9)=="<PLUNUM> 截空")
-        assert(f.write(80)=="<PLUNUM> 反击")
-        f.names[9]="新名称"; assert(f.write(9)=="<PLUNUM> 新名称")
+        assert(f.write(9)=="<PLUNUM> - 截空")
+        assert(f.write(80)=="<PLUNUM> - 反击")
+        f.names[9]="新名称"; assert(f.write(9)=="<PLUNUM> - 新名称")
         assert(f.write(1)=="栏位<PLUNUM>")
         assert(f.write(81)=="栏位<PLUNUM>")
         assert(f.write(0)=="栏位<PLUNUM>")
@@ -214,7 +214,7 @@ test("nested foreign reversal update and foreign threads cannot consume names",f
     local f=fixture()
     f.update(nil,function()
         f.update(f.obj(),function() assert(f.write(9)=="栏位<PLUNUM>") end)
-        assert(f.write(9)=="<PLUNUM> 截空")
+        assert(f.write(9)=="<PLUNUM> - 截空")
         f.thread(2); assert(f.write(9)=="栏位<PLUNUM>"); f.thread(1)
         f.allowed(false); assert(f.write(9)=="栏位<PLUNUM>")
     end)

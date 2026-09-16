@@ -211,9 +211,9 @@ test("native name writer follows a reused row across all ten pages without stale
             -- Simulate the engine calling its normal row writer, not a redraw.
             local method=p==1 and "UpdateRecordSlotItem" or "UpdatePlaySlotItem"
             f.hook_call(method.."(app.UIPartsGroup, System.Int32)",{0,param,group,2})
-            assert(write()=="<PLUNUM> "..prefix..(index*8+1))
+            assert(write()=="<PLUNUM> - "..prefix..(index*8+1))
             prefix=prefix=="config-A-" and "config-B-" or "config-A-"
-            assert(write()=="<PLUNUM> "..prefix..(index*8+1),"config change left stale name")
+            assert(write()=="<PLUNUM> - "..prefix..(index*8+1),"config change left stale name")
             assert(write("{0} frames")=="{0} frames","name writer replaced frame count")
         end
     end

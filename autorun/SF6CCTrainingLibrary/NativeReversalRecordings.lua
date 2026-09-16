@@ -164,7 +164,7 @@ function M.new(api, threads, current, allowed, report, library)
                 local name = library.slot_name(frame.overview and frame.slot or slot)
                 if name == "" or not Notes.valid_note(name) then return end
                 name = name:gsub("{", "{{"):gsub("}", "}}")
-                local replacement = assert(api.create_managed_string("<PLUNUM> " .. name))
+                local replacement = assert(api.create_managed_string("<PLUNUM> - " .. name))
                 storage.sf6cc_reversal_name_string = replacement
                 args[4] = api.to_ptr(replacement)
             end)
