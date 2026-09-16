@@ -36,10 +36,10 @@ assert(count>0, "standalone entry registered nothing")
 entry()
 assert(#callbacks==count, "entry registered duplicate owners")
 assert(loaded["SF6CCTrainingLibrary/Records"])
-assert(not loaded["SF6CCTrainingLibrary/NativeLibraryTab"], "failed root-tab pilot must remain withdrawn")
+assert(loaded["SF6CCTrainingLibrary/NativeLibraryTab"], "standalone package must include the deferred native library")
 assert(not loaded["SF6CCTrainingLibrary/NativeMenu"], "unsafe subtab refresh must remain withdrawn")
 assert(loaded["SF6CCTrainingLibrary/Library"] and loaded["SF6CCTrainingLibrary/Context"])
-assert(not loaded["SF6CCTrainingLibrary/NativeNoteEditor"],"editor must stay withdrawn from accepted manual entry")
+assert(loaded["SF6CCTrainingLibrary/NativeNoteEditor"],"native library must include its deferred name editor")
 local state=assert(loaded["SF6CCTrainingLibrary/State"])
 assert(type(state.tick_jobs)=="function", "no independent deferred job owner")
 local safe_updates=0
@@ -51,7 +51,7 @@ for _,callback in ipairs(callbacks) do
         safe_updates=safe_updates+1
     end
 end
-assert(safe_updates==1 and hook_installs==1,"entry needs one lifecycle/job/pager update owner")
+assert(safe_updates==2 and hook_installs==1,"one recording update owner plus one dormant native library update")
 assert(unsafe_updates==0,"native recording lifecycle still runs outside pre LateUpdateBehavior")
 local library=loaded["SF6CCTrainingLibrary/Library"].shared()
 local ticks=0

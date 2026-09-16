@@ -311,6 +311,26 @@ function M.get_record_capacity()
     return record_capacity(slots)
 end
 
+-- Presentation-only scalar snapshot of the current P2 bank. Never export/read
+-- input buffers just to label a menu; Frame, not InputData.Num, is authoritative.
+function M.get_record_frames()
+    local slots,err,ctx=get_current_slots()
+    if not slots then return nil,err end
+    local frames={}
+    for index=0,record_capacity(slots)-1 do
+        local slot=get_collection_item(slots,index)
+        local valid=safe_get_field(slot,"IsValid")
+        local frame=safe_get_field(slot,"Frame")
+        local value=false -- Unknown is not an empty recording.
+        if valid==false or valid==0 then value=0
+        elseif (valid==true or valid==1) and type(frame)=="number" and frame%1==0 and frame>=0 then
+            value=frame
+        end
+        frames[index+1]=value
+    end
+    return {fighter_id=ctx.fighter_id,frames=frames}
+end
+
 function M.get_slot_name(slot)
     if type(slot)~="number" or slot%1~=0 or slot<1 or slot>MAX_RECORD_SLOTS then return "" end
     local entry=M._annotations.record_slots[slot]

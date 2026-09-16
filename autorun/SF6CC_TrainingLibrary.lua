@@ -1,4 +1,4 @@
--- Staged reintegration: accepted recording runtime plus manual configuration jobs.
+-- Accepted recording runtime and shared manual/remembered configuration queue.
 if _G.SF6CC_NATIVE_MOUNT_RETAINED then return end
 local State=require("SF6CCTrainingLibrary/State")
 if State.started then return end
@@ -18,10 +18,8 @@ for _,name in ipairs({"create_instance","create_instance_global","create_managed
         return value
     end
 end
--- Suppress only automatic imports; status and manual operations use the real shared controller.
-local runtime_library=setmetatable({autoload=function() return false end},{__index=library,__newindex=library})
 local in_update=false
-local runtime=Runtime.new({api=api,threads=thread,library=runtime_library,
+local runtime=Runtime.new({api=api,threads=thread,library=library,
     in_ui_update=function() return in_update end,context=Library.runtime_context,
     trace=function(event,values)
         local parts={event,"thread_id="..tostring(thread.get_id())}
@@ -46,10 +44,10 @@ local ok,err=pcall(runtime.install_hooks)
 if not ok then state.stopped=true; log.error(TAG.."HOOKS FAILED "..tostring(err)); return end
 function State.tick_jobs()
     if state.stopped or runtime.state()~="active" or not library.has_pending() then return end
-    assert(in_update,"manual configuration job outside the accepted update scope")
+    assert(in_update,"configuration job outside the accepted update scope")
     library.tick()
 end
-log.info(TAG.."ARMED; manual library only; factory wrappers retained; no config autoload, native editor or root tab")
+log.info(TAG.."ARMED; remembered P2 configuration imports after runtime attachment; shared configuration queue")
 re.on_pre_application_entry("LateUpdateBehavior",function()
     if state.stopped then return end
     in_update=true
@@ -87,3 +85,7 @@ re.on_script_reset(function()
     local success,detail=pcall(runtime.reset)
     if not success then log.error(TAG.."RESET FAILED "..tostring(detail)) end
 end)
+
+-- Register the native library module; it stays dormant until training is ready.
+local tab_ok,tab_error=pcall(require,"SF6CCTrainingLibrary/NativeLibraryTab")
+if not tab_ok then log.error("[NativeLibraryTab] Load failed; manual library unchanged: "..tostring(tab_error)) end

@@ -69,8 +69,8 @@ function M.new(records, context, choices)
     function self.selection_label(index)
         local entry = self.entries[index or self.selected]
         if not entry then return "（暂无配置）" end
-        return character_name((entry.metadata or {}).fighter_name) .. " ["
-            .. (self.labels[index or self.selected] or "未命名配置") .. "]"
+        return character_name((entry.metadata or {}).fighter_name) .. "【"
+            .. (self.labels[index or self.selected] or "未命名配置") .. "】"
     end
     function self.select(index)
         if pending or note_edit or type(index) ~= "number" or index % 1 ~= 0 or not self.entries[index] then return false end
@@ -90,11 +90,11 @@ function M.new(records, context, choices)
             if type(entry) == "table" and type(entry.path) == "string" then
                 if #rows >= 256 then status(false, "配置超过 256 个，请先整理目录"); return false end
                 local read_ok, meta = pcall(records.read_config_metadata, entry.path)
-                local title
+                local title,named
                 if read_ok and type(meta) == "table" then
                     for _, value in ipairs({ meta.title or "", meta.description or "",
                         meta.fighter_name and (meta.fighter_name .. " 训练配置") or "" }) do
-                        if type(value) == "string" and not value:match("^%s*$") then title = value; break end
+                        if type(value) == "string" and not value:match("^%s*$") then title = value; named=true; break end
                     end
                 end
                 if not title then title = entry.filename or "未命名配置" end
@@ -106,9 +106,35 @@ function M.new(records, context, choices)
                     elseif count > 64 then title = title:sub(1, utf8.offset(title, 65) - 1) .. "..." end
                 end
                 rows[#rows + 1] = { path = entry.path, filename = entry.filename, legacy = entry.legacy,
-                    metadata = read_ok and type(meta) == "table" and meta or {} }
+                    metadata = read_ok and type(meta) == "table" and meta or {},display_title=named and title or nil }
                 labels[#rows] = (entry.legacy and "[旧目录] " or "") .. title
                 if entry.path == select_path then selected = #rows end
+            end
+        end
+        -- Number equal titles within each fighter, independently of listing order.
+        -- This is display-only: paths, stored names and recordings are untouched.
+        local groups,reserved={},{}
+        for i,entry in ipairs(rows) do
+            local fighter=tostring(entry.metadata.fighter_id or "unknown")
+            reserved[fighter]=reserved[fighter] or {}
+            reserved[fighter][labels[i]]=true
+            groups[fighter]=groups[fighter] or {}
+            local by_name=groups[fighter]
+            by_name[labels[i]]=by_name[labels[i]] or {}
+            table.insert(by_name[labels[i]],i)
+        end
+        for fighter,by_name in pairs(groups) do
+            for title,indices in pairs(by_name) do
+                if #indices>1 then
+                    table.sort(indices,function(a,b) return rows[a].path<rows[b].path end)
+                    local suffix=0
+                    for _,i in ipairs(indices) do
+                        local label
+                        repeat suffix=suffix+1; label=title.."（"..suffix.."）" until not reserved[fighter][label]
+                        reserved[fighter][label]=true; labels[i]=label
+                        if rows[i].display_title then rows[i].display_title=label end
+                    end
+                end
             end
         end
         self.entries, self.labels, self.selected = rows, labels, selected
@@ -137,7 +163,8 @@ function M.new(records, context, choices)
         local options = {}
         for key, value in pairs(self.options) do options[key] = value end
         pending = { kind = kind, path = entry and entry.path, options = options,
-            session = ctx.session, data = ctx.data, fighter_id = ctx.fighter_id }
+            session = ctx.session, data = ctx.data, fighter_id = ctx.fighter_id,
+            title=entry and entry.display_title }
         status(true, "已排队，关闭游戏暂停菜单后执行")
         return true
     end
@@ -167,6 +194,7 @@ function M.new(records, context, choices)
     end
     function self.has_pending() return pending ~= nil or note_edit ~= nil end
     function self.slot_capacity() return records.get_record_capacity and records.get_record_capacity() or 8 end
+    function self.record_frames() return records.get_record_frames and records.get_record_frames() or nil end
     function self.slot_name(slot) return records.get_slot_name and records.get_slot_name(slot) or "" end
     function self.can_edit_slot_names() return not self.expansion_error and type(records.set_slot_name)=="function" end
     function self.reset_slot_names() if records.reset_slot_names then records.reset_slot_names() end end
@@ -284,8 +312,12 @@ function M.new(records, context, choices)
         if job.kind == "notes" then
             local ok, success, msg = pcall(records.commit_note_edit, job.edit, job.text)
             self.result_revision = self.result_revision + 1
+            self.result_configuration=nil
             if not ok or success ~= true then status(false, ok and msg or "配置名称保存失败，请检查原文件备份"); return end
             if not self.refresh(job.path) then status(false, "配置名称已保存，但列表刷新失败，请手动刷新"); return end
+            local entry=self.selection()
+            self.result_configuration={revision=self.result_revision,kind=job.kind,
+                title=entry and entry.path==job.path and entry.display_title or nil}
             status(true, msg or "配置名称已保存")
             return
         end
@@ -307,6 +339,7 @@ function M.new(records, context, choices)
             return
         end
         self.result_revision = self.result_revision + 1
+        self.result_configuration=nil
         local verb = job.kind == "save" and "保存" or (job.kind == "import" and "导入" or "导出")
         if not ok or success ~= true then
             diagnostic(ok and msg or success)
@@ -317,6 +350,14 @@ function M.new(records, context, choices)
             local refreshed = self.refresh(path)
             if not refreshed then diagnostic(msg); status(false, "配置已" .. verb .. "，但列表刷新失败，请手动刷新"); return end
         end
+        local result_title=job.title
+        if job.kind=="export" or job.kind=="save" then
+            result_title=nil
+            for _,entry in ipairs(self.entries) do
+                if entry.path==path then result_title=entry.display_title; break end
+            end
+        end
+        self.result_configuration={revision=self.result_revision,title=result_title,kind=job.kind}
         if job.kind == "export" or job.kind == "save" then remember(job.fighter_id, path)
         elseif not receipt or receipt.apply_state ~= "failed" then remember(job.fighter_id, job.path) end
         if job.kind == "export" or job.kind == "save" then

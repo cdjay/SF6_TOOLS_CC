@@ -17,6 +17,9 @@ claim that production authority has already switched.
 
 ## Documentation
 
+* [Standalone Training Library](docs/training-library/README.md): current entry,
+  dependency boundary, native menu contracts and release packaging.
+
 * [README](README.en.md)
 * [Vision](VISION.md)
 * [Roadmap](ROADMAP.md)
@@ -320,6 +323,125 @@ New business logic must not continue to accumulate in the entry script. See [AC+
 
 ## Native Recording Library Import
 
+SlotFrames candidate (cold-deployed September16 at15:48, live acceptance pending): slot-description labels include current P2
+recording lengths, or the empty-slot label. Records.get_record_frames reads only
+IsValid/Frame into a detached scalar snapshot; it does not export, read saved
+configurations, touch input buffers or inspect reversals. Library delegates this
+read, and NativeLibraryView captures it during the existing closed-menu update,
+rejecting mismatched fighter/capacity data. Display/navigation read only the
+snapshot. Missing or invalid reads remain unknown rather than empty; descriptions
+and editing remain available. 36 related test files pass. Only Records, Library
+and NativeLibraryView change; native pager and lifecycle code remain unchanged.
+Deployment verified169 other files unchanged, with none added or removed.
+
+ListPagerInit follow-up (cold-deployed September16 at15:29, user confirms paging works): ListPagerReversal failed its real list
+paging check. Read-only MCP found the visible spin's SpinAction/CheckAdd/CheckSub
+all null, default MaxNum99 and unchanged ViewData.Index0. Changing TEXT to SPIN
+only displayed the widget; it did not initialize its native input delegates.
+The earlier mock injected OnUpdateSpin directly and missed this prerequisite.
+The new failing-before-fix regression requires initialization. Only NativeLibraryTab
+changes: after owned row validation, variant/option/index binding, call the exact
+InitSpinBox(Int32) overload for row9 (zero based) when entering SPIN or replacing
+its option array. Block action dispatch during initialization; ordinary page
+changes never reinitialize it. No whole-page refresh or added hooks. Single-row
+initialization/input behavior has focused user acceptance for list paging.
+Deployment updated NativeLibraryTab only;170 other files unchanged, none added
+or removed. 35 related test files passed; this focused acceptance does not close
+historical crash risks or establish all remaining reversal-name checks.
+
+ListPagerReversal candidate (cold-deployed September16 at15:12, live acceptance pending): configuration and slot
+lists retain their 13 owned rows, with row10 switching between text and a native
+spin control. NativeLibraryPager adapts the existing NativeRecordingPager commit
+protocol without modifying it; namespaced per-invocation storage isolates the
+two consumers. Option nodes/arrays are prepared on closed-menu updates only,
+bounded by the 256-configuration catalog (32 pages). Navigation selects a retained
+option array, changes owned display variants and marks existing rows dirty before
+native repaint; it never allocates a page or calls ViewUpdate. One-page lists
+hide the spin control. Session/ownership checks and double-confirm import remain.
+New screenshots show the accepted reversal overview was only correct where row
+ordinal happened to equal the recording number. MCP confirms the three parent
+functions134/135/136 and common row137/type8; Guard row1 references SkillIndex4.
+The candidate resolves the recording name through the displayed parent group
+and SkillIndex, while validating the native formatter against reversal SlotID+1.
+35 related test files pass, including both pager hook registration orders and a
+red-before-fix differing-index reversal regression. Cold-game rendering/interaction
+is still pending. AutoLoad is the preceding accepted baseline. Deployment updated
+three existing modules and added the adapter, leaving165 other files unchanged
+and deleting none. No entry, recording bank, lifecycle, editor or configuration-data
+changes in this candidate.
+
+Current ReversalNames (cold-deployed September16 at14:34, user confirms overview display): SlotRename user smoke passed,
+except reversal overview names. Existing native writer traces and current MCP
+reads distinguish UpdateReversalItem from the already-covered recording picker.
+NativeReversalRecordings now scopes name substitution to that native overview
+update, resolves the current reversal group/row to valid RECORDING SkillIndex,
+and validates its format argument before reusing the existing name source.
+No GUI setters, retained controls, forced refresh, data writes or entry/pager
+changes. Empty/ordinary moves retain native text; scopes cannot leak across
+threads/nested updates. An overview read failure disables only its own labels.
+Overview name display now has user acceptance; differing reversal/recording
+indices and each reversal group were not separately reported.
+The preceding deployed entry explicitly suppressed autoload from the earlier manual
+reintegration stage. Fresh training sessions reset annotations; importing loads
+names with their matching recordings. Default names before import are therefore
+expected under that entry, not failed persistence. The user approved restoring
+per-P2 automatic import. AutoLoad (cold-deployed September16 at14:47, user accepted) removes only the entry's no-op
+autoload proxy, using the existing Runtime post-attachment call and shared job
+queue. Both the canonical entry and staged native-root entry use the same queue;
+deployment retains the staged root loader. No Runtime hooks/lifecycle changes.
+No remembered match means no import/fallback; failed attempts are not retried per
+frame. Manual page reload still does not autoload. 34 related test files pass,
+including real-entry simulation of first load/reentry, safe gates and no retries.
+The user reports all requested first-entry, training reentry and P2-switch checks
+normal. This focused acceptance does not close historical intermittent crash risks.
+
+Accepted SlotRename (cold-deployed September16 at14:19): user accepted ConfigRename, including
+title display, native prefill and cancellation. The new slot browser reuses the
+same 13 owned rows, eight slots per page, and delegates a global slot index to
+the existing editor. Capacity and names are captured only on closed-menu updates;
+message/navigation callbacks consume Lua snapshots. Context/capacity changes
+invalidate the old list. Editing does not require a selected configuration and
+does not save automatically: only Save/Save As persists runtime annotations.
+No new native hooks, page arrays, runtime or recording pager changes. Slot-list
+rendering and save/reimport passed user smoke; 34 related test files pass.
+
+Accepted ConfigRename (cold-deployed September16 at14:01):
+The root enables configuration-title editing, gated on a matching
+selected P2 configuration and the existing editor's availability. NativeNoteEditor
+captures pure dependencies at module load; its existing three hooks install once
+during an active-runtime, closed-menu update. Installation failure disables only
+the editor and is not retried. The native action delegates to editor.request,
+returns the established close-menu result, and the existing editor waits for
+actual pause closure before opening the input dialog. No entry/runtime/pager
+or native string/delegate ownership changes are introduced. The existing title
+transaction modifies only title at the same path, refreshes shared labels and
+publishes the renamed configuration identity for a bounded native result message.
+An already-ended dialog's queue notice is suppressed, not its commit outcome.
+The subsequent SlotRename candidate only routes slot indices through this same
+editor/queue contract; native string/delegate ownership remains unchanged.
+
+Latest ConfigPolish candidate (cold-deployed September16 at13:47, live acceptance pending): ConfigLayout was accepted except
+for retained LINE visuals inside the catalog. Read-only MCP found owned row
+data Type0 while the same-index SwitchShow group retained focus4. The regression
+now models those two separate states. During the existing owned Function scope,
+preflight validates all ViewData owners and the two display groups' indices,
+SwitchShow layout and variant bounds before changing only their displayed
+variants with ChangeFocusIndex. No page cursor, forced ViewUpdate, new hook or
+cached GUI handle is added; uncertain native mutation stops further module work.
+Current divider positions are2/8 and all information rows use the same constant
+color tag. Native behavior of this group synchronization remains unaccepted.
+
+Library catalog labels now use Chinese brackets and stable, per-fighter
+duplicate-title display numbering with collision avoidance. Paths and stored
+titles are unchanged. Successful import/save/export expose a primitive
+result_configuration (result revision, operation kind, captured display title)
+for feedback; no new recording IO or job timing is introduced. Feedback never
+substitutes the later current selection for this result identity. Native ticker
+messages omit the library prefix and use save-as wording. Success captions may
+include the result title within26 characters, preserving duplicate suffixes when
+truncated; missing/invalid titles fall back to a generic caption, never a path.
+Failure/partial-application classification and ticker ownership are unchanged.
+
 The native recording library is a standalone, still-experimental plugin with
 entry `autorun/SF6CC_TrainingLibrary.lua` and private modules under
 `autorun/SF6CCTrainingLibrary/`. It does not require legacy SF6CC autoruns,
@@ -368,13 +490,75 @@ installation. The blank-page entry/navigation/exit-reentry smoke passed in one
 process. The September16 04:35 single-module follow-on turns that row into Save Current Configuration,
 delegating to the existing Library request queue and native close-result protocol;
 it does not own recording IO or add imports/selection/editor functionality.
-Its guide reads cached shared selection/status without native refresh. It inserts after the
+The NativeFeedback stage, cold-deployed on September16 at05:21, keeps only the configuration identity in
+the guide. NativeLibraryFeedback routes rejected requests and changed operation
+status to NativeTicker, which uses WTT/SF6CC's TickerRequestData/RequestShowTicker
+path rather than drawing text or requiring the old ScriptManager. User callbacks
+enqueue plain Lua messages; only LateUpdateBehavior creates/submits requests.
+The queue is bounded, owns only its request/text mappings, and never changes
+native global visibility or manually invokes a UI refresh. Native pause-menu
+ticker visibility remains an explicit live acceptance gate before further menu
+operations are accepted. A subsequent user screenshot confirms the left ticker
+with the pause menu closed; open-menu failure visibility remains unverified.
+The presentation-only LibraryMessages adapter converts the shared diagnostic
+status channel into fixed, concise user-facing Chinese. It never echoes paths,
+user titles or exception strings. Partial application is distinguished from
+success before success-prefix matching; unknown progress is not reported as
+completion. Full source messages remain in the feedback log. This copy change
+does not alter native request lifetime, operation results or menu construction.
+NativeLibraryFeedback.request is the native action-row entry: accepted requests
+return the game's close result and silently remember the queued status. The
+existing Library closed-menu execution gate, not a feedback timer, determines
+when the operation runs; only subsequent results are notified. Rejections remain
+immediate. This distinction also applies to a slow native close animation.
+For externally queued operations (the optional REFramework panel), close-menu
+reminders are held in plain Lua until two allowed feedback updates
+observe the pause menu still open through the existing Context.pause_open query.
+Closed or unknown pause state never emits that instruction; native action
+callbacks perform no pause query. Completion or closure discards only unsent
+reminders, preserving submitted native ticker ownership and subsequent failures.
+The user accepted the root stage with export, refresh and clear beside save.
+The user also accepted backup, restore and reload for seven immutable
+button rows. Backup/restore reuse Library's existing operation queue; reload
+uses Runtime.request_reload and the same native close-result/feedback routing.
+Busy/cancelled reloads have user-facing reasons distinct from restart-required
+failures. No new recording IO, native close call or hook is introduced;
+each row is inserted into its native array before the next row is allocated.
+The newest request supersedes full-panel migration: backup/restore stay in
+REFramework; import-option migration is paused. The ConfigList candidate, cold-deployed
+on September16 at06:57 and awaiting live acceptance,
+uses NativeLibraryView, a pure-Lua fixed13-row presentation model.
+Its catalog snapshots labels and paths under the same Library revision, with
+eight entries per page, previous/next, refresh and return. First confirmation
+selects; a second confirmation of the same path queues the existing import.
+Refresh, paging, return and observed menu closure disarm confirmation. Native
+actions preflight all13 current ViewData owners before switching the body,
+reuse installed rows and set IsUpdate for the game's normal redraw. No new
+hooks, direct ViewUpdate calls, native array replacements during navigation,
+or recording/backend changes are introduced. Closed-menu mounting loads the
+shared catalog once if needed, without requiring the REFramework panel.
+The user accepted ConfigList navigation and double confirmation. Rename rows
+remain disabled pending the next editor stage. The ConfigLayout candidate, cold-deployed
+on September16 at07:15 and awaiting live acceptance,
+merges selection identity into the first row and removes native reload.
+Owned rows5/8 switch between native LINE(4) on main and TEXT_ONLY(0) in the
+catalog; row count, arrays, hooks and the normal dirty-update route are unchanged.
+The info header uses a constant native color tag; no external title becomes markup.
+Library.runtime_context supplies a primitive P2 snapshot on closed-menu updates.
+NativeLibraryView filters with the existing TrainingConfigCompatibility policy
+with mismatch rejection forced on, retaining source indices beside filtered paths.
+Unknown/P1/other-character entries are hidden regardless of optional import
+override. Character changes clear old view/confirmation state; an incompatible
+shared selection has no displayed summary or native Save action. The underlying
+REFramework catalog and recording/storage behavior remain unchanged. Layout,
+separator type transitions, title color and filtering need live acceptance.
+It inserts after the
 native REVERSAL root while recording Runtime is active and the offline training
 menu is closed, preserving all native/foreign roots; native
 navigation owns rendering. Its layout hook only observes calls and scopes
 primitive getters, never invokes a refresh. Plugin-private GUIDs identify its
-own page across Lua states; no unowned DYNAMIC pages are removed. The existing
-single focus row is reused; no additional native row allocation is introduced.
+own page across Lua states; no unowned DYNAMIC pages are removed. The current
+candidate allocates its13 rows once per mount and reuses them during navigation.
 New menu allocations are retained, with four mounts per Lua state as a research
 limit; no native objects are released/restored from reset or stale scene
 callbacks. This is not a validated native UI disposal/hot-reload contract.

@@ -22,6 +22,14 @@ local function fixture()
 end
 local function test(name, fn) fn(); passed = passed + 1; print("PASS " .. name) end
 
+test("frame presentation delegates to the live records reader without importing or exporting",function()
+    local lib,_,calls,records=fixture()
+    assert(lib.record_frames()==nil)
+    local snapshot={fighter_id=19,frames={55,0,167}}
+    records.get_record_frames=function() return snapshot end
+    assert(lib.record_frames()==snapshot and calls.export==0 and calls.import==0 and calls.list==0)
+end)
+
 test("abandon drops an initializing job without native cleanup or context access",function()
     local lib,ctx,calls,records=fixture()
     local cancelled=0
@@ -239,6 +247,29 @@ test("runtime context uses verified recorder getters and rejects stale context",
     package.loaded["SF6CCTrainingLibrary/Context"]=saved_context
     package.loaded["SF6CCTrainingLibrary/Records"]=saved_records
 end)
+test("same-character duplicate titles have stable display numbers without file changes",function()
+    local lib,ctx,_,records,files=fixture()
+    records.read_config_metadata=function(path)
+        return {title=path:find("reserved",1,true) and "同名（1）" or "同名",
+            fighter_id=path:find("other",1,true) and 28 or 19,source_player="P2"}
+    end
+    files[3]={path="configs/other.json"}; files[4]={path="configs/reserved.json"}
+    assert(lib.refresh())
+    assert(lib.labels[1]=="同名（2）" and lib.labels[2]=="同名（3）" and lib.labels[3]=="同名")
+    assert(lib.entries[1].metadata.title=="同名" and files[1].path=="configs/a.json")
+    local before={}
+    for i,e in ipairs(lib.entries) do before[e.path]=lib.labels[i] end
+    files[1],files[2]=files[2],files[1]
+    lib.refresh()
+    for i,e in ipairs(lib.entries) do assert(lib.labels[i]==before[e.path]) end
+    lib.select(2); assert(lib.request("import")); ctx.menu_closed=true; lib.tick()
+    assert(lib.result_configuration.title=="同名（2）" and lib.result_configuration.revision==lib.result_revision)
+    lib.select(1)
+    assert(lib.result_configuration.title=="同名（2）","selection changed the completed operation name")
+    assert(lib.request("export")); lib.tick()
+    assert(lib.result_configuration.title=="同名（3）","save-as used source rather than destination title")
+end)
+
 test("selection details follow file without rereading JSON", function()
     local lib, _, _, records = fixture()
     local reads = 0
@@ -249,7 +280,7 @@ test("selection details follow file without rereading JSON", function()
             active_slots = 1, active_reversals = 3, description = path }
     end
     assert(lib.refresh())
-    assert(lib.selection_label() == "不知火舞 Mai [same]")
+    assert(lib.selection_label() == "不知火舞 Mai【same（1）】")
     assert(lib.select(2))
     for _ = 1, 100 do
         local d = lib.selection_details()
@@ -386,6 +417,29 @@ test("remember successful configuration and reload for P2 only, not on browsing"
     assert(fresh.autoload(19)); fresh.tick(); assert(calls.import==2)
     records.list_configs=function() return {} end
     assert(not fresh.autoload(19) and calls.import==2)
+end)
+test("autoload chooses only the remembered current-P2 path and never falls back to another configuration",function()
+    local _,ctx,calls,records=fixture()
+    local choices={load=function() return {["28"]="configs/a.json",["19"]="configs/b.json"} end,
+        save=function() return true end}
+    records.read_config_metadata=function(path)
+        return {fighter_id=path=="configs/a.json" and 28 or 19,source_player="P2"}
+    end
+    local lib=Module.new(records,function() return ctx end,choices)
+    ctx.menu_closed=true; ctx.fighter_id=28
+    assert(lib.autoload(28)); lib.tick(); assert(calls.path=="configs/a.json" and calls.import==1)
+    ctx.fighter_id=19
+    assert(lib.autoload(19)); lib.tick(); assert(calls.path=="configs/b.json" and calls.import==2)
+    ctx.fighter_id=26
+    local scans=calls.list
+    assert(not lib.autoload(26) and not lib.has_pending() and calls.list==scans)
+    ctx.fighter_id=19
+    records.list_configs=function() return {{path="configs/a.json"}} end
+    assert(not lib.autoload(19) and not lib.has_pending()); lib.tick(); assert(calls.import==2)
+    records.list_configs=function() return {{path="configs/b.json"}} end
+    records.read_config_metadata=function() return {fighter_id=28,source_player="P2"} end
+    lib.options.reject_fighter_mismatch=false
+    assert(not lib.autoload(19) and not lib.has_pending()); lib.tick(); assert(calls.import==2)
 end)
 print(passed .. " training library controller tests passed")
 test("slot rename is deferred, repeatable, shared and never writes a config file",function()

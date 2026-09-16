@@ -5,6 +5,190 @@ Status: `CURRENT`
 This is the sole current list of evidence and architecture blockers. Green
 offline tests do not remove these limitations.
 
+InlineClear is prepared, not deployed. User rejected SlotListLayout's ticker-only
+clear confirmation: it must match import's inline confirmation. First activation
+now marks the existing clear row without notifying or queuing work; the second
+submits the unchanged clear operation. Cancellation removes the marker. 36 related
+test files pass; the inline rendering still needs live acceptance.
+
+SlotListLayout was cold-deployed September16 at16:25: the slot-description page uses row1
+for its native pager, rows2-9 for recordings and row10 for Back. The duplicate
+title and save reminder are removed; unused trailing rows remain nonfocusable.
+The existing 13-row array and spin commit protocol are retained. The catalog
+still uses row10 for paging. Tests cover each pager position and switching
+between both lists; first-row input and visual layout still require live acceptance.
+The same pending candidate adds native-tab reentry reset and two-step clearing.
+ChangeTabIndex(Int32) and get_PrimaryListIndex were confirmed through read-only
+MCP schema inspection. A guarded pre-hook resets only owned row data before the
+original tab transition; no native refresh is invoked. Simulated transitions
+cover reentry, same-tab preservation and confirmation cancellation, but actual
+mouse/keyboard tab routing and the clear prompt still require live acceptance.
+36 related test files and deployment checks passed. Only NativeLibraryTab,
+NativeLibraryView and LibraryMessages changed;173 other files were unchanged,
+none added or removed. This deployment is not live-game acceptance.
+
+SlotFrameStyle (cold-deployed September16 at16:01, focused live acceptance received) changes NativeLibraryView text only:
+uniform slot-number/name/length labels, default-name fallback, full gray text and
+a dash for empty recordings. Empty rows remain focusable/editable; unknown frame
+reads are not marked empty. 36 related test files pass, including restoring normal
+text after a recording is added. User reports normal behavior; screenshots confirm
+uniform names, frame labels, full gray empty rows and page2 showing slots9-16 with
+the matching 2/10 indicator. This does not verify all record/import/clear freshness
+cases below, all reversal groups or absence of historical crashes. Deployment updated NativeLibraryView
+only;172 other files unchanged, none added or removed.
+
+Current SlotFrames candidate was cold-deployed September16 at15:48: the description list adds current
+recording Frame values from a closed-menu scalar snapshot, not saved JSON data.
+Empty recordings are distinguished from failed reads; snapshots with mismatched
+fighter/capacity are not used. 36 related test files pass. Live agreement with
+the native recording page, after recording/import/clear and across pages, remains
+to be checked. No recording pager, native initialization or lifecycle changes.
+Only Records, Library and NativeLibraryView were updated;169 other files unchanged,
+none added or removed. Recordings and configuration files were not modified.
+
+Prior ListPagerReversal smoke FAILED: the visible page number advanced but the
+slot list stayed on page1. MCP inspected the displayed spin and found null
+SpinAction/CheckAdd/CheckSub, default MaxNum99 and unchanged ViewData.Index0.
+The TEXT/SPIN variant change had not initialized the native input control; fake
+tests had incorrectly bypassed this prerequisite by directly invoking its event.
+The ListPagerInit candidate only adds validated per-row InitSpinBox(Int32)
+on entering SPIN or changing its options, with reentrant user-action suppression.
+The new regression fails against the deployed code and passes with this fix.
+No whole-page rebuild, recording pager change or extra hooks. Exact native row
+initialization required a live-game check; user has now explicitly confirmed
+paging works. Reversal-name acceptance remains pending.
+Cold deployment September16 at15:29 updated NativeLibraryTab only, with170 other
+files unchanged and none added/removed. 35 related test files passed. Focused list
+paging acceptance does not prove absence of historical intermittent crashes.
+
+Latest September16 follow-up supersedes the broad reversal overview acceptance
+below: Down names work, but Guard/Damage default labels remain. The native format
+argument is a reversal row ordinal, not its referenced recording number; the old
+mock used matching numbers and missed this. The ListPagerReversal fix
+resolves names from the displayed parent group's SkillIndex and checks SlotID+1
+against the formatter. A differing-index regression failed before the fix and
+now passes for all three groups. Live acceptance is still required.
+The same candidate replaces list Previous/Next buttons with a native
+page spin (hidden for a single page), reusing the accepted recording-spin protocol
+through a separately scoped adapter. Simulated first-click refresh, adjacent
+option probes, both hook registration orders, catalog/slot paging, return to main,
+one-page hiding and stale-session cancellation pass (35 related test files).
+Actual spin initialization after a TEXT/SPIN display-variant change remains a
+real-game check, not proven by mock tests. Cold deployment September16 at15:12
+updated three existing menu/name modules and added one adapter;165 other files
+were unchanged, none removed. AutoLoad behavior, configuration files, recording
+capacity and lifecycle are unchanged. User acceptance is pending.
+
+User accepted ConfigRename (cold-deployed September16 at14:01): configuration
+title display, native prefill and cancellation work. The SlotRename candidate
+was cold-deployed September16 at14:19: it enables the existing slot editor through a fixed-row,
+eight-per-page list with a closed-menu capacity/name snapshot. Slot descriptions
+change only runtime annotations; Save/Save As is required to retain them.
+User now reports slot-list editing/saving/switching normal, with screenshots
+confirming names in recording/playback and the reversal recording picker.
+ReversalNames (cold-deployed September16 at14:34, overview display accepted) adds
+scoped native overview text substitution using the actual recorded action index;
+it does not draw labels independently. Offline regression reproduces the missing
+overview name and passes after the fix; differing row/recording indices and all
+three reversal groups were not individually reported by the user. No runtime,
+recording pager, native input ownership or lifecycle changes are included.
+Historical native ownership/crash limitations are not declared resolved.
+
+Before AutoLoad, fresh-entry names remained default until import because the entry
+explicitly suppressed autoload; Runtime clears annotations for each new session.
+Read-only inspection and the existing entry simulation confirm this behavior.
+The user reported it after overview acceptance and approved restoring full per-P2
+remembered configuration import. AutoLoad (cold-deployed September16 at14:47,
+user accepted) removes the entry's
+no-op autoload proxy only, retaining the existing post-attachment/closed-menu job
+queue and staged native-root loader. First-entry/reentry name restoration,
+readiness gates, missing/mismatched configurations and no automatic retry are
+covered offline. The user confirmed all requested first-entry, training reentry
+and P2-switch checks normal; broader historical crash limitations remain open.
+Names are loaded with recordings, never overlaid on unrelated native content.
+
+ConfigLayout user smoke accepted filtering/layout/color but showed LINE visuals
+remaining inside the catalog. MCP confirmed Type0 in data versus SwitchShow
+focus4 in its display group. ConfigPolish was cold-deployed September16 at13:47,
+with live acceptance pending. It synchronizes
+only the two owned group variants in the native action scope, moves lines to
+rows2/8, colors all information, uses Chinese brackets/duplicate display numbers
+and bounded named success messages without the library prefix. Fake tests cover
+the retained visual state, foreign group refusal, display return, title identity
+and truncation. This does not yet establish live group-switch safety or visual
+correctness. Both editors remain disabled; no changes to recordings or stored
+configuration names. Earlier pending ConfigLayout text below is stage history.
+
+Latest follow-up: user accepted ConfigList switching and rendering. The next
+ConfigLayout (cold-deployed September16 at07:15, live acceptance pending) changes
+only NativeLibraryTab/NativeLibraryView: merged
+selection title, reordered actions, native LINE separators, colored info title
+and strict current-P2 catalog filtering. LINE/TEXT_ONLY transitions on existing
+rows and color rendering still need live acceptance. No new hooks, forced
+ViewUpdate, recorder changes or editor enablement. Offline tests must verify
+original-index selection after filtering, no foreign/unknown/P1 entries even
+with import override enabled, character-change confirmation cancellation and
+restored native row types on list return. The previous ConfigList pending
+acceptance text below records its deployment stage, now superseded by feedback.
+
+Latest September16 scope: user accepted seven native actions and concise,
+single-result feedback, then requested a daily-use configuration list instead
+of full REFramework-panel migration. The ConfigList candidate was cold-deployed
+at06:57 on September16 but is NOT live accepted. It reuses13 native rows, eight configs per list page and
+owned ViewData.IsUpdate; preflight must find every row before a body change.
+Offline coverage includes first-select/second-import, stale catalogs, missing
+view rejection and confirmation cancellation on brief menu closure. It cannot
+prove native layout/focus correctness or crash freedom. Backup/restore remain
+in REFramework; options migration is paused. Both rename rows are deliberately
+disabled until the separate editor stage. Earlier migration plans below are
+historical stage evidence, not the latest requested menu scope.
+
+Ticker-create correction smoke: user reports executable, and screenshot
+codex-clipboard-db3e640d-eda0-4443-a979-c6fe729b8543.png visibly shows the native
+left ticker "木人库：已排队，关闭游戏暂停菜单后执行" with the native pause menu
+closed. The old panel shows saved state. This proves native ticker rendering,
+not yet failed-request visibility over an OPEN pause menu or the final success
+ticker. Captured native-ticker-user-accepted.log/png in system temp
+sf6cc-library-ticker-create-20260916-052955; no NativeLibraryTicker stop or the
+prior MemberAccessException/corrupted-VMContext appears in this captured run.
+The next undeployed action-only stage extends the root to four fixed buttons:
+save, export, refresh and clear. All delegate to Library.request and native
+feedback; no file picker/editor, new navigation hooks, forced refresh, Runtime
+or recording changes.26 root checks and32 related test files pass. Full native
+configuration selection/import/rename/options migration remains incomplete.
+
+Native-message smoke FAILED: user reports save succeeded in the old panel but
+no ticker appeared. The captured ticker-send-failed.log in system temp
+sf6cc-library-native-feedback-20260916-052100 records NativeLibraryTicker stopping
+at05:24:40 with "caught (...) exception", immediately followed by MemberAccessException
+and a previously corrupted VMContext report on get_RecordFunc. No further live
+method calls/Reset were requested. Source comparison found the new ticker omitted
+the simplify=true argument used by both original SF6CC and WTT. REFramework's
+Sdk.cpp forwards that argument identically for local/global factories;
+RETypeDefinition.cpp uses distinct Activator creation paths. The correction,
+cold-deployed at2026-09-16 05:29 after confirmed closure and process checks,
+changes only that argument, retaining the global-wrapper ownership.
+A regression rejecting the missing argument fails before the correction and
+passes afterward; all32 related test files pass. This establishes the omitted
+creation contract, not yet successful live ticker display. Restart is required
+after the native exception; no live retry or menu/recording change was made.
+Only NativeTicker.lua changed,123 files unchanged, zero added/removed. Evidence:
+system temp sf6cc-library-ticker-create-20260916-052955. Live ticker retest pending.
+
+Current accepted checkpoint is99c5733. The subsequent notification
+stage routes library reasons/progress/results to the game's native Ticker,
+not menu text or REFramework. NativeTicker follows the published SF6CC/WTT
+TickerRequestData.Init(112,nil), TickerId1, Category6 request route, with owned
+GetMessage replies, bounded queues and late-update-only submission. MCP confirms
+the current type signatures/fields. IsForceDisplay is requested for visibility
+over pause menus, but position/visibility are NOT yet live-verified. All32 related
+test files pass; the full no-REFramework menu migration is not yet implemented.
+Only the save row is connected pending this native-message acceptance gate.
+Cold-deployed at2026-09-16 05:21 after closure confirmation and process checks:
+one root module changed, two message modules added,119 files unchanged, none
+removed. Entry, Runtime, recordings and configs unchanged. Evidence/rollback:
+system temp sf6cc-library-native-feedback-20260916-052100. Live smoke pending.
+
 Cold-deployed candidate at2026-09-16 04:58: the existing Release pre-hook now invalidates a
 scalar presentation-session identity. NativeLibraryTab binds that identity and
 the Runtime instance before serving callbacks, including message/layout getters.

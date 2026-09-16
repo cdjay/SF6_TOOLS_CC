@@ -74,7 +74,9 @@ test("prefills title; writes only title and refreshes by stable path", function(
     local after = s.read(A); assert(after.title == "反击练习")
     after.title = s.before.title; equal(after, s.before)
     assert(s.read(B).title == "其他训练")
-    assert(s.lib.selection_label() == "不知火舞 Mai [反击练习]")
+    assert(s.lib.selection_label() == "不知火舞 Mai【反击练习】")
+    assert(s.lib.result_configuration.title=="反击练习" and s.lib.result_configuration.kind=="notes"
+        and s.lib.result_configuration.revision==s.lib.result_revision)
     assert(s.lib.selection_details().notes == "保留原备注")
     assert(s.lib.select(2) and s.lib.select(1))
     local next_token, next_text = s.begin(); assert(next_text == "反击练习")

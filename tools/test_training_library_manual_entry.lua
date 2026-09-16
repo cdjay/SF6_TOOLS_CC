@@ -41,6 +41,7 @@ local modules={
     ["SF6CCTrainingLibrary/NativeRecordingRuntime"]=Runtime,
 }
 local noop=function() end
+local root_loads=0
 local update,draw,reset
 local logs,errors={},{}
 local env=setmetatable({},{__index=_G}); env._G=env
@@ -54,19 +55,29 @@ env.re={on_pre_application_entry=function(name,fn) assert(name=="LateUpdateBehav
     on_draw_ui=function(fn) assert(not draw); draw=fn end,on_script_reset=function(fn) assert(not reset); reset=fn end}
 env.require=function(name)
     if modules[name] then return modules[name] end
+    if name=="SF6CCTrainingLibrary/NativeLibraryTab" then root_loads=root_loads+1; modules[name]=true; return true end
     assert(name=="SF6CCTrainingLibrary/Panel","unexpected editor/root/legacy dependency: "..name)
     modules[name]=assert(loadfile("autorun/"..name..".lua","t",env))()
     return modules[name]
 end
 local entry=assert(loadfile("autorun/SF6CC_TrainingLibrary.lua","t",env))
 entry(); entry()
+assert(root_loads==1,"native library must be registered once from the packaged entry")
 assert(counts.scans==0 and f.native_work.allocations==0,"startup read configurations or allocated native data")
 local function tick(n)
     for _=1,n or 1 do in_callback=true; update(); in_callback=false end
 end
+f.ctx.menu_closed=false; tick(90)
+f.ctx.menu_closed=true; f.ctx.busy=true; tick(90)
+f.ctx.busy=false; f.ctx.allowed=false; tick(90)
+assert(counts.autoload==0 and counts.imports==0 and counts.scans==0,"autoload bypassed readiness gates")
+f.ctx.allowed=true; tick(225)
+assert(State.runtime.state()=="active" and counts.autoload==1 and counts.imports==1,
+    "entering ready training did not restore the remembered configuration")
+assert(library.slot_name(9)=="Mai test slot9","startup import did not restore names")
+local initial_scans=counts.scans
 tick(225)
-assert(State.runtime.state()=="active" and counts.autoload==0 and counts.imports==0 and counts.scans==0)
-assert(library.status:find("80",1,true),"runtime status did not reach the shared panel")
+assert(counts.imports==1 and counts.autoload==1 and counts.scans==initial_scans,"autoload repeated while idle")
 local bank=f.fighter.fields.RecordSlots
 panel_open=true; f.ctx.menu_closed=false; clicked="导出配置"; draw(); clicked=nil
 assert(library.has_pending() and counts.exports==0,"drawing executed a configuration job")
@@ -74,9 +85,10 @@ tick(5); assert(counts.exports==0,"open native menu did not defer export")
 f.ctx.menu_closed=true; tick()
 assert(counts.exports==1 and not library.has_pending() and f.fighter.fields.RecordSlots==bank)
 for _,pair in ipairs({{"导入配置","imports"},{"保存当前配置","saves"}}) do
+    local before=counts[pair[2]]
     clicked=pair[1]; draw(); clicked=nil
-    assert(counts[pair[2]]==0)
-    tick(); assert(counts[pair[2]]==1)
+    assert(counts[pair[2]]==before)
+    tick(); assert(counts[pair[2]]==before+1)
 end
 assert(library.slot_name(9)=="Mai test slot9","imported names not shared with native display")
 local scans=counts.scans
@@ -86,11 +98,21 @@ assert(library.request("save"))
 f.call("Release",f.manager.id,0); f.ctx.allowed=false; tick(45)
 assert(not library.has_pending() and counts.saves==1 and State.runtime.state()=="unloaded")
 f.ctx.allowed=true; tick(225)
-assert(State.runtime.state()=="active" and counts.imports==1 and counts.autoload==0)
-assert(library.slot_name(9)=="","previous session names leaked into new session")
+assert(State.runtime.state()=="active" and counts.imports==3 and counts.autoload==2)
+assert(library.slot_name(9)=="Mai test slot9","reentry did not restore saved names through import")
+records.begin_import=function()
+    assert_job(); counts.imports=counts.imports+1; return false,"unreadable configuration"
+end
+f.call("Release",f.manager.id,0); f.ctx.allowed=false; tick(45)
+f.ctx.allowed=true; tick(225)
+assert(State.runtime.state()=="active" and counts.autoload==3 and counts.imports==4)
+assert(not library.status_ok and library.slot_name(9)=="" and not library.has_pending())
+local failed_scans=counts.scans
+tick(225)
+assert(counts.imports==4 and counts.autoload==3 and counts.scans==failed_scans,"failed autoload retried automatically")
 assert(#errors==0,table.concat(errors,"\n"))
 assert(library.request("save"))
 reset(); tick(2)
 assert(not library.has_pending() and counts.saves==1 and State.runtime.state()=="stopped")
 assert(#errors==1 and errors[1]:find("脚本已停止",1,true),table.concat(errors,"\n"))
-print("PASS manual-library entry: no autoload, shared status/names, closed-menu queue, import/save/export, cached panel, exit cancellation, reentry, Reset abandonment (fake SDK)")
+print("PASS library entry: gated one-shot autoload, restored names on entry/reentry, manual jobs, cached panel, exit cancellation, Reset abandonment (fake SDK)")

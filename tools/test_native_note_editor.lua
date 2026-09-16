@@ -98,8 +98,9 @@ local function fixture(mode)
         log = { warn = function() end },
         json = { dump_file = function() error("Editor must not persist text or diagnostics") end },
     }, { __index = _G })
-    s.editor = assert(loadfile("autorun/SF6CCTrainingLibrary/NativeNoteEditor.lua", "t", env))().install()
+    local module = assert(loadfile("autorun/SF6CCTrainingLibrary/NativeNoteEditor.lua", "t", env))()
     s.installed = true
+    s.editor = module.install()
     function s.advance(n) for _ = 1, n or 6 do s.frame(); s.lib.tick() end end
     function s.open()
         s.ctx.menu_closed, s.gs.in_pause_menu, s.ended = false, true, false
@@ -194,5 +195,11 @@ check("slot80 reuses native input dialog, prefills subsequent edit and does not 
     assert(s.saved=="对空" and s.slot_writes==1 and s.saves==0)
     s.open(); s.confirm("防跳")
     assert(s.saved=="防跳" and s.slot_writes==2 and s.saves==0 and s.delegates==1)
+    s.open(); s.fire("Cancel()",s.widget)
+    s.fire("InvokeResultEvent(System.String)",s.widget,nil,true)
+    s.ended=true; s.advance()
+    assert(s.saved=="防跳" and s.slot_writes==2 and s.saves==0 and not s.lib.has_pending())
+    s.open(); s.confirm("")
+    assert(s.saved=="" and s.slot_writes==3 and s.saves==0,"empty description must clear the annotation")
 end)
 print(n .. " native note editor tests passed")

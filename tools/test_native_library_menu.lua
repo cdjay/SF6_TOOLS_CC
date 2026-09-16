@@ -351,7 +351,7 @@ local function find(prefix,parent)
 end
 check("Presentation order and native separators preserve action rows",function()
     local rows=page._ChildData.items
-    assert(title(rows[1])=="切换训练配置：爱德 Ed [a.json]")
+    assert(title(rows[1])=="切换训练配置：爱德 Ed【a.json】")
     assert(title(rows[2])=="保存当前配置" and title(rows[3])=="重置所有栏位（清空）")
     assert(#rows<=13)
     for _,row in ipairs(rows) do
@@ -379,7 +379,7 @@ check("First configuration click selects and stays in picker without importing",
     assert(#picker._ChildData.items<=13)
     assert(find("导出当前配置",picker) and find("刷新配置列表",picker))
     local second=picker._ChildData:get_element(2)
-    assert(title(second)=="2. 爱德 Ed [b.json]")
+    assert(title(second)=="2. 爱德 Ed【b.json】")
     local result,after=click(second,picker)
     assert(result==0 and after.body_parent==picker)
     assert(lib.selection().path=="b.json" and imported==0 and not lib.has_pending())

@@ -36,9 +36,9 @@ panel()
 assert(labels[1] ~= labels[2], "Duplicate visible configuration titles must not share ImGui IDs")
 assert(id(labels[1]) ~= id(labels[2]), "ImGui effective IDs must be distinct")
 local ids = { [entries[1].path] = id(labels[1]), [entries[2].path] = id(labels[2]) }
-assert(labels[1]:match("^(.-)##") == "不知火舞 Mai [Mai 训练配置]")
-assert(labels[2]:match("^(.-)##") == "不知火舞 Mai [Mai 训练配置]")
-assert(library.labels[1] == "Mai 训练配置" and library.labels[2] == "Mai 训练配置",
+assert(labels[1]:match("^(.-)##") == "不知火舞 Mai【Mai 训练配置（1）】")
+assert(labels[2]:match("^(.-)##") == "不知火舞 Mai【Mai 训练配置（2）】")
+assert(library.labels[1] == "Mai 训练配置（1）" and library.labels[2] == "Mai 训练配置（2）",
     "Native labels must not contain ImGui suffixes")
 local cached = labels
 choose = 2; panel(); choose = nil

@@ -1,10 +1,11 @@
 -- Optional native library editor. No hooks are installed until install() is called.
+-- Capture pure dependencies at load time; deferred callbacks lack autorun paths.
+local Module = require("SF6CCTrainingLibrary/Library")
+local Context = require("SF6CCTrainingLibrary/Context")
+local Notes = require("SF6CCTrainingLibrary/TrainingConfigNotes")
 local Editor = {}
 function Editor.install()
-    local Module = require("SF6CCTrainingLibrary/Library")
     local Library = Module.shared()
-    local Context = require("SF6CCTrainingLibrary/Context")
-    local Notes = require("SF6CCTrainingLibrary/TrainingConfigNotes")
     local M = {}
     local pending, active, delegate, stopped, ready, halted, tick
     stopped, ready, halted, tick = false, false, false, 0

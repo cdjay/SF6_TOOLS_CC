@@ -9,6 +9,8 @@ Start with this page instead of searching dated reports.
 | Need | Read |
 | --- | --- |
 | Project overview | [README](../README.en.md) |
+| 木人库用户说明 | [木人库使用说明](../木人库使用说明.md) |
+| 独立木人库维护与打包 | [Training Library](training-library/README.md) |
 | Documentation precedence | [Documentation Authority](DOCUMENTATION_AUTHORITY.md) |
 | Current architecture | [Architecture](../ARCHITECTURE.md) |
 | Action and Move semantics | [AC+BCM Semantic Core](AC_BCM_SEMANTIC_CORE.md) |

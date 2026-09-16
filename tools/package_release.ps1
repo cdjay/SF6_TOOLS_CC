@@ -622,7 +622,8 @@ if ($TrainingLibraryOnly) {
     }
     New-Item -ItemType Directory -Path $componentPackagePath -Force | Out-Null
     Copy-SelectedTrackedReframeworkFiles -SourceRoot $workspacePath -PackageRoot $componentPackagePath -RelativePaths @(
-        @('autorun/SF6CC_TrainingLibrary.lua', 'autorun/SF6CC_TrainingLibrary.md',
+        @('autorun/SF6CC_TrainingLibrary.lua', '木人库使用说明.md', 'data/SF6CC/version.json',
+            'LICENSE', 'LICENSE_NOTES.md',
             'data/SF6CC_TrainingConfigs/editor/SF6CC_TrainingConfigEditor.html') + $modules
     )
     Copy-Item -LiteralPath $dinputPath -Destination (Join-Path $componentPackagePath 'dinput8.dll')
@@ -646,13 +647,13 @@ if ($TrainingLibraryOnly) {
 
 关闭游戏后，将 dinput8.dll 和 reframework 文件夹解压到 Street Fighter 6 游戏根目录。
 已经安装兼容 REFramework 的玩家可保留原 dinput8.dll；无需安装 SF6CC 主 MOD。
-autorun/SF6CC_TrainingLibrary.lua 与 autorun/SF6CCTrainingLibrary/ 必须一起安装。
-不要同时启用旧 SF6CC_DynamicRecords.lua 或 TrainingSlots/NativeLibraryPilot/NativeNotes 测试入口。
-本包包含当前游戏区保存的配置及上次选中配置；安装前请保留接收方的同名文件。
-没有包含历史备份、日志、缓存，也不包含尚未保存到 JSON 的游戏内编辑。
-进入离线训练场，在原生录像设置的“导入导出”页使用。配置按 P2 角色校验。
-“重置所有栏位（清空）”清空录像及三类反击，保留栏位数量，不删除配置文件。
-这是独立开发快照，不是新的主 MOD 版本；重置功能的实机验收仍待完成。
+请完整安装，不要只复制其中一个文件，也不要同时启用旧木人库或旧测试脚本。
+本包包含当前已保存的训练配置；安装前请保留自己原有的同名文件，避免覆盖。
+未保存的游戏内修改不会包含在安装包中。
+进入普通离线训练场，打开暂停菜单，在“反击设置”后找到“木人库”。
+详细步骤见 reframework 文件夹内的《木人库使用说明.md》。
+“清空所有栏位”清空当前录像及三类反击，不删除已保存配置。
+最近的菜单布局、切回首页及行内清空确认尚待游戏内进一步确认，已验证范围见使用说明末尾。
 '@ | Set-Content -LiteralPath (Join-Path $componentPackagePath '安装说明.txt') -Encoding UTF8
     $inventory = @(Get-ChildItem -LiteralPath $componentPackagePath -Recurse -File | ForEach-Object {
         [ordered]@{ path = $_.FullName.Substring($componentPackagePath.Length + 1).Replace('\', '/');
