@@ -1,4 +1,4 @@
-param(
+﻿param(
     [string]$Version,
     [string]$Workspace,
     [string]$GameRoot = "D:\Program Files (x86)\Steam\steamapps\common\Street Fighter 6",
