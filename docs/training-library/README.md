@@ -77,6 +77,11 @@ Reset不保证正在显示的原生对象可立即重新创建；发布文件更
 ## 发布方式
 
 使用 `tools/package_release.ps1 -TrainingLibraryOnly`，不手工拼装ZIP。
+追加 `-ExcludeDll` 可生成 `_NoDLL` 独立包，需要使用者预先安装兼容REFramework。
+完整SF6CC包从1.1.15起同时包含齿轮快捷设置、新木人库及用户说明；打包时排除旧
+`autorun/SF6CC_DynamicRecords.lua` 自动入口，旧组件单独打包能力保留。
+覆盖升级不会自动删除用户目录里的旧入口，包内安装说明要求先移走该文件。
+完整包不复制游戏区的私人录像、最后选择记录或视频演示配置。
 版本唯一来源是 `data/SF6CC/version.json`；先明确升级并提交版本及发布来源，再打包。
 默认输出到 `release/<version>/`。组件包包含REFramework DLL、独立入口及所有私有Lua模块、用户说明、
 配置编辑页面、版本信息、许可说明、当前已保存配置和最后选择记录。

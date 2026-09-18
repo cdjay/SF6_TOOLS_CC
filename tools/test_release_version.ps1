@@ -97,6 +97,56 @@ try {
     $conflictRejected = $_.Exception.Message -match 'Choose either'
 }
 if (-not $conflictRejected) { throw 'Standalone and legacy component modes must be mutually exclusive.' }
+$noDllPlan = & $packageScript -TrainingLibraryOnly -ExcludeDll -OutputDir $componentOutput -DryRun *>&1 | Out-String
+if ($noDllPlan -notmatch [regex]::Escape("SF6CC_TrainingLibrary_v${productVersion}_${shortCommit}_NoDLL.zip") -or
+    (Test-Path -LiteralPath $componentOutput)) { throw 'DLL-free plan must be separate and read-only.' }
+$noDllRejected = $false
+try { & $packageScript -ExcludeDll -DryRun | Out-Null }
+catch { $noDllRejected = $_.Exception.Message -match 'supported only' }
+if (-not $noDllRejected) { throw 'Full release silently accepted standalone DLL exclusion.' }
+
+$tokens = $null; $parseErrors = $null
+$ast = [Management.Automation.Language.Parser]::ParseFile($packageScript, [ref]$tokens, [ref]$parseErrors)
+if ($parseErrors.Count) { throw 'Packager parse failed' }
+$guard = $ast.Find({param($node)
+    $node -is [Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq 'Assert-FullPackageFeatures'
+}, $true)
+if (-not $guard) { throw 'Full package feature guard missing' }
+. ([scriptblock]::Create($guard.Extent.Text))
+$featureRoot = Join-Path ([IO.Path]::GetTempPath()) ('sf6cc-feature-test-' + [guid]::NewGuid().ToString('N'))
+New-Item -ItemType Directory -Path $featureRoot | Out-Null
+try {
+    $requiredAssignment = $guard.Find({param($node)
+        $node -is [Management.Automation.Language.AssignmentStatementAst] -and $node.Left.Extent.Text -eq '$required'
+    }, $true)
+    $requiredFiles = & ([scriptblock]::Create($requiredAssignment.Right.Extent.Text))
+    foreach ($relative in $requiredFiles) {
+        $target = Join-Path $featureRoot "reframework/$relative"
+        New-Item -ItemType Directory -Path (Split-Path -Parent $target) -Force | Out-Null
+        New-Item -ItemType File -Path $target | Out-Null
+    }
+    Assert-FullPackageFeatures -PackageRoot $featureRoot
+    foreach ($relative in $requiredFiles) {
+        $target = Join-Path $featureRoot "reframework/$relative"
+        Remove-Item -LiteralPath $target
+        $rejected = $false
+        try { Assert-FullPackageFeatures -PackageRoot $featureRoot }
+        catch { $rejected = $_.Exception.Message -match 'dependency missing' }
+        if (-not $rejected) { throw "Feature dependency was not enforced: $relative" }
+        New-Item -ItemType File -Path $target | Out-Null
+    }
+    New-Item -ItemType File -Path (Join-Path $featureRoot 'reframework/autorun/SF6CC_DynamicRecords.lua') | Out-Null
+    $rejected = $false
+    try { Assert-FullPackageFeatures -PackageRoot $featureRoot }
+    catch { $rejected = $_.Exception.Message -match 'legacy recording manager' }
+    if (-not $rejected) { throw 'Legacy and new autorun entries were both accepted.' }
+} finally {
+    $resolved = (Resolve-Path -LiteralPath $featureRoot).Path
+    $tempPrefix = [IO.Path]::GetFullPath([IO.Path]::GetTempPath()).TrimEnd('\') + '\'
+    if (-not $resolved.StartsWith($tempPrefix, [StringComparison]::OrdinalIgnoreCase) -or
+        (Split-Path -Leaf $resolved) -notlike 'sf6cc-feature-test-*') { throw 'Unsafe test cleanup' }
+    Remove-Item -LiteralPath $resolved -Recurse -Force
+}
 if ((Get-FileHash -Algorithm SHA256 -LiteralPath $versionPath).Hash -ne $beforeHash) {
     throw 'Packaging tests changed the canonical product version.'
 }
