@@ -266,6 +266,20 @@ function Assert-FullPackageFeatures {
     }
 }
 
+function Assert-FullPackagePublishPaths {
+    param([Parameter(Mandatory = $true)][string]$PackageRoot)
+
+    # The website accepts only game-root binaries/config and reframework contents.
+    $root = (Resolve-Path -LiteralPath $PackageRoot).Path.TrimEnd('\', '/') + [IO.Path]::DirectorySeparatorChar
+    foreach ($file in Get-ChildItem -LiteralPath $root -Recurse -File -Force) {
+        $relative = $file.FullName.Substring($root.Length).Replace('\', '/')
+        if ($relative -cne 'dinput8.dll' -and $relative -cne 're2_fw_config.txt' -and
+            -not $relative.StartsWith('reframework/', [StringComparison]::Ordinal)) {
+            throw "Package file is outside the publication allowlist: $relative"
+        }
+    }
+}
+
 function Assert-ExactNameSet {
     param(
         [Parameter(Mandatory = $true)][string[]]$Expected,
@@ -771,7 +785,7 @@ foreach ($packageRoot in @($standardPackagePath, $runtimePackagePath)) {
 齿轮快捷设置位于训练工具栏；木人库位于游戏暂停菜单的“反击设置”后。
 木人库的使用方法见 reframework/木人库使用说明.md。
 更新后重新启动游戏，不要在训练场内通过 Reset Scripts 更换版本。
-'@ | Set-Content -LiteralPath (Join-Path $packageRoot '安装说明.txt') -Encoding UTF8
+'@ | Set-Content -LiteralPath (Join-Path $packageRoot 'reframework/安装说明.txt') -Encoding UTF8
 }
 Assert-CommandDisplayPackage -SourceRoot $workspacePath -PackageRoot $standardPackagePath
 Assert-CommandDisplayPackage -SourceRoot $workspacePath -PackageRoot $runtimePackagePath
@@ -780,6 +794,8 @@ Copy-Item -LiteralPath $dinputPath -Destination (Join-Path $standardPackagePath 
 Copy-Item -LiteralPath $dinputPath -Destination (Join-Path $runtimePackagePath "dinput8.dll") -Force
 Copy-Item -LiteralPath $configPath -Destination (Join-Path $runtimePackagePath "re2_fw_config.txt") -Force
 
+Assert-FullPackagePublishPaths -PackageRoot $standardPackagePath
+Assert-FullPackagePublishPaths -PackageRoot $runtimePackagePath
 New-ZipFromDirectory -SourceDirectory $standardPackagePath -ZipPath $standardZipPath
 New-ZipFromDirectory -SourceDirectory $runtimePackagePath -ZipPath $runtimeZipPath
 

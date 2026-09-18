@@ -113,6 +113,11 @@ $guard = $ast.Find({param($node)
 }, $true)
 if (-not $guard) { throw 'Full package feature guard missing' }
 . ([scriptblock]::Create($guard.Extent.Text))
+$publishGuard = $ast.Find({param($node)
+    $node -is [Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq 'Assert-FullPackagePublishPaths'
+}, $true)
+if (-not $publishGuard) { throw 'Full package publication path guard missing' }
+. ([scriptblock]::Create($publishGuard.Extent.Text))
 $featureRoot = Join-Path ([IO.Path]::GetTempPath()) ('sf6cc-feature-test-' + [guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Path $featureRoot | Out-Null
 try {
@@ -126,6 +131,20 @@ try {
         New-Item -ItemType File -Path $target | Out-Null
     }
     Assert-FullPackageFeatures -PackageRoot $featureRoot
+    foreach ($relative in @('dinput8.dll', 're2_fw_config.txt', 'reframework/安装说明.txt')) {
+        New-Item -ItemType File -Path (Join-Path $featureRoot $relative) | Out-Null
+    }
+    Assert-FullPackagePublishPaths -PackageRoot $featureRoot
+    foreach ($relative in @('安装说明.txt', 'reframework-extra/test.txt')) {
+        $target = Join-Path $featureRoot $relative
+        New-Item -ItemType Directory -Path (Split-Path -Parent $target) -Force | Out-Null
+        New-Item -ItemType File -Path $target | Out-Null
+        $rejected = $false
+        try { Assert-FullPackagePublishPaths -PackageRoot $featureRoot }
+        catch { $rejected = $_.Exception.Message -match 'outside the publication allowlist' }
+        if (-not $rejected) { throw "Invalid publication path accepted: $relative" }
+        Remove-Item -LiteralPath $target
+    }
     foreach ($relative in $requiredFiles) {
         $target = Join-Path $featureRoot "reframework/$relative"
         Remove-Item -LiteralPath $target
