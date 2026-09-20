@@ -1,0 +1,67 @@
+{
+  "schema": "sf6cc.cfn-human-review.experimental.v1",
+  "replay_id": "F978A6QHF",
+  "build": 20004000,
+  "players": [
+    { "fighter_id": 21, "control_mode": 1, "label": "杰米" },
+    { "fighter_id": 32, "control_mode": 0, "label": "英格丽德" }
+  ],
+  "items": [
+    {
+      "round": 1, "frame": 1312, "receiver": 2, "first_damage": 480,
+      "source": "user_verified", "review_from": 1254,
+      "title": "落入距离陷阱，反击被惩罚",
+      "explanation": "你已确认这里是距离陷阱。对方前一招虽然是-3，英格丽德出手并没有取得有效反击，反而被杰米打出确反康。",
+      "check": "不能看到对手负帧就认定一定能抢赢，还要看推开后的距离和反击方式。"
+    },
+    {
+      "round": 1, "frame": 1687, "receiver": 2, "first_damage": 315,
+      "source": "user_verified", "review_from": 1654,
+      "title": "错过挥空惩罚，迟出手反被打康",
+      "explanation": "你已确认1661至1687这段是重大失误：杰米先挥空，英格丽德没及时惩罚，等到出手时被杰米后续攻击打断。315伤害虽少，仍是重要复盘点。",
+      "check": "先看1661开始的机会，区分没抓到挥空惩罚和随后出手被打断这两件事。"
+    },
+    {
+      "round": 1, "frame": 1780, "receiver": 2, "first_damage": 630,
+      "source": "user_verified", "review_from": 1751,
+      "title": "进攻被防住，后续抢招输掉",
+      "explanation": "你已确认杰米先成功防御，再取得后续先手。英格丽德再次出招时被打康，不是杰米没防住，也不是这一下属于保证命中的确反。",
+      "check": "复盘前一招被挡住之后的选择，而不是只看最初那次负帧。"
+    },
+    {
+      "round": 1, "frame": 3115, "receiver": 2, "first_damage": 105,
+      "source": "user_verified", "review_from": 3091,
+      "title": "正常抢回合，被对手拿到命中",
+      "explanation": "你已确认3110至3115是正常抢回合。杰米出手取得命中，不能把这一段自动标成漏确反或重大失误。",
+      "check": "保留为正常回合交接，和明确失误分开统计。"
+    },
+    {
+      "round": 2, "frame": 354, "receiver": 1, "first_damage": 480,
+      "source": "user_verified", "review_from": 337,
+      "title": "挥空后被英格丽德成功惩罚",
+      "explanation": "你已确认337至354是成功挥空惩罚。杰米攻击落空，英格丽德抓住机会打出确反康并接上后续。",
+      "check": "对杰米看空挥距离；对英格丽德这是成功抓住机会，不应标成漏确反。"
+    },
+    {
+      "round": 2, "frame": 796, "receiver": 1, "first_damage": 720,
+      "source": "user_verified", "review_from": 754,
+      "title": "-3后出重攻击，被6帧攻击打断",
+      "explanation": "你已确认杰米前一招-3，却继续出重攻击，被英格丽德6帧攻击打康。杰米不抢招而选择防御，本来可以挡住；这不是保证命中的确反。",
+      "check": "这是负帧继续抢招的选择问题，不是对方抓住了一个必然确反窗口。"
+    },
+    {
+      "round": 3, "frame": 350, "receiver": 2, "first_damage": 864,
+      "source": "user_verified", "review_from": 291,
+      "title": "距离陷阱：反击没够到，反被惩罚",
+      "explanation": "你已确认326附近杰米虽然-4，但双方被推开得很远。英格丽德这次反击没有取得有效命中，随后自己被打确反康。",
+      "check": "不能只按-4套用4帧确反，必须先确认这个距离能打到。"
+    },
+    {
+      "round": 3, "frame": 1990, "receiver": 1, "first_damage": 720,
+      "source": "user_verified", "review_from": 1949,
+      "title": "漏掉保证确反，但仍打中了杰米抢招",
+      "explanation": "你接管实测确认：杰米-6时，英格丽德最速6帧MP可确反。实际录像慢了1帧，这次只有普通康；因为杰米继续抢招才被打中，如果防御就能挡住。",
+      "check": "英格丽德应改进确反时机；杰米应检查恢复后的抢招选择。一次受击可以对应双方不同的问题。"
+    }
+  ]
+}

@@ -5,6 +5,17 @@ Status: `CURRENT`
 This is the sole current list of evidence and architecture blockers. Green
 offline tests do not remove these limitations.
 
+Legacy ComboTrials recording is now disabled in the workspace, pending live
+validation and deployment. Its buttons, hotkey registration and remote recording
+commands are suppressed; the replay bottom recording bar is hidden. Existing
+training/demo playback and standalone training-library recordings are unchanged.
+Recording in the new replay-analysis UI is planned, not yet implemented.
+Focused validation: 35 of 36 test files pass and all seven touched Lua files
+parse. The sole failure is the existing main-local governance ceiling
+(166 versus 165), reproduced against unchanged HEAD as well; this change adds
+no main-chunk local. One retirement test was added, the refresh-toolbar contract
+was updated for two idle controls, and no permanent regression was removed.
+
 September17 recovery evidence supersedes blanket restart-only guidance:
 the user disabled/re-enabled the script inside training, observed waiting, then
 pressed pagination reload and received the stop/restart message. They exited

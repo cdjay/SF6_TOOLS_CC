@@ -9,10 +9,110 @@
     [switch]$UpdateRepoManifest,
     [switch]$TrainingConfigManagerOnly,
     [switch]$TrainingLibraryOnly,
-    [switch]$ExcludeDll
+    [switch]$ExcludeDll,
+    [switch]$FasterSF6Only,
+    [switch]$CFNReplayOnly
 )
 
 $ErrorActionPreference = "Stop"
+if ($CFNReplayOnly) {
+    if ($Version -or $Workspace -or $FasterSF6Only -or $TrainingLibraryOnly -or $TrainingConfigManagerOnly -or $Force -or $AllowImmutable -or $UpdateRepoManifest -or $ExcludeDll) {
+        throw 'CFN replay preview is separate from product releases; do not combine it with product/version/overwrite options. dinput8.dll is always excluded.'
+    }
+    & (Join-Path $PSScriptRoot 'cfn_replay_capture/package.ps1') -GameRoot $GameRoot -OutputDir $OutputDir -DryRun:$DryRun
+    return
+}
+# Third-party tester bundle, independent of the SF6CC product release/version.
+if ($FasterSF6Only) {
+    if ($Version -or $TrainingLibraryOnly -or $TrainingConfigManagerOnly -or $Force -or $AllowImmutable -or $UpdateRepoManifest) {
+        throw 'FasterSF6 tester mode cannot be combined with product-release options or overwrite.'
+    }
+    $files = @('fastersf6.lua', 'conf/fastersf6_conf.lua', 'lang/fastersf6_lang.lua',
+        'func/current_scene_id.lua', 'func/setup_hook.lua', 'func/show_custom_ticker.lua', 'func/was_key_down.lua')
+    $source = Join-Path $GameRoot 'reframework/autorun'
+    $payload = @{}
+    foreach ($file in $files) {
+        $path = Join-Path $source $file
+        if (-not (Test-Path -LiteralPath $path -PathType Leaf)) { throw "Missing dependency: $path" }
+        $payload["reframework/autorun/$file"] = [IO.File]::ReadAllBytes($path)
+        $text = [IO.File]::ReadAllText($path)
+        foreach ($match in [regex]::Matches($text, 'require\s*\(\s*["'']([^"'']+)["'']\s*\)')) {
+            if (($match.Groups[1].Value + '.lua') -notin $files) { throw "Unbundled dependency in $file" }
+        }
+    }
+    $config = [IO.File]::ReadAllText((Join-Path $source 'conf/fastersf6_conf.lua'))
+    if ($config -notmatch 'this\.FIRST_DESTINATION\s*=\s*1\b' -or $config -notmatch 'this\.SAFE_MODE\s*=\s*true\b') {
+        throw 'Expected the main-menu, normal-login tester configuration.'
+    }
+    $readme = @'
+FasterSF6 2.4 跳过片头测试包（不含 DLL）
+
+原作者：MafuyuKinoshita
+发布页：https://www.nexusmods.com/streetfighter6/mods/2538
+本包依据用户提供的 FasterSF6 2.4 文件，保留作者代码；启动目标设为主菜单，保留正常联网登录。
+这是独立测试包，不是 SF6CC 完整版，也不代表已验证兼容所有游戏版本。
+
+安装前提
+游戏需要已经安装可正常使用的 REFramework。本包不包含也不会更新任何 DLL。
+
+安装步骤
+1. 完全关闭游戏。
+2. 将包内 reframework 文件夹合并到 StreetFighter6.exe 所在文件夹。
+3. 启动游戏。不要在游戏运行中安装或使用 Reset Scripts 加载。
+如出现同名文件覆盖提示，请先确认；不要覆盖其他插件已修改的共用文件。
+
+当前设置
+默认跳过部分启动画面，进入主菜单，不自动进入训练场。
+保留正常联网登录，因此仍需等待联网过程。
+首次启动或新增角色内容后，可能按正常流程进入，不能仅凭首次启动判断失败。
+启动提示出现时按空格可能切换启动目标，测试期间请不要按空格。
+
+建议测试
+连续启动两次，观察是否正常进入主菜单、能否正常登录、能否正常进入和退出训练场。
+遇到异常请说明出现在第几次启动，以及停留在哪个画面。
+
+停用
+关闭游戏后，将 reframework/autorun/fastersf6.lua 移到游戏文件夹之外，再启动游戏。
+不要删除 func 内的共用文件，其他插件可能也在使用。
+
+包内只有本插件及其依赖和说明，不含个人记录、木人库、录像分析工具或任何 DLL。
+'@
+    $payload['README.txt'] = [Text.Encoding]::UTF8.GetBytes($readme)
+    if (-not $OutputDir) {
+        $OutputDir = Join-Path (Split-Path $PSScriptRoot -Parent) ('release/fastersf6-test-' + (Get-Date -Format 'yyyyMMdd-HHmmss'))
+    }
+    $out = [IO.Path]::GetFullPath($OutputDir)
+    $zipPath = Join-Path $out 'FasterSF6_v2.4_MainMenu_NoDLL_Test.zip'
+    if (Test-Path -LiteralPath $zipPath) { throw "Refusing to overwrite: $zipPath" }
+    if ($DryRun) { Write-Output $zipPath; $payload.Keys | Sort-Object; return }
+    New-Item -ItemType Directory -Path $out -Force | Out-Null
+    Add-Type -AssemblyName System.IO.Compression.FileSystem
+    $zip = [IO.Compression.ZipFile]::Open($zipPath, [IO.Compression.ZipArchiveMode]::Create)
+    try {
+        foreach ($name in ($payload.Keys | Sort-Object)) {
+            $stream = $zip.CreateEntry($name).Open()
+            try { $stream.Write($payload[$name], 0, $payload[$name].Length) } finally { $stream.Dispose() }
+        }
+    } finally { $zip.Dispose() }
+    $zip = [IO.Compression.ZipFile]::OpenRead($zipPath)
+    try {
+        if ($zip.Entries.Count -ne $payload.Count) { throw 'Unexpected archive entry count.' }
+        foreach ($entry in $zip.Entries) {
+            if (-not $payload.ContainsKey($entry.FullName) -or $entry.FullName -match '\.dll$') { throw 'Unexpected archive file.' }
+            $stream = $entry.Open()
+            $memory = New-Object IO.MemoryStream
+            try {
+                $stream.CopyTo($memory)
+                if ([Convert]::ToBase64String($memory.ToArray()) -cne [Convert]::ToBase64String($payload[$entry.FullName])) {
+                    throw "Archive verification failed: $($entry.FullName)"
+                }
+            } finally { $memory.Dispose(); $stream.Dispose() }
+        }
+    } finally { $zip.Dispose() }
+    Write-Output $zipPath
+    Write-Output 'Verified: 7 Lua dependencies + README; no DLL or runtime state.'
+    return
+}
 if ($TrainingLibraryOnly -and $TrainingConfigManagerOnly) {
     throw "Choose either the standalone training library or the legacy configuration manager."
 }

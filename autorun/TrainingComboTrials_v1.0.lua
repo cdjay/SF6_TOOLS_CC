@@ -15,6 +15,7 @@ if type(package.loaded["func/ComboTrials/UnifiedActionConsumer"]) ~= "table"
     package.loaded["func/ComboTrials/UnifiedActionConsumer"] = nil
 end
 local ComboTrialsModules = {
+    RecordingPolicy = require("func/ComboTrials/RecordingPolicy"),
     DebugTrace = require("func/ComboTrials/DebugTrace"),
     ActionCompatibility = require("func/ComboTrials/ActionCompatibility"),
     ActionMatcher = require("func/ComboTrials/ActionMatcher"),
@@ -2952,6 +2953,7 @@ end
 
 
 local function start_recording(player_idx)
+    if not ComboTrialsModules.RecordingPolicy.is_enabled() then return false end
     if _G.CurrentTrainerMode ~= 4
         or not (RuntimeSafety.is_training_allowed() or RuntimeSafety.is_replay_allowed()) then
         return false
@@ -3820,6 +3822,7 @@ local function _ct_replay_bridge_poll()
         if not _G._replay_bridge_ts then _G._replay_bridge_ts = 0 end
         if b._web_timestamp > _G._replay_bridge_ts then
             _G._replay_bridge_ts = b._web_timestamp
+            if b.cmd ~= "hide_ui" and not ComboTrialsModules.RecordingPolicy.is_enabled() then return end
             if b.cmd == "record_p1" then _G.ComboTrials_ReplaySavePlayer = 0; start_recording(0) end
             if b.cmd == "record_p2" then _G.ComboTrials_ReplaySavePlayer = 1; start_recording(1) end
             if b.cmd == "stop_save" then _G.ComboTrials_ReplaySavePlayer = trial_state.recording_player; stop_recording_and_save() end
@@ -4220,6 +4223,8 @@ local _replay_cleaned = false
 local function ct_handle_web_commands()
     if _G.CurrentTrainerMode == 4 and _G._tsm_web_cmd then
         local cmd = _G._tsm_web_cmd; _G._tsm_web_cmd = nil
+        if (cmd == "record" or cmd == "cancel_record" or cmd == "stop_record")
+            and not ComboTrialsModules.RecordingPolicy.is_enabled() then return end
         if cmd == "record" then
             if start_recording(0) then ct_ticker("录制中") end
             return
@@ -9939,24 +9944,26 @@ end
 
 ctx.commands = {
     record_p1 = function()
+        if not ComboTrialsModules.RecordingPolicy.is_enabled() then return end
         if not can_start_combo_action() then return end
         if is_replay_context() then _G.ComboTrials_ReplaySavePlayer = 0 end
-        start_recording(0)
-        ct_ticker("录制中")
+        if start_recording(0) then ct_ticker("录制中") end
     end,
     record_p2 = function()
+        if not ComboTrialsModules.RecordingPolicy.is_enabled() then return end
         if not can_start_combo_action() then return end
         if is_replay_context() then _G.ComboTrials_ReplaySavePlayer = 1 end
-        start_recording(1)
-        ct_ticker("录制中")
+        if start_recording(1) then ct_ticker("录制中") end
     end,
     save_recording = function()
+        if not ComboTrialsModules.RecordingPolicy.is_enabled() then return end
         if not trial_state.is_recording then return end
         if is_replay_context() then _G.ComboTrials_ReplaySavePlayer = trial_state.recording_player end
         stop_recording_and_save()
         ct_ticker("录制已保存")
     end,
     cancel_recording = function()
+        if not ComboTrialsModules.RecordingPolicy.is_enabled() then return end
         if not trial_state.is_recording then return end
         if is_replay_context() then _G.ComboTrials_ReplayCancelPlayer = trial_state.recording_player end
         cancel_recording()

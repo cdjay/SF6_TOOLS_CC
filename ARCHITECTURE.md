@@ -15,6 +15,72 @@ Status: `CURRENT`
 The resolver graph below is the approved target architecture. It is not a
 claim that production authority has already switched.
 
+## Combo Recording Transition
+
+Legacy ComboTrials recording is disabled by `ComboTrials/RecordingPolicy.lua`.
+The entry script rejects starts before any recording state changes; UI, hotkey
+registration and remote command dispatch no longer expose legacy recording.
+The replay-only bottom recording bar is hidden. Existing training, demos,
+saved combos, compilation and cancellation paths are retained; the standalone
+training library's recordings are unaffected.
+
+Moving recording into replay analysis is planned, not implemented. See the
+[replay review UI design](docs/research/CFN_REPLAY_REVIEW_UI.md). This is a
+product-entry change, not a change to action semantics or Frozen V2.
+
+The isolated replay experiment under `tools/cfn_replay_capture` separates pure
+damage/context analysis, filter/sort state, floating UI, same-round navigation,
+and `round_navigation` orchestration. Its keyboard helper accepts a distinct
+one-shot overlay-hide/restore request using the saved menu binding; ordinary replay
+keys retain the UI-closed guard. No new game hook or production semantic route
+is introduced. Native signed advantage remains raw contextual evidence, not
+an automatically attributed player-relative punish verdict.
+The separate `review_assessments` layer assigns review priority and validates
+local player confirmations against replay identity and captured evidence. It
+may add zero-received-damage confirmed opportunities without mutating the
+damage ledger or teaching replay-specific frame numbers to the classifier.
+
+The offline-verified user-rule candidate adds pure `rule_config` validation and
+`rule_context` evaluation before human confirmations and statistics. Its bounded,
+declarative JSON can relabel existing damage/guard events, not generate arbitrary
+events, modify the damage ledger, bypass navigation guards or confer P0. Missing
+evidence uses three-valued logic. The dependency-free offline editor derives its
+field catalog from the Lua authority; it does not define a second action resolver.
+Configuration is frozen once per evaluation. `rule_evaluation` rejudges a fixed
+damage/guard fact snapshot without replaying sample rows or accumulating statistics
+again; the raw capture remains persistent and the event snapshot is rebuilt once
+on load. `workbench` exports scalar evidence and exact applied configuration for
+the offline timeline/editor. Opt-in paused-only polling never acquires input or
+new native hooks. The candidate is deployed locally; the latest configuration-only
+filter change still needs live verification. `include_system=false` limits issue
+lists and priority counts to enabled matching user rules without dropping facts.
+The local stage checkpoint restores the system-default profile at user request.
+See [user-rule contract](docs/research/CFN_REPLAY_USER_RULES.md).
+See [timeline and live-rule workflow](docs/research/CFN_REPLAY_WORKBENCH.md).
+
+Saved-data statistics are another pure consumer, not a second semantic resolver.
+`statistics` computes observed distributions, resource timelines and coverage;
+`statistics_charts` and `statistics_popups` render native ImGui views. Independent
+1P, 2P and comparison windows reuse the project's hook-free `func/UIKit` palette
+and controls, with the session-recap dual-curve presentation pattern. They do not
+import `Training_SessionRecap` or `SharedHooks`, retain game objects, or acquire
+input ownership when opened. Window scope is independent of the problem filter.
+The old `statistics_window` remains an offline characterization reference; it is
+not imported by the deployed entry or included in its package dependency closure. Chart
+navigation reuses the identity-checked same-round controller. No move-specific
+state inference, new hook, capture field, runtime dependency or skill score is
+introduced. See [statistics definitions](docs/research/CFN_REPLAY_STATISTICS.md).
+
+The experimental `guard_review` consumer independently records zero-damage guard
+intervals and post-guard observations, reusing the existing state rules and recovery
+candidate evidence. `guard_window` owns its display only. Unattributed native
+advantage snapshots never become punish verdicts or damage-review seek targets.
+Analysis teardown schedules a bounded, identity-scoped1x speed restoration through
+the existing controls UI post-hook; it does not retain native objects, send keys,
+add hooks or widen the normal playback-control permissions. The follow-up is
+offline-verified and was explicitly authorized for Lua-only synchronization while
+the game remained open; user-controlled Reset and live validation are still pending.
+
 ## Documentation
 
 * [Standalone Training Library](docs/training-library/README.md): current entry,

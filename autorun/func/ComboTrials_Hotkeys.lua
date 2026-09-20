@@ -22,10 +22,6 @@ function M.init(ctx, Hotkeys)
         order = 20,
         enabled_default = false,
         actions = {
-            { id = "record_p1", label = "录制 P1", enabled = can_use_combo_trials, run = commands.record_p1 },
-            { id = "record_p2", label = "录制 P2", enabled = can_use_combo_trials, run = commands.record_p2 },
-            { id = "save_recording", label = "停止并保存录制", enabled = can_use_combo_trials, run = commands.save_recording },
-            { id = "cancel_recording", label = "取消录制", enabled = can_use_combo_trials, run = commands.cancel_recording },
             { id = "start_trial", label = "开始连段训练", enabled = can_use_combo_trials, run = commands.start_trial },
             { id = "reset_trial", label = "重置连段", enabled = can_use_combo_trials, run = commands.reset_trial },
             { id = "stop_trial", label = "停止连段训练", enabled = can_use_combo_trials, run = commands.stop_trial },

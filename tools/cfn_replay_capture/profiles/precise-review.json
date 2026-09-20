@@ -1,0 +1,13 @@
+{
+  "schema": "sf6cc.replay-rules.v1",
+  "build": 20004000,
+  "name": "精准问题定义",
+  "include_system": false,
+  "settings": {
+    "wakeup_frames": 8,
+    "guard_frames": 15,
+    "response_frames": 30,
+    "advantage_min": 4
+  },
+  "rules": []
+}

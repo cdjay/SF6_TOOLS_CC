@@ -1020,7 +1020,7 @@ local UI_THEME = {
 local styled_header = UIKit.styled_header
 
 local function draw_replay_analysis_menu()
-    imgui.text_colored("录像回放分析模式：仅开放视觉显示与连段录制。", 0xFF00A5FF)
+    imgui.text_colored("录像回放：辅助显示", 0xFF00A5FF)
     imgui.text_colored("传送、自动操作和训练输入保持关闭。", 0xFF888888)
     imgui.spacing()
 
@@ -1051,8 +1051,6 @@ local function draw_replay_analysis_menu()
         TrainingMenuRegistry.draw("sheldons_boxes")
     end
 
-    imgui.separator()
-    imgui.text_colored("连段录制可通过画面底部的“录制 P1 / 录制 P2”操作。", 0xFF88FF88)
 end
 
 re.on_draw_ui(function()

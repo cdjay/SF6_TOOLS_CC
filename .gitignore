@@ -1,6 +1,14 @@
 /data/Training_ScriptManager_data/TrainingHotkeys_Config.json
 
 # Runtime/local state
+/data/cfn-capture-*.json
+/data/cfn-jump-trace-*.json
+/data/cfn-keyboard-*.json
+/data/cfn-keyboard-*.json.tmp
+/data/cfn-review-confirmations.json
+/data/cfn-replay-rules.json
+/data/cfn-workbench*.json
+/.playwright-mcp/
 /data/SF6_TrainingRemoteControl_data/*WebState.json
 /data/SF6_TrainingRemoteControl_data/*WebBridge.json
 /data/SF6_TrainingRemoteControl_data/*TrayState.json

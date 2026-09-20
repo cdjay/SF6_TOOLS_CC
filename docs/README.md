@@ -32,7 +32,16 @@ Start with this page instead of searching dated reports.
 - [Combo Feedback Outbox](COMBO_FEEDBACK_OUTBOX.md)
 - [Validated Combo Backup](backup/VALIDATED_COMBO_BACKUP.md)
 
+## Research And Experiments
+
+- [CFN replay state capture](research/CFN_REPLAY_CAPTURE.md): isolated, opt-in experiment; live frame coverage is not yet verified.
+- [CFN review window](research/CFN_REPLAY_REVIEW_UI.md): experimental damage review, current-round filtering and pre-event navigation; pending live verification.
+- [CFN user rules](research/CFN_REPLAY_USER_RULES.md): offline editor and bounded damage/guard classification rules; local experimental deployment, latest changes await live verification.
+- [CFN fact/rule workbench](research/CFN_REPLAY_WORKBENCH.md): integrated frame timeline, input history and paused rule re-evaluation from fixed facts; deployed locally with separate offline/live evidence.
+
 ## Historical
+
+- [CFN replay stage checkpoint, 2026-09-21](research/CFN_REPLAY_STAGE_20260921.md): scoped implementation, configuration restoration, test evidence and remaining limits.
 
 See [Archive](archive/README.md). Dated audit and integration documents are
 evidence for past baselines only. Removed phase reports remain available in Git
