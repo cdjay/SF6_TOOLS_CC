@@ -10,6 +10,7 @@ local TrainingConfigNotes = require("SF6CCTrainingLibrary/TrainingConfigNotes")
 local TrainingRecordImport = require("SF6CCTrainingLibrary/TrainingRecordImport")
 local Compatibility = require("SF6CCTrainingLibrary/TrainingConfigCompatibility")
 local SlotLayout = require("SF6CCTrainingLibrary/TrainingSlotLayout")
+local TrainingGuardSettings = require("SF6CCTrainingLibrary/TrainingGuardSettings")
 
 local M = {}
 local JSON_NULL = json and (json.null or json.NULL) or nil
@@ -658,6 +659,9 @@ local function collect_snapshot(include_buff, metadata)
     local reversals, reversal_err = collect_reversals(ctx)
     if not reversals then return nil, reversal_err end
 
+    local guard_fields, guard_err = TrainingGuardSettings.read()
+    if not guard_fields then return nil, guard_err end
+
     return {
         schema = M.SCHEMA,
         created_at = now_display(),
@@ -674,6 +678,9 @@ local function collect_snapshot(include_buff, metadata)
             record = {
                 record_setting_fields = collect_scalar_fields(record_ctx and record_ctx.record_setting),
                 fighter_fields = collect_scalar_fields(record_ctx and record_ctx.fighter_data),
+            },
+            dummy = {
+                guard_fields = guard_fields,
             },
         },
     }, nil
@@ -1257,6 +1264,20 @@ local function build_record_settings_plan(data, record_ctx)
     return plan
 end
 
+local function build_guard_settings_plan(data)
+    if data.schema == M.LEGACY_SCHEMA or type(data.settings) ~= "table" then return nil, nil end
+    local dummy = data.settings.dummy
+    if type(dummy) ~= "table" or dummy.guard_fields == nil then return nil, nil end
+    if type(dummy.guard_fields) ~= "table" then
+        return nil, "settings.dummy.guard_fields is not an object"
+    end
+    local fields = TrainingGuardSettings.normalize(dummy.guard_fields)
+    if fields.GuardType == nil then
+        return nil, "settings.dummy.guard_fields.GuardType is missing or invalid"
+    end
+    return fields, nil
+end
+
 local function validate_import_header(data, options)
     if type(data) ~= "table" then
         return false, "Import JSON root is not an object"
@@ -1699,6 +1720,9 @@ local function import_from_file(path, options, context, prepared)
     local header_ok, header_err = validate_import_header(data, options)
     if not header_ok then return false, "Import rejected: " .. tostring(header_err) end
 
+    local guard_settings_plan, guard_plan_err = build_guard_settings_plan(data)
+    if guard_plan_err then return false, "Import rejected: " .. tostring(guard_plan_err) end
+
     ensure_dirs()
     local backup_path = prepared and prepared.backup_path
     if not prepared then
@@ -1799,12 +1823,18 @@ local function import_from_file(path, options, context, prepared)
     end
 
     local ok, write_result_or_err, clear_count_or_nil, reversal_count_or_nil,
-        reversal_msg_or_nil, record_setting_count_or_nil = pcall(function()
+        reversal_msg_or_nil, record_setting_count_or_nil, guard_setting_count_or_nil = pcall(function()
         local record_setting_count = apply_record_settings_plan(record_settings_plan)
+        local guard_setting_count = 0
+        if guard_settings_plan then
+            local guard_ok, guard_err = TrainingGuardSettings.apply(guard_settings_plan)
+            if not guard_ok then error("dummy guard settings failed: " .. tostring(guard_err)) end
+            for _ in pairs(guard_settings_plan) do guard_setting_count = guard_setting_count + 1 end
+        end
         local written, cleared = apply_import_plan(plan)
         local reversal_count, reversal_msg = apply_reversal_plan(reversal_plan, reversal_ctx)
         if reversal_count == nil then error(reversal_msg) end
-        return written, cleared, reversal_count, reversal_msg, record_setting_count
+        return written, cleared, reversal_count, reversal_msg, record_setting_count, guard_setting_count
     end)
     if not ok then
         return false, "Import crashed after backup: " .. tostring(write_result_or_err), backup_path
@@ -1815,6 +1845,7 @@ local function import_from_file(path, options, context, prepared)
     local reversal_count = reversal_count_or_nil or 0
     local reversal_msg = reversal_msg_or_nil or "reversals skipped"
     local record_setting_count = record_setting_count_or_nil or 0
+    local guard_setting_count = guard_setting_count_or_nil or 0
     local force_msg = "ForceApply skipped"
     local apply_state = "skipped"
     if options.force_apply_after_import == true then
@@ -1833,13 +1864,15 @@ local function import_from_file(path, options, context, prepared)
         "Imported " .. tostring(written) .. " slot(s), cleared " .. tostring(cleared)
             .. timing_msg
             .. ", restored " .. tostring(record_setting_count) .. " record setting field(s)"
+            .. ", restored " .. tostring(guard_setting_count) .. " dummy guard setting field(s)"
             .. ", restored " .. tostring(reversal_count) .. " reversal setting(s)"
             .. ". Backup: data/" .. tostring(backup_path) .. ". " .. force_msg
             .. ". " .. tostring(reversal_msg),
         backup_path,
         type(data.description) == "string" and data.description or "",
         { kind = "import", written = written, cleared = cleared, record_settings = record_setting_count,
-            reversals = reversal_count, apply_state = apply_state, backup_path = backup_path }
+            guard_settings = guard_setting_count, reversals = reversal_count,
+            apply_state = apply_state, backup_path = backup_path }
 end
 
 function M.import_from_file(path, options)

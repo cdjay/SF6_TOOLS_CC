@@ -1,4 +1,5 @@
 local TrainingEnvironment = require("func/ComboTrials/TrainingEnvironment")
+local TrainingGuardSettings = require("SF6CCTrainingLibrary/TrainingGuardSettings")
 
 local DummySettings = {
     name = "ComboTrials.DummySettings",
@@ -122,80 +123,25 @@ function DummySettings.restore_counter_type()
     end
 end
 
--- Cache tf_GuardSetting from _tfFuncs
-local _tf_guard_cache = nil
-local function get_tf_guard()
-    if _tf_guard_cache then return _tf_guard_cache end
-    pcall(function()
-        local tm = sdk.get_managed_singleton("app.training.TrainingManager")
-        if not tm then return end
-        local dict = tm:get_field("_tfFuncs")
-        if not dict then return end
-        local entries = dict:get_field("_entries")
-        if not entries then return end
-        local count = entries:call("get_Count")
-        for i = 0, count - 1 do
-            local entry = entries:call("get_Item", i)
-            if entry then
-                local val = entry:get_field("value")
-                if val and val:get_type_definition():get_full_name():find("tf_GuardSetting") then
-                    _tf_guard_cache = val
-                    return
-                end
-            end
-        end
-    end)
-    return _tf_guard_cache
-end
-
-DummySettings.GUARD_RUNTIME_FIELDS = {
-    "GuardType",
-    "GuardWeight",
-    "GuardCount",
-    "IsGuardSwitching",
-    "GuardOnlyType"
-}
+DummySettings.GUARD_RUNTIME_FIELDS = TrainingGuardSettings.FIELDS
 
 function DummySettings.set_guard_type(guard_val, guard_count, raw_settings)
-    pcall(function()
-        local tm = sdk.get_managed_singleton("app.training.TrainingManager")
-        if not tm then return end
-        local tData = tm:get_field("_tData")
-        local gs = tData:get_field("GuardSetting")
-        local dd = gs:get_field("DummyData")
-        dd.GuardType = guard_val
-        local runtime_guard_count =
-            TrainingEnvironment.guard_count_to_runtime(guard_count)
-        if runtime_guard_count ~= nil then dd.GuardCount = runtime_guard_count end
-        if type(raw_settings) == "table" then
-            for _, field_name in ipairs(DummySettings.GUARD_RUNTIME_FIELDS) do
-                if field_name ~= "GuardType"
-                    and field_name ~= "GuardCount"
-                    and raw_settings[field_name] ~= nil then
-                    dd[field_name] = raw_settings[field_name]
-                end
-            end
+    local settings = TrainingGuardSettings.read() or {}
+    if type(raw_settings) == "table" then
+        for _, field_name in ipairs(DummySettings.GUARD_RUNTIME_FIELDS) do
+            if raw_settings[field_name] ~= nil then settings[field_name] = raw_settings[field_name] end
         end
-    end)
-    local tg = get_tf_guard()
-    if tg then pcall(function() tg:call("bApply") end) end
+    end
+    settings.GuardType = guard_val
+    local runtime_guard_count = TrainingEnvironment.guard_count_to_runtime(guard_count)
+    if runtime_guard_count ~= nil then settings.GuardCount = runtime_guard_count end
+    TrainingGuardSettings.apply(settings)
 end
 
 function DummySettings.read_guard_settings()
-    local result = { guard_type = 0, guard_count = nil }
-    pcall(function()
-        local tm = sdk.get_managed_singleton("app.training.TrainingManager")
-        if not tm then return end
-        local tData = tm:get_field("_tData")
-        local gs = tData:get_field("GuardSetting")
-        local dd = gs:get_field("DummyData")
-        for _, field_name in ipairs(DummySettings.GUARD_RUNTIME_FIELDS) do
-            result[field_name] = dd[field_name]
-        end
-        result.guard_type = result.GuardType or 0
-        result.guard_count =
-            TrainingEnvironment.guard_count_from_runtime(dd.GuardCount)
-    end)
+    local result = TrainingGuardSettings.read() or {}
+    result.guard_type = result.GuardType or 0
+    result.guard_count = TrainingEnvironment.guard_count_from_runtime(result.GuardCount)
     return result
 end
 

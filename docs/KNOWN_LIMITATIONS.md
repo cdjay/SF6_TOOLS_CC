@@ -16,6 +16,16 @@ parse. The sole failure is the existing main-local governance ceiling
 no main-chunk local. One retirement test was added, the refresh-toolbar contract
 was updated for two idle controls, and no permanent regression was removed.
 
+Dummy guard persistence has focused offline coverage but still requires a
+real-game smoke. New training-library saves include the five verified native
+guard fields; older v2 files intentionally leave the current guard state alone.
+The shared training-mode guard override now restores the captured full state
+when a mode closes, training becomes unavailable, replay/Battle Hub is entered,
+or scripts reset. This fixes the proven old control-flow gap where leaving
+training returned before restoration and the old fallback assumed no guard.
+Offline tests do not yet prove native menu text refresh or persistence across a
+full game restart.
+
 September17 recovery evidence supersedes blanket restart-only guidance:
 the user disabled/re-enabled the script inside training, observed waiting, then
 pressed pagination reload and received the stop/restart message. They exited

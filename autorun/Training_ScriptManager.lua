@@ -13,6 +13,8 @@ local UIKit = require("func/UIKit")
 local ImGuiCanvas = require("func/ImGuiCanvas")
 local TrainingHotkeys = require("func/Training_Hotkeys")
 local TrainingMenuRegistry = require("func/Training_MenuRegistry")
+local TrainingGuardSettings = require("SF6CCTrainingLibrary/TrainingGuardSettings")
+local TrainingGuardOverride = require("func/TrainingGuardOverride")
 
 -- ==========================================
 -- CUSTOM TICKER SYSTEM
@@ -244,89 +246,11 @@ end
 -- ==========================================
 -- 0.1 GUARD CONTROL UTILITIES (SAFE PATTERN)
 -- ==========================================
-local last_mode_state = 0
-local saved_guard_state = 0 -- Default 0, stores the previous state
-local is_guard_overridden = false
-
--- Guard IDs
-local GUARD_NO = 0
-local GUARD_ALL = 3
-local GUARD_RANDOM = 4
-
--- Safety function to avoid crashes
-local function call_fresh(target_type, method, ...)
-    local mgr = sdk.get_managed_singleton("app.training.TrainingManager")
-    if not mgr then return false end
-    
-    local obj = nil
-    if target_type == "TM" then 
-        obj = mgr 
-    elseif target_type == "Guard" then 
-        local ok, guard = pcall(function() return mgr:call("get_GuardFunc") end)
-        if ok and guard then obj = guard end
-    end
-
-    if not obj or sdk.to_int64(obj) == 0 then return false end
-    
-    local args = {...}
-    return pcall(function() return obj:call(method, table.unpack(args)) end)
-end
-
--- Apply guard type cleanly
-local function set_guard_type(guard_id)
-    -- 1. Apply the guard type to the Dummy (ID 1)
-    call_fresh("Guard", "ChangeGuardType", 1, guard_id)
-    -- 2. Force refresh
-    call_fresh("TM", "set_IsReqRefresh", true)
-end
+local guard_override = TrainingGuardOverride.new(TrainingGuardSettings)
 
 local function update_guard_logic()
     local current_mode = _G.CurrentTrainerMode or 0
-    
-    -- If mode hasn't changed, do nothing
-    if current_mode == last_mode_state then return end
-
-    -- CHANGE LOGIC
-
-    -- When switching from inactive (0) to active mode (1, 2, 3), save the guard state
-    -- (Note: Without a reliable get_GuardType, we assume the user starts in No Guard or wants to return to it)
-    if last_mode_state == 0 and current_mode ~= 0 then
-        if not is_guard_overridden then
-            saved_guard_state = 0 -- Will revert to 0 by default
-            is_guard_overridden = true
-        end
-    end
-
-    if current_mode == 1 then
-        -- >>> REACTION DRILLS >>> NO GUARD (0)
-        set_guard_type(GUARD_NO)
-
-    elseif current_mode == 2 then
-        -- >>> HIT CONFIRM >>> RANDOM GUARD (4)
-        set_guard_type(GUARD_RANDOM)
-
-    elseif current_mode == 3 then
-        -- >>> POST GUARD >>> ALL GUARD (3)
-        set_guard_type(GUARD_ALL)
-
-    elseif current_mode == 4 then
-        -- >>> COMBO TRIALS >>> TrainingComboTrials is the sole owner.
-        -- Do not call ChangeGuardType here: mode 2 (guard after first hit)
-        -- is reset to no guard by that API, while direct GuardSetting+bApply works.
-
-    elseif current_mode == 5 then
-        -- >>> RANDOM KILL >>> TrainingRandomKill is the sole owner.
-        -- Its one-click setup applies and restores the dummy guard settings.
-
-    elseif current_mode == 0 then
-        -- >>> DISABLED / COMBO TRIALS >>> RESTORE
-        if is_guard_overridden then
-            set_guard_type(saved_guard_state) -- Revert to 0 (or saved state)
-            is_guard_overridden = false
-        end
-    end
-
-    last_mode_state = current_mode
+    return guard_override:update(current_mode)
 end
 
 -- ==========================================
@@ -875,6 +799,7 @@ re.on_frame(function()
     -- BattleHub: always disabled
     if _G.IsInBattleHub then
         if _G.CurrentTrainerMode ~= 0 then _G.CurrentTrainerMode = 0 end
+        update_guard_logic()
         RuntimeSafety.disable("battle_hub")
         pcall(_tsm_dump_webstate_inactive, "battle_hub")
         return
@@ -887,6 +812,7 @@ re.on_frame(function()
             _tsm_was_replay = "waiting"
             _tsm_replay_timer = 0
             if _G.CurrentTrainerMode ~= 0 then _G.CurrentTrainerMode = 0 end
+            update_guard_logic()
             _G.TrainingFloatingBar = nil
             _G.TrainingFloatingBarTop = nil
             _G.TrainingModeActive = false
@@ -916,6 +842,7 @@ re.on_frame(function()
         if _G.CurrentTrainerMode ~= 0 then
             _G.CurrentTrainerMode = 0
         end
+        update_guard_logic()
         RuntimeSafety.disable("not_training")
         pcall(_tsm_dump_webstate_inactive, "not_training")
         return
@@ -925,6 +852,7 @@ re.on_frame(function()
         if _G.CurrentTrainerMode ~= 0 then
             _G.CurrentTrainerMode = 0
         end
+        update_guard_logic()
         _tsm_invalidate_training_mode_cache()
         RuntimeSafety.disable("unsafe_training_context")
         pcall(_tsm_dump_webstate_inactive, "unsafe_training_context")
@@ -1001,6 +929,12 @@ re.on_frame(function()
         pcall(_tsm_web_bridge_tick)
     end
 end)
+
+if re.on_script_reset then
+    re.on_script_reset(function()
+        guard_override:restore()
+    end)
+end
 
 -- ==========================================
 -- 5. USER INTERFACE

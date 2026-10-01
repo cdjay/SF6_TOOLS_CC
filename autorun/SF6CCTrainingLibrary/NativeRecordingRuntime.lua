@@ -7,6 +7,9 @@ local ReversalRecordings = require("SF6CCTrainingLibrary/NativeReversalRecording
 local SaveCompletion = require("SF6CCTrainingLibrary/NativeSaveCompletion")
 local M = {}
 local MAX_RETAINED = 4
+local SLOW_POLL_FRAMES = 15
+local INITIAL_STABLE_CHECKS = 3
+local REENTRY_STABLE_CHECKS = 6
 local function same(a, b) return a and b and a:get_address() == b:get_address() end
 
 function M.new(deps)
@@ -17,7 +20,7 @@ function M.new(deps)
     local hook_error, save_generation, release_generation = nil, 0, 0
     local presentation_generation = 0
     local reload_request, reload_blocked
-    local candidate, stable_checks = nil, 0
+    local candidate, stable_checks, reentry_quarantine = nil, 0, false
     local pager
     local saves=SaveCompletion.new()
     local self = {}
@@ -67,10 +70,11 @@ function M.new(deps)
     local function matches(entry, ctx)
         return ctx and ctx.allowed and not ctx.error and same(ctx.session, entry.manager)
             and same(ctx.data, entry.data) and ctx.fighter_id == entry.fighter_id
+            and (entry.record_func == nil or same(ctx.record_func, entry.record_func))
     end
     local function already_attempted(ctx)
         return attempted and same(attempted.session, ctx.session) and same(attempted.data, ctx.data)
-            and attempted.fighter_id == ctx.fighter_id
+            and attempted.fighter_id == ctx.fighter_id and same(attempted.record_func, ctx.record_func)
     end
     local function clear_candidate() candidate, stable_checks = nil, 0 end
     local function layout_ready(ctx)
@@ -86,8 +90,10 @@ function M.new(deps)
             unchanged = unchanged and old and same(page.node, old.node) and same(page.original, old.original)
         end
         stable_checks = unchanged and stable_checks + 1 or 1
-        candidate = { manager=ctx.session, data=ctx.data, fighter_id=ctx.fighter_id, pages=pages }
-        return stable_checks >= 3
+        candidate = { manager=ctx.session, data=ctx.data, fighter_id=ctx.fighter_id,
+            record_func=ctx.record_func, pages=pages }
+        local required = reentry_quarantine and REENTRY_STABLE_CHECKS or INITIAL_STABLE_CHECKS
+        return stable_checks >= required
     end
     function self.request_reload()
         if reload_blocked or stopped or not ready then restart_status(); return false end
@@ -99,7 +105,8 @@ function M.new(deps)
         if ctx.busy ~= false or library.has_pending() then
             report("请先停止录制、播放并等待当前配置操作完成"); return false
         end
-        reload_request = { manager = ctx.session, data = ctx.data, fighter_id = ctx.fighter_id }
+        reload_request = { manager = ctx.session, data = ctx.data, fighter_id = ctx.fighter_id,
+            record_func = ctx.record_func }
         library.status_ok, library.status = true, "分页重载已排队，请关闭游戏暂停菜单"
         return true
     end
@@ -305,7 +312,11 @@ function M.new(deps)
         owner_thread = owner_thread or threads.get_id()
         assert(threads.get_id() == owner_thread, "runtime update thread changed")
         ticks = ticks + 1
-        if ticks % 15 ~= 0 then return end
+        local slow_poll = ticks % SLOW_POLL_FRAMES == 0
+        -- An active native attachment is checked every game update. Matching can
+        -- switch to an online battle while the training manager still exists,
+        -- and REFramework may stop normal updates before the next slow poll.
+        if not active and not reload_request and not slow_poll then return end
         local ctx = context()
         if reload_request and not matches(reload_request, ctx) then
             reload_request = nil; report("环境已改变，分页重载已取消")
@@ -322,10 +333,12 @@ function M.new(deps)
             end
             active = nil
             attempted = nil
+            reentry_quarantine = true
             reload_blocked, reload_request = nil, nil
             clear_candidate()
             if library.reset_slot_names then library.reset_slot_names() end
         end
+        if not slow_poll then return end
         for i = #entries, 1, -1 do
             if entries[i].can_close and entries[i].can_close() then
                 trace("close",{entry=i})
@@ -362,7 +375,8 @@ function M.new(deps)
             if not warned then warned = true; block_reload("保存任务尚未释放，请重新启动游戏") end
             return
         end
-        attempted = { session = ctx.session, data = ctx.data, fighter_id = ctx.fighter_id }
+        attempted = { session = ctx.session, data = ctx.data, fighter_id = ctx.fighter_id,
+            record_func = ctx.record_func }
         local generation = save_generation
         local entry, err, failed, deferred = (deps.prepare or Session.prepare)(api, threads, ctx, ready)
         if not entry then
@@ -392,6 +406,7 @@ function M.new(deps)
         entries[#entries + 1], active = entry, entry
         local attached, why = entry.attach()
         if not attached then report(why); stopped = true; return end
+        reentry_quarantine = false
         presentation_generation = presentation_generation + 1
         library.expansion_error = nil
         if not manual_reload and library.reset_slot_names then library.reset_slot_names() end

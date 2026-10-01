@@ -19,7 +19,7 @@ test("presentation identity expires before native Release and renews on reentry"
     assert(f.runtime.state()=="active" and f.runtime.presentation_session()==nil)
     f.ctx.allowed=false; f.tick()
     assert(f.runtime.presentation_session()==nil)
-    f.ctx.allowed=true; f.tick()
+    f.ctx.allowed=true; f.tick(90)
     assert(f.runtime.state()=="active",f.stats.error)
     assert(f.runtime.presentation_session()~=first and f.runtime.presentation_session()~=nil)
     f.runtime.reset()
@@ -826,7 +826,7 @@ test("exit discards edited clone, restores both native rows and never saves JSON
     f.ctx.allowed=false; f.tick()
     assert(f.fighter.fields.RecordSlots:get_size()==8 and f.fighter.fields.RecordSlots:get_element(0).fields.Frame==1)
     assert(f.pages[1].fields._ChildData:get_size()==12 and f.runtime.state()=="unloaded")
-    f.ctx.allowed=true; f.tick(); assert(f.runtime.state()=="active" and f.stats.autoload==2)
+    f.ctx.allowed=true; f.tick(90); assert(f.runtime.state()=="active" and f.stats.autoload==2)
 end)
 test("worker save returns independent original-eight baseline without allocation",function()
     local f=fixture(); f.runtime.install_hooks(); f.tick(); f.thread(22)
@@ -886,6 +886,35 @@ test("release hook only notifies; game thread restores after native release",fun
     f.thread(7); f.ctx.allowed=false; f.tick(); assert(f.fighter.fields.RecordSlots:get_size()==8)
 end)
 
+test("match transition retires the expanded bank before the next slow lifecycle poll",function()
+    local f=fixture(); f.runtime.install_hooks(); f.tick()
+    assert(f.runtime.state()=="active" and f.fighter.fields.RecordSlots:get_size()==80)
+    f.ctx.allowed=false
+    f.runtime.tick()
+    assert(f.runtime.state()=="unloaded","expanded session survived the first unsafe frame")
+    assert(f.fighter.fields.RecordSlots:get_size()==8,"match transition left eighty slots attached")
+end)
+
+test("record function replacement retires the old recording session immediately",function()
+    local f=fixture(); f.runtime.install_hooks(); f.tick()
+    local replacement=f.obj({_tData=f.data,_gData=f.obj({ReqType=0,State=0,SlotID=0})})
+    f.ctx.record_func=replacement
+    f.runtime.tick()
+    assert(f.runtime.state()=="unloaded","old recorder identity remained active")
+    assert(f.fighter.fields.RecordSlots:get_size()==8,"old recorder kept the expanded bank attached")
+end)
+
+test("return from a match requires six stable lifecycle checks before remount",function()
+    local f=fixture(); f.runtime.install_hooks(); f.tick()
+    f.ctx.allowed=false; f.runtime.tick()
+    assert(f.runtime.state()=="unloaded")
+    f.ctx.allowed=true
+    for _=1,75 do f.runtime.tick() end
+    assert(f.runtime.state()=="unloaded","returning session mounted before the quarantine window completed")
+    for _=1,15 do f.runtime.tick() end
+    assert(f.runtime.state()=="active" and f.stats.autoload==2)
+end)
+
 test("native Release replacing the bank restores owned menus and allows a fresh training session",function()
     local f=fixture(); local native_rows=f.pages[1].fields._ChildData
     f.runtime.install_hooks(); f.tick()
@@ -901,7 +930,7 @@ test("native Release replacing the bank restores owned menus and allows a fresh 
     assert(f.fighter.fields.RecordSlots==new_bank,"retirement overwrote the game's replacement bank")
     assert(f.pages[1].fields._ChildData==native_rows,"released session left its pager behind")
     assert(old.phase=="closed" and f.runtime.state()=="unloaded",f.stats.error)
-    f.ctx.allowed=true; f.tick()
+    f.ctx.allowed=true; f.tick(90)
     assert(f.runtime.state()=="active" and f.session()~=old and f.stats.autoload==2)
     f.ctx.menu_closed=false
     local pager=f.pages[1].fields._ChildData:get_element(0)
@@ -952,7 +981,7 @@ test("released session clears prior recovery block without overwriting replaceme
     f.call("Release",f.manager.id,0)
     f.ctx.allowed=false; f.tick()
     assert(f.fighter.fields.RecordSlots==bank)
-    f.ctx.allowed=true; f.tick()
+    f.ctx.allowed=true; f.tick(90)
     assert(f.runtime.state()=="active" and f.stats.autoload==2 and f.stats.logs==1)
 end)
 test("safe update shutdown in idle restores native rows and recorder selection",function()
@@ -1125,7 +1154,7 @@ end)
 test("six real-shaped save and reentry cycles do not exhaust the four retained sessions",function()
     local f=fixture({save_success=2}); f.runtime.install_hooks()
     for _=1,6 do
-        f.ctx.allowed=true; f.tick()
+        f.ctx.allowed=true; f.tick(90)
         assert(f.runtime.state()=="active",f.stats.error)
         local entry=f.session()
         local controller=f.obj({saveKey="TRAINING_SAVE_DATA"})

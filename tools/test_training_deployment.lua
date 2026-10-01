@@ -4,7 +4,9 @@ local root = arg[1] or "."
 package.path = root .. "/autorun/?.lua;" .. root .. "/autorun/?/init.lua"
 package.cpath = ""
 local modules = {
-    "SF6CCTrainingLibrary/Records", "SF6CCTrainingLibrary/Library", "SF6CCTrainingLibrary/NativeRecordingRuntime", "SF6CCTrainingLibrary/NativeRecordingNamePage",
+    "SF6CCTrainingLibrary/Records", "SF6CCTrainingLibrary/Library",
+    "SF6CCTrainingLibrary/NativeRecordingRuntime", "SF6CCTrainingLibrary/NativeRecordingNamePage",
+    "SF6CCTrainingLibrary/TrainingGuardSettings",
 }
 for _, name in ipairs(modules) do
     assert(type(require(name)) == "table", "invalid module: " .. name)

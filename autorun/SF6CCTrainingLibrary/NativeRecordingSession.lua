@@ -45,6 +45,7 @@ function M.prepare(api, threads, ctx, protection)
     local roots, entry_thread, navigation = {}, threads.get_id(), nil
     local stage, slot_lifetime = "context", nil
     local self = { manager = ctx.session, data = ctx.data, fighter_id = ctx.fighter_id,
+        record_func = ctx.record_func,
         readers = 0, issued = 0, completed = 0, released = false, phase = "preparing" }
     local function own(obj)
         assert(obj, "native allocation returned nil")

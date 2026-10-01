@@ -60,7 +60,11 @@ local function fixture(capacity, fault, native_slots)
         end
         reversal_fields[field] = collection(group)
     end
+    local guard_fields = object({ GuardType = 0, GuardWeight = 40, GuardCount = 2,
+        IsGuardSwitching = false, GuardOnlyType = 0 })
+    stats.guard_fields = guard_fields
     local td = object({ RecordSetting = settings,
+        GuardSetting = object({ DummyData = guard_fields }),
         ReversalSetting = object({ FighterDataList = collection({ [28] = object(reversal_fields) }), ReversalType = 0 }) })
     local reversal = object({ _tData = td }); reversal.call = function() end
     local rec = object({ _tData = td })
@@ -96,6 +100,7 @@ local function fixture(capacity, fault, native_slots)
         json = { load_file = function() stats.reads = stats.reads + 1; return data end,
             dump_file=function(_,snapshot) stats.exported=snapshot; return true end }, fs = {},
     }, { __index = _G })
+    _G.sdk = env.sdk
     local backend = assert(loadfile(os.getenv("SF6CC_DYNAMIC_RECORDS_TEST_SOURCE")
         or "autorun/SF6CCTrainingLibrary/Records.lua", "t", env))()
     backend.get_context = function() return { fighter_id = 28, source_player = "P2" } end
@@ -104,7 +109,7 @@ local function fixture(capacity, fault, native_slots)
         stats.tick = stats.tick + 1
         return task.tick(ctx)
     end
-    return backend, stats, ctx, advance, data, settings, fighter, slots, env
+    return backend, stats, ctx, advance, data, settings, fighter, slots, env, guard_fields
 end
 test("clear empties all eighty recordings and thirty reversals without replacing the bank or files", function()
     local records, stats, ctx, _, _, _, fighter, slots = fixture(3600, nil, 80)
@@ -299,8 +304,13 @@ test("wall clock timeout cancels once and restores the initialized empty slots",
 end)
 test("v2 settings and thirty reversals are applied after initialization", function()
     local records, stats, ctx, tick, data, settings = fixture(0)
+    local guard_fields = stats.guard_fields
     data.schema = "sf6cc.training_setup.v2"
-    data.settings = { record = { record_setting_fields = { RecordStartType = 1 } } }
+    data.settings = {
+        record = { record_setting_fields = { RecordStartType = 1 } },
+        dummy = { guard_fields = { GuardType = 3, GuardWeight = 70,
+            GuardCount = 4, IsGuardSwitching = true, GuardOnlyType = 1 } },
+    }
     local ok, msg, _, _, receipt = records.begin_import("config.json", {}, ctx)
     assert(ok, msg)
     local done, success, result, final
@@ -310,7 +320,29 @@ test("v2 settings and thirty reversals are applied after initialization", functi
         if done then break end
     end
     assert(done and success, result)
-    assert(final.reversals == 30 and stats.writes == 432 and settings:get_field("RecordStartType") == 1)
+    assert(final.reversals == 30 and final.guard_settings == 5 and stats.writes == 432
+        and settings:get_field("RecordStartType") == 1)
+    assert(guard_fields:get_field("GuardType") == 3 and guard_fields:get_field("GuardWeight") == 70
+        and guard_fields:get_field("GuardCount") == 4
+        and guard_fields:get_field("IsGuardSwitching") == true
+        and guard_fields:get_field("GuardOnlyType") == 1)
+end)
+test("older v2 configs preserve the current dummy guard settings", function()
+    local records, stats, ctx, _, data = fixture(3600)
+    local guard_fields = stats.guard_fields
+    data.schema = "sf6cc.training_setup.v2"
+    data.settings = { record = { record_setting_fields = { RecordStartType = 1 } } }
+    guard_fields:set_field("GuardType", 4)
+    local ok, msg, _, _, receipt = records.begin_import("old-v2.json", {}, ctx)
+    assert(ok, msg)
+    assert(receipt.guard_settings == 0 and guard_fields:get_field("GuardType") == 4)
+end)
+test("invalid dummy guard settings abort before backup or native writes", function()
+    local records, stats, ctx, _, data = fixture(3600)
+    data.schema = "sf6cc.training_setup.v2"
+    data.settings = { dummy = { guard_fields = { GuardType = "all" } } }
+    local ok = records.begin_import("invalid-guard.json", {}, ctx)
+    assert(not ok and stats.backups == 0 and stats.writes == 0)
 end)
 test("v2 reversal errors abort before any initialization", function()
     local records, stats, ctx, _, data = fixture(0)
@@ -363,6 +395,7 @@ test("eighty-slot import preserves slot80 name and clears omitted extra recordin
     assert(#stats.exported.slots==80 and stats.exported.slots[80].name=="新名字")
     assert(stats.exported.annotations.record_slots[1].text=="防跳")
     assert(stats.exported.annotations.record_slots[80].text=="新名字")
+    assert(stats.exported.settings.dummy.guard_fields.GuardType==0)
     assert(stats.exported.slots[80].input_buff[1]==16 and stats.writes==before)
     data.slots[3]=nil; data.annotations=nil
     assert(records.begin_import("eight.json",{clear_empty_slots=true},ctx))
@@ -370,6 +403,7 @@ test("eighty-slot import preserves slot80 name and clears omitted extra recordin
 end)
 test("save current captures all eighty slots and three native reversal groups into same file",function()
     local records,stats,ctx,_,_,_,_,slots,env=fixture(3600,nil,80)
+    local guard_fields=stats.guard_fields
     local Json=require("tools/training_record_bank/vendor/dkjson")
     local path="SF6CC_TrainingConfigs/configs/test.json"
     local raw=Json.encode({schema="sf6cc.training_setup.v2",fighter_id=28,source_player="P2",
@@ -390,6 +424,7 @@ test("save current captures all eighty slots and three native reversal groups in
         return result
     end
     env.json.dump_string=function(value)return Json.encode(native_json_value(value),{indent=true})end
+    assert(guard_fields:get_field("GuardType")==0 and guard_fields:get_field("GuardWeight")==40)
     assert(records.set_slot_name(80,"last"))
     slots[79]:set_field("Frame",3); slots[79]:set_field("IsValid",true)
     local ok,message=records.save_current(path)
@@ -399,6 +434,8 @@ test("save current captures all eighty slots and three native reversal groups in
     assert(saved.title=="keep title" and saved.description=="keep note" and #saved.slots==80)
     assert(saved.slots[80].input_buff[3]==16 and saved.slots[80].name=="last")
     assert(saved.annotations.record_slots[80].text=="last")
+    assert(saved.settings.dummy.guard_fields.GuardType==guard_fields:get_field("GuardType"))
+    assert(saved.settings.dummy.guard_fields.GuardWeight==guard_fields:get_field("GuardWeight"))
     assert(saved.slots[1].frame==0 and saved.slots[1].input_buff==nil)
     for _,g in ipairs({"down","guard","damage"}) do assert(#saved.reversals[g]==10) end
     assert(stats.writes==0 and stats.forces==0 and #stats.starts==0)

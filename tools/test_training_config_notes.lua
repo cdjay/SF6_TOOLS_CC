@@ -97,6 +97,7 @@ test("backend loads note dependency during autorun, not deferred callback", func
             if name == "SF6CCTrainingLibrary/TrainingConfigCompatibility" then return dofile("autorun/SF6CCTrainingLibrary/TrainingConfigCompatibility.lua") end
             if name == "SF6CCTrainingLibrary/TrainingRecordImport" then return assert(loadfile("autorun/SF6CCTrainingLibrary/TrainingRecordImport.lua", "t", env))() end
             if name == "SF6CCTrainingLibrary/TrainingSlotLayout" then return dofile("autorun/SF6CCTrainingLibrary/TrainingSlotLayout.lua") end
+            if name == "SF6CCTrainingLibrary/TrainingGuardSettings" then return assert(loadfile("autorun/SF6CCTrainingLibrary/TrainingGuardSettings.lua", "t", env))() end
             assert(name == "SF6CCTrainingLibrary/TrainingConfigNotes"); loads = loads + 1; return Notes
         end,
         fs = { read = function(path)
