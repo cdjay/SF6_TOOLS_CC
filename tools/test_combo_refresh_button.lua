@@ -22,7 +22,7 @@ assert(refresh_pos < start_pos,
 assert(single_line:find(
     'file_system.request_combo_list_refresh("manual list refresh", true)', 1, true
 ), "manual refresh must use the safe queued refresh path and reload the selected JSON")
-assert(single_line:find("local visible_button_count = RecordingPolicy.is_enabled() and 3 or 2", 1, true),
-    "idle toolbar must reserve only refresh and training when recording is retired")
+assert(single_line:find("local visible_button_count = RecordingPolicy.is_training_enabled() and 3 or 2", 1, true),
+    "idle toolbar must reserve space for refresh, recording and training")
 
 print("combo refresh button tests passed")

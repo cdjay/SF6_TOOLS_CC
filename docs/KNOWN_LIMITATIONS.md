@@ -5,16 +5,24 @@ Status: `CURRENT`
 This is the sole current list of evidence and architecture blockers. Green
 offline tests do not remove these limitations.
 
-Legacy ComboTrials recording is now disabled in the workspace, pending live
-validation and deployment. Its buttons, hotkey registration and remote recording
-commands are suppressed; the replay bottom recording bar is hidden. Existing
-training/demo playback and standalone training-library recordings are unchanged.
-Recording in the new replay-analysis UI is planned, not yet implemented.
-Focused validation: 35 of 36 test files pass and all seven touched Lua files
-parse. The sole failure is the existing main-local governance ceiling
-(166 versus 165), reproduced against unchanged HEAD as well; this change adds
-no main-chunk local. One retirement test was added, the refresh-toolbar contract
-was updated for two idle controls, and no permanent regression was removed.
+October 5 configuration-save review: the shared library queue now waits for
+30 update callbacks after a newly mounted session, both SaveManager idle and
+the training manager's save request to clear before running a closed-menu job.
+It also refuses to run while native Release is in progress. A fake-SDK
+regression covers the gates, resumption, and cancellation when training ends
+during the wait. This prevents confirmed control-flow overlaps, but does not
+identify the cause of the tester's crash:
+there is no crash report for that event, and match return / P2 switch with
+the new build still needs real-game validation. Native Release retirement and
+configuration snapshot reads remain outside the protection of Lua exception
+handling for process-level access violations.
+
+ComboTrials recording remains available in training. Its legacy CFN replay
+recording entry, hotkeys and remote recording commands are disabled; the replay
+bottom recording bar is hidden. Existing training/demo playback and standalone
+training-library recordings are unchanged. Recording in the new replay-analysis
+UI is planned, not yet implemented. The training/replay recording scope has a
+focused regression, but real-game acceptance is still required.
 
 Dummy guard persistence has focused offline coverage but still requires a
 real-game smoke. New training-library saves include the five verified native

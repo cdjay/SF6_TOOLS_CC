@@ -21,7 +21,8 @@ env.require = function(name)
             return {install_hooks=function() hook_installs=hook_installs+1 end,
                 tick=function() runtime_ticks=runtime_ticks+1 end,
                 ui_tick=function() pager_ticks=pager_ticks+1 end,
-                state=function() return "active" end,reset=function() end}
+                state=function() return "active" end,
+                presentation_session=function() return 1 end,reset=function() end}
         end}
         return loaded[name]
     end
@@ -57,11 +58,17 @@ local library=loaded["SF6CCTrainingLibrary/Library"].shared()
 local ticks=0
 library.has_pending=function() return true end
 library.tick=function() ticks=ticks+1 end
+for _=1,29 do
+    for _,callback in ipairs(callbacks) do
+        if callback.event=="on_pre_application_entry" then callback.fn() end
+    end
+end
+assert(ticks==0,"queued operation ran before the new session settled")
 for _,callback in ipairs(callbacks) do
     if callback.event=="on_pre_application_entry" then callback.fn() end
 end
-assert(ticks==1, "queued operation did not run without legacy autorun")
-assert(runtime_ticks==1 and pager_ticks==1,"entry must drive lifecycle and pager even with manual jobs")
+assert(ticks==1, "queued operation did not run after the settle window")
+assert(runtime_ticks==30 and pager_ticks==30,"entry must drive lifecycle and pager while jobs wait")
 assert(env.SF6CC_NativeNotes==nil and env.GameState==nil and env.SF6CC_RuntimeSafety==nil)
 local reloads=0
 state.runtime.request_reload=function() reloads=reloads+1 end

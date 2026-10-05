@@ -3,13 +3,14 @@ if _G.SF6CC_NATIVE_MOUNT_RETAINED then return end
 local State=require("SF6CCTrainingLibrary/State")
 if State.started then return end
 State.started=true
-local state={stopped=false,active_ticks=0,allocations={}}
+local state={stopped=false,active_ticks=0,allocations={},job_age=0}
 _G.SF6CC_NATIVE_MOUNT_RETAINED=state
 local TAG="[SF6CC-RuntimeWithManualLibrary] "
 local Library=require("SF6CCTrainingLibrary/Library")
 local Runtime=require("SF6CCTrainingLibrary/NativeRecordingRuntime")
 local library=Library.shared()
 local api=setmetatable({},{__index=sdk})
+local CONFIG_SETTLE_UPDATES=30
 for _,name in ipairs({"create_instance","create_instance_global","create_managed_array"}) do
     api[name]=function(...)
         assert(#state.allocations<2048,"diagnostic retention limit reached; restart required")
@@ -19,6 +20,11 @@ for _,name in ipairs({"create_instance","create_instance_global","create_managed
     end
 end
 local in_update=false
+local function save_idle(ctx)
+    local manager=sdk.get_managed_singleton("app.storage.SaveManager")
+    return manager and manager:call("get_IsBusy")==false
+        and ctx.session:get_field("_IsSaveReq")==false
+end
 local runtime=Runtime.new({api=api,threads=thread,library=library,
     in_ui_update=function() return in_update end,context=Library.runtime_context,
     trace=function(event,values)
@@ -32,19 +38,27 @@ local runtime=Runtime.new({api=api,threads=thread,library=library,
         end
         log.info("[SF6CC-SaveFence] "..table.concat(parts,"; "))
     end,
-    save_idle=function(ctx)
-        local manager=sdk.get_managed_singleton("app.storage.SaveManager")
-        return manager and manager:call("get_IsBusy")==false
-            and ctx.session:get_field("_IsSaveReq")==false
-    end,
+    save_idle=save_idle,
     log=function(message) log.error(TAG..tostring(message)) end})
 state.runtime=runtime
 State.runtime=runtime
 local ok,err=pcall(runtime.install_hooks)
 if not ok then state.stopped=true; log.error(TAG.."HOOKS FAILED "..tostring(err)); return end
 function State.tick_jobs()
-    if state.stopped or runtime.state()~="active" or not library.has_pending() then return end
+    if state.stopped then return end
+    local generation=runtime.presentation_session()
+    if generation~=state.job_generation then
+        state.job_generation, state.job_age=generation,0
+    end
+    if generation then state.job_age=math.min(state.job_age+1,CONFIG_SETTLE_UPDATES) end
+    if runtime.state()~="active" or not library.has_pending() then return end
     assert(in_update,"configuration job outside the accepted update scope")
+    if not generation or state.job_age<CONFIG_SETTLE_UPDATES then return end
+    local ok,ctx=pcall(Library.runtime_context)
+    if ok and type(ctx)=="table" and ctx.allowed and not ctx.error and ctx.session then
+        local checked,idle=pcall(save_idle,ctx)
+        if not checked or not idle then return end
+    end
     library.tick()
 end
 log.info(TAG.."ARMED; remembered P2 configuration imports after runtime attachment; shared configuration queue")

@@ -1011,7 +1011,7 @@ end
 -- SINGLE LINE MODE
 -- =========================================================
 local function draw_single_line_content()
-    if RuntimeSafety.is_replay_allowed() and not RecordingPolicy.is_enabled() then return end
+    if RuntimeSafety.is_replay_allowed() and not RecordingPolicy.is_replay_enabled() then return end
     local sw, sh = ctx.cached_sw, ctx.cached_sh
     local w_width = imgui.get_window_size().x
     local win_h = imgui.get_window_size().y
@@ -1035,7 +1035,7 @@ local function draw_single_line_content()
     local return_gap = 0
     local is_demo_active_early = (ctx.demo_state and ctx.demo_state.is_playing)
     local is_replay_mode = RuntimeSafety.is_replay_allowed()
-    local visible_button_count = RecordingPolicy.is_enabled() and 3 or 2
+    local visible_button_count = RecordingPolicy.is_training_enabled() and 3 or 2
     if trial_state.is_recording or is_demo_active_early or is_replay_mode then
         visible_button_count = 2
     elseif trial_state.is_playing then
@@ -1138,7 +1138,7 @@ local function draw_single_line_content()
             if styled_sf6_button("刷新列表", false, btn_w, true, false, SWITCH_COLORS) then
                 file_system.request_combo_list_refresh("manual list refresh", true)
             end
-            if RecordingPolicy.is_enabled() then
+            if RecordingPolicy.is_training_enabled() then
                 imgui.same_line(0, sp)
                 if styled_sf6_button("录制连段", false, btn_w, true, false, P1_COLORS) then start_recording(0) end
             end
@@ -1202,7 +1202,7 @@ local function draw_single_line_content()
 end
 
 local function draw_combo_trials_content(is_floating)
-    if RuntimeSafety.is_replay_allowed() and not RecordingPolicy.is_enabled() then return end
+    if RuntimeSafety.is_replay_allowed() and not RecordingPolicy.is_replay_enabled() then return end
     local sw, sh = ctx.cached_sw, ctx.cached_sh
     local size = imgui.get_window_size()
     local w_width = (size.x > 50) and size.x or (sw * 0.44)
@@ -1371,7 +1371,7 @@ local function draw_combo_trials_content(is_floating)
         if styled_sf6_button("取消并返回", false, rec_btn_w, is_floating, false, P1_COLORS) then
             cancel_recording()
         end
-    elseif RecordingPolicy.is_enabled() then
+    elseif RecordingPolicy.is_training_enabled() then
         if styled_sf6_button("录制 P1", false, rec_btn_w, is_floating, false, P1_COLORS) then
             start_recording(0)
         end
@@ -1610,7 +1610,7 @@ local function _ctui_runtime_allowed()
 end
 
 re.on_frame(function()
-    if RuntimeSafety.is_replay_allowed() and not RecordingPolicy.is_enabled() then
+    if RuntimeSafety.is_replay_allowed() and not RecordingPolicy.is_replay_enabled() then
         _ctui_hide_visual_state()
         _G._ct_bar_collapsed = false
         return
@@ -1819,7 +1819,7 @@ re.on_frame(function()
                 local mode_all_stacked = w_width < (absolute_btn_w * 1.5)
                 local mode_col2_3_inline = not mode_all_inline and not mode_all_stacked
 
-                local header_txt = "连段训练：训练与演示设置"
+                local header_txt = "连段训练：录制与训练设置"
                 if mode_all_stacked then
                     header_txt = "连段训练"
                 elseif mode_col2_3_inline then
@@ -2142,7 +2142,7 @@ local function draw_combo_trials_quick_settings()
 end
 
 local function draw_combo_trials_menu_ui()
-    if RuntimeSafety.is_replay_allowed() and not RecordingPolicy.is_enabled() then return end
+    if RuntimeSafety.is_replay_allowed() and not RecordingPolicy.is_replay_enabled() then return end
     if not _ctui_runtime_allowed() then return end
     local ok, err = pcall(function()
         local p_state = players[ui_state.viewed_player]

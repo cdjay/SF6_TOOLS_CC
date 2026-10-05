@@ -1,6 +1,7 @@
 package.path = "autorun/?.lua;" .. package.path
 local Policy = require("func/ComboTrials/RecordingPolicy")
-assert(Policy.is_enabled() == false)
+assert(Policy.is_training_enabled() == true)
+assert(Policy.is_replay_enabled() == false)
 
 local function read(path)
     local file = assert(io.open(path, "rb"))
@@ -16,16 +17,20 @@ local function between(source, first, following)
 end
 
 local function compile(source, env)
-    return assert(load(source, "recording-disabled", "t", env))()
+    return assert(load(source, "recording-scope", "t", env))()
 end
 
 local runtime = read("autorun/TrainingComboTrials_v1.0.lua")
 local ui = read("autorun/func/ComboTrials_UI.lua")
-local function forbidden() error("retired recording reached a side effect") end
+local function forbidden() error("replay recording reached a side effect") end
+local training_allowed = false
 local env = {
     ComboTrialsModules = { RecordingPolicy = Policy },
     _G = { CurrentTrainerMode = 4 },
-    RuntimeSafety = { is_training_allowed = forbidden, is_replay_allowed = forbidden },
+    RuntimeSafety = {
+        is_training_allowed = function() return training_allowed end,
+        is_replay_allowed = function() return not training_allowed end,
+    },
 }
 local start = compile(between(runtime, "local function start_recording(player_idx)",
     "local function start_trial(player_idx)") .. "\nreturn start_recording", env)
@@ -33,21 +38,36 @@ assert(start(0) == false and start(1) == false)
 
 env.ctx = {}
 env.can_start_combo_action = function() return true end
-env.is_replay_context = function() return true end
-env.start_recording = forbidden
-env.stop_recording_and_save = forbidden
-env.cancel_recording = forbidden
+local recorded, saved, canceled = 0, 0, 0
+env.start_recording = function() recorded = recorded + 1; return true end
+env.stop_recording_and_save = function() saved = saved + 1 end
+env.cancel_recording = function() canceled = canceled + 1 end
 env.ct_ticker = function() end
 env.trial_state = { is_recording = false }
 local started, demonstrated = 0, 0
 env.load_and_start_trial = function() started = started + 1 end
 env.start_demo = function() demonstrated = demonstrated + 1 end
 compile(between(runtime, "ctx.commands = {", "local TrainingHotkeys ="), env)
-for _, name in ipairs({ "record_p1", "record_p2", "save_recording", "cancel_recording" }) do
-    env.ctx.commands[name]()
-end
+training_allowed = true
+env.ctx.commands.record_p1()
+env.ctx.commands.record_p2()
+assert(recorded == 2, "training recording commands must be available")
+env.trial_state.is_recording = true
+env.ctx.commands.save_recording()
+env.ctx.commands.cancel_recording()
+assert(saved == 1 and canceled == 1, "training save and cancel must be available")
+env.trial_state.is_recording = false
 assert(env._G.ComboTrials_ReplaySavePlayer == nil)
 assert(env._G.ComboTrials_ReplayCancelPlayer == nil)
+training_allowed = false
+env.ctx.commands.record_p1()
+env.ctx.commands.record_p2()
+env.trial_state.is_recording = true
+env.ctx.commands.save_recording()
+env.ctx.commands.cancel_recording()
+env.trial_state.is_recording = false
+assert(recorded == 2 and saved == 1 and canceled == 1,
+    "training commands must not record in replay")
 env.ctx.commands.start_trial()
 env.ctx.commands.start_demo()
 assert(started == 1 and demonstrated == 1, "training and demo must remain usable")
@@ -66,6 +86,8 @@ for _, name in ipairs({ "record_p1", "record_p2", "stop_save", "cancel" }) do
     assert(env._G._replay_bridge_ts == timestamp, "stale command must be consumed")
 end
 assert(env._G.ComboTrials_ReplaySavePlayer == nil)
+assert(recorded == 2 and saved == 1 and canceled == 1,
+    "replay bridge must not start or finish recording")
 bridge_command = "hide_ui"
 bridge()
 assert(env._G._tsm_hide_ui == true, "unrelated bridge action must remain usable")
@@ -77,8 +99,22 @@ env.ct_ticker = forbidden
 for _, name in ipairs({ "record", "cancel_record", "stop_record" }) do
     env._G._tsm_web_cmd = name
     web()
-    assert(env._G._tsm_web_cmd == nil, "retired command must not remain queued")
+    assert(env._G._tsm_web_cmd == nil, "replay command must not remain queued")
 end
+assert(recorded == 2 and saved == 1 and canceled == 1,
+    "replay web commands must not record")
+training_allowed = true
+env.ct_ticker = function() end
+env._G._tsm_web_cmd = "record"
+web()
+env.trial_state.is_recording = true
+env._G._tsm_web_cmd = "stop_record"
+web()
+env._G._tsm_web_cmd = "cancel_record"
+web()
+assert(recorded == 3 and saved == 2 and canceled == 2,
+    "training web commands must record, save and cancel")
+env.trial_state.is_recording = false
 
 local scope
 assert(require("func/ComboTrials_Hotkeys").init(env.ctx, {
@@ -87,11 +123,11 @@ assert(require("func/ComboTrials_Hotkeys").init(env.ctx, {
 local actions = {}
 for _, action in ipairs(scope.actions) do actions[action.id] = action end
 for _, name in ipairs({ "record_p1", "record_p2", "save_recording", "cancel_recording" }) do
-    assert(actions[name] == nil, "saved legacy binding must have no registered action")
+    assert(actions[name] ~= nil, "training recording hotkey must be registered")
 end
 assert(actions.start_trial and actions.start_demo and actions.open_combo_dropdown)
 
--- Exercise both layouts at narrow and wide sizes; no retired button may draw.
+-- Exercise training and replay in both layouts at narrow and wide sizes.
 local single = between(ui, "local function draw_single_line_content()",
     "local function draw_combo_trials_content(is_floating)")
 local multi = between(ui, "local function draw_combo_trials_content(is_floating)",
@@ -119,7 +155,7 @@ for _, width in ipairs({ 220, 800, 1600 }) do
             get_max_text_width = function() return 90 end,
             update_replay_recording_status = function() return 0 end,
             combo_empty_text = function() return "empty" end,
-            start_recording = forbidden,
+            start_recording = function() clicks.recording = true end,
             load_and_start_trial = function() clicks.training = true end,
             styled_sf6_button = function(label)
                 labels[label] = true
@@ -130,10 +166,10 @@ for _, width in ipairs({ 220, 800, 1600 }) do
         end })
         local draw = compile(source, u)
         draw(false)
-        assert(clicks.refresh and clicks.training, "idle controls must work in both layouts")
-        for label in pairs(labels) do
-            assert(not label:find("录制", 1, true) and label ~= "保存连段", label)
-        end
+        assert(clicks.training and clicks.recording,
+            "training recording and playback controls must work in both layouts")
+        assert(labels["录制连段"] or (labels["录制 P1"] and labels["录制 P2"]),
+            "training recording button must be visible")
         labels = {}
         replay = true
         draw(false)
@@ -153,6 +189,4 @@ local frame_env = {
 compile(frame, frame_env)
 assert(hidden == 1 and frame_env._G._ct_bar_collapsed == false,
     "replay must release the bottom window and its collapse control")
-local manager = read("autorun/Training_ScriptManager.lua")
-assert(not manager:find("录制 P1 / 录制 P2", 1, true), "retired instructions must be removed")
-print("combo recording retirement tests passed")
+print("combo recording scope tests passed")
