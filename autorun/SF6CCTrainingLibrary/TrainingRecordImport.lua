@@ -3,11 +3,11 @@ local M = {}
 local Layout = require("SF6CCTrainingLibrary/TrainingSlotLayout")
 
 function M.new(adapter, owner, slots)
-    assert(#slots > 0 and #slots <= Layout.EXPANDED_RECORDS, "initialization exceeds supported recording count")
+    assert(#slots > 0 and #slots <= Layout.NATIVE_RECORDS, "initialization exceeds supported recording count")
     local seen = {}
     for _, slot in ipairs(slots) do
         assert(type(slot.slot)=="number" and slot.slot%1==0 and slot.slot>=1
-            and slot.slot<=Layout.EXPANDED_RECORDS and not seen[slot.slot], "invalid initialization slot")
+            and slot.slot<=Layout.NATIVE_RECORDS and not seen[slot.slot], "invalid initialization slot")
         assert(type(slot.required)=="number" and slot.required%1==0
             and slot.required>=1 and slot.required<=3600, "invalid initialization buffer length")
         seen[slot.slot]=true

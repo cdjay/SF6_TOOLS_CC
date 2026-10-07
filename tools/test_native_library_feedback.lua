@@ -41,7 +41,6 @@ library.result_revision=4; f.tick(true)
 assert(messages[#messages]=="录像和反击已清空","logging failure suppressed feedback")
 log=nil
 local queued="已排队，关闭游戏暂停菜单后执行"
-local reload="分页重载已排队，请关闭游戏暂停菜单"
 local function scenario(wait_text,done_text,expected,via_native)
     local messages,open,reads={},false,0
     local lib={status="就绪",status_ok=true,result_revision=0}
@@ -87,7 +86,6 @@ local function scenario(wait_text,done_text,expected,via_native)
 end
 scenario(queued,"已保存：测试.json","配置已保存",true)
 scenario(queued,"已保存：测试.json","配置已保存",false)
-scenario(reload,"分页已自动恢复，录像和配置未修改","翻页已恢复",false)
 do
     local queue,open={},true
     local lib={status="就绪",status_ok=true,result_revision=0}
@@ -98,12 +96,12 @@ do
         end,
         tick=function() end,
     },{pause_open=function() return open end})
-    lib.status=reload; f.tick(true); f.tick(true)
+    lib.status=queued; f.tick(true); f.tick(true)
     assert(#queue==1)
     open=false; f.tick(true)
     assert(#queue==0,"close reminder left waiting in a backed-up ticker queue")
-    lib.status="分页已自动恢复，录像和配置未修改"; f.tick(true)
-    assert(#queue==1 and queue[1]=="翻页已恢复")
+    lib.status="已保存：测试.json"; f.tick(true)
+    assert(#queue==1 and queue[1]=="配置已保存")
     lib.status=queued; open=true; f.tick(true); f.tick(true)
     assert(#queue==2)
     lib.status="保存未完成，请检查文件、角色和录像状态；详细原因见日志"

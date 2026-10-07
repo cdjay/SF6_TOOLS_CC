@@ -102,15 +102,14 @@ test("clear rejects busy or changed environments and reports backend failures wi
     assert(lib.request("clear")); lib.tick(); lib.tick()
     assert(cleared == 2 and not lib.status_ok and not lib.has_pending())
 end)
-test("unmounted expansion rejects oversized import and rename before queueing", function()
+test("eight-slot mode rejects oversized import and overwrite before queueing", function()
     local lib, ctx, calls, records = fixture()
     lib.refresh()
     lib.entries[1].metadata.record_slots=80
-    records.set_slot_name=function() error("must not rename an unattached native row") end
-    lib.expansion_error="[slot 1 / copy] invalid native object"
     assert(not lib.request("import") and not lib.has_pending())
-    assert(lib.status:find("当前仍为8栏位",1,true))
-    assert(not lib.can_edit_slot_names() and not lib.begin_note_edit(1))
+    assert(lib.status:find("超过8栏位",1,true))
+    assert(not lib.request("save") and not lib.has_pending())
+    assert(lib.status:find("无法覆盖",1,true))
     ctx.menu_closed=true; lib.tick()
     assert(calls.import==0)
 end)

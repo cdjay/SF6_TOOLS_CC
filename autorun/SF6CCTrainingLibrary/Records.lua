@@ -34,7 +34,7 @@ M._last_backup_path = nil
 local SOURCE_PLAYER = "P2"
 local SOURCE_PLAYER_INDEX = 1
 local SLOT_COUNT = SlotLayout.NATIVE_RECORDS
-local MAX_RECORD_SLOTS = SlotLayout.EXPANDED_RECORDS
+local MAX_RECORD_SLOTS = SlotLayout.NATIVE_RECORDS
 local REVERSAL_SLOT_COUNT = SlotLayout.NATIVE_REVERSALS
 local write_latest_backup_marker
 
@@ -294,6 +294,9 @@ local function get_current_slots()
 
     local slots, err, rec_func, record_ctx = get_slots_for_fighter(ctx.fighter_id)
     if not slots then return nil, err, ctx end
+    if slots:get_size() ~= SLOT_COUNT then
+        return nil, "Current recording bank is not the native eight slots", ctx
+    end
 
     return slots, nil, ctx, rec_func, record_ctx
 end
@@ -301,14 +304,15 @@ end
 local function record_capacity(slots)
     if slots and slots.get_size then
         local n = slots:get_size()
-        if n == SLOT_COUNT or n == 9 or n == MAX_RECORD_SLOTS then return n end
+        if n == SLOT_COUNT then return n end
         error("Unsupported native recording capacity: " .. tostring(n))
     end
     return SLOT_COUNT
 end
 
 function M.get_record_capacity()
-    local slots = get_current_slots()
+    local slots, err = get_current_slots()
+    if not slots then error(err or "Native recording bank unavailable") end
     return record_capacity(slots)
 end
 
@@ -1292,13 +1296,6 @@ local function validate_import_header(data, options)
     end
 
     local capacity_ok, capacity_err = SlotLayout.check_native(data)
-    if not capacity_ok then
-        local layout = SlotLayout.inspect(data)
-        if layout and layout.records.span>SLOT_COUNT and layout.records.span<=MAX_RECORD_SLOTS then
-            local ok, capacity = pcall(M.get_record_capacity)
-            capacity_ok, capacity_err = SlotLayout.check_native(data, ok and capacity or SLOT_COUNT)
-        end
-    end
     if not capacity_ok then return false, capacity_err end
 
     local ctx = M.get_context()
@@ -1664,12 +1661,15 @@ end
 function M.clear_current_configuration()
     ensure_dirs()
 
+    local slots, slots_err, ctx, rec_func = get_current_slots()
+    if not slots then return false, "清空已取消：" .. tostring(slots_err) end
+
     local backup_ok, backup_msg, backup_path = M.backup_current()
     if not backup_ok then
         return false, "清空已取消：自动备份失败：" .. tostring(backup_msg)
     end
 
-    local slots, slots_err, ctx, rec_func = get_current_slots()
+    slots, slots_err, ctx, rec_func = get_current_slots()
     if not slots then
         return false, "清空已取消，备份已保留：" .. tostring(slots_err), backup_path
     end

@@ -20,6 +20,7 @@ local objects={
 local env=setmetatable({sdk={get_managed_singleton=function(name) return objects[name] end}},{__index=_G})
 local exports=0
 local records={get_context=function() return {fighter_id=28} end,
+    get_record_capacity=function() return 8 end,
     export_new=function() exports=exports+1; return true,"exported","test.json" end,
     list_configs=function() return {{path="test.json"}} end,
     read_config_metadata=function() return {fighter_id=28,title="Test"} end}

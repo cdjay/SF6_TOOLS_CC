@@ -67,8 +67,8 @@ library.loaded=true; library.revision=1; library.selected=1
 library.entries={{path="a",metadata={fighter_id=28}},{path="b",metadata={fighter_id=28}}}
 library.selection=function() return library.entries[library.selected] end
 library.select=function(i) library.selected=i; return true end
-library.slot_capacity=function() assert(safe and not paused and not navigating); return 80 end
-library.slot_name=function(i) return i==9 and "截空" or "" end
+library.slot_capacity=function() assert(safe and not paused and not navigating); return 8 end
+library.slot_name=function(i) return i==8 and "截空" or "" end
 library.can_edit_slot_names=function() return true end
 function library.has_pending() return pending_save end
 function library.request_cancel() pending_save=false end
@@ -195,7 +195,7 @@ end)
 check("No duplicate/rebuild or menu writes while navigating and reopening",function()
     local before=writes; local roots=ui._MenuData
     for i=1,5 do paused=true; tick(60); paused=false; tick(60) end
-    assert(writes==before and ui._MenuData==roots and allocations==24)
+    assert(writes==before and ui._MenuData==roots and allocations==14)
     assert(hook_installs==16,"root hooks were registered again")
 end)
 local function_sig="app.training.TrainingMenuFunc:Function(app.training.TrainingFuncType, app.training.BaseParam, app.training.UIFlowTrainingMenu.Param.ViewData, System.Int32)"
@@ -375,17 +375,14 @@ check("Fixed rows open a catalog and double confirmation imports without rebuild
     for i,g in ipairs(groups) do assert(g._FocusIndex==views[i].Data._Type,"return retained list display at row "..i) end
     paused=false; tick(30)
     local slot_requests=#action_requests
-    for _,slot in ipairs({1,9,80}) do
+    for _,slot in ipairs({1,8}) do
         paused=true
         spin_ready=false
         local inits=spin_initializations
         _,rv=press(6); assert(rv==0,"slot browser must stay open")
-        assert(spin_ready and spin_initializations==inits+1,"TEXT to SPIN never initialized native callbacks")
-        assert(spin_row==1,"slot page must initialize its first row, not the catalog pager")
-        for i,v in ipairs(views) do assert(v.Data._Type==(i==1 and 1 or 0)) end
+        assert(not spin_ready and spin_initializations==inits,"one native page must not initialize arrows")
+        for i,v in ipairs(views) do assert(v.Data._Type==0) end
         for i,g in ipairs(groups) do assert(g._FocusIndex==views[i].Data._Type) end
-        for p=1,math.floor((slot-1)/8) do spin(p,p%2==1) end
-        assert(spin_initializations==inits+1,"ordinary page changes must not reinitialize the control")
         local index=(slot-1)%8+2
         _,label=call("app.helper.hMsg:GetMessage(System.Guid)",{nil,views[index].Data._MessageID},"original")
         assert(label.text:find("栏位"..slot,1,true))
@@ -412,10 +409,9 @@ check("Fixed rows open a catalog and double confirmation imports without rebuild
     assert(groups[10]._FocusIndex==0 and views[10].Data._Type==0)
     assert(spin_initializations==inits,"leaving the list must not initialize a spin")
     press(6)
-    assert(spin_row==1 and groups[1]._FocusIndex==1 and groups[10]._FocusIndex==0)
-    spin(1,true)
+    assert(groups[1]._FocusIndex==0 and groups[10]._FocusIndex==0)
     press(10)
-    assert(groups[1]._FocusIndex==0,"return retained the slot-page spin")
+    assert(groups[1]._FocusIndex==0,"return retained the slot page")
     press(1)
     assert(spin_row==10 and groups[10]._FocusIndex==1 and groups[1]._FocusIndex==0)
     spin(1,false)
@@ -430,7 +426,8 @@ check("Fixed rows open a catalog and double confirmation imports without rebuild
     local _,blank=call("app.helper.hMsg:GetMessage(System.Guid)",{nil,views[10].Data._MessageID},"original")
     assert(blank.text=="")
     press(13); paused=false; tick(30)
-    assert(allocations==count and #errors==0)
+    assert(allocations==count+3 and #errors==0,"catalog expansion should allocate only three page options")
+    count=allocations
     paused=true
     local tab_change="app.training.UIFlowTrainingMenu.Param:ChangeTabIndex(System.Int32)"
     local function change_tab(target)
@@ -446,14 +443,14 @@ check("Fixed rows open a catalog and double confirmation imports without rebuild
         assert(label.text:find("切换配置",1,true),"reentering the top-level tab retained a secondary page")
         assert(views[1].Data._Type==0 and views[2].Data._Type==4 and allocations==before_allocations)
     end
-    press(6); spin(1,true)
+    press(6)
     local before_writes=writes
     call(tab_change,{nil,object(),4},123)
     call(tab_change,{nil,param,999},123)
     assert(writes==before_writes,"foreign or invalid tab transition changed owned rows")
     change_tab(5)
     _,label=call("app.helper.hMsg:GetMessage(System.Guid)",{nil,views[2].Data._MessageID},"original")
-    assert(label.text:find("栏位9",1,true),"same-tab update must not reset a live inner page")
+    assert(label.text:find("栏位1",1,true),"same-tab update must not reset a live inner page")
     press(10)
     local requests=#action_requests
     local notices=#notifications
@@ -591,11 +588,13 @@ check("An already-skipped call completes its return during session invalidation"
     presentation_id=2
 end)
 check("Reset performs no native writes; closed-menu reload adopts own page",function()
-    local before=writes; paused=true; for _,f in ipairs(resets) do f() end; tick(60)
+    local before,old_allocations=writes,allocations; paused=true; for _,f in ipairs(resets) do f() end; tick(60)
     assert(writes==before)
     updates={}; resets={}; hooks={}; load(); tick(60); assert(writes==before)
     paused=false; tick(60)
-    assert(ui._MenuData:get_size()==10 and ui._MenuData:get_element(5)==tab and allocations==34)
+    assert(ui._MenuData:get_size()==10 and ui._MenuData:get_element(5)==tab
+        and allocations==old_allocations,
+        "reset allocations "..tostring(allocations).." from "..tostring(old_allocations))
 end)
 check("Recreated UI receives one page; stale UI is never restored or written",function()
     local stale=ui; local previous=stale._MenuData

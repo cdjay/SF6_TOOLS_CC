@@ -3,6 +3,7 @@ local Compatibility = require("SF6CCTrainingLibrary/TrainingConfigCompatibility"
 local character_name = require("SF6CCTrainingLibrary/CharacterNames")
 -- Autorun search paths are unavailable on first use from a deferred callback.
 local Safety = require("SF6CCTrainingLibrary/Context")
+local Records = require("SF6CCTrainingLibrary/Records")
 local M = {}
 
 function M.new(records, context, choices)
@@ -148,13 +149,21 @@ function M.new(records, context, choices)
             and kind ~= "backup" and kind ~= "restore" then return false end
         local ctx, err = safe_context()
         if not ctx then status(false, err); return false end
+        if ctx.slot_count ~= nil and ctx.slot_count ~= 8 then
+            status(false, "当前训练数据不是8栏位，请重启游戏")
+            return false
+        end
         if ctx.busy ~= false then status(false, "请先停止录制、播放或连段训练"); return false end
         local entry = self.selection()
         if (kind == "import" or kind == "save") and not entry then status(false, "请先选择配置"); return false end
+        if kind == "save" and type(entry.metadata.record_slots)=="number"
+            and entry.metadata.record_slots>8 then
+            status(false, "此配置超过8栏位，无法覆盖；原文件未修改")
+            return false
+        end
         if kind == "import" then
-            if self.expansion_error and type(entry.metadata.record_slots)=="number"
-                and entry.metadata.record_slots>8 then
-                status(false, "录像栏位扩展启动失败，当前仍为8栏位；配置未导入、文件未修改")
+            if type(entry.metadata.record_slots)=="number" and entry.metadata.record_slots>8 then
+                status(false, "此配置超过8栏位，无法导入；原文件未修改")
                 return false
             end
             local compatible, reason = self.selection_compatibility(ctx)
@@ -196,7 +205,7 @@ function M.new(records, context, choices)
     function self.slot_capacity() return records.get_record_capacity and records.get_record_capacity() or 8 end
     function self.record_frames() return records.get_record_frames and records.get_record_frames() or nil end
     function self.slot_name(slot) return records.get_slot_name and records.get_slot_name(slot) or "" end
-    function self.can_edit_slot_names() return not self.expansion_error and type(records.set_slot_name)=="function" end
+    function self.can_edit_slot_names() return type(records.set_slot_name)=="function" end
     function self.reset_slot_names() if records.reset_slot_names then records.reset_slot_names() end end
     local function note_context(token)
         if type(token) ~= "table" then return false end
@@ -209,10 +218,6 @@ function M.new(records, context, choices)
         local ctx, err = safe_context()
         if not ctx or ctx.busy ~= false then status(false, err or "请先停止录制和播放"); return nil end
         if slot~=nil then
-            if self.expansion_error then
-                status(false, "录像栏位扩展启动失败，原生改名未接入；名称未修改")
-                return nil
-            end
             if type(slot)~="number" or slot%1~=0 or slot<1 or slot>self.slot_capacity() then return nil end
             note_edit={slot=slot,session=ctx.session,data=ctx.data,fighter_id=ctx.fighter_id}
             return note_edit
@@ -384,12 +389,15 @@ function M.runtime_context()
     if not tm or tm:get_field("_IsInit") ~= true then return { allowed = false } end
     local record = tm:call("get_RecordFunc")
     if not record then return { allowed = false } end
-    local ctx = require("SF6CCTrainingLibrary/Records").get_context()
+    local ctx = Records.get_context()
+    local capacity_ok, slot_count = pcall(Records.get_record_capacity)
     local recording, replay = record:call("IsRecording"), record:call("IsReplayNow")
     local pause = sdk.get_managed_singleton("app.PauseManager")
     local bit = pause and pause:get_field("_CurrentPauseTypeBit")
     return { allowed = true, session = tm, data = tm:get_field("_tData"),
-        fighter_id = ctx.fighter_id, error = ctx.error,
+        fighter_id = ctx.fighter_id,
+        error = ctx.error or (not capacity_ok and "当前训练数据不是8栏位，请重启游戏" or nil),
+        slot_count = capacity_ok and slot_count or nil,
         menu_closed = bit == 64 or bit == 2112,
         record_func = record, recording = recording, replay = replay,
         combo_busy = _G.ComboTrials_IsPlaying == true or _G.ComboTrials_IsRecording == true,

@@ -1,136 +1,98 @@
--- Real entry, Library and Panel with fake engine/recording IO; not live-game evidence.
-package.path="autorun/?.lua;"..package.path
-local fixture=require("tools.fixtures.native_recording_runtime")
-local Runtime=require("SF6CCTrainingLibrary/NativeRecordingRuntime")
-local Library=require("SF6CCTrainingLibrary/Library")
-local f=fixture({native_capacity=80,menu_structs=true})
-f.manager.fields._IsSaveReq=false
-f.ctx.fighter_name="Mai"
-local counts={scans=0,exports=0,imports=0,saves=0,autoload=0}
-local in_callback,clicked,panel_open=false,nil,false
-local names={}
+-- Entry integration: native eight-slot mode never installs hooks or replaces banks.
+package.path = "autorun/?.lua;" .. package.path
+local Runtime = require("SF6CCTrainingLibrary/NativeEightRuntime")
+local Library = require("SF6CCTrainingLibrary/Library")
+
+local function object(id)
+    return {get_address=function() return id end,
+        get_field=function(_,name) assert(name=="_IsSaveReq"); return false end}
+end
+local session, data, recorder = object(1), object(2), object(3)
+local ctx={allowed=true,session=session,data=data,record_func=recorder,
+    fighter_id=28,slot_count=8,busy=false,menu_closed=true}
+local counts={autoload=0,imports=0,saves=0,cancels=0}
 local records={
-    get_context=function() return f.ctx end,
-    list_configs=function() counts.scans=counts.scans+1; return {{path="configs/mai.json",filename="mai.json"}} end,
-    read_config_metadata=function() return {title="Mai test",fighter_id=28,fighter_name="Mai",record_slots=80} end,
-    reset_slot_names=function() names={} end,
-    get_slot_name=function(slot) return names[slot] or "" end,
-    get_record_capacity=function() return f.fighter.fields.RecordSlots:get_size() end,
+    get_record_capacity=function() return ctx.slot_count end,
+    get_slot_name=function() return "" end,
+    reset_slot_names=function() end,
+    list_configs=function() return {{path="mai.json",filename="mai.json"}} end,
+    read_config_metadata=function() return {fighter_id=28,record_slots=8,title="Mai"} end,
+    begin_import=function(path)
+        counts.imports=counts.imports+1
+        return true,"imported",path,nil,{kind="import",written=8,cleared=0,reversals=30,apply_state="applied"}
+    end,
+    save_current=function(path)
+        counts.saves=counts.saves+1
+        return true,"saved",path
+    end,
 }
-local function assert_job()
-    assert(in_callback and f.ctx.menu_closed and f.ctx.busy==false,"native IO escaped closed-menu update")
+local library=Library.new(records,function() return ctx end,{
+    load=function() return { ["28"]="mai.json" } end,
+    save=function() return true end,
+})
+local autoload=library.autoload
+library.autoload=function(...)
+    counts.autoload=counts.autoload+1
+    return autoload(...)
 end
-records.export_new=function() assert_job(); counts.exports=counts.exports+1; return true,"exported","configs/mai.json" end
-records.save_current=function() assert_job(); counts.saves=counts.saves+1; return true,"saved","configs/mai.json" end
-records.begin_import=function(path)
-    assert_job(); counts.imports=counts.imports+1; names[9]="Mai test slot9"
-    return true,"imported",path,nil,{kind="import",written=80,cleared=0,reversals=30,apply_state="applied"}
+local cancel=library.cancel
+library.cancel=function(...)
+    counts.cancels=counts.cancels+1
+    return cancel(...)
 end
-local library=Library.new(records,function() return f.ctx end,{
-    load=function() return {["28"]="configs/mai.json"} end,save=function() return true end})
-local real_autoload=library.autoload
-library.autoload=function(...) counts.autoload=counts.autoload+1; return real_autoload(...) end
 local State={}
-local api=setmetatable({},{__index=f.api})
-local save_busy=false
-api.get_managed_singleton=function(kind)
-    assert(kind=="app.storage.SaveManager"); return {call=function() return save_busy end}
-end
-local modules={
-    ["SF6CCTrainingLibrary/State"]=State,["SF6CCTrainingLibrary/Records"]=records,
-    ["SF6CCTrainingLibrary/Library"]={shared=function() return library end,runtime_context=function() return f.ctx end},
-    ["SF6CCTrainingLibrary/NativeRecordingRuntime"]=Runtime,
+local callbacks={}
+local sdk={get_managed_singleton=function(kind)
+    assert(kind=="app.storage.SaveManager")
+    return {call=function() return false end}
+end}
+local env=setmetatable({sdk=sdk,log={error=function(e) error(e) end}}, {__index=_G})
+env._G=env
+env.imgui={tree_node=function() return false end}
+env.re={
+    on_pre_application_entry=function(name,fn) assert(name=="LateUpdateBehavior"); callbacks.tick=fn end,
+    on_draw_ui=function(fn) callbacks.draw=fn end,
+    on_script_reset=function(fn) callbacks.reset=fn end,
 }
-local noop=function() end
-local root_loads=0
-local update,draw,reset
-local logs,errors={},{}
-local env=setmetatable({},{__index=_G}); env._G=env
-env.sdk=api; env.thread=f.threads
-env.log={info=function(v) logs[#logs+1]=v end,error=function(v) errors[#errors+1]=v end}
-env.imgui={text=noop,text_colored=noop,same_line=noop,tree_pop=noop,
-    combo=function() return false,library.selected end,small_button=function() return false end,
-    button=function(label) return label==clicked end,
-    tree_node=function(label) return panel_open and label=="木人库（独立插件）" end}
-env.re={on_pre_application_entry=function(name,fn) assert(name=="LateUpdateBehavior" and not update); update=fn end,
-    on_draw_ui=function(fn) assert(not draw); draw=fn end,on_script_reset=function(fn) assert(not reset); reset=fn end}
 env.require=function(name)
-    if modules[name] then return modules[name] end
-    if name=="SF6CCTrainingLibrary/NativeLibraryTab" then root_loads=root_loads+1; modules[name]=true; return true end
-    assert(name=="SF6CCTrainingLibrary/Panel","unexpected editor/root/legacy dependency: "..name)
-    modules[name]=assert(loadfile("autorun/"..name..".lua","t",env))()
-    return modules[name]
+    if name=="SF6CCTrainingLibrary/State" then return State end
+    if name=="SF6CCTrainingLibrary/Library" then
+        return {shared=function() return library end,runtime_context=function() return ctx end}
+    end
+    if name=="SF6CCTrainingLibrary/NativeEightRuntime" then return Runtime end
+    if name=="SF6CCTrainingLibrary/Panel" then return function() end end
+    if name=="SF6CCTrainingLibrary/NativeLibraryTab" then return true end
+    error("Unexpected dependency: "..name)
 end
 local entry=assert(loadfile("autorun/SF6CC_TrainingLibrary.lua","t",env))
 entry(); entry()
-assert(root_loads==1,"native library must be registered once from the packaged entry")
-assert(counts.scans==0 and f.native_work.allocations==0,"startup read configurations or allocated native data")
+assert(State.runtime and callbacks.tick and callbacks.draw and callbacks.reset)
+assert(sdk.hook==nil and sdk.create_managed_array==nil and sdk.create_instance_global==nil)
+
 local function tick(n)
-    for _=1,n or 1 do in_callback=true; update(); in_callback=false end
+    for _=1,n do callbacks.tick() end
 end
-f.ctx.menu_closed=false; tick(90)
-f.ctx.menu_closed=true; f.ctx.busy=true; tick(90)
-f.ctx.busy=false; f.ctx.allowed=false; tick(90)
-assert(counts.autoload==0 and counts.imports==0 and counts.scans==0,"autoload bypassed readiness gates")
-f.ctx.allowed=true; tick(45)
-assert(State.runtime.state()=="active" and counts.autoload==1 and counts.imports==0
-    and library.has_pending(),"remembered configuration imported during settle window")
-f.call("Release",f.manager.id,0); f.ctx.allowed=false; tick(45)
-assert(not library.has_pending() and counts.imports==0 and State.runtime.state()=="unloaded",
-    "remembered configuration survived release during settle window")
-f.ctx.allowed=true; tick(225)
-assert(State.runtime.state()=="active" and counts.autoload==2 and counts.imports==1,
-    "entering ready training did not restore the remembered configuration")
-assert(library.slot_name(9)=="Mai test slot9","startup import did not restore names")
-local initial_scans=counts.scans
-tick(225)
-assert(counts.imports==1 and counts.autoload==2 and counts.scans==initial_scans,"autoload repeated while idle")
-local bank=f.fighter.fields.RecordSlots
-panel_open=true; f.ctx.menu_closed=false; clicked="导出配置"; draw(); clicked=nil
-assert(library.has_pending() and counts.exports==0,"drawing executed a configuration job")
-tick(5); assert(counts.exports==0,"open native menu did not defer export")
-f.ctx.menu_closed=true; tick()
-assert(counts.exports==1 and not library.has_pending() and f.fighter.fields.RecordSlots==bank)
-for _,pair in ipairs({{"导入配置","imports"},{"保存当前配置","saves"}}) do
-    local before=counts[pair[2]]
-    clicked=pair[1]; draw(); clicked=nil
-    assert(counts[pair[2]]==before)
-    tick(); assert(counts[pair[2]]==before+1)
-end
-assert(library.slot_name(9)=="Mai test slot9","imported names not shared with native display")
+tick(32)
+assert(State.runtime.state()=="active" and counts.autoload==1 and counts.imports==1)
+tick(100)
+assert(counts.autoload==1 and counts.imports==1,"autoload repeated in one session")
+
 assert(library.request("save"))
-save_busy=true; tick(5)
-assert(counts.saves==1 and library.has_pending(),"configuration save ran while SaveManager was busy")
-save_busy=false; f.manager.fields._IsSaveReq=true; tick(5)
-assert(counts.saves==1 and library.has_pending(),"configuration save ran during native save request")
-f.manager.fields._IsSaveReq=false; tick()
-assert(counts.saves==2 and not library.has_pending(),"deferred configuration save did not resume")
-local scans=counts.scans
-for _=1,100 do draw() end
-assert(counts.scans==scans,"panel redraw rescanned configuration files")
-assert(library.request("save"))
-f.call("Release",f.manager.id,0,function()
-    tick(5)
-    assert(counts.saves==2 and library.has_pending(),"configuration save ran while native session was releasing")
-end)
-f.ctx.allowed=false; tick(45)
-assert(not library.has_pending() and counts.saves==2 and State.runtime.state()=="unloaded")
-f.ctx.allowed=true; tick(225)
-assert(State.runtime.state()=="active" and counts.imports==3 and counts.autoload==3)
-assert(library.slot_name(9)=="Mai test slot9","reentry did not restore saved names through import")
-records.begin_import=function()
-    assert_job(); counts.imports=counts.imports+1; return false,"unreadable configuration"
-end
-f.call("Release",f.manager.id,0); f.ctx.allowed=false; tick(45)
-f.ctx.allowed=true; tick(225)
-assert(State.runtime.state()=="active" and counts.autoload==4 and counts.imports==4)
-assert(not library.status_ok and library.slot_name(9)=="" and not library.has_pending())
-local failed_scans=counts.scans
-tick(225)
-assert(counts.imports==4 and counts.autoload==4 and counts.scans==failed_scans,"failed autoload retried automatically")
-assert(#errors==0,table.concat(errors,"\n"))
-assert(library.request("save"))
-reset(); tick(2)
-assert(not library.has_pending() and counts.saves==2 and State.runtime.state()=="stopped")
-assert(#errors==1 and errors[1]:find("脚本已停止",1,true),table.concat(errors,"\n"))
-print("PASS library entry: gated one-shot autoload, restored names on entry/reentry, manual jobs, cached panel, exit cancellation, Reset abandonment (fake SDK)")
+ctx.menu_closed=false; tick(10)
+assert(counts.saves==0 and library.has_pending())
+ctx.menu_closed=true; tick(1)
+assert(counts.saves==1 and not library.has_pending())
+
+ctx.slot_count=80; tick(1)
+assert(State.runtime.state()=="unloaded" and counts.cancels>0)
+assert(not library.request("save") and counts.saves==1,"unsupported bank was modified")
+ctx.slot_count=8
+ctx.fighter_id=1; tick(35)
+assert(State.runtime.state()=="active" and counts.autoload==2)
+assert(counts.imports==1,"wrong fighter auto-imported")
+
+ctx.allowed=false; tick(1)
+assert(State.runtime.state()=="unloaded")
+callbacks.reset(); tick(1)
+assert(State.runtime.state()=="stopped")
+print("PASS native eight-slot entry: no bank/menu hooks, gated autoload, save, character switch, unsupported-bank refusal")

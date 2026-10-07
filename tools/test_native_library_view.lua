@@ -107,14 +107,14 @@ assert(editing.command(5)=="rename" and editing.activate(5).operation=="rename")
 assert(editing.command(6)==nil,"missing slot capability must disable the browser")
 pending=true; assert(editing.activate(5).notice and not editing.activate(5).operation); pending=false
 lib.selected=1; assert(editing.command(5)==nil,"foreign-character configuration is not editable here")
-local capacity,names,editable,reads=80,{[1]="压制",[9]="截空",[80]="反击"},true,0
+local capacity,names,editable,reads=8,{[1]="压制",[8]="反击"},true,0
 lib.slot_capacity=function() reads=reads+1; return capacity end
 lib.slot_name=function(i) return names[i] or "" end
 lib.can_edit_slot_names=function() return editable end
 local frame_reads=0
 local live_frames={}
-for i=1,80 do live_frames[i]=0 end
-live_frames[1]=55; live_frames[2]=167; live_frames[9]=262; live_frames[80]=118
+for i=1,8 do live_frames[i]=0 end
+live_frames[1]=55; live_frames[2]=167; live_frames[8]=118
 lib.record_frames=function()
     frame_reads=frame_reads+1
     local result={}; for i=1,capacity do result[i]=live_frames[i] end
@@ -125,7 +125,7 @@ editing.set_context(context)
 local before=reads
 local before_frames=frame_reads
 assert(editing.command(6)=="open_slots" and editing.activate(6).redraw)
-assert(editing.pager_row()==1 and editing.command(1)=="page" and editing.rows()[1].text=="页码")
+assert(editing.pager_row()==1 and editing.command(1)==nil and editing.rows()[1].text=="页码 1 / 1")
 assert(editing.command(10)=="back" and editing.rows()[10].text=="返回")
 for i=11,13 do assert(editing.rows()[i].text=="" and editing.command(i)==nil) end
 assert(editing.rows()[2].text=="栏位1：压制（55帧）")
@@ -133,25 +133,20 @@ assert(editing.rows()[3].text=="栏位2：栏位2（167帧）")
 assert(editing.rows()[4].text=="<color 999999>栏位3：栏位3（ - ）</color>")
 assert(not editing.rows()[4].readonly and editing.activate(4).slot==3,"gray empty slot must remain editable")
 local selected=lib.selected
-for p=1,10 do
-    local rows=editing.rows()
-    assert(#rows==13 and rows[12].readonly and not rows[12].command)
-    for i=2,9 do
-        local r=editing.activate(i)
-        assert(r.operation=="slot_name" and r.slot==(p-1)*8+i-1 and not r.redraw)
-        assert(rows[i].index==r.slot and rows[i].kind==0)
-    end
-    if p==2 then assert(rows[2].text=="栏位9：截空（262帧）") end
-    if p<10 then assert(editing.set_page(p)) end
+local rows=editing.rows()
+assert(#rows==13 and rows[12].readonly and not rows[12].command)
+for i=2,9 do
+    local r=editing.activate(i)
+    assert(r.operation=="slot_name" and r.slot==i-1 and not r.redraw)
+    assert(rows[i].index==r.slot and rows[i].kind==0)
 end
-assert(editing.rows()[9].text=="栏位80：反击（118帧）" and editing.command(11)==nil)
+assert(editing.rows()[9].text=="栏位8：反击（118帧）" and editing.command(11)==nil)
 assert(reads==before and lib.selected==selected,"navigation queried native capacity or changed configuration")
 assert(frame_reads==before_frames,"navigation read native frames instead of the captured snapshot")
 pending=true; assert(editing.activate(9).notice and not editing.activate(9).operation); pending=false
 available=false; assert(editing.command(9)==nil); available=true
 editable=false; assert(editing.command(9)==nil); editable=true
-assert(editing.set_page(8) and editing.rows()[2].index==65)
-for _,invalid in ipairs({-1,10,0.5,"1"}) do assert(not editing.set_page(invalid)) end
+for _,invalid in ipairs({-1,0,1,0.5,"1"}) do assert(not editing.set_page(invalid)) end
 pending=true; assert(not editing.set_page(0)); pending=false
 assert(editing.activate(10).redraw and editing.command(6)=="open_slots" and editing.pager_row()==10)
 lib.entries={}; lib.selected=1
@@ -185,9 +180,7 @@ for _,failure in ipairs({"error","foreign","capacity","invalid"}) do
 end
 lib.record_frames=read_frames
 capacity=9; editing.set_context(context)
-assert(editing.command(6)=="open_slots","capacity change must invalidate old page")
-editing.activate(6); assert(editing.set_page(1))
-assert(editing.activate(2).slot==9 and editing.command(3)==nil and editing.command(11)==nil)
+assert(editing.command(1)=="open" and editing.command(6)==nil,"unsupported capacity must disable editing")
 capacity=8; editing.closed(); editing.set_context(context); editing.activate(6)
 assert(editing.rows()[1].text=="页码 1 / 1" and editing.rows()[1].readonly and editing.paging()==nil)
 assert(editing.command(11)==nil and editing.activate(9).slot==8)

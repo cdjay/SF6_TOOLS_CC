@@ -5,6 +5,18 @@ Status: `CURRENT`
 This is the sole current list of evidence and architecture blockers. Green
 offline tests do not remove these limitations.
 
+October 8 native-eight-slot branch (`codex/native-eight-slots`): the startup
+entry no longer mounts an expanded recording bank, rebuilds the native
+record/play rows, expands the reversal picker, or offers page reload. The
+independent Wood Library tab remains, with configuration selection, save,
+save-as, import, clear, note editing and information. Only the game's native
+eight recording slots can be read or changed. Files containing more than eight
+recordings remain on disk and visible in the catalog, but cannot be imported
+or overwritten by an eight-slot save. This is an offline-tested branch, not a
+live-game crash fix claim. The earlier 80-slot evidence below applies to the
+previous implementation, not to this branch. Cold-start and role-switch smoke
+tests are still required before distributing this variant.
+
 October 5 configuration-save review: the shared library queue now waits for
 30 update callbacks after a newly mounted session, both SaveManager idle and
 the training manager's save request to clear before running a closed-menu job.

@@ -1,3 +1,4 @@
+package.path="autorun/?.lua;"..package.path
 local Notes = dofile("autorun/SF6CCTrainingLibrary/TrainingConfigNotes.lua")
 local PATH = "SF6CC_TrainingConfigs/configs/Mai.json"
 local function copy(v)
@@ -123,13 +124,13 @@ test("snapshot update preserves metadata and backs up before replacing all runti
     local snapshot = { schema=s.data.schema, fighter_id=19, source_player="P2", created_at="now",
         title="default", description="", slots={}, reversals={down={},guard={},damage={}},
         annotations={record_slots={}}, settings={record={}} }
-    for i=1,80 do snapshot.slots[i]={slot=i,name="slot"..i,buff={i}} end
+    for i=1,8 do snapshot.slots[i]={slot=i,name="slot"..i,buff={i}} end
     for _,g in ipairs({"down","guard","damage"}) do
-        for i=1,10 do snapshot.reversals[g][i]={slot=i,skill_index=79,type=1} end
+        for i=1,10 do snapshot.reversals[g][i]={slot=i,skill_index=7,type=1} end
     end
     assert(edit.save(snapshot) and #s.writes==2 and s.writes[1].raw=="original bytes")
     assert(s.saved.title=="title" and s.saved.description=="old" and s.saved.unknown.future=="keep")
-    assert(s.saved.created_at=="now" and #s.saved.slots==80 and s.saved.slots[80].buff[1]==80)
+    assert(s.saved.created_at=="now" and #s.saved.slots==8 and s.saved.slots[8].buff[1]==8)
     for _,g in ipairs({"down","guard","damage"}) do assert(#s.saved.reversals[g]==10) end
     assert(not edit.save(snapshot))
 end)

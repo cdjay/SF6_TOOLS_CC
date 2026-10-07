@@ -43,7 +43,7 @@ function M.new(library,can_rename)
         if fighter and library.can_edit_slot_names and library.can_edit_slot_names() then
             local ok,names=pcall(function()
                 local count=library.slot_capacity()
-                assert(type(count)=="number" and count%1==0 and count>=1 and count<=Layout.EXPANDED_RECORDS)
+                assert(count==Layout.NATIVE_RECORDS)
                 local values={}
                 for i=1,count do
                     values[i]=library.slot_name(i)

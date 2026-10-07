@@ -13,13 +13,12 @@ end
 local fighter=28
 local selected={get_field=function(_,key) assert(key=="FighterID"); return fighter end}
 local players=collection({[0]=object({FighterID=1}),[1]=selected})
-local slots={size=80}
-for i=0,79 do slots[i]=object({IsValid=true,Frame=0}) end
+local slots={size=8}
+for i=0,7 do slots[i]=object({IsValid=true,Frame=0}) end
 slots[0]=object({IsValid=true,Frame=55})
 slots[1]=object({IsValid=true,Frame=167})
 slots[5]=object({IsValid=false,Frame=999})
-slots[8]=object({IsValid=1,Frame=262})
-slots[79]=object({IsValid=true,Frame=118})
+slots[7]=object({IsValid=1,Frame=262})
 local other_slots={size=8}
 for i=0,7 do other_slots[i]=object({IsValid=true,Frame=90+i}) end
 local records=collection({[28]=object({RecordSlots=collection(slots)}),[26]=object({RecordSlots=collection(other_slots)})})
@@ -32,8 +31,8 @@ sdk={get_managed_singleton=function(name) assert(name=="app.training.TrainingMan
 json={dump_file=function() error("frame labels must not write files") end,load_file=function() error("frame labels must not read files") end}
 local module=dofile("autorun/SF6CCTrainingLibrary/Records.lua")
 local s=assert(module.get_record_frames())
-assert(s.fighter_id==28 and #s.frames==80 and s.frames[1]==55 and s.frames[2]==167)
-assert(s.frames[6]==0 and s.frames[9]==262 and s.frames[80]==118)
+assert(s.fighter_id==28 and #s.frames==8 and s.frames[1]==55 and s.frames[2]==167)
+assert(s.frames[6]==0 and s.frames[8]==262)
 slots[0]=object({IsValid=true,Frame=170})
 assert(s.frames[1]==55 and module.get_record_frames().frames[1]==170)
 for _,bad in ipairs({-1,0.5,"55"}) do
@@ -44,5 +43,7 @@ slots[0]={get_field=function() error("read failed") end}
 assert(module.get_record_frames().frames[1]==false)
 fighter=26; s=assert(module.get_record_frames())
 assert(s.fighter_id==26 and #s.frames==8 and s.frames[1]==90)
+fighter=28; slots.size=80
+assert(module.get_record_frames()==nil,"old expanded bank must not be presented as native eight slots")
 present=false; assert(module.get_record_frames()==nil,"unavailable bank must not look like empty slots")
-print("PASS current P2 frame snapshot: 8/80 slots, unsaved changes, empty/invalid records, no IO/buffers/writes")
+print("PASS current P2 frame snapshot: native eight slots, unsupported-bank refusal, no IO/buffers/writes")

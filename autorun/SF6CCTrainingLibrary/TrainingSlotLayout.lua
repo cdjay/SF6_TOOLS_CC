@@ -57,10 +57,13 @@ function M.inspect(data)
     return out
 end
 
-function M.check_native(data, record_capacity)
+function M.check_native(data)
     local layout, err = M.inspect(data)
     if not layout then return false, err end
-    record_capacity = (record_capacity == 9 or record_capacity == M.EXPANDED_RECORDS) and record_capacity or M.NATIVE_RECORDS
+    local record_capacity = M.NATIVE_RECORDS
+    if type(data.record_slots) == "number" and data.record_slots > record_capacity then
+        return false, "录像配置超过当前已挂载的 " .. record_capacity .. " 栏位；文件未修改"
+    end
     if layout.records.span > record_capacity then
         return false, "录像配置超过当前已挂载的 " .. record_capacity .. " 栏位；文件未修改"
     end

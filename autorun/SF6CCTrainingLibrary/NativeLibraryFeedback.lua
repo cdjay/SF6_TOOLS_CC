@@ -5,7 +5,6 @@ local Safety=require("SF6CCTrainingLibrary/Context")
 local M={}
 local waits={
     ["已排队，关闭游戏暂停菜单后执行"]=true,
-    ["分页重载已排队，请关闭游戏暂停菜单"]=true,
 }
 function M.new(library,ticker,deps)
     local pause_open=deps and deps.pause_open or Safety.pause_open

@@ -111,11 +111,11 @@ local function fixture(capacity, fault, native_slots)
     end
     return backend, stats, ctx, advance, data, settings, fighter, slots, env, guard_fields
 end
-test("clear empties all eighty recordings and thirty reversals without replacing the bank or files", function()
-    local records, stats, ctx, _, _, _, fighter, slots = fixture(3600, nil, 80)
+test("clear empties eight native recordings and thirty reversals without replacing the bank or files", function()
+    local records, stats, ctx, _, _, _, fighter, slots = fixture(3600, nil, 8)
     local bank = fighter:get_field("RecordSlots")
     local reversals = ctx.data:get_field("ReversalSetting"):get_field("FighterDataList"):call("get_Item", 28)
-    for i = 1, 80 do
+    for i = 1, 8 do
         local slot = slots[i - 1]
         slot:set_field("Frame", 120); slot:set_field("Weight", 5)
         slot:set_field("IsValid", true); slot:set_field("IsActive", true)
@@ -126,16 +126,16 @@ test("clear empties all eighty recordings and thirty reversals without replacing
         for i = 0, 9 do
             local slot = reversals:get_field(field):call("get_Item", i)
             for key, value in pairs({ IsActive = true, IsValid = true, IsFrame = true,
-                Type = 1, SkillIndex = 79, Delay = 12, Count = 3, Level = 2, Frame = 7 }) do
+                Type = 1, SkillIndex = 7, Delay = 12, Count = 3, Level = 2, Frame = 7 }) do
                 slot:set_field(key, value)
             end
         end
     end
     local ok, msg = records.clear_current_configuration()
     assert(ok, msg)
-    assert(msg:find("80", 1, true) and msg:find("30", 1, true))
-    assert(fighter:get_field("RecordSlots") == bank and bank:get_size() == 80)
-    for i = 1, 80 do
+    assert(msg:find("8", 1, true) and msg:find("30", 1, true))
+    assert(fighter:get_field("RecordSlots") == bank and bank:get_size() == 8)
+    for i = 1, 8 do
         local slot = slots[i - 1]
         assert(slot:get_field("Frame") == 0 and slot:get_field("Weight") == 1)
         assert(not slot:get_field("IsValid") and not slot:get_field("IsActive"))
@@ -179,31 +179,31 @@ test("already allocated buffers stay synchronous", function()
     assert(ok, msg); assert(receipt.kind == "import" and #stats.starts == 0 and stats.writes == 432)
 end)
 
-test("B edits cannot leak into A after initializing eighty empty slots", function()
-    local records,stats,ctx,tick,data,_,_,slots=fixture(0,"all_empty",80)
+test("B edits cannot leak into A after initializing eight empty slots", function()
+    local records,stats,ctx,tick,data,_,_,slots=fixture(0,"all_empty",8)
     data.schema="sf6cc.training_setup.v2"
     data.slots={}; data.annotations={record_slots={}}
-    for i=1,80 do
+    for i=1,8 do
         data.slots[i]={slot=i,is_valid=true,is_active=true,frame=1,input_num=1,input_buff={16}}
         data.annotations.record_slots[i]={slot=i,text="A"..i}
     end
-    records.set_slot_name(9,"B edited")
+    records.set_slot_name(8,"B edited")
     local ok,msg,_,_,receipt=records.begin_import("A.json",{},ctx)
     assert(ok,msg)
-    assert(receipt and receipt.kind=="initializing" and receipt.count==80)
-    assert(records.get_slot_name(9)=="B edited","pending import changed names early")
+    assert(receipt and receipt.kind=="initializing" and receipt.count==8)
+    assert(records.get_slot_name(8)=="B edited","pending import changed names early")
     local done,success,result
     for _=1,1800 do done,success,result=tick(receipt.task); if done then break end end
     assert(done and success,result)
-    assert(#stats.starts==80 and stats.writes==80 and stats.reads==1)
-    for i=1,80 do
+    assert(#stats.starts==8 and stats.writes==8 and stats.reads==1)
+    for i=1,8 do
         assert(records.get_slot_name(i)=="A"..i and slots[i-1]:get_field("Frame")==1)
         data.annotations.record_slots[i].text="B"..i
     end
-    records.set_slot_name(9,"A edited")
+    records.set_slot_name(8,"A edited")
     ok,msg=records.begin_import("B.json",{},ctx); assert(ok,msg)
-    for i=1,80 do assert(records.get_slot_name(i)=="B"..i) end
-    assert(data.annotations.record_slots[9].text=="B9","edit mutated imported file data")
+    for i=1,8 do assert(records.get_slot_name(i)=="B"..i) end
+    assert(data.annotations.record_slots[8].text=="B8","edit mutated imported file data")
 end)
 
 test("initialization rejects overflow, duplicate slots and invalid lengths before native calls",function()
@@ -363,14 +363,11 @@ test("unsupported file capacity aborts before backup and all native work", funct
         assert(not ok and stats.backups == 0 and #stats.starts == 0 and stats.writes == 0)
     end
 end)
-test("live ninth slot imports, then an eight-slot file clears the stale extra", function()
+test("live ninth slot is refused even when the file also has nine", function()
     local records, stats, ctx, _, data, _, _, slots = fixture(3600, nil, 9)
     data.slots[3]={slot=9,is_valid=true,is_active=true,frame=1,input_num=1,input_buff={16}}
-    local ok, msg = records.begin_import("config.json", {clear_empty_slots=true}, ctx)
-    assert(ok,msg); assert(slots[8]:get_field("Frame")==1 and stats.writes==433)
-    data.slots[3]=nil
-    ok,msg=records.begin_import("eight.json", {clear_empty_slots=true}, ctx)
-    assert(ok,msg); assert(slots[8]:get_field("IsValid")==false and slots[8]:get_field("Frame")==0)
+    assert(not records.begin_import("config.json", {clear_empty_slots=true}, ctx))
+    assert(slots[8]:get_field("Frame")==0 and stats.writes==0 and stats.backups==0)
 end)
 test("ninth file cannot authorize a missing live ninth slot", function()
     local records, stats, ctx, _, data=fixture(3600,nil,8)
@@ -379,30 +376,18 @@ test("ninth file cannot authorize a missing live ninth slot", function()
     assert(stats.writes==0 and stats.backups==0)
 end)
 
-test("eighty-slot import preserves slot80 name and clears omitted extra recordings",function()
+test("eighty-slot file and bank are refused without native writes",function()
     local records,stats,ctx,_,data,_,_,slots=fixture(3600,nil,80)
     data.slots[3]={slot=80,is_valid=true,is_active=true,frame=1,input_num=1,input_buff={16}}
     data.annotations={record_slots={{slot=80,text="对空"}}}
-    assert(records.begin_import("eighty.json",{clear_empty_slots=true},ctx))
-    assert(slots[79]:get_field("Frame")==1 and records.get_slot_name(80)=="对空")
-    local before=stats.writes
-    assert(records.set_slot_name(1,"防跳") and records.set_slot_name(80,"新名字"))
-    assert(records.get_slot_name(1)=="防跳" and records.get_slot_name(80)=="新名字")
-    assert(not records.set_slot_name(81,"invalid") and not records.set_slot_name(2,string.rep("x",16)))
-    assert(stats.writes==before and slots[79]:get_field("Frame")==1)
-    local exported,message=records.export_current("test-export.json")
-    assert(exported,message)
-    assert(#stats.exported.slots==80 and stats.exported.slots[80].name=="新名字")
-    assert(stats.exported.annotations.record_slots[1].text=="防跳")
-    assert(stats.exported.annotations.record_slots[80].text=="新名字")
-    assert(stats.exported.settings.dummy.guard_fields.GuardType==0)
-    assert(stats.exported.slots[80].input_buff[1]==16 and stats.writes==before)
-    data.slots[3]=nil; data.annotations=nil
-    assert(records.begin_import("eight.json",{clear_empty_slots=true},ctx))
-    assert(slots[79]:get_field("Frame")==0 and records.get_slot_name(80)=="")
+    slots[79]:set_field("Frame",123)
+    assert(not records.begin_import("eighty.json",{clear_empty_slots=true},ctx))
+    assert(not records.clear_current_configuration())
+    assert(not records.export_current("test-export.json"))
+    assert(slots[79]:get_field("Frame")==123 and stats.writes==0 and stats.backups==0)
 end)
-test("save current captures all eighty slots and three native reversal groups into same file",function()
-    local records,stats,ctx,_,_,_,_,slots,env=fixture(3600,nil,80)
+test("save current captures eight slots and three native reversal groups into same file",function()
+    local records,stats,ctx,_,_,_,_,slots,env=fixture(3600,nil,8)
     local guard_fields=stats.guard_fields
     local Json=require("tools/training_record_bank/vendor/dkjson")
     local path="SF6CC_TrainingConfigs/configs/test.json"
@@ -425,19 +410,32 @@ test("save current captures all eighty slots and three native reversal groups in
     end
     env.json.dump_string=function(value)return Json.encode(native_json_value(value),{indent=true})end
     assert(guard_fields:get_field("GuardType")==0 and guard_fields:get_field("GuardWeight")==40)
-    assert(records.set_slot_name(80,"last"))
-    slots[79]:set_field("Frame",3); slots[79]:set_field("IsValid",true)
+    assert(records.set_slot_name(8,"last"))
+    slots[7]:set_field("Frame",3); slots[7]:set_field("IsValid",true)
     local ok,message=records.save_current(path)
     assert(ok,message)
     assert(#writes==2 and writes[1]~=path and writes[2]==path and files[writes[1]]==raw)
     local saved=assert(Json.decode(files[path]))
-    assert(saved.title=="keep title" and saved.description=="keep note" and #saved.slots==80)
-    assert(saved.slots[80].input_buff[3]==16 and saved.slots[80].name=="last")
-    assert(saved.annotations.record_slots[80].text=="last")
+    assert(saved.title=="keep title" and saved.description=="keep note" and #saved.slots==8)
+    assert(saved.slots[8].input_buff[3]==16 and saved.slots[8].name=="last")
+    assert(saved.annotations.record_slots[8].text=="last")
     assert(saved.settings.dummy.guard_fields.GuardType==guard_fields:get_field("GuardType"))
     assert(saved.settings.dummy.guard_fields.GuardWeight==guard_fields:get_field("GuardWeight"))
     assert(saved.slots[1].frame==0 and saved.slots[1].input_buff==nil)
     for _,g in ipairs({"down","guard","damage"}) do assert(#saved.reversals[g]==10) end
     assert(stats.writes==0 and stats.forces==0 and #stats.starts==0)
+end)
+test("save cannot overwrite a stored eighty-slot configuration with eight slots",function()
+    local records,stats,_,_,_,_,_,_,env=fixture(3600,nil,8)
+    local path="SF6CC_TrainingConfigs/configs/old80.json"
+    local data={schema="sf6cc.training_setup.v2",fighter_id=28,source_player="P2",slots={}}
+    for i=1,80 do data.slots[i]={slot=i,is_valid=false} end
+    env.fs.read=function(p) if p==path then return "old80" end end
+    env.json.load_string=function(raw) if raw=="old80" then return data end end
+    local writes=0
+    env.fs.write=function() writes=writes+1; return true end
+    local ok,message=records.save_current(path)
+    assert(not ok and message:find("超过8栏位",1,true))
+    assert(writes==0 and stats.backups==0 and stats.writes==0)
 end)
 print(passed .. " recording import tests passed")

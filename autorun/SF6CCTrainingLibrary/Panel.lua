@@ -6,7 +6,6 @@ local re = re
 
 local DynamicRecords = require("SF6CCTrainingLibrary/Records")
 local Library = require("SF6CCTrainingLibrary/Library").shared()
-local State = require("SF6CCTrainingLibrary/State")
 
 local options = Library.options
 
@@ -110,10 +109,6 @@ local function draw_config_selector()
 end
 
 local function draw_primary_actions()
-    if imgui.button("重新加载分页") then
-        if State.runtime then State.runtime.request_reload()
-        else set_status(false, "分页模块未启动，请重启游戏") end
-    end
     if imgui.button("保存当前配置") then Library.request("save") end
     imgui.same_line()
     if imgui.button("导出配置") then

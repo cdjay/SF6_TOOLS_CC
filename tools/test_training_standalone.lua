@@ -1,7 +1,6 @@
 -- Load the actual entry with no SF6CC globals, old autoruns or func/ fallback.
 local root = arg[1] or "."
 local loaded, callbacks, errors = {}, {}, {}
-local runtime_ticks,pager_ticks,hook_installs=0,0,0
 local env = setmetatable({}, { __index = _G })
 env._G = env
 env.sdk = {}
@@ -16,16 +15,6 @@ env.json = {load_file=function() return nil end}
 env.require = function(name)
     assert(name:match("^SF6CCTrainingLibrary/"), "legacy dependency: " .. name)
     if loaded[name]~=nil then return loaded[name] end
-    if name=="SF6CCTrainingLibrary/NativeRecordingRuntime" then
-        loaded[name]={new=function()
-            return {install_hooks=function() hook_installs=hook_installs+1 end,
-                tick=function() runtime_ticks=runtime_ticks+1 end,
-                ui_tick=function() pager_ticks=pager_ticks+1 end,
-                state=function() return "active" end,
-                presentation_session=function() return 1 end,reset=function() end}
-        end}
-        return loaded[name]
-    end
     local fn=assert(loadfile(root.."/autorun/"..name..".lua", "t", env))
     loaded[name]=fn() or true
     return loaded[name]
@@ -37,12 +26,14 @@ assert(count>0, "standalone entry registered nothing")
 entry()
 assert(#callbacks==count, "entry registered duplicate owners")
 assert(loaded["SF6CCTrainingLibrary/Records"])
+assert(loaded["SF6CCTrainingLibrary/NativeEightRuntime"])
+assert(not loaded["SF6CCTrainingLibrary/NativeRecordingRuntime"],"expansion runtime loaded")
 assert(loaded["SF6CCTrainingLibrary/NativeLibraryTab"], "standalone package must include the deferred native library")
 assert(not loaded["SF6CCTrainingLibrary/NativeMenu"], "unsafe subtab refresh must remain withdrawn")
 assert(loaded["SF6CCTrainingLibrary/Library"] and loaded["SF6CCTrainingLibrary/Context"])
 assert(loaded["SF6CCTrainingLibrary/NativeNoteEditor"],"native library must include its deferred name editor")
 local state=assert(loaded["SF6CCTrainingLibrary/State"])
-assert(type(state.tick_jobs)=="function", "no independent deferred job owner")
+assert(state.runtime and type(state.runtime.presentation_session)=="function")
 local safe_updates=0
 local unsafe_updates=0
 for _,callback in ipairs(callbacks) do
@@ -52,7 +43,7 @@ for _,callback in ipairs(callbacks) do
         safe_updates=safe_updates+1
     end
 end
-assert(safe_updates==2 and hook_installs==1,"one recording update owner plus one dormant native library update")
+assert(safe_updates==2,"one observer plus one dormant native library update")
 assert(unsafe_updates==0,"native recording lifecycle still runs outside pre LateUpdateBehavior")
 local library=loaded["SF6CCTrainingLibrary/Library"].shared()
 local ticks=0
@@ -67,19 +58,7 @@ assert(ticks==0,"queued operation ran before the new session settled")
 for _,callback in ipairs(callbacks) do
     if callback.event=="on_pre_application_entry" then callback.fn() end
 end
-assert(ticks==1, "queued operation did not run after the settle window")
-assert(runtime_ticks==30 and pager_ticks==30,"entry must drive lifecycle and pager while jobs wait")
+assert(ticks==0,"unavailable native eight-slot context ran queued work")
 assert(env.SF6CC_NativeNotes==nil and env.GameState==nil and env.SF6CC_RuntimeSafety==nil)
-local reloads=0
-state.runtime.request_reload=function() reloads=reloads+1 end
-library.loaded=true
-loaded["SF6CCTrainingLibrary/Records"].get_context=function() return {fighter_id=28,fighter_name="Mai"} end
-env.imgui.text=function() end
-env.imgui.text_colored=function() end
-env.imgui.combo=function() return false,1 end
-env.imgui.same_line=function() end
-env.imgui.small_button=function() return false end
-env.imgui.button=function(label) return label=="重新加载分页" end
-loaded["SF6CCTrainingLibrary/Panel"]()
-assert(reloads==1,"visible reload button must delegate to runtime queue")
-print("PASS standalone entry, private dependencies, one queue owner, no legacy globals")
+assert(state.runtime.request_reload==nil,"extension page reload remains reachable")
+print("PASS standalone native eight-slot entry and private dependencies, no expansion runtime")

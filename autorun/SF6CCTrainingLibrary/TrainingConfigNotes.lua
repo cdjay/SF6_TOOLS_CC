@@ -1,5 +1,6 @@
 -- Configuration edits share verified backup/restore around REFramework's non-atomic writer.
 local M = {}
+local SlotLayout = require("SF6CCTrainingLibrary/TrainingSlotLayout")
 local MAX_BYTES = 16 * 1024 * 1024
 local function equal(a, b, depth, scope)
     -- REFramework encodes {} as null and reads null as nil. Only a verified
@@ -52,6 +53,10 @@ function M.new(deps)
             or (data.description ~= nil and type(data.description) ~= "string") then
             return nil, "配置不可读或格式不支持，未修改文件"
         end
+        if snapshot_update then
+            local compatible = SlotLayout.check_native(data)
+            if not compatible then return nil, "此配置超过8栏位，无法覆盖；原文件未修改" end
+        end
         local initial = data.title or ""
         if not snapshot_update and type(initial) ~= "string" then return nil, "配置名称格式无效，未修改文件" end
         local consumed = false
@@ -66,6 +71,9 @@ function M.new(deps)
                     or type(text.reversals) ~= "table" or type(text.settings) ~= "table"
                     or type(text.annotations) ~= "table" then
                     return false, "配置角色或快照格式不匹配，未覆盖文件"
+                end
+                if not SlotLayout.check_native(text) then
+                    return false, "此配置超过8栏位，无法覆盖；原文件未修改"
                 end
             else
                 if not valid_note(text) then return false, "配置名称应为最多15个字符，且不能包含控制符或标记" end
