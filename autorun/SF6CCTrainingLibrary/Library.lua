@@ -28,13 +28,33 @@ function M.new(records, context, choices)
     local function diagnostic(message)
         if log and log.warn then pcall(log.warn, "[TrainingLibrary] " .. tostring(message or "")) end
     end
-    local function safe_context()
+    -- Only the explicit restore operation may run on a legacy (>8) recording bank.
+    local function safe_context(allow_legacy)
         local ok, ctx = pcall(context)
-        if not ok or type(ctx) ~= "table" or not ctx.allowed or ctx.error
+        if not ok or type(ctx) ~= "table" or not ctx.allowed
+            or (ctx.error and not (allow_legacy and ctx.bank_unsupported == true))
             or ctx.fighter_id == nil or not ctx.session or not ctx.data then
             return nil, "仅可在离线训练场、角色数据就绪后操作"
         end
         return ctx
+    end
+    local legacy_cache
+    function self.legacy_summary()
+        local ctx = safe_context(true)
+        if not ctx or ctx.bank_unsupported ~= true or not records.legacy_bank_summary then
+            legacy_cache = nil
+            return nil
+        end
+        local c = legacy_cache
+        if c and c.session == ctx.session and c.data == ctx.data and c.fighter_id == ctx.fighter_id
+            and c.slot_count == ctx.slot_count and c.revision == self.result_revision then
+            return c.summary
+        end
+        local ok, summary = pcall(records.legacy_bank_summary)
+        summary = ok and type(summary) == "table" and summary or nil
+        legacy_cache = { session = ctx.session, data = ctx.data, fighter_id = ctx.fighter_id,
+            slot_count = ctx.slot_count, revision = self.result_revision, summary = summary }
+        return summary
     end
     function self.selection() return self.entries[self.selected] end
     function self.selection_compatibility(ctx)
@@ -146,11 +166,13 @@ function M.new(records, context, choices)
     function self.request(kind)
         if pending or note_edit then return false end
         if kind ~= "import" and kind ~= "export" and kind ~= "refresh" and kind ~= "save" and kind ~= "clear"
-            and kind ~= "backup" and kind ~= "restore" then return false end
-        local ctx, err = safe_context()
+            and kind ~= "backup" and kind ~= "restore" and kind ~= "restore_native" then return false end
+        local ctx, err = safe_context(true)
         if not ctx then status(false, err); return false end
-        if ctx.slot_count ~= nil and ctx.slot_count ~= 8 then
-            status(false, "当前训练数据不是8栏位，请重启游戏")
+        if kind == "restore_native" then
+            if ctx.bank_unsupported ~= true then status(false, "当前录像已是原生8栏位"); return false end
+        elseif ctx.bank_unsupported == true or (ctx.slot_count ~= nil and ctx.slot_count ~= 8) then
+            status(false, "当前录像超过8栏位，请先恢复为原生8栏位")
             return false
         end
         if ctx.busy ~= false then status(false, "请先停止录制、播放或连段训练"); return false end
@@ -266,7 +288,7 @@ function M.new(records, context, choices)
         end
         if not pending then return end
         if pending.running then return end
-        local ctx = safe_context()
+        local ctx = safe_context(pending.kind == "restore_native")
         if pending.task then
             local active = pending
             active.running = true
@@ -289,6 +311,18 @@ function M.new(records, context, choices)
         local job = pending
         pending = nil
         if job.kind == "refresh" then self.refresh(); return end
+        if job.kind == "restore_native" then
+            local ok, success, msg = pcall(records.restore_native_bank)
+            self.result_revision = self.result_revision + 1
+            legacy_cache = nil
+            if not ok or success ~= true then
+                diagnostic(ok and msg or success)
+                status(false, "恢复未完成，请检查录像和反击设置")
+                return
+            end
+            status(true, msg)
+            return
+        end
         if job.kind=="backup" or job.kind=="restore" then
             local action=job.kind=="backup" and records.backup_current or records.restore_latest_backup
             local ok,success,msg=pcall(action,job.options)

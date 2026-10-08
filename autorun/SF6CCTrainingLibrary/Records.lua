@@ -11,6 +11,7 @@ local TrainingRecordImport = require("SF6CCTrainingLibrary/TrainingRecordImport"
 local Compatibility = require("SF6CCTrainingLibrary/TrainingConfigCompatibility")
 local SlotLayout = require("SF6CCTrainingLibrary/TrainingSlotLayout")
 local TrainingGuardSettings = require("SF6CCTrainingLibrary/TrainingGuardSettings")
+local Ownership = require("SF6CCTrainingLibrary/NativeOwnership")
 
 local M = {}
 local JSON_NULL = json and (json.null or json.NULL) or nil
@@ -1754,6 +1755,109 @@ function M.clear_current_configuration()
     end
     M._annotations = empty_annotations()
     return true, result, backup_path
+end
+
+-- Legacy 80-slot banks came from the retired expansion build and persist in
+-- game saves. Restoring keeps the first eight native SlotData objects, drops the
+-- rest, and clears recording reversals whose SkillIndex would point past slot 8.
+local RECORDING_REVERSAL = 4
+
+local function legacy_reversal_plan(reversal_ctx)
+    local plan = {}
+    for _, definition in ipairs(REVERSAL_GROUPS) do
+        local collection = reversal_ctx.groups[definition.key]
+        for index = 0, REVERSAL_SLOT_COUNT - 1 do
+            local target = get_collection_item(collection, index)
+            if not target then
+                return nil, definition.key .. " reversal slot " .. tostring(index + 1) .. " is missing in game data"
+            end
+            local skill = as_int(safe_get_field(target, "SkillIndex"), nil)
+            if as_int(safe_get_field(target, "Type"), nil) == RECORDING_REVERSAL
+                and skill ~= nil and skill >= SLOT_COUNT then
+                plan[#plan + 1] = {
+                    group = definition, slot = index + 1, index = index, collection = collection, target = target,
+                    active = false, type = -1, skill_index = -1, delay_frame = 0, count = 1, meaty_frame = 0,
+                    fields = { IsActive = false, IsValid = false, IsFrame = false, Type = -1, Delay = 0,
+                        Count = 1, SkillIndex = -1, Level = 0, Frame = 0 },
+                }
+            end
+        end
+    end
+    return plan, nil
+end
+
+local function legacy_bank(fighter_id)
+    local slots, err, rec_func, record_ctx = get_slots_for_fighter(fighter_id)
+    if not slots then return nil, err end
+    local size = slots:get_size()
+    if type(size) ~= "number" or size % 1 ~= 0 or size <= SLOT_COUNT then return nil end
+    if size > SlotLayout.MAX_FILE_SLOTS then return nil, "Unsupported recording count " .. tostring(size) end
+    local discarded = 0
+    for index = SLOT_COUNT, size - 1 do
+        local valid = safe_get_field(get_collection_item(slots, index), "IsValid")
+        if valid == true or valid == 1 then discarded = discarded + 1 end
+    end
+    return { slots = slots, size = size, discarded = discarded, rec_func = rec_func, record_ctx = record_ctx }
+end
+
+function M.legacy_bank_summary()
+    local ctx = M.get_context()
+    if ctx.error then return nil, ctx.error end
+    local bank, err = legacy_bank(ctx.fighter_id)
+    if not bank then return nil, err end
+    local reversal_ctx = get_reversal_context(ctx.fighter_id)
+    local plan = reversal_ctx and legacy_reversal_plan(reversal_ctx)
+    return { fighter_id = ctx.fighter_id, size = bank.size, discarded = bank.discarded,
+        reversal_refs = plan and #plan or nil }
+end
+
+function M.restore_native_bank()
+    local ctx = M.get_context()
+    if ctx.error then return false, "恢复已取消：" .. tostring(ctx.error) end
+    local bank, bank_err = legacy_bank(ctx.fighter_id)
+    if not bank then
+        if bank_err then return false, "恢复已取消：" .. tostring(bank_err) end
+        return false, "当前录像已是原生8栏位"
+    end
+    local keep = {}
+    for index = 0, SLOT_COUNT - 1 do
+        local slot = get_collection_item(bank.slots, index)
+        if not slot or not slot:get_field("InputData") then
+            return false, "恢复已取消：第" .. tostring(index + 1) .. "栏录像数据不完整"
+        end
+        keep[index + 1] = slot
+    end
+    local reversal_ctx, reversal_err = get_reversal_context(ctx.fighter_id)
+    if not reversal_ctx then return false, "恢复已取消：" .. tostring(reversal_err) end
+    local reversal_plan, plan_err = legacy_reversal_plan(reversal_ctx)
+    if not reversal_plan then return false, "恢复已取消：" .. tostring(plan_err) end
+
+    local fighter_data = bank.record_ctx.fighter_data
+    local function same(a, b) return a ~= nil and b ~= nil and a:get_address() == b:get_address() end
+    local ok, failure = pcall(function()
+        -- The replacement container is the only object created here; it keeps a
+        -- permanent engine reference. The kept SlotData objects stay game-owned.
+        local native = Ownership.array(sdk, "app.training.TrainingData.TM_RecordSetting.SlotData", SLOT_COUNT)
+        for index, slot in ipairs(keep) do
+            native:call("SetValue(System.Object, System.Int32)", slot, index - 1)
+        end
+        for index, slot in ipairs(keep) do
+            assert(same(native:get_element(index - 1), slot), "replacement slot " .. index .. " readback failed")
+        end
+        fighter_data:set_field("RecordSlots", native)
+        assert(same(fighter_data:get_field("RecordSlots"), native), "recording bank readback failed")
+        if #reversal_plan > 0 then
+            local count, message = apply_reversal_plan(reversal_plan, reversal_ctx)
+            if count == nil then error(message) end
+        end
+    end)
+    if not ok then return false, "恢复失败：" .. tostring(failure) end
+
+    local force_ok, force_msg = force_apply(bank.rec_func)
+    local result = "已恢复为原生8栏位：保留第1～8栏，丢弃 " .. tostring(bank.discarded)
+        .. " 段录像，清理 " .. tostring(#reversal_plan) .. " 项反击设置"
+    if not force_ok then result = result .. "。ForceApply 失败：" .. tostring(force_msg) end
+    return true, result
 end
 
 local function import_from_file(path, options, context, prepared)

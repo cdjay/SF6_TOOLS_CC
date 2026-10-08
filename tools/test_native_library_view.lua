@@ -98,12 +98,31 @@ end
 v.set_context({allowed=true,fighter_id=28}); v.activate(1); v.activate(2)
 lib.entries[2].metadata.fighter_id=26
 assert(v.activate(2).notice and not v.rows()[2].text:find("舞 A",1,true),"mismatched live entry reused confirmation")
-v.set_context({allowed=true,fighter_id=28,slot_count=80,bank_unsupported=true,error="旧录像"})
+local legacy_ctx={allowed=true,fighter_id=28,slot_count=80,bank_unsupported=true,error="旧录像"}
+v.set_context(legacy_ctx)
 v.closed()
 assert(v.command(1)=="open" and v.command(3)==nil and v.command(4)==nil
-    and v.command(5)==nil and v.command(7)==nil,
-    "legacy bank must show a read-only library tab")
-assert(v.rows()[11].text:find("8栏位",1,true),"legacy bank needs a visible explanation")
+    and v.command(5)==nil and v.command(6)==nil and v.command(7)=="restore_native",
+    "legacy bank must show a read-only library tab whose only action is restoring eight slots")
+assert(v.rows()[11].text:find("8以上栏",1,true) and v.rows()[12].text:find("丢弃第9栏以后",1,true),
+    "legacy bank needs a visible explanation")
+local armed=v.activate(7)
+assert(armed.redraw and not armed.operation and v.rows()[7].text:find("再次确认",1,true),
+    "restoring eight slots must require a second confirmation")
+assert(v.confirming_clear(),"tab redraw relies on the shared confirmation flag")
+local confirmed=v.activate(7)
+assert(confirmed.operation=="restore_native" and not v.rows()[7].text:find("再次确认",1,true))
+v.activate(7); v.activate(9)
+assert(not v.activate(7).operation,"another row must discard the armed restore")
+v.cancel_confirmation()
+lib.legacy_summary=function() return {size=80,discarded=23,reversal_refs=4} end
+v.set_context(legacy_ctx)
+assert(v.rows()[11].text:find("80栏",1,true) and v.rows()[12].text:find("23段录像、4项反击",1,true),
+    "legacy summary must state what restoring discards")
+lib.legacy_summary=function() error("summary failure must not break the menu") end
+v.set_context(legacy_ctx)
+assert(v.command(7)=="restore_native" and v.rows()[12].text:find("丢弃第9栏以后",1,true))
+lib.legacy_summary=nil
 v.activate(1)
 assert(v.rows()[2].text=="舞 B" and v.command(2)==nil and v.command(12)==nil,
     "legacy bank must expose names without importing")

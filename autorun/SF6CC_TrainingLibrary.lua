@@ -23,7 +23,9 @@ re.on_pre_application_entry("LateUpdateBehavior", function()
         runtime.tick()
         if runtime.state() == "active" and library.has_pending() then
             local ctx = Library.runtime_context()
-            if ctx.allowed and not ctx.error and ctx.menu_closed == true
+            -- A legacy bank only reaches here for the explicit restore job;
+            -- Library refuses every other operation on that bank.
+            if ctx.allowed and (not ctx.error or ctx.bank_unsupported == true) and ctx.menu_closed == true
                 and ctx.busy == false and save_idle(ctx) then library.tick() end
         end
     end, debug.traceback)

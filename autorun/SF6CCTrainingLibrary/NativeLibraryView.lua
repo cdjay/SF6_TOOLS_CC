@@ -6,7 +6,7 @@ local Layout=require("SF6CCTrainingLibrary/TrainingSlotLayout")
 function M.new(library,can_rename)
     local self={}
     local mode,page,catalog,revision,armed="main",1,{},nil,nil
-    local fighter,unsupported
+    local fighter,unsupported,legacy
     local session,data,slots=nil,nil,{}
     local frames={}
     local clear_armed=false
@@ -39,6 +39,11 @@ function M.new(library,can_rename)
             capture()
         end
         session,data=ctx and ctx.session,ctx and ctx.data
+        legacy=nil
+        if fighter and unsupported and library.legacy_summary then
+            local ok,summary=pcall(library.legacy_summary)
+            if ok and type(summary)=="table" then legacy=summary end
+        end
         -- Read native capacity only in the caller's closed-menu update, never
         -- from a message or navigation hook. The list consumes this Lua snapshot.
         local previous_count=#slots
@@ -67,6 +72,14 @@ function M.new(library,can_rename)
             end
         end
         if mode=="slots" and previous_count~=#slots then self.closed() end
+    end
+    local function legacy_notice()
+        if not legacy or type(legacy.discarded)~="number" then return "恢复将丢弃第9栏以后的录像" end
+        local text="恢复将丢弃第9栏后"..legacy.discarded.."段录像"
+        if type(legacy.reversal_refs)=="number" and legacy.reversal_refs>0 then
+            text=text.."、"..legacy.reversal_refs.."项反击"
+        end
+        return text
     end
     local function slots_editable()
         return not unsupported and #slots>0 and can_rename and can_rename() and library.can_edit_slot_names()
@@ -100,10 +113,12 @@ function M.new(library,can_rename)
                 row("另存当前配置",not unsupported and "export" or nil),
                 row("修改当前配置名称",not unsupported and selected and can_rename and can_rename() and "rename" or nil),
                 row("修改栏位说明",slots_editable() and "open_slots" or nil),
-                row((clear_armed and "【再次确认清空】" or "").."清空所有栏位",not unsupported and "clear" or nil),separator(),
+                unsupported and row((clear_armed and "【再次确认】" or "").."恢复为原生8栏位","restore_native")
+                    or row((clear_armed and "【再次确认清空】" or "").."清空所有栏位","clear"),
+                separator(),
                 info("配置信息"),info("角色："..d.character),
-                info(unsupported and "当前录像不是8栏位，操作暂不可用" or d.slots),
-                info("保存时间："..d.saved),row(""),
+                info(unsupported and ("当前录像为"..(legacy and legacy.size or "8以上").."栏，其他操作暂停") or d.slots),
+                info(unsupported and legacy_notice() or ("保存时间："..d.saved)),row(""),
             }
         end
         local editing_slots=mode=="slots"
@@ -142,13 +157,14 @@ function M.new(library,can_rename)
     end
     function self.activate(index)
         local item=self.rows()[index]
-        if not item or item.command~="clear" or library.has_pending() then clear_armed=false end
+        local confirming=item and (item.command=="clear" or item.command=="restore_native")
+        if not confirming or library.has_pending() then clear_armed=false end
         if not item or not item.command then return {} end
         if library.has_pending() then return {notice="上一次操作尚未完成，请稍候"} end
         local kind=item.command
-        if kind=="clear" then
+        if confirming then
             armed=nil
-            if clear_armed then clear_armed=false; return {operation="clear",redraw=true} end
+            if clear_armed then clear_armed=false; return {operation=kind,redraw=true} end
             clear_armed=true
             return {redraw=true}
         end

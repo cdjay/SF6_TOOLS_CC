@@ -419,7 +419,7 @@ local function setup()
         local result
         local was_clear=view.confirming_clear()
         if command=="open" or command=="open_slots" or command=="choose" or command=="back"
-            or command=="clear" or was_clear then
+            or command=="clear" or command=="restore_native" or was_clear then
             redraw(sdk.to_managed_object(args[4]),function()
                 result=view.activate(index); return result.redraw or was_clear
             end)

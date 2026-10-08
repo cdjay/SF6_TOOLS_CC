@@ -20,8 +20,23 @@ An October 8 live read found the current Mai bank still contained 80 slots after
 this branch loaded. The old gate therefore never installed the Wood Library
 tab. The read-only legacy-bank presentation fix keeps the tab and character
 catalog visible, while refusing all configuration writes and autoload until
-the actual bank is eight slots. It does not truncate or migrate game data;
-live-game confirmation of the tab is still pending.
+the actual bank is eight slots. It does not truncate or migrate game data
+automatically; live-game confirmation of the tab is still pending.
+
+October 8 crash root cause and hardening: the 00:47 REFramework dump and log
+show a freshly created playback menu row dying (refs 2 to 0) while the next row
+was created, then an access violation in the engine's UpdateVM cycle collector
+on a destroyed object, the same site as the September 15-16 expansion crashes.
+REFramework Lua references are keyed by address and deduplicated, so Lua cannot
+reliably own objects that game structures reference. The branch now gives every
+injected object one permanent engine reference (`NativeOwnership`), never
+releases from Lua, never uses `create_*_global`, reuses one root page per Lua
+state, serves cached permanent hook strings, and reads/writes recording inputs
+in raw memory instead of boxing one object per frame. Legacy banks gain an
+explicit, double-confirmed restore that keeps slots 1-8, drops the rest, and
+clears recording reversals pointing past slot 8. All of this is offline
+contract coverage only: cold start, legacy restore, 1P/2P switching, match
+return and save still need real-game confirmation before tagging.
 
 October 5 configuration-save review: the shared library queue now waits for
 30 update callbacks after a newly mounted session, both SaveManager idle and

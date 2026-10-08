@@ -7,6 +7,7 @@ local function fixture(capacity, fault, native_slots)
     local stats = { reads = 0, backups = 0, starts = {}, writes = 0, tick = 0, forces = 0 }
     local function object(fields)
         return {
+            get_address = function(self) return self end,
             get_field = function(_, key) return fields[key] end,
             set_field = function(_, key, value) fields[key] = value end,
             get_type_definition = function()
@@ -211,6 +212,62 @@ test("an unexpected array header falls back to the boxed native path", function(
     assert(ok, msg)
     assert(stats.writes == 432 and stats.boxed == 432 and not stats.raw_writes,
         "mismatched header must not trust raw offsets")
+end)
+test("legacy eighty-slot bank restores the first eight native slots and clears stale recording reversals", function()
+    local records, stats, ctx, _, _, _, fighter, slots, env = fixture(3600, nil, 80)
+    local created = {}
+    env.sdk.create_managed_array = function(name, count)
+        assert(name == "app.training.TrainingData.TM_RecordSetting.SlotData" and count == 8)
+        local items, arr = {}, { permanent = 0 }
+        function arr:add_ref_permanent() self.permanent = self.permanent + 1 end
+        function arr:add_ref() error("replacement bank must not depend on Lua reference bookkeeping") end
+        function arr:get_address() return self end
+        function arr:get_size() return count end
+        function arr:get_element(i) return items[i] end
+        function arr:call(method, value, index)
+            assert(method == "SetValue(System.Object, System.Int32)" and index >= 0 and index < count)
+            items[index] = value
+        end
+        created[#created + 1] = arr
+        return arr
+    end
+    for i = 8, 79 do slots[i]:set_field("IsValid", i % 10 == 0) end
+    local reversal_fighter = ctx.data:get_field("ReversalSetting"):get_field("FighterDataList"):call("get_Item", 28)
+    local function entry(field, index) return reversal_fighter:get_field(field):call("get_Item", index) end
+    local stale, kept, skill = entry("DownReversalDatas", 0), entry("GuardReversalDatas", 3), entry("DamageReversalDatas", 9)
+    for key, value in pairs({ Type = 4, SkillIndex = 9, IsValid = true, IsActive = true, IsFrame = false,
+        Delay = 12, Count = 2, Level = 1, Frame = 3 }) do stale:set_field(key, value) end
+    kept:set_field("Type", 4); kept:set_field("SkillIndex", 7)
+    skill:set_field("Type", 2); skill:set_field("SkillIndex", 40)
+
+    local summary = records.legacy_bank_summary()
+    assert(summary.size == 80 and summary.discarded == 7 and summary.reversal_refs == 1, "wrong legacy summary")
+    local before = fighter:get_field("RecordSlots")
+    local ok, msg = records.restore_native_bank()
+    assert(ok, msg)
+    local bank = fighter:get_field("RecordSlots")
+    assert(bank ~= before and bank == created[1] and bank.permanent == 1 and bank:get_size() == 8)
+    for i = 0, 7 do assert(bank:get_element(i) == slots[i], "slot " .. (i + 1) .. " lost its native object") end
+    assert(stale:get_field("Type") == -1 and stale:get_field("SkillIndex") == -1
+        and stale:get_field("IsActive") == false and stale:get_field("IsValid") == false,
+        "recording reversal past slot 8 must be cleared")
+    assert(kept:get_field("Type") == 4 and kept:get_field("SkillIndex") == 7, "valid recording reversal changed")
+    assert(skill:get_field("Type") == 2 and skill:get_field("SkillIndex") == 40, "non-recording reversal changed")
+    assert(stats.forces == 1 and stats.backups == 0, "restore must apply once and never export a backup")
+    assert(msg:find("丢弃 7 段录像", 1, true) and msg:find("清理 1 项反击", 1, true))
+
+    local again_ok, again = records.restore_native_bank()
+    assert(not again_ok and again == "当前录像已是原生8栏位" and #created == 1 and stats.forces == 1)
+    assert(records.legacy_bank_summary() == nil, "a native bank has no legacy summary")
+end)
+test("restore refuses incomplete legacy slots before creating or replacing anything", function()
+    local records, stats, _, _, _, _, fighter, slots, env = fixture(3600, nil, 80)
+    env.sdk.create_managed_array = function() error("must not allocate before validation") end
+    slots[5]:set_field("InputData", nil)
+    local before = fighter:get_field("RecordSlots")
+    local ok, msg = records.restore_native_bank()
+    assert(not ok and msg:find("第6栏", 1, true) and fighter:get_field("RecordSlots") == before)
+    assert(stats.forces == 0)
 end)
 test("empty slots initialize then import once from one read and one backup", function()
     local records, stats, ctx, tick, _, settings, fighter, slots = fixture(0)

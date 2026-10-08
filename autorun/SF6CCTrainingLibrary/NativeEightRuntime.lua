@@ -46,7 +46,10 @@ function M.new(deps)
             generation = generation + 1
             age = 0
         end
-        if not autoloaded and not ctx.bank_unsupported then
+        -- A session that began on a legacy bank never autoloads: restoring it
+        -- keeps slots 1-8, which a remembered configuration must not overwrite.
+        if ctx.bank_unsupported then autoloaded = true end
+        if not autoloaded then
             age = age + 1
             if age >= 30 and ctx.busy == false and ctx.menu_closed == true
                 and deps.save_idle(ctx) then
