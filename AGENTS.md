@@ -167,6 +167,7 @@ Default behavior:
 * `reframework\` contents are copied from Git-tracked files under `autorun`, `data`, `fonts`, `images`, and `plugins`.
 * New package-source files must be tracked by Git before packaging; untracked files under those package-source directories make the script fail.
 * Runtime state, ignored files, repository `release/`, old ZIPs, dumps, and temporary build output must not be included.
+* The script writes each ZIP entry itself with `/` separators and no empty files; the website rejects `\` paths or empty files with HTTP 422. Do not switch back to Windows PowerShell 5.1 `Compress-Archive`, which writes `\`.
 
 If the user asks to package a release and does not need Codex to run it, provide the packaging command above. If Codex is explicitly asked to package, run this script rather than doing manual copy or ZIP steps.
 

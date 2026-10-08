@@ -354,7 +354,14 @@ function Assert-FullPackageFeatures {
         'autorun/SF6CCTrainingLibrary/NativeRecordingRuntime.lua',
         'autorun/SF6CCTrainingLibrary/Library.lua',
         'autorun/SF6CCTrainingLibrary/Records.lua',
-        '木人库使用说明.md'
+        '木人库使用说明.md',
+        'autorun/fastersf6.lua',
+        'autorun/conf/fastersf6_conf.lua',
+        'autorun/lang/fastersf6_lang.lua',
+        'autorun/func/current_scene_id.lua',
+        'autorun/func/setup_hook.lua',
+        'autorun/func/show_custom_ticker.lua',
+        'autorun/func/was_key_down.lua'
     )
     foreach ($relative in $required) {
         if (-not (Test-Path -LiteralPath (Join-Path $PackageRoot "reframework/$relative") -PathType Leaf)) {
@@ -369,13 +376,16 @@ function Assert-FullPackageFeatures {
 function Assert-FullPackagePublishPaths {
     param([Parameter(Mandatory = $true)][string]$PackageRoot)
 
-    # The website accepts only game-root binaries/config and reframework contents.
+    # The website accepts only non-empty game-root binaries/config and reframework contents.
     $root = (Resolve-Path -LiteralPath $PackageRoot).Path.TrimEnd('\', '/') + [IO.Path]::DirectorySeparatorChar
     foreach ($file in Get-ChildItem -LiteralPath $root -Recurse -File -Force) {
         $relative = $file.FullName.Substring($root.Length).Replace('\', '/')
         if ($relative -cne 'dinput8.dll' -and $relative -cne 're2_fw_config.txt' -and
             -not $relative.StartsWith('reframework/', [StringComparison]::Ordinal)) {
             throw "Package file is outside the publication allowlist: $relative"
+        }
+        if ($file.Length -eq 0) {
+            throw "Package file is empty and would be rejected by the website: $relative"
         }
     }
 }
@@ -483,8 +493,46 @@ function New-ZipFromDirectory {
         throw "Target zip already exists after preflight cleanup: $ZipPath"
     }
 
-    $zipItems = Join-Path $SourceDirectory "*"
-    Compress-Archive -Path $zipItems -DestinationPath $ZipPath -CompressionLevel Optimal
+    # Compress-Archive in Windows PowerShell 5.1 stores '\' separators, which the website rejects (HTTP 422).
+    Add-Type -AssemblyName System.IO.Compression.FileSystem
+    Add-Type -AssemblyName System.IO.Compression
+    $root = (Resolve-Path -LiteralPath $SourceDirectory).Path.TrimEnd('\', '/') + [IO.Path]::DirectorySeparatorChar
+    $files = [ordered]@{}
+    foreach ($file in Get-ChildItem -LiteralPath $root -Recurse -File -Force | Sort-Object FullName) {
+        $files[$file.FullName.Substring($root.Length).Replace('\', '/')] = $file.FullName
+    }
+    $zip = [IO.Compression.ZipFile]::Open($ZipPath, [IO.Compression.ZipArchiveMode]::Create)
+    try {
+        foreach ($pair in $files.GetEnumerator()) {
+            [IO.Compression.ZipFileExtensions]::CreateEntryFromFile($zip, $pair.Value, $pair.Key, [IO.Compression.CompressionLevel]::Optimal) | Out-Null
+        }
+    }
+    finally {
+        $zip.Dispose()
+    }
+
+    # Check the stored entry names and contents; some readers silently normalize '\' to '/'.
+    $zip = [IO.Compression.ZipFile]::OpenRead($ZipPath)
+    try {
+        if ($zip.Entries.Count -ne $files.Count) {
+            throw "Archive entry count mismatch: $ZipPath"
+        }
+        foreach ($entry in $zip.Entries) {
+            if ($entry.FullName.Contains('\') -or -not $files.Contains($entry.FullName)) {
+                throw "Unexpected archive entry name: $($entry.FullName)"
+            }
+            $stream = $entry.Open()
+            $sha = [Security.Cryptography.SHA256]::Create()
+            try { $hash = [BitConverter]::ToString($sha.ComputeHash($stream)).Replace('-', '') }
+            finally { $sha.Dispose(); $stream.Dispose() }
+            if ($hash -ne (Get-FileHash -LiteralPath $files[$entry.FullName] -Algorithm SHA256).Hash) {
+                throw "Archive content mismatch: $($entry.FullName)"
+            }
+        }
+    }
+    finally {
+        $zip.Dispose()
+    }
 }
 
 function Copy-SelectedTrackedReframeworkFiles {
@@ -885,6 +933,8 @@ foreach ($packageRoot in @($standardPackagePath, $runtimePackagePath)) {
 齿轮快捷设置位于训练工具栏；木人库位于游戏暂停菜单的“反击设置”后。
 木人库的使用方法见 reframework/木人库使用说明.md。
 更新后重新启动游戏，不要在训练场内通过 Reset Scripts 更换版本。
+本包附带 FasterSF6 2.4（原作者 MafuyuKinoshita）：启动时跳过部分片头进入主菜单，保留正常联网登录；启动提示出现时请不要按空格。
+如需停用，关闭游戏后将 reframework/autorun/fastersf6.lua 移出游戏文件夹；不要删除 func 内的共用文件。
 '@ | Set-Content -LiteralPath (Join-Path $packageRoot 'reframework/安装说明.txt') -Encoding UTF8
 }
 Assert-CommandDisplayPackage -SourceRoot $workspacePath -PackageRoot $standardPackagePath

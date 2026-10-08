@@ -29,4 +29,7 @@ SF6CC 基于 **WTT（Wael Training Tools / SF6_Tools）** 持续开发，并保�
 
 SF6CC runs through the Street Fighter 6 modding ecosystem and may interact with third-party tools such as REFramework and related rendering plugins.
 
+- **FasterSF6** by **MafuyuKinoshita** (https://www.nexusmods.com/streetfighter6/mods/2538): bundled in the full package as `autorun/fastersf6.lua` with its `conf`, `lang` and `func` dependencies. The author's code is kept; the configuration opens the main menu with normal online login.
+  完整包附带 FasterSF6（原作者 MafuyuKinoshita），保留作者代码，配置为进入主菜单并保留正常联网登录。
+
 All rights to Street Fighter 6, Capcom trademarks, characters, game assets, official UI, fonts, logos, models, textures, audio and music remain with their respective owners. No ownership of Capcom or other third-party assets is claimed by this project.

@@ -118,6 +118,11 @@ $publishGuard = $ast.Find({param($node)
 }, $true)
 if (-not $publishGuard) { throw 'Full package publication path guard missing' }
 . ([scriptblock]::Create($publishGuard.Extent.Text))
+$zipWriter = $ast.Find({param($node)
+    $node -is [Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq 'New-ZipFromDirectory'
+}, $true)
+if (-not $zipWriter) { throw 'Release ZIP writer missing' }
+. ([scriptblock]::Create($zipWriter.Extent.Text))
 $featureRoot = Join-Path ([IO.Path]::GetTempPath()) ('sf6cc-feature-test-' + [guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Path $featureRoot | Out-Null
 try {
@@ -128,17 +133,35 @@ try {
     foreach ($relative in $requiredFiles) {
         $target = Join-Path $featureRoot "reframework/$relative"
         New-Item -ItemType Directory -Path (Split-Path -Parent $target) -Force | Out-Null
-        New-Item -ItemType File -Path $target | Out-Null
+        Set-Content -LiteralPath $target -Value 'x'
     }
     Assert-FullPackageFeatures -PackageRoot $featureRoot
     foreach ($relative in @('dinput8.dll', 're2_fw_config.txt', 'reframework/安装说明.txt')) {
-        New-Item -ItemType File -Path (Join-Path $featureRoot $relative) | Out-Null
+        Set-Content -LiteralPath (Join-Path $featureRoot $relative) -Value 'x'
     }
     Assert-FullPackagePublishPaths -PackageRoot $featureRoot
+    $emptyFile = Join-Path $featureRoot 'reframework/autorun/empty.lua'
+    New-Item -ItemType File -Path $emptyFile | Out-Null
+    $rejected = $false
+    try { Assert-FullPackagePublishPaths -PackageRoot $featureRoot }
+    catch { $rejected = $_.Exception.Message -match 'empty' }
+    if (-not $rejected) { throw 'Empty package file accepted; the website rejects it.' }
+    Remove-Item -LiteralPath $emptyFile
+    # The website rejects '\' entry names (HTTP 422); Windows PowerShell 5.1 Compress-Archive wrote them.
+    New-ZipFromDirectory -SourceDirectory $featureRoot -ZipPath "$featureRoot.zip"
+    Add-Type -AssemblyName System.IO.Compression.FileSystem
+    $zip = [IO.Compression.ZipFile]::OpenRead("$featureRoot.zip")
+    try { $entryNames = @($zip.Entries | ForEach-Object { $_.FullName }) }
+    finally { $zip.Dispose() }
+    if ($entryNames.Count -ne ($requiredFiles.Count + 3) -or
+        @($entryNames | Where-Object { $_.Contains('\') -or $_.EndsWith('/') }).Count -gt 0 -or
+        'reframework/autorun/func/Training_SharedUI.lua' -cnotin $entryNames -or 'dinput8.dll' -cnotin $entryNames) {
+        throw 'Release ZIP must store only file entries with forward-slash paths.'
+    }
     foreach ($relative in @('安装说明.txt', 'reframework-extra/test.txt')) {
         $target = Join-Path $featureRoot $relative
         New-Item -ItemType Directory -Path (Split-Path -Parent $target) -Force | Out-Null
-        New-Item -ItemType File -Path $target | Out-Null
+        Set-Content -LiteralPath $target -Value 'x'
         $rejected = $false
         try { Assert-FullPackagePublishPaths -PackageRoot $featureRoot }
         catch { $rejected = $_.Exception.Message -match 'outside the publication allowlist' }
@@ -152,7 +175,7 @@ try {
         try { Assert-FullPackageFeatures -PackageRoot $featureRoot }
         catch { $rejected = $_.Exception.Message -match 'dependency missing' }
         if (-not $rejected) { throw "Feature dependency was not enforced: $relative" }
-        New-Item -ItemType File -Path $target | Out-Null
+        Set-Content -LiteralPath $target -Value 'x'
     }
     New-Item -ItemType File -Path (Join-Path $featureRoot 'reframework/autorun/SF6CC_DynamicRecords.lua') | Out-Null
     $rejected = $false
@@ -165,6 +188,7 @@ try {
     if (-not $resolved.StartsWith($tempPrefix, [StringComparison]::OrdinalIgnoreCase) -or
         (Split-Path -Leaf $resolved) -notlike 'sf6cc-feature-test-*') { throw 'Unsafe test cleanup' }
     Remove-Item -LiteralPath $resolved -Recurse -Force
+    if (Test-Path -LiteralPath "$resolved.zip") { Remove-Item -LiteralPath "$resolved.zip" -Force }
 }
 if ((Get-FileHash -Algorithm SHA256 -LiteralPath $versionPath).Hash -ne $beforeHash) {
     throw 'Packaging tests changed the canonical product version.'
