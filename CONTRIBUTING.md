@@ -2,6 +2,8 @@
 
 Language: [简体中文](CONTRIBUTING.zh-CN.md)
 
+Status: `CURRENT`
+
 ## Documentation
 
 * [README](README.en.md)
@@ -64,7 +66,8 @@ Please keep changes focused on a single area whenever possible.
 
 # Branch Naming
 
-Recommended branch names:
+The default development branch is `master`. Recommended temporary branch
+names, as defined in [AGENTS.md](AGENTS.md):
 
 feature/<name>
 
@@ -72,27 +75,31 @@ bugfix/<name>
 
 refactor/<name>
 
-docs/<name>
+release/<name>
 
 review/<name>
+
+import/<name>
 
 ---
 
 # Commit Messages
 
-Use concise, descriptive commit messages.
+Commit messages must be written in Chinese, as required by [AGENTS.md](AGENTS.md).
+Use a short subject with a type prefix, followed by a body that explains what
+changed, why it changed, and any runtime, release or compatibility impact.
 
-Examples:
+Subject examples:
 
-Add localization framework
+功能：木人库可将旧80栏录像恢复为原生8栏位
 
-Improve combo parser
+修复：训练场内搜索对战时木人库反复自动导入
 
-Refactor TrainingComboTrials
+优化：录像输入导入导出改为直接读写原生缓冲区
 
-Update Akuma combo database
+重构：拆分连段训练指令解析模块
 
-Fix UI scaling issue
+文档：归档木人库80栏位调试日志
 
 ---
 

@@ -2,6 +2,8 @@
 
 Language: [简体中文](VISION.zh-CN.md)
 
+Status: `DESIGN`
+
 ## Documentation
 
 * [README](README.en.md)

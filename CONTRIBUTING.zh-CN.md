@@ -2,6 +2,8 @@
 
 语言：[English](CONTRIBUTING.md)
 
+状态：`CURRENT`
+
 ## 文档导航
 
 * [项目首页](README.md)
@@ -153,27 +155,20 @@ SF6CC 并不是 WTT 的竞争项目。
 
 # 提交规范
 
-推荐 Commit 示例：
+提交信息一律使用中文（见 [AGENTS](AGENTS.zh-CN.md)）：标题使用类型前缀并简明概括，
+正文说明改了什么、为什么改，以及对运行、发布或兼容性的影响。
 
-新增：
+标题示例：
 
-Add localization framework
+功能：木人库可将旧80栏录像恢复为原生8栏位
 
-修复：
+修复：训练场内搜索对战时木人库反复自动导入
 
-Fix hit confirm parser
+优化：录像输入导入导出改为直接读写原生缓冲区
 
-优化：
+重构：拆分连段训练指令解析模块
 
-Improve combo trial UI
-
-重构：
-
-Refactor TrainingComboTrials
-
-文档：
-
-Update architecture documentation
+文档：归档木人库80栏位调试日志
 
 ---
 

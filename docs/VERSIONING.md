@@ -1,5 +1,7 @@
 # SF6CC Versioning
 
+Status: `CURRENT`
+
 SF6CC uses [`data/SF6CC/version.json`](../data/SF6CC/version.json) as the
 single source of truth for product and combo JSON format versions.
 

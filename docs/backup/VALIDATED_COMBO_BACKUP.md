@@ -1,5 +1,7 @@
 # SF6CC Validated Frozen Combo Backup — 2026-08-06 v1
 
+Status: `CURRENT`
+
 ## Snapshot Identity
 
 - **Snapshot ID**: SF6CC-VALIDATED-COMBO-BACKUP-2026-08-06-V1

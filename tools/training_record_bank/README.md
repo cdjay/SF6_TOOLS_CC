@@ -1,6 +1,10 @@
 # Recording Bank Draft
 
-Status: `DESIGN` (offline implementation; not a native runtime feature).
+Status: `HISTORICAL` (offline draft for the retired 80-slot expansion; not a
+native runtime feature). The 2026-09-14 lifecycle decision below was superseded
+on 2026-10-09: the native-eight-slot library never imports on training entry.
+See [Training Library](../../docs/training-library/README.md). The `vendor/`
+JSON library remains in use by the CFN replay tools.
 
 ## Training-Only Lifecycle Decision (2026-09-14)
 

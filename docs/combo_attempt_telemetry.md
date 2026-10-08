@@ -1,5 +1,7 @@
 # Combo Attempt Telemetry
 
+Status: `CURRENT`
+
 SF6CC records anonymous combo-attempt outcomes for a future tray uploader. The
 Lua runtime does not access the network and does not store usernames, account
 IDs, authentication tokens, or full player inputs.

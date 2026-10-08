@@ -1,5 +1,7 @@
 # 确认训练统计 JSON 契约
 
+Status: `CURRENT`
+
 确认训练只向本地追加匿名 JSONL 事件，不进行网络请求，也不读取或保存用户 Token。托盘负责登录身份、Token、上传重试、成功确认与队列消费。自由选择的训练项按“角色 + 前置 Action ID + 后续 Action ID”形成稳定的 `case_id`，网站可按 `case_id + revision` 聚合展示。
 
 ## 本地队列

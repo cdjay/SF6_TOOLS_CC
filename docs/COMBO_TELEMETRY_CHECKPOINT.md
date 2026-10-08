@@ -1,5 +1,7 @@
 # Combo Telemetry Cumulative Checkpoint
 
+Status: `CURRENT`
+
 Telemetry upload is eventually consistent and must not require synchronous
 checkpoint durability on the SF6 realtime path. This producer is a
 legacy/diagnostic aid, not an upload prerequisite or production runtime

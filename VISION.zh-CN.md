@@ -2,6 +2,8 @@
 
 语言：[English](VISION.md)
 
+状态：`DESIGN`
+
 ## 文档导航
 
 * [项目首页](README.md)

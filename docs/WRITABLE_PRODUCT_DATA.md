@@ -1,5 +1,7 @@
 # Writable Product Data: Exceptions Ownership Contract
 
+Status: `CURRENT`
+
 **Status**: CURRENT Governance Contract / Runtime migration DESIGN_ONLY
 
 **Scope**: `data/TrainingComboTrials_data/exceptions/` — 33 tracked JSON files, 489 action-level entries across 31 character files plus `Common.json` and `Unknown.json`.

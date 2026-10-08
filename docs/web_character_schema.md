@@ -1,5 +1,7 @@
 # Web Character Schema v1
 
+Status: `CURRENT`
+
 `xt.character.web.v1` 是 AC/BCM 批量导出器生成的网页角色资料文件。它把同版本的统一指令表与
 Capcom OFF 帧数快照组合在一个文件中，但保持两个独立索引：
 
