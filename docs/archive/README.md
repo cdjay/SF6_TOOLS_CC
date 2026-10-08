@@ -13,6 +13,7 @@ handover. Resolve current questions through [Documentation Authority](../DOCUMEN
 | `handover/` | WTT/SF6CC handover and merge assessments |
 | `regression/` | Dated pre-current regression evidence |
 | `releases/` | Historical release records |
+| `training-library/` | September 2026 logs of the retired 80-slot recording expansion, moved verbatim from Known Limitations and Architecture |
 
 Completed phase reports whose durable conclusions now live in current authority
 documents were removed. They remain available through Git history.

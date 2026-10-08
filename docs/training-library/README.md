@@ -1,11 +1,16 @@
 # 独立木人库技术说明
 
-## 原生8槽分支说明（2026-10-08）
+Status: `CURRENT`
 
-`codex/native-eight-slots` 从1.1.17建立。运行入口改用只读的 `NativeEightRuntime`，
+## 当前状态（原生8栏位）
+
+`codex/native-eight-slots` 从1.1.17建立，1.1.18起随完整包发布。运行入口改用只读的 `NativeEightRuntime`，
 不加载 `NativeRecordingRuntime`，不替换录像数组、录制/播放菜单行或反击选择列表容量。
 木人库顶层菜单、配置操作队列及栏位说明编辑仍保留。超过8槽的旧配置可见、可改配置名称，
 但不可导入或用8槽快照覆盖。
+
+2026-10-09 实机验收通过：冷启动进场、切换P2、匹配回场均不导入配置，录制/播放列表显示说明，
+改名后列表同步更新；标签 `training-library-v1.1.18-native8`。旧80栏恢复与反击列表名称尚未单独实机确认。
 
 进入训练场不再自动导入（2026-10-09，用户决定）：原生8槽的录像、反击及训练设置由游戏自己
 持久保存，重新导入只会用文件覆盖玩家未保存的修改。会话开始时 `Library.restore_names`
@@ -13,15 +18,14 @@
 整个Lua会话内跨场景保留（`select_fighter_annotations` 返回 same/cached/new），仅在该角色本次
 首次出现（new）时由 `load_config_annotations` 从记忆的8栏配置读取说明，不触碰录像。
 离开训练场只取消排队任务，不再清空栏位说明。
+
 录制、播放和反击列表中的“编号 - 说明”显示由 `NativeSlotNames` 恢复（2026-10-09）：
 它复用 `NativeRecordingNames` 与 `NativeReversalRecordings`（`expand=false`，栏位上限8，
 不安装反击选择列表扩容钩子），只替换交给 `hGUI.setTextMessage` 的格式字符串，替换文字
 使用永久缓存字符串。原生行按父页 `_FuncType`（录制107/播放108）与行 `_FuncType`（118/131）
 及 `_SlotID` 识别；钩子在首次有活动会话且菜单关闭的更新中安装一次，失败即整体停用、不重试。
 运行时上下文由 `NativeEightRuntime.context()` 提供，钩子内不重复读取训练数据。
-下面的扩容生命周期记录属于旧版历史，不代表本分支的运行契约。
-2026-10-09 实机验收通过：冷启动进场、切换P2、匹配回场均不导入配置，录制/播放列表显示说明，
-改名后列表同步更新；标签 `training-library-v1.1.18-native8`。旧80栏恢复与反击列表名称尚未单独实机确认。
+
 若游戏从旧存档恢复了某个角色的80槽录像，木人库标签仍会在关闭菜单后安装，
 该角色的配置列表仅供查看，保存、导入、清空及改名均禁用，首页第7行改为“恢复为原生8栏位”。
 用户两次确认后，`Records.restore_native_bank` 用一个持有永久引用的8元素数组替换当前P2的
@@ -30,6 +34,10 @@
 执行前要求录像器 `_gData` 的 `ReqType` 与 `State` 均为0（与旧扩容会话的空闲判断一致）；
 随机播放旧数组可能使 `_gData.SlotID` 停在第9栏以后，而 `ChangeRecordSlot` 不检查范围，
 因此越界的当前栏位改为0。恢复不导入任何配置；运行时从不自动缩减旧数组。
+
+扩展到8栏以上已暂缓（2026-10-09 用户决定）。功能底线与已知引擎限制见
+[KNOWN_LIMITATIONS](../KNOWN_LIMITATIONS.md)；9月80栏位方案的过程记录见
+[开发与验收记录](DEVELOPMENT_HISTORY.md) 和 [归档日志](../archive/training-library/KNOWN_LIMITATIONS_LOG_2026-09.md)。
 
 ### 原生对象所有权（2026-10-08 崩溃分析后的硬约束）
 
@@ -53,8 +61,8 @@
 
 - 这是独立的原生木人库插件，不依赖旧 `TrainingComboTrials_v1.0.lua` 或 SF6CM。
 - 发布入口为 `autorun/SF6CC_TrainingLibrary.lua`，私有依赖为 `autorun/SF6CCTrainingLibrary/`。
-- 本次发布将游戏区已采用的延后初始化木人库入口纳入正式源文件，避免包内只有 ImGui 管理面板。
-- 入口只组装 Runtime、Library、Panel 和 NativeLibraryTab，不承载角色动作语义。
+- 发布包含延后初始化的游戏内木人库入口，不只是 ImGui 管理面板。
+- 入口只组装 State、Library、NativeEightRuntime、Panel、NativeLibraryTab 和 NativeSlotNames，不承载角色动作语义。
 - 依赖 REFramework 的 Lua/SDK 能力；本插件没有调用 REFramework.NET 或 MCP。开发机的 .NET/MCP 文件不属于发布依赖。
 
 ## 模块职责
@@ -65,15 +73,16 @@
 | NativeEightRuntime | 原生8槽会话观察、按P2恢复选中配置与栏位说明，不替换录像数组 |
 | NativeSlotNames | 原生录制/播放/反击列表的“编号 - 说明”显示（仅替换文字） |
 | NativeOwnership | 交给游戏引用的对象与钩子文字的永久引用 |
-| NativeRecordingRuntime / Session | 当前角色扩容、原生对象所有权、保存完成及退出边界 |
-| NativeRecordingMenu / Pager / Names | 每页8栏、80栏容量、页码提交与名称显示 |
-| NativeReversalRecordings | 三类反击录像选择及名称解析 |
+| NativeRecordingPager | 页码提交协议，供 NativeLibraryPager 复用 |
+| NativeRecordingNames | 原生录制/播放列表的名称解析，供 NativeSlotNames 使用 |
+| NativeReversalRecordings | 三类反击录像选择及名称解析（`expand=false`，上限8） |
 | Records / TrainingRecordImport | 配置读写、陪练格挡设置、录像及反击内容转换、导入与清空、按P2保存栏位说明 |
 | Library | 当前选中配置、按角色记忆、统一操作队列；进场只恢复选中项与说明，不导入 |
 | NativeLibraryTab / View / Pager | 木人库顶层标签、纯Lua页面状态及原生页码适配 |
 | NativeNoteEditor / TrainingConfigNotes | 游戏输入框、配置标题与栏位说明修改 |
 | NativeTicker / NativeLibraryFeedback / LibraryMessages | 游戏消息、操作结果精简与显示名称 |
 | Panel | 保留的REFramework管理和排查面板，不作为日常必需入口 |
+| 已停用：NativeRecordingRuntime / Session / Menu / Seed、NativeSaveCompletion、NativeMenu、NativeRecordingNamePage | 80栏位扩容的会话、菜单与存档替换；源码与测试保留，入口不加载 |
 
 ## 运行边界
 
@@ -92,20 +101,9 @@
 越界的 `get_Item` 会在游戏内抛出 ArgumentOutOfRangeException，REFramework 随后在游戏线程上
 执行引擎的异常清理；旧实现在每次进入训练场时每帧触发两次，持续约半秒。
 
-扩展栏位是训练场内的临时运行内容，持久保存由用户配置承担。仍必须维护原生保存和释放顺序；
-“不写扩展到游戏存档”不能替代线程、生命周期和对象所有权检查。
-Reset不保证正在显示的原生对象可立即重新创建；发布文件更新仍采用冷启动。
-2026-09-17用户实测：训练场内disable/re-enable后等待，手动分页重载进入停止提示；
-退出训练场后重载，重进训练场成功导入配置且可正常使用。应记录为一次训练场外重载恢复成功，
-不能继续断言任何重载都必须重启游戏，也不能外推为任意Reset路径或重复循环稳定。
-
-2026-10-01针对“训练场内匹配、对战结束返回训练场时高概率闪退”的报告增加生命周期屏障。
-已挂载会话不再沿用15帧一次的检查频率，而是在每次安全更新中核对离线训练边界及录像控制对象身份；
-任一条件变化都先退休旧会话并恢复原生8栏位。返回训练场后，管理器、训练数据、录像控制对象、
-角色及两页原生菜单必须连续通过6次慢检查（约90次游戏更新）才重新挂载80栏位，自动导入只在挂载成功后执行一次。
-`Release`钩子仍只负责令旧会话失效，不在钩子线程直接改写原生对象。固定等待时间只是连续身份检查的结果，
-不是独立的安全依据。相关模拟回归已通过；由于本次没有对应的新崩溃报告，匹配回场仍须实机循环验证，
-不得据离线测试宣称闪退已经彻底解决。
+Reset不保证正在显示的原生对象可立即重新创建；训练场内脚本重载在原生8栏位版本上未经验收，
+发布文件更新仍采用关闭游戏后的冷启动。80栏位方案的扩展栏位、重新挂载及重载恢复记录已移入
+[开发与验收记录](DEVELOPMENT_HISTORY.md)。
 
 ## 菜单契约
 
@@ -167,10 +165,9 @@ ZIP 条目路径必须用 `/` 分隔且不能有空文件。2026-10-09 首次上
 
 包内 `package_manifest.json` 记录源提交、版本、各文件SHA256及配置数量。
 打包后检查解压目录依赖闭包、入口加载、配置合法性、清单哈希和ZIP目录，不能只看ZIP创建成功。
+## 验收边界
 
-## 本轮验收边界
-
-已收到核心录制/播放、配置保存/切换/改名、自动加载、列表翻页、名称帧数及空栏灰显的用户反馈。
-最新首行页码布局、顶层重新进入一级和行内清空确认，只有离线测试与接口证据，尚未完成本轮实机验收。
-三类反击概览名称的完整回归及历史间歇性闪退仍不得宣称全面解决。
+2026-10-09 实机（e8d0338 部署版本）：木人库菜单、录制/播放列表“编号 - 说明”、进场与匹配回场不导入、
+切换P2静默切换配置、改名后列表更新、保存/另存/改名，以及搜索对战期间暂停均已确认。
+尚未实机确认：旧80栏恢复为原生8栏位、1P切换、反击选择列表与总览名称、训练场内脚本重载。
 “正式版ZIP”指可独立安装的发布产物，不等于扩大这些验收结论。
