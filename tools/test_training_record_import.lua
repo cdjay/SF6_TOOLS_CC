@@ -37,6 +37,35 @@ local function fixture(capacity, fault, native_slots)
             assert(method == "SetValue" and index < capacities[slot])
             assert(value == 16); stats.writes = stats.writes + 1
         end }
+        if fault == "raw" or fault == "raw_mismatch" then
+            -- REArrayBase layout: rank 0x18, count 0x1C, UInt16 data from 0x20.
+            local memory = {}
+            local function element(offset)
+                local i = (offset - 0x20) / 2
+                assert(i % 1 == 0 and i >= 0 and i < capacities[slot], "raw access outside native buffer")
+                return i
+            end
+            buffer.read_dword = function(_, offset)
+                if offset == 0x18 then return 1 end
+                assert(offset == 0x1C, "unexpected raw header read")
+                return capacities[slot] + (fault == "raw_mismatch" and 1 or 0)
+            end
+            buffer.read_short = function(_, offset)
+                stats.raw_reads = (stats.raw_reads or 0) + 1
+                return memory[element(offset)] or 0
+            end
+            buffer.write_short = function(_, offset, value)
+                stats.raw_writes = (stats.raw_writes or 0) + 1
+                memory[element(offset)] = value
+            end
+            if fault == "raw" then
+                local boxed = buffer.call
+                buffer.call = function(self, method, ...)
+                    assert(method == "get_Length", "raw buffer path used boxed " .. tostring(method))
+                    return boxed(self, method, ...)
+                end
+            end
+        end
         slots[slot - 1] = object({ Frame = 0, Weight = 1, IsValid = false, IsActive = false,
             InputData = object({ buff = buffer, Num = 0 }) })
     end
@@ -96,7 +125,11 @@ local function fixture(capacity, fault, native_slots)
     end
     local env = setmetatable({
         sdk = { get_managed_singleton = function() return manager end,
-            create_uint16 = function(value) return value end },
+            create_uint16 = function(value)
+                assert(fault ~= "raw", "raw buffer path boxed an input value")
+                stats.boxed = (stats.boxed or 0) + 1
+                return value
+            end },
         json = { load_file = function() stats.reads = stats.reads + 1; return data end,
             dump_file=function(_,snapshot) stats.exported=snapshot; return true end }, fs = {},
     }, { __index = _G })
@@ -159,6 +192,26 @@ test("clear stops before native writes when the existing automatic backup fails"
     assert(slots[0]:get_field("Frame") == 100 and stats.forces == 0)
 end)
 
+test("raw native buffers import and export without boxing one object per frame", function()
+    local records, stats, ctx = fixture(3600, "raw")
+    local ok, msg, _, _, receipt = records.begin_import("config.json", {}, ctx)
+    assert(ok, msg); assert(receipt.kind == "import" and receipt.written == 2)
+    assert(stats.writes == 0 and not stats.boxed and stats.raw_writes == 432, "import boxed input frames")
+    assert(stats.raw_reads == 432, "every raw input write must be read back")
+    local exported, export_msg = records.export_current("raw.json")
+    assert(exported, export_msg)
+    local slots = stats.exported.slots
+    assert(#slots[4].input_buff == 170 and #slots[5].input_buff == 262 and #slots[1].input_buff == 0)
+    for _, value in ipairs(slots[5].input_buff) do assert(value == 16) end
+    assert(stats.raw_reads == 864, "export did not read inputs through raw memory")
+end)
+test("an unexpected array header falls back to the boxed native path", function()
+    local records, stats, ctx = fixture(3600, "raw_mismatch")
+    local ok, msg = records.begin_import("config.json", {}, ctx)
+    assert(ok, msg)
+    assert(stats.writes == 432 and stats.boxed == 432 and not stats.raw_writes,
+        "mismatched header must not trust raw offsets")
+end)
 test("empty slots initialize then import once from one read and one backup", function()
     local records, stats, ctx, tick, _, settings, fighter, slots = fixture(0)
     local ok, msg, _, _, receipt = records.begin_import("config.json", { force_apply_after_import = true }, ctx)

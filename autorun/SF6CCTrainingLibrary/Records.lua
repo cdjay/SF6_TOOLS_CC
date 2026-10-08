@@ -423,10 +423,31 @@ local function get_buffer_length(buffer)
     return 0, false
 end
 
+-- RE Engine one-dimensional arrays (REFramework REArrayBase): rank at 0x18,
+-- element count at 0x1C, inline elements from 0x20. Raw UInt16 access avoids
+-- boxing one managed System.UInt16 per recorded frame. REFramework bounds-checks
+-- every raw access against the array size; the header must also match Length.
+local ARRAY_RANK_OFFSET, ARRAY_COUNT_OFFSET, ARRAY_DATA_OFFSET = 0x18, 0x1C, 0x20
+
+local function raw_buffer(buffer, length)
+    if not buffer or type(length) ~= "number" or length < 0 then return false end
+    local ok, rank, count = pcall(function()
+        return buffer:read_dword(ARRAY_RANK_OFFSET), buffer:read_dword(ARRAY_COUNT_OFFSET)
+    end)
+    return ok and count == length and (rank == 0 or rank == 1)
+end
+
 local function read_buffer_values(buffer, frames)
     local values = {}
     local length = get_buffer_length(buffer)
     local read_count = math.min(math.max(as_int(frames, 0) or 0, 0), length)
+
+    if raw_buffer(buffer, length) then
+        for index = 0, read_count - 1 do
+            values[#values + 1] = buffer:read_short(ARRAY_DATA_OFFSET + index * 2)
+        end
+        return values, length
+    end
 
     for index = 0, read_count - 1 do
         local ok, raw = pcall(function() return buffer:call("GetValue", index) end)
@@ -1469,8 +1490,24 @@ local function apply_import_plan(plan)
             step.slot_obj:set_field("Frame", step.frame)
             step.input_data:set_field("Num", step.input_num)
 
-            for index, value in ipairs(step.input_buff) do
-                step.buffer:call("SetValue", sdk.create_uint16(value), index - 1)
+            local length = get_buffer_length(step.buffer)
+            if raw_buffer(step.buffer, length) then
+                if #step.input_buff > length then
+                    error("record slot " .. tostring(step.slot) .. " input exceeds native buffer")
+                end
+                for index, value in ipairs(step.input_buff) do
+                    step.buffer:write_short(ARRAY_DATA_OFFSET + (index - 1) * 2, value)
+                end
+                for index, value in ipairs(step.input_buff) do
+                    if step.buffer:read_short(ARRAY_DATA_OFFSET + (index - 1) * 2) ~= value then
+                        error("record slot " .. tostring(step.slot) .. " raw input readback failed at "
+                            .. tostring(index))
+                    end
+                end
+            else
+                for index, value in ipairs(step.input_buff) do
+                    step.buffer:call("SetValue", sdk.create_uint16(value), index - 1)
+                end
             end
 
             step.slot_obj:set_field("IsValid", step.is_valid)
