@@ -14,6 +14,9 @@
 用户两次确认后，`Records.restore_native_bank` 用一个持有永久引用的8元素数组替换当前P2的
 `RecordSlots`：第1～8栏保留原 SlotData 对象，第9栏以后丢弃；`Type == 4` 且
 `SkillIndex >= 8` 的录像反击按清空规则重置，最后 ForceApply。不导出备份（用户要求）。
+执行前要求录像器 `_gData` 的 `ReqType` 与 `State` 均为0（与旧扩容会话的空闲判断一致）；
+随机播放旧数组可能使 `_gData.SlotID` 停在第9栏以后，而 `ChangeRecordSlot` 不检查范围，
+因此越界的当前栏位改为0。
 该会话不再自动导入，避免覆盖刚保留的8栏录像；运行时从不自动缩减旧数组。
 
 ### 原生对象所有权（2026-10-08 崩溃分析后的硬约束）

@@ -653,19 +653,27 @@ check("Partial hook setup fails once without publishing or automatic retries",fu
     assert(sdk_calls==before_calls and attempts==2 and #errors==1)
     sdk.hook=register
 end)
-check("A second root publication within one session stops instead of leaking",function()
+check("Mid-session root rebuilds reuse the page and a runaway loop stops",function()
     updates={}; resets={}; hooks={}; errors={}
     load()
     ui=object({_MenuData=array(original)}); tm._UIData=ui; tm._tData=object()
     presentation_id=presentation_id+1
     tick(60)
     assert(#errors==0 and ui._MenuData:get_size()==10)
+    local page=ui._MenuData:get_element(5)
     local count=allocations
-    local rebuilt=array(original); ui._MenuData=rebuilt -- game rebuilt the root mid-session
+    for _=1,2 do
+        ui._MenuData=array(original) -- game rebuilt the root mid-session
+        tick(60)
+        assert(#errors==0 and ui._MenuData:get_size()==10 and ui._MenuData:get_element(5)==page,
+            "an occasional rebuild must re-insert the same page")
+        assert(allocations==count,"republication allocated page nodes")
+    end
+    local rebuilt=array(original); ui._MenuData=rebuilt
     tick(60)
-    assert(#errors==1 and errors[1]:find("replaced during session",1,true))
+    assert(#errors==1 and errors[1]:find("replaced repeatedly during session",1,true))
     assert(ui._MenuData==rebuilt and rebuilt:get_size()==9 and allocations==count,
-        "mid-session replacement must not republish or allocate")
+        "a runaway replacement loop must not keep publishing")
     tick(300); assert(#errors==1,"stopped root tab retried")
 end)
 print(string.format("PASS %d native root-tab contract checks (not live-game evidence)",pass))

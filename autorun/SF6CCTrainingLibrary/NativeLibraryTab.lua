@@ -37,6 +37,9 @@ local option_nodes,option_arrays={},{}
 local editor,editor_attempted
 local MENU, FUNC = "app.training.TrainingMenuData", "app.training.TrainingMenuFunc"
 local DYNAMIC, REVERSAL = 345, 5
+-- Each publication allocates one small root array. A game that keeps replacing
+-- the root inside one session must not turn the tab into a per-update leak.
+local MAX_SESSION_PUBLICATIONS = 3
 local ROWS={}
 for i=1,View.COUNT do ROWS[i]={id=200+i} end
 local owner, stopped, failed, tick = nil, false, false, 0
@@ -195,10 +198,11 @@ local function install(tm,runtime,session)
     if page and not owned_page then owned_page=Ownership.retain(page) end
     if not page then
         assert(n<16,"native root capacity reached")
-        -- A session publishes at most one root array. A second one means the
-        -- game replaced the menu mid-session; stop rather than leak per update.
-        assert(not published or published.runtime~=runtime or published.session~=session,
-            "native root menu replaced during session; restart required")
+        if not published or published.runtime~=runtime or published.session~=session then
+            published={runtime=runtime,session=session,count=0}
+        end
+        assert(published.count<MAX_SESSION_PUBLICATIONS,
+            "native root menu replaced repeatedly during session; restart required")
         if not owned_page then
             local built=node(read(template,"_Type"),1,false)
             built:set_field("NextButton",read(template,"NextButton"))
@@ -214,7 +218,7 @@ local function install(tm,runtime,session)
         page=owned_page
         table.insert(items,insert_after+1,page)
         installed=array(items)
-        published={runtime=runtime,session=session}
+        published.count=published.count+1
     end
     local nodes,actions=validate_page(page,template)
     local next_owner={runtime=runtime,session=session,tm=tm,data=read(tm,"_tData"),ui=ui,page=page,

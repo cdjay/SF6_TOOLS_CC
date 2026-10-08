@@ -1831,9 +1831,16 @@ function M.restore_native_bank()
     if not reversal_ctx then return false, "恢复已取消：" .. tostring(reversal_err) end
     local reversal_plan, plan_err = legacy_reversal_plan(reversal_ctx)
     if not reversal_plan then return false, "恢复已取消：" .. tostring(plan_err) end
+    -- A character transition can leave a native record request pending even when
+    -- IsRecording/IsReplayNow are false; never swap the bank under such a request.
+    local gdata = safe_get_field(bank.rec_func, "_gData")
+    if not gdata or safe_get_field(gdata, "ReqType") ~= 0 or safe_get_field(gdata, "State") ~= 0 then
+        return false, "恢复已取消：录像系统尚未空闲"
+    end
 
     local fighter_data = bank.record_ctx.fighter_data
     local function same(a, b) return a ~= nil and b ~= nil and a:get_address() == b:get_address() end
+    local slot_reset = false
     local ok, failure = pcall(function()
         -- The replacement container is the only object created here; it keeps a
         -- permanent engine reference. The kept SlotData objects stay game-owned.
@@ -1846,6 +1853,14 @@ function M.restore_native_bank()
         end
         fighter_data:set_field("RecordSlots", native)
         assert(same(fighter_data:get_field("RecordSlots"), native), "recording bank readback failed")
+        -- Random playback over the old bank can leave the current slot past 8;
+        -- ChangeRecordSlot writes SlotID without a range check.
+        local current = as_int(safe_get_field(gdata, "SlotID"), nil)
+        if current ~= nil and (current < 0 or current >= SLOT_COUNT) then
+            gdata:set_field("SlotID", 0)
+            assert(as_int(gdata:get_field("SlotID"), nil) == 0, "current recording slot readback failed")
+            slot_reset = true
+        end
         if #reversal_plan > 0 then
             local count, message = apply_reversal_plan(reversal_plan, reversal_ctx)
             if count == nil then error(message) end
@@ -1856,6 +1871,7 @@ function M.restore_native_bank()
     local force_ok, force_msg = force_apply(bank.rec_func)
     local result = "已恢复为原生8栏位：保留第1～8栏，丢弃 " .. tostring(bank.discarded)
         .. " 段录像，清理 " .. tostring(#reversal_plan) .. " 项反击设置"
+    if slot_reset then result = result .. "；当前栏位改为第1栏" end
     if not force_ok then result = result .. "。ForceApply 失败：" .. tostring(force_msg) end
     return true, result
 end

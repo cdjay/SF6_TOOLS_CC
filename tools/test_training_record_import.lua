@@ -97,7 +97,9 @@ local function fixture(capacity, fault, native_slots)
         GuardSetting = object({ DummyData = guard_fields }),
         ReversalSetting = object({ FighterDataList = collection({ [28] = object(reversal_fields) }), ReversalType = 0 }) })
     local reversal = object({ _tData = td }); reversal.call = function() end
-    local rec = object({ _tData = td })
+    local gdata = object({ ReqType = 0, State = 0, SlotID = 0 })
+    stats.gdata = gdata
+    local rec = object({ _tData = td, _gData = gdata })
     local ctx = { allowed = true, data = td, fighter_id = 28, busy = false,
         recording = false, replay = false, combo_busy = false, menu_closed = true }
     local manager = object({ _tData = td })
@@ -242,6 +244,7 @@ test("legacy eighty-slot bank restores the first eight native slots and clears s
 
     local summary = records.legacy_bank_summary()
     assert(summary.size == 80 and summary.discarded == 7 and summary.reversal_refs == 1, "wrong legacy summary")
+    stats.gdata:set_field("SlotID", 40) -- random playback over the old bank
     local before = fighter:get_field("RecordSlots")
     local ok, msg = records.restore_native_bank()
     assert(ok, msg)
@@ -255,10 +258,39 @@ test("legacy eighty-slot bank restores the first eight native slots and clears s
     assert(skill:get_field("Type") == 2 and skill:get_field("SkillIndex") == 40, "non-recording reversal changed")
     assert(stats.forces == 1 and stats.backups == 0, "restore must apply once and never export a backup")
     assert(msg:find("丢弃 7 段录像", 1, true) and msg:find("清理 1 项反击", 1, true))
+    assert(stats.gdata:get_field("SlotID") == 0 and msg:find("当前栏位改为第1栏", 1, true),
+        "current recording slot past 8 must be reset")
 
     local again_ok, again = records.restore_native_bank()
     assert(not again_ok and again == "当前录像已是原生8栏位" and #created == 1 and stats.forces == 1)
     assert(records.legacy_bank_summary() == nil, "a native bank has no legacy summary")
+end)
+test("restore keeps an in-range current slot and refuses a pending native request", function()
+    local records, stats, _, _, _, _, fighter, _, env = fixture(3600, nil, 80)
+    local arrays = 0
+    env.sdk.create_managed_array = function(name, count)
+        arrays = arrays + 1
+        local items, arr = {}, {}
+        function arr:add_ref_permanent() end
+        function arr:get_address() return self end
+        function arr:get_size() return count end
+        function arr:get_element(i) return items[i] end
+        function arr:call(_, value, index) items[index] = value end
+        return arr
+    end
+    local before = fighter:get_field("RecordSlots")
+    for _, field in ipairs({ "ReqType", "State" }) do
+        stats.gdata:set_field(field, 1)
+        local ok, msg = records.restore_native_bank()
+        assert(not ok and msg:find("尚未空闲", 1, true), field .. " pending request was not refused")
+        assert(arrays == 0 and fighter:get_field("RecordSlots") == before and stats.forces == 0)
+        stats.gdata:set_field(field, 0)
+    end
+    stats.gdata:set_field("SlotID", 5)
+    local ok, msg = records.restore_native_bank()
+    assert(ok, msg)
+    assert(stats.gdata:get_field("SlotID") == 5 and not msg:find("当前栏位", 1, true),
+        "an in-range current slot must not change")
 end)
 test("restore refuses incomplete legacy slots before creating or replacing anything", function()
     local records, stats, _, _, _, _, fighter, slots, env = fixture(3600, nil, 80)
