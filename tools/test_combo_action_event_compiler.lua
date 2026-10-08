@@ -1767,6 +1767,115 @@ do
 end
 
 do
+    local function compile_meter_confirmed_cancel(drive_cost, cancel_id, observes_cancel, opts)
+        opts = opts or {}
+        local initial_drive = opts.initial_drive or 60000
+        local spend_frame = opts.spend_frame or 339
+        local contact_frame = opts.contact_frame or 327
+        local session = compiler.new({
+            character = "Test",
+            frame = 320,
+            motion_resolver = function(action_id)
+                local motions = { [605] = "MP", [608] = "HP", [cancel_id] = "DRC" }
+                return motions[action_id], "strict_route"
+            end,
+        })
+        for frame = 320, 370 do
+            local input = 0
+            if frame >= 322 and frame <= 328 then
+                input = 32
+            elseif (frame >= 333 and frame <= 335)
+                or (frame >= 339 and frame <= 345) then
+                input = opts.direction_bit or 8
+            elseif frame >= 363 and frame <= 367 then
+                input = 64
+            end
+            local action_id = frame < 322 and 10
+                or (frame < 339 and 605
+                    or (frame < 363 and (observes_cancel and cancel_id or 605)
+                        or 608))
+            local drive = frame < spend_frame and initial_drive
+                or (frame == spend_frame
+                    and initial_drive - math.floor(drive_cost / 3)
+                    or (frame == spend_frame + 1
+                        and initial_drive - math.floor(drive_cost * 2 / 3)
+                        or initial_drive - drive_cost))
+            compiler.observe(session, {
+                frame = frame,
+                action_id = action_id,
+                action_frame = frame - (action_id == 605 and 322
+                    or (action_id == 608 and 363
+                        or (action_id == cancel_id and 339 or 320))),
+                direct_input = input,
+                facing_right = opts.facing_right == true,
+                combo_count = frame < contact_frame and 0 or 1,
+                actor_hp = 10000,
+                victim_hp = frame < contact_frame and 10000 or 9500,
+                actor_drive = drive,
+            })
+        end
+        if opts.observed_unbound == true then
+            session.observed_actions[#session.observed_actions + 1] = {
+                id = cancel_id,
+                frame = 350,
+                action_frame = 0,
+                reason = "action_id_changed",
+            }
+        end
+        return compiler.finalize(session, {
+            motion_resolver = session.motion_resolver,
+        })
+    end
+
+    for _, cancel_id in ipairs({ 739, 501 }) do
+        local missing = compile_meter_confirmed_cancel(30000, cancel_id, false)
+        assert(#missing.steps == 3
+                and missing.steps[1].id == 605
+                and missing.steps[2].id == cancel_id
+                and missing.steps[2].motion == "DRC"
+                and missing.steps[3].id == 608,
+            "confirmed three-bar cancel must survive a missed transient Action")
+        local saved = require("func/ComboTrials/UnifiedActionConsumer")
+            .normalize_sequence(missing.steps)
+        assert(saved.ok == true and #saved.sequence == 3
+                and saved.sequence[2].id == cancel_id,
+            "recording normalization must preserve the recovered cancel")
+        local observed = compile_meter_confirmed_cancel(30000, cancel_id, true)
+        assert(#observed.steps == 3 and observed.steps[2].id == cancel_id,
+            "meter evidence must not duplicate an observed cancel Action")
+        local plain_dash = compile_meter_confirmed_cancel(0, cancel_id, false)
+        assert(#plain_dash.steps == 2,
+            "forward double tap without drive cost must stay a plain dash")
+        local raw_rush_cost = compile_meter_confirmed_cancel(10000, cancel_id, false)
+        assert(#raw_rush_cost.steps == 2,
+            "one-bar spend must not be mistaken for a cancel rush")
+        local burnout = compile_meter_confirmed_cancel(40, cancel_id, false, {
+            initial_drive = 40,
+            spend_frame = 361,
+            contact_frame = 341,
+            direction_bit = 4,
+            facing_right = true,
+        })
+        assert(#burnout.steps == 3 and burnout.steps[2].id == cancel_id
+                and burnout.trace.inferred_drive_cancels[1].local_drive_cost == 40,
+            "a cancel that consumes the last sliver of drive must not disappear")
+        local observed_unbound = compile_meter_confirmed_cancel(0, cancel_id, false, {
+            observed_unbound = true,
+        })
+        assert(#observed_unbound.steps == 3
+                and observed_unbound.trace.inferred_drive_cancels[1].frame == 350
+                and observed_unbound.trace.inferred_drive_cancels[1].reason
+                    == "observed_unbound_drive_cancel",
+            "an observed but unbound cancel must retain its actual Action frame")
+        local unrelated = compile_meter_confirmed_cancel(30000, cancel_id, false, {
+            contact_frame = 999,
+        })
+        assert(#unrelated.steps == 2,
+            "a meter drop without attack contact must not create a cancel")
+    end
+end
+
+do
     local blanka_repeat = compiler.new({
         character = "Blanka",
         frame = 0,

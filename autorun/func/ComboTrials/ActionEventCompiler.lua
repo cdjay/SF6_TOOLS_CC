@@ -32,6 +32,8 @@ local Compiler = {
     -- visible in the player gauge. Keep the transition briefly and confirm it
     -- from the same local meter spend before the next Action is bound.
     RAW_DRIVE_RUSH_COST_SETTLE_WINDOW = 30,
+    DRIVE_CANCEL_COST_SETTLE_WINDOW = 40,
+    DRIVE_CANCEL_MIN_LOCAL_COST = 28000,
     BUTTON_MASK = 0xFFF0,
 }
 
@@ -959,6 +961,119 @@ local function resolve_motion(resolver, event, session)
         status, type(metadata) == "table" and metadata or nil
 end
 
+local function reconcile_meter_confirmed_drive_cancels(session, resolver)
+    local source = type(session) == "table" and session.events or {}
+    local taps = type(session) == "table" and session.drive_cancel_taps or {}
+    if type(resolver) ~= "function" or #taps == 0 then return source, {} end
+
+    local cancel_id
+    for _, action_id in ipairs(ActionMatcher.drive_rush_action_ids()) do
+        local motion, status = resolve_motion(resolver, { id = action_id }, session)
+        if ActionMatcher.normalize_motion_token(motion) == "DRC"
+            and status ~= "suppress_transition" then
+            cancel_id = action_id
+            break
+        end
+    end
+    if cancel_id == nil then return source, {} end
+
+    local events = {}
+    for index, event in ipairs(source) do events[index] = event end
+    local inferred = {}
+    for _, tap in ipairs(taps) do
+        local baseline = tonumber(tap.baseline_drive)
+        local minimum = tonumber(tap.min_drive)
+        local cost = baseline and minimum
+            and math.max(0, baseline - minimum) or 0
+        local meter_confirmed = baseline ~= nil and baseline > 0
+            and ((baseline >= Compiler.DRIVE_CANCEL_MIN_LOCAL_COST
+                    and cost >= Compiler.DRIVE_CANCEL_MIN_LOCAL_COST)
+                or (baseline < Compiler.DRIVE_CANCEL_MIN_LOCAL_COST
+                    and minimum == 0))
+        local next_event
+        for _, event in ipairs(source) do
+            if (tonumber(event.frame) or 0) > tap.frame then
+                next_event = event
+                break
+            end
+        end
+        local observed_cancel
+        for _, observed in ipairs(session.observed_actions or {}) do
+            local observed_frame = tonumber(observed.frame)
+            if observed_frame and observed_frame >= tap.frame
+                and type(next_event) == "table"
+                and observed_frame <= next_event.frame then
+                local motion = resolve_motion(resolver, observed, session)
+                if ActionMatcher.normalize_motion_token(motion) == "DRC" then
+                    observed_cancel = observed
+                    break
+                end
+            end
+        end
+        if (meter_confirmed or observed_cancel ~= nil)
+            and type(tap.owner_event) == "table"
+            and tap.owner_event.has_contact == true
+            and type(next_event) == "table"
+            and next_event.frame - tap.frame
+                <= Compiler.DRIVE_CANCEL_COST_SETTLE_WINDOW
+            and (observed_cancel ~= nil
+                or (tonumber(tap.min_drive_frame) or math.huge)
+                    <= next_event.frame) then
+            local already_recorded = false
+            for _, event in ipairs(events) do
+                if math.abs((tonumber(event.frame) or 0) - tap.frame)
+                    <= Compiler.DRIVE_CANCEL_COST_SETTLE_WINDOW then
+                    local motion = resolve_motion(resolver, event, session)
+                    if ActionMatcher.normalize_motion_token(motion) == "DRC" then
+                        already_recorded = true
+                        break
+                    end
+                end
+            end
+            if not already_recorded then
+                local inferred_frame = tonumber(observed_cancel and observed_cancel.frame)
+                    or math.min(
+                        tonumber(tap.spend_start_frame) or tap.frame,
+                        next_event.frame - 1
+                    )
+                local event = {
+                    id = cancel_id,
+                    frame = inferred_frame,
+                    action_frame = 0,
+                    actor_hp = rounded(tap.sample.actor_hp),
+                    actor_drive = rounded(tap.min_drive),
+                    facing_right = tap.sample.facing_right ~= false,
+                    combo_at_start = math.max(0, tonumber(tap.sample.combo_count) or 0),
+                    expected_combo = 0,
+                    damage_at_step = 0,
+                    has_hit = false,
+                    has_contact = false,
+                    was_blocked = false,
+                    anchor = shallow_copy(tap.anchor),
+                    bind_reason = observed_cancel
+                        and "observed_unbound_drive_cancel"
+                        or "meter_confirmed_drive_cancel",
+                }
+                local insert_at = #events + 1
+                for index, existing in ipairs(events) do
+                    if (tonumber(existing.frame) or 0) >= inferred_frame then
+                        insert_at = index
+                        break
+                    end
+                end
+                table.insert(events, insert_at, event)
+                inferred[#inferred + 1] = {
+                    id = cancel_id,
+                    frame = inferred_frame,
+                    local_drive_cost = cost,
+                    reason = event.bind_reason,
+                }
+            end
+        end
+    end
+    return events, inferred
+end
+
 local function promote_unmapped_event(
     event,
     next_event_frame,
@@ -1392,6 +1507,7 @@ function Compiler.new(options)
         expired_meter_raw_dr_count = 0,
         pending_anchor = nil,
         pending_meter_confirmed_raw_dr = nil,
+        drive_cancel_taps = {},
         recent_drive_parry_observation = nil,
         recent_direction_anchor = nil,
         button_press_frames = {},
@@ -1516,6 +1632,35 @@ function Compiler.observe(session, sample)
         end
     elseif ActionMatcher.should_observe_dash_direction_edge(pressed, released) then
         anchor = observe_dash_anchor(session, sample, direction, direction_changed)
+    end
+
+    if type(anchor) == "table" and anchor.kind == "double_tap"
+        and type(session.current_event) == "table" then
+        session.drive_cancel_taps[#session.drive_cancel_taps + 1] = {
+            frame = frame,
+            anchor = shallow_copy(anchor),
+            sample = shallow_copy(sample),
+            owner_event = session.current_event,
+            baseline_drive = tonumber(session.previous_actor_drive)
+                or rounded(sample.actor_drive),
+            min_drive = rounded(sample.actor_drive),
+            min_drive_frame = frame,
+        }
+    end
+    for _, tap in ipairs(session.drive_cancel_taps) do
+        if frame >= tap.frame
+            and frame - tap.frame <= Compiler.DRIVE_CANCEL_COST_SETTLE_WINDOW then
+            local drive = rounded(sample.actor_drive)
+            if drive ~= nil and tap.baseline_drive ~= nil
+                and drive < tap.baseline_drive
+                and tap.spend_start_frame == nil then
+                tap.spend_start_frame = frame
+            end
+            if drive ~= nil and (tap.min_drive == nil or drive < tap.min_drive) then
+                tap.min_drive = drive
+                tap.min_drive_frame = frame
+            end
+        end
     end
 
     local action_id = tonumber(sample.action_id)
@@ -1913,7 +2058,8 @@ function Compiler.finalize(session, options)
         unresolved_anchors = unresolved_anchors + 1
     end
 
-    local source_events = type(session) == "table" and session.events or {}
+    local source_events, inferred_drive_cancels =
+        reconcile_meter_confirmed_drive_cancels(session, resolver)
     for event_index, source_event in ipairs(source_events) do
         local event = project_character_action_owner(
             source_event,
@@ -2321,7 +2467,8 @@ function Compiler.finalize(session, options)
             first_frame = type(session) == "table" and session.started_frame or nil,
             last_activity_frame = type(session) == "table" and session.last_activity_frame or nil,
             observed_actions = type(session) == "table" and session.observed_actions or {},
-            input_bound_events = type(session) == "table" and session.events or {},
+            input_bound_events = source_events,
+            inferred_drive_cancels = inferred_drive_cancels,
             projected_events = projected_events,
             suppressed_events = suppressed_events,
             promoted_events = promoted_events,

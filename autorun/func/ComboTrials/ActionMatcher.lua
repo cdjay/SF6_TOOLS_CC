@@ -267,6 +267,15 @@ function ActionMatcher.is_drive_rush_action_id(action_id)
     return DRIVE_RUSH_ACTIONS[tonumber(action_id)] == true
 end
 
+function ActionMatcher.drive_rush_action_ids()
+    local ids = {}
+    for action_id in pairs(DRIVE_RUSH_ACTIONS) do
+        ids[#ids + 1] = action_id
+    end
+    table.sort(ids)
+    return ids
+end
+
 function ActionMatcher.is_drive_rush_motion(motion)
     local normalized = ActionMatcher.normalize_motion_token(motion)
     return normalized == "RAWDR"
