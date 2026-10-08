@@ -38,6 +38,18 @@ clears recording reversals pointing past slot 8. All of this is offline
 contract coverage only: cold start, legacy restore, 1P/2P switching, match
 return and save still need real-game confirmation before tagging.
 
+October 9 live smoke of 1.1.18 (user): a new eight-slot configuration,
+save/save-as/rename and a ranked match with return to training worked. While
+searching for the next match from training, the "configuration imported"
+ticker repeated every 7-15 seconds. The log shows `BattleRule.GameMode`
+switching between 14 and 0 for about a second per matchmaking attempt with
+FlowMap still 3; each switch ended the library session, which then re-adopted
+the tab and autoloaded again. The gate now distinguishes an `online` hold
+(training scene intact) from leaving training, and List reads check
+`get_Count` first because each training entry previously raised two engine
+ArgumentOutOfRangeException per frame while FighterDataList was still empty.
+Both fixes have offline regressions and need a live recheck while matchmaking.
+
 October 5 configuration-save review: the shared library queue now waits for
 30 update callbacks after a newly mounted session, both SaveManager idle and
 the training manager's save request to clear before running a closed-menu job.

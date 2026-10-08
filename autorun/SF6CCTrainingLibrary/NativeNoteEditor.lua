@@ -121,6 +121,9 @@ function Editor.install()
         return true
     end
     local function update()
+        -- Matchmaking from training is not a context change; keep the dialog.
+        local held, raw = pcall(Module.runtime_context)
+        if held and type(raw) == "table" and raw.online_hold == true then return end
         local ctx = context()
         if pending then
             if not same(ctx, pending) or os.time() > pending.deadline then

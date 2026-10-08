@@ -491,7 +491,8 @@ re.on_pre_application_entry("LateUpdateBehavior",function()
     if pager then pager.tick() end
     tick=tick+1
     if feedback and tick%6==0 then
-        feedback.tick(presentation_session()~=nil and Safety.is_training_allowed())
+        -- Matchmaking keeps the training scene; do not discard pending results.
+        feedback.tick(presentation_session()~=nil and Safety.training_state()~=nil)
     end
     if tick%30~=0 then return end
     local success,detail=pcall(update,setup)

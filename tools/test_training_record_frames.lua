@@ -22,7 +22,8 @@ slots[7]=object({IsValid=1,Frame=262})
 local other_slots={size=8}
 for i=0,7 do other_slots[i]=object({IsValid=true,Frame=90+i}) end
 local records=collection({[28]=object({RecordSlots=collection(slots)}),[26]=object({RecordSlots=collection(other_slots)})})
-local data=object({SelectMenu=object({PlayerDatas=players}),RecordSetting=object({FighterDataList=records})})
+local setting_fields={FighterDataList=records}
+local data=object({SelectMenu=object({PlayerDatas=players}),RecordSetting=object(setting_fields)})
 local func=object({_tData=data})
 local manager=object({_tData=data})
 manager.call=function(_,name) assert(name=="get_RecordFunc"); return func end
@@ -47,5 +48,21 @@ assert(s.fighter_id==26 and #s.frames==8 and s.frames[1]==90)
 fighter=28; slots.size=80
 assert(module.get_record_bank_size()==80,"legacy bank size must be visible without reading its buffers")
 assert(module.get_record_frames()==nil,"old expanded bank must not be presented as native eight slots")
+-- Scene loading: P2 is already selected while FighterDataList is still empty.
+-- List.get_Item throws inside the engine, so the list must not be indexed.
+slots.size=8
+setting_fields.FighterDataList={call=function(_,name)
+    if name=="get_Count" then return 0 end
+    error("List.get_Item on an empty fighter list throws inside the engine")
+end}
+assert(module.get_record_bank_size()==nil and module.get_record_frames()==nil,
+    "an empty fighter list during scene loading must not be indexed")
+setting_fields.FighterDataList={call=function(_,name,index)
+    if name=="get_Count" then return 29 end
+    assert(name=="get_Item" and index==28,"unexpected list access")
+    return records:call("get_Item",28)
+end}
+assert(module.get_record_bank_size()==8,"a filled list must still resolve P2's bank")
+setting_fields.FighterDataList=records
 present=false; assert(module.get_record_frames()==nil,"unavailable bank must not look like empty slots")
 print("PASS current P2 frame snapshot: native eight slots, unsupported-bank refusal, no IO/buffers/writes")

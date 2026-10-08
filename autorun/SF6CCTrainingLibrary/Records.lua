@@ -144,6 +144,16 @@ end
 local function get_collection_item(collection, index)
     if not collection then return nil end
 
+    -- List<T>.get_Item and the indexer throw for a missing index; REFramework then
+    -- runs the engine's exception cleanup on the game thread. While a training
+    -- scene loads, P2 is known before FighterDataList is filled. call() returns
+    -- nil for a missing method, so collections without get_Count keep the old path.
+    local counted, count = pcall(function() return collection:call("get_Count") end)
+    if counted and type(count) == "number"
+        and (type(index) ~= "number" or index % 1 ~= 0 or index < 0 or index >= count) then
+        return nil
+    end
+
     local ok, item = pcall(function() return collection:call("get_Item", index) end)
     if ok and item then return item end
 

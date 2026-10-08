@@ -216,4 +216,14 @@ check("identical prefill reuses one permanent string across dialogs", function()
     s.ended = true; s.advance()
     s.open(); assert(s.calls == 2 and s.strings == 1 and not s.released)
 end)
+check("matchmaking hold keeps an open dialog instead of cancelling it", function()
+    local s = fixture(); s.open()
+    local live = s.ctx
+    s.ctx = { allowed = false, online_hold = true }
+    s.advance(60)
+    assert(s.hides == 0 and s.lib.has_pending(), "matchmaking closed the input dialog")
+    s.ctx = live
+    s.confirm("matched")
+    assert(s.saves == 1 and s.saved == "matched")
+end)
 print(n .. " native note editor tests passed")

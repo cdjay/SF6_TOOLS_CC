@@ -38,6 +38,28 @@ assert(context.pause_open()==false)
 pause._CurrentPauseTypeBit=2112; assert(context.pause_open()==false)
 pause._CurrentPauseTypeBit=1; assert(context.pause_open()==true)
 pause._CurrentPauseTypeBit=nil; assert(context.pause_open()==nil)
+-- Matchmaking from training: the scene is intact, only the battle rule is online.
+assert(context.training_state()=="training")
+for _,mode in ipairs({14,15,16,17,18}) do
+    rule.GameMode=mode
+    assert(context.training_state()=="online","matchmaking inside training must hold, not leave")
+    assert(not context.is_training_allowed(),"online rule must still block operations")
+end
+rule.GameMode="unknown"; assert(context.training_state()=="online"); rule.GameMode=14
+-- A real battle or any structural loss is not a hold.
+for _,leave in ipairs({
+    function() tm._IsInit=false end, function() tm._GameMode=0 end,
+    function() map._ID=9 end, function() recorder._tData=obj() end,
+    function() objects["app.network.NetworkManager"]=nil end,
+}) do
+    leave()
+    assert(context.training_state()==nil,"structural loss must end the session even under an online rule")
+    tm._IsInit=true; tm._GameMode=1; map._ID=4; recorder._tData=data
+    objects["app.network.NetworkManager"]=network
+end
+rule.GameMode=1
+assert(context.training_state()=="training")
 env.sdk.get_managed_singleton=function() error("unavailable") end
 assert(not context.is_training_allowed() and context.pause_open()==nil)
+assert(context.training_state()==nil)
 print("PASS standalone offline gate, online transition, replay/hub denial, owner and unknown-state checks")

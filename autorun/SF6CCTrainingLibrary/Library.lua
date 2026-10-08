@@ -418,7 +418,10 @@ function M.new(records, context, choices)
 end
 
 function M.runtime_context()
-    if not Safety.is_training_allowed() then return { allowed = false } end
+    local state = Safety.training_state()
+    -- online_hold: matchmaking inside training. Nothing may run, but the
+    -- session must not be treated as left and re-entered.
+    if state ~= "training" then return { allowed = false, online_hold = state == "online" } end
     local tm = sdk.get_managed_singleton("app.training.TrainingManager")
     if not tm or tm:get_field("_IsInit") ~= true then return { allowed = false } end
     local record = tm:call("get_RecordFunc")

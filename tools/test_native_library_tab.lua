@@ -97,7 +97,8 @@ package.loaded["SF6CCTrainingLibrary/NativeNoteEditor"]={install=function()
         return true
     end}
 end}
-package.loaded["SF6CCTrainingLibrary/Context"]={is_training_allowed=function() return allowed end,pause_open=function() return paused end}
+package.loaded["SF6CCTrainingLibrary/Context"]={is_training_allowed=function() return allowed end,
+    training_state=function() return allowed and "training" or nil end,pause_open=function() return paused end}
 local fighter=28
 package.loaded["SF6CCTrainingLibrary/Library"]={shared=function() return library end,
     runtime_context=function() return {allowed=allowed,fighter_id=fighter} end}

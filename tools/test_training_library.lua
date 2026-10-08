@@ -235,7 +235,8 @@ test("runtime context uses verified recorder getters and rejects stale context",
         if name == "app.training.TrainingManager" then return tm end
         assert(name == "app.PauseManager"); return pause
     end }
-    package.loaded["SF6CCTrainingLibrary/Context"] = { is_training_allowed = function() return true end }
+    package.loaded["SF6CCTrainingLibrary/Context"] = { is_training_allowed = function() return true end,
+        training_state = function() return "training" end }
     package.loaded["SF6CCTrainingLibrary/Records"] = { get_context = function() return { fighter_id = 19 } end }
     local runtime_module=dofile("autorun/SF6CCTrainingLibrary/Library.lua")
     local ctx = runtime_module.runtime_context()

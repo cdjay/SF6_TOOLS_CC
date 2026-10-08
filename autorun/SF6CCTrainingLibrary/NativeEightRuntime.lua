@@ -22,6 +22,9 @@ function M.new(deps)
     function self.tick()
         if stopped then return end
         local ok, ctx = pcall(context)
+        -- Each matchmaking attempt from training reports an online rule for about
+        -- a second. Leaving here would restart the session and autoload again.
+        if ok and type(ctx) == "table" and ctx.online_hold == true then return end
         if not ok or type(ctx) ~= "table" or not ctx.allowed
             or (ctx.error and not ctx.bank_unsupported)
             or not ctx.session or not ctx.data or not ctx.record_func or ctx.fighter_id == nil

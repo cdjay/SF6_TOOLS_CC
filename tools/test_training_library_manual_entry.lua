@@ -83,13 +83,31 @@ assert(counts.saves==0 and library.has_pending())
 ctx.menu_closed=true; tick(1)
 assert(counts.saves==1 and not library.has_pending())
 
+-- Matchmaking from training: each search attempt reports an online battle rule
+-- for about a second while the training scene stays intact (2026-10-09 log).
+-- A hold must neither restart the session nor autoload again.
+local live,generation,cancels=ctx,State.runtime.presentation_session(),counts.cancels
+assert(library.request("save"))
+ctx={allowed=false,online_hold=true}; tick(60)
+assert(counts.saves==1 and library.has_pending(),"a job ran during the online hold")
+ctx=live; tick(1)
+assert(counts.saves==2 and not library.has_pending(),"a queued job did not resume after the hold")
+for _=1,5 do
+    ctx={allowed=false,online_hold=true}; tick(60)
+    ctx=live; tick(40)
+end
+assert(State.runtime.state()=="active" and State.runtime.presentation_session()==generation,
+    "matchmaking hold restarted the session")
+assert(counts.autoload==1 and counts.imports==1 and counts.cancels==cancels,
+    "matchmaking hold re-imported or cancelled work")
+
 ctx.slot_count=80; tick(1)
 ctx.error="当前录像不是8栏位"; ctx.bank_unsupported=true
 tick(3)
 assert(State.runtime.state()=="active" and State.runtime.presentation_session(),
     "legacy bank must not hide the native library tab")
 assert(counts.autoload==1 and counts.imports==1,"legacy bank must not autoload")
-assert(not library.request("save") and counts.saves==1,"unsupported bank was modified")
+assert(not library.request("save") and counts.saves==2,"unsupported bank was modified")
 ctx.slot_count=8; ctx.error=nil; ctx.bank_unsupported=nil
 ctx.fighter_id=1; tick(35)
 assert(State.runtime.state()=="active" and counts.autoload==2)
