@@ -38,6 +38,7 @@ Start with this page instead of searching dated reports.
 - [CFN review window](research/CFN_REPLAY_REVIEW_UI.md): experimental damage review, current-round filtering and pre-event navigation; pending live verification.
 - [CFN user rules](research/CFN_REPLAY_USER_RULES.md): offline editor and bounded damage/guard classification rules; local experimental deployment, latest changes await live verification.
 - [CFN fact/rule workbench](research/CFN_REPLAY_WORKBENCH.md): integrated frame timeline, input history and paused rule re-evaluation from fixed facts; deployed locally with separate offline/live evidence.
+- [Online battle Lua capture limit](research/LIVE_BATTLE_LUA_CAPTURE_LIMIT.md): REFramework skips Lua during online matches, so live match capture is not possible; analyze matches through the offline CFN replay path.
 
 ## Historical
 
