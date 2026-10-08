@@ -93,14 +93,13 @@ Training features will never be locked behind a paywall.
 
 # Getting Started
 
-Installation instructions will continue to improve.
+1. Close the game completely.
+2. Download the SF6CC full package; it already contains REFramework (`dinput8.dll`).
+3. Extract it into the game root folder that contains `StreetFighter6.exe`, and follow `reframework/安装说明.txt` in the package for files from older versions.
+4. Launch the game and enter Training Mode. The training library tab follows "Reversal Settings" in the pause menu; see the [training library guide (Chinese)](木人库使用说明.md).
 
-The current workflow is:
-
-1. Install REFramework
-2. Download SF6CC
-3. Copy the files into your Street Fighter 6 installation
-4. Launch the game
+The full package bundles the third-party FasterSF6 plugin (skips startup screens, by MafuyuKinoshita); the installation notes in the package explain how to disable it.
+Update with the game closed; do not switch versions with Reset Scripts inside Training Mode.
 
 Future releases will provide:
 
@@ -114,6 +113,8 @@ Future releases will provide:
 ## 📚 Documentation
 
 - [Documentation Index And Current Authority](docs/README.md)
+- [Training Library Guide (Chinese)](木人库使用说明.md)
+- [Changelog](CHANGELOG.md)
 - [Current Architecture](ARCHITECTURE.md)
 - [AC+BCM Semantic Core](docs/AC_BCM_SEMANTIC_CORE.md)
 - [Testing Strategy](docs/TESTING_STRATEGY.md)
@@ -182,9 +183,12 @@ Current project capabilities include:
 * ✅ Localization improvements
 * ✅ UI enhancements
 * ✅ Combo Trials
+* ✅ In-game training library (configuration management, native eight-slot recordings and slot descriptions)
+* ✅ Toolbar gear quick settings
 * ✅ Hit Confirm Training
 * ✅ Distance Viewer
 * ✅ Script Manager
+* ✅ Combo data management
 * ✅ JSON-based data structure
 * ✅ AI development guidelines
 * ✅ Architecture documentation

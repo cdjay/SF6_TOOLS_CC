@@ -14,6 +14,14 @@
 
 下文的统一 Resolver 图是已批准的目标架构，不表示生产权威已经切换。
 
+## 连段录制入口
+
+`ComboTrials/RecordingPolicy.lua` 按场景控制录制：训练场连段录制开启（1.1.17 恢复）；
+CFN 录像中的旧录制入口、快捷键和远程录制命令被拒绝，录像底部录制栏隐藏。已有训练、演示、
+已保存连段、编译与取消路径保持不变，独立木人库的录像不受影响。录像复盘分析内的录制属于规划，
+尚未实现。`tools/cfn_replay_capture` 下的录像复盘实验（伤害/防御复盘、用户规则、统计与工作台）
+的模块边界以英文版 [ARCHITECTURE.md](ARCHITECTURE.md) 和 `docs/research/` 中的研究文档为准。
+
 ## 文档导航
 
 * [项目首页](README.md)
@@ -22,6 +30,7 @@
 * **架构设计**
 * [AI 开发规范](AGENTS.zh-CN.md)
 * [AC+BCM 语义核心](docs/AC_BCM_SEMANTIC_CORE.zh-CN.md)
+* [木人库技术说明](docs/training-library/README.md)
 * [贡献指南](CONTRIBUTING.zh-CN.md)
 
 ---
@@ -402,6 +411,27 @@ Action ID 不是跨版本主键。业务主键是 Move，Action 只是当前版�
 5. 最后让入口只保留 Hook、生命周期、上下文和编排。
 
 任何新业务逻辑都不得继续堆入入口文件。详细的数据契约、例外边界和迁移顺序见 [AC+BCM 语义核心](docs/AC_BCM_SEMANTIC_CORE.zh-CN.md)。
+
+---
+
+# 木人库（原生8栏位）
+
+独立木人库（`autorun/SF6CC_TrainingLibrary.lua` 与 `autorun/SF6CCTrainingLibrary/`）在游戏自己的
+8个录像栏位上管理训练配置，不依赖连段训练入口，也不依赖 SF6CM。
+
+* `NativeEightRuntime` 只读观察原生会话，不替换 `RecordSlots`、原生录制/播放菜单行或反击选择列表容量。
+* `Library` 负责当前选中配置、按角色记忆与唯一操作队列；`Records` 与 `TrainingRecordImport`
+  把配置写入现有原生栏位、反击与格挡设置。
+* `NativeLibraryTab` 在反击设置之后发布一个自有根页面；`NativeSlotNames` 在原生列表上显示“编号 - 说明”。
+* 交给游戏结构引用的对象只能经 `NativeOwnership` 创建并持有永久引用，不得由 Lua 释放
+  （见 AGENTS 的“原生对象所有权”约束）。
+* `Context.training_state()` 区分离线训练、匹配期间的 `online` 暂停与离开训练场。
+
+80栏位扩容模块（`NativeRecordingRuntime`、`NativeRecordingSession`、`NativeRecordingMenu`、
+`NativeRecordingSeed`、`NativeSaveCompletion`、`NativeMenu`、`NativeRecordingNamePage`）仍在源码中，
+但入口不再加载；其9月设计与部署记录已归档到
+[ARCHITECTURE_LIBRARY_LOG_2026-09](docs/archive/training-library/ARCHITECTURE_LIBRARY_LOG_2026-09.md)。
+维护细节见 [木人库技术说明](docs/training-library/README.md)。
 
 ---
 

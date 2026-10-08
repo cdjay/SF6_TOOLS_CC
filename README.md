@@ -92,14 +92,13 @@ SF6CC 将永久免费。
 
 # 快速开始
 
-安装方式将在后续版本持续完善。
+1. 完全关闭游戏。
+2. 下载 SF6CC 完整包，它已包含 REFramework（`dinput8.dll`）。
+3. 解压到 `StreetFighter6.exe` 所在的游戏根目录，并按包内 `reframework/安装说明.txt` 处理旧版文件。
+4. 启动游戏进入训练场。木人库位于暂停菜单“反击设置”之后，用法见 [木人库使用说明](木人库使用说明.md)。
 
-目前推荐：
-
-1. 安装 REFramework
-2. 下载 SF6CC
-3. 按照安装说明复制到游戏目录
-4. 启动游戏开始训练
+完整包附带第三方插件 FasterSF6（跳过启动片头，原作者 MafuyuKinoshita），停用方法见包内安装说明。
+更新版本请关闭游戏后覆盖，不要在训练场内通过 Reset Scripts 更换版本。
 
 未来将提供：
 
@@ -113,6 +112,8 @@ SF6CC 将永久免费。
 ## 📚 项目文档
 
 - [文档入口与当前权威](docs/README.md)
+- [木人库使用说明](木人库使用说明.md)
+- [更新日志](CHANGELOG.md)
 - [当前架构](ARCHITECTURE.zh-CN.md)
 - [AC+BCM 语义核心](docs/AC_BCM_SEMANTIC_CORE.zh-CN.md)
 - [测试策略](docs/TESTING_STRATEGY.md)
@@ -181,6 +182,8 @@ SF6CC 与 SF6CM 仅通过 JSON 数据交换，不直接依赖彼此。
 * ✅ 中文本地化
 * ✅ UI 优化
 * ✅ 连段训练增强
+* ✅ 游戏内木人库（训练配置管理、原生8栏位录像与栏位说明）
+* ✅ 训练工具栏齿轮快捷设置
 * ✅ Hit Confirm Training
 * ✅ Distance Viewer
 * ✅ Script Manager

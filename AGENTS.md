@@ -115,7 +115,7 @@ Normal development always happens on the main development branch.
 
 ---
 
-# Codex Memory: Local Paths
+# AI Memory: Local Paths
 
 Use these fixed local paths when the task needs them. Do not ask for them again unless the user says they changed.
 
@@ -169,7 +169,7 @@ Default behavior:
 * Runtime state, ignored files, repository `release/`, old ZIPs, dumps, and temporary build output must not be included.
 * The script writes each ZIP entry itself with `/` separators and no empty files; the website rejects `\` paths or empty files with HTTP 422. Do not switch back to Windows PowerShell 5.1 `Compress-Archive`, which writes `\`.
 
-If the user asks to package a release and does not need Codex to run it, provide the packaging command above. If Codex is explicitly asked to package, run this script rather than doing manual copy or ZIP steps.
+If the user asks to package a release and does not need the AI assistant to run it, provide the packaging command above. If the AI assistant is explicitly asked to package, run this script rather than doing manual copy or ZIP steps.
 
 ---
 
@@ -427,6 +427,17 @@ See [AC+BCM Semantic Core](docs/AC_BCM_SEMANTIC_CORE.md) for the detailed contra
 New character semantics, recording compilation, action detection, display resolution, and audit logic must live in dedicated modules. Do not add new character-specific Action-ID branches or patch layers to the entry script.
 
 Entry-script extraction must preserve current behavior with characterization tests before larger refactors are attempted.
+
+## Native object ownership (REFramework Lua)
+
+REFramework Lua references are keyed by address and deduplicated, so Lua cannot reliably own objects that game structures reference. A freshly created native menu row destroyed while still referenced caused the 1.1.16/1.1.17 training-library crashes.
+
+* Objects handed to game structures must be created through `SF6CCTrainingLibrary/NativeOwnership.lua` (one permanent engine reference) and never released from Lua.
+* Do not use `create_*_global`, explicit `release()`, or one-for-native/one-for-Lua `add_ref` on such objects.
+* Create such objects once per Lua state and reuse them; do not allocate them per training session or scene change.
+* Strings returned from hooks to native code must be cached permanent strings.
+
+See [Training Library](docs/training-library/README.md) and [Known Limitations](docs/KNOWN_LIMITATIONS.md).
 
 ## AI change checklist
 
