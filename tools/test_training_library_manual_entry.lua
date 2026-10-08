@@ -62,6 +62,7 @@ env.require=function(name)
     if name=="SF6CCTrainingLibrary/NativeEightRuntime" then return Runtime end
     if name=="SF6CCTrainingLibrary/Panel" then return function() end end
     if name=="SF6CCTrainingLibrary/NativeLibraryTab" then return true end
+    if name=="SF6CCTrainingLibrary/NativeSlotNames" then return true end
     error("Unexpected dependency: "..name)
 end
 local entry=assert(loadfile("autorun/SF6CC_TrainingLibrary.lua","t",env))

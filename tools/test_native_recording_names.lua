@@ -5,6 +5,7 @@ local function obj(fields)
     serial=serial+1
     local o={id=serial,fields=fields or {}}
     function o:get_address() return self.id end
+    function o:add_ref_permanent() self.permanent=true end
     function o:get_field(k) return self.fields[k] end
     function o:get_type_definition() return {get_method=function() return true end} end
     function o:call(k,i)

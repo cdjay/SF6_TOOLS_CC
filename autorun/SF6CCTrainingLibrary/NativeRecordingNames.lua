@@ -1,6 +1,7 @@
 -- Slot label source substitution on the game's own text writer. No GUI setters.
 -- Follows the accepted SF6CCSlotLabelSmoke experiment without its C# dependency.
 local Notes=require("SF6CCTrainingLibrary/TrainingConfigNotes")
+local Ownership=require("SF6CCTrainingLibrary/NativeOwnership")
 local M={}
 local function same(a,b) return a and b and a:get_address()==b:get_address() end
 local function read(o,k) return o and o:get_field(k) end
@@ -101,7 +102,7 @@ function M.new(api,threads,current,allowed,library,report)
                 -- Native formatting owns the number; braces in user input are
                 -- escaped before the game's System.String.Format consumer.
                 name=name:gsub("{","{{"):gsub("}","}}")
-                local replacement=assert(api.create_managed_string("<PLUNUM> - "..name))
+                local replacement=assert(Ownership.string(api,"<PLUNUM> - "..name))
                 storage.sf6cc_slot_name_string=replacement
                 args[4]=api.to_ptr(replacement)
             end)

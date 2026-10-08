@@ -171,6 +171,7 @@ test("native name writer follows a reused row across all ten pages without stale
     local prefix="config-A-"
     f.api.create_managed_string=function(value)
         local o=f.obj(); o.call=function(_,method) assert(method=="ToString"); return value end
+        o.add_ref_permanent=function() end
         return o
     end
     Names.new(f.api,f.threads,f.session,function() return true end,

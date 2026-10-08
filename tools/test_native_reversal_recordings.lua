@@ -10,6 +10,7 @@ local function fixture()
     local function obj(fields)
         id=id+1
         return {id=id,fields=fields or {},get_address=function(s)return s.id end,
+            add_ref_permanent=function(s) s.permanent=true end,
             get_field=function(s,k)return s.fields[k] end,get_size=function(s)return s.size or #s.fields.items end,
             get_element=function(s,i)return s.fields.items[i+1] end,
             get_type_definition=function(s)return {get_full_name=function()return s.fields.type end}end,

@@ -55,3 +55,5 @@ end)
 
 local ok, err = pcall(require,"SF6CCTrainingLibrary/NativeLibraryTab")
 if not ok then log.error("[SF6CC-Library] Menu unavailable: " .. tostring(err)) end
+local names_ok, names_err = pcall(require,"SF6CCTrainingLibrary/NativeSlotNames")
+if not names_ok then log.error("[SF6CC-Library] Slot names unavailable: " .. tostring(names_err)) end

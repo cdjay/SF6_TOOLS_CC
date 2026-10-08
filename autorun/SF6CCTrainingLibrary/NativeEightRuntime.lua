@@ -9,6 +9,9 @@ function M.new(deps)
     local library, context = deps.library, deps.context
     local active, identity, generation, stopped = false, nil, 0, false
     local stable, age, autoloaded = 0, 0, false
+    -- Last context validated for the active session; menu text hooks read it
+    -- instead of re-reading native training data on every native call.
+    local last
     local self = {}
 
     local function leave()
@@ -16,7 +19,7 @@ function M.new(deps)
             library.cancel()
             if library.reset_slot_names then library.reset_slot_names() end
         end
-        active, identity, stable, age, autoloaded = false, nil, 0, 0, false
+        active, identity, stable, age, autoloaded, last = false, nil, 0, 0, false, nil
     end
 
     function self.tick()
@@ -49,6 +52,7 @@ function M.new(deps)
             generation = generation + 1
             age = 0
         end
+        last = ctx
         -- A session that began on a legacy bank never autoloads: restoring it
         -- keeps slots 1-8, which a remembered configuration must not overwrite.
         if ctx.bank_unsupported then autoloaded = true end
@@ -65,6 +69,7 @@ function M.new(deps)
 
     function self.state() return stopped and "stopped" or (active and "active" or "unloaded") end
     function self.presentation_session() return active and not stopped and generation or nil end
+    function self.context() return active and not stopped and last or nil end
     function self.generation() return generation end
     function self.reset()
         stopped = true

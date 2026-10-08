@@ -32,6 +32,7 @@ assert(loaded["SF6CCTrainingLibrary/NativeLibraryTab"], "standalone package must
 assert(not loaded["SF6CCTrainingLibrary/NativeMenu"], "unsafe subtab refresh must remain withdrawn")
 assert(loaded["SF6CCTrainingLibrary/Library"] and loaded["SF6CCTrainingLibrary/Context"])
 assert(loaded["SF6CCTrainingLibrary/NativeNoteEditor"],"native library must include its deferred name editor")
+assert(loaded["SF6CCTrainingLibrary/NativeSlotNames"],"native lists must include the deferred slot-name installer")
 local state=assert(loaded["SF6CCTrainingLibrary/State"])
 assert(state.runtime and type(state.runtime.presentation_session)=="function")
 local safe_updates=0
@@ -43,7 +44,7 @@ for _,callback in ipairs(callbacks) do
         safe_updates=safe_updates+1
     end
 end
-assert(safe_updates==2,"one observer plus one dormant native library update")
+assert(safe_updates==3,"one observer, one dormant native library update and one deferred slot-name installer")
 assert(unsafe_updates==0,"native recording lifecycle still runs outside pre LateUpdateBehavior")
 local library=loaded["SF6CCTrainingLibrary/Library"].shared()
 local ticks=0
