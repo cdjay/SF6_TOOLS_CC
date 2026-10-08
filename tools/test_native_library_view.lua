@@ -98,6 +98,16 @@ end
 v.set_context({allowed=true,fighter_id=28}); v.activate(1); v.activate(2)
 lib.entries[2].metadata.fighter_id=26
 assert(v.activate(2).notice and not v.rows()[2].text:find("舞 A",1,true),"mismatched live entry reused confirmation")
+v.set_context({allowed=true,fighter_id=28,slot_count=80,bank_unsupported=true,error="旧录像"})
+v.closed()
+assert(v.command(1)=="open" and v.command(3)==nil and v.command(4)==nil
+    and v.command(5)==nil and v.command(7)==nil,
+    "legacy bank must show a read-only library tab")
+assert(v.rows()[11].text:find("8栏位",1,true),"legacy bank needs a visible explanation")
+v.activate(1)
+assert(v.rows()[2].text=="舞 B" and v.command(2)==nil and v.command(12)==nil,
+    "legacy bank must expose names without importing")
+v.set_context({allowed=true,fighter_id=28})
 local available=false
 local editing=View.new(lib,function() return available end)
 editing.set_context({allowed=true,fighter_id=28}); lib.selected=5

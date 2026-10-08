@@ -390,13 +390,15 @@ function M.runtime_context()
     local record = tm:call("get_RecordFunc")
     if not record then return { allowed = false } end
     local ctx = Records.get_context()
-    local capacity_ok, slot_count = pcall(Records.get_record_capacity)
+    local capacity_ok, slot_count = pcall(Records.get_record_bank_size)
+    local unsupported = capacity_ok and type(slot_count) == "number" and slot_count > 8
     local recording, replay = record:call("IsRecording"), record:call("IsReplayNow")
     local pause = sdk.get_managed_singleton("app.PauseManager")
     local bit = pause and pause:get_field("_CurrentPauseTypeBit")
     return { allowed = true, session = tm, data = tm:get_field("_tData"),
         fighter_id = ctx.fighter_id,
-        error = ctx.error or (not capacity_ok and "当前训练数据不是8栏位，请重启游戏" or nil),
+        error = ctx.error or (slot_count ~= 8 and "当前录像不是8栏位" or nil),
+        bank_unsupported = unsupported,
         slot_count = capacity_ok and slot_count or nil,
         menu_closed = bit == 64 or bit == 2112,
         record_func = record, recording = recording, replay = replay,

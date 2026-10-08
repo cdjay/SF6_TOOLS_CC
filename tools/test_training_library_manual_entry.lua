@@ -84,9 +84,13 @@ ctx.menu_closed=true; tick(1)
 assert(counts.saves==1 and not library.has_pending())
 
 ctx.slot_count=80; tick(1)
-assert(State.runtime.state()=="unloaded" and counts.cancels>0)
+ctx.error="当前录像不是8栏位"; ctx.bank_unsupported=true
+tick(3)
+assert(State.runtime.state()=="active" and State.runtime.presentation_session(),
+    "legacy bank must not hide the native library tab")
+assert(counts.autoload==1 and counts.imports==1,"legacy bank must not autoload")
 assert(not library.request("save") and counts.saves==1,"unsupported bank was modified")
-ctx.slot_count=8
+ctx.slot_count=8; ctx.error=nil; ctx.bank_unsupported=nil
 ctx.fighter_id=1; tick(35)
 assert(State.runtime.state()=="active" and counts.autoload==2)
 assert(counts.imports==1,"wrong fighter auto-imported")

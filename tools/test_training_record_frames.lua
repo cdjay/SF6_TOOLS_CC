@@ -30,6 +30,7 @@ local present=true
 sdk={get_managed_singleton=function(name) assert(name=="app.training.TrainingManager"); return present and manager or nil end}
 json={dump_file=function() error("frame labels must not write files") end,load_file=function() error("frame labels must not read files") end}
 local module=dofile("autorun/SF6CCTrainingLibrary/Records.lua")
+assert(module.get_record_bank_size()==8)
 local s=assert(module.get_record_frames())
 assert(s.fighter_id==28 and #s.frames==8 and s.frames[1]==55 and s.frames[2]==167)
 assert(s.frames[6]==0 and s.frames[8]==262)
@@ -44,6 +45,7 @@ assert(module.get_record_frames().frames[1]==false)
 fighter=26; s=assert(module.get_record_frames())
 assert(s.fighter_id==26 and #s.frames==8 and s.frames[1]==90)
 fighter=28; slots.size=80
+assert(module.get_record_bank_size()==80,"legacy bank size must be visible without reading its buffers")
 assert(module.get_record_frames()==nil,"old expanded bank must not be presented as native eight slots")
 present=false; assert(module.get_record_frames()==nil,"unavailable bank must not look like empty slots")
 print("PASS current P2 frame snapshot: native eight slots, unsupported-bank refusal, no IO/buffers/writes")

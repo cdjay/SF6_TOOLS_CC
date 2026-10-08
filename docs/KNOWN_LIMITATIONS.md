@@ -16,6 +16,12 @@ or overwritten by an eight-slot save. This is an offline-tested branch, not a
 live-game crash fix claim. The earlier 80-slot evidence below applies to the
 previous implementation, not to this branch. Cold-start and role-switch smoke
 tests are still required before distributing this variant.
+An October 8 live read found the current Mai bank still contained 80 slots after
+this branch loaded. The old gate therefore never installed the Wood Library
+tab. The read-only legacy-bank presentation fix keeps the tab and character
+catalog visible, while refusing all configuration writes and autoload until
+the actual bank is eight slots. It does not truncate or migrate game data;
+live-game confirmation of the tab is still pending.
 
 October 5 configuration-save review: the shared library queue now waits for
 30 update callbacks after a newly mounted session, both SaveManager idle and

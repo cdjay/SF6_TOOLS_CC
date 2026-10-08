@@ -22,9 +22,10 @@ function M.new(deps)
     function self.tick()
         if stopped then return end
         local ok, ctx = pcall(context)
-        if not ok or type(ctx) ~= "table" or not ctx.allowed or ctx.error
+        if not ok or type(ctx) ~= "table" or not ctx.allowed
+            or (ctx.error and not ctx.bank_unsupported)
             or not ctx.session or not ctx.data or not ctx.record_func or ctx.fighter_id == nil
-            or ctx.slot_count ~= 8 then
+            or (ctx.slot_count ~= 8 and not (ctx.bank_unsupported and ctx.slot_count > 8)) then
             leave()
             return
         end
@@ -45,7 +46,7 @@ function M.new(deps)
             generation = generation + 1
             age = 0
         end
-        if not autoloaded then
+        if not autoloaded and not ctx.bank_unsupported then
             age = age + 1
             if age >= 30 and ctx.busy == false and ctx.menu_closed == true
                 and deps.save_idle(ctx) then

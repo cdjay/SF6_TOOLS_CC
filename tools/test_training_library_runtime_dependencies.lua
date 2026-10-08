@@ -19,7 +19,9 @@ local objects={
 }
 local env=setmetatable({sdk={get_managed_singleton=function(name) return objects[name] end}},{__index=_G})
 local exports=0
+local bank_size=8
 local records={get_context=function() return {fighter_id=28} end,
+    get_record_bank_size=function() return bank_size end,
     get_record_capacity=function() return 8 end,
     export_new=function() exports=exports+1; return true,"exported","test.json" end,
     list_configs=function() return {{path="test.json"}} end,
@@ -45,6 +47,12 @@ assert(ok and ctx.allowed,"first deferred context failed: "..tostring(ctx))
 assert(controller.request("export"),controller.status)
 controller.tick()
 assert(exports==1 and controller.status_ok,"first deferred export was silently blocked")
+bank_size=80
+local legacy=Library.runtime_context()
+assert(legacy.allowed and legacy.bank_unsupported and legacy.slot_count==80 and legacy.error,
+    "legacy bank must be identified for read-only menu presentation")
+assert(not controller.request("export") and exports==1,"legacy bank must not write recordings")
+bank_size=8
 tm.fields._GameMode=2
 assert(not Library.runtime_context().allowed,"preloading bypassed the training gate")
 assert(not controller.request("clear"),"outside-training operation allowed")

@@ -6,7 +6,7 @@ local Layout=require("SF6CCTrainingLibrary/TrainingSlotLayout")
 function M.new(library,can_rename)
     local self={}
     local mode,page,catalog,revision,armed="main",1,{},nil,nil
-    local fighter
+    local fighter,unsupported
     local session,data,slots=nil,nil,{}
     local frames={}
     local clear_armed=false
@@ -29,9 +29,12 @@ function M.new(library,can_rename)
         clear_armed=false
     end
     function self.set_context(ctx)
-        local next_fighter=ctx and ctx.allowed and not ctx.error and ctx.fighter_id or nil
-        if fighter~=next_fighter or session~=(ctx and ctx.session) or data~=(ctx and ctx.data) then
+        local next_unsupported=ctx and ctx.bank_unsupported==true or false
+        local next_fighter=ctx and ctx.allowed and (not ctx.error or next_unsupported) and ctx.fighter_id or nil
+        if fighter~=next_fighter or unsupported~=next_unsupported
+            or session~=(ctx and ctx.session) or data~=(ctx and ctx.data) then
             fighter=next_fighter
+            unsupported=next_unsupported
             self.closed()
             capture()
         end
@@ -40,7 +43,7 @@ function M.new(library,can_rename)
         -- from a message or navigation hook. The list consumes this Lua snapshot.
         local previous_count=#slots
         slots={}; frames={}
-        if fighter and library.can_edit_slot_names and library.can_edit_slot_names() then
+        if fighter and not unsupported and library.can_edit_slot_names and library.can_edit_slot_names() then
             local ok,names=pcall(function()
                 local count=library.slot_capacity()
                 assert(count==Layout.NATIVE_RECORDS)
@@ -66,7 +69,7 @@ function M.new(library,can_rename)
         if mode=="slots" and previous_count~=#slots then self.closed() end
     end
     local function slots_editable()
-        return #slots>0 and can_rename and can_rename() and library.can_edit_slot_names()
+        return not unsupported and #slots>0 and can_rename and can_rename() and library.can_edit_slot_names()
     end
     function self.page_counts()
         local count=0
@@ -93,12 +96,14 @@ function M.new(library,can_rename)
             local d=selected and library.selection_details() or {character="-",slots="-",saved="-"}
             return {
                 row("切换配置【当前："..(selected and library.selection_label() or "未选择配置").."】","open"),
-                separator(),row("保存当前配置",selected and "save" or nil),row("另存当前配置","export"),
-                row("修改当前配置名称",selected and can_rename and can_rename() and "rename" or nil),
+                separator(),row("保存当前配置",not unsupported and selected and "save" or nil),
+                row("另存当前配置",not unsupported and "export" or nil),
+                row("修改当前配置名称",not unsupported and selected and can_rename and can_rename() and "rename" or nil),
                 row("修改栏位说明",slots_editable() and "open_slots" or nil),
-                row((clear_armed and "【再次确认清空】" or "").."清空所有栏位","clear"),separator(),
+                row((clear_armed and "【再次确认清空】" or "").."清空所有栏位",not unsupported and "clear" or nil),separator(),
                 info("配置信息"),info("角色："..d.character),
-                info(d.slots),info("保存时间："..d.saved),row(""),
+                info(unsupported and "当前录像不是8栏位，操作暂不可用" or d.slots),
+                info("保存时间："..d.saved),row(""),
             }
         end
         local editing_slots=mode=="slots"
@@ -120,13 +125,13 @@ function M.new(library,can_rename)
             else
                 local entry=catalog[index]
                 local marker=entry and armed==entry.path and selected_path()==entry.path and "【再次确认导入】" or ""
-                rows[#rows+1]=entry and row(marker..entry.label,"choose",index)
+                rows[#rows+1]=entry and row(marker..entry.label,not unsupported and "choose" or nil,index)
                     or (i==1 and #catalog==0 and info("当前角色暂无配置") or row(""))
             end
         end
         rows[10]=editing_slots and row("返回","back") or (pages>1 and page_row or row(""))
         rows[11]=row("")
-        rows[12]=editing_slots and row("") or row("刷新配置列表","refresh")
+        rows[12]=editing_slots and row("") or row("刷新配置列表",not unsupported and "refresh" or nil)
         rows[13]=editing_slots and row("") or row("返回","back")
         return rows
     end

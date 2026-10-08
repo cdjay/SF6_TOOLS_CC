@@ -301,6 +301,14 @@ local function get_current_slots()
     return slots, nil, ctx, rec_func, record_ctx
 end
 
+function M.get_record_bank_size()
+    local ctx = M.get_context()
+    if ctx.error then return nil, ctx.error end
+    local slots, err = get_slots_for_fighter(ctx.fighter_id)
+    if not slots then return nil, err end
+    return slots:get_size()
+end
+
 local function record_capacity(slots)
     if slots and slots.get_size then
         local n = slots:get_size()
