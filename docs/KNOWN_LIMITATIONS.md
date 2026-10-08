@@ -12,10 +12,10 @@ independent Wood Library tab remains, with configuration selection, save,
 save-as, import, clear, note editing and information. Only the game's native
 eight recording slots can be read or changed. Files containing more than eight
 recordings remain on disk and visible in the catalog, but cannot be imported
-or overwritten by an eight-slot save. This is an offline-tested branch, not a
-live-game crash fix claim. The earlier 80-slot evidence below applies to the
-previous implementation, not to this branch. Cold-start and role-switch smoke
-tests are still required before distributing this variant.
+or overwritten by an eight-slot save. The earlier 80-slot evidence below
+applies to the previous implementation, not to this branch. October 9
+cold-start, P2-switch and match-return smoke passed (see below); that is one
+live session, not a long-run stability certification.
 An October 8 live read found the current Mai bank still contained 80 slots after
 this branch loaded. The old gate therefore never installed the Wood Library
 tab. The read-only legacy-bank presentation fix keeps the tab and character
@@ -34,9 +34,9 @@ releases from Lua, never uses `create_*_global`, reuses one root page per Lua
 state, serves cached permanent hook strings, and reads/writes recording inputs
 in raw memory instead of boxing one object per frame. Legacy banks gain an
 explicit, double-confirmed restore that keeps slots 1-8, drops the rest, and
-clears recording reversals pointing past slot 8. All of this is offline
-contract coverage only: cold start, legacy restore, 1P/2P switching, match
-return and save still need real-game confirmation before tagging.
+clears recording reversals pointing past slot 8. October 9 live sessions
+confirmed cold start, P2 switching, match return and save without a crash;
+legacy restore and 1P switching are still unconfirmed in the real game.
 
 October 9 live smoke of 1.1.18 (user): a new eight-slot configuration,
 save/save-as/rename and a ranked match with return to training worked. While
@@ -56,7 +56,12 @@ on entry could only overwrite unsaved changes. Slot descriptions, which the
 game does not store, are kept per P2 fighter for the Lua session and read from
 the remembered configuration only the first time a fighter appears. List names
 on the native record/play/reversal lists are restored by text substitution.
-Both behaviors are offline-tested and still need live confirmation.
+After e8d0338 was deployed (02:51), the user confirmed on a cold start: the
+tab is present, the record/play lists show "number - description", the first
+entry shows no import ticker, switching P2 silently selects that fighter's
+configuration, returning from matchmaking imports nothing, and a renamed
+description updates the list. Reversal picker and overview names were not
+reported separately. Tagged `training-library-v1.1.18-native8`.
 
 October 5 configuration-save review: the shared library queue now waits for
 30 update callbacks after a newly mounted session, both SaveManager idle and
