@@ -15,11 +15,14 @@ function api.find_type_definition(name)
     end}
 end
 function api.hook(method,pre,post) hooks[method.name]={pre,post} end
-function api.create_instance_global(name,simplify)
+function api.create_instance_global() error("global factory releases its only reference on a stale wrapper") end
+function api.create_instance(name,simplify)
     write(); assert(name=="app.TickerRequestData")
     assert(simplify==true,"TickerRequestData requires WTT's simplified creation path")
     sequence=sequence+1
     local obj={id=sequence,fields={}}
+    function obj:add_ref_permanent() self.permanent=true end
+    function obj:add_ref() error("request must not depend on Lua reference bookkeeping") end
     function obj:get_address() return self.id end
     function obj:get_field(k) return self.fields[k] end
     function obj:set_field(k,v) write(); self.fields[k]=v end
@@ -29,8 +32,11 @@ function api.create_instance_global(name,simplify)
     return obj
 end
 function api.to_managed_object(obj) return obj end
+local strings=0
 function api.create_managed_string(text)
-    return {text=text,add_ref=function(self) self.retained=true end}
+    strings=strings+1
+    return {text=text,add_ref=function() error("string must not depend on Lua reference bookkeeping") end,
+        add_ref_permanent=function(self) self.permanent=true end}
 end
 function api.to_ptr(v) return v end
 local t=Ticker.new({api=api,threads={get_hook_storage=function() return storage end},clock=function() return 0 end})
@@ -42,10 +48,12 @@ safe=true; t.tick(true); safe=false
 assert(#sent==1)
 local req=sent[1]
 assert(req.fields.TickerId==1 and req.fields.Category==6 and req.fields.IsForceDisplay==true)
+assert(req.permanent,"submitted request polled later must hold a permanent engine reference")
 local h=assert(hooks["app.TickerRequestData:GetMessage"])
 assert(h[1]({nil,req})=="skip")
-local message=h[2]("original"); assert(message.text=="木人库：保存完成" and message.retained)
-assert(h[1]({nil,req})=="skip" and h[2]("original").text==message.text,"native repeated reads lost text")
+local message=h[2]("original"); assert(message.text=="木人库：保存完成" and message.permanent)
+assert(h[1]({nil,req})=="skip" and h[2]("original")==message,"repeated native reads must reuse one string")
+assert(strings==1,"GetMessage allocated a new string per native read")
 t.enqueue("old wait"); t.enqueue("operation failed"); t.enqueue("old wait")
 local before=calls
 t.discard("old wait")

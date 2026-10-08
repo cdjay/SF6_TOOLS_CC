@@ -29,18 +29,21 @@ local Feedback = require("SF6CCTrainingLibrary/NativeLibraryFeedback")
 local View = require("SF6CCTrainingLibrary/NativeLibraryView")
 local Editor = require("SF6CCTrainingLibrary/NativeNoteEditor")
 local Pager = require("SF6CCTrainingLibrary/NativeLibraryPager")
+local Ownership = require("SF6CCTrainingLibrary/NativeOwnership")
 local library,ticker,feedback,view
 local pager
 local initializing_spin=false
 local option_nodes,option_arrays={},{}
 local editor,editor_attempted
 local MENU, FUNC = "app.training.TrainingMenuData", "app.training.TrainingMenuFunc"
-local DYNAMIC, REVERSAL, MAX_MOUNTS = 345, 5, 4
+local DYNAMIC, REVERSAL = 345, 5
 local ROWS={}
 for i=1,View.COUNT do ROWS[i]={id=200+i} end
 local owner, stopped, failed, tick = nil, false, false, 0
 local hooks_ready = false
-local mounts, retained, texts, layout = 0, {}, {}, {}
+-- One permanently referenced page per Lua state; recreated training UIs adopt it.
+local owned_page, published
+local texts, layout = {}, {}
 -- Stable, plugin-private GUIDs let a new Lua state identify only its own page.
 -- These are detached 16-byte values, installed through the native GUID setters.
 local function key(i) return "d8f1c64a28b74e719e5ac310b672" .. string.format("%04x", i) end
@@ -52,11 +55,6 @@ local function guid_key(guid)
     for i=0,15 do bytes[#bytes+1]=string.format("%02x",guid:read_byte(i)) end
     return table.concat(bytes)
 end
-local function own(value)
-    assert(value, "native allocation returned nil")
-    value:add_ref(); retained[#retained+1]=value
-    return value
-end
 local function make_guid(i)
     local value=sdk.find_type_definition("System.Guid"):get_field("Empty"):get_data(nil):NewGuid()
     local bytes=key(i)
@@ -64,12 +62,12 @@ local function make_guid(i)
     return value
 end
 local function array(items)
-    local value=own(sdk.create_managed_array(MENU,#items))
+    local value=Ownership.array(sdk,MENU,#items)
     for i,item in ipairs(items) do value:call("SetValue",item,i-1) end
     return value
 end
 local function node(kind,id,read_only)
-    local value=own(sdk.create_instance_global(MENU))
+    local value=Ownership.instance(sdk,MENU)
     for name,v in pairs({_Type=kind,_FuncType=DYNAMIC,IsEnabled=true,
         IsCantFocus=read_only==true,IsNotFocusFunc=false,_Interval=1,_Interval_Option=1,
         _GuidIcon=-1,_GuidAddIcon=-1,VisibleCase=0}) do value:set_field(name,v) end
@@ -192,22 +190,31 @@ local function install(tm,runtime,session)
     if existing then assert(existing_index==insert_after+1,"owned root position changed; restart required") end
     local template=items[1]
     local page,installed=existing,original
+    -- A page adopted after Reset may come from an older Lua state; give it our
+    -- own permanent reference before any later UI can be built around it.
+    if page and not owned_page then owned_page=Ownership.retain(page) end
     if not page then
         assert(n<16,"native root capacity reached")
-        assert(mounts<MAX_MOUNTS,"root-tab pilot mount limit reached; restart required")
-        mounts=mounts+1
-        page=node(read(template,"_Type"),1,false)
-        page:set_field("NextButton",read(template,"NextButton"))
-        page:set_field("PrevButton",read(template,"PrevButton"))
-        -- Give each new row native array ownership before allocating the next.
-        local rows=own(sdk.create_managed_array(MENU,#ROWS))
-        for i,spec in ipairs(ROWS) do rows:call("SetValue",node(0,spec.id,false),i-1) end
-        page:set_field("_ChildData",rows)
-        local source=assert(read(items[2],"DynamicChildData"))
-        page:set_field("DynamicChildData",own(source:call("GetRange",0,0)))
-        validate_page(page,template)
+        -- A session publishes at most one root array. A second one means the
+        -- game replaced the menu mid-session; stop rather than leak per update.
+        assert(not published or published.runtime~=runtime or published.session~=session,
+            "native root menu replaced during session; restart required")
+        if not owned_page then
+            local built=node(read(template,"_Type"),1,false)
+            built:set_field("NextButton",read(template,"NextButton"))
+            built:set_field("PrevButton",read(template,"PrevButton"))
+            local rows=Ownership.array(sdk,MENU,#ROWS)
+            for i,spec in ipairs(ROWS) do rows:call("SetValue",node(0,spec.id,false),i-1) end
+            built:set_field("_ChildData",rows)
+            local source=assert(read(items[2],"DynamicChildData"))
+            built:set_field("DynamicChildData",Ownership.retain(source:call("GetRange",0,0)))
+            validate_page(built,template)
+            owned_page=built
+        end
+        page=owned_page
         table.insert(items,insert_after+1,page)
         installed=array(items)
+        published={runtime=runtime,session=session}
     end
     local nodes,actions=validate_page(page,template)
     local next_owner={runtime=runtime,session=session,tm=tm,data=read(tm,"_tData"),ui=ui,page=page,
@@ -373,8 +380,9 @@ local function setup()
     end,function(rv)
         local text=thread.get_hook_storage().library_root_text
         if text==nil then return rv end
-        local value=sdk.create_managed_string(text)
-        value:add_ref() -- One reference for the native consumer, one for Lua.
+        -- Shared permanent string: the native caller never depends on a Lua wrapper.
+        local value=Ownership.string(sdk,text)
+        if not value then return rv end
         return sdk.to_ptr(value)
     end)
     local function view_hook(m,arg_index,result,action)

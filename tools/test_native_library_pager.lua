@@ -35,7 +35,8 @@ local function fixture(reverse)
             hooks[name]=hooks[name] or {}; table.insert(hooks[name],{pre,post})
         end,to_managed_object=function(x) return x end,to_int64=function(x) return x end,
         to_ptr=function(x) return x end,to_valuetype=function(x) return x end,
-        create_managed_string=function(s) return {text=s,add_ref=function() end} end}
+        create_managed_string=function(s) return {text=s,add_ref=function() error("hook strings must not use Lua reference bookkeeping") end,
+            add_ref_permanent=function(self) self.permanent=true end} end}
     local threads={get_hook_storage=function() return storage end,get_id=function() return 1 end}
     local library=Adapter.new(api,threads,function() return live end,view,function(p,change)
         assert(p==param and live==owner and not busy)

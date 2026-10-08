@@ -1,5 +1,6 @@
 -- Commit owned native spins before their repaint; queue other command paths.
 -- Message routing follows the MIT-licensed Wael NativeOptions technique.
+local Ownership = require("SF6CCTrainingLibrary/NativeOwnership")
 local M = {}
 local DYNAMIC = 345
 local VIEW = "ViewUpdate(app.training.BaseParam, app.training.TrainingMenuData, System.Int32)"
@@ -189,9 +190,7 @@ function M.new(api, threads, current, allowed, report, blocked, readable)
                 if (api.to_int64(args[3]) & 0xFFFFFFFF)~=DYNAMIC then return end
                 local ok,value=pcall(function()
                     local result=read(args)
-                    if type(result)=="string" then
-                        local str=api.create_managed_string(result); str:add_ref(); return str
-                    end
+                    if type(result)=="string" then return assert(Ownership.string(api,result)) end
                     return result
                 end)
                 if ok and value~=nil then storage[key]=value; return api.PreHookResult.SKIP_ORIGINAL end
@@ -323,9 +322,7 @@ function M.new(api, threads, current, allowed, report, blocked, readable)
             if not entry or entry.phase ~= "active" or entry.released then return end
             local ok, text = pcall(function()
                 local value=entry.menu.text(M.key(api.to_valuetype(args[2], "System.Guid")))
-                if value then
-                    local str=api.create_managed_string(value); str:add_ref(); return str
-                end
+                if value then return assert(Ownership.string(api,value)) end
             end)
             if ok and text then
                 storage.sf6cc_record_pager_text = text

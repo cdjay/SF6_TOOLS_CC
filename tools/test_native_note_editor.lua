@@ -1,6 +1,7 @@
 package.path = "autorun/?.lua;" .. package.path
 local Controller = dofile("autorun/SF6CCTrainingLibrary/Library.lua")
 local Notes = dofile("autorun/SF6CCTrainingLibrary/TrainingConfigNotes.lua")
+local Ownership = dofile("autorun/SF6CCTrainingLibrary/NativeOwnership.lua")
 local function fixture(mode)
     local s = { now = 0, calls = 0, delegates = 0, hides = 0, titles = 0, saves = 0, hooks = {},
         ctx = { allowed = true, busy = false, session = {}, data = {}, fighter_id = 1, menu_closed = false },
@@ -57,6 +58,7 @@ local function fixture(mode)
             assert(not s.installed or mode ~= "closed_search_path", "No require during native callbacks")
             if name == "SF6CCTrainingLibrary/Context" then return {pause_open=function() return s.gs.in_pause_menu end} end
             if name == "SF6CCTrainingLibrary/TrainingConfigNotes" then return Notes end
+            if name == "SF6CCTrainingLibrary/NativeOwnership" then return Ownership end
             assert(name == "SF6CCTrainingLibrary/Library")
             return { shared = function() return s.lib end, runtime_context = function() return s.ctx end }
         end,
@@ -64,22 +66,28 @@ local function fixture(mode)
             assert(type(text)=="string")
             s.strings=(s.strings or 0)+1
             return {text=text,refs=0,add_ref=function(self) self.refs=self.refs+1 end,
+                add_ref_permanent=function(self) self.permanent=true end,
                 release=function(self) self.refs=self.refs-1; assert(self.refs==0); s.released=(s.released or 0)+1 end}
         end, create_delegate = mode ~= "unsupported" and function(name, count)
             assert(name == "app.UITextInputDialog.ResultFunc" and count == 1)
-            s.delegates = s.delegates + 1; s.delegate = { add_ref = function() end }; return s.delegate
+            s.delegates = s.delegates + 1
+            s.delegate = { add_ref = function() error("delegate must not depend on Lua reference bookkeeping") end,
+                add_ref_permanent = function(self) self.permanent = true end }
+            return s.delegate
         end or nil,
             find_type_definition = function(name)
                 return { get_method = function(_, method)
                     return { key = name .. ":" .. method, call = function(_, target, delegate, req, visual, initial, priority)
                         assert(method:match("^OpenTextInputDialog") and delegate == s.delegate and req == 77 and visual == 9)
+                        assert(delegate.permanent,"native result delegate must hold a permanent engine reference")
                         -- Installed REFramework a0e9010f checks lua_isnumber
                         -- before lua_isstring when marshalling native arguments.
                         if type(initial)=="string" and tonumber(initial) then
                             error("numeric Lua string passed as double bits, not System.String")
                         end
                         if type(initial)=="table" then
-                            assert(initial.refs==1,"native prefill string must stay rooted through dialog lifetime")
+                            assert(initial.permanent and initial.refs==0,
+                                "native prefill string must hold a permanent engine reference, not a Lua one")
                             initial=initial.text
                         end
                         assert(initial == (s.saved or "old") and s.ctx.menu_closed and not s.gs.in_pause_menu)
@@ -168,7 +176,7 @@ end)
 check("factory failure releases transaction and disables repeated attempts", function()
     local s = fixture("factory_error"); s.open(); s.advance(60)
     assert(s.calls == 0 and not s.lib.has_pending() and not s.editor.request())
-    assert(s.strings==1 and s.released==1,"failed factory retained the prefill root")
+    assert(s.strings==1 and not s.released,"permanent prefill must never be released from Lua")
 end)
 check("native result validation uses dependency captured at installation", function()
     local s = fixture("closed_search_path"); s.open(); s.confirm("note")
@@ -186,7 +194,7 @@ check("numeric names reopen after save and selection changes without disabling t
             assert(s.calls==2 and s.editor.available(),"second edit disabled after numeric name")
             s.confirm("新的名称")
             assert(s.saved=="新的名称" and s.delegates==1)
-            assert(s.strings==2 and s.released==2,"prefill roots leaked between completed dialogs")
+            assert(s.strings==2 and not s.released,"each distinct prefill is one permanent string, never released")
         end
     end
 end)
@@ -201,5 +209,11 @@ check("slot80 reuses native input dialog, prefills subsequent edit and does not 
     assert(s.saved=="防跳" and s.slot_writes==2 and s.saves==0 and not s.lib.has_pending())
     s.open(); s.confirm("")
     assert(s.saved=="" and s.slot_writes==3 and s.saves==0,"empty description must clear the annotation")
+end)
+check("identical prefill reuses one permanent string across dialogs", function()
+    local s = fixture(); s.open()
+    s.fire("Cancel()", s.widget); s.fire("InvokeResultEvent(System.String)", s.widget, nil, true)
+    s.ended = true; s.advance()
+    s.open(); assert(s.calls == 2 and s.strings == 1 and not s.released)
 end)
 print(n .. " native note editor tests passed")

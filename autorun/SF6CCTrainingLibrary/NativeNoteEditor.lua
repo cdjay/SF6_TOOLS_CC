@@ -3,6 +3,7 @@
 local Module = require("SF6CCTrainingLibrary/Library")
 local Context = require("SF6CCTrainingLibrary/Context")
 local Notes = require("SF6CCTrainingLibrary/TrainingConfigNotes")
+local Ownership = require("SF6CCTrainingLibrary/NativeOwnership")
 local Editor = {}
 function Editor.install()
     local Library = Module.shared()
@@ -12,10 +13,8 @@ function Editor.install()
     local factory, request_type, visual_type
     local function status(ok, text) Library.status_ok, Library.status = ok, text end
     local function release_prefill(job)
-        if job and job.prefill then
-            job.prefill:release()
-            job.prefill = nil
-        end
+        -- The prefill is a shared permanent string; dropping it releases nothing.
+        if job then job.prefill = nil end
     end
     local function context()
         local ok, ctx = pcall(Module.runtime_context)
@@ -136,16 +135,14 @@ function Editor.install()
             job.deadline = os.time() + 120
             -- Reuse one delegate; do not retain a new Lua callback/transaction after every edit.
             if not delegate then
-                delegate = assert(sdk.create_delegate("app.UITextInputDialog.ResultFunc", 1))
-                delegate:add_ref()
+                delegate = Ownership.retain(sdk.create_delegate("app.UITextInputDialog.ResultFunc", 1))
                 delegate[0] = function()
                     if not stopped and active and active.in_result and not active.aborted then active.callback_seen = true end
                 end
             end
             -- Older REFramework marshals numeric Lua strings as double bits.
-            -- Pass an explicit System.String and retain it until the dialog ends.
-            job.prefill = assert(sdk.create_managed_string(initial), "native prefill allocation failed")
-            job.prefill:add_ref()
+            -- Pass an explicit, permanently referenced System.String.
+            job.prefill = assert(Ownership.string(sdk, initial), "native prefill allocation failed")
             job.widget = assert(factory:call(nil, delegate, request_type, visual_type, job.prefill, 0),
                 "native input dialog could not open")
             job.widget:add_ref()

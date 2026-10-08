@@ -47,7 +47,8 @@ local function fixture(page_count)
         hook=function(name,pre,post) hooks[name]={pre,post} end,
         to_int64=function(x) return x end,to_ptr=function(x) return x end,
         to_managed_object=function(x) return x end,to_valuetype=function(x) return x end,
-        create_managed_string=function(text) return {text=text,add_ref=function() end} end}
+        create_managed_string=function(text) return {text=text,add_ref=function() error("hook strings must not use Lua reference bookkeeping") end,
+            add_ref_permanent=function(self) self.permanent=true end} end}
     local threads={get_id=function() return tid end,get_hook_storage=function() return tls end}
     local controller=Pager.new(api,threads,function() return entry end,function() return enabled end,
         function(err) reports[#reports+1]=err end,nil,function() return readable end)

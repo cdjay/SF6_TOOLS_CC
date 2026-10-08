@@ -20,7 +20,8 @@ local function object(fields)
         assert((safe and not paused) or (navigating and (k=="IsCantFocus" or k=="IsUpdate" or k=="_Type" or k=="_ChildData" or k=="Index")), "write outside allowed UI scope")
         writes = writes + 1; self[k] = v
     end
-    function fields:add_ref() self.retained = true end
+    function fields:add_ref() error("library objects must not depend on Lua reference bookkeeping") end
+    function fields:add_ref_permanent() self.permanent = (self.permanent or 0) + 1 end
     function fields:release() error("must not release borrowed/native UI objects") end
     function fields:call(name, value)
         local key = name:match("^set_(%w+)%(")
@@ -110,8 +111,8 @@ sdk={PreHookResult={SKIP_ORIGINAL="skip"},
         get_method=function(_,s) return name..":"..s end,
         get_field=function() return {get_data=function() return {NewGuid=guid} end} end,
     } end,
-    create_instance=function() error("local native factory forbidden") end,
-    create_instance_global=function() allocations=allocations+1; return object() end,
+    create_instance_global=function() error("global factory drops its only reference on a stale wrapper") end,
+    create_instance=function() allocations=allocations+1; return object() end,
     create_managed_array=function(_,n) local items={}; for i=1,n do items[i]=false end; return array(items) end,
     create_managed_string=function(s) return object({text=s}) end,
     to_managed_object=function(v) return v end,to_valuetype=function(v) return v end,
@@ -183,7 +184,8 @@ check("Insert after Reversal; preserve all native and foreign pages",function()
     assert(#errors==0,table.concat(errors,"\n"))
     assert(ui._MenuData:get_size()==10)
     for i=1,9 do assert(ui._MenuData:get_element(i<=5 and i-1 or i)==original[i]) end
-    assert(not tm.retained and not ui.retained and not foreign.retained)
+    assert(not tm.permanent and not ui.permanent and not foreign.permanent,"borrowed native objects gained references")
+    assert(ui._MenuData.permanent==1,"published root array must hold one permanent engine reference")
     assert(hook_installs==16,"root, tab transition and list spin hooks must install exactly once")
 end)
 local tab=ui._MenuData:get_element(5)
@@ -191,6 +193,11 @@ check("Use native root type, arrows, empty dynamic list and requested thirteen-r
     assert(tab._Type==23 and tab._FuncType==345 and tab.NextButton==7 and tab.PrevButton==8)
     assert(tab.DynamicChildData:call("get_Count")==0 and tab._ChildData:get_size()==13)
     assert(tab._ChildData:get_element(2).IsCantFocus==false)
+end)
+check("Page, rows and their arrays hold exactly one permanent engine reference",function()
+    assert(tab.permanent==1 and tab._ChildData.permanent==1 and tab.DynamicChildData.permanent==1)
+    for i=0,12 do assert(tab._ChildData:get_element(i).permanent==1,"row "..i.." lacks its permanent reference") end
+    assert(allocations==14,"expected one page and thirteen rows")
 end)
 check("No duplicate/rebuild or menu writes while navigating and reopening",function()
     local before=writes; local roots=ui._MenuData
@@ -212,7 +219,9 @@ check("Only owned title, save label and cached guide are replaced",function()
     local sig="app.helper.hMsg:GetMessage(System.Guid)"
     local row=tab._ChildData:get_element(2)
     local skipped,rv=call(sig,{nil,row._MessageID},"original")
-    assert(skipped=="skip" and rv.text=="保存当前配置" and rv.retained)
+    assert(skipped=="skip" and rv.text=="保存当前配置" and rv.permanent==1)
+    local _,again=call(sig,{nil,row._MessageID},"original")
+    assert(again==rv,"repeated native text reads must reuse one permanent string")
     local _,title=call(sig,{nil,tab._MessageID},"original"); assert(title.text=="木人库")
     paused=true; label="不知火舞[新配置]"; tick(30)
     local _,old=call(sig,{nil,row._MessageID},"original"); assert(not old.text:find(label,1,true))
@@ -598,9 +607,20 @@ check("Reset performs no native writes; closed-menu reload adopts own page",func
 end)
 check("Recreated UI receives one page; stale UI is never restored or written",function()
     local stale=ui; local previous=stale._MenuData
+    local count=allocations
     ui=object({_MenuData=array(original)}); tm._UIData=ui; tm._tData=object()
     tick(60); assert(ui._MenuData:get_size()==10 and stale._MenuData==previous)
     assert(#errors==0,table.concat(errors,"\n"))
+    assert(ui._MenuData:get_element(5)==tab and tab.permanent==2,
+        "recreated UI must reuse the adopted page, retained once by this Lua state")
+    assert(allocations==count,"recreated UI allocated new page nodes")
+    for _=1,3 do
+        presentation_id=presentation_id+1
+        ui=object({_MenuData=array(original)}); tm._UIData=ui; tm._tData=object()
+        tick(60)
+        assert(ui._MenuData:get_element(5)==tab and allocations==count and #errors==0,
+            "repeated training entries must not be limited or allocate page nodes")
+    end
 end)
 check("Changed native ordering fails before allocating or publishing",function()
     local bad={}; for i,v in ipairs(original) do bad[i]=v end
@@ -632,5 +652,20 @@ check("Partial hook setup fails once without publishing or automatic retries",fu
     end
     assert(sdk_calls==before_calls and attempts==2 and #errors==1)
     sdk.hook=register
+end)
+check("A second root publication within one session stops instead of leaking",function()
+    updates={}; resets={}; hooks={}; errors={}
+    load()
+    ui=object({_MenuData=array(original)}); tm._UIData=ui; tm._tData=object()
+    presentation_id=presentation_id+1
+    tick(60)
+    assert(#errors==0 and ui._MenuData:get_size()==10)
+    local count=allocations
+    local rebuilt=array(original); ui._MenuData=rebuilt -- game rebuilt the root mid-session
+    tick(60)
+    assert(#errors==1 and errors[1]:find("replaced during session",1,true))
+    assert(ui._MenuData==rebuilt and rebuilt:get_size()==9 and allocations==count,
+        "mid-session replacement must not republish or allocate")
+    tick(300); assert(#errors==1,"stopped root tab retried")
 end)
 print(string.format("PASS %d native root-tab contract checks (not live-game evidence)",pass))

@@ -15,6 +15,7 @@
 -- LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 -- OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 -- SOFTWARE.
+local Ownership=require("SF6CCTrainingLibrary/NativeOwnership")
 local M={}
 function M.new(deps)
     local api,threads=deps.api,deps.threads
@@ -39,8 +40,8 @@ function M.new(deps)
         end,function(rv)
             local text=threads.get_hook_storage().sf6cc_library_ticker_text
             if text==nil then return rv end
-            local value=api.create_managed_string(text)
-            value:add_ref() -- Native consumer and Lua wrapper own separate references.
+            local value=Ownership.string(api,text)
+            if not value then return rv end
             return api.to_ptr(value)
         end)
         ready=true
@@ -90,7 +91,8 @@ function M.new(deps)
         local manager=get_manager:call(nil)
         if not manager then return end
         -- WTT's initialized base request; never call a ticker/UI update manually.
-        local req=assert(api.create_instance_global("app.TickerRequestData",true))
+        -- Polled for IsDisplayEnd on later updates, so it keeps a permanent reference.
+        local req=Ownership.instance(api,"app.TickerRequestData",true)
         req:call("Init",112,nil)
         req:set_field("TickerId",1)
         req:set_field("Category",6)
