@@ -49,6 +49,14 @@ the tab and autoloaded again. The gate now distinguishes an `online` hold
 `get_Count` first because each training entry previously raised two engine
 ArgumentOutOfRangeException per frame while FighterDataList was still empty.
 Both fixes have offline regressions and need a live recheck while matchmaking.
+The user confirmed the matchmaking hold live. By user decision, entering
+training no longer imports any configuration: native eight-slot recordings,
+reversals and training settings persist in the game's own data, and an import
+on entry could only overwrite unsaved changes. Slot descriptions, which the
+game does not store, are kept per P2 fighter for the Lua session and read from
+the remembered configuration only the first time a fighter appears. List names
+on the native record/play/reversal lists are restored by text substitution.
+Both behaviors are offline-tested and still need live confirmation.
 
 October 5 configuration-save review: the shared library queue now waits for
 30 update callbacks after a newly mounted session, both SaveManager idle and

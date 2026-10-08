@@ -223,6 +223,21 @@ function M.new(records, context, choices)
         end
         return self.request("import")
     end
+    -- Native recordings persist in the game's own training data, so entering
+    -- training never imports. Each new session re-selects this fighter's
+    -- remembered configuration; its slot descriptions, which the game does not
+    -- store, are read only the first time the fighter appears this Lua session.
+    function self.restore_names(fighter)
+        local state = records.select_fighter_annotations and records.select_fighter_annotations(fighter)
+        local path = remembered[tostring(fighter)]
+        if not path or pending or note_edit or not self.refresh(path) then return false end
+        local entry = self.selection()
+        if not entry or entry.path ~= path or tonumber(entry.metadata.fighter_id) ~= fighter then return false end
+        if state ~= "new" or not records.load_config_annotations then return false end
+        local ok, loaded = pcall(records.load_config_annotations, path)
+        if not ok then diagnostic("Slot descriptions not loaded: " .. tostring(loaded)) end
+        return ok and loaded == true
+    end
     function self.has_pending() return pending ~= nil or note_edit ~= nil end
     function self.slot_capacity() return records.get_record_capacity and records.get_record_capacity() or 8 end
     function self.record_frames() return records.get_record_frames and records.get_record_frames() or nil end

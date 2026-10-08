@@ -63,6 +63,22 @@ local function empty_annotations()
 end
 
 M._annotations = empty_annotations()
+-- Slot descriptions are not part of the game's training data, while the native
+-- recordings persist on their own. Keep one description set per P2 fighter for
+-- the whole Lua session instead of clearing it on every scene change.
+local fighter_annotations, annotation_fighter = {}, nil
+
+-- Makes fighter_id's set current. Returns "same" (already current), "cached"
+-- (seen earlier this session) or "new" (first time; starts empty).
+function M.select_fighter_annotations(fighter_id)
+    if fighter_id == nil then return nil end
+    if annotation_fighter == fighter_id then return "same" end
+    if annotation_fighter ~= nil then fighter_annotations[annotation_fighter] = M._annotations end
+    annotation_fighter = fighter_id
+    local cached = fighter_annotations[fighter_id]
+    M._annotations = cached or empty_annotations()
+    return cached and "cached" or "new"
+end
 
 local REVERSAL_FIELDS = {
     active = { "IsActive", "Active", "Enable", "IsEnable" },
@@ -2048,6 +2064,19 @@ local function import_from_file(path, options, context, prepared)
         { kind = "import", written = written, cleared = cleared, record_settings = record_setting_count,
             guard_settings = guard_setting_count, reversals = reversal_count,
             apply_state = apply_state, backup_path = backup_path }
+end
+
+-- Descriptions only, for the current fighter's set: never touches recordings,
+-- reversals or settings. The file must be an eight-slot configuration of the
+-- fighter whose set is current.
+function M.load_config_annotations(path)
+    if annotation_fighter == nil then return false end
+    local data = json.load_file(path)
+    if type(data) ~= "table" or not is_supported_schema(data.schema)
+        or as_int(data.fighter_id, nil) ~= annotation_fighter
+        or not SlotLayout.check_native(data) then return false end
+    M._annotations = normalize_annotations(data.annotations)
+    return true
 end
 
 function M.import_from_file(path, options)

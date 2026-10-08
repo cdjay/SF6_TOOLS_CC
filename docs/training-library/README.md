@@ -4,8 +4,15 @@
 
 `codex/native-eight-slots` 从1.1.17建立。运行入口改用只读的 `NativeEightRuntime`，
 不加载 `NativeRecordingRuntime`，不替换录像数组、录制/播放菜单行或反击选择列表容量。
-木人库顶层菜单、配置操作队列、栏位说明编辑及自动加载仍保留；自动加载只处理
-原生8槽配置。超过8槽的旧配置可见、可改配置名称，但不可导入或用8槽快照覆盖。
+木人库顶层菜单、配置操作队列及栏位说明编辑仍保留。超过8槽的旧配置可见、可改配置名称，
+但不可导入或用8槽快照覆盖。
+
+进入训练场不再自动导入（2026-10-09，用户决定）：原生8槽的录像、反击及训练设置由游戏自己
+持久保存，重新导入只会用文件覆盖玩家未保存的修改。会话开始时 `Library.restore_names`
+只把当前选中项切回该P2记忆的配置；栏位说明不在游戏数据里，由 `Records` 按P2角色保存在内存，
+整个Lua会话内跨场景保留（`select_fighter_annotations` 返回 same/cached/new），仅在该角色本次
+首次出现（new）时由 `load_config_annotations` 从记忆的8栏配置读取说明，不触碰录像。
+离开训练场只取消排队任务，不再清空栏位说明。
 录制、播放和反击列表中的“编号 - 说明”显示由 `NativeSlotNames` 恢复（2026-10-09）：
 它复用 `NativeRecordingNames` 与 `NativeReversalRecordings`（`expand=false`，栏位上限8，
 不安装反击选择列表扩容钩子），只替换交给 `hGUI.setTextMessage` 的格式字符串，替换文字
@@ -21,8 +28,7 @@
 `SkillIndex >= 8` 的录像反击按清空规则重置，最后 ForceApply。不导出备份（用户要求）。
 执行前要求录像器 `_gData` 的 `ReqType` 与 `State` 均为0（与旧扩容会话的空闲判断一致）；
 随机播放旧数组可能使 `_gData.SlotID` 停在第9栏以后，而 `ChangeRecordSlot` 不检查范围，
-因此越界的当前栏位改为0。
-该会话不再自动导入，避免覆盖刚保留的8栏录像；运行时从不自动缩减旧数组。
+因此越界的当前栏位改为0。恢复不导入任何配置；运行时从不自动缩减旧数组。
 
 ### 原生对象所有权（2026-10-08 崩溃分析后的硬约束）
 
@@ -54,12 +60,15 @@
 
 | 模块 | 职责 |
 | --- | --- |
-| Context / State | 离线训练场边界、共享运行状态与操作入口 |
+| Context / State | 离线训练场边界（含匹配期间的 online 暂停）、共享运行状态与操作入口 |
+| NativeEightRuntime | 原生8槽会话观察、按P2恢复选中配置与栏位说明，不替换录像数组 |
+| NativeSlotNames | 原生录制/播放/反击列表的“编号 - 说明”显示（仅替换文字） |
+| NativeOwnership | 交给游戏引用的对象与钩子文字的永久引用 |
 | NativeRecordingRuntime / Session | 当前角色扩容、原生对象所有权、保存完成及退出边界 |
 | NativeRecordingMenu / Pager / Names | 每页8栏、80栏容量、页码提交与名称显示 |
 | NativeReversalRecordings | 三类反击录像选择及名称解析 |
-| Records / TrainingRecordImport | 配置读写、陪练格挡设置、录像及反击内容转换、导入与清空 |
-| Library | 当前选中配置、按角色记忆、统一操作队列及自动导入 |
+| Records / TrainingRecordImport | 配置读写、陪练格挡设置、录像及反击内容转换、导入与清空、按P2保存栏位说明 |
+| Library | 当前选中配置、按角色记忆、统一操作队列；进场只恢复选中项与说明，不导入 |
 | NativeLibraryTab / View / Pager | 木人库顶层标签、纯Lua页面状态及原生页码适配 |
 | NativeNoteEditor / TrainingConfigNotes | 游戏输入框、配置标题与栏位说明修改 |
 | NativeTicker / NativeLibraryFeedback / LibraryMessages | 游戏消息、操作结果精简与显示名称 |
@@ -69,13 +78,13 @@
 
 只在确认离线训练、当前角色就绪、菜单关闭、录像空闲及保存空闲后挂载或处理配置。
 配置修改通过共享队列执行。原生按钮接受操作后采用游戏原有关闭菜单返回值，不在点击回调直接导入录像。
-按P2记忆的自动导入仅在扩容和上下文检查成功后尝试，不把菜单绘制变成重复导入。
+进入训练场不导入任何配置；按P2记忆只用于恢复选中项和首次出现时的栏位说明，不把菜单绘制变成重复读取。
 
 `Context.training_state()` 区分三种状态：`training` 可以操作；`online` 表示训练场结构完好、
 只有网络对局规则为线上模式；nil 表示不在离线训练场。2026-10-09 实机日志证实：在训练场里
 搜索排位赛时，`BattleRule.GameMode` 每次匹配尝试会在14与0之间切换约1秒，FlowMap 仍为3。
 旧实现把每次切换当作离开训练场，结束会话后又重新接管并自动导入，配置提示每7～15秒弹出一次。
-现在 `online` 只暂停：不执行队列任务、不推进自动导入，但不结束会话、不取消已排队操作，
+现在 `online` 只暂停：不执行队列任务，但不结束会话、不取消已排队操作，
 名称输入框保持打开，消息提示照常显示。训练场结构性条件失效（对战场景、录像控制对象变化等）才算离开。
 
 读取 `FighterDataList` 等 List 前先检查 `get_Count`：场景加载时P2已确定而列表仍为空，

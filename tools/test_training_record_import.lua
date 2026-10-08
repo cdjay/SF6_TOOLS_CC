@@ -301,6 +301,33 @@ test("restore refuses incomplete legacy slots before creating or replacing anyth
     assert(not ok and msg:find("第6栏", 1, true) and fighter:get_field("RecordSlots") == before)
     assert(stats.forces == 0)
 end)
+test("slot descriptions stay per fighter for the session; files only provide descriptions", function()
+    local records, stats, ctx, _, data = fixture(3600)
+    data.schema = "sf6cc.training_setup.v2"
+    data.annotations = { record_slots = { { slot = 1, text = "扇子" }, { slot = 8, text = "空跳" } } }
+    assert(records.select_fighter_annotations(28) == "new" and records.get_slot_name(1) == "")
+    assert(records.load_config_annotations("mai.json") == true)
+    assert(records.get_slot_name(1) == "扇子" and records.get_slot_name(8) == "空跳")
+    assert(stats.writes == 0 and stats.backups == 0 and stats.forces == 0 and #stats.starts == 0,
+        "loading descriptions touched native recordings")
+    records.set_slot_name(2, "对空")
+    assert(records.select_fighter_annotations(28) == "same" and records.get_slot_name(2) == "对空",
+        "re-entering training cleared unsaved descriptions")
+    assert(records.select_fighter_annotations(1) == "new" and records.get_slot_name(1) == "",
+        "another fighter inherited descriptions")
+    assert(records.load_config_annotations("mai.json") == false, "another fighter's file was accepted")
+    assert(records.select_fighter_annotations(28) == "cached")
+    assert(records.get_slot_name(1) == "扇子" and records.get_slot_name(2) == "对空",
+        "switching P2 away and back lost descriptions")
+    data.annotations = { record_slots = { { slot = 1, text = "导入" } } }
+    local ok, msg = records.begin_import("mai.json", {}, ctx)
+    assert(ok, msg)
+    assert(records.select_fighter_annotations(1) == "cached" and records.select_fighter_annotations(28) == "cached")
+    assert(records.get_slot_name(1) == "导入" and records.get_slot_name(2) == "",
+        "an import must replace the fighter's kept descriptions")
+    data.record_slots = 80
+    assert(records.load_config_annotations("mai.json") == false, "a configuration beyond eight slots was accepted")
+end)
 test("empty slots initialize then import once from one read and one backup", function()
     local records, stats, ctx, tick, _, settings, fighter, slots = fixture(0)
     local ok, msg, _, _, receipt = records.begin_import("config.json", { force_apply_after_import = true }, ctx)

@@ -8,25 +8,24 @@ end
 function M.new(deps)
     local library, context = deps.library, deps.context
     local active, identity, generation, stopped = false, nil, 0, false
-    local stable, age, autoloaded = 0, 0, false
+    local stable = 0
     -- Last context validated for the active session; menu text hooks read it
     -- instead of re-reading native training data on every native call.
     local last
     local self = {}
 
+    -- Leaving training only cancels queued work. Recordings stay in the game's
+    -- data and slot descriptions stay in memory per fighter.
     local function leave()
-        if active or identity then
-            library.cancel()
-            if library.reset_slot_names then library.reset_slot_names() end
-        end
-        active, identity, stable, age, autoloaded, last = false, nil, 0, 0, false, nil
+        if active or identity then library.cancel() end
+        active, identity, stable, last = false, nil, 0, nil
     end
 
     function self.tick()
         if stopped then return end
         local ok, ctx = pcall(context)
         -- Each matchmaking attempt from training reports an online rule for about
-        -- a second. Leaving here would restart the session and autoload again.
+        -- a second. Leaving here would restart the session on every attempt.
         if ok and type(ctx) == "table" and ctx.online_hold == true then return end
         if not ok or type(ctx) ~= "table" or not ctx.allowed
             or (ctx.error and not ctx.bank_unsupported)
@@ -50,21 +49,12 @@ function M.new(deps)
             if stable < 3 then return end
             active = true
             generation = generation + 1
-            age = 0
+            -- Never import on entry: the native eight slots already hold what
+            -- the player left there. Only descriptions and selection follow P2.
+            -- Missing descriptions are not worth stopping the session for.
+            if library.restore_names then pcall(library.restore_names, ctx.fighter_id) end
         end
         last = ctx
-        -- A session that began on a legacy bank never autoloads: restoring it
-        -- keeps slots 1-8, which a remembered configuration must not overwrite.
-        if ctx.bank_unsupported then autoloaded = true end
-        if not autoloaded then
-            age = age + 1
-            if age >= 30 and ctx.busy == false and ctx.menu_closed == true
-                and deps.save_idle(ctx) then
-                autoloaded = true
-                if library.reset_slot_names then library.reset_slot_names() end
-                if library.autoload then library.autoload(ctx.fighter_id) end
-            end
-        end
     end
 
     function self.state() return stopped and "stopped" or (active and "active" or "unloaded") end

@@ -67,12 +67,14 @@ check("legacy summary is cached per context and result revision", function()
 end)
 
 local Runtime = dofile("autorun/SF6CCTrainingLibrary/NativeEightRuntime.lua")
-check("a session that began on a legacy bank never autoloads, even after restoring", function()
-    local autoloads, identity = 0, { session = 1001, data = 2001, record = 3001 }
+check("entering training never imports; each new session restores names once", function()
+    local imports, restores, identity = 0, {}, { session = 1001, data = 2001, record = 3001 }
     local current
     local function address(t) return { get_address = function() return t end } end
     local runtime = Runtime.new({
-        library = { cancel = function() end, abandon = function() end, autoload = function() autoloads = autoloads + 1 end },
+        library = { cancel = function() end, abandon = function() end,
+            autoload = function() imports = imports + 1 end,
+            restore_names = function(fighter) restores[#restores + 1] = fighter end },
         context = function() return current end,
         save_idle = function() return true end,
     })
@@ -84,13 +86,17 @@ check("a session that began on a legacy bank never autoloads, even after restori
     end
     current = make(true)
     for _ = 1, 60 do runtime.tick() end
-    assert(runtime.state() == "active" and autoloads == 0, "legacy session autoloaded")
+    assert(runtime.state() == "active" and imports == 0 and #restores == 1, "legacy session imported")
     current = make(false) -- restored in place: same session, data and recorder
     for _ = 1, 60 do runtime.tick() end
-    assert(runtime.state() == "active" and autoloads == 0, "restored slots were overwritten by autoload")
+    assert(runtime.state() == "active" and imports == 0 and #restores == 1,
+        "restoring eight slots restarted the session or overwrote the kept slots")
     identity.data = 2002 -- next training entry
     current = make(false)
     for _ = 1, 60 do runtime.tick() end
-    assert(autoloads == 1, "a new native session must autoload as before")
+    assert(imports == 0, "a new training entry imported over the native recordings")
+    assert(#restores == 2 and restores[2] == 28, "a new session must restore descriptions exactly once")
+    for _ = 1, 300 do runtime.tick() end
+    assert(#restores == 2, "descriptions were restored repeatedly in one session")
 end)
 print(string.format("PASS %d legacy recording bank restore checks (not live-game evidence)", passed))
