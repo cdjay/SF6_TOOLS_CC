@@ -11,6 +11,9 @@
   "996": {
     "force": true
   },
+  "1004": {
+    "force": true
+  },
   "1200": {
     "absorb_ids": "1201"
   },
@@ -30,9 +33,9 @@
     },
     "counts": {
       "candidates": 7,
-      "generated": 6,
+      "generated": 7,
       "curated": 0,
-      "withheld": 1
+      "withheld": 0
     }
   }
 }

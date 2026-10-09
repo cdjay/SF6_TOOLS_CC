@@ -1,4 +1,7 @@
 {
+  "717": {
+    "force": true
+  },
   "_meta": {
     "schema": "sf6cc.generated-character-semantics.v2",
     "algorithm": "sf6cc-acbcm-exception-projection.v2",
@@ -12,9 +15,9 @@
     },
     "counts": {
       "candidates": 15,
-      "generated": 0,
+      "generated": 1,
       "curated": 0,
-      "withheld": 15
+      "withheld": 14
     }
   }
 }

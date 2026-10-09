@@ -31,17 +31,5 @@
   },
   "1013": {
     "force": true
-  },
-  "_generated_semantics": {
-    "withhold": [
-      {
-        "action": 1004,
-        "generated": {
-          "force": true
-        },
-        "curated": null,
-        "reason": "2026-10-10 迁移：指令表归属推导的 force 与现有判定不同，保留现有行为，待实机验证后再改用生成规则"
-      }
-    ]
   }
 }

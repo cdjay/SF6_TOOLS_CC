@@ -152,10 +152,15 @@ dumps allow it; the rest is blocked on evidence, not on code:
   exception derivation audit (`exception_derivation_audit.js`, 2026-10-10) maps
   all 310 curated entries to AC+BCM structure. Seven command-table ownership
   rules derive 53 of the 94 `force` entries; since 2026-10-10 they generate 51
-  of them (curated 290→239). The two mixed entries (Jamie 1011/1015) and the 10
-  Actions the rules would add, none of which occurs in the frozen corpus, are
-  withheld until live verification (Yasmine 717, the only back throw without
-  force, is most likely a missing curated rule). The structural rules for `absorb_ids`,
+  of them (curated 290→239). A live transition capture (2026-10-10) released
+  Yasmine 717, Akuma 1004 and Alex 716; still withheld: Jamie 1011/1015 (force
+  confirmed, kept curated for their hold rule), Zangief 1211 (forcing only the
+  neutral SA2 state would be asymmetric), Ingrid 1479-1481 (taunt stance) and
+  Ingrid 975/976/980 (not captured yet). The capture also showed that
+  `Branch.BranchType` is a bit set rather than the BranchKey Type (a back throw
+  reads 0, Alex 716 reads bit 63) and that a throw switching to its back-throw
+  variant on frame 0 is never sampled as 715; the mapping needs larger
+  captures. The structural rules for `absorb_ids`,
   `ignore_prev`, transient precursors and follow-up tolerance reproduce the
   curated entries but would add hundreds to thousands more: those rules only
   apply where the runtime would otherwise count an Action as a player step,

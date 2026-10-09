@@ -61,8 +61,11 @@ convergence moved identical curated entries to the generated layer (curated
 462→290, generated 174, withheld 47) with identical effective runtime rules; the
 2026-10-10 ownership rules moved 51 more (curated 290→239, generated 225,
 withheld 59, effective rules again identical). Ten of the new withheld Actions
-have no curated rule at all, e.g. Yasmine 717, the only back throw without
-force.
+had no curated rule at all. A live transition capture (2026-10-10) released
+three of them: Yasmine 717 (the only back throw without force; the engine does
+not count it as a step), Akuma 1004 (the OD counterpart of the forced 996) and
+Alex 716 (the engine already counts it, so force changes nothing). Generated
+rules: 228.
 A fighter without curation receives every generated rule.
 
 Each command table stores `_meta.bcm_trigger_fingerprint`; `ComboTrials/DataBuildGuard.lua`

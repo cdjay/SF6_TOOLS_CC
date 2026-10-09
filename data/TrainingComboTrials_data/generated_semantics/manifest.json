@@ -55,13 +55,13 @@
     },
     {
       "file": "Akuma.json",
-      "bytes": 758,
-      "sha256": "3dcc0d6545dc4628bdb7a25a93562905412d9cba56405ffbf21e3e8c86ff5cc4"
+      "bytes": 793,
+      "sha256": "f7edcd4311aaff534536e048e153c9c543e54378b27464f5cd56c6723260e9f4"
     },
     {
       "file": "Alex.json",
-      "bytes": 784,
-      "sha256": "c3b89938f84b4075dbfc494d0e8d7e5621eca31b7f70a6f077c649de46375bd9"
+      "bytes": 818,
+      "sha256": "3e3a0c4778d5cd8e61ffa919349a9778e82b98f04edc8d9d4a908a02223f0f55"
     },
     {
       "file": "Blanka.json",
@@ -195,8 +195,8 @@
     },
     {
       "file": "Yasmine.json",
-      "bytes": 543,
-      "sha256": "8ef87dbf0fbd560df397c025b98074ebf0276392f0690d587a3bb850388c2fac"
+      "bytes": 577,
+      "sha256": "99886cbf5a030bf3623fd6a94cbd02ede1a2e9617005b835c1d7fe11bc4f7811"
     },
     {
       "file": "Zangief.json",
@@ -215,16 +215,16 @@
     {
       "character": "Akuma",
       "candidates": 7,
-      "generated": 6,
+      "generated": 7,
       "curated": 0,
-      "withheld": 1
+      "withheld": 0
     },
     {
       "character": "Alex",
       "candidates": 9,
-      "generated": 7,
+      "generated": 8,
       "curated": 0,
-      "withheld": 2
+      "withheld": 1
     },
     {
       "character": "Blanka",
@@ -411,9 +411,9 @@
     {
       "character": "Yasmine",
       "candidates": 15,
-      "generated": 0,
+      "generated": 1,
       "curated": 0,
-      "withheld": 15
+      "withheld": 14
     },
     {
       "character": "Zangief",
@@ -503,6 +503,21 @@
     },
     {
       "character": "Akuma",
+      "owner_action_id": 1004,
+      "fields": [
+        "force"
+      ],
+      "evidence": [
+        {
+          "kind": "command_table_ownership",
+          "evidence": "ownership_ac_type13_neutral",
+          "target_action_id": 1004,
+          "field": "force"
+        }
+      ]
+    },
+    {
+      "character": "Akuma",
       "owner_action_id": 1200,
       "fields": [
         "absorb_ids"
@@ -529,6 +544,21 @@
           "evidence": "ac_type29_verified_alias",
           "source_action_id": 1200,
           "target_action_id": 1201,
+          "field": "force"
+        }
+      ]
+    },
+    {
+      "character": "Alex",
+      "owner_action_id": 716,
+      "fields": [
+        "force"
+      ],
+      "evidence": [
+        {
+          "kind": "command_table_ownership",
+          "evidence": "ownership_inherited",
+          "target_action_id": 716,
           "field": "force"
         }
       ]
@@ -4000,6 +4030,21 @@
     },
     {
       "character": "Terry",
+      "owner_action_id": 717,
+      "fields": [
+        "force"
+      ],
+      "evidence": [
+        {
+          "kind": "command_table_ownership",
+          "evidence": "ownership_inherited",
+          "target_action_id": 717,
+          "field": "force"
+        }
+      ]
+    },
+    {
+      "character": "Yasmine",
       "owner_action_id": 717,
       "fields": [
         "force"
