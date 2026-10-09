@@ -200,6 +200,16 @@ tools\action_runtime_compiler\3_deploy_command_display.bat 2026-10-13 --check
 部署前先对每个文件跑与生成器相同的 hard audit，全部通过才写入；只覆盖内容变化的文件，任一写入失败会恢复已写入的文件。
 `--check` 只比较不写入，正式数据与生成结果不一致时退出码为 1（换行差异不算）。`--characters` 可只部署指定角色。
 
+部署默认目标时还会运行 `build_generated_semantics.js`，从指令表的 AC+BCM 关系重建
+`data/TrainingComboTrials_data/generated_semantics`（Type 29 变体吸收与 force 等检测规则，见
+`docs/AC_BCM_SEMANTIC_CORE.zh-CN.md` 7.3）；`--check` 同时检查生成语义是否过期。人工例外中定义或
+`_generated_semantics.withhold` 保留的 Action 不会生成。单独运行：
+
+```powershell
+node tools\action_runtime_compiler\build_generated_semantics.js
+node tools\action_runtime_compiler\build_generated_semantics.js --check
+```
+
 生成器会在每个指令表 `_meta.bcm_trigger_fingerprint` 写入 BCM 触发器指纹（全部触发器 action_id 排序后的
 FNV-1a 哈希，`bcm_fingerprint.js`）。游戏运行时 `ComboTrials/DataBuildGuard.lua` 用同一算法计算当前角色的指纹，
 不一致或缺少指令表时在训练场提示一次，提醒重新导出和生成。

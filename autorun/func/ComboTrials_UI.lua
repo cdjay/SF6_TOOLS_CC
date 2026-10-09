@@ -16,6 +16,7 @@ local SceneState = require("func/ComboTrials/SceneState")
 local RawInputCodec = require("func/ComboTrials/RawInputCodec")
 local ComboFeedback = require("func/ComboTrials/ComboFeedback")
 local RecordingPolicy = require("func/ComboTrials/RecordingPolicy")
+local CharacterRules = require("func/ComboTrials/CharacterRules")
 
 local M = {}
 local ctx
@@ -2541,7 +2542,7 @@ local function draw_combo_trials_menu_ui()
                         p_state.exceptions[id_s] = nil
 
                         local s1 = json.dump_file("TrainingComboTrials_data/exceptions/Common.json", common_exceptions)
-                        local s2 = json.dump_file(get_exc_filename(p_state.profile_name), p_state.exceptions)
+                        local s2 = json.dump_file(get_exc_filename(p_state.profile_name), CharacterRules.serialize_for_save(p_state.exceptions))
 
                         if s1 and s2 then
                             exc_status = "通用例外已保存。"
@@ -2551,7 +2552,7 @@ local function draw_combo_trials_menu_ui()
                     else
                         p_state.exceptions[id_s] = new_exc
 
-                        local s1 = json.dump_file(get_exc_filename(p_state.profile_name), p_state.exceptions)
+                        local s1 = json.dump_file(get_exc_filename(p_state.profile_name), CharacterRules.serialize_for_save(p_state.exceptions))
 
                         if s1 then
                             exc_status = "角色专用例外已保存。"
@@ -2644,7 +2645,7 @@ local function draw_combo_trials_menu_ui()
                         if styled_button("删除##delspec_" .. id_str, UI_THEME.btn_red) then
                             p_state.exceptions[id_str] = nil
                             pcall(function() if fs and fs.create_dir then fs.create_dir("TrainingComboTrials_data/exceptions") end end)
-                            json.dump_file(get_exc_filename(p_state.profile_name), p_state.exceptions)
+                            json.dump_file(get_exc_filename(p_state.profile_name), CharacterRules.serialize_for_save(p_state.exceptions))
                             exc_status = "角色专用异常已从磁盘删除。"
                         end
                     end

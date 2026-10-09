@@ -1,0 +1,20 @@
+{
+  "_meta": {
+    "schema": "sf6cc.generated-character-semantics.v2",
+    "algorithm": "sf6cc-acbcm-exception-projection.v1",
+    "character": "Yasmine",
+    "fighter_id": 33,
+    "source_command_display_sha256": "57def638b5fd3b765d63685fa39a4842635c6b42da6db95910eb6340667abd75",
+    "bcm_trigger_fingerprint": {
+      "algorithm": "bcm-trigger-action-multiset.fnv1a32.v1",
+      "count": 130,
+      "hash": "2f713be9"
+    },
+    "counts": {
+      "candidates": 14,
+      "generated": 0,
+      "curated": 0,
+      "withheld": 14
+    }
+  }
+}

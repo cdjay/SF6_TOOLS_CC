@@ -25,9 +25,6 @@
     "is_holdable": true,
     "hold_partial_check": false
   },
-  "933": {
-    "force": true
-  },
   "936": {
     "optional_parent_ids": [
       935
@@ -36,6 +33,20 @@
   "937": {
     "optional_parent_ids": [
       935
+    ]
+  },
+  "_generated_semantics": {
+    "withhold": [
+      {
+        "action": 929,
+        "generated": {
+          "absorb_ids": "933"
+        },
+        "curated": {
+          "ignore": true
+        },
+        "reason": "2026-10-09 迁移：保留现有判定行为，待实机验证后再改用生成规则"
+      }
     ]
   }
 }

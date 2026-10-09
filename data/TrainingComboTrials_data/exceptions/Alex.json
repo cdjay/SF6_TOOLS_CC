@@ -20,15 +20,6 @@
   "961": {
     "force": true
   },
-  "968": {
-    "force": true
-  },
-  "969": {
-    "force": true
-  },
-  "972": {
-    "force": true
-  },
   "976": {
     "absorb_ids": "977",
     "action_event_projection": {},
@@ -46,10 +37,16 @@
     "absorb_ids": "1209",
     "action_event_projection": {}
   },
-  "1495": {
-    "absorb_ids": "1498"
-  },
-  "1498": {
-    "force": true
+  "_generated_semantics": {
+    "withhold": [
+      {
+        "action": 970,
+        "generated": {
+          "absorb_ids": "972"
+        },
+        "curated": null,
+        "reason": "2026-10-09 迁移：保留现有判定行为，待实机验证后再改用生成规则"
+      }
+    ]
   }
 }

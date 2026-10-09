@@ -1,0 +1,20 @@
+{
+  "_meta": {
+    "schema": "sf6cc.generated-character-semantics.v2",
+    "algorithm": "sf6cc-acbcm-exception-projection.v1",
+    "character": "CViper",
+    "fighter_id": 30,
+    "source_command_display_sha256": "c8fd15428b15b9f4724f0da9fb50210395cdb66f0d47a63a421d9cfc7801d99f",
+    "bcm_trigger_fingerprint": {
+      "algorithm": "bcm-trigger-action-multiset.fnv1a32.v1",
+      "count": 149,
+      "hash": "42427684"
+    },
+    "counts": {
+      "candidates": 0,
+      "generated": 0,
+      "curated": 0,
+      "withheld": 0
+    }
+  }
+}

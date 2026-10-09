@@ -1,0 +1,20 @@
+{
+  "_meta": {
+    "schema": "sf6cc.generated-character-semantics.v2",
+    "algorithm": "sf6cc-acbcm-exception-projection.v1",
+    "character": "Mai",
+    "fighter_id": 28,
+    "source_command_display_sha256": "eb9e57b1a8ffc93e217e994855d54a8fc7f0e0fbcf61c6f45c8b89c11d29efbe",
+    "bcm_trigger_fingerprint": {
+      "algorithm": "bcm-trigger-action-multiset.fnv1a32.v1",
+      "count": 117,
+      "hash": "00f8b4e2"
+    },
+    "counts": {
+      "candidates": 0,
+      "generated": 0,
+      "curated": 0,
+      "withheld": 0
+    }
+  }
+}

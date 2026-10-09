@@ -1,0 +1,20 @@
+{
+  "_meta": {
+    "schema": "sf6cc.generated-character-semantics.v2",
+    "algorithm": "sf6cc-acbcm-exception-projection.v1",
+    "character": "Dhalsim",
+    "fighter_id": 8,
+    "source_command_display_sha256": "a94f12dac7af8c28c2adbc95d7419151c9fb995bfc94c6fbbd384ce3c0fed629",
+    "bcm_trigger_fingerprint": {
+      "algorithm": "bcm-trigger-action-multiset.fnv1a32.v1",
+      "count": 101,
+      "hash": "1a15fea6"
+    },
+    "counts": {
+      "candidates": 0,
+      "generated": 0,
+      "curated": 0,
+      "withheld": 0
+    }
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "906": {
+    "force": true
+  },
+  "907": {
+    "absorb_ids": "906"
+  },
+  "_meta": {
+    "schema": "sf6cc.generated-character-semantics.v2",
+    "algorithm": "sf6cc-acbcm-exception-projection.v1",
+    "character": "DeeJay",
+    "fighter_id": 11,
+    "source_command_display_sha256": "bf5dc2e6834b243dbfe1d6b5e4448f8eb96dff1018618764044a3932fb1289c1",
+    "bcm_trigger_fingerprint": {
+      "algorithm": "bcm-trigger-action-multiset.fnv1a32.v1",
+      "count": 126,
+      "hash": "098c67f9"
+    },
+    "counts": {
+      "candidates": 2,
+      "generated": 2,
+      "curated": 0,
+      "withheld": 0
+    }
+  }
+}

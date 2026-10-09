@@ -28,73 +28,16 @@
     "charge_min": 10,
     "charge_max": 32
   },
-  "938": {
-    "absorb_ids": "954"
-  },
-  "941": {
-    "absorb_ids": "950"
-  },
-  "944": {
-    "absorb_ids": "946"
-  },
-  "946": {
-    "force": true
-  },
-  "947": {
-    "absorb_ids": "952"
-  },
-  "950": {
-    "force": true
-  },
-  "952": {
-    "force": true
-  },
-  "954": {
-    "force": true
-  },
-  "955": {
-    "absorb_ids": "966"
-  },
-  "956": {
-    "absorb_ids": "967"
-  },
-  "957": {
-    "absorb_ids": "968"
-  },
-  "958": {
-    "absorb_ids": "969"
-  },
-  "966": {
-    "force": true
-  },
-  "967": {
-    "force": true
-  },
-  "968": {
-    "force": true
-  },
-  "969": {
-    "force": true
-  },
-  "970": {
-    "absorb_ids": "989"
-  },
-  "971": {
-    "absorb_ids": "990"
-  },
-  "972": {
-    "absorb_ids": "991"
-  },
-  "989": {
-    "force": true
-  },
-  "990": {
-    "force": true
-  },
-  "991": {
-    "force": true
-  },
-  "1015": {
-    "force": true
+  "_generated_semantics": {
+    "withhold": [
+      {
+        "action": 998,
+        "generated": {
+          "absorb_ids": "1015"
+        },
+        "curated": null,
+        "reason": "2026-10-09 迁移：保留现有判定行为，待实机验证后再改用生成规则"
+      }
+    ]
   }
 }

@@ -145,20 +145,29 @@ function countFields(target, rule) {
   for (const field of Object.keys(rule)) target[field] = (target[field] ?? 0) + 1;
 }
 
+// manifest.json is written by tools/action_runtime_compiler/build_generated_semantics.js;
+// manifest.v1.json was the SF6ACBCM pilot manifest.
+const GENERATED_MANIFESTS = Object.freeze({
+  "manifest.json": "sf6cc.generated-character-semantics-manifest.v2",
+  "manifest.v1.json": "sf6acbcm.sf6cc-generated-semantics-manifest.v1",
+});
+
 function inspectManifest(root, directory, generatedFiles, findings) {
-  const filename = path.join(directory, "manifest.v1.json");
+  const name = Object.keys(GENERATED_MANIFESTS)
+    .find((candidate) => fs.existsSync(path.join(directory, candidate))) ?? "manifest.json";
+  const filename = path.join(directory, name);
   if (!fs.existsSync(filename)) {
     if (generatedFiles.length > 0) findings.push({
       severity: "error",
       code: "GENERATED_MANIFEST_MISSING",
-      message: "存在生成语义资产，但 manifest.v1.json 缺失。",
+      message: "存在生成语义资产，但 manifest.json 缺失。",
       file: relative(root, filename),
     });
     return { algorithm_version: null, projection_count: 0 };
   }
   const manifest = readJson(root, filename, findings, "generated_semantics");
   if (!manifest) return { algorithm_version: null, projection_count: 0 };
-  const expectedSchema = "sf6acbcm.sf6cc-generated-semantics-manifest.v1";
+  const expectedSchema = GENERATED_MANIFESTS[name];
   if (manifest.schema !== expectedSchema) findings.push({
     severity: "error",
     code: "GENERATED_MANIFEST_SCHEMA_INVALID",
@@ -336,7 +345,7 @@ export function analyzeRepository(repoRoot = DEFAULT_REPO_ROOT) {
 
   const generatedDir = path.join(dataRoot, "generated_semantics");
   const generatedFiles = jsonFiles(generatedDir)
-    .filter((filename) => path.basename(filename) !== "manifest.v1.json");
+    .filter((filename) => !Object.hasOwn(GENERATED_MANIFESTS, path.basename(filename)));
   for (const filename of generatedFiles) {
     const character = path.basename(filename, ".json");
     const document = readJson(root, filename, findings, "generated_semantics");

@@ -1,0 +1,44 @@
+{
+  "680": {
+    "force": true
+  },
+  "681": {
+    "force": true
+  },
+  "682": {
+    "force": true
+  },
+  "683": {
+    "force": true
+  },
+  "684": {
+    "force": true
+  },
+  "685": {
+    "force": true
+  },
+  "686": {
+    "force": true
+  },
+  "687": {
+    "absorb_ids": "680,681,682,683,684,685,686"
+  },
+  "_meta": {
+    "schema": "sf6cc.generated-character-semantics.v2",
+    "algorithm": "sf6cc-acbcm-exception-projection.v1",
+    "character": "ChunLi",
+    "fighter_id": 4,
+    "source_command_display_sha256": "af0614af21dd7670d5954b78914cfdea1cc0ab818df59d4015dcbefd0d5081eb",
+    "bcm_trigger_fingerprint": {
+      "algorithm": "bcm-trigger-action-multiset.fnv1a32.v1",
+      "count": 103,
+      "hash": "89933d29"
+    },
+    "counts": {
+      "candidates": 8,
+      "generated": 8,
+      "curated": 0,
+      "withheld": 0
+    }
+  }
+}

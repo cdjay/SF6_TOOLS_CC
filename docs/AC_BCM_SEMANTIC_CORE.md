@@ -39,6 +39,29 @@ an all-prefix sequence fails closed.
 
 Migration is incremental: freeze current behavior, generate the graph, run resolver shadow comparisons, switch recording/detection/display/audit one by one, then remove obsolete patch layers and continue decomposing the entry script.
 
+## Generated Detection Rules And Data Guard (2026-10-09)
+
+Runtime detection still reads exception-shaped rules through `CharacterRules`
+(`absorb_ids`, `force`, ...), now from two disjoint layers. The generated layer
+(`generated_semantics/<key>.json`, built by
+`tools/action_runtime_compiler/build_generated_semantics.js`, algorithm
+`sf6cc-acbcm-exception-projection.v1`) projects AC+BCM relations of the deployed
+command table: a Type 29 verified variant is absorbed by its source Action and
+forced; Type 63 strength variants, Type 20 directional variants and Type 37
+follow-up execution phases are forced. `manifest.json` carries the relation
+evidence of every rule. The curated layer (`exceptions/<key>.json`) keeps only
+behavior that AC+BCM does not derive or that differs from it; an Action belongs
+to exactly one layer. `_generated_semantics.withhold` lists every Action where
+AC+BCM derives a rule but current behavior differs; those Actions are not
+generated until live verification removes the entry. The 2026-10-09
+convergence moved identical curated entries to the generated layer (curated
+462→290, generated 174, withheld 47) with identical effective runtime rules.
+A fighter without curation receives every generated rule.
+
+Each command table stores `_meta.bcm_trigger_fingerprint`; `ComboTrials/DataBuildGuard.lua`
+computes the same fingerprint in game and warns when a table is missing or was
+generated from other game data.
+
 ## Current Resolver Rollout State (2026-08-15)
 
 `MoveResolver` is implemented as a shadow-only semantic entry over the validated

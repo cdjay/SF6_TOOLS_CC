@@ -57,5 +57,49 @@
     "optional_parent_ids": [
       978
     ]
+  },
+  "_generated_semantics": {
+    "withhold": [
+      {
+        "action": 975,
+        "generated": {
+          "absorb_ids": "976"
+        },
+        "curated": null,
+        "reason": "2026-10-09 迁移：保留现有判定行为，待实机验证后再改用生成规则"
+      },
+      {
+        "action": 976,
+        "generated": {
+          "force": true
+        },
+        "curated": {
+          "optional_parent_ids": [
+            975
+          ]
+        },
+        "reason": "2026-10-09 迁移：保留现有判定行为，待实机验证后再改用生成规则"
+      },
+      {
+        "action": 977,
+        "generated": {
+          "absorb_ids": "978"
+        },
+        "curated": {
+          "optional_parent_ids": [
+            975
+          ]
+        },
+        "reason": "2026-10-09 迁移：保留现有判定行为，待实机验证后再改用生成规则"
+      },
+      {
+        "action": 978,
+        "generated": {
+          "force": true
+        },
+        "curated": null,
+        "reason": "2026-10-09 迁移：保留现有判定行为，待实机验证后再改用生成规则"
+      }
+    ]
   }
 }

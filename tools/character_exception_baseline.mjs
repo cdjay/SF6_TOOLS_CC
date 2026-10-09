@@ -214,15 +214,20 @@ function build() {
     }
   }
 
-  const generatedManifestFile = path.join(GENERATED_DIR, "manifest.v1.json");
-  const generatedManifest = JSON.parse(fs.readFileSync(generatedManifestFile, "utf8"));
-  sources.push(sourceDescriptor(generatedManifestFile, fs.readFileSync(generatedManifestFile, "utf8")));
-  for (const filename of jsonFiles(GENERATED_DIR, new Set(["manifest.v1.json"]))) {
+  // manifest.json (sf6cc.generated-character-semantics-manifest.v2) replaced
+  // the pilot manifest.v1.json; either one describes the generated layer.
+  const generatedManifestFile = ["manifest.json", "manifest.v1.json"]
+    .map((name) => path.join(GENERATED_DIR, name))
+    .find((filename) => fs.existsSync(filename));
+  const generatedManifest = generatedManifestFile
+    ? JSON.parse(fs.readFileSync(generatedManifestFile, "utf8")) : { projections: [] };
+  if (generatedManifestFile) sources.push(sourceDescriptor(generatedManifestFile, fs.readFileSync(generatedManifestFile, "utf8")));
+  for (const filename of jsonFiles(GENERATED_DIR, new Set(["manifest.json", "manifest.v1.json"]))) {
     const raw = fs.readFileSync(filename, "utf8");
     const document = JSON.parse(raw);
     const character = path.basename(filename, ".json");
     sources.push(sourceDescriptor(filename, raw));
-    for (const key of Object.keys(document).sort((a, b) => Number(a) - Number(b))) {
+    for (const key of Object.keys(document).filter((item) => /^\d+$/.test(item)).sort((a, b) => Number(a) - Number(b))) {
       const actionId = Number(key);
       const rule = document[key];
       const evidence = generatedManifest.projections.find((row) => row.character === character && row.owner_action_id === actionId) ?? null;

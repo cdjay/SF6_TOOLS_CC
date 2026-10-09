@@ -1,0 +1,20 @@
+{
+  "_meta": {
+    "schema": "sf6cc.generated-character-semantics.v2",
+    "algorithm": "sf6cc-acbcm-exception-projection.v1",
+    "character": "Sagat",
+    "fighter_id": 25,
+    "source_command_display_sha256": "a8312fa27d260b40db530b6ffbffe3969625bc00a1515e410374c091eb192afd",
+    "bcm_trigger_fingerprint": {
+      "algorithm": "bcm-trigger-action-multiset.fnv1a32.v1",
+      "count": 91,
+      "hash": "b4587ed7"
+    },
+    "counts": {
+      "candidates": 0,
+      "generated": 0,
+      "curated": 0,
+      "withheld": 0
+    }
+  }
+}

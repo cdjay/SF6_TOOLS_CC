@@ -1,9 +1,4 @@
 {
-  "_character": {
-    "sequence_grouping": {
-      "break_followup_after_ids": "1218"
-    }
-  },
   "569": {
     "ignore": true
   },
@@ -12,9 +7,6 @@
   },
   "601": {
     "force": true
-  },
-  "603": {
-    "absorb_ids": "606"
   },
   "604": {
     "optional_parent_ids": [
@@ -26,15 +18,6 @@
       604
     ]
   },
-  "606": {
-    "force": true
-  },
-  "607": {
-    "absorb_ids": "608"
-  },
-  "608": {
-    "force": true
-  },
   "610": {
     "force": true
   },
@@ -44,88 +27,7 @@
   "613": {
     "force": true
   },
-  "615": {
-    "absorb_ids": "616"
-  },
-  "616": {
-    "force": true
-  },
-  "618": {
-    "absorb_ids": "619"
-  },
-  "619": {
-    "force": true
-  },
-  "623": {
-    "absorb_ids": "624"
-  },
-  "624": {
-    "force": true
-  },
-  "626": {
-    "absorb_ids": "627"
-  },
-  "627": {
-    "force": true
-  },
   "629": {
-    "force": true
-  },
-  "630": {
-    "force": true
-  },
-  "634": {
-    "absorb_ids": "635"
-  },
-  "635": {
-    "force": true
-  },
-  "637": {
-    "absorb_ids": "638"
-  },
-  "638": {
-    "force": true
-  },
-  "650": {
-    "absorb_ids": "651"
-  },
-  "651": {
-    "force": true
-  },
-  "652": {
-    "absorb_ids": "653"
-  },
-  "653": {
-    "force": true
-  },
-  "654": {
-    "absorb_ids": "655"
-  },
-  "655": {
-    "force": true
-  },
-  "656": {
-    "absorb_ids": "657"
-  },
-  "657": {
-    "force": true
-  },
-  "658": {
-    "absorb_ids": "659"
-  },
-  "659": {
-    "force": true
-  },
-  "660": {
-    "absorb_ids": "661"
-  },
-  "661": {
-    "force": true
-  },
-  "662": {
-    "absorb_ids": "663"
-  },
-  "663": {
     "force": true
   },
   "668": {
@@ -134,61 +36,7 @@
   "669": {
     "force": true
   },
-  "670": {
-    "absorb_ids": "672"
-  },
-  "672": {
-    "force": true
-  },
-  "674": {
-    "absorb_ids": "675"
-  },
-  "675": {
-    "force": true
-  },
-  "677": {
-    "absorb_ids": "678"
-  },
-  "678": {
-    "force": true
-  },
   "717": {
-    "force": true
-  },
-  "900": {
-    "absorb_ids": "901,902"
-  },
-  "901": {
-    "force": true
-  },
-  "902": {
-    "force": true
-  },
-  "904": {
-    "absorb_ids": "905,906"
-  },
-  "905": {
-    "force": true
-  },
-  "906": {
-    "force": true
-  },
-  "907": {
-    "absorb_ids": "908,909"
-  },
-  "908": {
-    "force": true
-  },
-  "909": {
-    "force": true
-  },
-  "911": {
-    "absorb_ids": "912,913"
-  },
-  "912": {
-    "force": true
-  },
-  "913": {
     "force": true
   },
   "1215": {
@@ -199,5 +47,24 @@
   },
   "1218": {
     "force": true
+  },
+  "_character": {
+    "sequence_grouping": {
+      "break_followup_after_ids": "1218"
+    }
+  },
+  "_generated_semantics": {
+    "withhold": [
+      {
+        "action": 629,
+        "generated": {
+          "absorb_ids": "630"
+        },
+        "curated": {
+          "force": true
+        },
+        "reason": "2026-10-09 迁移：保留现有判定行为，待实机验证后再改用生成规则"
+      }
+    ]
   }
 }

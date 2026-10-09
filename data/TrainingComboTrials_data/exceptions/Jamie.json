@@ -40,9 +40,6 @@
     ],
     "absorb_ids": "643,1013"
   },
-  "643": {
-    "force": true
-  },
   "657": {
     "action_event_projection": {
       "input_anchor_owner_id": 17,
@@ -69,9 +66,6 @@
     ],
     "absorb_ids": "663"
   },
-  "663": {
-    "force": true
-  },
   "667": {
     "optional_parent_ids": [
       666
@@ -95,61 +89,7 @@
   "717": {
     "force": true
   },
-  "850": {
-    "absorb_ids": "851"
-  },
-  "851": {
-    "force": true
-  },
   "854": {
-    "force": true
-  },
-  "862": {
-    "absorb_ids": "863"
-  },
-  "863": {
-    "force": true
-  },
-  "900": {
-    "absorb_ids": "934"
-  },
-  "904": {
-    "absorb_ids": "935"
-  },
-  "908": {
-    "absorb_ids": "936"
-  },
-  "912": {
-    "absorb_ids": "941"
-  },
-  "919": {
-    "force": true
-  },
-  "922": {
-    "absorb_ids": "923"
-  },
-  "923": {
-    "force": true
-  },
-  "927": {
-    "force": true
-  },
-  "930": {
-    "absorb_ids": "931"
-  },
-  "931": {
-    "force": true
-  },
-  "934": {
-    "force": true
-  },
-  "935": {
-    "force": true
-  },
-  "936": {
-    "force": true
-  },
-  "941": {
     "force": true
   },
   "982": {
@@ -164,18 +104,6 @@
     "force": true,
     "action_alias_ids": "981,983"
   },
-  "990": {
-    "force": true
-  },
-  "991": {
-    "force": true
-  },
-  "992": {
-    "force": true
-  },
-  "1010": {
-    "absorb_ids": "1014,1018"
-  },
   "1011": {
     "force": true,
     "is_holdable": true
@@ -183,14 +111,87 @@
   "1013": {
     "force": true
   },
-  "1014": {
-    "force": true
-  },
   "1015": {
     "force": true,
     "is_holdable": true
   },
-  "1018": {
-    "force": true
+  "_generated_semantics": {
+    "withhold": [
+      {
+        "action": 642,
+        "generated": {
+          "absorb_ids": "643"
+        },
+        "curated": {
+          "optional_parent_ids": [
+            641
+          ],
+          "absorb_ids": "643,1013"
+        },
+        "reason": "2026-10-09 迁移：保留现有判定行为，待实机验证后再改用生成规则"
+      },
+      {
+        "action": 662,
+        "generated": {
+          "absorb_ids": "663"
+        },
+        "curated": {
+          "optional_parent_ids": [
+            661
+          ],
+          "absorb_ids": "663"
+        },
+        "reason": "2026-10-09 迁移：保留现有判定行为，待实机验证后再改用生成规则"
+      },
+      {
+        "action": 918,
+        "generated": {
+          "absorb_ids": "919"
+        },
+        "curated": null,
+        "reason": "2026-10-09 迁移：保留现有判定行为，待实机验证后再改用生成规则"
+      },
+      {
+        "action": 926,
+        "generated": {
+          "absorb_ids": "927"
+        },
+        "curated": null,
+        "reason": "2026-10-09 迁移：保留现有判定行为，待实机验证后再改用生成规则"
+      },
+      {
+        "action": 982,
+        "generated": {
+          "force": true
+        },
+        "curated": {
+          "force": true,
+          "action_alias_ids": "983"
+        },
+        "reason": "2026-10-09 迁移：保留现有判定行为，待实机验证后再改用生成规则"
+      },
+      {
+        "action": 983,
+        "generated": {
+          "force": true
+        },
+        "curated": {
+          "force": true,
+          "action_alias_ids": "982"
+        },
+        "reason": "2026-10-09 迁移：保留现有判定行为，待实机验证后再改用生成规则"
+      },
+      {
+        "action": 984,
+        "generated": {
+          "force": true
+        },
+        "curated": {
+          "force": true,
+          "action_alias_ids": "981,983"
+        },
+        "reason": "2026-10-09 迁移：保留现有判定行为，待实机验证后再改用生成规则"
+      }
+    ]
   }
 }

@@ -1,0 +1,32 @@
+{
+  "978": {
+    "absorb_ids": "979"
+  },
+  "979": {
+    "force": true
+  },
+  "1200": {
+    "absorb_ids": "1201"
+  },
+  "1201": {
+    "force": true
+  },
+  "_meta": {
+    "schema": "sf6cc.generated-character-semantics.v2",
+    "algorithm": "sf6cc-acbcm-exception-projection.v1",
+    "character": "Akuma",
+    "fighter_id": 22,
+    "source_command_display_sha256": "06389bf935fabf7db2a70d3c03b4e45cb1767ec4a61ce1c79a58076425b56aee",
+    "bcm_trigger_fingerprint": {
+      "algorithm": "bcm-trigger-action-multiset.fnv1a32.v1",
+      "count": 113,
+      "hash": "429ee3ff"
+    },
+    "counts": {
+      "candidates": 4,
+      "generated": 4,
+      "curated": 0,
+      "withheld": 0
+    }
+  }
+}

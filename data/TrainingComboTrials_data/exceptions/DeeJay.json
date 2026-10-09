@@ -1,20 +1,6 @@
 {
-  "_character": {
-    "sequence_grouping": {
-      "structural_followup_chains": [
-        [1219, 1220, 1221, 1222, 1223, 1224, 1225],
-        [1230, 1231, 1232, 1233, 1234, 1235, 1236]
-      ]
-    }
-  },
   "717": {
     "force": true
-  },
-  "906": {
-    "force": true
-  },
-  "907": {
-    "absorb_ids": "906"
   },
   "1268": {
     "action_alias_ids": "1272",
@@ -29,5 +15,29 @@
       "1268": 32
     },
     "finish_on_first_hit": true
+  },
+  "_character": {
+    "sequence_grouping": {
+      "structural_followup_chains": [
+        [
+          1219,
+          1220,
+          1221,
+          1222,
+          1223,
+          1224,
+          1225
+        ],
+        [
+          1230,
+          1231,
+          1232,
+          1233,
+          1234,
+          1235,
+          1236
+        ]
+      ]
+    }
   }
 }

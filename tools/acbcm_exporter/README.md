@@ -74,6 +74,9 @@ Status: `CURRENT`
    tools\action_runtime_compiler\3_deploy_command_display.bat 2026-10-13 --check
    ```
 
+   部署会同时为新角色生成检测规则（`generated_semantics/Arjun.json`：AC 变体吸收与 force 等），
+   新角色没有人工例外，全部规则来自 AC+BCM。
+
 7. 把 `data/SF6CC/version.json` 的 `recording.game.version` 改为 `2026-10-13`，跑离线门禁
    （见 `docs/TESTING_STRATEGY.md`），实机冒烟后打包。
 

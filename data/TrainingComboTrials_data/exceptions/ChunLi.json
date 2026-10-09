@@ -1,28 +1,4 @@
 {
-  "680": {
-    "force": true
-  },
-  "681": {
-    "force": true
-  },
-  "682": {
-    "force": true
-  },
-  "683": {
-    "force": true
-  },
-  "684": {
-    "force": true
-  },
-  "685": {
-    "force": true
-  },
-  "686": {
-    "force": true
-  },
-  "687": {
-    "absorb_ids": "680,681,682,683,684,685,686"
-  },
   "717": {
     "force": true
   }

@@ -1,38 +1,9 @@
 {
-  "_character": {
-    "allow_pending_absorb": true,
-    "transcription_rules": {
-      "initial_unique_requirements": [
-        {
-          "fighter_id": 20,
-          "resource_id": "stock_0_020",
-          "value": 1,
-          "required_action_ids": "925,926,927,928,929",
-          "producer_action_ids": "970,971"
-        }
-      ]
-    }
-  },
-  "605": {
-    "absorb_ids": "606"
-  },
-  "606": {
-    "force": true
-  },
   "610": {
     "absorb_ids": "611"
   },
   "611": {
     "force": true
-  },
-  "622": {
-    "absorb_ids": "624"
-  },
-  "624": {
-    "force": true
-  },
-  "626": {
-    "absorb_ids": "629"
   },
   "627": {
     "absorb_ids": "630"
@@ -40,25 +11,10 @@
   "628": {
     "absorb_ids": "631"
   },
-  "629": {
-    "force": true
-  },
   "630": {
     "force": true
   },
   "631": {
-    "force": true
-  },
-  "633": {
-    "absorb_ids": "634"
-  },
-  "634": {
-    "force": true
-  },
-  "652": {
-    "force": true
-  },
-  "653": {
     "force": true
   },
   "717": {
@@ -90,5 +46,55 @@
   "1221": {
     "absorb_ids": "1222",
     "action_event_projection": {}
+  },
+  "_character": {
+    "allow_pending_absorb": true,
+    "transcription_rules": {
+      "initial_unique_requirements": [
+        {
+          "fighter_id": 20,
+          "resource_id": "stock_0_020",
+          "value": 1,
+          "required_action_ids": "925,926,927,928,929",
+          "producer_action_ids": "970,971"
+        }
+      ]
+    }
+  },
+  "_generated_semantics": {
+    "withhold": [
+      {
+        "action": 974,
+        "generated": {
+          "absorb_ids": "975"
+        },
+        "curated": null,
+        "reason": "2026-10-09 迁移：保留现有判定行为，待实机验证后再改用生成规则"
+      },
+      {
+        "action": 975,
+        "generated": {
+          "force": true
+        },
+        "curated": null,
+        "reason": "2026-10-09 迁移：保留现有判定行为，待实机验证后再改用生成规则"
+      },
+      {
+        "action": 976,
+        "generated": {
+          "absorb_ids": "977"
+        },
+        "curated": null,
+        "reason": "2026-10-09 迁移：保留现有判定行为，待实机验证后再改用生成规则"
+      },
+      {
+        "action": 977,
+        "generated": {
+          "force": true
+        },
+        "curated": null,
+        "reason": "2026-10-09 迁移：保留现有判定行为，待实机验证后再改用生成规则"
+      }
+    ]
   }
 }

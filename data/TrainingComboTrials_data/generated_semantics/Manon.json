@@ -1,0 +1,20 @@
+{
+  "_meta": {
+    "schema": "sf6cc.generated-character-semantics.v2",
+    "algorithm": "sf6cc-acbcm-exception-projection.v1",
+    "character": "Manon",
+    "fighter_id": 5,
+    "source_command_display_sha256": "70efd0dba8ebf20a3e5237c1f51ad8148d076518d06a02a6ccd0da00fdd9c0fd",
+    "bcm_trigger_fingerprint": {
+      "algorithm": "bcm-trigger-action-multiset.fnv1a32.v1",
+      "count": 107,
+      "hash": "fb1ffa56"
+    },
+    "counts": {
+      "candidates": 0,
+      "generated": 0,
+      "curated": 0,
+      "withheld": 0
+    }
+  }
+}

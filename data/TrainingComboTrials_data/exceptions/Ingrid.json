@@ -57,88 +57,13 @@
     "absorb_ids": "975",
     "force": true
   },
-  "971": {
-    "force": true
-  },
-  "972": {
-    "force": true
-  },
-  "973": {
-    "force": true
-  },
   "977": {
-    "force": true
-  },
-  "1021": {
-    "absorb_ids": "1023,1025,1027,1029"
-  },
-  "1023": {
-    "force": true
-  },
-  "1025": {
-    "force": true
-  },
-  "1027": {
     "force": true
   },
   "1028": {
     "force": true
   },
-  "1029": {
-    "force": true
-  },
-  "1038": {
-    "force": true
-  },
-  "1051": {
-    "absorb_ids": "1052,1053"
-  },
-  "1052": {
-    "force": true
-  },
-  "1053": {
-    "force": true
-  },
-  "1073": {
-    "force": true
-  },
-  "1074": {
-    "absorb_ids": "1075,1076"
-  },
-  "1075": {
-    "force": true
-  },
-  "1076": {
-    "force": true
-  },
-  "1081": {
-    "absorb_ids": "1082,1083,1084,1085"
-  },
-  "1082": {
-    "force": true
-  },
-  "1083": {
-    "force": true
-  },
-  "1084": {
-    "force": true
-  },
-  "1085": {
-    "force": true
-  },
   "1088": {
-    "force": true
-  },
-  "1089": {
-    "force": true
-  },
-  "1091": {
-    "absorb_ids": "1092,1093"
-  },
-  "1092": {
-    "force": true
-  },
-  "1093": {
     "force": true
   },
   "1200": {
@@ -221,5 +146,59 @@
       1227
     ],
     "ignore_prev_frames": 100
+  },
+  "_generated_semantics": {
+    "withhold": [
+      {
+        "action": 969,
+        "generated": {
+          "absorb_ids": "970,971,972,973"
+        },
+        "curated": {
+          "absorb_ids": "975",
+          "is_holdable": true,
+          "charge_min": 23,
+          "charge_max": 131
+        },
+        "reason": "2026-10-09 迁移：保留现有判定行为，待实机验证后再改用生成规则"
+      },
+      {
+        "action": 970,
+        "generated": {
+          "force": true
+        },
+        "curated": {
+          "absorb_ids": "975",
+          "force": true
+        },
+        "reason": "2026-10-09 迁移：保留现有判定行为，待实机验证后再改用生成规则"
+      },
+      {
+        "action": 1037,
+        "generated": {
+          "absorb_ids": "1038"
+        },
+        "curated": null,
+        "reason": "2026-10-09 迁移：保留现有判定行为，待实机验证后再改用生成规则"
+      },
+      {
+        "action": 1072,
+        "generated": {
+          "absorb_ids": "1073"
+        },
+        "curated": null,
+        "reason": "2026-10-09 迁移：保留现有判定行为，待实机验证后再改用生成规则"
+      },
+      {
+        "action": 1088,
+        "generated": {
+          "absorb_ids": "1089"
+        },
+        "curated": {
+          "force": true
+        },
+        "reason": "2026-10-09 迁移：保留现有判定行为，待实机验证后再改用生成规则"
+      }
+    ]
   }
 }

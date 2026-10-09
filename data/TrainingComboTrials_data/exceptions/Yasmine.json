@@ -1,27 +1,14 @@
 {
-  "_character": {
-    "transcription_rules": {
-      "initial_unique_requirements": [
-        {
-          "fighter_id": 33,
-          "resource_id": "stock_0_033",
-          "value": 1,
-          "required_action_ids": "954,955,956",
-          "producer_action_ids": "1210"
-        }
-      ]
-    }
-  },
-  "955": {
-    "absorb_ids": "956",
-    "action_event_projection": {}
-  },
   "937": {
     "absorb_ids": "938",
     "action_event_projection": {}
   },
   "941": {
     "absorb_ids": "942",
+    "action_event_projection": {}
+  },
+  "955": {
+    "absorb_ids": "956",
     "action_event_projection": {}
   },
   "960": {
@@ -39,5 +26,134 @@
   "1057": {
     "absorb_ids": "1058,1060",
     "action_event_projection": {}
+  },
+  "_character": {
+    "transcription_rules": {
+      "initial_unique_requirements": [
+        {
+          "fighter_id": 33,
+          "resource_id": "stock_0_033",
+          "value": 1,
+          "required_action_ids": "954,955,956",
+          "producer_action_ids": "1210"
+        }
+      ]
+    }
+  },
+  "_generated_semantics": {
+    "withhold": [
+      {
+        "action": 1009,
+        "generated": {
+          "absorb_ids": "1010"
+        },
+        "curated": null,
+        "reason": "2026-10-09 迁移：保留现有判定行为，待实机验证后再改用生成规则"
+      },
+      {
+        "action": 1010,
+        "generated": {
+          "force": true
+        },
+        "curated": null,
+        "reason": "2026-10-09 迁移：保留现有判定行为，待实机验证后再改用生成规则"
+      },
+      {
+        "action": 1011,
+        "generated": {
+          "absorb_ids": "1012"
+        },
+        "curated": null,
+        "reason": "2026-10-09 迁移：保留现有判定行为，待实机验证后再改用生成规则"
+      },
+      {
+        "action": 1012,
+        "generated": {
+          "force": true
+        },
+        "curated": null,
+        "reason": "2026-10-09 迁移：保留现有判定行为，待实机验证后再改用生成规则"
+      },
+      {
+        "action": 1021,
+        "generated": {
+          "absorb_ids": "1023"
+        },
+        "curated": null,
+        "reason": "2026-10-09 迁移：保留现有判定行为，待实机验证后再改用生成规则"
+      },
+      {
+        "action": 1023,
+        "generated": {
+          "force": true
+        },
+        "curated": null,
+        "reason": "2026-10-09 迁移：保留现有判定行为，待实机验证后再改用生成规则"
+      },
+      {
+        "action": 1024,
+        "generated": {
+          "absorb_ids": "1026"
+        },
+        "curated": null,
+        "reason": "2026-10-09 迁移：保留现有判定行为，待实机验证后再改用生成规则"
+      },
+      {
+        "action": 1025,
+        "generated": {
+          "absorb_ids": "1027"
+        },
+        "curated": null,
+        "reason": "2026-10-09 迁移：保留现有判定行为，待实机验证后再改用生成规则"
+      },
+      {
+        "action": 1026,
+        "generated": {
+          "force": true
+        },
+        "curated": null,
+        "reason": "2026-10-09 迁移：保留现有判定行为，待实机验证后再改用生成规则"
+      },
+      {
+        "action": 1027,
+        "generated": {
+          "force": true
+        },
+        "curated": null,
+        "reason": "2026-10-09 迁移：保留现有判定行为，待实机验证后再改用生成规则"
+      },
+      {
+        "action": 1028,
+        "generated": {
+          "absorb_ids": "1030"
+        },
+        "curated": null,
+        "reason": "2026-10-09 迁移：保留现有判定行为，待实机验证后再改用生成规则"
+      },
+      {
+        "action": 1029,
+        "generated": {
+          "absorb_ids": "1031"
+        },
+        "curated": null,
+        "reason": "2026-10-09 迁移：保留现有判定行为，待实机验证后再改用生成规则"
+      },
+      {
+        "action": 1030,
+        "generated": {
+          "force": true
+        },
+        "curated": null,
+        "reason": "2026-10-09 迁移：保留现有判定行为，待实机验证后再改用生成规则"
+      },
+      {
+        "action": 1031,
+        "generated": {
+          "force": true
+        },
+        "curated": null,
+        "reason": "2026-10-09 迁移：保留现有判定行为，待实机验证后再改用生成规则"
+      }
+    ]
   }
 }

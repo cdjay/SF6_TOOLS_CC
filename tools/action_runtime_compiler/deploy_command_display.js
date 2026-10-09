@@ -10,6 +10,7 @@ const fs = require("fs");
 const path = require("path");
 const builder = require("./lastjson_builder.js");
 const fighterRoster = require("../fighter_roster.js");
+const generatedSemantics = require("./build_generated_semantics.js");
 
 const TOOL_ROOT = __dirname;
 const DEFAULT_ACBCM_ROOT = path.join(TOOL_ROOT, "acbcm");
@@ -101,17 +102,27 @@ function run(argv) {
         rosterPath: args["--roster"],
         characters: builder.characterList(args["--characters"])
     };
+    // Generated detection rules are derived from the runtime command tables,
+    // so they are checked and rebuilt together with the default target.
+    const runtimeTarget = !options.target;
     if (args["--check"]) {
         const entries = compare(options);
         const bad = entries.filter(entry => entry.status !== "same");
         for (const entry of bad) console.log(`${entry.key}: ${entry.status}`);
         console.log(`一致 ${entries.length - bad.length}/${entries.length}`);
-        if (bad.length) process.exitCode = 1;
+        const drift = runtimeTarget ? generatedSemantics.check({ rosterPath: options.rosterPath }) : [];
+        for (const file of drift) console.log(`生成语义过期: ${file}`);
+        if (bad.length || drift.length) process.exitCode = 1;
         return;
     }
     const result = deploy(options);
     for (const entry of result.changed) console.log(`${entry.key}: 已更新（${entry.status}）`);
     console.log(`部署完成：更新 ${result.changed.length}，未变 ${result.entries.length - result.changed.length}，目标 ${path.resolve(options.target || DEFAULT_TARGET)}`);
+    if (runtimeTarget) {
+        const planned = generatedSemantics.write({ rosterPath: options.rosterPath });
+        const total = planned.entries.reduce((sum, entry) => sum + entry.counts.generated, 0);
+        console.log(`生成语义已同步：${planned.entries.length} 个角色，生成规则 ${total} 条。`);
+    }
 }
 
 if (require.main === module) {

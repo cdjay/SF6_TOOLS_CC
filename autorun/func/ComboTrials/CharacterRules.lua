@@ -36,19 +36,62 @@ function CharacterRules.load_common()
     return common_exceptions
 end
 
+-- Loaded rule tables remember which entries came from the generated layer,
+-- so saving from the in-game editor writes back only the curated part.
+local loaded_sources = setmetatable({}, { __mode = "k" })
+
+local function is_action_key(key)
+    return tostring(key):match("^%d+$") ~= nil
+end
+
+-- Hand-written exceptions (curation) plus generated AC+BCM rules
+-- (generated_semantics/<name>.json). The generator never emits an Action
+-- that curation defines or withholds, so the two layers are disjoint.
+-- "_generated_semantics" is curation for the generator only and is not part
+-- of the runtime rules.
 function CharacterRules.load_for_character(character_name)
     local handwritten = json.load_file(
         CharacterRules.get_exception_filename(character_name)
     ) or {}
-    local generated = json.load_file(
+    local generated_document = json.load_file(
         CharacterRules.get_generated_semantics_filename(character_name)
     ) or {}
     local merged = {}
-    for action_id, rule in pairs(handwritten) do merged[action_id] = rule end
-    for action_id, rule in pairs(generated) do
-        merged[action_id] = merge_match_rule(merged[action_id], rule)
+    local curation_meta = {}
+    for action_id, rule in pairs(handwritten) do
+        if action_id == "_generated_semantics" then
+            curation_meta[action_id] = rule
+        else
+            merged[action_id] = rule
+            if not is_action_key(action_id) then curation_meta[action_id] = rule end
+        end
     end
+    local generated = {}
+    for action_id, rule in pairs(generated_document) do
+        if is_action_key(action_id) and type(rule) == "table" then
+            generated[action_id] = rule
+            merged[action_id] = merge_match_rule(merged[action_id], rule)
+        end
+    end
+    loaded_sources[merged] = { generated = generated, curation_meta = curation_meta }
     return merged
+end
+
+-- The curated document to write for a rule table returned by
+-- load_for_character: generated entries that are still unchanged are left
+-- out, curation-only keys are kept.
+function CharacterRules.serialize_for_save(rules)
+    local source = loaded_sources[rules] or { generated = {}, curation_meta = {} }
+    local document = {}
+    for key, value in pairs(source.curation_meta) do document[key] = value end
+    for key, rule in pairs(rules or {}) do
+        if not is_action_key(key) then
+            document[key] = rule
+        elseif rule ~= source.generated[tostring(key)] then
+            document[key] = rule
+        end
+    end
+    return document
 end
 
 function CharacterRules.get_exception(character_rules, common_rules, action_id)

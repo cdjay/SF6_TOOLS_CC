@@ -64,9 +64,6 @@
     "perfect_min": 18,
     "perfect_max": 20
   },
-  "936": {
-    "force": true
-  },
   "960": {
     "action_event_rules": {
       "suppress_after": {

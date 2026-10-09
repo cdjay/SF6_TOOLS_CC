@@ -32,22 +32,10 @@
     "charge_min": 24,
     "charge_max": 24
   },
-  "978": {
-    "absorb_ids": "979"
-  },
-  "979": {
-    "force": true
-  },
   "996": {
     "force": true
   },
   "1013": {
-    "force": true
-  },
-  "1200": {
-    "absorb_ids": "1201"
-  },
-  "1201": {
     "force": true
   }
 }

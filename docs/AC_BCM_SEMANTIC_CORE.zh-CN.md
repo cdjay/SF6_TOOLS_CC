@@ -197,6 +197,28 @@ Presentation、Detector 和 Auditor 必须从冻结 V2 序列生成同一份训�
 
 该投影不得改写冻结 V2 Action ID list、timeline 或 raw input；自动演示继续忠实消费原始回放载荷。首个真实语义动作之后的方向、`44`/`66` 和 Drive Parry 恢复严格语义。若序列全部由前导组成，加载和审计必须 fail closed，不得伪造完成。
 
+## 7.3 生成检测规则与数据版本守卫（2026-10-09）
+
+运行时检测仍读取 `CharacterRules` 的例外形状（`absorb_ids`、`force` 等），但规则来源分为两层：
+
+- **生成层** `data/TrainingComboTrials_data/generated_semantics/<角色>.json`：由
+  `tools/action_runtime_compiler/build_generated_semantics.js` 从已部署的指令表（AC+BCM 关系）投影生成，
+  算法 `sf6cc-acbcm-exception-projection.v1`。Type 29 已验证变体关系 → 源 Action 吸收变体
+  （`absorb_ids`）且变体 `force`；Type 63 强度变体、Type 20 方向变体、Type 37 后续执行阶段 → 目标
+  `force`。每条规则在 `manifest.json` 中带关系证据。
+- **人工层** `exceptions/<角色>.json`：只保留 AC+BCM 推不出、或与生成规则不同的行为。
+  同一 Action 只属于其中一层；人工层定义了的 Action，生成器不输出。
+- **保留差异**：`exceptions/<角色>.json` 的 `_generated_semantics.withhold` 逐条记录“AC+BCM 推出了
+  规则、但现有判定行为不同”的 Action（生成规则与原行为并列），生成器不输出这些 Action。这是可统计的
+  分歧清单，实机验证后删除对应条目即改用生成规则。
+
+2026-10-09 的一次性收敛把与生成规则完全相同的人工条目改为生成：31 个角色的人工条目 462→290，
+生成条目 174，保留差异 47；运行时加载的有效规则逐条不变（Lua 加载器前后比对）。没有人工整理的新角色
+直接得到全部生成规则。`deploy_command_display.js` 部署指令表后同步重建生成层，`--check` 一并校验。
+
+指令表 `_meta.bcm_trigger_fingerprint` 记录生成所用 BCM 的触发器指纹；`ComboTrials/DataBuildGuard.lua`
+在游戏中计算同一指纹，不一致或缺少指令表时提示重新导出与生成，防止游戏更新后 Action ID 移动造成静默误判。
+
 ## 8. 完成标准
 
 架构迁移完成必须同时满足：

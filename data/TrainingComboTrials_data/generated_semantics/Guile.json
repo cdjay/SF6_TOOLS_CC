@@ -1,0 +1,74 @@
+{
+  "900": {
+    "absorb_ids": "955,961"
+  },
+  "902": {
+    "absorb_ids": "957"
+  },
+  "904": {
+    "absorb_ids": "959"
+  },
+  "906": {
+    "absorb_ids": "962"
+  },
+  "955": {
+    "force": true
+  },
+  "956": {
+    "force": true
+  },
+  "957": {
+    "force": true
+  },
+  "958": {
+    "force": true
+  },
+  "959": {
+    "force": true
+  },
+  "960": {
+    "force": true
+  },
+  "961": {
+    "force": true
+  },
+  "962": {
+    "force": true
+  },
+  "1224": {
+    "force": true
+  },
+  "1225": {
+    "force": true
+  },
+  "1226": {
+    "force": true
+  },
+  "1227": {
+    "force": true
+  },
+  "1228": {
+    "force": true
+  },
+  "1229": {
+    "force": true
+  },
+  "_meta": {
+    "schema": "sf6cc.generated-character-semantics.v2",
+    "algorithm": "sf6cc-acbcm-exception-projection.v1",
+    "character": "Guile",
+    "fighter_id": 18,
+    "source_command_display_sha256": "60fe8aabfd3a42bb01f4f43810b812eb158fa2ce12cc9957ffe7ad0affddca26",
+    "bcm_trigger_fingerprint": {
+      "algorithm": "bcm-trigger-action-multiset.fnv1a32.v1",
+      "count": 114,
+      "hash": "593d0b50"
+    },
+    "counts": {
+      "candidates": 27,
+      "generated": 18,
+      "curated": 0,
+      "withheld": 9
+    }
+  }
+}
