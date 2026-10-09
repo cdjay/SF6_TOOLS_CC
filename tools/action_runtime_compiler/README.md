@@ -234,6 +234,20 @@ node tools\action_runtime_compiler\compare_acbcm_versions.js --old 2026-08-03 --
 
 `lastjson-manifest.json` 放在版本目录根部，不混入 `lastjson`，因此 `lastjson` 内始终只有角色清单中的正式角色文件。manifest 记录每个角色的输入文件、输出哈希、Action 数和相对覆盖前结果的新增/删除/变化 ID。
 
+## 4.3 原生取消/后续技关系（触发组）
+
+AC 动作的 TriggerKey 在帧窗口内开启 BCM 触发组，触发组的位图选中若干 BCM 触发器，每个触发器启动一个 Action：
+这就是游戏自己的“哪个动作之后可以接哪个动作”表（取消、目押、后续技）。`trigger_group_core.js` 解码这条链，
+`trigger_group_report.js` 统计它能解释多少人工 `optional_parent_ids` 与指令表中的后续技关系：
+
+```powershell
+node tools\action_runtime_compiler\trigger_group_report.js --version 2026-10-13 --out tg.md
+```
+
+2026-08-03 及更早的 dump 由旧导出器生成，键号 ≥ Count 的触发组全部丢失，报告标为“触发组不完整”。用当前
+`tools/acbcm_exporter` 重新导出后，这条链才能完整覆盖；报告结果用于决定把哪些人工后续技规则改由生成器提供。
+目前生成器尚未消费触发组关系。
+
 ## 5. 官网文件名与角色名
 
 新版抓取器直接以 SF6CC 规范角色名保存，例如：

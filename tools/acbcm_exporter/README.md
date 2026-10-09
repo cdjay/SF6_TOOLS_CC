@@ -82,6 +82,12 @@ Status: `CURRENT`
 
 只想先让新角色可用、旧角色确认未变时，第 4、6 步可加 `--characters Arjun` 只处理新角色。
 
+重新导出后可检查原生取消/后续技关系的覆盖（触发组完整性与人工后续技规则的解释率）：
+
+```powershell
+node tools\action_runtime_compiler\trigger_group_report.js --version 2026-10-13 --out tg.md
+```
+
 运行时会用 BCM 触发器指纹核对指令表与当前游戏数据；不一致或缺少指令表时，训练场会提示，
 提醒重新导出和生成。
 
