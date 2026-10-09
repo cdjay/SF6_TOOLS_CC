@@ -1,9 +1,14 @@
 -- Compiles WTT-compatible V2 steps from the input stream and the Action IDs
 -- that the game actually exposes while those inputs are being executed.
 --
--- This module deliberately does not read command tables, character exception
--- files or an existing combo sequence. Those are presentation/compatibility
--- data and must not decide which runtime Action happened.
+-- This module never loads files and never reads an existing combo sequence:
+-- the runtime Actions and the inputs decide what happened. It does apply the
+-- rules its caller passes in the session: action_event_rules and
+-- action_event_projection_rules, which CharacterRules derives from the
+-- fighter's rule layers (curated exceptions plus generated AC+BCM rules), and
+-- the generated relations of the command table (GeneratedActionRelations) for
+-- step notation. Those rules only group, project or suppress observed
+-- Actions.
 
 local ActionMatcher = require("func/ComboTrials/ActionMatcher")
 local ActionRestartDetector = require("func/ComboTrials/ActionRestartDetector")
