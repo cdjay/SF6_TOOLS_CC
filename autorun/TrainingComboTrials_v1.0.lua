@@ -3615,6 +3615,15 @@ ctx.check_data_build = function(p_idx)
     ctx.report_data_build(character, status)
 end
 
+-- Classic notation straight from the live BCM triggers, used only when the
+-- fighter has no usable generated command table (a new fighter before its
+-- data ships, or a table that failed validation); see BcmCommandDecoder.
+ctx.bcm_fallback_motion = function(p_idx, p_state, act_id)
+    local status = p_state and p_state.data_build_status
+    if status ~= "missing_table" and status ~= "invalid_table" then return nil end
+    return ComboTrialsModules.GameProbe.bcm_classic_display(p_idx, act_id)
+end
+
 -- Warns once per file when the loaded combo was recorded for this fighter on
 -- different game data (its Action IDs may have moved since).
 ctx.check_recording_data_build = function(p_idx)
@@ -4946,6 +4955,8 @@ local function ct_player_init(p_idx, p_state)
         p_state.bcm_fingerprint = nil
         p_state.data_build_checked = nil
         p_state.recording_build_file = nil
+        p_state.data_build_status = nil
+        p_state.bcm_classic_display_cache = nil
 
         -- RESET TRIAL on character change
         -- The trial depends on both characters, reset if either changes
@@ -6446,7 +6457,9 @@ local function ct_player_process_actions(p_idx, p_state, actions_to_process)
                 -- Classic command text. Live trigger/action data remains
                 -- detection evidence above, but must not silently restore another
                 -- display source when a generated table fails its audit.
-                motion_str = unified_classic_motion or act_name
+                motion_str = unified_classic_motion
+                    or ctx.bcm_fallback_motion(p_idx, p_state, act_id)
+                    or act_name
                 local required_mask = p_state.trigger_mask_cache[act_id] or 0
                 local best_match = nil
 
@@ -7732,6 +7745,8 @@ re.on_frame(function()
                 p_state.bcm_fingerprint = nil
                 p_state.data_build_checked = nil
                 p_state.recording_build_file = nil
+                p_state.data_build_status = nil
+                p_state.bcm_classic_display_cache = nil
             end
         end
         if not p_state.trigger_cache_built then ComboTrialsModules.GameProbe.build_bcm_trigger_cache(p_idx) end

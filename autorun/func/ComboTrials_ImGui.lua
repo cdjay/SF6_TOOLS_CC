@@ -957,7 +957,10 @@ local function load_command_display_map(character)
     end
 
     command_display_cache[key] = false
-    command_display_runtime.cache_status[key] = ok and "invalid_schema_or_policy" or "map_load_failed"
+    -- A missing file loads as nil without an error: that is a missing table,
+    -- not one that failed validation.
+    command_display_runtime.cache_status[key] = (ok and type(loaded) == "table")
+        and "invalid_schema_or_policy" or "map_load_failed"
     return nil, command_display_runtime.cache_status[key]
 end
 

@@ -60,7 +60,14 @@ A fighter without curation receives every generated rule.
 
 Each command table stores `_meta.bcm_trigger_fingerprint`; `ComboTrials/DataBuildGuard.lua`
 computes the same fingerprint in game and warns when a table is missing or was
-generated from other game data.
+generated from other game data. Recordings carry the fingerprint they were made
+with (`_xt_meta.versions.game.bcm_trigger_fingerprint`), so loading a combo
+recorded on other game data warns that its Action IDs may have moved. While a
+fighter has no usable table (missing or failed validation), classic command
+text is decoded from the live BCM triggers by `ComboTrials/BcmCommandDecoder.lua`,
+a port of the generator's decoder that matches it on all 3276 triggers of the
+2026-08-03 roster; follow-up splitting, phase suppression and modern commands
+still require the generated table.
 
 ## Current Resolver Rollout State (2026-08-15)
 

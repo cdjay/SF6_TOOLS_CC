@@ -1,0 +1,10530 @@
+{
+ "schema": "sf6cc.bcm-command-decoder-fixture.v1",
+ "source": "ACBCM 2026-08-03 dumps; classic_display from tools/bcm_catalog_builder/bcm_catalog_core.js buildCatalog",
+ "cases": [
+  {
+   "fighter": "f001",
+   "category": "repeated_tap",
+   "trigger_index": 0,
+   "action_id": 17,
+   "trigger": "f001:1",
+   "classic_display": "66"
+  },
+  {
+   "fighter": "f001",
+   "category": "button",
+   "trigger_index": 2,
+   "action_id": 600,
+   "trigger": "f001:147",
+   "classic_display": "LP"
+  },
+  {
+   "fighter": "f001",
+   "category": "motion",
+   "trigger_index": 8,
+   "action_id": 660,
+   "trigger": "f001:183",
+   "classic_display": "6+MP"
+  },
+  {
+   "fighter": "f001",
+   "category": "air",
+   "trigger_index": 23,
+   "action_id": 651,
+   "trigger": "f001:249",
+   "classic_display": "j.LP"
+  },
+  {
+   "fighter": "f001",
+   "category": "any_button",
+   "trigger_index": 48,
+   "action_id": 1051,
+   "trigger": "f001:345",
+   "classic_display": "22+P"
+  },
+  {
+   "fighter": "f001",
+   "category": "normal",
+   "trigger_index": 90,
+   "action_id": 480,
+   "trigger": "f001:1103",
+   "classic_display": "Normal"
+  },
+  {
+   "fighter": "f001",
+   "category": "system",
+   "trigger_index": 94,
+   "action_id": 739,
+   "trigger": "f001:1121",
+   "classic_display": "Parry"
+  },
+  {
+   "fighter": "f001",
+   "category": "no_classic",
+   "trigger_index": 123,
+   "action_id": 1213,
+   "trigger": "f001:1296",
+   "classic_display": null
+  },
+  {
+   "fighter": "f001",
+   "category": "multi_button",
+   "trigger_index": 150,
+   "action_id": 906,
+   "trigger": "f001:1483",
+   "classic_display": "236+PP"
+  },
+  {
+   "fighter": "f002",
+   "category": "repeated_tap",
+   "trigger_index": 0,
+   "action_id": 17,
+   "trigger": "f002:1",
+   "classic_display": "66"
+  },
+  {
+   "fighter": "f002",
+   "category": "button",
+   "trigger_index": 3,
+   "action_id": 600,
+   "trigger": "f002:147",
+   "classic_display": "LP"
+  },
+  {
+   "fighter": "f002",
+   "category": "motion",
+   "trigger_index": 10,
+   "action_id": 618,
+   "trigger": "f002:183",
+   "classic_display": "2+LP"
+  },
+  {
+   "fighter": "f002",
+   "category": "air",
+   "trigger_index": 17,
+   "action_id": 650,
+   "trigger": "f002:219",
+   "classic_display": "j.LP"
+  },
+  {
+   "fighter": "f002",
+   "category": "multi_button",
+   "trigger_index": 61,
+   "action_id": 907,
+   "trigger": "f002:448",
+   "classic_display": "PP"
+  },
+  {
+   "fighter": "f002",
+   "category": "support_profile",
+   "trigger_index": 62,
+   "action_id": 907,
+   "trigger": "f002:454",
+   "classic_display": "LP+LK+MK"
+  },
+  {
+   "fighter": "f002",
+   "category": "no_classic",
+   "trigger_index": 66,
+   "action_id": 917,
+   "trigger": "f002:533",
+   "classic_display": null
+  },
+  {
+   "fighter": "f002",
+   "category": "any_button",
+   "trigger_index": 76,
+   "action_id": 972,
+   "trigger": "f002:624",
+   "classic_display": "236+K"
+  },
+  {
+   "fighter": "f002",
+   "category": "normal",
+   "trigger_index": 104,
+   "action_id": 480,
+   "trigger": "f002:926",
+   "classic_display": "Normal"
+  },
+  {
+   "fighter": "f002",
+   "category": "system",
+   "trigger_index": 106,
+   "action_id": 739,
+   "trigger": "f002:932",
+   "classic_display": "Parry"
+  },
+  {
+   "fighter": "f003",
+   "category": "repeated_tap",
+   "trigger_index": 0,
+   "action_id": 17,
+   "trigger": "f003:1",
+   "classic_display": "66"
+  },
+  {
+   "fighter": "f003",
+   "category": "button",
+   "trigger_index": 3,
+   "action_id": 600,
+   "trigger": "f003:147",
+   "classic_display": "LP"
+  },
+  {
+   "fighter": "f003",
+   "category": "motion",
+   "trigger_index": 10,
+   "action_id": 610,
+   "trigger": "f003:183",
+   "classic_display": "2+LP"
+  },
+  {
+   "fighter": "f003",
+   "category": "air",
+   "trigger_index": 17,
+   "action_id": 622,
+   "trigger": "f003:219",
+   "classic_display": "j.LP"
+  },
+  {
+   "fighter": "f003",
+   "category": "any_button",
+   "trigger_index": 67,
+   "action_id": 973,
+   "trigger": "f003:387",
+   "classic_display": "22+K"
+  },
+  {
+   "fighter": "f003",
+   "category": "no_classic",
+   "trigger_index": 79,
+   "action_id": 902,
+   "trigger": "f003:630",
+   "classic_display": null
+  },
+  {
+   "fighter": "f003",
+   "category": "normal",
+   "trigger_index": 87,
+   "action_id": 906,
+   "trigger": "f003:678",
+   "classic_display": "Normal"
+  },
+  {
+   "fighter": "f003",
+   "category": "support_profile",
+   "trigger_index": 92,
+   "action_id": 910,
+   "trigger": "f003:708",
+   "classic_display": "MK"
+  },
+  {
+   "fighter": "f003",
+   "category": "system",
+   "trigger_index": 120,
+   "action_id": 501,
+   "trigger": "f003:1035",
+   "classic_display": "Parry"
+  },
+  {
+   "fighter": "f003",
+   "category": "multi_button",
+   "trigger_index": 175,
+   "action_id": 962,
+   "trigger": "f003:1385",
+   "classic_display": "236+PP"
+  },
+  {
+   "fighter": "f004",
+   "category": "charge",
+   "trigger_index": 77,
+   "action_id": 900,
+   "trigger": "f004:673",
+   "classic_display": "[4]6+LP"
+  },
+  {
+   "fighter": "f004",
+   "category": "support_profile",
+   "trigger_index": 102,
+   "action_id": 919,
+   "trigger": "f004:1177",
+   "classic_display": "MP"
+  },
+  {
+   "fighter": "f006",
+   "category": "360",
+   "trigger_index": 90,
+   "action_id": 950,
+   "trigger": "f006:732",
+   "classic_display": "j.360+K"
+  },
+  {
+   "fighter": "f006",
+   "category": "720",
+   "trigger_index": 140,
+   "action_id": 1218,
+   "trigger": "f006:1101",
+   "classic_display": "720+P"
+  },
+  {
+   "fighter": "f007",
+   "category": "double_motion",
+   "trigger_index": 111,
+   "action_id": 1211,
+   "trigger": "f007:974",
+   "classic_display": "214214+LP"
+  },
+  {
+   "fighter": "f008",
+   "category": "double_motion",
+   "trigger_index": 157,
+   "action_id": 1200,
+   "trigger": "f008:791",
+   "classic_display": "236236+LP"
+  },
+  {
+   "fighter": "f011",
+   "category": "charge",
+   "trigger_index": 73,
+   "action_id": 900,
+   "trigger": "f011:739",
+   "classic_display": "[4]6+LP"
+  },
+  {
+   "fighter": "f011",
+   "category": "double_motion",
+   "trigger_index": 117,
+   "action_id": 1205,
+   "trigger": "f011:1230",
+   "classic_display": "236236+LP"
+  },
+  {
+   "fighter": "f012",
+   "category": "360",
+   "trigger_index": 84,
+   "action_id": 997,
+   "trigger": "f012:829",
+   "classic_display": "360+LP"
+  },
+  {
+   "fighter": "f015",
+   "category": "charge",
+   "trigger_index": 64,
+   "action_id": 859,
+   "trigger": "f015:503",
+   "classic_display": "[4]6+LP"
+  },
+  {
+   "fighter": "f032",
+   "category": "360",
+   "trigger_index": 176,
+   "action_id": 1310,
+   "trigger": "f032:1197",
+   "classic_display": "360+KK"
+  }
+ ],
+ "objects": {
+  "f001:1": {
+   "t": "BCM.TRIGGER",
+   "f": {
+    "action_id": 17,
+    "category_flags": 4194304,
+    "cond_owner_state_flags": 0,
+    "norm": {
+     "ref": "f001:4"
+    },
+    "norm_NG": false,
+    "sprt": {
+     "ref": "f001:72"
+    },
+    "sprt_NG": false,
+    "use_sprt": true
+   }
+  },
+  "f001:4": {
+   "t": "BCM.TRIGGER.CMD",
+   "f": {
+    "command_ptr": {
+     "ref": "f001:5"
+    },
+    "dc_exc_flags": 0,
+    "ok_key_cond_flags": 1026,
+    "ok_key_flags": 8
+   }
+  },
+  "f001:5": {
+   "t": "BCM.COMMAND[]",
+   "f": {},
+   "i": [
+    "f001:6"
+   ]
+  },
+  "f001:6": {
+   "t": "BCM.COMMAND",
+   "f": {
+    "charge_bit": 0,
+    "input_num": 4,
+    "inputs": {
+     "ref": "f001:7"
+    }
+   }
+  },
+  "f001:7": {
+   "t": "BCM.INPUT[]",
+   "f": {},
+   "i": [
+    "f001:8",
+    "f001:12",
+    "f001:16",
+    "f001:20",
+    "f001:24",
+    "f001:28",
+    "f001:32",
+    "f001:36",
+    "f001:40",
+    "f001:44",
+    "f001:48",
+    "f001:52",
+    "f001:56",
+    "f001:60",
+    "f001:64",
+    "f001:68"
+   ]
+  },
+  "f001:8": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f001:9"
+    },
+    "normal": {
+     "ref": "f001:10"
+    },
+    "type": 0
+   }
+  },
+  "f001:9": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f001:10": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 1073741824
+   }
+  },
+  "f001:12": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f001:13"
+    },
+    "normal": {
+     "ref": "f001:14"
+    },
+    "type": 0
+   }
+  },
+  "f001:13": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 8,
+    "is_release": false
+   }
+  },
+  "f001:14": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 8
+   }
+  },
+  "f001:16": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f001:17"
+    },
+    "normal": {
+     "ref": "f001:18"
+    },
+    "type": 0
+   }
+  },
+  "f001:17": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f001:18": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 1073741824
+   }
+  },
+  "f001:20": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f001:21"
+    },
+    "normal": {
+     "ref": "f001:22"
+    },
+    "type": 0
+   }
+  },
+  "f001:21": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 8,
+    "is_release": false
+   }
+  },
+  "f001:22": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 8
+   }
+  },
+  "f001:24": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f001:25"
+    },
+    "normal": {
+     "ref": "f001:26"
+    },
+    "type": 0
+   }
+  },
+  "f001:25": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f001:26": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f001:28": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f001:29"
+    },
+    "normal": {
+     "ref": "f001:30"
+    },
+    "type": 0
+   }
+  },
+  "f001:29": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f001:30": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f001:32": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f001:33"
+    },
+    "normal": {
+     "ref": "f001:34"
+    },
+    "type": 0
+   }
+  },
+  "f001:33": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f001:34": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f001:36": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f001:37"
+    },
+    "normal": {
+     "ref": "f001:38"
+    },
+    "type": 0
+   }
+  },
+  "f001:37": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f001:38": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f001:40": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f001:41"
+    },
+    "normal": {
+     "ref": "f001:42"
+    },
+    "type": 0
+   }
+  },
+  "f001:41": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f001:42": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f001:44": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f001:45"
+    },
+    "normal": {
+     "ref": "f001:46"
+    },
+    "type": 0
+   }
+  },
+  "f001:45": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f001:46": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f001:48": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f001:49"
+    },
+    "normal": {
+     "ref": "f001:50"
+    },
+    "type": 0
+   }
+  },
+  "f001:49": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f001:50": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f001:52": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f001:53"
+    },
+    "normal": {
+     "ref": "f001:54"
+    },
+    "type": 0
+   }
+  },
+  "f001:53": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f001:54": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f001:56": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f001:57"
+    },
+    "normal": {
+     "ref": "f001:58"
+    },
+    "type": 0
+   }
+  },
+  "f001:57": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f001:58": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f001:60": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f001:61"
+    },
+    "normal": {
+     "ref": "f001:62"
+    },
+    "type": 0
+   }
+  },
+  "f001:61": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f001:62": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f001:64": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f001:65"
+    },
+    "normal": {
+     "ref": "f001:66"
+    },
+    "type": 0
+   }
+  },
+  "f001:65": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f001:66": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f001:68": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f001:69"
+    },
+    "normal": {
+     "ref": "f001:70"
+    },
+    "type": 0
+   }
+  },
+  "f001:69": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f001:70": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f001:72": {
+   "t": "BCM.TRIGGER.CMD",
+   "f": {
+    "command_ptr": {
+     "ref": "f001:5"
+    },
+    "dc_exc_flags": 0,
+    "ok_key_cond_flags": 1026,
+    "ok_key_flags": 8
+   }
+  },
+  "f001:147": {
+   "t": "BCM.TRIGGER",
+   "f": {
+    "action_id": 600,
+    "category_flags": 536872977,
+    "cond_owner_state_flags": 0,
+    "norm": {
+     "ref": "f001:150"
+    },
+    "norm_NG": false,
+    "sprt": {
+     "ref": "f001:151"
+    },
+    "sprt_NG": false,
+    "use_sprt": true
+   }
+  },
+  "f001:150": {
+   "t": "BCM.TRIGGER.CMD",
+   "f": {
+    "dc_exc_flags": 0,
+    "ok_key_cond_flags": 16416,
+    "ok_key_flags": 16
+   }
+  },
+  "f001:151": {
+   "t": "BCM.TRIGGER.CMD",
+   "f": {
+    "dc_exc_flags": 0,
+    "ok_key_cond_flags": 16416,
+    "ok_key_flags": 16
+   }
+  },
+  "f001:183": {
+   "t": "BCM.TRIGGER",
+   "f": {
+    "action_id": 660,
+    "category_flags": 536875041,
+    "cond_owner_state_flags": 0,
+    "norm": {
+     "ref": "f001:186"
+    },
+    "norm_NG": false,
+    "sprt": {
+     "ref": "f001:187"
+    },
+    "sprt_NG": false,
+    "use_sprt": true
+   }
+  },
+  "f001:186": {
+   "t": "BCM.TRIGGER.CMD",
+   "f": {
+    "dc_exc_flags": 8,
+    "ok_key_cond_flags": 16416,
+    "ok_key_flags": 32
+   }
+  },
+  "f001:187": {
+   "t": "BCM.TRIGGER.CMD",
+   "f": {
+    "dc_exc_flags": 8,
+    "ok_key_cond_flags": 16416,
+    "ok_key_flags": 128
+   }
+  },
+  "f001:249": {
+   "t": "BCM.TRIGGER",
+   "f": {
+    "action_id": 651,
+    "category_flags": 1073743889,
+    "cond_owner_state_flags": 4,
+    "norm": {
+     "ref": "f001:252"
+    },
+    "norm_NG": false,
+    "sprt": {
+     "ref": "f001:253"
+    },
+    "sprt_NG": false,
+    "use_sprt": true
+   }
+  },
+  "f001:252": {
+   "t": "BCM.TRIGGER.CMD",
+   "f": {
+    "dc_exc_flags": 0,
+    "ok_key_cond_flags": 16416,
+    "ok_key_flags": 16
+   }
+  },
+  "f001:253": {
+   "t": "BCM.TRIGGER.CMD",
+   "f": {
+    "dc_exc_flags": 0,
+    "ok_key_cond_flags": 16416,
+    "ok_key_flags": 16
+   }
+  },
+  "f001:345": {
+   "t": "BCM.TRIGGER",
+   "f": {
+    "action_id": 1051,
+    "category_flags": 536879120,
+    "cond_owner_state_flags": 0,
+    "norm": {
+     "ref": "f001:348"
+    },
+    "norm_NG": false,
+    "sprt": {
+     "ref": "f001:416"
+    },
+    "sprt_NG": false,
+    "use_sprt": true
+   }
+  },
+  "f001:348": {
+   "t": "BCM.TRIGGER.CMD",
+   "f": {
+    "command_ptr": {
+     "ref": "f001:349"
+    },
+    "dc_exc_flags": 0,
+    "ok_key_cond_flags": 81952,
+    "ok_key_flags": 112
+   }
+  },
+  "f001:349": {
+   "t": "BCM.COMMAND[]",
+   "f": {},
+   "i": [
+    "f001:350"
+   ]
+  },
+  "f001:350": {
+   "t": "BCM.COMMAND",
+   "f": {
+    "charge_bit": 0,
+    "input_num": 4,
+    "inputs": {
+     "ref": "f001:351"
+    }
+   }
+  },
+  "f001:351": {
+   "t": "BCM.INPUT[]",
+   "f": {},
+   "i": [
+    "f001:352",
+    "f001:356",
+    "f001:360",
+    "f001:364",
+    "f001:368",
+    "f001:372",
+    "f001:376",
+    "f001:380",
+    "f001:384",
+    "f001:388",
+    "f001:392",
+    "f001:396",
+    "f001:400",
+    "f001:404",
+    "f001:408",
+    "f001:412"
+   ]
+  },
+  "f001:352": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f001:353"
+    },
+    "normal": {
+     "ref": "f001:354"
+    },
+    "type": 0
+   }
+  },
+  "f001:353": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f001:354": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 1073741824
+   }
+  },
+  "f001:356": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f001:357"
+    },
+    "normal": {
+     "ref": "f001:358"
+    },
+    "type": 0
+   }
+  },
+  "f001:357": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 2,
+    "is_release": false
+   }
+  },
+  "f001:358": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 2
+   }
+  },
+  "f001:360": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f001:361"
+    },
+    "normal": {
+     "ref": "f001:362"
+    },
+    "type": 0
+   }
+  },
+  "f001:361": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f001:362": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 1073741824
+   }
+  },
+  "f001:364": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f001:365"
+    },
+    "normal": {
+     "ref": "f001:366"
+    },
+    "type": 0
+   }
+  },
+  "f001:365": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 2,
+    "is_release": false
+   }
+  },
+  "f001:366": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 2
+   }
+  },
+  "f001:368": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f001:369"
+    },
+    "normal": {
+     "ref": "f001:370"
+    },
+    "type": 0
+   }
+  },
+  "f001:369": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f001:370": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f001:372": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f001:373"
+    },
+    "normal": {
+     "ref": "f001:374"
+    },
+    "type": 0
+   }
+  },
+  "f001:373": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f001:374": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f001:376": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f001:377"
+    },
+    "normal": {
+     "ref": "f001:378"
+    },
+    "type": 0
+   }
+  },
+  "f001:377": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f001:378": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f001:380": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f001:381"
+    },
+    "normal": {
+     "ref": "f001:382"
+    },
+    "type": 0
+   }
+  },
+  "f001:381": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f001:382": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f001:384": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f001:385"
+    },
+    "normal": {
+     "ref": "f001:386"
+    },
+    "type": 0
+   }
+  },
+  "f001:385": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f001:386": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f001:388": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f001:389"
+    },
+    "normal": {
+     "ref": "f001:390"
+    },
+    "type": 0
+   }
+  },
+  "f001:389": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f001:390": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f001:392": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f001:393"
+    },
+    "normal": {
+     "ref": "f001:394"
+    },
+    "type": 0
+   }
+  },
+  "f001:393": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f001:394": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f001:396": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f001:397"
+    },
+    "normal": {
+     "ref": "f001:398"
+    },
+    "type": 0
+   }
+  },
+  "f001:397": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f001:398": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f001:400": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f001:401"
+    },
+    "normal": {
+     "ref": "f001:402"
+    },
+    "type": 0
+   }
+  },
+  "f001:401": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f001:402": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f001:404": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f001:405"
+    },
+    "normal": {
+     "ref": "f001:406"
+    },
+    "type": 0
+   }
+  },
+  "f001:405": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f001:406": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f001:408": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f001:409"
+    },
+    "normal": {
+     "ref": "f001:410"
+    },
+    "type": 0
+   }
+  },
+  "f001:409": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f001:410": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f001:412": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f001:413"
+    },
+    "normal": {
+     "ref": "f001:414"
+    },
+    "type": 0
+   }
+  },
+  "f001:413": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f001:414": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f001:416": {
+   "t": "BCM.TRIGGER.CMD",
+   "f": {
+    "command_ptr": {
+     "ref": "f001:417"
+    },
+    "dc_exc_flags": 0,
+    "ok_key_cond_flags": 81952,
+    "ok_key_flags": 400
+   }
+  },
+  "f001:417": {
+   "t": "BCM.COMMAND[]",
+   "f": {},
+   "i": [
+    "f001:418"
+   ]
+  },
+  "f001:418": {
+   "t": "BCM.COMMAND",
+   "f": {
+    "charge_bit": 0,
+    "input_num": 4,
+    "inputs": {
+     "ref": "f001:419"
+    }
+   }
+  },
+  "f001:419": {
+   "t": "BCM.INPUT[]",
+   "f": {},
+   "i": [
+    "f001:420",
+    "f001:424",
+    "f001:428",
+    "f001:432",
+    "f001:436",
+    "f001:440",
+    "f001:444",
+    "f001:448",
+    "f001:452",
+    "f001:456",
+    "f001:460",
+    "f001:464",
+    "f001:468",
+    "f001:472",
+    "f001:476",
+    "f001:480"
+   ]
+  },
+  "f001:420": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f001:421"
+    },
+    "normal": {
+     "ref": "f001:422"
+    },
+    "type": 0
+   }
+  },
+  "f001:421": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f001:422": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 1073741824
+   }
+  },
+  "f001:424": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f001:425"
+    },
+    "normal": {
+     "ref": "f001:426"
+    },
+    "type": 0
+   }
+  },
+  "f001:425": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 2,
+    "is_release": false
+   }
+  },
+  "f001:426": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 2
+   }
+  },
+  "f001:428": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f001:429"
+    },
+    "normal": {
+     "ref": "f001:430"
+    },
+    "type": 0
+   }
+  },
+  "f001:429": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f001:430": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 1073741824
+   }
+  },
+  "f001:432": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f001:433"
+    },
+    "normal": {
+     "ref": "f001:434"
+    },
+    "type": 0
+   }
+  },
+  "f001:433": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 2,
+    "is_release": false
+   }
+  },
+  "f001:434": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 2
+   }
+  },
+  "f001:436": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f001:437"
+    },
+    "normal": {
+     "ref": "f001:438"
+    },
+    "type": 0
+   }
+  },
+  "f001:437": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f001:438": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f001:440": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f001:441"
+    },
+    "normal": {
+     "ref": "f001:442"
+    },
+    "type": 0
+   }
+  },
+  "f001:441": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f001:442": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f001:444": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f001:445"
+    },
+    "normal": {
+     "ref": "f001:446"
+    },
+    "type": 0
+   }
+  },
+  "f001:445": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f001:446": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f001:448": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f001:449"
+    },
+    "normal": {
+     "ref": "f001:450"
+    },
+    "type": 0
+   }
+  },
+  "f001:449": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f001:450": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f001:452": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f001:453"
+    },
+    "normal": {
+     "ref": "f001:454"
+    },
+    "type": 0
+   }
+  },
+  "f001:453": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f001:454": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f001:456": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f001:457"
+    },
+    "normal": {
+     "ref": "f001:458"
+    },
+    "type": 0
+   }
+  },
+  "f001:457": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f001:458": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f001:460": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f001:461"
+    },
+    "normal": {
+     "ref": "f001:462"
+    },
+    "type": 0
+   }
+  },
+  "f001:461": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f001:462": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f001:464": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f001:465"
+    },
+    "normal": {
+     "ref": "f001:466"
+    },
+    "type": 0
+   }
+  },
+  "f001:465": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f001:466": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f001:468": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f001:469"
+    },
+    "normal": {
+     "ref": "f001:470"
+    },
+    "type": 0
+   }
+  },
+  "f001:469": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f001:470": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f001:472": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f001:473"
+    },
+    "normal": {
+     "ref": "f001:474"
+    },
+    "type": 0
+   }
+  },
+  "f001:473": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f001:474": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f001:476": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f001:477"
+    },
+    "normal": {
+     "ref": "f001:478"
+    },
+    "type": 0
+   }
+  },
+  "f001:477": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f001:478": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f001:480": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f001:481"
+    },
+    "normal": {
+     "ref": "f001:482"
+    },
+    "type": 0
+   }
+  },
+  "f001:481": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f001:482": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f001:1103": {
+   "t": "BCM.TRIGGER",
+   "f": {
+    "action_id": 480,
+    "category_flags": 1099511627776,
+    "cond_owner_state_flags": 0,
+    "norm": {
+     "ref": "f001:1106"
+    },
+    "norm_NG": false,
+    "sprt": {
+     "ref": "f001:1107"
+    },
+    "sprt_NG": false,
+    "use_sprt": true
+   }
+  },
+  "f001:1106": {
+   "t": "BCM.TRIGGER.CMD",
+   "f": {
+    "dc_exc_flags": 288,
+    "ok_key_cond_flags": 16544,
+    "ok_key_flags": 0
+   }
+  },
+  "f001:1107": {
+   "t": "BCM.TRIGGER.CMD",
+   "f": {
+    "dc_exc_flags": 64,
+    "ok_key_cond_flags": 16448,
+    "ok_key_flags": 0
+   }
+  },
+  "f001:1121": {
+   "t": "BCM.TRIGGER",
+   "f": {
+    "action_id": 739,
+    "category_flags": 1048576,
+    "cond_owner_state_flags": 0,
+    "norm": {
+     "ref": "f001:1124"
+    },
+    "norm_NG": false,
+    "sprt": {
+     "ref": "f001:1125"
+    },
+    "sprt_NG": false,
+    "use_sprt": true
+   }
+  },
+  "f001:1124": {
+   "t": "BCM.TRIGGER.CMD",
+   "f": {
+    "dc_exc_flags": 0,
+    "ok_key_cond_flags": 16480,
+    "ok_key_flags": 288
+   }
+  },
+  "f001:1125": {
+   "t": "BCM.TRIGGER.CMD",
+   "f": {
+    "dc_exc_flags": 0,
+    "ok_key_cond_flags": 16416,
+    "ok_key_flags": 64
+   }
+  },
+  "f001:1296": {
+   "t": "BCM.TRIGGER",
+   "f": {
+    "action_id": 1213,
+    "category_flags": 536903936,
+    "cond_owner_state_flags": 0,
+    "norm": {
+     "ref": "f001:1299"
+    },
+    "norm_NG": true,
+    "sprt": {
+     "ref": "f001:1300"
+    },
+    "sprt_NG": true,
+    "use_sprt": false
+   }
+  },
+  "f001:1299": {
+   "t": "BCM.TRIGGER.CMD",
+   "f": {
+    "dc_exc_flags": 0,
+    "ok_key_cond_flags": 0,
+    "ok_key_flags": 0
+   }
+  },
+  "f001:1300": {
+   "t": "BCM.TRIGGER.CMD",
+   "f": {
+    "dc_exc_flags": 0,
+    "ok_key_cond_flags": 0,
+    "ok_key_flags": 0
+   }
+  },
+  "f001:1483": {
+   "t": "BCM.TRIGGER",
+   "f": {
+    "action_id": 906,
+    "category_flags": 2684370944,
+    "cond_owner_state_flags": 0,
+    "norm": {
+     "ref": "f001:1486"
+    },
+    "norm_NG": false,
+    "sprt": {
+     "ref": "f001:1487"
+    },
+    "sprt_NG": false,
+    "use_sprt": true
+   }
+  },
+  "f001:1486": {
+   "t": "BCM.TRIGGER.CMD",
+   "f": {
+    "command_ptr": {
+     "ref": "f001:568"
+    },
+    "dc_exc_flags": 0,
+    "ok_key_cond_flags": 82016,
+    "ok_key_flags": 112
+   }
+  },
+  "f001:568": {
+   "t": "BCM.COMMAND[]",
+   "f": {},
+   "i": [
+    "f001:569"
+   ]
+  },
+  "f001:569": {
+   "t": "BCM.COMMAND",
+   "f": {
+    "charge_bit": 0,
+    "input_num": 3,
+    "inputs": {
+     "ref": "f001:570"
+    }
+   }
+  },
+  "f001:570": {
+   "t": "BCM.INPUT[]",
+   "f": {},
+   "i": [
+    "f001:571",
+    "f001:575",
+    "f001:579",
+    "f001:583",
+    "f001:587",
+    "f001:591",
+    "f001:595",
+    "f001:599",
+    "f001:603",
+    "f001:607",
+    "f001:611",
+    "f001:615",
+    "f001:619",
+    "f001:623",
+    "f001:627",
+    "f001:631"
+   ]
+  },
+  "f001:571": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f001:572"
+    },
+    "normal": {
+     "ref": "f001:573"
+    },
+    "type": 0
+   }
+  },
+  "f001:572": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 2,
+    "is_release": false
+   }
+  },
+  "f001:573": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 2
+   }
+  },
+  "f001:575": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f001:576"
+    },
+    "normal": {
+     "ref": "f001:577"
+    },
+    "type": 0
+   }
+  },
+  "f001:576": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 10,
+    "is_release": false
+   }
+  },
+  "f001:577": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 10
+   }
+  },
+  "f001:579": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f001:580"
+    },
+    "normal": {
+     "ref": "f001:581"
+    },
+    "type": 0
+   }
+  },
+  "f001:580": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 8,
+    "is_release": false
+   }
+  },
+  "f001:581": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 8
+   }
+  },
+  "f001:583": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f001:584"
+    },
+    "normal": {
+     "ref": "f001:585"
+    },
+    "type": 0
+   }
+  },
+  "f001:584": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f001:585": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f001:587": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f001:588"
+    },
+    "normal": {
+     "ref": "f001:589"
+    },
+    "type": 0
+   }
+  },
+  "f001:588": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f001:589": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f001:591": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f001:592"
+    },
+    "normal": {
+     "ref": "f001:593"
+    },
+    "type": 0
+   }
+  },
+  "f001:592": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f001:593": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f001:595": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f001:596"
+    },
+    "normal": {
+     "ref": "f001:597"
+    },
+    "type": 0
+   }
+  },
+  "f001:596": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f001:597": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f001:599": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f001:600"
+    },
+    "normal": {
+     "ref": "f001:601"
+    },
+    "type": 0
+   }
+  },
+  "f001:600": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f001:601": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f001:603": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f001:604"
+    },
+    "normal": {
+     "ref": "f001:605"
+    },
+    "type": 0
+   }
+  },
+  "f001:604": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f001:605": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f001:607": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f001:608"
+    },
+    "normal": {
+     "ref": "f001:609"
+    },
+    "type": 0
+   }
+  },
+  "f001:608": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f001:609": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f001:611": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f001:612"
+    },
+    "normal": {
+     "ref": "f001:613"
+    },
+    "type": 0
+   }
+  },
+  "f001:612": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f001:613": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f001:615": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f001:616"
+    },
+    "normal": {
+     "ref": "f001:617"
+    },
+    "type": 0
+   }
+  },
+  "f001:616": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f001:617": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f001:619": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f001:620"
+    },
+    "normal": {
+     "ref": "f001:621"
+    },
+    "type": 0
+   }
+  },
+  "f001:620": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f001:621": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f001:623": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f001:624"
+    },
+    "normal": {
+     "ref": "f001:625"
+    },
+    "type": 0
+   }
+  },
+  "f001:624": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f001:625": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f001:627": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f001:628"
+    },
+    "normal": {
+     "ref": "f001:629"
+    },
+    "type": 0
+   }
+  },
+  "f001:628": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f001:629": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f001:631": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f001:632"
+    },
+    "normal": {
+     "ref": "f001:633"
+    },
+    "type": 0
+   }
+  },
+  "f001:632": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f001:633": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f001:1487": {
+   "t": "BCM.TRIGGER.CMD",
+   "f": {
+    "command_ptr": {
+     "ref": "f001:568"
+    },
+    "dc_exc_flags": 0,
+    "ok_key_cond_flags": 82016,
+    "ok_key_flags": 400
+   }
+  },
+  "f002:1": {
+   "t": "BCM.TRIGGER",
+   "f": {
+    "action_id": 17,
+    "category_flags": 4194304,
+    "cond_owner_state_flags": 0,
+    "norm": {
+     "ref": "f002:4"
+    },
+    "norm_NG": false,
+    "sprt": {
+     "ref": "f002:72"
+    },
+    "sprt_NG": false,
+    "use_sprt": true
+   }
+  },
+  "f002:4": {
+   "t": "BCM.TRIGGER.CMD",
+   "f": {
+    "command_ptr": {
+     "ref": "f002:5"
+    },
+    "dc_exc_flags": 0,
+    "ok_key_cond_flags": 1026,
+    "ok_key_flags": 8
+   }
+  },
+  "f002:5": {
+   "t": "BCM.COMMAND[]",
+   "f": {},
+   "i": [
+    "f002:6"
+   ]
+  },
+  "f002:6": {
+   "t": "BCM.COMMAND",
+   "f": {
+    "charge_bit": 0,
+    "input_num": 4,
+    "inputs": {
+     "ref": "f002:7"
+    }
+   }
+  },
+  "f002:7": {
+   "t": "BCM.INPUT[]",
+   "f": {},
+   "i": [
+    "f002:8",
+    "f002:12",
+    "f002:16",
+    "f002:20",
+    "f002:24",
+    "f002:28",
+    "f002:32",
+    "f002:36",
+    "f002:40",
+    "f002:44",
+    "f002:48",
+    "f002:52",
+    "f002:56",
+    "f002:60",
+    "f002:64",
+    "f002:68"
+   ]
+  },
+  "f002:8": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f002:9"
+    },
+    "normal": {
+     "ref": "f002:10"
+    },
+    "type": 0
+   }
+  },
+  "f002:9": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f002:10": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 1073741824
+   }
+  },
+  "f002:12": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f002:13"
+    },
+    "normal": {
+     "ref": "f002:14"
+    },
+    "type": 0
+   }
+  },
+  "f002:13": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 8,
+    "is_release": false
+   }
+  },
+  "f002:14": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 8
+   }
+  },
+  "f002:16": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f002:17"
+    },
+    "normal": {
+     "ref": "f002:18"
+    },
+    "type": 0
+   }
+  },
+  "f002:17": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f002:18": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 1073741824
+   }
+  },
+  "f002:20": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f002:21"
+    },
+    "normal": {
+     "ref": "f002:22"
+    },
+    "type": 0
+   }
+  },
+  "f002:21": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 8,
+    "is_release": false
+   }
+  },
+  "f002:22": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 8
+   }
+  },
+  "f002:24": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f002:25"
+    },
+    "normal": {
+     "ref": "f002:26"
+    },
+    "type": 0
+   }
+  },
+  "f002:25": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f002:26": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f002:28": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f002:29"
+    },
+    "normal": {
+     "ref": "f002:30"
+    },
+    "type": 0
+   }
+  },
+  "f002:29": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f002:30": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f002:32": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f002:33"
+    },
+    "normal": {
+     "ref": "f002:34"
+    },
+    "type": 0
+   }
+  },
+  "f002:33": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f002:34": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f002:36": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f002:37"
+    },
+    "normal": {
+     "ref": "f002:38"
+    },
+    "type": 0
+   }
+  },
+  "f002:37": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f002:38": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f002:40": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f002:41"
+    },
+    "normal": {
+     "ref": "f002:42"
+    },
+    "type": 0
+   }
+  },
+  "f002:41": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f002:42": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f002:44": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f002:45"
+    },
+    "normal": {
+     "ref": "f002:46"
+    },
+    "type": 0
+   }
+  },
+  "f002:45": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f002:46": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f002:48": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f002:49"
+    },
+    "normal": {
+     "ref": "f002:50"
+    },
+    "type": 0
+   }
+  },
+  "f002:49": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f002:50": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f002:52": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f002:53"
+    },
+    "normal": {
+     "ref": "f002:54"
+    },
+    "type": 0
+   }
+  },
+  "f002:53": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f002:54": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f002:56": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f002:57"
+    },
+    "normal": {
+     "ref": "f002:58"
+    },
+    "type": 0
+   }
+  },
+  "f002:57": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f002:58": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f002:60": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f002:61"
+    },
+    "normal": {
+     "ref": "f002:62"
+    },
+    "type": 0
+   }
+  },
+  "f002:61": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f002:62": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f002:64": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f002:65"
+    },
+    "normal": {
+     "ref": "f002:66"
+    },
+    "type": 0
+   }
+  },
+  "f002:65": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f002:66": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f002:68": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f002:69"
+    },
+    "normal": {
+     "ref": "f002:70"
+    },
+    "type": 0
+   }
+  },
+  "f002:69": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f002:70": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f002:72": {
+   "t": "BCM.TRIGGER.CMD",
+   "f": {
+    "command_ptr": {
+     "ref": "f002:5"
+    },
+    "dc_exc_flags": 0,
+    "ok_key_cond_flags": 1026,
+    "ok_key_flags": 8
+   }
+  },
+  "f002:147": {
+   "t": "BCM.TRIGGER",
+   "f": {
+    "action_id": 600,
+    "category_flags": 536872977,
+    "cond_owner_state_flags": 0,
+    "norm": {
+     "ref": "f002:150"
+    },
+    "norm_NG": false,
+    "sprt": {
+     "ref": "f002:151"
+    },
+    "sprt_NG": false,
+    "use_sprt": true
+   }
+  },
+  "f002:150": {
+   "t": "BCM.TRIGGER.CMD",
+   "f": {
+    "dc_exc_flags": 0,
+    "ok_key_cond_flags": 16416,
+    "ok_key_flags": 16
+   }
+  },
+  "f002:151": {
+   "t": "BCM.TRIGGER.CMD",
+   "f": {
+    "dc_exc_flags": 0,
+    "ok_key_cond_flags": 16416,
+    "ok_key_flags": 16
+   }
+  },
+  "f002:183": {
+   "t": "BCM.TRIGGER",
+   "f": {
+    "action_id": 618,
+    "category_flags": 536872977,
+    "cond_owner_state_flags": 0,
+    "norm": {
+     "ref": "f002:186"
+    },
+    "norm_NG": false,
+    "sprt": {
+     "ref": "f002:187"
+    },
+    "sprt_NG": false,
+    "use_sprt": true
+   }
+  },
+  "f002:186": {
+   "t": "BCM.TRIGGER.CMD",
+   "f": {
+    "dc_exc_flags": 2,
+    "ok_key_cond_flags": 16416,
+    "ok_key_flags": 16
+   }
+  },
+  "f002:187": {
+   "t": "BCM.TRIGGER.CMD",
+   "f": {
+    "dc_exc_flags": 2,
+    "ok_key_cond_flags": 16416,
+    "ok_key_flags": 16
+   }
+  },
+  "f002:219": {
+   "t": "BCM.TRIGGER",
+   "f": {
+    "action_id": 650,
+    "category_flags": 1073743889,
+    "cond_owner_state_flags": 4,
+    "norm": {
+     "ref": "f002:222"
+    },
+    "norm_NG": false,
+    "sprt": {
+     "ref": "f002:223"
+    },
+    "sprt_NG": false,
+    "use_sprt": true
+   }
+  },
+  "f002:222": {
+   "t": "BCM.TRIGGER.CMD",
+   "f": {
+    "dc_exc_flags": 0,
+    "ok_key_cond_flags": 16416,
+    "ok_key_flags": 16
+   }
+  },
+  "f002:223": {
+   "t": "BCM.TRIGGER.CMD",
+   "f": {
+    "dc_exc_flags": 0,
+    "ok_key_cond_flags": 16416,
+    "ok_key_flags": 16
+   }
+  },
+  "f002:448": {
+   "t": "BCM.TRIGGER",
+   "f": {
+    "action_id": 907,
+    "category_flags": 2684370944,
+    "cond_owner_state_flags": 0,
+    "norm": {
+     "ref": "f002:451"
+    },
+    "norm_NG": false,
+    "sprt": {
+     "ref": "f002:452"
+    },
+    "sprt_NG": false,
+    "use_sprt": true
+   }
+  },
+  "f002:451": {
+   "t": "BCM.TRIGGER.CMD",
+   "f": {
+    "dc_exc_flags": 0,
+    "ok_key_cond_flags": 16480,
+    "ok_key_flags": 112
+   }
+  },
+  "f002:452": {
+   "t": "BCM.TRIGGER.CMD",
+   "f": {
+    "dc_exc_flags": 0,
+    "ok_key_cond_flags": 16416,
+    "ok_key_flags": 32
+   }
+  },
+  "f002:454": {
+   "t": "BCM.TRIGGER",
+   "f": {
+    "action_id": 907,
+    "category_flags": 2684370944,
+    "cond_owner_state_flags": 0,
+    "norm": {
+     "ref": "f002:457"
+    },
+    "norm_NG": true,
+    "sprt": {
+     "ref": "f002:458"
+    },
+    "sprt_NG": false,
+    "use_sprt": true
+   }
+  },
+  "f002:457": {
+   "t": "BCM.TRIGGER.CMD",
+   "f": {
+    "dc_exc_flags": 0,
+    "ok_key_cond_flags": 0,
+    "ok_key_flags": 0
+   }
+  },
+  "f002:458": {
+   "t": "BCM.TRIGGER.CMD",
+   "f": {
+    "dc_exc_flags": 0,
+    "ok_key_cond_flags": 16480,
+    "ok_key_flags": 400
+   }
+  },
+  "f002:533": {
+   "t": "BCM.TRIGGER",
+   "f": {
+    "action_id": 917,
+    "category_flags": 536879121,
+    "cond_owner_state_flags": 0,
+    "norm": {
+     "ref": "f002:536"
+    },
+    "norm_NG": true,
+    "sprt": {
+     "ref": "f002:537"
+    },
+    "sprt_NG": true,
+    "use_sprt": false
+   }
+  },
+  "f002:536": {
+   "t": "BCM.TRIGGER.CMD",
+   "f": {
+    "dc_exc_flags": 0,
+    "ok_key_cond_flags": 0,
+    "ok_key_flags": 0
+   }
+  },
+  "f002:537": {
+   "t": "BCM.TRIGGER.CMD",
+   "f": {
+    "dc_exc_flags": 0,
+    "ok_key_cond_flags": 0,
+    "ok_key_flags": 0
+   }
+  },
+  "f002:624": {
+   "t": "BCM.TRIGGER",
+   "f": {
+    "action_id": 972,
+    "category_flags": 536879104,
+    "cond_owner_state_flags": 0,
+    "norm": {
+     "ref": "f002:627"
+    },
+    "norm_NG": false,
+    "sprt": {
+     "ref": "f002:628"
+    },
+    "sprt_NG": true,
+    "use_sprt": true
+   }
+  },
+  "f002:627": {
+   "t": "BCM.TRIGGER.CMD",
+   "f": {
+    "command_ptr": {
+     "ref": "f002:367"
+    },
+    "dc_exc_flags": 0,
+    "ok_key_cond_flags": 81952,
+    "ok_key_flags": 896
+   }
+  },
+  "f002:367": {
+   "t": "BCM.COMMAND[]",
+   "f": {},
+   "i": [
+    "f002:368"
+   ]
+  },
+  "f002:368": {
+   "t": "BCM.COMMAND",
+   "f": {
+    "charge_bit": 0,
+    "input_num": 3,
+    "inputs": {
+     "ref": "f002:369"
+    }
+   }
+  },
+  "f002:369": {
+   "t": "BCM.INPUT[]",
+   "f": {},
+   "i": [
+    "f002:370",
+    "f002:374",
+    "f002:378",
+    "f002:382",
+    "f002:386",
+    "f002:390",
+    "f002:394",
+    "f002:398",
+    "f002:402",
+    "f002:406",
+    "f002:410",
+    "f002:414",
+    "f002:418",
+    "f002:422",
+    "f002:426",
+    "f002:430"
+   ]
+  },
+  "f002:370": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f002:371"
+    },
+    "normal": {
+     "ref": "f002:372"
+    },
+    "type": 0
+   }
+  },
+  "f002:371": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 2,
+    "is_release": false
+   }
+  },
+  "f002:372": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 2
+   }
+  },
+  "f002:374": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f002:375"
+    },
+    "normal": {
+     "ref": "f002:376"
+    },
+    "type": 0
+   }
+  },
+  "f002:375": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 10,
+    "is_release": false
+   }
+  },
+  "f002:376": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 10
+   }
+  },
+  "f002:378": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f002:379"
+    },
+    "normal": {
+     "ref": "f002:380"
+    },
+    "type": 0
+   }
+  },
+  "f002:379": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 8,
+    "is_release": false
+   }
+  },
+  "f002:380": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 8
+   }
+  },
+  "f002:382": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f002:383"
+    },
+    "normal": {
+     "ref": "f002:384"
+    },
+    "type": 0
+   }
+  },
+  "f002:383": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f002:384": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f002:386": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f002:387"
+    },
+    "normal": {
+     "ref": "f002:388"
+    },
+    "type": 0
+   }
+  },
+  "f002:387": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f002:388": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f002:390": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f002:391"
+    },
+    "normal": {
+     "ref": "f002:392"
+    },
+    "type": 0
+   }
+  },
+  "f002:391": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f002:392": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f002:394": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f002:395"
+    },
+    "normal": {
+     "ref": "f002:396"
+    },
+    "type": 0
+   }
+  },
+  "f002:395": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f002:396": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f002:398": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f002:399"
+    },
+    "normal": {
+     "ref": "f002:400"
+    },
+    "type": 0
+   }
+  },
+  "f002:399": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f002:400": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f002:402": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f002:403"
+    },
+    "normal": {
+     "ref": "f002:404"
+    },
+    "type": 0
+   }
+  },
+  "f002:403": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f002:404": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f002:406": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f002:407"
+    },
+    "normal": {
+     "ref": "f002:408"
+    },
+    "type": 0
+   }
+  },
+  "f002:407": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f002:408": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f002:410": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f002:411"
+    },
+    "normal": {
+     "ref": "f002:412"
+    },
+    "type": 0
+   }
+  },
+  "f002:411": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f002:412": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f002:414": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f002:415"
+    },
+    "normal": {
+     "ref": "f002:416"
+    },
+    "type": 0
+   }
+  },
+  "f002:415": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f002:416": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f002:418": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f002:419"
+    },
+    "normal": {
+     "ref": "f002:420"
+    },
+    "type": 0
+   }
+  },
+  "f002:419": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f002:420": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f002:422": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f002:423"
+    },
+    "normal": {
+     "ref": "f002:424"
+    },
+    "type": 0
+   }
+  },
+  "f002:423": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f002:424": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f002:426": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f002:427"
+    },
+    "normal": {
+     "ref": "f002:428"
+    },
+    "type": 0
+   }
+  },
+  "f002:427": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f002:428": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f002:430": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f002:431"
+    },
+    "normal": {
+     "ref": "f002:432"
+    },
+    "type": 0
+   }
+  },
+  "f002:431": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f002:432": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f002:628": {
+   "t": "BCM.TRIGGER.CMD",
+   "f": {
+    "dc_exc_flags": 0,
+    "ok_key_cond_flags": 0,
+    "ok_key_flags": 0
+   }
+  },
+  "f002:926": {
+   "t": "BCM.TRIGGER",
+   "f": {
+    "action_id": 480,
+    "category_flags": 1099511627776,
+    "cond_owner_state_flags": 0,
+    "norm": {
+     "ref": "f002:929"
+    },
+    "norm_NG": false,
+    "sprt": {
+     "ref": "f002:930"
+    },
+    "sprt_NG": false,
+    "use_sprt": true
+   }
+  },
+  "f002:929": {
+   "t": "BCM.TRIGGER.CMD",
+   "f": {
+    "dc_exc_flags": 288,
+    "ok_key_cond_flags": 0,
+    "ok_key_flags": 0
+   }
+  },
+  "f002:930": {
+   "t": "BCM.TRIGGER.CMD",
+   "f": {
+    "dc_exc_flags": 64,
+    "ok_key_cond_flags": 0,
+    "ok_key_flags": 0
+   }
+  },
+  "f002:932": {
+   "t": "BCM.TRIGGER",
+   "f": {
+    "action_id": 739,
+    "category_flags": 1048576,
+    "cond_owner_state_flags": 0,
+    "norm": {
+     "ref": "f002:935"
+    },
+    "norm_NG": false,
+    "sprt": {
+     "ref": "f002:936"
+    },
+    "sprt_NG": false,
+    "use_sprt": true
+   }
+  },
+  "f002:935": {
+   "t": "BCM.TRIGGER.CMD",
+   "f": {
+    "dc_exc_flags": 0,
+    "ok_key_cond_flags": 16480,
+    "ok_key_flags": 288
+   }
+  },
+  "f002:936": {
+   "t": "BCM.TRIGGER.CMD",
+   "f": {
+    "dc_exc_flags": 0,
+    "ok_key_cond_flags": 16416,
+    "ok_key_flags": 64
+   }
+  },
+  "f003:1": {
+   "t": "BCM.TRIGGER",
+   "f": {
+    "action_id": 17,
+    "category_flags": 4194304,
+    "cond_owner_state_flags": 0,
+    "norm": {
+     "ref": "f003:4"
+    },
+    "norm_NG": false,
+    "sprt": {
+     "ref": "f003:72"
+    },
+    "sprt_NG": false,
+    "use_sprt": true
+   }
+  },
+  "f003:4": {
+   "t": "BCM.TRIGGER.CMD",
+   "f": {
+    "command_ptr": {
+     "ref": "f003:5"
+    },
+    "dc_exc_flags": 0,
+    "ok_key_cond_flags": 1026,
+    "ok_key_flags": 8
+   }
+  },
+  "f003:5": {
+   "t": "BCM.COMMAND[]",
+   "f": {},
+   "i": [
+    "f003:6"
+   ]
+  },
+  "f003:6": {
+   "t": "BCM.COMMAND",
+   "f": {
+    "charge_bit": 0,
+    "input_num": 4,
+    "inputs": {
+     "ref": "f003:7"
+    }
+   }
+  },
+  "f003:7": {
+   "t": "BCM.INPUT[]",
+   "f": {},
+   "i": [
+    "f003:8",
+    "f003:12",
+    "f003:16",
+    "f003:20",
+    "f003:24",
+    "f003:28",
+    "f003:32",
+    "f003:36",
+    "f003:40",
+    "f003:44",
+    "f003:48",
+    "f003:52",
+    "f003:56",
+    "f003:60",
+    "f003:64",
+    "f003:68"
+   ]
+  },
+  "f003:8": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f003:9"
+    },
+    "normal": {
+     "ref": "f003:10"
+    },
+    "type": 0
+   }
+  },
+  "f003:9": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f003:10": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 1073741824
+   }
+  },
+  "f003:12": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f003:13"
+    },
+    "normal": {
+     "ref": "f003:14"
+    },
+    "type": 0
+   }
+  },
+  "f003:13": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 8,
+    "is_release": false
+   }
+  },
+  "f003:14": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 8
+   }
+  },
+  "f003:16": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f003:17"
+    },
+    "normal": {
+     "ref": "f003:18"
+    },
+    "type": 0
+   }
+  },
+  "f003:17": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f003:18": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 1073741824
+   }
+  },
+  "f003:20": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f003:21"
+    },
+    "normal": {
+     "ref": "f003:22"
+    },
+    "type": 0
+   }
+  },
+  "f003:21": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 8,
+    "is_release": false
+   }
+  },
+  "f003:22": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 8
+   }
+  },
+  "f003:24": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f003:25"
+    },
+    "normal": {
+     "ref": "f003:26"
+    },
+    "type": 0
+   }
+  },
+  "f003:25": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f003:26": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f003:28": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f003:29"
+    },
+    "normal": {
+     "ref": "f003:30"
+    },
+    "type": 0
+   }
+  },
+  "f003:29": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f003:30": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f003:32": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f003:33"
+    },
+    "normal": {
+     "ref": "f003:34"
+    },
+    "type": 0
+   }
+  },
+  "f003:33": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f003:34": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f003:36": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f003:37"
+    },
+    "normal": {
+     "ref": "f003:38"
+    },
+    "type": 0
+   }
+  },
+  "f003:37": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f003:38": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f003:40": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f003:41"
+    },
+    "normal": {
+     "ref": "f003:42"
+    },
+    "type": 0
+   }
+  },
+  "f003:41": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f003:42": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f003:44": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f003:45"
+    },
+    "normal": {
+     "ref": "f003:46"
+    },
+    "type": 0
+   }
+  },
+  "f003:45": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f003:46": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f003:48": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f003:49"
+    },
+    "normal": {
+     "ref": "f003:50"
+    },
+    "type": 0
+   }
+  },
+  "f003:49": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f003:50": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f003:52": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f003:53"
+    },
+    "normal": {
+     "ref": "f003:54"
+    },
+    "type": 0
+   }
+  },
+  "f003:53": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f003:54": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f003:56": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f003:57"
+    },
+    "normal": {
+     "ref": "f003:58"
+    },
+    "type": 0
+   }
+  },
+  "f003:57": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f003:58": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f003:60": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f003:61"
+    },
+    "normal": {
+     "ref": "f003:62"
+    },
+    "type": 0
+   }
+  },
+  "f003:61": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f003:62": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f003:64": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f003:65"
+    },
+    "normal": {
+     "ref": "f003:66"
+    },
+    "type": 0
+   }
+  },
+  "f003:65": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f003:66": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f003:68": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f003:69"
+    },
+    "normal": {
+     "ref": "f003:70"
+    },
+    "type": 0
+   }
+  },
+  "f003:69": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f003:70": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f003:72": {
+   "t": "BCM.TRIGGER.CMD",
+   "f": {
+    "command_ptr": {
+     "ref": "f003:5"
+    },
+    "dc_exc_flags": 0,
+    "ok_key_cond_flags": 1026,
+    "ok_key_flags": 8
+   }
+  },
+  "f003:147": {
+   "t": "BCM.TRIGGER",
+   "f": {
+    "action_id": 600,
+    "category_flags": 536872977,
+    "cond_owner_state_flags": 0,
+    "norm": {
+     "ref": "f003:150"
+    },
+    "norm_NG": false,
+    "sprt": {
+     "ref": "f003:151"
+    },
+    "sprt_NG": false,
+    "use_sprt": true
+   }
+  },
+  "f003:150": {
+   "t": "BCM.TRIGGER.CMD",
+   "f": {
+    "dc_exc_flags": 0,
+    "ok_key_cond_flags": 16416,
+    "ok_key_flags": 16
+   }
+  },
+  "f003:151": {
+   "t": "BCM.TRIGGER.CMD",
+   "f": {
+    "dc_exc_flags": 0,
+    "ok_key_cond_flags": 16416,
+    "ok_key_flags": 16
+   }
+  },
+  "f003:183": {
+   "t": "BCM.TRIGGER",
+   "f": {
+    "action_id": 610,
+    "category_flags": 536872977,
+    "cond_owner_state_flags": 0,
+    "norm": {
+     "ref": "f003:186"
+    },
+    "norm_NG": false,
+    "sprt": {
+     "ref": "f003:187"
+    },
+    "sprt_NG": false,
+    "use_sprt": true
+   }
+  },
+  "f003:186": {
+   "t": "BCM.TRIGGER.CMD",
+   "f": {
+    "dc_exc_flags": 2,
+    "ok_key_cond_flags": 16416,
+    "ok_key_flags": 16
+   }
+  },
+  "f003:187": {
+   "t": "BCM.TRIGGER.CMD",
+   "f": {
+    "dc_exc_flags": 2,
+    "ok_key_cond_flags": 16416,
+    "ok_key_flags": 16
+   }
+  },
+  "f003:219": {
+   "t": "BCM.TRIGGER",
+   "f": {
+    "action_id": 622,
+    "category_flags": 1073743889,
+    "cond_owner_state_flags": 4,
+    "norm": {
+     "ref": "f003:222"
+    },
+    "norm_NG": false,
+    "sprt": {
+     "ref": "f003:223"
+    },
+    "sprt_NG": false,
+    "use_sprt": true
+   }
+  },
+  "f003:222": {
+   "t": "BCM.TRIGGER.CMD",
+   "f": {
+    "dc_exc_flags": 0,
+    "ok_key_cond_flags": 16416,
+    "ok_key_flags": 16
+   }
+  },
+  "f003:223": {
+   "t": "BCM.TRIGGER.CMD",
+   "f": {
+    "dc_exc_flags": 0,
+    "ok_key_cond_flags": 16416,
+    "ok_key_flags": 16
+   }
+  },
+  "f003:387": {
+   "t": "BCM.TRIGGER",
+   "f": {
+    "action_id": 973,
+    "category_flags": 536879104,
+    "cond_owner_state_flags": 0,
+    "norm": {
+     "ref": "f003:390"
+    },
+    "norm_NG": false,
+    "sprt": {
+     "ref": "f003:458"
+    },
+    "sprt_NG": false,
+    "use_sprt": true
+   }
+  },
+  "f003:390": {
+   "t": "BCM.TRIGGER.CMD",
+   "f": {
+    "command_ptr": {
+     "ref": "f003:391"
+    },
+    "dc_exc_flags": 0,
+    "ok_key_cond_flags": 81952,
+    "ok_key_flags": 896
+   }
+  },
+  "f003:391": {
+   "t": "BCM.COMMAND[]",
+   "f": {},
+   "i": [
+    "f003:392"
+   ]
+  },
+  "f003:392": {
+   "t": "BCM.COMMAND",
+   "f": {
+    "charge_bit": 0,
+    "input_num": 4,
+    "inputs": {
+     "ref": "f003:393"
+    }
+   }
+  },
+  "f003:393": {
+   "t": "BCM.INPUT[]",
+   "f": {},
+   "i": [
+    "f003:394",
+    "f003:398",
+    "f003:402",
+    "f003:406",
+    "f003:410",
+    "f003:414",
+    "f003:418",
+    "f003:422",
+    "f003:426",
+    "f003:430",
+    "f003:434",
+    "f003:438",
+    "f003:442",
+    "f003:446",
+    "f003:450",
+    "f003:454"
+   ]
+  },
+  "f003:394": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f003:395"
+    },
+    "normal": {
+     "ref": "f003:396"
+    },
+    "type": 0
+   }
+  },
+  "f003:395": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f003:396": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 1073741824
+   }
+  },
+  "f003:398": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f003:399"
+    },
+    "normal": {
+     "ref": "f003:400"
+    },
+    "type": 0
+   }
+  },
+  "f003:399": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 2,
+    "is_release": false
+   }
+  },
+  "f003:400": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 2
+   }
+  },
+  "f003:402": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f003:403"
+    },
+    "normal": {
+     "ref": "f003:404"
+    },
+    "type": 0
+   }
+  },
+  "f003:403": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f003:404": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 1073741824
+   }
+  },
+  "f003:406": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f003:407"
+    },
+    "normal": {
+     "ref": "f003:408"
+    },
+    "type": 0
+   }
+  },
+  "f003:407": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 2,
+    "is_release": false
+   }
+  },
+  "f003:408": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 2
+   }
+  },
+  "f003:410": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f003:411"
+    },
+    "normal": {
+     "ref": "f003:412"
+    },
+    "type": 0
+   }
+  },
+  "f003:411": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f003:412": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f003:414": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f003:415"
+    },
+    "normal": {
+     "ref": "f003:416"
+    },
+    "type": 0
+   }
+  },
+  "f003:415": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f003:416": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f003:418": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f003:419"
+    },
+    "normal": {
+     "ref": "f003:420"
+    },
+    "type": 0
+   }
+  },
+  "f003:419": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f003:420": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f003:422": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f003:423"
+    },
+    "normal": {
+     "ref": "f003:424"
+    },
+    "type": 0
+   }
+  },
+  "f003:423": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f003:424": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f003:426": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f003:427"
+    },
+    "normal": {
+     "ref": "f003:428"
+    },
+    "type": 0
+   }
+  },
+  "f003:427": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f003:428": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f003:430": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f003:431"
+    },
+    "normal": {
+     "ref": "f003:432"
+    },
+    "type": 0
+   }
+  },
+  "f003:431": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f003:432": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f003:434": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f003:435"
+    },
+    "normal": {
+     "ref": "f003:436"
+    },
+    "type": 0
+   }
+  },
+  "f003:435": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f003:436": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f003:438": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f003:439"
+    },
+    "normal": {
+     "ref": "f003:440"
+    },
+    "type": 0
+   }
+  },
+  "f003:439": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f003:440": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f003:442": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f003:443"
+    },
+    "normal": {
+     "ref": "f003:444"
+    },
+    "type": 0
+   }
+  },
+  "f003:443": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f003:444": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f003:446": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f003:447"
+    },
+    "normal": {
+     "ref": "f003:448"
+    },
+    "type": 0
+   }
+  },
+  "f003:447": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f003:448": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f003:450": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f003:451"
+    },
+    "normal": {
+     "ref": "f003:452"
+    },
+    "type": 0
+   }
+  },
+  "f003:451": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f003:452": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f003:454": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f003:455"
+    },
+    "normal": {
+     "ref": "f003:456"
+    },
+    "type": 0
+   }
+  },
+  "f003:455": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f003:456": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f003:458": {
+   "t": "BCM.TRIGGER.CMD",
+   "f": {
+    "command_ptr": {
+     "ref": "f003:459"
+    },
+    "dc_exc_flags": 0,
+    "ok_key_cond_flags": 81952,
+    "ok_key_flags": 256
+   }
+  },
+  "f003:459": {
+   "t": "BCM.COMMAND[]",
+   "f": {},
+   "i": [
+    "f003:460"
+   ]
+  },
+  "f003:460": {
+   "t": "BCM.COMMAND",
+   "f": {
+    "charge_bit": 0,
+    "input_num": 4,
+    "inputs": {
+     "ref": "f003:461"
+    }
+   }
+  },
+  "f003:461": {
+   "t": "BCM.INPUT[]",
+   "f": {},
+   "i": [
+    "f003:462",
+    "f003:466",
+    "f003:470",
+    "f003:474",
+    "f003:478",
+    "f003:482",
+    "f003:486",
+    "f003:490",
+    "f003:494",
+    "f003:498",
+    "f003:502",
+    "f003:506",
+    "f003:510",
+    "f003:514",
+    "f003:518",
+    "f003:522"
+   ]
+  },
+  "f003:462": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f003:463"
+    },
+    "normal": {
+     "ref": "f003:464"
+    },
+    "type": 0
+   }
+  },
+  "f003:463": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f003:464": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 1073741824
+   }
+  },
+  "f003:466": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f003:467"
+    },
+    "normal": {
+     "ref": "f003:468"
+    },
+    "type": 0
+   }
+  },
+  "f003:467": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 2,
+    "is_release": false
+   }
+  },
+  "f003:468": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 2
+   }
+  },
+  "f003:470": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f003:471"
+    },
+    "normal": {
+     "ref": "f003:472"
+    },
+    "type": 0
+   }
+  },
+  "f003:471": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f003:472": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 1073741824
+   }
+  },
+  "f003:474": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f003:475"
+    },
+    "normal": {
+     "ref": "f003:476"
+    },
+    "type": 0
+   }
+  },
+  "f003:475": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 2,
+    "is_release": false
+   }
+  },
+  "f003:476": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 2
+   }
+  },
+  "f003:478": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f003:479"
+    },
+    "normal": {
+     "ref": "f003:480"
+    },
+    "type": 0
+   }
+  },
+  "f003:479": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f003:480": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f003:482": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f003:483"
+    },
+    "normal": {
+     "ref": "f003:484"
+    },
+    "type": 0
+   }
+  },
+  "f003:483": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f003:484": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f003:486": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f003:487"
+    },
+    "normal": {
+     "ref": "f003:488"
+    },
+    "type": 0
+   }
+  },
+  "f003:487": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f003:488": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f003:490": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f003:491"
+    },
+    "normal": {
+     "ref": "f003:492"
+    },
+    "type": 0
+   }
+  },
+  "f003:491": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f003:492": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f003:494": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f003:495"
+    },
+    "normal": {
+     "ref": "f003:496"
+    },
+    "type": 0
+   }
+  },
+  "f003:495": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f003:496": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f003:498": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f003:499"
+    },
+    "normal": {
+     "ref": "f003:500"
+    },
+    "type": 0
+   }
+  },
+  "f003:499": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f003:500": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f003:502": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f003:503"
+    },
+    "normal": {
+     "ref": "f003:504"
+    },
+    "type": 0
+   }
+  },
+  "f003:503": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f003:504": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f003:506": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f003:507"
+    },
+    "normal": {
+     "ref": "f003:508"
+    },
+    "type": 0
+   }
+  },
+  "f003:507": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f003:508": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f003:510": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f003:511"
+    },
+    "normal": {
+     "ref": "f003:512"
+    },
+    "type": 0
+   }
+  },
+  "f003:511": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f003:512": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f003:514": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f003:515"
+    },
+    "normal": {
+     "ref": "f003:516"
+    },
+    "type": 0
+   }
+  },
+  "f003:515": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f003:516": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f003:518": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f003:519"
+    },
+    "normal": {
+     "ref": "f003:520"
+    },
+    "type": 0
+   }
+  },
+  "f003:519": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f003:520": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f003:522": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f003:523"
+    },
+    "normal": {
+     "ref": "f003:524"
+    },
+    "type": 0
+   }
+  },
+  "f003:523": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f003:524": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f003:630": {
+   "t": "BCM.TRIGGER",
+   "f": {
+    "action_id": 902,
+    "category_flags": 536879106,
+    "cond_owner_state_flags": 0,
+    "norm": {
+     "ref": "f003:633"
+    },
+    "norm_NG": true,
+    "sprt": {
+     "ref": "f003:634"
+    },
+    "sprt_NG": true,
+    "use_sprt": false
+   }
+  },
+  "f003:633": {
+   "t": "BCM.TRIGGER.CMD",
+   "f": {
+    "dc_exc_flags": 0,
+    "ok_key_cond_flags": 0,
+    "ok_key_flags": 0
+   }
+  },
+  "f003:634": {
+   "t": "BCM.TRIGGER.CMD",
+   "f": {
+    "dc_exc_flags": 0,
+    "ok_key_cond_flags": 0,
+    "ok_key_flags": 0
+   }
+  },
+  "f003:678": {
+   "t": "BCM.TRIGGER",
+   "f": {
+    "action_id": 906,
+    "category_flags": 137975832576,
+    "cond_owner_state_flags": 0,
+    "norm": {
+     "ref": "f003:681"
+    },
+    "norm_NG": false,
+    "sprt": {
+     "ref": "f003:682"
+    },
+    "sprt_NG": false,
+    "use_sprt": true
+   }
+  },
+  "f003:681": {
+   "t": "BCM.TRIGGER.CMD",
+   "f": {
+    "dc_exc_flags": 16,
+    "ok_key_cond_flags": 16416,
+    "ok_key_flags": 0
+   }
+  },
+  "f003:682": {
+   "t": "BCM.TRIGGER.CMD",
+   "f": {
+    "dc_exc_flags": 0,
+    "ok_key_cond_flags": 16416,
+    "ok_key_flags": 432
+   }
+  },
+  "f003:708": {
+   "t": "BCM.TRIGGER",
+   "f": {
+    "action_id": 910,
+    "category_flags": 137975832610,
+    "cond_owner_state_flags": 0,
+    "norm": {
+     "ref": "f003:711"
+    },
+    "norm_NG": true,
+    "sprt": {
+     "ref": "f003:712"
+    },
+    "sprt_NG": false,
+    "use_sprt": true
+   }
+  },
+  "f003:711": {
+   "t": "BCM.TRIGGER.CMD",
+   "f": {
+    "dc_exc_flags": 0,
+    "ok_key_cond_flags": 0,
+    "ok_key_flags": 0
+   }
+  },
+  "f003:712": {
+   "t": "BCM.TRIGGER.CMD",
+   "f": {
+    "dc_exc_flags": 512,
+    "ok_key_cond_flags": 16416,
+    "ok_key_flags": 256
+   }
+  },
+  "f003:1035": {
+   "t": "BCM.TRIGGER",
+   "f": {
+    "action_id": 501,
+    "category_flags": 1048576,
+    "cond_owner_state_flags": 0,
+    "norm": {
+     "ref": "f003:1038"
+    },
+    "norm_NG": false,
+    "sprt": {
+     "ref": "f003:1039"
+    },
+    "sprt_NG": false,
+    "use_sprt": true
+   }
+  },
+  "f003:1038": {
+   "t": "BCM.TRIGGER.CMD",
+   "f": {
+    "dc_exc_flags": 0,
+    "ok_key_cond_flags": 16480,
+    "ok_key_flags": 288
+   }
+  },
+  "f003:1039": {
+   "t": "BCM.TRIGGER.CMD",
+   "f": {
+    "dc_exc_flags": 0,
+    "ok_key_cond_flags": 16416,
+    "ok_key_flags": 64
+   }
+  },
+  "f003:1385": {
+   "t": "BCM.TRIGGER",
+   "f": {
+    "action_id": 962,
+    "category_flags": 536887297,
+    "cond_owner_state_flags": 0,
+    "norm": {
+     "ref": "f003:1388"
+    },
+    "norm_NG": false,
+    "sprt": {
+     "ref": "f003:1389"
+    },
+    "sprt_NG": false,
+    "use_sprt": true
+   }
+  },
+  "f003:1388": {
+   "t": "BCM.TRIGGER.CMD",
+   "f": {
+    "command_ptr": {
+     "ref": "f003:549"
+    },
+    "dc_exc_flags": 0,
+    "ok_key_cond_flags": 82016,
+    "ok_key_flags": 112
+   }
+  },
+  "f003:549": {
+   "t": "BCM.COMMAND[]",
+   "f": {},
+   "i": [
+    "f003:550"
+   ]
+  },
+  "f003:550": {
+   "t": "BCM.COMMAND",
+   "f": {
+    "charge_bit": 0,
+    "input_num": 3,
+    "inputs": {
+     "ref": "f003:551"
+    }
+   }
+  },
+  "f003:551": {
+   "t": "BCM.INPUT[]",
+   "f": {},
+   "i": [
+    "f003:552",
+    "f003:556",
+    "f003:560",
+    "f003:564",
+    "f003:568",
+    "f003:572",
+    "f003:576",
+    "f003:580",
+    "f003:584",
+    "f003:588",
+    "f003:592",
+    "f003:596",
+    "f003:600",
+    "f003:604",
+    "f003:608",
+    "f003:612"
+   ]
+  },
+  "f003:552": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f003:553"
+    },
+    "normal": {
+     "ref": "f003:554"
+    },
+    "type": 0
+   }
+  },
+  "f003:553": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 2,
+    "is_release": false
+   }
+  },
+  "f003:554": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 2
+   }
+  },
+  "f003:556": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f003:557"
+    },
+    "normal": {
+     "ref": "f003:558"
+    },
+    "type": 0
+   }
+  },
+  "f003:557": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 10,
+    "is_release": false
+   }
+  },
+  "f003:558": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 10
+   }
+  },
+  "f003:560": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f003:561"
+    },
+    "normal": {
+     "ref": "f003:562"
+    },
+    "type": 0
+   }
+  },
+  "f003:561": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 8,
+    "is_release": false
+   }
+  },
+  "f003:562": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 8
+   }
+  },
+  "f003:564": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f003:565"
+    },
+    "normal": {
+     "ref": "f003:566"
+    },
+    "type": 0
+   }
+  },
+  "f003:565": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f003:566": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f003:568": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f003:569"
+    },
+    "normal": {
+     "ref": "f003:570"
+    },
+    "type": 0
+   }
+  },
+  "f003:569": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f003:570": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f003:572": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f003:573"
+    },
+    "normal": {
+     "ref": "f003:574"
+    },
+    "type": 0
+   }
+  },
+  "f003:573": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f003:574": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f003:576": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f003:577"
+    },
+    "normal": {
+     "ref": "f003:578"
+    },
+    "type": 0
+   }
+  },
+  "f003:577": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f003:578": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f003:580": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f003:581"
+    },
+    "normal": {
+     "ref": "f003:582"
+    },
+    "type": 0
+   }
+  },
+  "f003:581": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f003:582": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f003:584": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f003:585"
+    },
+    "normal": {
+     "ref": "f003:586"
+    },
+    "type": 0
+   }
+  },
+  "f003:585": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f003:586": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f003:588": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f003:589"
+    },
+    "normal": {
+     "ref": "f003:590"
+    },
+    "type": 0
+   }
+  },
+  "f003:589": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f003:590": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f003:592": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f003:593"
+    },
+    "normal": {
+     "ref": "f003:594"
+    },
+    "type": 0
+   }
+  },
+  "f003:593": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f003:594": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f003:596": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f003:597"
+    },
+    "normal": {
+     "ref": "f003:598"
+    },
+    "type": 0
+   }
+  },
+  "f003:597": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f003:598": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f003:600": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f003:601"
+    },
+    "normal": {
+     "ref": "f003:602"
+    },
+    "type": 0
+   }
+  },
+  "f003:601": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f003:602": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f003:604": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f003:605"
+    },
+    "normal": {
+     "ref": "f003:606"
+    },
+    "type": 0
+   }
+  },
+  "f003:605": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f003:606": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f003:608": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f003:609"
+    },
+    "normal": {
+     "ref": "f003:610"
+    },
+    "type": 0
+   }
+  },
+  "f003:609": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f003:610": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f003:612": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f003:613"
+    },
+    "normal": {
+     "ref": "f003:614"
+    },
+    "type": 0
+   }
+  },
+  "f003:613": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f003:614": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f003:1389": {
+   "t": "BCM.TRIGGER.CMD",
+   "f": {
+    "command_ptr": {
+     "ref": "f003:549"
+    },
+    "dc_exc_flags": 0,
+    "ok_key_cond_flags": 82016,
+    "ok_key_flags": 400
+   }
+  },
+  "f004:673": {
+   "t": "BCM.TRIGGER",
+   "f": {
+    "action_id": 900,
+    "category_flags": 2684362768,
+    "cond_owner_state_flags": 0,
+    "norm": {
+     "ref": "f004:676"
+    },
+    "norm_NG": false,
+    "sprt": {
+     "ref": "f004:744"
+    },
+    "sprt_NG": false,
+    "use_sprt": true
+   }
+  },
+  "f004:676": {
+   "t": "BCM.TRIGGER.CMD",
+   "f": {
+    "command_ptr": {
+     "ref": "f004:677"
+    },
+    "dc_exc_flags": 0,
+    "ok_key_cond_flags": 81952,
+    "ok_key_flags": 16
+   }
+  },
+  "f004:677": {
+   "t": "BCM.COMMAND[]",
+   "f": {},
+   "i": [
+    "f004:678"
+   ]
+  },
+  "f004:678": {
+   "t": "BCM.COMMAND",
+   "f": {
+    "charge_bit": 1,
+    "input_num": 2,
+    "inputs": {
+     "ref": "f004:679"
+    }
+   }
+  },
+  "f004:679": {
+   "t": "BCM.INPUT[]",
+   "f": {},
+   "i": [
+    "f004:680",
+    "f004:684",
+    "f004:688",
+    "f004:692",
+    "f004:696",
+    "f004:700",
+    "f004:704",
+    "f004:708",
+    "f004:712",
+    "f004:716",
+    "f004:720",
+    "f004:724",
+    "f004:728",
+    "f004:732",
+    "f004:736",
+    "f004:740"
+   ]
+  },
+  "f004:680": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f004:681"
+    },
+    "normal": {
+     "ref": "f004:682"
+    },
+    "type": 1
+   }
+  },
+  "f004:681": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": true
+   }
+  },
+  "f004:682": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 65536
+   }
+  },
+  "f004:684": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f004:685"
+    },
+    "normal": {
+     "ref": "f004:686"
+    },
+    "type": 0
+   }
+  },
+  "f004:685": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 8,
+    "is_release": false
+   }
+  },
+  "f004:686": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 8
+   }
+  },
+  "f004:688": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f004:689"
+    },
+    "normal": {
+     "ref": "f004:690"
+    },
+    "type": 0
+   }
+  },
+  "f004:689": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f004:690": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f004:692": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f004:693"
+    },
+    "normal": {
+     "ref": "f004:694"
+    },
+    "type": 0
+   }
+  },
+  "f004:693": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f004:694": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f004:696": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f004:697"
+    },
+    "normal": {
+     "ref": "f004:698"
+    },
+    "type": 0
+   }
+  },
+  "f004:697": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f004:698": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f004:700": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f004:701"
+    },
+    "normal": {
+     "ref": "f004:702"
+    },
+    "type": 0
+   }
+  },
+  "f004:701": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f004:702": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f004:704": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f004:705"
+    },
+    "normal": {
+     "ref": "f004:706"
+    },
+    "type": 0
+   }
+  },
+  "f004:705": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f004:706": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f004:708": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f004:709"
+    },
+    "normal": {
+     "ref": "f004:710"
+    },
+    "type": 0
+   }
+  },
+  "f004:709": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f004:710": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f004:712": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f004:713"
+    },
+    "normal": {
+     "ref": "f004:714"
+    },
+    "type": 0
+   }
+  },
+  "f004:713": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f004:714": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f004:716": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f004:717"
+    },
+    "normal": {
+     "ref": "f004:718"
+    },
+    "type": 0
+   }
+  },
+  "f004:717": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f004:718": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f004:720": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f004:721"
+    },
+    "normal": {
+     "ref": "f004:722"
+    },
+    "type": 0
+   }
+  },
+  "f004:721": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f004:722": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f004:724": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f004:725"
+    },
+    "normal": {
+     "ref": "f004:726"
+    },
+    "type": 0
+   }
+  },
+  "f004:725": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f004:726": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f004:728": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f004:729"
+    },
+    "normal": {
+     "ref": "f004:730"
+    },
+    "type": 0
+   }
+  },
+  "f004:729": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f004:730": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f004:732": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f004:733"
+    },
+    "normal": {
+     "ref": "f004:734"
+    },
+    "type": 0
+   }
+  },
+  "f004:733": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f004:734": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f004:736": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f004:737"
+    },
+    "normal": {
+     "ref": "f004:738"
+    },
+    "type": 0
+   }
+  },
+  "f004:737": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f004:738": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f004:740": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f004:741"
+    },
+    "normal": {
+     "ref": "f004:742"
+    },
+    "type": 0
+   }
+  },
+  "f004:741": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f004:742": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f004:744": {
+   "t": "BCM.TRIGGER.CMD",
+   "f": {
+    "command_ptr": {
+     "ref": "f004:677"
+    },
+    "dc_exc_flags": 0,
+    "ok_key_cond_flags": 81952,
+    "ok_key_flags": 16
+   }
+  },
+  "f004:1177": {
+   "t": "BCM.TRIGGER",
+   "f": {
+    "action_id": 919,
+    "category_flags": 137975840770,
+    "cond_owner_state_flags": 0,
+    "norm": {
+     "ref": "f004:1180"
+    },
+    "norm_NG": true,
+    "sprt": {
+     "ref": "f004:1181"
+    },
+    "sprt_NG": false,
+    "use_sprt": true
+   }
+  },
+  "f004:1180": {
+   "t": "BCM.TRIGGER.CMD",
+   "f": {
+    "dc_exc_flags": 0,
+    "ok_key_cond_flags": 0,
+    "ok_key_flags": 0
+   }
+  },
+  "f004:1181": {
+   "t": "BCM.TRIGGER.CMD",
+   "f": {
+    "dc_exc_flags": 0,
+    "ok_key_cond_flags": 16416,
+    "ok_key_flags": 32
+   }
+  },
+  "f006:732": {
+   "t": "BCM.TRIGGER",
+   "f": {
+    "action_id": 950,
+    "category_flags": 1074012160,
+    "cond_owner_state_flags": 4,
+    "norm": {
+     "ref": "f006:735"
+    },
+    "norm_NG": false,
+    "sprt": {
+     "ref": "f006:803"
+    },
+    "sprt_NG": false,
+    "use_sprt": true
+   }
+  },
+  "f006:735": {
+   "t": "BCM.TRIGGER.CMD",
+   "f": {
+    "command_ptr": {
+     "ref": "f006:736"
+    },
+    "dc_exc_flags": 0,
+    "ok_key_cond_flags": 81952,
+    "ok_key_flags": 896
+   }
+  },
+  "f006:736": {
+   "t": "BCM.COMMAND[]",
+   "f": {},
+   "i": [
+    "f006:737"
+   ]
+  },
+  "f006:737": {
+   "t": "BCM.COMMAND",
+   "f": {
+    "charge_bit": 0,
+    "input_num": 1,
+    "inputs": {
+     "ref": "f006:738"
+    }
+   }
+  },
+  "f006:738": {
+   "t": "BCM.INPUT[]",
+   "f": {},
+   "i": [
+    "f006:739",
+    "f006:743",
+    "f006:747",
+    "f006:751",
+    "f006:755",
+    "f006:759",
+    "f006:763",
+    "f006:767",
+    "f006:771",
+    "f006:775",
+    "f006:779",
+    "f006:783",
+    "f006:787",
+    "f006:791",
+    "f006:795",
+    "f006:799"
+   ]
+  },
+  "f006:739": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f006:740"
+    },
+    "normal": {
+     "ref": "f006:741"
+    },
+    "type": 2
+   }
+  },
+  "f006:740": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 1,
+    "is_release": true
+   }
+  },
+  "f006:741": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 262145
+   }
+  },
+  "f006:743": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f006:744"
+    },
+    "normal": {
+     "ref": "f006:745"
+    },
+    "type": 0
+   }
+  },
+  "f006:744": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f006:745": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f006:747": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f006:748"
+    },
+    "normal": {
+     "ref": "f006:749"
+    },
+    "type": 0
+   }
+  },
+  "f006:748": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f006:749": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f006:751": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f006:752"
+    },
+    "normal": {
+     "ref": "f006:753"
+    },
+    "type": 0
+   }
+  },
+  "f006:752": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f006:753": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f006:755": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f006:756"
+    },
+    "normal": {
+     "ref": "f006:757"
+    },
+    "type": 0
+   }
+  },
+  "f006:756": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f006:757": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f006:759": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f006:760"
+    },
+    "normal": {
+     "ref": "f006:761"
+    },
+    "type": 0
+   }
+  },
+  "f006:760": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f006:761": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f006:763": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f006:764"
+    },
+    "normal": {
+     "ref": "f006:765"
+    },
+    "type": 0
+   }
+  },
+  "f006:764": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f006:765": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f006:767": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f006:768"
+    },
+    "normal": {
+     "ref": "f006:769"
+    },
+    "type": 0
+   }
+  },
+  "f006:768": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f006:769": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f006:771": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f006:772"
+    },
+    "normal": {
+     "ref": "f006:773"
+    },
+    "type": 0
+   }
+  },
+  "f006:772": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f006:773": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f006:775": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f006:776"
+    },
+    "normal": {
+     "ref": "f006:777"
+    },
+    "type": 0
+   }
+  },
+  "f006:776": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f006:777": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f006:779": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f006:780"
+    },
+    "normal": {
+     "ref": "f006:781"
+    },
+    "type": 0
+   }
+  },
+  "f006:780": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f006:781": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f006:783": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f006:784"
+    },
+    "normal": {
+     "ref": "f006:785"
+    },
+    "type": 0
+   }
+  },
+  "f006:784": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f006:785": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f006:787": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f006:788"
+    },
+    "normal": {
+     "ref": "f006:789"
+    },
+    "type": 0
+   }
+  },
+  "f006:788": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f006:789": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f006:791": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f006:792"
+    },
+    "normal": {
+     "ref": "f006:793"
+    },
+    "type": 0
+   }
+  },
+  "f006:792": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f006:793": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f006:795": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f006:796"
+    },
+    "normal": {
+     "ref": "f006:797"
+    },
+    "type": 0
+   }
+  },
+  "f006:796": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f006:797": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f006:799": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f006:800"
+    },
+    "normal": {
+     "ref": "f006:801"
+    },
+    "type": 0
+   }
+  },
+  "f006:800": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f006:801": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f006:803": {
+   "t": "BCM.TRIGGER.CMD",
+   "f": {
+    "command_ptr": {
+     "ref": "f006:736"
+    },
+    "dc_exc_flags": 0,
+    "ok_key_cond_flags": 81952,
+    "ok_key_flags": 400
+   }
+  },
+  "f006:1101": {
+   "t": "BCM.TRIGGER",
+   "f": {
+    "action_id": 1218,
+    "category_flags": 537166337,
+    "cond_owner_state_flags": 0,
+    "norm": {
+     "ref": "f006:1104"
+    },
+    "norm_NG": false,
+    "sprt": {
+     "ref": "f006:1172"
+    },
+    "sprt_NG": false,
+    "use_sprt": true
+   }
+  },
+  "f006:1104": {
+   "t": "BCM.TRIGGER.CMD",
+   "f": {
+    "command_ptr": {
+     "ref": "f006:1105"
+    },
+    "dc_exc_flags": 0,
+    "ok_key_cond_flags": 81952,
+    "ok_key_flags": 112
+   }
+  },
+  "f006:1105": {
+   "t": "BCM.COMMAND[]",
+   "f": {},
+   "i": [
+    "f006:1106"
+   ]
+  },
+  "f006:1106": {
+   "t": "BCM.COMMAND",
+   "f": {
+    "charge_bit": 0,
+    "input_num": 1,
+    "inputs": {
+     "ref": "f006:1107"
+    }
+   }
+  },
+  "f006:1107": {
+   "t": "BCM.INPUT[]",
+   "f": {},
+   "i": [
+    "f006:1108",
+    "f006:1112",
+    "f006:1116",
+    "f006:1120",
+    "f006:1124",
+    "f006:1128",
+    "f006:1132",
+    "f006:1136",
+    "f006:1140",
+    "f006:1144",
+    "f006:1148",
+    "f006:1152",
+    "f006:1156",
+    "f006:1160",
+    "f006:1164",
+    "f006:1168"
+   ]
+  },
+  "f006:1108": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f006:1109"
+    },
+    "normal": {
+     "ref": "f006:1110"
+    },
+    "type": 2
+   }
+  },
+  "f006:1109": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": true
+   }
+  },
+  "f006:1110": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 458752
+   }
+  },
+  "f006:1112": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f006:1113"
+    },
+    "normal": {
+     "ref": "f006:1114"
+    },
+    "type": 0
+   }
+  },
+  "f006:1113": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f006:1114": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f006:1116": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f006:1117"
+    },
+    "normal": {
+     "ref": "f006:1118"
+    },
+    "type": 0
+   }
+  },
+  "f006:1117": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f006:1118": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f006:1120": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f006:1121"
+    },
+    "normal": {
+     "ref": "f006:1122"
+    },
+    "type": 0
+   }
+  },
+  "f006:1121": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f006:1122": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f006:1124": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f006:1125"
+    },
+    "normal": {
+     "ref": "f006:1126"
+    },
+    "type": 0
+   }
+  },
+  "f006:1125": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f006:1126": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f006:1128": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f006:1129"
+    },
+    "normal": {
+     "ref": "f006:1130"
+    },
+    "type": 0
+   }
+  },
+  "f006:1129": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f006:1130": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f006:1132": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f006:1133"
+    },
+    "normal": {
+     "ref": "f006:1134"
+    },
+    "type": 0
+   }
+  },
+  "f006:1133": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f006:1134": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f006:1136": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f006:1137"
+    },
+    "normal": {
+     "ref": "f006:1138"
+    },
+    "type": 0
+   }
+  },
+  "f006:1137": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f006:1138": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f006:1140": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f006:1141"
+    },
+    "normal": {
+     "ref": "f006:1142"
+    },
+    "type": 0
+   }
+  },
+  "f006:1141": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f006:1142": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f006:1144": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f006:1145"
+    },
+    "normal": {
+     "ref": "f006:1146"
+    },
+    "type": 0
+   }
+  },
+  "f006:1145": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f006:1146": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f006:1148": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f006:1149"
+    },
+    "normal": {
+     "ref": "f006:1150"
+    },
+    "type": 0
+   }
+  },
+  "f006:1149": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f006:1150": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f006:1152": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f006:1153"
+    },
+    "normal": {
+     "ref": "f006:1154"
+    },
+    "type": 0
+   }
+  },
+  "f006:1153": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f006:1154": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f006:1156": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f006:1157"
+    },
+    "normal": {
+     "ref": "f006:1158"
+    },
+    "type": 0
+   }
+  },
+  "f006:1157": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f006:1158": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f006:1160": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f006:1161"
+    },
+    "normal": {
+     "ref": "f006:1162"
+    },
+    "type": 0
+   }
+  },
+  "f006:1161": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f006:1162": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f006:1164": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f006:1165"
+    },
+    "normal": {
+     "ref": "f006:1166"
+    },
+    "type": 0
+   }
+  },
+  "f006:1165": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f006:1166": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f006:1168": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f006:1169"
+    },
+    "normal": {
+     "ref": "f006:1170"
+    },
+    "type": 0
+   }
+  },
+  "f006:1169": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f006:1170": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f006:1172": {
+   "t": "BCM.TRIGGER.CMD",
+   "f": {
+    "command_ptr": {
+     "ref": "f006:1105"
+    },
+    "dc_exc_flags": 0,
+    "ok_key_cond_flags": 81952,
+    "ok_key_flags": 256
+   }
+  },
+  "f007:974": {
+   "t": "BCM.TRIGGER",
+   "f": {
+    "action_id": 1211,
+    "category_flags": 2684387584,
+    "cond_owner_state_flags": 0,
+    "norm": {
+     "ref": "f007:977"
+    },
+    "norm_NG": false,
+    "sprt": {
+     "ref": "f007:1111"
+    },
+    "sprt_NG": false,
+    "use_sprt": true
+   }
+  },
+  "f007:977": {
+   "t": "BCM.TRIGGER.CMD",
+   "f": {
+    "command_ptr": {
+     "ref": "f007:978"
+    },
+    "dc_exc_flags": 0,
+    "ok_key_cond_flags": 81952,
+    "ok_key_flags": 16
+   }
+  },
+  "f007:978": {
+   "t": "BCM.COMMAND[]",
+   "f": {},
+   "i": [
+    "f007:979"
+   ]
+  },
+  "f007:979": {
+   "t": "BCM.COMMAND",
+   "f": {
+    "charge_bit": 0,
+    "input_num": 5,
+    "inputs": {
+     "ref": "f007:980"
+    }
+   }
+  },
+  "f007:980": {
+   "t": "BCM.INPUT[]",
+   "f": {},
+   "i": [
+    "f007:981",
+    "f007:985",
+    "f007:989",
+    "f007:993",
+    "f007:997",
+    "f007:1001",
+    "f007:1005",
+    "f007:1009",
+    "f007:1013",
+    "f007:1017",
+    "f007:1021",
+    "f007:1025",
+    "f007:1029",
+    "f007:1033",
+    "f007:1037",
+    "f007:1041"
+   ]
+  },
+  "f007:981": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f007:982"
+    },
+    "normal": {
+     "ref": "f007:983"
+    },
+    "type": 0
+   }
+  },
+  "f007:982": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 2,
+    "is_release": false
+   }
+  },
+  "f007:983": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 2
+   }
+  },
+  "f007:985": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f007:986"
+    },
+    "normal": {
+     "ref": "f007:987"
+    },
+    "type": 0
+   }
+  },
+  "f007:986": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 6,
+    "is_release": false
+   }
+  },
+  "f007:987": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 6
+   }
+  },
+  "f007:989": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f007:990"
+    },
+    "normal": {
+     "ref": "f007:991"
+    },
+    "type": 0
+   }
+  },
+  "f007:990": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 4,
+    "is_release": false
+   }
+  },
+  "f007:991": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 4
+   }
+  },
+  "f007:993": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f007:994"
+    },
+    "normal": {
+     "ref": "f007:995"
+    },
+    "type": 0
+   }
+  },
+  "f007:994": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 2,
+    "is_release": false
+   }
+  },
+  "f007:995": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 2
+   }
+  },
+  "f007:997": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f007:998"
+    },
+    "normal": {
+     "ref": "f007:999"
+    },
+    "type": 0
+   }
+  },
+  "f007:998": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 4,
+    "is_release": false
+   }
+  },
+  "f007:999": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 4
+   }
+  },
+  "f007:1001": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f007:1002"
+    },
+    "normal": {
+     "ref": "f007:1003"
+    },
+    "type": 0
+   }
+  },
+  "f007:1002": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f007:1003": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f007:1005": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f007:1006"
+    },
+    "normal": {
+     "ref": "f007:1007"
+    },
+    "type": 0
+   }
+  },
+  "f007:1006": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f007:1007": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f007:1009": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f007:1010"
+    },
+    "normal": {
+     "ref": "f007:1011"
+    },
+    "type": 0
+   }
+  },
+  "f007:1010": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f007:1011": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f007:1013": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f007:1014"
+    },
+    "normal": {
+     "ref": "f007:1015"
+    },
+    "type": 0
+   }
+  },
+  "f007:1014": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f007:1015": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f007:1017": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f007:1018"
+    },
+    "normal": {
+     "ref": "f007:1019"
+    },
+    "type": 0
+   }
+  },
+  "f007:1018": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f007:1019": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f007:1021": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f007:1022"
+    },
+    "normal": {
+     "ref": "f007:1023"
+    },
+    "type": 0
+   }
+  },
+  "f007:1022": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f007:1023": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f007:1025": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f007:1026"
+    },
+    "normal": {
+     "ref": "f007:1027"
+    },
+    "type": 0
+   }
+  },
+  "f007:1026": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f007:1027": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f007:1029": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f007:1030"
+    },
+    "normal": {
+     "ref": "f007:1031"
+    },
+    "type": 0
+   }
+  },
+  "f007:1030": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f007:1031": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f007:1033": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f007:1034"
+    },
+    "normal": {
+     "ref": "f007:1035"
+    },
+    "type": 0
+   }
+  },
+  "f007:1034": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f007:1035": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f007:1037": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f007:1038"
+    },
+    "normal": {
+     "ref": "f007:1039"
+    },
+    "type": 0
+   }
+  },
+  "f007:1038": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f007:1039": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f007:1041": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f007:1042"
+    },
+    "normal": {
+     "ref": "f007:1043"
+    },
+    "type": 0
+   }
+  },
+  "f007:1042": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f007:1043": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f007:1111": {
+   "t": "BCM.TRIGGER.CMD",
+   "f": {
+    "command_ptr": {
+     "ref": "f007:978"
+    },
+    "dc_exc_flags": 0,
+    "ok_key_cond_flags": 81952,
+    "ok_key_flags": 128
+   }
+  },
+  "f008:791": {
+   "t": "BCM.TRIGGER",
+   "f": {
+    "action_id": 1200,
+    "category_flags": 2684387456,
+    "cond_owner_state_flags": 0,
+    "norm": {
+     "ref": "f008:794"
+    },
+    "norm_NG": false,
+    "sprt": {
+     "ref": "f008:928"
+    },
+    "sprt_NG": true,
+    "use_sprt": false
+   }
+  },
+  "f008:794": {
+   "t": "BCM.TRIGGER.CMD",
+   "f": {
+    "command_ptr": {
+     "ref": "f008:795"
+    },
+    "dc_exc_flags": 0,
+    "ok_key_cond_flags": 81952,
+    "ok_key_flags": 16
+   }
+  },
+  "f008:795": {
+   "t": "BCM.COMMAND[]",
+   "f": {},
+   "i": [
+    "f008:796"
+   ]
+  },
+  "f008:796": {
+   "t": "BCM.COMMAND",
+   "f": {
+    "charge_bit": 0,
+    "input_num": 5,
+    "inputs": {
+     "ref": "f008:797"
+    }
+   }
+  },
+  "f008:797": {
+   "t": "BCM.INPUT[]",
+   "f": {},
+   "i": [
+    "f008:798",
+    "f008:802",
+    "f008:806",
+    "f008:810",
+    "f008:814",
+    "f008:818",
+    "f008:822",
+    "f008:826",
+    "f008:830",
+    "f008:834",
+    "f008:838",
+    "f008:842",
+    "f008:846",
+    "f008:850",
+    "f008:854",
+    "f008:858"
+   ]
+  },
+  "f008:798": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f008:799"
+    },
+    "normal": {
+     "ref": "f008:800"
+    },
+    "type": 0
+   }
+  },
+  "f008:799": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 2,
+    "is_release": false
+   }
+  },
+  "f008:800": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 2
+   }
+  },
+  "f008:802": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f008:803"
+    },
+    "normal": {
+     "ref": "f008:804"
+    },
+    "type": 0
+   }
+  },
+  "f008:803": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 10,
+    "is_release": false
+   }
+  },
+  "f008:804": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 10
+   }
+  },
+  "f008:806": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f008:807"
+    },
+    "normal": {
+     "ref": "f008:808"
+    },
+    "type": 0
+   }
+  },
+  "f008:807": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 8,
+    "is_release": false
+   }
+  },
+  "f008:808": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 8
+   }
+  },
+  "f008:810": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f008:811"
+    },
+    "normal": {
+     "ref": "f008:812"
+    },
+    "type": 0
+   }
+  },
+  "f008:811": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 2,
+    "is_release": false
+   }
+  },
+  "f008:812": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 2
+   }
+  },
+  "f008:814": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f008:815"
+    },
+    "normal": {
+     "ref": "f008:816"
+    },
+    "type": 0
+   }
+  },
+  "f008:815": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 8,
+    "is_release": false
+   }
+  },
+  "f008:816": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 8
+   }
+  },
+  "f008:818": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f008:819"
+    },
+    "normal": {
+     "ref": "f008:820"
+    },
+    "type": 0
+   }
+  },
+  "f008:819": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f008:820": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f008:822": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f008:823"
+    },
+    "normal": {
+     "ref": "f008:824"
+    },
+    "type": 0
+   }
+  },
+  "f008:823": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f008:824": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f008:826": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f008:827"
+    },
+    "normal": {
+     "ref": "f008:828"
+    },
+    "type": 0
+   }
+  },
+  "f008:827": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f008:828": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f008:830": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f008:831"
+    },
+    "normal": {
+     "ref": "f008:832"
+    },
+    "type": 0
+   }
+  },
+  "f008:831": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f008:832": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f008:834": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f008:835"
+    },
+    "normal": {
+     "ref": "f008:836"
+    },
+    "type": 0
+   }
+  },
+  "f008:835": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f008:836": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f008:838": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f008:839"
+    },
+    "normal": {
+     "ref": "f008:840"
+    },
+    "type": 0
+   }
+  },
+  "f008:839": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f008:840": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f008:842": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f008:843"
+    },
+    "normal": {
+     "ref": "f008:844"
+    },
+    "type": 0
+   }
+  },
+  "f008:843": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f008:844": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f008:846": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f008:847"
+    },
+    "normal": {
+     "ref": "f008:848"
+    },
+    "type": 0
+   }
+  },
+  "f008:847": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f008:848": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f008:850": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f008:851"
+    },
+    "normal": {
+     "ref": "f008:852"
+    },
+    "type": 0
+   }
+  },
+  "f008:851": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f008:852": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f008:854": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f008:855"
+    },
+    "normal": {
+     "ref": "f008:856"
+    },
+    "type": 0
+   }
+  },
+  "f008:855": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f008:856": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f008:858": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f008:859"
+    },
+    "normal": {
+     "ref": "f008:860"
+    },
+    "type": 0
+   }
+  },
+  "f008:859": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f008:860": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f008:928": {
+   "t": "BCM.TRIGGER.CMD",
+   "f": {
+    "dc_exc_flags": 0,
+    "ok_key_cond_flags": 0,
+    "ok_key_flags": 0
+   }
+  },
+  "f011:739": {
+   "t": "BCM.TRIGGER",
+   "f": {
+    "action_id": 900,
+    "category_flags": 281477661073424,
+    "cond_owner_state_flags": 0,
+    "norm": {
+     "ref": "f011:742"
+    },
+    "norm_NG": false,
+    "sprt": {
+     "ref": "f011:810"
+    },
+    "sprt_NG": false,
+    "use_sprt": true
+   }
+  },
+  "f011:742": {
+   "t": "BCM.TRIGGER.CMD",
+   "f": {
+    "command_ptr": {
+     "ref": "f011:743"
+    },
+    "dc_exc_flags": 0,
+    "ok_key_cond_flags": 81952,
+    "ok_key_flags": 16
+   }
+  },
+  "f011:743": {
+   "t": "BCM.COMMAND[]",
+   "f": {},
+   "i": [
+    "f011:744"
+   ]
+  },
+  "f011:744": {
+   "t": "BCM.COMMAND",
+   "f": {
+    "charge_bit": 2,
+    "input_num": 2,
+    "inputs": {
+     "ref": "f011:745"
+    }
+   }
+  },
+  "f011:745": {
+   "t": "BCM.INPUT[]",
+   "f": {},
+   "i": [
+    "f011:746",
+    "f011:750",
+    "f011:754",
+    "f011:758",
+    "f011:762",
+    "f011:766",
+    "f011:770",
+    "f011:774",
+    "f011:778",
+    "f011:782",
+    "f011:786",
+    "f011:790",
+    "f011:794",
+    "f011:798",
+    "f011:802",
+    "f011:806"
+   ]
+  },
+  "f011:746": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f011:747"
+    },
+    "normal": {
+     "ref": "f011:748"
+    },
+    "type": 1
+   }
+  },
+  "f011:747": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 1,
+    "is_release": true
+   }
+  },
+  "f011:748": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 65537
+   }
+  },
+  "f011:750": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f011:751"
+    },
+    "normal": {
+     "ref": "f011:752"
+    },
+    "type": 0
+   }
+  },
+  "f011:751": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 8,
+    "is_release": false
+   }
+  },
+  "f011:752": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 8
+   }
+  },
+  "f011:754": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f011:755"
+    },
+    "normal": {
+     "ref": "f011:756"
+    },
+    "type": 0
+   }
+  },
+  "f011:755": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f011:756": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f011:758": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f011:759"
+    },
+    "normal": {
+     "ref": "f011:760"
+    },
+    "type": 0
+   }
+  },
+  "f011:759": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f011:760": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f011:762": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f011:763"
+    },
+    "normal": {
+     "ref": "f011:764"
+    },
+    "type": 0
+   }
+  },
+  "f011:763": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f011:764": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f011:766": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f011:767"
+    },
+    "normal": {
+     "ref": "f011:768"
+    },
+    "type": 0
+   }
+  },
+  "f011:767": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f011:768": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f011:770": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f011:771"
+    },
+    "normal": {
+     "ref": "f011:772"
+    },
+    "type": 0
+   }
+  },
+  "f011:771": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f011:772": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f011:774": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f011:775"
+    },
+    "normal": {
+     "ref": "f011:776"
+    },
+    "type": 0
+   }
+  },
+  "f011:775": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f011:776": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f011:778": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f011:779"
+    },
+    "normal": {
+     "ref": "f011:780"
+    },
+    "type": 0
+   }
+  },
+  "f011:779": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f011:780": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f011:782": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f011:783"
+    },
+    "normal": {
+     "ref": "f011:784"
+    },
+    "type": 0
+   }
+  },
+  "f011:783": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f011:784": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f011:786": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f011:787"
+    },
+    "normal": {
+     "ref": "f011:788"
+    },
+    "type": 0
+   }
+  },
+  "f011:787": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f011:788": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f011:790": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f011:791"
+    },
+    "normal": {
+     "ref": "f011:792"
+    },
+    "type": 0
+   }
+  },
+  "f011:791": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f011:792": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f011:794": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f011:795"
+    },
+    "normal": {
+     "ref": "f011:796"
+    },
+    "type": 0
+   }
+  },
+  "f011:795": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f011:796": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f011:798": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f011:799"
+    },
+    "normal": {
+     "ref": "f011:800"
+    },
+    "type": 0
+   }
+  },
+  "f011:799": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f011:800": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f011:802": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f011:803"
+    },
+    "normal": {
+     "ref": "f011:804"
+    },
+    "type": 0
+   }
+  },
+  "f011:803": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f011:804": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f011:806": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f011:807"
+    },
+    "normal": {
+     "ref": "f011:808"
+    },
+    "type": 0
+   }
+  },
+  "f011:807": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f011:808": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f011:810": {
+   "t": "BCM.TRIGGER.CMD",
+   "f": {
+    "command_ptr": {
+     "ref": "f011:743"
+    },
+    "dc_exc_flags": 0,
+    "ok_key_cond_flags": 81952,
+    "ok_key_flags": 16
+   }
+  },
+  "f011:1230": {
+   "t": "BCM.TRIGGER",
+   "f": {
+    "action_id": 1205,
+    "category_flags": 536903938,
+    "cond_owner_state_flags": 0,
+    "norm": {
+     "ref": "f011:1233"
+    },
+    "norm_NG": false,
+    "sprt": {
+     "ref": "f011:1234"
+    },
+    "sprt_NG": false,
+    "use_sprt": true
+   }
+  },
+  "f011:1233": {
+   "t": "BCM.TRIGGER.CMD",
+   "f": {
+    "command_ptr": {
+     "ref": "f011:1095"
+    },
+    "dc_exc_flags": 0,
+    "ok_key_cond_flags": 81952,
+    "ok_key_flags": 16
+   }
+  },
+  "f011:1095": {
+   "t": "BCM.COMMAND[]",
+   "f": {},
+   "i": [
+    "f011:1096"
+   ]
+  },
+  "f011:1096": {
+   "t": "BCM.COMMAND",
+   "f": {
+    "charge_bit": 0,
+    "input_num": 5,
+    "inputs": {
+     "ref": "f011:1097"
+    }
+   }
+  },
+  "f011:1097": {
+   "t": "BCM.INPUT[]",
+   "f": {},
+   "i": [
+    "f011:1098",
+    "f011:1102",
+    "f011:1106",
+    "f011:1110",
+    "f011:1114",
+    "f011:1118",
+    "f011:1122",
+    "f011:1126",
+    "f011:1130",
+    "f011:1134",
+    "f011:1138",
+    "f011:1142",
+    "f011:1146",
+    "f011:1150",
+    "f011:1154",
+    "f011:1158"
+   ]
+  },
+  "f011:1098": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f011:1099"
+    },
+    "normal": {
+     "ref": "f011:1100"
+    },
+    "type": 0
+   }
+  },
+  "f011:1099": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 2,
+    "is_release": false
+   }
+  },
+  "f011:1100": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 2
+   }
+  },
+  "f011:1102": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f011:1103"
+    },
+    "normal": {
+     "ref": "f011:1104"
+    },
+    "type": 0
+   }
+  },
+  "f011:1103": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 10,
+    "is_release": false
+   }
+  },
+  "f011:1104": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 10
+   }
+  },
+  "f011:1106": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f011:1107"
+    },
+    "normal": {
+     "ref": "f011:1108"
+    },
+    "type": 0
+   }
+  },
+  "f011:1107": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 8,
+    "is_release": false
+   }
+  },
+  "f011:1108": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 8
+   }
+  },
+  "f011:1110": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f011:1111"
+    },
+    "normal": {
+     "ref": "f011:1112"
+    },
+    "type": 0
+   }
+  },
+  "f011:1111": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 2,
+    "is_release": false
+   }
+  },
+  "f011:1112": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 2
+   }
+  },
+  "f011:1114": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f011:1115"
+    },
+    "normal": {
+     "ref": "f011:1116"
+    },
+    "type": 0
+   }
+  },
+  "f011:1115": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 8,
+    "is_release": false
+   }
+  },
+  "f011:1116": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 8
+   }
+  },
+  "f011:1118": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f011:1119"
+    },
+    "normal": {
+     "ref": "f011:1120"
+    },
+    "type": 0
+   }
+  },
+  "f011:1119": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f011:1120": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f011:1122": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f011:1123"
+    },
+    "normal": {
+     "ref": "f011:1124"
+    },
+    "type": 0
+   }
+  },
+  "f011:1123": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f011:1124": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f011:1126": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f011:1127"
+    },
+    "normal": {
+     "ref": "f011:1128"
+    },
+    "type": 0
+   }
+  },
+  "f011:1127": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f011:1128": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f011:1130": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f011:1131"
+    },
+    "normal": {
+     "ref": "f011:1132"
+    },
+    "type": 0
+   }
+  },
+  "f011:1131": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f011:1132": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f011:1134": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f011:1135"
+    },
+    "normal": {
+     "ref": "f011:1136"
+    },
+    "type": 0
+   }
+  },
+  "f011:1135": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f011:1136": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f011:1138": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f011:1139"
+    },
+    "normal": {
+     "ref": "f011:1140"
+    },
+    "type": 0
+   }
+  },
+  "f011:1139": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f011:1140": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f011:1142": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f011:1143"
+    },
+    "normal": {
+     "ref": "f011:1144"
+    },
+    "type": 0
+   }
+  },
+  "f011:1143": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f011:1144": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f011:1146": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f011:1147"
+    },
+    "normal": {
+     "ref": "f011:1148"
+    },
+    "type": 0
+   }
+  },
+  "f011:1147": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f011:1148": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f011:1150": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f011:1151"
+    },
+    "normal": {
+     "ref": "f011:1152"
+    },
+    "type": 0
+   }
+  },
+  "f011:1151": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f011:1152": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f011:1154": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f011:1155"
+    },
+    "normal": {
+     "ref": "f011:1156"
+    },
+    "type": 0
+   }
+  },
+  "f011:1155": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f011:1156": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f011:1158": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f011:1159"
+    },
+    "normal": {
+     "ref": "f011:1160"
+    },
+    "type": 0
+   }
+  },
+  "f011:1159": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f011:1160": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f011:1234": {
+   "t": "BCM.TRIGGER.CMD",
+   "f": {
+    "command_ptr": {
+     "ref": "f011:1095"
+    },
+    "dc_exc_flags": 0,
+    "ok_key_cond_flags": 81952,
+    "ok_key_flags": 128
+   }
+  },
+  "f012:829": {
+   "t": "BCM.TRIGGER",
+   "f": {
+    "action_id": 997,
+    "category_flags": 537141248,
+    "cond_owner_state_flags": 0,
+    "norm": {
+     "ref": "f012:832"
+    },
+    "norm_NG": false,
+    "sprt": {
+     "ref": "f012:900"
+    },
+    "sprt_NG": false,
+    "use_sprt": true
+   }
+  },
+  "f012:832": {
+   "t": "BCM.TRIGGER.CMD",
+   "f": {
+    "command_ptr": {
+     "ref": "f012:833"
+    },
+    "dc_exc_flags": 0,
+    "ok_key_cond_flags": 81952,
+    "ok_key_flags": 16
+   }
+  },
+  "f012:833": {
+   "t": "BCM.COMMAND[]",
+   "f": {},
+   "i": [
+    "f012:834"
+   ]
+  },
+  "f012:834": {
+   "t": "BCM.COMMAND",
+   "f": {
+    "charge_bit": 0,
+    "input_num": 1,
+    "inputs": {
+     "ref": "f012:835"
+    }
+   }
+  },
+  "f012:835": {
+   "t": "BCM.INPUT[]",
+   "f": {},
+   "i": [
+    "f012:836",
+    "f012:840",
+    "f012:844",
+    "f012:848",
+    "f012:852",
+    "f012:856",
+    "f012:860",
+    "f012:864",
+    "f012:868",
+    "f012:872",
+    "f012:876",
+    "f012:880",
+    "f012:884",
+    "f012:888",
+    "f012:892",
+    "f012:896"
+   ]
+  },
+  "f012:836": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f012:837"
+    },
+    "normal": {
+     "ref": "f012:838"
+    },
+    "type": 2
+   }
+  },
+  "f012:837": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 1,
+    "is_release": true
+   }
+  },
+  "f012:838": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 262145
+   }
+  },
+  "f012:840": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f012:841"
+    },
+    "normal": {
+     "ref": "f012:842"
+    },
+    "type": 0
+   }
+  },
+  "f012:841": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f012:842": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f012:844": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f012:845"
+    },
+    "normal": {
+     "ref": "f012:846"
+    },
+    "type": 0
+   }
+  },
+  "f012:845": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f012:846": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f012:848": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f012:849"
+    },
+    "normal": {
+     "ref": "f012:850"
+    },
+    "type": 0
+   }
+  },
+  "f012:849": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f012:850": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f012:852": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f012:853"
+    },
+    "normal": {
+     "ref": "f012:854"
+    },
+    "type": 0
+   }
+  },
+  "f012:853": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f012:854": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f012:856": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f012:857"
+    },
+    "normal": {
+     "ref": "f012:858"
+    },
+    "type": 0
+   }
+  },
+  "f012:857": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f012:858": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f012:860": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f012:861"
+    },
+    "normal": {
+     "ref": "f012:862"
+    },
+    "type": 0
+   }
+  },
+  "f012:861": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f012:862": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f012:864": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f012:865"
+    },
+    "normal": {
+     "ref": "f012:866"
+    },
+    "type": 0
+   }
+  },
+  "f012:865": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f012:866": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f012:868": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f012:869"
+    },
+    "normal": {
+     "ref": "f012:870"
+    },
+    "type": 0
+   }
+  },
+  "f012:869": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f012:870": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f012:872": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f012:873"
+    },
+    "normal": {
+     "ref": "f012:874"
+    },
+    "type": 0
+   }
+  },
+  "f012:873": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f012:874": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f012:876": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f012:877"
+    },
+    "normal": {
+     "ref": "f012:878"
+    },
+    "type": 0
+   }
+  },
+  "f012:877": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f012:878": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f012:880": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f012:881"
+    },
+    "normal": {
+     "ref": "f012:882"
+    },
+    "type": 0
+   }
+  },
+  "f012:881": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f012:882": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f012:884": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f012:885"
+    },
+    "normal": {
+     "ref": "f012:886"
+    },
+    "type": 0
+   }
+  },
+  "f012:885": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f012:886": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f012:888": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f012:889"
+    },
+    "normal": {
+     "ref": "f012:890"
+    },
+    "type": 0
+   }
+  },
+  "f012:889": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f012:890": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f012:892": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f012:893"
+    },
+    "normal": {
+     "ref": "f012:894"
+    },
+    "type": 0
+   }
+  },
+  "f012:893": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f012:894": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f012:896": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f012:897"
+    },
+    "normal": {
+     "ref": "f012:898"
+    },
+    "type": 0
+   }
+  },
+  "f012:897": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f012:898": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f012:900": {
+   "t": "BCM.TRIGGER.CMD",
+   "f": {
+    "command_ptr": {
+     "ref": "f012:833"
+    },
+    "dc_exc_flags": 0,
+    "ok_key_cond_flags": 81952,
+    "ok_key_flags": 16
+   }
+  },
+  "f015:503": {
+   "t": "BCM.TRIGGER",
+   "f": {
+    "action_id": 859,
+    "category_flags": 536879128,
+    "cond_owner_state_flags": 0,
+    "norm": {
+     "ref": "f015:506"
+    },
+    "norm_NG": false,
+    "sprt": {
+     "ref": "f015:574"
+    },
+    "sprt_NG": false,
+    "use_sprt": true
+   }
+  },
+  "f015:506": {
+   "t": "BCM.TRIGGER.CMD",
+   "f": {
+    "command_ptr": {
+     "ref": "f015:507"
+    },
+    "dc_exc_flags": 0,
+    "ok_key_cond_flags": 81952,
+    "ok_key_flags": 16
+   }
+  },
+  "f015:507": {
+   "t": "BCM.COMMAND[]",
+   "f": {},
+   "i": [
+    "f015:508"
+   ]
+  },
+  "f015:508": {
+   "t": "BCM.COMMAND",
+   "f": {
+    "charge_bit": 1,
+    "input_num": 2,
+    "inputs": {
+     "ref": "f015:509"
+    }
+   }
+  },
+  "f015:509": {
+   "t": "BCM.INPUT[]",
+   "f": {},
+   "i": [
+    "f015:510",
+    "f015:514",
+    "f015:518",
+    "f015:522",
+    "f015:526",
+    "f015:530",
+    "f015:534",
+    "f015:538",
+    "f015:542",
+    "f015:546",
+    "f015:550",
+    "f015:554",
+    "f015:558",
+    "f015:562",
+    "f015:566",
+    "f015:570"
+   ]
+  },
+  "f015:510": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f015:511"
+    },
+    "normal": {
+     "ref": "f015:512"
+    },
+    "type": 1
+   }
+  },
+  "f015:511": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": true
+   }
+  },
+  "f015:512": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 65536
+   }
+  },
+  "f015:514": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f015:515"
+    },
+    "normal": {
+     "ref": "f015:516"
+    },
+    "type": 0
+   }
+  },
+  "f015:515": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 8,
+    "is_release": false
+   }
+  },
+  "f015:516": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 8
+   }
+  },
+  "f015:518": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f015:519"
+    },
+    "normal": {
+     "ref": "f015:520"
+    },
+    "type": 0
+   }
+  },
+  "f015:519": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f015:520": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f015:522": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f015:523"
+    },
+    "normal": {
+     "ref": "f015:524"
+    },
+    "type": 0
+   }
+  },
+  "f015:523": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f015:524": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f015:526": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f015:527"
+    },
+    "normal": {
+     "ref": "f015:528"
+    },
+    "type": 0
+   }
+  },
+  "f015:527": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f015:528": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f015:530": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f015:531"
+    },
+    "normal": {
+     "ref": "f015:532"
+    },
+    "type": 0
+   }
+  },
+  "f015:531": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f015:532": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f015:534": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f015:535"
+    },
+    "normal": {
+     "ref": "f015:536"
+    },
+    "type": 0
+   }
+  },
+  "f015:535": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f015:536": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f015:538": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f015:539"
+    },
+    "normal": {
+     "ref": "f015:540"
+    },
+    "type": 0
+   }
+  },
+  "f015:539": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f015:540": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f015:542": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f015:543"
+    },
+    "normal": {
+     "ref": "f015:544"
+    },
+    "type": 0
+   }
+  },
+  "f015:543": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f015:544": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f015:546": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f015:547"
+    },
+    "normal": {
+     "ref": "f015:548"
+    },
+    "type": 0
+   }
+  },
+  "f015:547": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f015:548": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f015:550": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f015:551"
+    },
+    "normal": {
+     "ref": "f015:552"
+    },
+    "type": 0
+   }
+  },
+  "f015:551": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f015:552": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f015:554": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f015:555"
+    },
+    "normal": {
+     "ref": "f015:556"
+    },
+    "type": 0
+   }
+  },
+  "f015:555": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f015:556": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f015:558": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f015:559"
+    },
+    "normal": {
+     "ref": "f015:560"
+    },
+    "type": 0
+   }
+  },
+  "f015:559": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f015:560": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f015:562": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f015:563"
+    },
+    "normal": {
+     "ref": "f015:564"
+    },
+    "type": 0
+   }
+  },
+  "f015:563": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f015:564": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f015:566": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f015:567"
+    },
+    "normal": {
+     "ref": "f015:568"
+    },
+    "type": 0
+   }
+  },
+  "f015:567": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f015:568": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f015:570": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f015:571"
+    },
+    "normal": {
+     "ref": "f015:572"
+    },
+    "type": 0
+   }
+  },
+  "f015:571": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f015:572": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f015:574": {
+   "t": "BCM.TRIGGER.CMD",
+   "f": {
+    "command_ptr": {
+     "ref": "f015:507"
+    },
+    "dc_exc_flags": 0,
+    "ok_key_cond_flags": 81952,
+    "ok_key_flags": 16
+   }
+  },
+  "f032:1197": {
+   "t": "BCM.TRIGGER",
+   "f": {
+    "action_id": 1310,
+    "category_flags": 295168,
+    "cond_owner_state_flags": 0,
+    "norm": {
+     "ref": "f032:1200"
+    },
+    "norm_NG": false,
+    "sprt": {
+     "ref": "f032:1268"
+    },
+    "sprt_NG": false,
+    "use_sprt": true
+   }
+  },
+  "f032:1200": {
+   "t": "BCM.TRIGGER.CMD",
+   "f": {
+    "command_ptr": {
+     "ref": "f032:1201"
+    },
+    "dc_exc_flags": 0,
+    "ok_key_cond_flags": 82016,
+    "ok_key_flags": 896
+   }
+  },
+  "f032:1201": {
+   "t": "BCM.COMMAND[]",
+   "f": {},
+   "i": [
+    "f032:1202"
+   ]
+  },
+  "f032:1202": {
+   "t": "BCM.COMMAND",
+   "f": {
+    "charge_bit": 0,
+    "input_num": 1,
+    "inputs": {
+     "ref": "f032:1203"
+    }
+   }
+  },
+  "f032:1203": {
+   "t": "BCM.INPUT[]",
+   "f": {},
+   "i": [
+    "f032:1204",
+    "f032:1208",
+    "f032:1212",
+    "f032:1216",
+    "f032:1220",
+    "f032:1224",
+    "f032:1228",
+    "f032:1232",
+    "f032:1236",
+    "f032:1240",
+    "f032:1244",
+    "f032:1248",
+    "f032:1252",
+    "f032:1256",
+    "f032:1260",
+    "f032:1264"
+   ]
+  },
+  "f032:1204": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f032:1205"
+    },
+    "normal": {
+     "ref": "f032:1206"
+    },
+    "type": 2
+   }
+  },
+  "f032:1205": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 1,
+    "is_release": true
+   }
+  },
+  "f032:1206": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 262145
+   }
+  },
+  "f032:1208": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f032:1209"
+    },
+    "normal": {
+     "ref": "f032:1210"
+    },
+    "type": 0
+   }
+  },
+  "f032:1209": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f032:1210": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f032:1212": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f032:1213"
+    },
+    "normal": {
+     "ref": "f032:1214"
+    },
+    "type": 0
+   }
+  },
+  "f032:1213": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f032:1214": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f032:1216": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f032:1217"
+    },
+    "normal": {
+     "ref": "f032:1218"
+    },
+    "type": 0
+   }
+  },
+  "f032:1217": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f032:1218": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f032:1220": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f032:1221"
+    },
+    "normal": {
+     "ref": "f032:1222"
+    },
+    "type": 0
+   }
+  },
+  "f032:1221": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f032:1222": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f032:1224": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f032:1225"
+    },
+    "normal": {
+     "ref": "f032:1226"
+    },
+    "type": 0
+   }
+  },
+  "f032:1225": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f032:1226": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f032:1228": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f032:1229"
+    },
+    "normal": {
+     "ref": "f032:1230"
+    },
+    "type": 0
+   }
+  },
+  "f032:1229": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f032:1230": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f032:1232": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f032:1233"
+    },
+    "normal": {
+     "ref": "f032:1234"
+    },
+    "type": 0
+   }
+  },
+  "f032:1233": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f032:1234": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f032:1236": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f032:1237"
+    },
+    "normal": {
+     "ref": "f032:1238"
+    },
+    "type": 0
+   }
+  },
+  "f032:1237": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f032:1238": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f032:1240": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f032:1241"
+    },
+    "normal": {
+     "ref": "f032:1242"
+    },
+    "type": 0
+   }
+  },
+  "f032:1241": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f032:1242": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f032:1244": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f032:1245"
+    },
+    "normal": {
+     "ref": "f032:1246"
+    },
+    "type": 0
+   }
+  },
+  "f032:1245": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f032:1246": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f032:1248": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f032:1249"
+    },
+    "normal": {
+     "ref": "f032:1250"
+    },
+    "type": 0
+   }
+  },
+  "f032:1249": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f032:1250": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f032:1252": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f032:1253"
+    },
+    "normal": {
+     "ref": "f032:1254"
+    },
+    "type": 0
+   }
+  },
+  "f032:1253": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f032:1254": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f032:1256": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f032:1257"
+    },
+    "normal": {
+     "ref": "f032:1258"
+    },
+    "type": 0
+   }
+  },
+  "f032:1257": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f032:1258": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f032:1260": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f032:1261"
+    },
+    "normal": {
+     "ref": "f032:1262"
+    },
+    "type": 0
+   }
+  },
+  "f032:1261": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f032:1262": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f032:1264": {
+   "t": "BCM.INPUT",
+   "f": {
+    "charge": {
+     "ref": "f032:1265"
+    },
+    "normal": {
+     "ref": "f032:1266"
+    },
+    "type": 0
+   }
+  },
+  "f032:1265": {
+   "t": "BCM.INPUT.CHARGE",
+   "f": {
+    "id": 0,
+    "is_release": false
+   }
+  },
+  "f032:1266": {
+   "t": "BCM.INPUT.NORMAL",
+   "f": {
+    "ok_key_flags": 0
+   }
+  },
+  "f032:1268": {
+   "t": "BCM.TRIGGER.CMD",
+   "f": {
+    "command_ptr": {
+     "ref": "f032:1201"
+    },
+    "dc_exc_flags": 0,
+    "ok_key_cond_flags": 82016,
+    "ok_key_flags": 400
+   }
+  }
+ }
+}

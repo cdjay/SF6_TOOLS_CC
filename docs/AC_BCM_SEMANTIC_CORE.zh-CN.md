@@ -220,6 +220,10 @@ Presentation、Detector 和 Auditor 必须从冻结 V2 序列生成同一份训�
 
 指令表 `_meta.bcm_trigger_fingerprint` 记录生成所用 BCM 的触发器指纹；`ComboTrials/DataBuildGuard.lua`
 在游戏中计算同一指纹，不一致或缺少指令表时提示重新导出与生成，防止游戏更新后 Action ID 移动造成静默误判。
+录制同样写入当时的指纹（`_xt_meta.versions.game.bcm_trigger_fingerprint`），加载用其他游戏数据录制的连段时会提示
+Action ID 可能已变化。角色暂时没有可用指令表（缺失或未通过校验）时，经典指令由 `ComboTrials/BcmCommandDecoder.lua`
+直接从游戏内 BCM 触发器解码显示；它移植自生成器的解码器，在 2026-08-03 全部 3276 个触发器上与生成器结果一致。
+派生拆分、阶段抑制与现代指令仍需生成表。
 
 ## 8. 完成标准
 

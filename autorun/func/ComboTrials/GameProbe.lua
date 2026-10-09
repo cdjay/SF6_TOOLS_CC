@@ -1,5 +1,6 @@
 local GS = require("func/GameState")
 local DataBuildGuard = require("func/ComboTrials/DataBuildGuard")
+local BcmCommandDecoder = require("func/ComboTrials/BcmCommandDecoder")
 
 local GameProbe = {
     name = "ComboTrials.GameProbe",
@@ -148,6 +149,45 @@ function GameProbe.build_bcm_trigger_cache(player_idx)
     player.trigger_mask_cache = build.mask_cache
     player.trigger_cache_built = true
     return true
+end
+
+-- Classic notation decoded from the live BCM trigger table, for a fighter
+-- without a usable generated command table. Decoded on first use per Action
+-- (the first trigger in table order with a classic input, as the generator
+-- does) and cached until the BCM resource changes (bcm_classic_display_cache
+-- is reset with the trigger cache). false marks an Action without one.
+function GameProbe.bcm_classic_display(player_idx, action_id)
+    local player = players and players[player_idx]
+    local id = math.tointeger(tonumber(action_id))
+    if not player or id == nil or id <= 0 then return nil end
+    local cache = player.bcm_classic_display_cache
+    if cache == nil then
+        cache = {}
+        player.bcm_classic_display_cache = cache
+    end
+    if cache[id] ~= nil then return cache[id] or nil end
+    local display = false
+    pcall(function()
+        local cmd_obj = g_battle_type and g_battle_type:get_field("Command"):get_data(nil)
+        local triggers = cmd_obj and cmd_obj:call("get_mUserEngine")[player_idx]:call("GetTrigger()"):get_elements()
+        if type(triggers) ~= "table" then return end
+        local last = 0
+        for key in pairs(triggers) do
+            if type(key) == "number" and key > last then last = key end
+        end
+        for index = 1, last do
+            local trigger = triggers[index]
+            if trigger and trigger.action_id == id then
+                local decoded = BcmCommandDecoder.classic_display(BcmCommandDecoder.live_access, trigger)
+                if decoded then
+                    display = decoded
+                    return
+                end
+            end
+        end
+    end)
+    cache[id] = display
+    return display or nil
 end
 
 local skip_fields = {
