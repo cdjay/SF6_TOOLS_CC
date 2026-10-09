@@ -118,6 +118,37 @@ unchanged. Recording in the new replay-analysis UI is planned, not yet
 implemented. The training/replay recording scope has a focused regression, but
 real-game acceptance is still required.
 
+## AC+BCM Single Truth (branch `feature/acbcm-single-truth`, 2026-10-09)
+
+Detection rules, display and the data guard now derive from AC+BCM where the
+dumps allow it; the rest is blocked on evidence, not on code:
+
+- **Dumps predate the fixed exporter.** Every 2026-08-03 dump lost the
+  dictionary keys at or above `Count` (7–39 trigger groups per fighter) and all
+  inherited key fields (frame windows). Cancel/follow-up relations
+  (`trigger_group_report.js`: 10 pairs explained, 22 unexplained, 39 unknown)
+  and hold thresholds (`hold_window_report.js`: 77 of 82 `is_holdable` rules sit
+  on Type 20 keys, all `frame_window_missing`) can only be generated after a
+  re-export with `tools/acbcm_exporter`. Until then `optional_parent_ids`,
+  `charge_min`/`charge_max` and official-site follow-up text stay in use.
+- **Generator gaps.** 34 overridden Actions have no BCM trigger and are absent
+  from the generated tables (hold/phase/follow-up targets); about 13 would be
+  covered by inheriting the source command, but counterexamples of the same
+  branch type exist (Marisa 672/687, Mai 604, Guile 922), so they stay curated.
+  Five overrides fix decode differences (Blanka 926/931 support-profile
+  alternative buttons, C. Viper 1037, Cammy 979, Mai 907).
+- **Runtime BCM fallback** shows only classic notation, and only while a fighter
+  has no usable table; follow-up splitting, phase suppression and modern
+  commands need the generated table.
+- **Not live-verified:** the data guard and recording fingerprint warnings, the
+  BCM fallback display, fallback-key combo migration, the `_charge_policy`
+  move and the 10 fighters whose air normals gained landing phases (AKI, Alex,
+  C. Viper, Ingrid, Ken, Lily, Luke, Manon, Ryu, Yasmine).
+- **Release day unknowns:** the new fighter's ID (23/24/34 are unused in the
+  August enums), whether the update moves existing Action IDs
+  (`compare_acbcm_versions.js`), and REFramework compatibility.
+- `MoveResolver`/`CurrentMoveGraph` remain unwired (see Blocker Summary).
+
 ## Dummy Guard Persistence
 
 Dummy guard persistence has focused offline coverage but still requires a
