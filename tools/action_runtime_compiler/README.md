@@ -262,6 +262,19 @@ node tools\action_runtime_compiler\hold_window_report.js --version 2026-10-13 --
 旧导出没有继承字段、没有帧窗口，结论全部是 `frame_window_missing`。用当前 `tools/acbcm_exporter`
 重导后，`consistent` 的条目就可以改由生成器提供阈值；生成器目前尚未产出长按阈值。
 
+## 4.5 新角色的新结构
+
+生成规则按精确的结构签名匹配；新角色如果带来名单上从未出现过的机制（新的 Key 类型、新的 BranchKey
+形态、新的 TriggerKey 条件组合），这部分会静默退回旧逻辑。`novel_structure_report.js` 列出目标角色身上、
+其余角色都没有的结构，以及携带它们的 Action：
+
+```powershell
+node tools\action_runtime_compiler\novel_structure_report.js --version 2026-10-13 --characters Arjun --out novel.md
+```
+
+不带 `--characters` 时每个角色都与其余角色比较，可以看到名单自身的角色专属机制。2026-08-03 的数据里，
+Ingrid 有 15 项专属结构（她也是手写长按例外最多的角色），Yasmine 有 4 项。31 个角色全量扫描约 1.5 分钟。
+
 ## 5. 官网文件名与角色名
 
 新版抓取器直接以 SF6CC 规范角色名保存，例如：

@@ -74,6 +74,12 @@ Status: `CURRENT`
 
    报告列出每个角色新增/删除的 Action、指令换了 Action ID 的招式，以及受影响的例外、显示覆盖和兼容映射。
    旧角色没有变化时可直接部署；有变化的角色要先迁移它的例外和已存连段。
+
+   再看新角色带来了哪些名单上从未出现过的结构（新机制），实机测试时重点覆盖这些招式：
+
+   ```powershell
+   node tools\action_runtime_compiler\novel_structure_report.js --version 2026-10-13 --characters Arjun --out novel.md
+   ```
 6. 部署并复核：
 
    ```powershell
