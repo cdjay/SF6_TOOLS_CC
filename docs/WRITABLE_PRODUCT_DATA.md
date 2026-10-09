@@ -4,7 +4,7 @@ Status: `CURRENT`
 
 **Status**: CURRENT Governance Contract / Runtime migration DESIGN_ONLY
 
-**Scope**: `data/TrainingComboTrials_data/exceptions/` — 33 tracked JSON files, 489 action-level entries across 31 character files plus `Common.json` and `Unknown.json`.
+**Scope**: `data/TrainingComboTrials_data/exceptions/` — 33 tracked JSON files, 310 action-level entries (290 across 31 character files plus 20 in `Common.json`; `Unknown.json` is empty) after the 2026-10-09 convergence moved 174 AC+BCM-derived rules to the read-only generated layer `generated_semantics/`.
 
 **Classification**: `ACTIVE_RUNTIME_DATA` + product-default authority for evidence-backed Runtime exception rules. These files are not an AC/BCM semantic source of truth and must not become a second authority for Move identity or current-game Action relations. They are Git-tracked, included in every standard release package, and consumed by the Runtime semantic resolution pipeline. They are also **writable by Runtime code at game time**, creating a product-default / runtime-state mixed layer.
 
@@ -15,13 +15,13 @@ Status: `CURRENT`
 | Property | Value |
 |---|---|
 | Tracked files | 33 |
-| Total action entries | 489 |
+| Total action entries | 310 (was 489 before the 2026-10-09 convergence) |
 | Character files | 31 (AKI through Zangief) |
 | Shared files | `Common.json` (20 entries), `Unknown.json` (0 entries, placeholder) |
 | Data purpose | Action detection behaviour rules: absorb, force-match, holdable timing, sequence grouping, transcription requirements, action event projection |
 | Git status | Tracked source of truth |
 | Release packaging | Included unconditionally via `git ls-files -- data` ([package_release.ps1:188](../tools/package_release.ps1)) |
-| Runtime writability | **Yes** — 4 write paths modify tracked files at game time |
+| Runtime writability | **Yes** — the in-game editor's save and delete (Writers 3-4); the automatic writers 1-2 were removed on 2026-10-09 |
 
 ---
 
@@ -69,7 +69,16 @@ Called from the entry script:
 
 ## 3. Runtime Writers
 
-Four write paths exist. All use `json.dump_file()` for non-atomic, full-file overwrite.
+Four write paths existed; all use `json.dump_file()` for non-atomic, full-file overwrite.
+
+**Update 2026-10-09 (`feature/acbcm-single-truth`, d47738b):** Writers 1 and 2
+were removed. The runtime no longer writes exception files on its own: JP and
+Lily still learn `charge_max` from the first release, but only into the current
+recording, never into the file. Only the in-game editor (Writers 3-4) writes,
+and it saves just the curated layer (`CharacterRules.serialize_for_save`):
+unchanged generated rules are left out, and the file-level `_generated_semantics`
+and `_charge_policy` sections are kept. Sections 3.1-3.2 below describe the
+removed behavior for reference.
 
 ### 3.1 Writer 1 — Auto-detect `charge_max`
 
@@ -112,7 +121,7 @@ The Exception Management panel (line 2204) is available to **all users** with no
 - No developer-mode detection
 - No password or confirmation dialog for save
 - No confirmation dialog for delete
-- Auto-detection writes (Writers 1-2) are completely invisible to the user
+- Auto-detection writes (Writers 1-2, removed 2026-10-09) were completely invisible to the user
 
 A normal player using training mode may trigger silent file writes to their MOD installation directory without any awareness.
 
