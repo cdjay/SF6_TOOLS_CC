@@ -186,7 +186,9 @@ DRC 优先。单凭输入不得生成指令步骤。
 `review_complete=false` 或 `integration_candidate=false` 的 artifact 只能用于诊断、corpus
 比较与后续 shadow observation，不能成为 production authority。
 
-Phase 2 将角色条件化的蓄力/长按行为收敛到 `ChargeRuntimePolicy`，主入口只负责调用。
+Phase 2 将角色条件化的蓄力/长按行为收敛到 `ChargeRuntimePolicy`，主入口只负责调用。该模块不再按角色名分支：
+判定方式不同的角色在 `exceptions/<键>.json` 的 `_charge_policy` 段声明（三档 `levels`、`perfect_window`、
+`autodetect_charge_max`、`track_physical_hold`、`charge_stock_actions`），新角色只需补数据、不用改代码。
 Akuma Action 1231 等名称到指令序列的展开归 `MotionPresentation` 所有；该模块只能返回
 显示文本，不能修改录制、检测、兼容或 MoveResolver identity。Presentation override 已由
 Resolver 隔离测试证明不会改变语义解析结果。

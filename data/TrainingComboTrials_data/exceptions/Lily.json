@@ -30,5 +30,15 @@
   "978": {
     "absorb_ids": "976,985,986",
     "action_event_projection": {}
+  },
+  "_charge_policy": {
+    "evaluation": "levels",
+    "labels": [
+      "Lv1",
+      "Lv2",
+      "Lv3"
+    ],
+    "autodetect_charge_max": true,
+    "track_physical_hold": true
   }
 }

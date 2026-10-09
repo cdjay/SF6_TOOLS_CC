@@ -4986,6 +4986,11 @@ local function ct_player_init(p_idx, p_state)
         p_state.generated_action_relations = nil
         if p_state.profile_name ~= "Unknown" then
             p_state.exceptions = CharacterRules.load_for_character(p_state.profile_name)
+            local charge_policy_ok, charge_policy_error = ComboTrialsModules.ChargeRuntimePolicy.register(
+                p_state.profile_name, CharacterRules.charge_policy(p_state.exceptions))
+            if not charge_policy_ok then
+                ct_ticker("【蓄力规则无效】" .. p_state.profile_name .. "：" .. tostring(charge_policy_error))
+            end
             p_state.action_compatibility = select(1,
                 ComboTrialsModules.ActionCompatibility.load(
                 p_state.profile_name,
@@ -5012,7 +5017,7 @@ local function ct_player_init(p_idx, p_state)
 end
 
 local function ct_player_tracking(p_idx, p_state)
-    -- LILY STRICT: Track physical button held on controller
+    -- Policies with track_physical_hold follow the button held on the controller.
     if ComboTrialsModules.ChargeRuntimePolicy.should_track_physical_hold(
             p_state.profile_name
         )
@@ -5407,7 +5412,7 @@ local function ct_player_hold_charge(p_state)
                 -- PLAYER RELEASED THE BUTTON
                 current_log.is_holding = false
 
-                -- Auto-detect max frame for JP/Lily if not configured
+                -- Policies with autodetect_charge_max learn charge_max from the first release.
                 if ComboTrialsModules.ChargeRuntimePolicy
                     .should_autodetect_charge_max(p_state.profile_name)
                     and (current_log.charge_max == nil or current_log.charge_max == "") then
@@ -6425,14 +6430,15 @@ local function ct_player_process_actions(p_idx, p_state, actions_to_process)
                 -- 1. Calculate charge properties
                 if exc and exc.is_holdable then
                     is_holdable = true
-                    if p_state.profile_name == "Luke" then
+                    if ComboTrialsModules.ChargeRuntimePolicy.uses_perfect_window(p_state.profile_name) then
                         luke_perfect_min = exc.perfect_min
                         luke_perfect_max = exc.perfect_max
                     end
 
                     charge_min = exc.charge_min
                     charge_max = exc.charge_max
-                    dual_threshold = (p_state.profile_name == "Lily")
+                    dual_threshold = ComboTrialsModules.ChargeRuntimePolicy
+                        .should_track_physical_hold(p_state.profile_name)
                 end
 
                 -- 2. Final motion_str determination
@@ -6489,7 +6495,8 @@ local function ct_player_process_actions(p_idx, p_state, actions_to_process)
                 else
                     real_input_str = "None"
                     frame_diff_str = "?"
-                    if is_holdable and p_state.profile_name == "Lily" then
+                    if is_holdable and ComboTrialsModules.ChargeRuntimePolicy
+                        .should_track_physical_hold(p_state.profile_name) then
                         hold_mask = direct_input & 0xFFF0
                         if hold_mask > 0 then
                             is_holding = true

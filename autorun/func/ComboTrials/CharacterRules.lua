@@ -44,11 +44,18 @@ local function is_action_key(key)
     return tostring(key):match("^%d+$") ~= nil
 end
 
+-- File-level sections of a curated exception file that are not Action
+-- rules: "_generated_semantics" steers the generator, "_charge_policy" is the
+-- fighter's hold judgement (ChargeRuntimePolicy). Both are kept for saving
+-- but are not part of the runtime rules.
+local CURATION_SECTIONS = {
+    _generated_semantics = true,
+    _charge_policy = true,
+}
+
 -- Hand-written exceptions (curation) plus generated AC+BCM rules
 -- (generated_semantics/<name>.json). The generator never emits an Action
 -- that curation defines or withholds, so the two layers are disjoint.
--- "_generated_semantics" is curation for the generator only and is not part
--- of the runtime rules.
 function CharacterRules.load_for_character(character_name)
     local handwritten = json.load_file(
         CharacterRules.get_exception_filename(character_name)
@@ -59,7 +66,7 @@ function CharacterRules.load_for_character(character_name)
     local merged = {}
     local curation_meta = {}
     for action_id, rule in pairs(handwritten) do
-        if action_id == "_generated_semantics" then
+        if CURATION_SECTIONS[action_id] then
             curation_meta[action_id] = rule
         else
             merged[action_id] = rule
@@ -75,6 +82,13 @@ function CharacterRules.load_for_character(character_name)
     end
     loaded_sources[merged] = { generated = generated, curation_meta = curation_meta }
     return merged
+end
+
+-- The "_charge_policy" section of the exception file behind a rule table
+-- returned by load_for_character (nil when the fighter has none).
+function CharacterRules.charge_policy(rules)
+    local source = loaded_sources[rules]
+    return source and source.curation_meta._charge_policy or nil
 end
 
 -- The curated document to write for a rule table returned by

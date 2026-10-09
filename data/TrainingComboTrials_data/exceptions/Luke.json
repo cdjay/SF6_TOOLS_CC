@@ -93,5 +93,8 @@
     "action_event_rules": {
       "transient_precursor_ids": "17"
     }
+  },
+  "_charge_policy": {
+    "evaluation": "perfect_window"
   }
 }

@@ -78,7 +78,11 @@ has switched authority, and an artifact with `review_complete=false` or
 and future shadow observation.
 
 Phase 2 keeps character-conditioned hold/charge behavior behind
-`ChargeRuntimePolicy`; the entry script only invokes that module. Named command
+`ChargeRuntimePolicy`; the entry script only invokes that module. The module is
+not keyed by fighter name: a fighter whose hold is judged differently declares
+it in the `_charge_policy` section of `exceptions/<key>.json` (`levels` with
+three labels, `perfect_window`, `autodetect_charge_max`, `track_physical_hold`,
+`charge_stock_actions`), so a new fighter needs data, not code. Named command
 expansion such as Akuma Action 1231 lives in `MotionPresentation`, which may
 return display text but cannot alter recording, detection, compatibility, or
 MoveResolver identity. Presentation overrides are covered by a resolver

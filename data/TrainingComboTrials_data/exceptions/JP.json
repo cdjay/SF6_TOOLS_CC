@@ -54,5 +54,14 @@
     "charge_max": 11,
     "ignore_prev_id": 973,
     "ignore_prev_frames": 11
+  },
+  "_charge_policy": {
+    "evaluation": "levels",
+    "labels": [
+      "Instant",
+      "Partial",
+      "FAKE"
+    ],
+    "autodetect_charge_max": true
   }
 }

@@ -17,6 +17,7 @@ local RawInputCodec = require("func/ComboTrials/RawInputCodec")
 local ComboFeedback = require("func/ComboTrials/ComboFeedback")
 local RecordingPolicy = require("func/ComboTrials/RecordingPolicy")
 local CharacterRules = require("func/ComboTrials/CharacterRules")
+local ChargeRuntimePolicy = require("func/ComboTrials/ChargeRuntimePolicy")
 
 local M = {}
 local ctx
@@ -2455,8 +2456,10 @@ local function draw_combo_trials_menu_ui()
                     if changed_link then p_state.edit_absorb_ids = new_link end
                     imgui.spacing()
 
-                    if p_state.profile_name == "Luke" then
-                        imgui.text_colored("Luke 蓄力设置（Perfect 留空则不判定 Perfect）：", COLORS.Green)
+                    local level_labels = ChargeRuntimePolicy.level_labels(p_state.profile_name)
+                    if ChargeRuntimePolicy.uses_perfect_window(p_state.profile_name) then
+                        imgui.text_colored(tostring(p_state.profile_name)
+                            .. " 蓄力设置（Perfect 留空则不判定 Perfect）：", COLORS.Green)
 
                         local changed_min, new_min = imgui.input_text("Instant / Partial 分界（帧）",
                             p_state.edit_charge_min or "")
@@ -2469,17 +2472,20 @@ local function draw_combo_trials_menu_ui()
                         local changed_pmax, new_pmax = imgui.input_text("Perfect 结束（帧）",
                             p_state.edit_perfect_max or "")
                         if changed_pmax then p_state.edit_perfect_max = new_pmax end
-                    elseif p_state.profile_name == "JP" then
-                        imgui.text_colored("JP 模式：超过阈值即视为 FAKE。", COLORS.Blue)
-                        local changed_min, new_min = imgui.input_text("Instant / Partial 分界（帧）",
+                    elseif level_labels then
+                        imgui.text_colored(string.format("分档判定：不超过分界为 %s，达到阈值为 %s，其余为 %s。",
+                            level_labels[1], level_labels[3], level_labels[2]), COLORS.Blue)
+                        local changed_min, new_min = imgui.input_text(
+                            level_labels[1] .. " / " .. level_labels[2] .. " 分界（帧）",
                             p_state.edit_charge_min or "")
                         if changed_min then p_state.edit_charge_min = new_min end
 
-                        local changed_max, new_max = imgui.input_text("FAKE 取消阈值（帧）",
+                        local changed_max, new_max = imgui.input_text(level_labels[3] .. " 阈值（帧）",
                             p_state.edit_charge_max or "")
                         if changed_max then p_state.edit_charge_max = new_max end
                     else
-                        imgui.text_colored("蓄力设置（Max 留空则自动填充）：", COLORS.Blue)
+                        imgui.text_colored(ChargeRuntimePolicy.should_autodetect_charge_max(p_state.profile_name)
+                            and "蓄力设置（Max 留空则自动填充）：" or "蓄力设置：", COLORS.Blue)
                         local changed_min, new_min = imgui.input_text("Instant / Partial 分界（帧）",
                             p_state.edit_charge_min)
                         if changed_min then p_state.edit_charge_min = new_min end
@@ -2603,14 +2609,17 @@ local function draw_combo_trials_menu_ui()
                         if exc.ignore then desc = desc .. "[忽略] " end
                         if exc.force then desc = desc .. "[强制] " end
                         if exc.is_holdable then
-                            if p_state.profile_name == "Luke" then
+                            local level_labels = ChargeRuntimePolicy.level_labels(p_state.profile_name)
+                            if ChargeRuntimePolicy.uses_perfect_window(p_state.profile_name) then
                                 local min_s = exc.perfect_min and (exc.perfect_min .. "f") or "自动"
                                 local max_s = exc.perfect_max and (exc.perfect_max .. "f") or "自动"
-                                desc = desc .. "[HOLD(Luke Perfect: " .. min_s .. "-" .. max_s .. ")] "
-                            elseif p_state.profile_name == "JP" then
+                                desc = desc .. "[HOLD(" .. tostring(p_state.profile_name)
+                                    .. " Perfect: " .. min_s .. "-" .. max_s .. ")] "
+                            elseif level_labels then
                                 local min_s = exc.charge_min and (exc.charge_min .. "f") or "?"
                                 local max_s = exc.charge_max and (exc.charge_max .. "f") or "?"
-                                desc = desc .. "[HOLD(" .. min_s .. "-" .. max_s .. " FAKE)] "
+                                desc = desc .. "[HOLD(" .. min_s .. "-" .. max_s .. " "
+                                    .. table.concat(level_labels, "/") .. ")] "
                             else
                                 local min_s = exc.charge_min and (exc.charge_min .. "f") or "?"
                                 local max_s = exc.charge_max and (exc.charge_max .. "f") or "?"
