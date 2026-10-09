@@ -45,17 +45,24 @@ Runtime detection still reads exception-shaped rules through `CharacterRules`
 (`absorb_ids`, `force`, ...), now from two disjoint layers. The generated layer
 (`generated_semantics/<key>.json`, built by
 `tools/action_runtime_compiler/build_generated_semantics.js`, algorithm
-`sf6cc-acbcm-exception-projection.v1`) projects AC+BCM relations of the deployed
+`sf6cc-acbcm-exception-projection.v2`) projects AC+BCM relations of the deployed
 command table: a Type 29 verified variant is absorbed by its source Action and
 forced; Type 63 strength variants, Type 20 directional variants and Type 37
-follow-up execution phases are forced. `manifest.json` carries the relation
-evidence of every rule. The curated layer (`exceptions/<key>.json`) keeps only
+follow-up execution phases are forced; so are Actions whose command-table
+ownership the runtime does not count as a player step on its own
+(`inherited`, e.g. every back throw, `rebind`, `automatic_hold_transition`,
+`ac_state_direction`, `type20_hold_continuation`, `ac_type13_neutral`,
+`ac_state_neutral`). `manifest.json` carries the relation evidence of every rule. The curated layer (`exceptions/<key>.json`) keeps only
 behavior that AC+BCM does not derive or that differs from it; an Action belongs
 to exactly one layer. `_generated_semantics.withhold` lists every Action where
 AC+BCM derives a rule but current behavior differs; those Actions are not
 generated until live verification removes the entry. The 2026-10-09
 convergence moved identical curated entries to the generated layer (curated
-462→290, generated 174, withheld 47) with identical effective runtime rules.
+462→290, generated 174, withheld 47) with identical effective runtime rules; the
+2026-10-10 ownership rules moved 51 more (curated 290→239, generated 225,
+withheld 59, effective rules again identical). Ten of the new withheld Actions
+have no curated rule at all, e.g. Yasmine 717, the only back throw without
+force.
 A fighter without curation receives every generated rule.
 
 Each command table stores `_meta.bcm_trigger_fingerprint`; `ComboTrials/DataBuildGuard.lua`

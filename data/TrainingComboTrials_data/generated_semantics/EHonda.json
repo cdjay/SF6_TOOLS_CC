@@ -29,9 +29,12 @@
   "653": {
     "force": true
   },
+  "717": {
+    "force": true
+  },
   "_meta": {
     "schema": "sf6cc.generated-character-semantics.v2",
-    "algorithm": "sf6cc-acbcm-exception-projection.v1",
+    "algorithm": "sf6cc-acbcm-exception-projection.v2",
     "character": "EHonda",
     "fighter_id": 20,
     "source_command_display_sha256": "6ca31dc7736c65e2feda7b6eb848e7f116b558e08bef48113c727f6eb20d9d49",
@@ -41,8 +44,8 @@
       "hash": "f33e39d3"
     },
     "counts": {
-      "candidates": 14,
-      "generated": 10,
+      "candidates": 15,
+      "generated": 11,
       "curated": 0,
       "withheld": 4
     }

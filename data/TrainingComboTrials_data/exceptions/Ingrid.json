@@ -1,7 +1,4 @@
 {
-  "717": {
-    "force": true
-  },
   "904": {
     "is_holdable": true,
     "hold_partial_check": false,
@@ -55,9 +52,6 @@
   },
   "970": {
     "absorb_ids": "975",
-    "force": true
-  },
-  "977": {
     "force": true
   },
   "1028": {
@@ -174,6 +168,30 @@
         "reason": "2026-10-09 迁移：保留现有判定行为，待实机验证后再改用生成规则"
       },
       {
+        "action": 975,
+        "generated": {
+          "force": true
+        },
+        "curated": null,
+        "reason": "2026-10-10 迁移：指令表归属推导的 force 与现有判定不同，保留现有行为，待实机验证后再改用生成规则"
+      },
+      {
+        "action": 976,
+        "generated": {
+          "force": true
+        },
+        "curated": null,
+        "reason": "2026-10-10 迁移：指令表归属推导的 force 与现有判定不同，保留现有行为，待实机验证后再改用生成规则"
+      },
+      {
+        "action": 980,
+        "generated": {
+          "force": true
+        },
+        "curated": null,
+        "reason": "2026-10-10 迁移：指令表归属推导的 force 与现有判定不同，保留现有行为，待实机验证后再改用生成规则"
+      },
+      {
         "action": 1037,
         "generated": {
           "absorb_ids": "1038"
@@ -198,6 +216,30 @@
           "force": true
         },
         "reason": "2026-10-09 迁移：保留现有判定行为，待实机验证后再改用生成规则"
+      },
+      {
+        "action": 1479,
+        "generated": {
+          "force": true
+        },
+        "curated": null,
+        "reason": "2026-10-10 迁移：指令表归属推导的 force 与现有判定不同，保留现有行为，待实机验证后再改用生成规则"
+      },
+      {
+        "action": 1480,
+        "generated": {
+          "force": true
+        },
+        "curated": null,
+        "reason": "2026-10-10 迁移：指令表归属推导的 force 与现有判定不同，保留现有行为，待实机验证后再改用生成规则"
+      },
+      {
+        "action": 1481,
+        "generated": {
+          "force": true
+        },
+        "curated": null,
+        "reason": "2026-10-10 迁移：指令表归属推导的 force 与现有判定不同，保留现有行为，待实机验证后再改用生成规则"
       }
     ]
   },

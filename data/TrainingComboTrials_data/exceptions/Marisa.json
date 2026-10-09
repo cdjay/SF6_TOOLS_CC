@@ -85,9 +85,6 @@
       "preserve_fresh_button_press": true
     }
   },
-  "717": {
-    "force": true
-  },
   "900": {
     "is_holdable": true,
     "hold_partial_check": false,

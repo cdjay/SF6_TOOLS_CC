@@ -1,6 +1,6 @@
 {
   "schema": "sf6cc.generated-character-semantics-manifest.v2",
-  "algorithm_version": "sf6cc-acbcm-exception-projection.v1",
+  "algorithm_version": "sf6cc-acbcm-exception-projection.v2",
   "relations": [
     {
       "kind": "verified_alias_relations",
@@ -30,385 +30,430 @@
       "fields": [
         "force"
       ]
+    },
+    {
+      "kind": "command_table_ownership",
+      "ownerships": [
+        "inherited",
+        "rebind",
+        "automatic_hold_transition",
+        "ac_state_direction",
+        "type20_hold_continuation",
+        "ac_type13_neutral",
+        "ac_state_neutral"
+      ],
+      "fields": [
+        "force"
+      ]
     }
   ],
   "artifacts": [
     {
       "file": "AKI.json",
-      "bytes": 536,
-      "sha256": "d10c7f5bb1bc9f5b436f5643f01be804bc94925f18f89eccd92f9f833433ed92"
+      "bytes": 570,
+      "sha256": "3e021cf723d2ea37c6d2cc887e5823615b722103e83c6686d4f594c53466960e"
     },
     {
       "file": "Akuma.json",
-      "bytes": 690,
-      "sha256": "5bae12d3dfcd1a6aa40ce92fd6b0a00d5f5720344cecc6b46de2ef0c8458c724"
+      "bytes": 758,
+      "sha256": "3dcc0d6545dc4628bdb7a25a93562905412d9cba56405ffbf21e3e8c86ff5cc4"
     },
     {
       "file": "Alex.json",
-      "bytes": 716,
-      "sha256": "fad50a126abc4a8a4fceee765acaa2638bc565d0c46694f33e44b2461b1ee8ec"
+      "bytes": 784,
+      "sha256": "c3b89938f84b4075dbfc494d0e8d7e5621eca31b7f70a6f077c649de46375bd9"
     },
     {
       "file": "Blanka.json",
-      "bytes": 574,
-      "sha256": "68e1b6a04651ebf2a1b416101c6ff4ca917099e4fca8d11dbf4c669647a17f7d"
+      "bytes": 608,
+      "sha256": "4705bb4dc2a2c5126fc3ba8e4566104bfb189c2923fbb99ee9f2a1a763b3c34b"
     },
     {
       "file": "Cammy.json",
-      "bytes": 538,
-      "sha256": "d00ce07d2ab12d1fb4341d8a0db13136838efa0a57ff64f2d3a46708a7f41575"
+      "bytes": 572,
+      "sha256": "163645c8a4b21abb6d3e17258656cf1298e9f1ad405e7d6a97f7b14e6687de13"
     },
     {
       "file": "ChunLi.json",
-      "bytes": 841,
-      "sha256": "8bdc40a4141cd393e9016e730e42d2488a89e7a6cf7135f777074a7467427dbf"
+      "bytes": 875,
+      "sha256": "0258882962e1055da01800c3338af46d20666a2104f8fbfa49cb48c611a9a4d5"
     },
     {
       "file": "CViper.json",
-      "bytes": 540,
-      "sha256": "a90e0a8fd2514a5eda52bde91b1203c845d7f284f20fcefe94172e9f587ebbf2"
+      "bytes": 574,
+      "sha256": "aec75f6fd0085fe6ea6f9fd083cc79b0a057ec1519cb464d65cd8ec9ca76ec8e"
     },
     {
       "file": "DeeJay.json",
-      "bytes": 614,
-      "sha256": "c3de8e3ef3da2636d1f18d284951ab0458ace06593af2025887ab0461db36f68"
+      "bytes": 648,
+      "sha256": "f73782c2c1eccedc4ec14faa23e3fdbc3a131a6d25ef803cbff11ef5c61ebbe3"
     },
     {
       "file": "Dhalsim.json",
-      "bytes": 540,
-      "sha256": "8a9301dfaaac392ed8bf5f7917d3041064698ab2b1875e1e166165caa16f6250"
+      "bytes": 644,
+      "sha256": "4bdbec6b7f10d002d8e1e2b47033e1fa4f108e09fe8a998faa226eaafa5409fd"
     },
     {
       "file": "Ed.json",
-      "bytes": 536,
-      "sha256": "fbeeef52860e0f59467e851d7d401a6f273d6f496e0d5a269f541ccdaf402430"
+      "bytes": 570,
+      "sha256": "ae15a544d556456327c123bc9ad512c087fc49fc9970127c14a64cc168d480f7"
     },
     {
       "file": "EHonda.json",
-      "bytes": 905,
-      "sha256": "ecd04e693037c3e16f6c1f70cbcec60e0aef23d9bd6dbb673d82072ffbf042a6"
+      "bytes": 939,
+      "sha256": "a10871b57a322b1b694f4e7a687258ee99938facc1006b0be12e314f001ce7fa"
     },
     {
       "file": "Elena.json",
-      "bytes": 539,
-      "sha256": "b989c2777144165644c67c5ecee2a53dbde3931d5f8dd37f7e60774767b7b58a"
+      "bytes": 573,
+      "sha256": "3cf6f00eeb9fba33e6d78d86a6f5a20acc8ff670c984995f3c50a74ab25c6d87"
     },
     {
       "file": "Guile.json",
-      "bytes": 1187,
-      "sha256": "ad22b46aab9a10bafe59e5facfbca3fda3e72a940f468fa92c03fefc830258cb"
+      "bytes": 1255,
+      "sha256": "303122f192037f9a52dfbb7e4377564f02192ad61a404e4396a4e693d7127b48"
     },
     {
       "file": "Ingrid.json",
-      "bytes": 1494,
-      "sha256": "dde5c3eb92a7a3188c6a41acb6015edf5bd574e1d0bea57efe7ef5016288977b"
+      "bytes": 1563,
+      "sha256": "b6210839122b3930fc12055634f2566fc223751c7665d3bc23d43acd9d1b3dff"
     },
     {
       "file": "Jamie.json",
-      "bytes": 1584,
-      "sha256": "413abad2bdd0600d013ca77c2e1024c5333835abaa0bf995a40e4b51422eabf6"
+      "bytes": 1653,
+      "sha256": "d7e980eb932cfda43026426599d1d4830882dc2e8d02b4aeb422abc5b7e59337"
     },
     {
       "file": "JP.json",
-      "bytes": 534,
-      "sha256": "ee4aef07b3d87d2c4883db79ccda810e877740a35bca938cd8004b3bdd8f7f36"
+      "bytes": 568,
+      "sha256": "d47aa3c1248694ccbef7a91f3502ae018457528e6cb75a26027e95a2416c3c36"
     },
     {
       "file": "Juri.json",
-      "bytes": 2354,
-      "sha256": "f2a01d496a92a8b49f61dbe1b9529aa97bd3ce4f7926d78e872e5fecb501cdaa"
+      "bytes": 2388,
+      "sha256": "7ed42692e56ce6ca44b15654fc4bac9b2057f0bcdf1b83f875cc670ca160d6c8"
     },
     {
       "file": "Ken.json",
-      "bytes": 537,
-      "sha256": "42355180761def0435ab3c0a172dd90d041c79247ec425babfd6bbca8c21fbaf"
+      "bytes": 571,
+      "sha256": "5275e304ab987aefbbbb8e9541a28fee37280623ba30e45779929cfcd1a5f807"
     },
     {
       "file": "Kimberly.json",
-      "bytes": 541,
-      "sha256": "1e0e7b06be324f14e684f6337cb827ec7c15b61bb55bd92afb7ac2c259c0c896"
+      "bytes": 575,
+      "sha256": "9f1dc6755a87c137a1b3d3f25b7bc089a2438be09e6b291be59bc1d52ff12d26"
     },
     {
       "file": "Lily.json",
-      "bytes": 538,
-      "sha256": "99934365cf1d040bdb64eeed9f871b6ab76588989bcf86c3a147d1a1119e2ec3"
+      "bytes": 572,
+      "sha256": "745a4749c20cc9ae8c4cdb9da5ae654e533a04e5992e611a2386170882f6249a"
     },
     {
       "file": "Luke.json",
-      "bytes": 570,
-      "sha256": "bdb8b4503908b2e52b1f45560e739a05fd61a64884a36664a442e49e983240a4"
+      "bytes": 604,
+      "sha256": "443e826f245daf7057b334fc4b801c0b84b1937640607c51f4846fa5bd12cb8c"
     },
     {
       "file": "Mai.json",
-      "bytes": 537,
-      "sha256": "b858505366a21c9c2f1f4c454b4f12ce10b2f68c5741dffd75b7523c14275186"
+      "bytes": 571,
+      "sha256": "547e14f82f3c7c36856d99e3a64039153deabc69e4f4c5dbb23c180ec2fc3f37"
     },
     {
       "file": "Manon.json",
-      "bytes": 538,
-      "sha256": "c023f6a10769b58d761cc431e389d0ac9ec781984939b4dcd82e529384ef1c09"
+      "bytes": 572,
+      "sha256": "d88aa53eb85d510137572630cb2195a08c529ea48a7f27de3dab028183d05c69"
     },
     {
       "file": "Marisa.json",
-      "bytes": 539,
-      "sha256": "2fdc1b11b3ff8af6bf53df982205857109ec15d93c81817b5fc5912dca001154"
+      "bytes": 573,
+      "sha256": "9a3d2a34bf20f033b7a45d6dcb7314056d3c2d8262d4aef4678f60afcd1842d3"
     },
     {
       "file": "MBison.json",
-      "bytes": 539,
-      "sha256": "8dec8290ffd89a2e00e9b4fb5c22a532fe67b0a68bed6afd0cd164a72f0741b5"
+      "bytes": 573,
+      "sha256": "fb98d31a52db751c4d5013d3d82d8649613459df660e135e364762299c85cb28"
     },
     {
       "file": "Rashid.json",
-      "bytes": 1391,
-      "sha256": "9a040aabac70110eb32ba98e53123a2c8ea6695f1ba995918cc075a2e8ad8565"
+      "bytes": 1493,
+      "sha256": "70554e3fb1f49a626af26ebcbc0bec0c1d76cdfdfeb270d7d8266f889b175d53"
     },
     {
       "file": "Ryu.json",
-      "bytes": 535,
-      "sha256": "40e928147bbe19ee299af3cacfdb9cccdf1fa019eb296a857108dcfc4c3f4a0c"
+      "bytes": 569,
+      "sha256": "3ce6439db6f15f5fbc1dd03d2d9dfcc4f3c231944c30f5951ac52661058f93b1"
     },
     {
       "file": "Sagat.json",
-      "bytes": 538,
-      "sha256": "9f08e706335b9942931aad33a68e4a36ce2f351ecd1021dbc1629bae168461ba"
+      "bytes": 712,
+      "sha256": "32a353246598f4f848a7e933fe2d61e5a0cbbc2ce30a27eb9e641d59771768c3"
     },
     {
       "file": "Terry.json",
-      "bytes": 538,
-      "sha256": "45bf325abd562eef03a3c45151cf5b209009dd50bf3dc0d556243049c8144a09"
+      "bytes": 572,
+      "sha256": "b5d204a5ac815faaab44970d9d2f1b58f6c1a68eb42066e9d58cf5f26caa0f0e"
     },
     {
       "file": "Yasmine.json",
       "bytes": 543,
-      "sha256": "8db1543a01555c811a2b9d9b504d30da3daec46db03210d056449c3795fe2ac9"
+      "sha256": "8ef87dbf0fbd560df397c025b98074ebf0276392f0690d587a3bb850388c2fac"
     },
     {
       "file": "Zangief.json",
-      "bytes": 539,
-      "sha256": "28563aef9037a3be9250ce75dc998aa6d3d0e3a47b81d458c577b65b66b67a65"
+      "bytes": 848,
+      "sha256": "1160f9d9b09965852e7252524ea08f5d4b3f91bd3bd0497c7dcf812ced692fe3"
     }
   ],
   "characters": [
     {
       "character": "AKI",
-      "candidates": 0,
-      "generated": 0,
-      "curated": 0,
-      "withheld": 0
-    },
-    {
-      "character": "Akuma",
-      "candidates": 4,
-      "generated": 4,
-      "curated": 0,
-      "withheld": 0
-    },
-    {
-      "character": "Alex",
-      "candidates": 6,
-      "generated": 5,
-      "curated": 0,
-      "withheld": 1
-    },
-    {
-      "character": "Blanka",
-      "candidates": 2,
-      "generated": 1,
-      "curated": 0,
-      "withheld": 1
-    },
-    {
-      "character": "Cammy",
-      "candidates": 0,
-      "generated": 0,
-      "curated": 0,
-      "withheld": 0
-    },
-    {
-      "character": "ChunLi",
-      "candidates": 8,
-      "generated": 8,
-      "curated": 0,
-      "withheld": 0
-    },
-    {
-      "character": "CViper",
-      "candidates": 0,
-      "generated": 0,
-      "curated": 0,
-      "withheld": 0
-    },
-    {
-      "character": "DeeJay",
-      "candidates": 2,
-      "generated": 2,
-      "curated": 0,
-      "withheld": 0
-    },
-    {
-      "character": "Dhalsim",
-      "candidates": 0,
-      "generated": 0,
-      "curated": 0,
-      "withheld": 0
-    },
-    {
-      "character": "Ed",
-      "candidates": 0,
-      "generated": 0,
-      "curated": 0,
-      "withheld": 0
-    },
-    {
-      "character": "EHonda",
-      "candidates": 14,
-      "generated": 10,
-      "curated": 0,
-      "withheld": 4
-    },
-    {
-      "character": "Elena",
-      "candidates": 0,
-      "generated": 0,
-      "curated": 0,
-      "withheld": 0
-    },
-    {
-      "character": "Guile",
-      "candidates": 27,
-      "generated": 18,
-      "curated": 0,
-      "withheld": 9
-    },
-    {
-      "character": "Ingrid",
-      "candidates": 30,
-      "generated": 25,
-      "curated": 0,
-      "withheld": 5
-    },
-    {
-      "character": "Jamie",
-      "candidates": 35,
-      "generated": 28,
-      "curated": 0,
-      "withheld": 7
-    },
-    {
-      "character": "JP",
-      "candidates": 0,
-      "generated": 0,
-      "curated": 0,
-      "withheld": 0
-    },
-    {
-      "character": "Juri",
-      "candidates": 50,
-      "generated": 49,
-      "curated": 0,
-      "withheld": 1
-    },
-    {
-      "character": "Ken",
-      "candidates": 0,
-      "generated": 0,
-      "curated": 0,
-      "withheld": 0
-    },
-    {
-      "character": "Kimberly",
-      "candidates": 4,
-      "generated": 0,
-      "curated": 0,
-      "withheld": 4
-    },
-    {
-      "character": "Lily",
-      "candidates": 0,
-      "generated": 0,
-      "curated": 0,
-      "withheld": 0
-    },
-    {
-      "character": "Luke",
       "candidates": 1,
       "generated": 1,
       "curated": 0,
       "withheld": 0
     },
     {
+      "character": "Akuma",
+      "candidates": 7,
+      "generated": 6,
+      "curated": 0,
+      "withheld": 1
+    },
+    {
+      "character": "Alex",
+      "candidates": 9,
+      "generated": 7,
+      "curated": 0,
+      "withheld": 2
+    },
+    {
+      "character": "Blanka",
+      "candidates": 3,
+      "generated": 2,
+      "curated": 0,
+      "withheld": 1
+    },
+    {
+      "character": "Cammy",
+      "candidates": 1,
+      "generated": 1,
+      "curated": 0,
+      "withheld": 0
+    },
+    {
+      "character": "ChunLi",
+      "candidates": 9,
+      "generated": 9,
+      "curated": 0,
+      "withheld": 0
+    },
+    {
+      "character": "CViper",
+      "candidates": 1,
+      "generated": 1,
+      "curated": 0,
+      "withheld": 0
+    },
+    {
+      "character": "DeeJay",
+      "candidates": 3,
+      "generated": 3,
+      "curated": 0,
+      "withheld": 0
+    },
+    {
+      "character": "Dhalsim",
+      "candidates": 3,
+      "generated": 3,
+      "curated": 0,
+      "withheld": 0
+    },
+    {
+      "character": "Ed",
+      "candidates": 1,
+      "generated": 1,
+      "curated": 0,
+      "withheld": 0
+    },
+    {
+      "character": "EHonda",
+      "candidates": 15,
+      "generated": 11,
+      "curated": 0,
+      "withheld": 4
+    },
+    {
+      "character": "Elena",
+      "candidates": 1,
+      "generated": 1,
+      "curated": 0,
+      "withheld": 0
+    },
+    {
+      "character": "Guile",
+      "candidates": 29,
+      "generated": 20,
+      "curated": 0,
+      "withheld": 9
+    },
+    {
+      "character": "Ingrid",
+      "candidates": 38,
+      "generated": 27,
+      "curated": 0,
+      "withheld": 11
+    },
+    {
+      "character": "Jamie",
+      "candidates": 39,
+      "generated": 30,
+      "curated": 0,
+      "withheld": 9
+    },
+    {
+      "character": "JP",
+      "candidates": 1,
+      "generated": 1,
+      "curated": 0,
+      "withheld": 0
+    },
+    {
+      "character": "Juri",
+      "candidates": 51,
+      "generated": 50,
+      "curated": 0,
+      "withheld": 1
+    },
+    {
+      "character": "Ken",
+      "candidates": 1,
+      "generated": 1,
+      "curated": 0,
+      "withheld": 0
+    },
+    {
+      "character": "Kimberly",
+      "candidates": 5,
+      "generated": 1,
+      "curated": 0,
+      "withheld": 4
+    },
+    {
+      "character": "Lily",
+      "candidates": 1,
+      "generated": 1,
+      "curated": 0,
+      "withheld": 0
+    },
+    {
+      "character": "Luke",
+      "candidates": 2,
+      "generated": 2,
+      "curated": 0,
+      "withheld": 0
+    },
+    {
       "character": "Mai",
-      "candidates": 0,
-      "generated": 0,
+      "candidates": 1,
+      "generated": 1,
       "curated": 0,
       "withheld": 0
     },
     {
       "character": "Manon",
-      "candidates": 0,
-      "generated": 0,
+      "candidates": 1,
+      "generated": 1,
       "curated": 0,
       "withheld": 0
     },
     {
       "character": "Marisa",
-      "candidates": 0,
-      "generated": 0,
+      "candidates": 1,
+      "generated": 1,
       "curated": 0,
       "withheld": 0
     },
     {
       "character": "MBison",
-      "candidates": 0,
-      "generated": 0,
+      "candidates": 1,
+      "generated": 1,
       "curated": 0,
       "withheld": 0
     },
     {
       "character": "Rashid",
-      "candidates": 24,
-      "generated": 23,
+      "candidates": 27,
+      "generated": 26,
       "curated": 0,
       "withheld": 1
     },
     {
       "character": "Ryu",
-      "candidates": 0,
-      "generated": 0,
+      "candidates": 1,
+      "generated": 1,
       "curated": 0,
       "withheld": 0
     },
     {
       "character": "Sagat",
-      "candidates": 0,
-      "generated": 0,
+      "candidates": 5,
+      "generated": 5,
       "curated": 0,
       "withheld": 0
     },
     {
       "character": "Terry",
-      "candidates": 0,
-      "generated": 0,
+      "candidates": 1,
+      "generated": 1,
       "curated": 0,
       "withheld": 0
     },
     {
       "character": "Yasmine",
-      "candidates": 14,
+      "candidates": 15,
       "generated": 0,
       "curated": 0,
-      "withheld": 14
+      "withheld": 15
     },
     {
       "character": "Zangief",
-      "candidates": 0,
-      "generated": 0,
+      "candidates": 10,
+      "generated": 9,
       "curated": 0,
-      "withheld": 0
+      "withheld": 1
     }
   ],
   "projections": [
+    {
+      "character": "AKI",
+      "owner_action_id": 717,
+      "fields": [
+        "force"
+      ],
+      "evidence": [
+        {
+          "kind": "command_table_ownership",
+          "evidence": "ownership_inherited",
+          "target_action_id": 717,
+          "field": "force"
+        }
+      ]
+    },
+    {
+      "character": "Akuma",
+      "owner_action_id": 717,
+      "fields": [
+        "force"
+      ],
+      "evidence": [
+        {
+          "kind": "command_table_ownership",
+          "evidence": "ownership_inherited",
+          "target_action_id": 717,
+          "field": "force"
+        }
+      ]
+    },
     {
       "character": "Akuma",
       "owner_action_id": 978,
@@ -443,6 +488,21 @@
     },
     {
       "character": "Akuma",
+      "owner_action_id": 996,
+      "fields": [
+        "force"
+      ],
+      "evidence": [
+        {
+          "kind": "command_table_ownership",
+          "evidence": "ownership_ac_type13_neutral",
+          "target_action_id": 996,
+          "field": "force"
+        }
+      ]
+    },
+    {
+      "character": "Akuma",
       "owner_action_id": 1200,
       "fields": [
         "absorb_ids"
@@ -469,6 +529,36 @@
           "evidence": "ac_type29_verified_alias",
           "source_action_id": 1200,
           "target_action_id": 1201,
+          "field": "force"
+        }
+      ]
+    },
+    {
+      "character": "Alex",
+      "owner_action_id": 717,
+      "fields": [
+        "force"
+      ],
+      "evidence": [
+        {
+          "kind": "command_table_ownership",
+          "evidence": "ownership_inherited",
+          "target_action_id": 717,
+          "field": "force"
+        }
+      ]
+    },
+    {
+      "character": "Alex",
+      "owner_action_id": 961,
+      "fields": [
+        "force"
+      ],
+      "evidence": [
+        {
+          "kind": "command_table_ownership",
+          "evidence": "ownership_ac_state_direction",
+          "target_action_id": 961,
           "field": "force"
         }
       ]
@@ -555,6 +645,21 @@
     },
     {
       "character": "Blanka",
+      "owner_action_id": 717,
+      "fields": [
+        "force"
+      ],
+      "evidence": [
+        {
+          "kind": "command_table_ownership",
+          "evidence": "ownership_inherited",
+          "target_action_id": 717,
+          "field": "force"
+        }
+      ]
+    },
+    {
+      "character": "Blanka",
       "owner_action_id": 933,
       "fields": [
         "force"
@@ -565,6 +670,21 @@
           "evidence": "ac_type29_verified_alias",
           "source_action_id": 929,
           "target_action_id": 933,
+          "field": "force"
+        }
+      ]
+    },
+    {
+      "character": "Cammy",
+      "owner_action_id": 720,
+      "fields": [
+        "force"
+      ],
+      "evidence": [
+        {
+          "kind": "command_table_ownership",
+          "evidence": "ownership_inherited",
+          "target_action_id": 720,
           "field": "force"
         }
       ]
@@ -740,6 +860,51 @@
       ]
     },
     {
+      "character": "ChunLi",
+      "owner_action_id": 717,
+      "fields": [
+        "force"
+      ],
+      "evidence": [
+        {
+          "kind": "command_table_ownership",
+          "evidence": "ownership_inherited",
+          "target_action_id": 717,
+          "field": "force"
+        }
+      ]
+    },
+    {
+      "character": "CViper",
+      "owner_action_id": 717,
+      "fields": [
+        "force"
+      ],
+      "evidence": [
+        {
+          "kind": "command_table_ownership",
+          "evidence": "ownership_inherited",
+          "target_action_id": 717,
+          "field": "force"
+        }
+      ]
+    },
+    {
+      "character": "DeeJay",
+      "owner_action_id": 717,
+      "fields": [
+        "force"
+      ],
+      "evidence": [
+        {
+          "kind": "command_table_ownership",
+          "evidence": "ownership_inherited",
+          "target_action_id": 717,
+          "field": "force"
+        }
+      ]
+    },
+    {
       "character": "DeeJay",
       "owner_action_id": 906,
       "fields": [
@@ -768,6 +933,66 @@
           "source_action_id": 907,
           "target_action_id": 906,
           "field": "absorb_ids"
+        }
+      ]
+    },
+    {
+      "character": "Dhalsim",
+      "owner_action_id": 717,
+      "fields": [
+        "force"
+      ],
+      "evidence": [
+        {
+          "kind": "command_table_ownership",
+          "evidence": "ownership_inherited",
+          "target_action_id": 717,
+          "field": "force"
+        }
+      ]
+    },
+    {
+      "character": "Dhalsim",
+      "owner_action_id": 1046,
+      "fields": [
+        "force"
+      ],
+      "evidence": [
+        {
+          "kind": "command_table_ownership",
+          "evidence": "ownership_ac_state_direction",
+          "target_action_id": 1046,
+          "field": "force"
+        }
+      ]
+    },
+    {
+      "character": "Dhalsim",
+      "owner_action_id": 1048,
+      "fields": [
+        "force"
+      ],
+      "evidence": [
+        {
+          "kind": "command_table_ownership",
+          "evidence": "ownership_ac_state_direction",
+          "target_action_id": 1048,
+          "field": "force"
+        }
+      ]
+    },
+    {
+      "character": "Ed",
+      "owner_action_id": 717,
+      "fields": [
+        "force"
+      ],
+      "evidence": [
+        {
+          "kind": "command_table_ownership",
+          "evidence": "ownership_inherited",
+          "target_action_id": 717,
+          "field": "force"
         }
       ]
     },
@@ -927,6 +1152,66 @@
           "evidence": "ac_type20_directional_variant",
           "source_action_id": 651,
           "target_action_id": 653,
+          "field": "force"
+        }
+      ]
+    },
+    {
+      "character": "EHonda",
+      "owner_action_id": 717,
+      "fields": [
+        "force"
+      ],
+      "evidence": [
+        {
+          "kind": "command_table_ownership",
+          "evidence": "ownership_inherited",
+          "target_action_id": 717,
+          "field": "force"
+        }
+      ]
+    },
+    {
+      "character": "Elena",
+      "owner_action_id": 717,
+      "fields": [
+        "force"
+      ],
+      "evidence": [
+        {
+          "kind": "command_table_ownership",
+          "evidence": "ownership_inherited",
+          "target_action_id": 717,
+          "field": "force"
+        }
+      ]
+    },
+    {
+      "character": "Guile",
+      "owner_action_id": 701,
+      "fields": [
+        "force"
+      ],
+      "evidence": [
+        {
+          "kind": "command_table_ownership",
+          "evidence": "ownership_inherited",
+          "target_action_id": 701,
+          "field": "force"
+        }
+      ]
+    },
+    {
+      "character": "Guile",
+      "owner_action_id": 703,
+      "fields": [
+        "force"
+      ],
+      "evidence": [
+        {
+          "kind": "command_table_ownership",
+          "evidence": "ownership_inherited",
+          "target_action_id": 703,
           "field": "force"
         }
       ]
@@ -1228,6 +1513,21 @@
     },
     {
       "character": "Ingrid",
+      "owner_action_id": 717,
+      "fields": [
+        "force"
+      ],
+      "evidence": [
+        {
+          "kind": "command_table_ownership",
+          "evidence": "ownership_inherited",
+          "target_action_id": 717,
+          "field": "force"
+        }
+      ]
+    },
+    {
+      "character": "Ingrid",
       "owner_action_id": 971,
       "fields": [
         "force"
@@ -1270,6 +1570,21 @@
           "evidence": "ac_type29_verified_alias",
           "source_action_id": 969,
           "target_action_id": 973,
+          "field": "force"
+        }
+      ]
+    },
+    {
+      "character": "Ingrid",
+      "owner_action_id": 977,
+      "fields": [
+        "force"
+      ],
+      "evidence": [
+        {
+          "kind": "command_table_ownership",
+          "evidence": "ownership_type20_hold_continuation",
+          "target_action_id": 977,
           "field": "force"
         }
       ]
@@ -1723,6 +2038,21 @@
     },
     {
       "character": "Jamie",
+      "owner_action_id": 717,
+      "fields": [
+        "force"
+      ],
+      "evidence": [
+        {
+          "kind": "command_table_ownership",
+          "evidence": "ownership_inherited",
+          "target_action_id": 717,
+          "field": "force"
+        }
+      ]
+    },
+    {
+      "character": "Jamie",
       "owner_action_id": 850,
       "fields": [
         "absorb_ids"
@@ -2142,6 +2472,21 @@
     },
     {
       "character": "Jamie",
+      "owner_action_id": 1013,
+      "fields": [
+        "force"
+      ],
+      "evidence": [
+        {
+          "kind": "command_table_ownership",
+          "evidence": "ownership_automatic_hold_transition",
+          "target_action_id": 1013,
+          "field": "force"
+        }
+      ]
+    },
+    {
+      "character": "Jamie",
       "owner_action_id": 1014,
       "fields": [
         "force"
@@ -2168,6 +2513,21 @@
           "evidence": "ac_type29_verified_alias",
           "source_action_id": 1010,
           "target_action_id": 1018,
+          "field": "force"
+        }
+      ]
+    },
+    {
+      "character": "JP",
+      "owner_action_id": 716,
+      "fields": [
+        "force"
+      ],
+      "evidence": [
+        {
+          "kind": "command_table_ownership",
+          "evidence": "ownership_inherited",
+          "target_action_id": 716,
           "field": "force"
         }
       ]
@@ -2766,6 +3126,21 @@
     },
     {
       "character": "Juri",
+      "owner_action_id": 717,
+      "fields": [
+        "force"
+      ],
+      "evidence": [
+        {
+          "kind": "command_table_ownership",
+          "evidence": "ownership_inherited",
+          "target_action_id": 717,
+          "field": "force"
+        }
+      ]
+    },
+    {
+      "character": "Juri",
       "owner_action_id": 900,
       "fields": [
         "absorb_ids"
@@ -2985,6 +3360,66 @@
       ]
     },
     {
+      "character": "Ken",
+      "owner_action_id": 717,
+      "fields": [
+        "force"
+      ],
+      "evidence": [
+        {
+          "kind": "command_table_ownership",
+          "evidence": "ownership_inherited",
+          "target_action_id": 717,
+          "field": "force"
+        }
+      ]
+    },
+    {
+      "character": "Kimberly",
+      "owner_action_id": 720,
+      "fields": [
+        "force"
+      ],
+      "evidence": [
+        {
+          "kind": "command_table_ownership",
+          "evidence": "ownership_inherited",
+          "target_action_id": 720,
+          "field": "force"
+        }
+      ]
+    },
+    {
+      "character": "Lily",
+      "owner_action_id": 717,
+      "fields": [
+        "force"
+      ],
+      "evidence": [
+        {
+          "kind": "command_table_ownership",
+          "evidence": "ownership_inherited",
+          "target_action_id": 717,
+          "field": "force"
+        }
+      ]
+    },
+    {
+      "character": "Luke",
+      "owner_action_id": 717,
+      "fields": [
+        "force"
+      ],
+      "evidence": [
+        {
+          "kind": "command_table_ownership",
+          "evidence": "ownership_inherited",
+          "target_action_id": 717,
+          "field": "force"
+        }
+      ]
+    },
+    {
       "character": "Luke",
       "owner_action_id": 936,
       "fields": [
@@ -2996,6 +3431,111 @@
           "evidence": "ac_type37_followup_execution_phase",
           "source_action_id": 935,
           "target_action_id": 936,
+          "field": "force"
+        }
+      ]
+    },
+    {
+      "character": "Mai",
+      "owner_action_id": 717,
+      "fields": [
+        "force"
+      ],
+      "evidence": [
+        {
+          "kind": "command_table_ownership",
+          "evidence": "ownership_inherited",
+          "target_action_id": 717,
+          "field": "force"
+        }
+      ]
+    },
+    {
+      "character": "Manon",
+      "owner_action_id": 717,
+      "fields": [
+        "force"
+      ],
+      "evidence": [
+        {
+          "kind": "command_table_ownership",
+          "evidence": "ownership_inherited",
+          "target_action_id": 717,
+          "field": "force"
+        }
+      ]
+    },
+    {
+      "character": "Marisa",
+      "owner_action_id": 717,
+      "fields": [
+        "force"
+      ],
+      "evidence": [
+        {
+          "kind": "command_table_ownership",
+          "evidence": "ownership_inherited",
+          "target_action_id": 717,
+          "field": "force"
+        }
+      ]
+    },
+    {
+      "character": "MBison",
+      "owner_action_id": 717,
+      "fields": [
+        "force"
+      ],
+      "evidence": [
+        {
+          "kind": "command_table_ownership",
+          "evidence": "ownership_inherited",
+          "target_action_id": 717,
+          "field": "force"
+        }
+      ]
+    },
+    {
+      "character": "Rashid",
+      "owner_action_id": 702,
+      "fields": [
+        "force"
+      ],
+      "evidence": [
+        {
+          "kind": "command_table_ownership",
+          "evidence": "ownership_ac_state_direction",
+          "target_action_id": 702,
+          "field": "force"
+        }
+      ]
+    },
+    {
+      "character": "Rashid",
+      "owner_action_id": 703,
+      "fields": [
+        "force"
+      ],
+      "evidence": [
+        {
+          "kind": "command_table_ownership",
+          "evidence": "ownership_ac_state_direction",
+          "target_action_id": 703,
+          "field": "force"
+        }
+      ]
+    },
+    {
+      "character": "Rashid",
+      "owner_action_id": 717,
+      "fields": [
+        "force"
+      ],
+      "evidence": [
+        {
+          "kind": "command_table_ownership",
+          "evidence": "ownership_inherited",
+          "target_action_id": 717,
           "field": "force"
         }
       ]
@@ -3364,6 +3904,246 @@
           "evidence": "ac_type29_verified_alias",
           "source_action_id": 998,
           "target_action_id": 1015,
+          "field": "force"
+        }
+      ]
+    },
+    {
+      "character": "Ryu",
+      "owner_action_id": 716,
+      "fields": [
+        "force"
+      ],
+      "evidence": [
+        {
+          "kind": "command_table_ownership",
+          "evidence": "ownership_inherited",
+          "target_action_id": 716,
+          "field": "force"
+        }
+      ]
+    },
+    {
+      "character": "Sagat",
+      "owner_action_id": 717,
+      "fields": [
+        "force"
+      ],
+      "evidence": [
+        {
+          "kind": "command_table_ownership",
+          "evidence": "ownership_inherited",
+          "target_action_id": 717,
+          "field": "force"
+        }
+      ]
+    },
+    {
+      "character": "Sagat",
+      "owner_action_id": 1212,
+      "fields": [
+        "force"
+      ],
+      "evidence": [
+        {
+          "kind": "command_table_ownership",
+          "evidence": "ownership_ac_state_neutral",
+          "target_action_id": 1212,
+          "field": "force"
+        }
+      ]
+    },
+    {
+      "character": "Sagat",
+      "owner_action_id": 1215,
+      "fields": [
+        "force"
+      ],
+      "evidence": [
+        {
+          "kind": "command_table_ownership",
+          "evidence": "ownership_ac_state_direction",
+          "target_action_id": 1215,
+          "field": "force"
+        }
+      ]
+    },
+    {
+      "character": "Sagat",
+      "owner_action_id": 1218,
+      "fields": [
+        "force"
+      ],
+      "evidence": [
+        {
+          "kind": "command_table_ownership",
+          "evidence": "ownership_ac_state_direction",
+          "target_action_id": 1218,
+          "field": "force"
+        }
+      ]
+    },
+    {
+      "character": "Sagat",
+      "owner_action_id": 1221,
+      "fields": [
+        "force"
+      ],
+      "evidence": [
+        {
+          "kind": "command_table_ownership",
+          "evidence": "ownership_ac_state_direction",
+          "target_action_id": 1221,
+          "field": "force"
+        }
+      ]
+    },
+    {
+      "character": "Terry",
+      "owner_action_id": 717,
+      "fields": [
+        "force"
+      ],
+      "evidence": [
+        {
+          "kind": "command_table_ownership",
+          "evidence": "ownership_inherited",
+          "target_action_id": 717,
+          "field": "force"
+        }
+      ]
+    },
+    {
+      "character": "Zangief",
+      "owner_action_id": 710,
+      "fields": [
+        "force"
+      ],
+      "evidence": [
+        {
+          "kind": "command_table_ownership",
+          "evidence": "ownership_inherited",
+          "target_action_id": 710,
+          "field": "force"
+        }
+      ]
+    },
+    {
+      "character": "Zangief",
+      "owner_action_id": 711,
+      "fields": [
+        "force"
+      ],
+      "evidence": [
+        {
+          "kind": "command_table_ownership",
+          "evidence": "ownership_inherited",
+          "target_action_id": 711,
+          "field": "force"
+        }
+      ]
+    },
+    {
+      "character": "Zangief",
+      "owner_action_id": 712,
+      "fields": [
+        "force"
+      ],
+      "evidence": [
+        {
+          "kind": "command_table_ownership",
+          "evidence": "ownership_inherited",
+          "target_action_id": 712,
+          "field": "force"
+        }
+      ]
+    },
+    {
+      "character": "Zangief",
+      "owner_action_id": 715,
+      "fields": [
+        "force"
+      ],
+      "evidence": [
+        {
+          "kind": "command_table_ownership",
+          "evidence": "ownership_inherited",
+          "target_action_id": 715,
+          "field": "force"
+        }
+      ]
+    },
+    {
+      "character": "Zangief",
+      "owner_action_id": 717,
+      "fields": [
+        "force"
+      ],
+      "evidence": [
+        {
+          "kind": "command_table_ownership",
+          "evidence": "ownership_inherited",
+          "target_action_id": 717,
+          "field": "force"
+        }
+      ]
+    },
+    {
+      "character": "Zangief",
+      "owner_action_id": 918,
+      "fields": [
+        "force"
+      ],
+      "evidence": [
+        {
+          "kind": "command_table_ownership",
+          "evidence": "ownership_rebind",
+          "target_action_id": 918,
+          "field": "force"
+        }
+      ]
+    },
+    {
+      "character": "Zangief",
+      "owner_action_id": 924,
+      "fields": [
+        "force"
+      ],
+      "evidence": [
+        {
+          "kind": "command_table_ownership",
+          "evidence": "ownership_rebind",
+          "target_action_id": 924,
+          "field": "force"
+        }
+      ]
+    },
+    {
+      "character": "Zangief",
+      "owner_action_id": 1213,
+      "fields": [
+        "force"
+      ],
+      "evidence": [
+        {
+          "kind": "command_table_ownership",
+          "evidence": "ownership_ac_state_direction",
+          "target_action_id": 1213,
+          "field": "force"
+        }
+      ]
+    },
+    {
+      "character": "Zangief",
+      "owner_action_id": 1215,
+      "fields": [
+        "force"
+      ],
+      "evidence": [
+        {
+          "kind": "command_table_ownership",
+          "evidence": "ownership_ac_state_direction",
+          "target_action_id": 1215,
           "field": "force"
         }
       ]

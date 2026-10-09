@@ -3705,8 +3705,8 @@ do
         "the shipped Ed rules must fold the short same-HP 605 contact phase into 606")
     assert(ed_exception_source:find(
                 '"structural_followup_chains"', 1, true)
-            and ed_exception_source:find('[986, 989]', 1, true)
-            and ed_exception_source:find('[988, 991]', 1, true)
+            and ed_exception_source:find('%[%s*986,%s*989%s*%]')
+            and ed_exception_source:find('%[%s*988,%s*991%s*%]')
             and ed_exception_source:find('"1001"', 1, true)
             and ed_exception_source:find(
                 '"transient_precursor_ids": "996,997,999"', 1, true),

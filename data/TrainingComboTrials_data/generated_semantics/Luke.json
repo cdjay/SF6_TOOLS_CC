@@ -1,10 +1,13 @@
 {
+  "717": {
+    "force": true
+  },
   "936": {
     "force": true
   },
   "_meta": {
     "schema": "sf6cc.generated-character-semantics.v2",
-    "algorithm": "sf6cc-acbcm-exception-projection.v1",
+    "algorithm": "sf6cc-acbcm-exception-projection.v2",
     "character": "Luke",
     "fighter_id": 2,
     "source_command_display_sha256": "6574e6686dfda4965238223f127ca80e6442eac8dddb68d1b0011f3ea9a22a45",
@@ -14,8 +17,8 @@
       "hash": "b38faeb5"
     },
     "counts": {
-      "candidates": 1,
-      "generated": 1,
+      "candidates": 2,
+      "generated": 2,
       "curated": 0,
       "withheld": 0
     }

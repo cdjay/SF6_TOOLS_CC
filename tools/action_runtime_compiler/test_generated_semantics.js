@@ -29,6 +29,22 @@ assert.deepStrictEqual(candidates.get("900").rule, { absorb_ids: "901,902" });
 assert.deepStrictEqual(candidates.get("901").rule, { force: true });
 assert.deepStrictEqual(candidates.get("931").evidence.map(item => item.evidence), ["ac_type37_followup_execution_phase"]);
 
+// Command-table ownerships the runtime does not count as player steps are
+// forced (back throws are "inherited" from the throw they branch out of).
+const owned = core.candidateRules({
+    _meta: {},
+    "715": { ownership: "direct" },
+    "717": { ownership: "inherited" },
+    "950": { ownership: "ac_state_direction" },
+    "960": { ownership: "classic_runtime" },
+    "970": { ownership: "rebind" }
+});
+assert.deepStrictEqual([...owned.keys()], ["717", "950", "970"]);
+assert.deepStrictEqual(owned.get("717").rule, { force: true });
+assert.deepStrictEqual(owned.get("717").evidence, [{ kind: "command_table_ownership",
+    evidence: "ownership_inherited", target_action_id: 717, field: "force" }]);
+assert.ok(core.FORCE_OWNERSHIPS.includes("type20_hold_continuation") && !core.FORCE_OWNERSHIPS.includes("direct"));
+
 // A new fighter without curation gets every candidate; curated or withheld
 // Actions are never emitted, so the two layers stay disjoint.
 let built = core.buildDocument({ character: "Arjun", fighterId: 34, commandDisplay });
@@ -85,6 +101,16 @@ try {
     assert.deepStrictEqual(Object.keys(after).sort(), Object.keys(before).sort());
     for (const key of Object.keys(before)) assert.ok(core.sameRule(before[key], after[key]), `Action ${key} changed`);
     assert.ok(!fs.existsSync(path.join(data, "generated_semantics", "manifest.v1.json")));
+    assert.deepStrictEqual(builder.check({ dataRoot: data, rosterPath: roster }), []);
+
+    // A later migration keeps the recorded reason of unchanged disagreements
+    // and dates only the new ones.
+    const extended = { ...commandDisplay, "990": { ownership: "inherited" } };
+    fs.writeFileSync(path.join(data, "command_display", "Ryu.json"), JSON.stringify(extended));
+    builder.migrateCuration({ dataRoot: data, rosterPath: roster, reason: "later" });
+    const reasons = Object.fromEntries(JSON.parse(fs.readFileSync(path.join(data, "exceptions", "Ryu.json"), "utf8"))
+        ._generated_semantics.withhold.map(item => [item.action, item.reason]));
+    assert.deepStrictEqual(reasons, { 902: "test", 911: "test", 921: "test", 931: "test", 990: "later" });
     assert.deepStrictEqual(builder.check({ dataRoot: data, rosterPath: roster }), []);
     fs.writeFileSync(path.join(data, "generated_semantics", "Ryu.json"), "{}\n");
     assert.deepStrictEqual(builder.check({ dataRoot: data, rosterPath: roster }), ["Ryu.json"]);

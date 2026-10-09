@@ -5,9 +5,6 @@
   "715": {
     "action_alias_ids": "725"
   },
-  "717": {
-    "force": true
-  },
   "900": {
     "is_holdable": true,
     "charge_min": 18,

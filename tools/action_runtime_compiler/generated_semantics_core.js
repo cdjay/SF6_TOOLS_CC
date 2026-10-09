@@ -14,7 +14,7 @@ const crypto = require("crypto");
 
 const SCHEMA = "sf6cc.generated-character-semantics.v2";
 const MANIFEST_SCHEMA = "sf6cc.generated-character-semantics-manifest.v2";
-const ALGORITHM = "sf6cc-acbcm-exception-projection.v1";
+const ALGORITHM = "sf6cc-acbcm-exception-projection.v2";
 
 // Relation kinds (command_display _meta) and the rule fields they imply.
 // Agreement with curated data on 2026-08-03: Type 29 aliases 89/122 owners
@@ -25,6 +25,21 @@ const RELATIONS = Object.freeze([
     { kind: "type63_strength_variant_relations", evidence: "ac_type63_strength_variant", force: true },
     { kind: "type20_directional_relations", evidence: "ac_type20_directional_variant", force: true },
     { kind: "type37_followup_execution_phase_relations", evidence: "ac_type37_followup_execution_phase", force: true },
+]);
+
+// Command-table ownerships (AC+BCM entry mechanisms resolved by the
+// generator) whose Actions the runtime does not count as player steps on its
+// own, so they are forced. The 2026-10-10 exception derivation audit found
+// these seven reproduce 53 of 94 curated force entries; elsewhere they reach
+// only 10 Actions, none of them a recorded step in the frozen corpus.
+const FORCE_OWNERSHIPS = Object.freeze([
+    "inherited",
+    "rebind",
+    "automatic_hold_transition",
+    "ac_state_direction",
+    "type20_hold_continuation",
+    "ac_type13_neutral",
+    "ac_state_neutral",
 ]);
 
 const numericKey = key => /^\d+$/.test(String(key));
@@ -66,6 +81,12 @@ function candidateRules(commandDisplay) {
                 note(target, { ...item, field: "force" });
             }
         }
+    }
+    for (const [id, entry] of Object.entries(commandDisplay || {})) {
+        if (!numericKey(id) || !entry || !FORCE_OWNERSHIPS.includes(entry.ownership)) continue;
+        force.add(Number(id));
+        note(id, { kind: "command_table_ownership", evidence: `ownership_${entry.ownership}`,
+            target_action_id: Number(id), field: "force" });
     }
     const rules = new Map();
     for (const [owner, targets] of absorb) rules.set(String(owner), { absorb_ids: formatIds(targets) });
@@ -151,10 +172,13 @@ function buildManifest(entries) {
     return {
         schema: MANIFEST_SCHEMA,
         algorithm_version: ALGORITHM,
-        relations: RELATIONS.map(relation => ({
-            kind: relation.kind, evidence: relation.evidence,
-            fields: [relation.absorb ? "absorb_ids" : null, relation.force ? "force" : null].filter(Boolean)
-        })),
+        relations: [
+            ...RELATIONS.map(relation => ({
+                kind: relation.kind, evidence: relation.evidence,
+                fields: [relation.absorb ? "absorb_ids" : null, relation.force ? "force" : null].filter(Boolean)
+            })),
+            { kind: "command_table_ownership", ownerships: [...FORCE_OWNERSHIPS], fields: ["force"] }
+        ],
         artifacts: sorted.map(entry => ({ file: entry.file, bytes: Buffer.byteLength(entry.text, "utf8"), sha256: sha256(entry.text) })),
         characters: sorted.map(entry => ({ character: entry.character, ...entry.counts })),
         projections: sorted.flatMap(entry => entry.projections)
@@ -162,6 +186,6 @@ function buildManifest(entries) {
 }
 
 module.exports = {
-    SCHEMA, MANIFEST_SCHEMA, ALGORITHM, RELATIONS,
+    SCHEMA, MANIFEST_SCHEMA, ALGORITHM, RELATIONS, FORCE_OWNERSHIPS,
     idSet, formatIds, candidateRules, withheldActions, sameRule, buildDocument, buildManifest, serialize
 };

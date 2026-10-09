@@ -145,6 +145,9 @@ function migrateCuration(options = {}) {
             const candidate = candidates.get(key);
             if (!candidate || !core.sameRule(candidate.rule, before[key])) next[key] = before[key];
         }
+        // An unchanged disagreement keeps the reason it was recorded with.
+        const previous = new Map((curation._generated_semantics && Array.isArray(curation._generated_semantics.withhold)
+            ? curation._generated_semantics.withhold : []).map(item => [String(item && item.action), item]));
         const withhold = [];
         let moved = 0;
         for (const [key, candidate] of candidates) {
@@ -153,11 +156,14 @@ function migrateCuration(options = {}) {
                 moved += 1;
                 continue;
             }
+            const old = previous.get(key);
+            const unchanged = old && core.sameRule(old.generated, candidate.rule)
+                && JSON.stringify(old.curated || null) === JSON.stringify(before[key] || null);
             withhold.push({
                 action: Number(key),
                 generated: candidate.rule,
                 curated: before[key] || null,
-                reason
+                reason: unchanged && old.reason ? old.reason : reason
             });
         }
         if (withhold.length) {
@@ -193,7 +199,7 @@ function run(argv) {
         return;
     }
     if (args["--migrate-curation"]) {
-        const report = migrateCuration();
+        const report = migrateCuration({ reason: args["--reason"] });
         for (const row of report) {
             console.log(`${row.character}: 手写 ${row.curated_before}→${row.curated_after}，转为生成 ${row.moved}，保留差异 ${row.withheld}`);
         }

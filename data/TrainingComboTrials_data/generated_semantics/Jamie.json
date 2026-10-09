@@ -5,6 +5,9 @@
   "663": {
     "force": true
   },
+  "717": {
+    "force": true
+  },
   "850": {
     "absorb_ids": "851"
   },
@@ -77,6 +80,9 @@
   "1010": {
     "absorb_ids": "1014,1018"
   },
+  "1013": {
+    "force": true
+  },
   "1014": {
     "force": true
   },
@@ -85,7 +91,7 @@
   },
   "_meta": {
     "schema": "sf6cc.generated-character-semantics.v2",
-    "algorithm": "sf6cc-acbcm-exception-projection.v1",
+    "algorithm": "sf6cc-acbcm-exception-projection.v2",
     "character": "Jamie",
     "fighter_id": 21,
     "source_command_display_sha256": "93ba1ad87648003fe8d1f4f1ac8ad62efea44546c3c7f4814f2e59dbc4412a7b",
@@ -95,10 +101,10 @@
       "hash": "4513705b"
     },
     "counts": {
-      "candidates": 35,
-      "generated": 28,
+      "candidates": 39,
+      "generated": 30,
       "curated": 0,
-      "withheld": 7
+      "withheld": 9
     }
   }
 }

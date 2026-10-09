@@ -1,13 +1,4 @@
 {
-  "702": {
-    "force": true
-  },
-  "703": {
-    "force": true
-  },
-  "717": {
-    "force": true
-  },
   "900": {
     "is_holdable": true,
     "charge_min": 27,

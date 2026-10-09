@@ -8,9 +8,6 @@
     "absorb_ids": "653",
     "action_event_projection": {}
   },
-  "720": {
-    "force": true
-  },
   "904": {
     "is_holdable": true,
     "charge_min": 15,
@@ -19,6 +16,10 @@
   "908": {
     "runtime_force_after_ids": "652,653,926"
   },
+  "916": {
+    "absorb_ids": "933",
+    "action_event_projection": {}
+  },
   "919": {
     "is_holdable": true,
     "charge_min": 14,
@@ -26,10 +27,6 @@
   },
   "922": {
     "runtime_force_after_ids": "652,653,926"
-  },
-  "916": {
-    "absorb_ids": "933",
-    "action_event_projection": {}
   },
   "947": {
     "is_holdable": true,

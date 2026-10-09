@@ -289,7 +289,9 @@ node tools\action_runtime_compiler\exception_derivation_audit.js --out audit.md 
 
 2026-10-10 的结论：按指令表归属推导 force（`inherited`、`rebind`、`automatic_hold_transition`、
 `ac_state_direction`、`type20_hold_continuation`、`ac_type13_neutral`、`ac_state_neutral`）覆盖 53 条手写 force，
-只新增 10 个动作，且都没在语料里出现（其中 Yasmine 717 后投是手写规则的遗漏）。吸收、ignore_prev、瞬态前驱、
+只新增 10 个动作，且都没在语料里出现（其中 Yasmine 717 后投是手写规则的遗漏）。这 7 条规则已于 2026-10-10 加入
+生成语义（算法 v2）：51 条纯 force 转为生成，Jamie 1011/1015（还带长按）与新增的 10 个动作记入 withhold，
+实机确认后放开。吸收、ignore_prev、瞬态前驱、
 后续技容忍的结构规则都会新增几百到上千条：这些手写规则纠正的是运行时"是否算作玩家一步"的判断，
 取决于动作切换时的引擎标志，需要先用 `transition_report.js` 拿到"进入方式 → 引擎标志"的对应。
 

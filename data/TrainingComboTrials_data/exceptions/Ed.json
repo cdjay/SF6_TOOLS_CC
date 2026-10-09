@@ -1,16 +1,4 @@
 {
-  "_character": {
-    "sequence_grouping": {
-      "structural_followup_chains": [
-        [986, 989],
-        [986, 990],
-        [986, 991],
-        [988, 989],
-        [988, 990],
-        [988, 991]
-      ]
-    }
-  },
   "606": {
     "absorb_ids": "605",
     "is_holdable": true,
@@ -52,9 +40,6 @@
       681
     ]
   },
-  "717": {
-    "force": true
-  },
   "934": {
     "is_holdable": true,
     "charge_min": 11,
@@ -81,6 +66,36 @@
   "1001": {
     "action_event_rules": {
       "transient_precursor_ids": "996,997,999"
+    }
+  },
+  "_character": {
+    "sequence_grouping": {
+      "structural_followup_chains": [
+        [
+          986,
+          989
+        ],
+        [
+          986,
+          990
+        ],
+        [
+          986,
+          991
+        ],
+        [
+          988,
+          989
+        ],
+        [
+          988,
+          990
+        ],
+        [
+          988,
+          991
+        ]
+      ]
     }
   }
 }

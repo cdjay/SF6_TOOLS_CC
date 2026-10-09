@@ -151,9 +151,11 @@ dumps allow it; the rest is blocked on evidence, not on code:
 - **Most remaining curated rules correct the runtime's step decision.** The
   exception derivation audit (`exception_derivation_audit.js`, 2026-10-10) maps
   all 310 curated entries to AC+BCM structure. Seven command-table ownership
-  rules would derive 53 of the 94 `force` entries while adding force to only 10
-  Actions that never occur in the frozen corpus (one of them, Yasmine 717 back
-  throw, is a missing curated rule). The structural rules for `absorb_ids`,
+  rules derive 53 of the 94 `force` entries; since 2026-10-10 they generate 51
+  of them (curated 290→239). The two mixed entries (Jamie 1011/1015) and the 10
+  Actions the rules would add, none of which occurs in the frozen corpus, are
+  withheld until live verification (Yasmine 717, the only back throw without
+  force, is most likely a missing curated rule). The structural rules for `absorb_ids`,
   `ignore_prev`, transient precursors and follow-up tolerance reproduce the
   curated entries but would add hundreds to thousands more: those rules only
   apply where the runtime would otherwise count an Action as a player step,

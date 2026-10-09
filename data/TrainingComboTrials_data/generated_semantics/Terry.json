@@ -1,7 +1,10 @@
 {
+  "717": {
+    "force": true
+  },
   "_meta": {
     "schema": "sf6cc.generated-character-semantics.v2",
-    "algorithm": "sf6cc-acbcm-exception-projection.v1",
+    "algorithm": "sf6cc-acbcm-exception-projection.v2",
     "character": "Terry",
     "fighter_id": 27,
     "source_command_display_sha256": "b5f876fcf47bdc8eced90299f929463ec8458e412e55c79767fc1de0645a90da",
@@ -11,8 +14,8 @@
       "hash": "2be25fd7"
     },
     "counts": {
-      "candidates": 0,
-      "generated": 0,
+      "candidates": 1,
+      "generated": 1,
       "curated": 0,
       "withheld": 0
     }

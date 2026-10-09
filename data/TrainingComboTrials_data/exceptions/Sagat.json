@@ -4,9 +4,6 @@
       630
     ]
   },
-  "717": {
-    "force": true
-  },
   "922": {
     "is_holdable": true,
     "charge_min": 23,
@@ -22,17 +19,5 @@
   },
   "954": {
     "action_alias_ids": "953"
-  },
-  "1212": {
-    "force": true
-  },
-  "1215": {
-    "force": true
-  },
-  "1218": {
-    "force": true
-  },
-  "1221": {
-    "force": true
   }
 }

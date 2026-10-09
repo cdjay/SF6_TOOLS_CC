@@ -1,4 +1,7 @@
 {
+  "717": {
+    "force": true
+  },
   "971": {
     "force": true
   },
@@ -6,6 +9,9 @@
     "force": true
   },
   "973": {
+    "force": true
+  },
+  "977": {
     "force": true
   },
   "1021": {
@@ -76,7 +82,7 @@
   },
   "_meta": {
     "schema": "sf6cc.generated-character-semantics.v2",
-    "algorithm": "sf6cc-acbcm-exception-projection.v1",
+    "algorithm": "sf6cc-acbcm-exception-projection.v2",
     "character": "Ingrid",
     "fighter_id": 32,
     "source_command_display_sha256": "af644041e29e08a448f6c52ac70590f97422f5912d24243e0532319d0eac568e",
@@ -86,10 +92,10 @@
       "hash": "348951d2"
     },
     "counts": {
-      "candidates": 30,
-      "generated": 25,
+      "candidates": 38,
+      "generated": 27,
       "curated": 0,
-      "withheld": 5
+      "withheld": 11
     }
   }
 }

@@ -1,7 +1,10 @@
 {
+  "717": {
+    "force": true
+  },
   "_meta": {
     "schema": "sf6cc.generated-character-semantics.v2",
-    "algorithm": "sf6cc-acbcm-exception-projection.v1",
+    "algorithm": "sf6cc-acbcm-exception-projection.v2",
     "character": "AKI",
     "fighter_id": 13,
     "source_command_display_sha256": "a15dc0169a172bf2406e75db954e182d56eecd4f0e2d12cfc1728e496dc5e4cd",
@@ -11,8 +14,8 @@
       "hash": "a75f2869"
     },
     "counts": {
-      "candidates": 0,
-      "generated": 0,
+      "candidates": 1,
+      "generated": 1,
       "curated": 0,
       "withheld": 0
     }

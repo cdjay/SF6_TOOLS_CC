@@ -86,9 +86,6 @@
       680
     ]
   },
-  "717": {
-    "force": true
-  },
   "854": {
     "force": true
   },
@@ -107,9 +104,6 @@
   "1011": {
     "force": true,
     "is_holdable": true
-  },
-  "1013": {
-    "force": true
   },
   "1015": {
     "force": true,
@@ -191,6 +185,28 @@
           "action_alias_ids": "981,983"
         },
         "reason": "2026-10-09 迁移：保留现有判定行为，待实机验证后再改用生成规则"
+      },
+      {
+        "action": 1011,
+        "generated": {
+          "force": true
+        },
+        "curated": {
+          "force": true,
+          "is_holdable": true
+        },
+        "reason": "2026-10-10 迁移：指令表归属推导的 force 与现有判定不同，保留现有行为，待实机验证后再改用生成规则"
+      },
+      {
+        "action": 1015,
+        "generated": {
+          "force": true
+        },
+        "curated": {
+          "force": true,
+          "is_holdable": true
+        },
+        "reason": "2026-10-10 迁移：指令表归属推导的 force 与现有判定不同，保留现有行为，待实机验证后再改用生成规则"
       }
     ]
   }

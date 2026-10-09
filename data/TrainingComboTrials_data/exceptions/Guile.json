@@ -1,10 +1,4 @@
 {
-  "701": {
-    "force": true
-  },
-  "703": {
-    "force": true
-  },
   "945": {
     "absorb_ids": "923",
     "optional_parent_ids": "923",

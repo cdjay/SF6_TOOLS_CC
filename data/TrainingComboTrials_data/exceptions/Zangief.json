@@ -9,27 +9,6 @@
     "charge_min": 7,
     "charge_max": 20
   },
-  "710": {
-    "force": true
-  },
-  "711": {
-    "force": true
-  },
-  "712": {
-    "force": true
-  },
-  "715": {
-    "force": true
-  },
-  "717": {
-    "force": true
-  },
-  "918": {
-    "force": true
-  },
-  "924": {
-    "force": true
-  },
   "945": {
     "absorb_ids": "948",
     "action_event_projection": {
@@ -44,10 +23,16 @@
     "charge_min": 111,
     "charge_max": 112
   },
-  "1213": {
-    "force": true
-  },
-  "1215": {
-    "force": true
+  "_generated_semantics": {
+    "withhold": [
+      {
+        "action": 1211,
+        "generated": {
+          "force": true
+        },
+        "curated": null,
+        "reason": "2026-10-10 迁移：指令表归属推导的 force 与现有判定不同，保留现有行为，待实机验证后再改用生成规则"
+      }
+    ]
   }
 }
