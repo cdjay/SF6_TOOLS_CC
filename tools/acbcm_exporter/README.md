@@ -12,14 +12,17 @@ Status: `CURRENT`
 导出器只读、不注册每帧回调、不解释数据；解释全部在 `tools/action_runtime_compiler` 生成器中完成。
 脚本来自 SF6CR-evidence 的 `SF6CR_ExportFullEvidence.lua`，并修正了两处数据丢失：
 
-- 字典：`Dictionary<int, …>` 现在按内部条目导出全部键（条目 `index == key`，输出标记
-  `dictionary_encoding = "int-keyed-entries"`）。旧导出用 `get_Item(0..Count-1)` 按键查找，
-  键号 ≥ Count 的触发组、指令、蓄力定义会全部丢失（2026-08-03 的 31 个角色每人丢 7–39 个触发组）。
-- 继承字段：反射 `get_fields()` 只返回类型自己声明的字段，旧导出因此丢掉了各种 Key 从
-  `via.fighter.ActionKey` 继承的帧窗口（起止帧）。现在沿父类链读取游戏数据命名空间
-  （`via.fighter.`、`CharacterAsset.`、`app.battle.`、`BCM.`）的基类字段，输出标记
-  `inherited_fields = "game-namespaces.v1"`，类型目录的 `inherits` 记录父类链。长按阈值
-  （T20 窗口）与取消窗口（TriggerKey 窗口）都依赖这些帧数。
+- 字典：`Dictionary<int, …>` 现在按内部条目导出全部键（条目 `index == key`），只读到字典内部的已用槽位数
+  （`_count`，读不到时用 Count），输出标记 `dictionary_encoding = "int-keyed-entries.v2"`，字典节点记录
+  `used_slots`。旧导出用 `get_Item(0..Count-1)` 按键查找，键号 ≥ Count 的触发组、指令、蓄力定义会全部丢失
+  （2026-08-03 的 31 个角色每人丢 7–39 个触发组）。2026-10-09 第一版修复（标记 `int-keyed-entries`）
+  还会多导出触发组字典未使用的空槽（键 0、标志全 0，每角色 41–48 个）；消费端对这种导出只取
+  槽位序号小于 Count 的条目，游戏数据加载后没有删除，这样正好是全部真实条目。
+- 帧窗口：各种 Key 的起止帧属于原生基类 `via.fighter.ActionKey`（中间还有 `CharacterAsset.ActionBase`），
+  这两个基类没有反射字段，第一版沿父类链读字段也读不到。v2 对这两个基类读取无参数、返回基本类型的
+  属性 getter，作为字段写入（`source = "property"`、`declared_in`），并在 `base_type_catalog` 列出它们的
+  全部字段和方法；输出标记 `inherited_fields = "game-namespaces.v2"`。长按阈值（T20 窗口）与取消窗口
+  （TriggerKey 窗口）都依赖这些帧数。
 
 ## 导出一个角色
 
@@ -103,8 +106,9 @@ node tools\action_runtime_compiler\trigger_group_report.js --version 2026-10-13 
 node tools\action_runtime_compiler\hold_window_report.js --version 2026-10-13 --out hold.md
 ```
 
-`hold.md` 里全部是 `frame_window_missing` 说明导出没有带上继承字段（导出文件缺
-`inherited_fields` 标记），需要用本目录的导出器重导。
+`hold.md` 里全部是 `frame_window_missing` 说明导出没有帧窗口：导出标记不是
+`inherited_fields = "game-namespaces.v2"` 时需要用本目录的导出器重导；是 v2 仍然缺失时，
+看导出文件的 `base_type_catalog` 里 `via.fighter.ActionKey` 有哪些方法，再确定读取方式。
 
 运行时会用 BCM 触发器指纹核对指令表与当前游戏数据；不一致或缺少指令表时，训练场会提示，
 提醒重新导出和生成。

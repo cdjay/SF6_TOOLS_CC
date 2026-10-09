@@ -259,7 +259,8 @@ node tools\action_runtime_compiler\trigger_group_report.js --version 2026-10-13 
 node tools\action_runtime_compiler\hold_window_report.js --version 2026-10-13 --out hold.md
 ```
 
-旧导出没有继承字段、没有帧窗口，结论全部是 `frame_window_missing`。用当前 `tools/acbcm_exporter`
+帧窗口在原生基类 `via.fighter.ActionKey` 的属性里，只有 v2 导出（`inherited_fields = "game-namespaces.v2"`）
+会读取；旧导出没有帧窗口，结论全部是 `frame_window_missing`。用当前 `tools/acbcm_exporter`
 重导后，`consistent` 的条目就可以改由生成器提供阈值；生成器目前尚未产出长按阈值。
 
 ## 4.5 新角色的新结构

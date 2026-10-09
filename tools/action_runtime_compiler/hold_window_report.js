@@ -4,9 +4,10 @@
 // Button-hold thresholds: hand-written is_holdable exceptions
 // (charge_min / charge_max) against the AC Type 20 BranchKeys that implement
 // the hold. Param01 is the held button mask, Param03 the input profile, and
-// the key's frame window (inherited from via.fighter.ActionKey) says when the
-// release is checked. Only exports marked inherited_fields =
-// "game-namespaces.v1" carry those windows; older dumps are reported as
+// the key's frame window (owned by the native base via.fighter.ActionKey)
+// says when the release is checked. The base has no TDB fields; exports
+// marked inherited_fields = "game-namespaces.v2" read its property getters
+// (base_type_catalog lists them). Dumps without a window are reported as
 // frame_window_missing instead of being guessed.
 //
 //   node hold_window_report.js --version 2026-10-13 [--characters Ryu,Luke] [--out report.md] [--json report.json]

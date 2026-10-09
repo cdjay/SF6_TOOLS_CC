@@ -8,7 +8,11 @@
 //
 // Dumps exported before tools/acbcm_exporter fixed dictionary enumeration
 // lost every trigger group whose key is >= the dictionary Count; such dumps
-// are reported as incomplete instead of being trusted.
+// are reported as incomplete instead of being trusted. The first fixed
+// exporter (dictionary_encoding "int-keyed-entries", 2026-10-09) also emitted
+// the never-used slots of this struct-valued dictionary (key 0, empty flags);
+// game data is loaded without removals, so its live entries are exactly the
+// slots below Count. "int-keyed-entries.v2" exports stop at the used slots.
 
 const GROUP_DICTIONARY = "System.Collections.Generic.Dictionary`2<System.Int32,BCM.TRIGGER_GROUP>";
 
@@ -23,6 +27,20 @@ function fieldValue(object, name) {
 
 function scalar(value) {
     return value && value.kind !== "ref" && value.kind !== "nil" ? value.value : undefined;
+}
+
+function keyedEncoding(bcm) {
+    return /^int-keyed-entries(?:\.v\d+)?$/.test(String(bcm && bcm.dictionary_encoding || ""));
+}
+
+function liveItems(bcm, dictionary) {
+    const items = dictionary && dictionary.items || [];
+    if (!dictionary || dictionary.used_slots !== undefined
+        || String(bcm && bcm.dictionary_encoding || "") !== "int-keyed-entries") return items;
+    const count = Number(dictionary.count);
+    if (!Number.isInteger(count) || items.length <= count
+        || !items.every(item => item && Number.isInteger(Number(item.entry_index)))) return items;
+    return items.filter(item => Number(item.entry_index) < count);
 }
 
 function triggerActions(bcm) {
@@ -62,9 +80,9 @@ function triggerGroups(bcm) {
     const objects = objectIndex(bcm);
     const actions = triggerActions(bcm);
     const dictionary = (bcm && bcm.objects || []).find(object => object.object_type === GROUP_DICTIONARY);
-    const keyed = Boolean(bcm && bcm.dictionary_encoding === "int-keyed-entries" || dictionary && dictionary.dictionary === true);
+    const keyed = Boolean(keyedEncoding(bcm) || dictionary && dictionary.dictionary === true);
     const groups = new Map();
-    for (const item of dictionary && dictionary.items || []) {
+    for (const item of liveItems(bcm, dictionary)) {
         if (!item || !item.value || item.value.kind !== "ref") continue;
         const groupId = Number(keyed && item.key !== undefined ? item.key : item.index);
         const group = objects.get(item.value.object_id);
@@ -145,4 +163,6 @@ function enabledBy(relations, source, target) {
     return targets ? [...(targets.get(Number(target)) || [])] : [];
 }
 
-module.exports = { GROUP_DICTIONARY, triggerActions, triggerGroups, actionTriggerKeys, buildRelations, enabledBy };
+module.exports = {
+    GROUP_DICTIONARY, keyedEncoding, liveItems, triggerActions, triggerGroups, actionTriggerKeys, buildRelations, enabledBy
+};

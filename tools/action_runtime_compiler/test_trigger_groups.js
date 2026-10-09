@@ -71,4 +71,31 @@ assert.strictEqual(reportTool.classify(keyed, { parent: 600, child: 900 }, keys)
 assert.strictEqual(reportTool.classify(legacy, { parent: 600, child: 900 }, keys), "unknown_missing_group");
 assert.strictEqual(reportTool.classify(keyed, { parent: 610, child: 900 }, keys), "unexplained");
 
+// v1 exports also carried never-used slots (key 0, empty value) beyond Count;
+// they must not replace the real group 0.
+const v1 = bcm(true);
+v1.dictionary_encoding = "int-keyed-entries";
+const dictionaryObject = v1.objects.find(object => object.object_type === core.GROUP_DICTIONARY);
+dictionaryObject.items = [
+    { index: 0, key: 0, entry_index: 0, value: ref(40) },
+    { index: 5, key: 5, entry_index: 1, value: ref(20) },
+    { index: 0, key: 0, entry_index: 2, value: ref(50) }
+];
+dictionaryObject.count = 2;
+v1.objects.push(
+    { object_id: 40, object_type: "BCM.TRIGGER_GROUP", fields: [{ name: "Flag", value: ref(41) }] },
+    { object_id: 41, object_type: "BCM.TRIGGER_FLAG", fields: [
+        { name: "flag0", value: num(1) }, { name: "flag1", value: num(0) },
+        { name: "flag2", value: num(0) }, { name: "flag3", value: num(0) }] },
+    { object_id: 50, object_type: "BCM.TRIGGER_GROUP", fields: [{ name: "Flag", value: ref(51) }] },
+    { object_id: 51, object_type: "BCM.TRIGGER_FLAG", fields: [
+        { name: "flag0", value: num(0) }, { name: "flag1", value: num(0) },
+        { name: "flag2", value: num(0) }, { name: "flag3", value: num(0) }] });
+const v1Groups = core.triggerGroups(v1).groups;
+assert.deepStrictEqual([...v1Groups.get(0)], [900], "the real key-0 group survives the empty slot");
+assert.deepStrictEqual([...v1Groups.keys()].sort((a, b) => a - b), [0, 5]);
+const v2 = { ...v1, dictionary_encoding: "int-keyed-entries.v2" };
+assert.strictEqual(core.keyedEncoding(v2), true);
+assert.strictEqual(core.liveItems(v2, dictionaryObject).length, 3, "v2 exports are taken as they are");
+
 console.log("trigger group relation tests passed");

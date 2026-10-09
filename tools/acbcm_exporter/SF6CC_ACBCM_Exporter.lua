@@ -284,6 +284,24 @@ end
 
 local MAX_INHERITANCE_DEPTH = 16
 
+-- Native bases keep their data behind property getters instead of TDB
+-- fields: the first export with the inherited-field walk (2026-10-09) found
+-- no fields on CharacterAsset.ActionBase or via.fighter.ActionKey, which own
+-- every key's frame window. For these bases, zero-argument instance getters
+-- with a primitive return type are read as extra fields (source = "property"),
+-- and every member is listed in base_type_catalog.
+local PROPERTY_BASES = {
+    ["via.fighter.ActionKey"] = true,
+    ["CharacterAsset.ActionBase"] = true,
+}
+local PRIMITIVE_TYPES = {
+    ["System.Boolean"] = true, ["System.Byte"] = true, ["System.SByte"] = true,
+    ["System.Int16"] = true, ["System.UInt16"] = true,
+    ["System.Int32"] = true, ["System.UInt32"] = true,
+    ["System.Int64"] = true, ["System.UInt64"] = true,
+    ["System.Single"] = true, ["System.Double"] = true,
+}
+
 local function resolve_definition(object_or_definition)
     local definition = object_or_definition
     if definition ~= nil then
@@ -310,6 +328,145 @@ local function inheritance_chain(object_or_definition)
         current = parent_definition(current)
     end
     return chain
+end
+
+local function member_name(member)
+    local ok, name = pcall(function()
+        return member:get_name()
+    end)
+    if ok then
+        return name
+    end
+    return nil
+end
+
+local function method_param_count(method)
+    local ok, count = pcall(function()
+        return method:get_num_params()
+    end)
+    if ok and type(count) == "number" then
+        return count
+    end
+    return nil
+end
+
+local function method_return_type(method)
+    local ok, return_type = pcall(function()
+        return method:get_return_type()
+    end)
+    if ok then
+        return definition_name(return_type)
+    end
+    return nil
+end
+
+local function method_is_static(method)
+    local ok, static = pcall(function()
+        return method:is_static()
+    end)
+    return ok and static == true
+end
+
+-- Members of one property base, for base_type_catalog.
+local function describe_base(definition)
+    local result = { fields = {}, methods = {} }
+    local ok_fields, fields = pcall(function()
+        return definition:get_fields()
+    end)
+    if ok_fields and fields ~= nil then
+        pcall(function()
+            for _, field in pairs(fields) do
+                result.fields[#result.fields + 1] = member_name(field)
+            end
+        end)
+    end
+    local ok_methods, methods = pcall(function()
+        return definition:get_methods()
+    end)
+    if ok_methods and methods ~= nil then
+        pcall(function()
+            for _, method in pairs(methods) do
+                result.methods[#result.methods + 1] = {
+                    name = member_name(method),
+                    params = method_param_count(method),
+                    returns = method_return_type(method),
+                    static = method_is_static(method),
+                }
+            end
+        end)
+    end
+    table.sort(result.fields, function(a, b) return tostring(a) < tostring(b) end)
+    table.sort(result.methods, function(a, b) return tostring(a.name) < tostring(b.name) end)
+    return result
+end
+
+local property_getter_cache = {}
+
+-- Zero-argument instance getters with a primitive return type declared on a
+-- property base in the type's parent chain (nearest first, first name wins).
+-- base_catalog receives the members of every property base on the chain.
+local function property_getters(definition, base_catalog)
+    local key = definition_name(definition)
+    if key == nil then
+        return {}
+    end
+    local cached = property_getter_cache[key]
+    if cached ~= nil then
+        if base_catalog ~= nil then
+            for name, base in pairs(cached.bases) do
+                if base_catalog[name] == nil then
+                    base_catalog[name] = describe_base(base)
+                end
+            end
+        end
+        return cached.getters
+    end
+    local getters = {}
+    local bases = {}
+    local seen = {}
+    local current = definition
+    local depth = 0
+    while current ~= nil and depth < MAX_INHERITANCE_DEPTH do
+        local name = definition_name(current)
+        if name ~= nil and PROPERTY_BASES[name] then
+            bases[name] = current
+            if base_catalog ~= nil and base_catalog[name] == nil then
+                base_catalog[name] = describe_base(current)
+            end
+            local ok, methods = pcall(function()
+                return current:get_methods()
+            end)
+            if ok and methods ~= nil then
+                pcall(function()
+                    for _, method in pairs(methods) do
+                        local method_label = member_name(method)
+                        local returns = method_return_type(method)
+                        if type(method_label) == "string"
+                            and method_label:sub(1, 4) == "get_"
+                            and method_param_count(method) == 0
+                            and not method_is_static(method)
+                            and PRIMITIVE_TYPES[returns] then
+                            local property = method_label:sub(5)
+                            if property ~= "" and not seen[property] then
+                                seen[property] = true
+                                getters[#getters + 1] = {
+                                    name = property,
+                                    method = method,
+                                    returns = returns,
+                                    declared_in = name,
+                                }
+                            end
+                        end
+                    end
+                end)
+            end
+        end
+        current = parent_definition(current)
+        depth = depth + 1
+    end
+    table.sort(getters, function(a, b) return a.name < b.name end)
+    property_getter_cache[key] = { getters = getters, bases = bases }
+    return getters
 end
 
 local function reflected_fields(object_or_definition)
@@ -449,6 +606,25 @@ local function read_int(object, names)
     return integer_value(value), source_name
 end
 
+-- Slots at or beyond the dictionary's internal used-slot count were never
+-- used. A struct-valued dictionary (BCM.TRIGGER_GROUP) still holds default
+-- values there, which read as non-nil (the first fixed export on 2026-10-09
+-- carried 41-48 such key-0 slots per fighter), so the used-slot count bounds
+-- the enumeration. Count (live entries) is the fallback; it is exact for
+-- dictionaries that never had removals, which is how game data is loaded.
+local function used_entry_slots(dictionary)
+    for _, name in ipairs({ "_count", "count" }) do
+        local ok, raw = pcall(function()
+            return dictionary:get_field(name)
+        end)
+        local value = ok and integer_value(raw) or nil
+        if value ~= nil and value >= 0 then
+            return value, name
+        end
+    end
+    return collection_count(dictionary), "Count"
+end
+
 local function dictionary_entries(dictionary)
     local result = {}
     if dictionary == nil then
@@ -460,7 +636,14 @@ local function dictionary_entries(dictionary)
         return result
     end
 
+    local used_slots, used_slots_source = used_entry_slots(dictionary)
+    result.used_slots = used_slots
+    result.used_slots_source = used_slots_source
+
     local count = collection_count(entries)
+    if count ~= nil and used_slots ~= nil then
+        count = math.min(count, used_slots)
+    end
     if count ~= nil then
         for index = 0, count - 1 do
             local entry = collection_item(entries, index)
@@ -481,7 +664,9 @@ local function dictionary_entries(dictionary)
     else
         pcall(function()
             for index, entry in pairs(entries) do
-                if entry ~= nil then
+                local slot = tonumber(index)
+                local unused = used_slots ~= nil and slot ~= nil and slot >= used_slots
+                if entry ~= nil and not unused then
                     local value = safe_index(entry, "value")
                     if value ~= nil then
                         result[#result + 1] = {
@@ -526,6 +711,7 @@ local function new_graph_context()
         object_ids = {},
         objects = {},
         type_catalog = {},
+        base_type_catalog = {},
         truncation_reasons = {},
         truncated = false,
     }
@@ -665,7 +851,8 @@ encode_value = function(ctx, value, depth)
 
     if is_int_keyed_dictionary(object_type) then
         local entries = {}
-        for _, entry in ipairs(dictionary_entries(value)) do
+        local all_entries = dictionary_entries(value)
+        for _, entry in ipairs(all_entries) do
             if is_live_dictionary_entry(entry) and tonumber(entry.key) ~= nil then
                 entries[#entries + 1] = entry
             end
@@ -676,6 +863,8 @@ encode_value = function(ctx, value, depth)
         node.kind = "collection"
         node.dictionary = true
         node.count = collection_count(value) or #entries
+        node.used_slots = all_entries.used_slots
+        node.used_slots_source = all_entries.used_slots_source
         node.items = {}
         for _, entry in ipairs(entries) do
             node.items[#node.items + 1] = {
@@ -746,6 +935,34 @@ encode_value = function(ctx, value, depth)
                         declared_type = declared_type_name(field),
                         value = {
                             kind = "read-error",
+                        },
+                    }
+                end
+            end
+        end
+    end
+
+    local value_definition = type_definition(value)
+    if value_definition ~= nil then
+        local present = {}
+        for _, field in ipairs(node.fields) do
+            present[field.name] = true
+        end
+        for _, getter in ipairs(property_getters(value_definition, ctx.base_type_catalog)) do
+            if not present[getter.name] then
+                local ok, result = pcall(function()
+                    return getter.method:call(value)
+                end)
+                local scalar = ok and scalar_value(result) or nil
+                if scalar ~= nil then
+                    node.fields[#node.fields + 1] = {
+                        name = getter.name,
+                        declared_type = getter.returns,
+                        source = "property",
+                        declared_in = getter.declared_in,
+                        value = {
+                            kind = type(scalar),
+                            value = scalar,
                         },
                     }
                 end
@@ -1295,8 +1512,8 @@ local function collect_action_catalog(runtime, identity, mode_label)
 
     return {
         schema = AC_SCHEMA,
-        dictionary_encoding = "int-keyed-entries",
-        inherited_fields = "game-namespaces.v1",
+        dictionary_encoding = "int-keyed-entries.v2",
+        inherited_fields = "game-namespaces.v2",
         fighter_id = runtime.fighter_id,
         character = identity.character_name,
         character_slug = identity.character_slug,
@@ -1325,6 +1542,7 @@ local function collect_action_catalog(runtime, identity, mode_label)
         unique_action_ids_by_scope = unique_ids_by_scope,
         records = records,
         type_catalog = type_catalog_to_list(ctx),
+        base_type_catalog = ctx.base_type_catalog,
         objects = ctx.objects,
         graph_stats = {
             object_count = #ctx.objects,
@@ -1484,8 +1702,8 @@ local function collect_bcm(runtime, identity, mode_label)
 
     return {
         schema = BCM_SCHEMA,
-        dictionary_encoding = "int-keyed-entries",
-        inherited_fields = "game-namespaces.v1",
+        dictionary_encoding = "int-keyed-entries.v2",
+        inherited_fields = "game-namespaces.v2",
         fighter_id = runtime.fighter_id,
         character = identity.character_name,
         character_slug = identity.character_slug,
@@ -1516,6 +1734,7 @@ local function collect_bcm(runtime, identity, mode_label)
         bcm_resource_ref = bcm_resource_ref,
         command_root_ref = command_root_ref,
         type_catalog = type_catalog_to_list(ctx),
+        base_type_catalog = ctx.base_type_catalog,
         objects = ctx.objects,
         graph_stats = {
             object_count = #ctx.objects,
