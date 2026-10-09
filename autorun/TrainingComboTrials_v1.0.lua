@@ -42,7 +42,8 @@ local ComboTrialsModules = {
     DummySettings = require("func/ComboTrials/DummySettings"),
     GameProbe = require("func/ComboTrials/GameProbe"),
     HpVital = require("func/ComboTrials/HpVital"),
-    FighterRoster = require("func/FighterRoster")
+    FighterRoster = require("func/FighterRoster"),
+    DataBuildGuard = require("func/ComboTrials/DataBuildGuard")
 }
 local DebugTrace = ComboTrialsModules.DebugTrace
 local ActionMatcher = ComboTrialsModules.ActionMatcher
@@ -1247,7 +1248,7 @@ end
 
 -- 渲染模块源码或指令表行为升级时必须同步递增 RENDERER_VERSION，防止 Reset
 -- Scripts 继续复用旧闭包和旧指令表缓存。
-local REQUIRED_RENDERER_VERSION = 2026082005
+local REQUIRED_RENDERER_VERSION = 2026100901
 local cached_renderer = package.loaded["func/ComboTrials_ImGui"]
 if type(cached_renderer) ~= "table"
     or cached_renderer.RENDERER_VERSION ~= REQUIRED_RENDERER_VERSION
@@ -3671,6 +3672,30 @@ local function ct_ticker(msg)
     if _G.show_custom_ticker then _G.show_custom_ticker(msg, 0.3) end
 end
 
+-- Warns once per fighter when its generated command table was not built
+-- from the running game data (ComboTrials/DataBuildGuard).
+ctx.report_data_build = ComboTrialsModules.DataBuildGuard.new_reporter(function(message)
+    ct_ticker(message)
+    local registry = _G._mod_errors
+    if type(registry) == "table" and type(registry.list) == "table" then
+        registry.count = (registry.count or 0) + 1
+        registry.list[#registry.list + 1] = { ctx = "ComboTrials data build", err = message, t = os.clock() }
+    end
+end)
+
+ctx.check_data_build = function(p_idx)
+    local p_state = players[p_idx]
+    local character = p_state and p_state.profile_name
+    if type(character) ~= "string" or character == "Unknown" then return end
+    local expected, table_status = nil, "invalid_character"
+    if ComboTrials_Renderer and ComboTrials_Renderer.get_command_display_fingerprint then
+        expected, table_status = ComboTrials_Renderer.get_command_display_fingerprint(character)
+    end
+    local status = ComboTrialsModules.DataBuildGuard.evaluate(expected, table_status, p_state.bcm_fingerprint)
+    p_state.data_build_status = status
+    ctx.report_data_build(character, status)
+end
+
 -- =========================================================
 -- UNIVERSAL CHARGE STATE MACHINE
 -- =========================================================
@@ -4983,6 +5008,8 @@ local function ct_player_init(p_idx, p_state)
         p_state.trigger_cache_built = false
         p_state._trigger_cache_build = nil
         p_state.last_bcm_ptr = ""
+        p_state.bcm_fingerprint = nil
+        p_state.data_build_checked = nil
 
         -- RESET TRIAL on character change
         -- The trial depends on both characters, reset if either changes
@@ -7783,9 +7810,15 @@ re.on_frame(function()
                 p_state.last_bcm_ptr = current_bcm_ptr
                 p_state.trigger_cache_built = false
                 p_state._trigger_cache_build = nil
+                p_state.bcm_fingerprint = nil
+                p_state.data_build_checked = nil
             end
         end
         if not p_state.trigger_cache_built then ComboTrialsModules.GameProbe.build_bcm_trigger_cache(p_idx) end
+        if p_state.bcm_fingerprint and p_state.data_build_checked ~= true then
+            p_state.data_build_checked = true
+            ctx.check_data_build(p_idx)
+        end
 
         _pf.act_id, _pf.act_frame, _pf.flags, _pf.action_code, _pf.direct_input,
             _pf.b_type, _pf.direction_input, _pf.facing_right = ComboTrialsModules.GameProbe.get_action_data(_pf.p_char)

@@ -7,7 +7,7 @@ local sdk = sdk
 local imgui = imgui
 
 local M = {}
-M.RENDERER_VERSION = 2026082005
+M.RENDERER_VERSION = 2026100901
 local RuntimeSafety = require("func/RuntimeSafety")
 local Canvas = require("func/ImGuiCanvas")
 local SequenceGrouping = require("func/ComboTrials/SequenceGrouping")
@@ -948,6 +948,8 @@ local function load_command_display_map(character)
                 return json.load_file(filename)
             end
         ))
+        slim._bcm_trigger_fingerprint = type(meta.bcm_trigger_fingerprint) == "table"
+            and meta.bcm_trigger_fingerprint or nil
         loaded = nil
         command_display_cache[key] = slim
         command_display_runtime.cache_status[key] = "loaded"
@@ -4925,6 +4927,13 @@ function M.get_command_display(character, action_id, mode)
     local command_map, status = load_command_display_map(character)
     if not command_map then return nil, status end
     return get_command_display(command_map, action_id, mode)
+end
+
+-- Generator fingerprint of the BCM data the table was built from (see
+-- ComboTrials/DataBuildGuard), plus the table load status.
+function M.get_command_display_fingerprint(character)
+    local command_map, status = load_command_display_map(character)
+    return command_map and command_map._bcm_trigger_fingerprint or nil, status
 end
 
 function M.get_input_conditioned_command_display(

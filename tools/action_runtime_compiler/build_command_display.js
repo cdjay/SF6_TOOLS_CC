@@ -8,6 +8,7 @@ const bcmCore = require("../bcm_catalog_builder/bcm_catalog_core.js");
 const compiler = require("./compiler_core.js");
 const commandDisplay = require("./command_display_core.js");
 const webCharacter = require("./web_character_core.js");
+const bcmFingerprint = require("./bcm_fingerprint.js");
 
 function argsOf(argv) {
     const args = {};
@@ -74,6 +75,7 @@ if (result.report.status === "invalid") {
 }
 const output = commandDisplay.buildCommandDisplay(
     ac.value, bcmCatalog, result.runtime, {}, options);
+output._meta.bcm_trigger_fingerprint = bcmFingerprint.fromBcmSource(bcm.value);
 const filename = path.resolve(args["--output"]);
 const outputBytes = Buffer.from(`${JSON.stringify(output, null, 2)}\n`, "utf8");
 const parsedOutput = path.parse(filename);

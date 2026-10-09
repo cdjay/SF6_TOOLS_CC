@@ -200,6 +200,22 @@ tools\action_runtime_compiler\3_deploy_command_display.bat 2026-10-13 --check
 部署前先对每个文件跑与生成器相同的 hard audit，全部通过才写入；只覆盖内容变化的文件，任一写入失败会恢复已写入的文件。
 `--check` 只比较不写入，正式数据与生成结果不一致时退出码为 1（换行差异不算）。`--characters` 可只部署指定角色。
 
+生成器会在每个指令表 `_meta.bcm_trigger_fingerprint` 写入 BCM 触发器指纹（全部触发器 action_id 排序后的
+FNV-1a 哈希，`bcm_fingerprint.js`）。游戏运行时 `ComboTrials/DataBuildGuard.lua` 用同一算法计算当前角色的指纹，
+不一致或缺少指令表时在训练场提示一次，提醒重新导出和生成。
+
+## 4.2 版本对比
+
+游戏更新后，先比较新旧 dump，再决定旧角色的例外、显示覆盖和已存连段是否需要离线迁移：
+
+```powershell
+node tools\action_runtime_compiler\compare_acbcm_versions.js --old 2026-08-03 --new 2026-10-13 --out diff.md --json diff.json
+```
+
+报告按角色列出：BCM 指纹变化、删除的 Action、同 ID 结构变化（BranchKey 类型与 TriggerKey 组不同）、仅帧数变化
+（平衡调整，ID 未移动）、新增 Action，以及按结构签名唯一匹配到的新 ID（如 EHonda `944→948`），并列出
+`exceptions`、`command_display_overrides`、`action_compatibility` 中引用了受影响 ID 的条目和建议的新 ID。
+
 
 官网帧数据模块可能把等级蓄力招式的内部候选编码放在 `command` 字段。网页生成器不会直接渲染
 该编码：同一内部招式、同一 Action 提示且备注明确按住按钮的等级组，Classic 使用 AC+BCM 的

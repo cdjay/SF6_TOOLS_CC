@@ -29,6 +29,10 @@ for (const [character, registryEntry] of Object.entries(registry)) {
     assert.ok(Number(formal._meta.audit.classic_command_action_count)
         >= Number(formal._meta.audit.split_command_action_count));
     assert.strictEqual(Number(formal._meta.audit.classic_projection_pending_count), 0);
+    const fingerprint = formal._meta.bcm_trigger_fingerprint;
+    assert.ok(fingerprint && fingerprint.algorithm === require("./bcm_fingerprint.js").ALGORITHM
+        && fingerprint.count > 0 && /^[0-9a-f]{8}$/.test(fingerprint.hash),
+        `${character} 缺少运行时 BCM 指纹`);
     if (character === "Alex") formalAlex = formal;
 }
 assert.strictEqual(formalAlex["967"].classic_command.display, ">6+LP");
@@ -193,5 +197,16 @@ try {
 } finally {
     fs.rmSync(releaseDay, { recursive: true, force: true });
 }
+
+// The runtime guard (DataBuildGuard.lua) must hash exactly like the generator.
+const bcmFingerprint = require("./bcm_fingerprint.js");
+assert.strictEqual(bcmFingerprint.fnv1a32(""), "811c9dc5");
+assert.strictEqual(bcmFingerprint.fnv1a32("a"), "e40c292c");
+assert.deepStrictEqual(bcmFingerprint.fromActionIds([18, 17, 0, -1, "600", 17]),
+    { algorithm: bcmFingerprint.ALGORITHM, count: 4, hash: "8eb684e6" });
+assert.deepStrictEqual(bcmFingerprint.fromBcmSource({ triggers: [
+    { native_action_id: 600 }, null, { native_action_id: 17 }, { native_action_id: 18 }, { native_action_id: 17 }
+] }), bcmFingerprint.fromActionIds([17, 17, 18, 600]));
+assert.throws(() => bcmFingerprint.fromBcmSource({}), /triggers/);
 
 console.log("lastjson builder tests passed");

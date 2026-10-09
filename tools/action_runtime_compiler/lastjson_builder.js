@@ -10,6 +10,7 @@ const compiler = require("./compiler_core.js");
 const commandDisplay = require("./command_display_core.js");
 const webCharacter = require("./web_character_core.js");
 const fighterRoster = require("../fighter_roster.js");
+const bcmFingerprint = require("./bcm_fingerprint.js");
 
 const TOOL_ROOT = __dirname;
 const DEFAULT_ACBCM_ROOT = path.join(TOOL_ROOT, "acbcm");
@@ -499,6 +500,7 @@ function buildVersion(options) {
             const compiled = compiler.compileFromCatalog(ac.value, catalog, {}, options);
             if (compiled.report.status === "invalid") throw new Error(`${character} AC+BCM 编译为 invalid。`);
             const output = commandDisplay.buildCommandDisplay(ac.value, catalog, compiled.runtime, {}, options);
+            output._meta.bcm_trigger_fingerprint = bcmFingerprint.fromBcmSource(bcm.value);
             const actionCount = validateOutput(output, character, fighterId);
             const outputBytes = Buffer.from(`${JSON.stringify(output, null, 2)}\n`, "utf8");
             const webOutput = webCharacter.buildWebCharacter(output, {

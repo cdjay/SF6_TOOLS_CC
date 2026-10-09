@@ -1,4 +1,5 @@
 local GS = require("func/GameState")
+local DataBuildGuard = require("func/ComboTrials/DataBuildGuard")
 
 local GameProbe = {
     name = "ComboTrials.GameProbe",
@@ -94,6 +95,7 @@ function GameProbe.build_bcm_trigger_cache(player_idx)
             index = 1,
             mask_cache = {},
             trigger_count = 0,
+            action_ids = {},
         }
         player._trigger_cache_build = build
     end
@@ -106,6 +108,7 @@ function GameProbe.build_bcm_trigger_cache(player_idx)
         pcall(function()
             if t then
                 local aid = t.action_id
+                build.action_ids[#build.action_ids + 1] = aid
                 if aid > 0 then
                     local norm_ng = false
                     pcall(function() norm_ng = t:get_field("norm_NG") == true end)
@@ -132,6 +135,14 @@ function GameProbe.build_bcm_trigger_cache(player_idx)
     end
 
     if build.index <= #build.triggers then return false end
+    -- Empty trigger slots can make the length operator stop early; the data
+    -- fingerprint still has to see every trigger.
+    for key, t in pairs(build.triggers) do
+        if type(key) == "number" and key >= build.index and t then
+            pcall(function() build.action_ids[#build.action_ids + 1] = t.action_id end)
+        end
+    end
+    player.bcm_fingerprint = DataBuildGuard.fingerprint(build.action_ids)
     player._trigger_cache_build = nil
     if build.trigger_count < 10 then return false end
     player.trigger_mask_cache = build.mask_cache
