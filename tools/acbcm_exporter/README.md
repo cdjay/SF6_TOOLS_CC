@@ -109,10 +109,24 @@ node tools\action_runtime_compiler\hold_window_report.js --version 2026-10-13 --
 运行时会用 BCM 触发器指纹核对指令表与当前游戏数据；不一致或缺少指令表时，训练场会提示，
 提醒重新导出和生成。
 
+## 探测游戏内出招表的数据源
+
+训练场的出招表（必杀、SA、特殊技、投、通用、辅助连段，子项是派生）是游戏自己的招式名、分类和派生层级。
+找到它的数据源后，可以替换生成器目前仍在读取的官网数据。`SF6CC_CommandList_Probe.lua` 只读探测：
+
+1. 训练场里打开出招表并停在该界面。
+2. ScriptRunner 运行本目录的 `SF6CC_CommandList_Probe.lua`。
+3. 输出 `reframework/data/SF6CC_ACBCM/commandlist-probe.json`：`app.UICommandListWindow`、
+   `app.UIPartsCommandListSkillPanel` 的字段/方法/父类，类型库可用时还会列出所有名字含 commandlist/skilllist/
+   movelist 的类型，以及当前打开窗口的有限深度对象图（深度 6、最多 30000 个对象）。
+
+探测不注册钩子、不写回游戏。把输出文件交给开发者即可确定下一步的读取方式。
+
 ## 测试
 
 ```powershell
 lua tools/test_acbcm_exporter.lua
+lua tools/test_commandlist_probe.lua
 ```
 
 离线测试用假 SDK 验证字典按键导出（含键号 ≥ Count 与已删除条目）和继承字段导出（帧窗口来自基类，
