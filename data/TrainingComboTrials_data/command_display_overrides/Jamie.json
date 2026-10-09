@@ -24,16 +24,6 @@
       "classic": "MP",
       "replace": true,
       "evidence": "Verified relative raw-input runtime replays bind a fresh MP press and hit contact to Jamie Action 513"
-    },
-    "612": {
-      "classic": "LK",
-      "replace": true,
-      "evidence": "Verified relative raw-input runtime replays bind a fresh LK press and hit contact to Jamie Action 612; the generated catalog lists the same Classic command without a verified route"
-    },
-    "626": {
-      "classic": "2+MP",
-      "replace": true,
-      "evidence": "Verified relative raw-input runtime replays bind a fresh 2+MP press and hit contact to Jamie Action 626; the generated catalog lists the same Classic command without a verified route"
     }
   }
 }

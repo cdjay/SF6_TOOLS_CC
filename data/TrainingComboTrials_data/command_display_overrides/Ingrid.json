@@ -2,16 +2,6 @@
   "schema": "xt.command_display_overrides.v1",
   "character": "Ingrid",
   "entries": {
-    "609": {
-      "classic": "HP",
-      "replace": true,
-      "evidence": "Sixteen revision 37 runtime audit replays bind Ingrid Action 609 to a recorded HP input; seven otherwise completed trials and the generated catalog independently confirm the same Classic command"
-    },
-    "622": {
-      "classic": "2+LP",
-      "replace": true,
-      "evidence": "A completed revision 37 runtime audit replay binds Ingrid Action 622 to the recorded crouching LP input; the generated catalog independently records the same Classic command"
-    },
     "1202": {
       "classic": "236236+K",
       "replace": true,

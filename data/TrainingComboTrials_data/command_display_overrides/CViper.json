@@ -2,11 +2,6 @@
   "schema": "xt.command_display_overrides.v1",
   "character": "CViper",
   "entries": {
-    "608": {
-      "classic": "HK",
-      "replace": true,
-      "evidence": "Three runtime audit hit events bind C. Viper Action 608 to a physical HK input"
-    },
     "1037": {
       "classic": "28",
       "replace": true,

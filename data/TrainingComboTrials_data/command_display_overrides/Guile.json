@@ -2,21 +2,6 @@
   "schema": "xt.command_display_overrides.v1",
   "character": "Guile",
   "entries": {
-    "609": {
-      "classic": "HP",
-      "replace": true,
-      "evidence": "Six completed post-update runtime audit events bind Guile Action 609 to recorded HP inputs with matching route completion"
-    },
-    "653": {
-      "classic": "3+HK",
-      "replace": true,
-      "evidence": "Six post-update runtime audit events bind Guile Action 653 to recorded 3+HK inputs, including completed standard and large-body routes"
-    },
-    "674": {
-      "classic": "6+HK",
-      "replace": true,
-      "evidence": "Three completed post-update runtime audit replays bind Guile Action 674 to recorded 6+HK inputs"
-    },
     "922": {
       "classic": "236+LP+MP",
       "replace": true,

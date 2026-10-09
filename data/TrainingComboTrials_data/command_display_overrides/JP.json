@@ -2,11 +2,6 @@
   "schema": "xt.command_display_overrides.v1",
   "character": "JP",
   "entries": {
-    "622": {
-      "classic": "2+HK",
-      "replace": true,
-      "evidence": "Three 2026-08-04 runtime audit replays preserve the recorded 2+HK command on JP Action 622; the generated catalog independently identifies the same Classic command"
-    },
     "645": {
       "classic": "HK",
       "replace": true,

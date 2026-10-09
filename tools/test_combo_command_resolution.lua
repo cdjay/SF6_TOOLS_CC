@@ -3518,25 +3518,57 @@ assert(lily_exception_source:find('"932"', 1, true)
         and not lily_exception_source:find('"action_alias_ids": "931"', 1, true)
         and not lily_exception_source:find('"canonical_owner_ids": "931"', 1, true),
     "the shipped Lily exception must keep 931 as an absorb-only transient precursor")
-local cammy_override_source = read_all(
-    "data/TrainingComboTrials_data/command_display_overrides/Cammy.json")
-assert(cammy_override_source:find('"609"', 1, true)
-        and cammy_override_source:find('"classic": "LK"', 1, true)
-        and cammy_override_source:find('"618"', 1, true)
-        and cammy_override_source:find('"classic": "2+LP"', 1, true)
-        and cammy_override_source:find('"750"', 1, true)
+-- Display overrides that only repeated the generated AC+BCM command were
+-- removed on 2026-10-09 (renderer output verified identical for every removed
+-- entry). Invariants on those commands are checked on the effective Classic
+-- text: a plain Classic override when one remains, else the generated table.
+-- One main-chunk local: this file is close to Lua's 200-local limit.
+local ShippedOverrides = (function()
+    local Json = require("tools/training_record_bank/vendor/dkjson")
+    local function read(relative)
+        local file = io.open(relative, "rb")
+        if not file then return nil end
+        local source = file:read("*a")
+        file:close()
+        return source
+    end
+    local module = {}
+    function module.source(character)
+        return read("data/TrainingComboTrials_data/command_display_overrides/"
+            .. character .. ".json") or ""
+    end
+    function module.classic(character, action_id)
+        local key = tostring(action_id)
+        local overrides = Json.decode(module.source(character) ~= "" and module.source(character) or "{}")
+        local entry = type(overrides) == "table" and type(overrides.entries) == "table"
+            and overrides.entries[key] or nil
+        if type(entry) == "table" and type(entry.classic) == "string" then return entry.classic end
+        local catalog = Json.decode(read("data/TrainingComboTrials_data/command_display/"
+            .. character .. ".json") or "{}")
+        local command = type(catalog) == "table" and type(catalog[key]) == "table"
+            and catalog[key].classic_command or nil
+        return type(command) == "table" and command.display or nil
+    end
+    function module.assert_classic(character, expected, message)
+        for action_id, classic in pairs(expected) do
+            assert(module.classic(character, action_id) == classic,
+                message .. " (" .. character .. " " .. tostring(action_id) .. ")")
+        end
+    end
+    return module
+end)()
+local cammy_override_source = ShippedOverrides.source("Cammy")
+ShippedOverrides.assert_classic("Cammy", { [609] = "LK", [618] = "2+LP" },
+    "the Cammy runtime-verified commands must stay visible")
+assert(cammy_override_source:find('"750"', 1, true)
         and cammy_override_source:find('"classic": ">8"', 1, true)
         and cammy_override_source:find('"replace": true', 1, true),
     "the shipped Cammy command overrides must preserve runtime-verified commands")
 do
-    local honda_override_source = read_all(
-        "data/TrainingComboTrials_data/command_display_overrides/EHonda.json")
     local honda_compatibility_source = read_all(
         "data/TrainingComboTrials_data/action_compatibility/EHonda.json")
-    assert(honda_override_source:find('"608"', 1, true)
-            and honda_override_source:find('"classic": "LK"', 1, true)
-            and honda_override_source:find('"replace": true', 1, true),
-        "the shipped Honda override must preserve the runtime-verified LK command")
+    ShippedOverrides.assert_classic("EHonda", { [608] = "LK" },
+        "the Honda runtime-verified LK command must stay visible")
     assert(honda_compatibility_source:find(
                 '"target_game_version": "2026-08-03"', 1, true)
             and honda_compatibility_source:find(
@@ -3554,15 +3586,14 @@ do
         "the shipped Honda compatibility map must retain verified ID migrations")
 end
 do
-    local blanka_override_source = read_all(
-        "data/TrainingComboTrials_data/command_display_overrides/Blanka.json")
+    local blanka_override_source = ShippedOverrides.source("Blanka")
+    ShippedOverrides.assert_classic("Blanka", { [613] = "2+LP" },
+        "the Blanka runtime-verified crouching LP must stay visible")
     local blanka_compatibility_source = read_all(
         "data/TrainingComboTrials_data/action_compatibility/Blanka.json")
     local blanka_exception_source = read_all(
         "data/TrainingComboTrials_data/exceptions/Blanka.json")
-    assert(blanka_override_source:find('"613"', 1, true)
-            and blanka_override_source:find('"classic": "2+LP"', 1, true)
-            and blanka_override_source:find('"926"', 1, true)
+    assert(blanka_override_source:find('"926"', 1, true)
             and blanka_override_source:find('"classic": "214+P"', 1, true)
             and blanka_override_source:find('"931"', 1, true)
             and blanka_override_source:find('"classic": "214+PP"', 1, true)
@@ -3590,56 +3621,39 @@ do
         "the shipped Blanka rules must fold doll contact Action 930 into owner 931")
 end
 do
-    local dhalsim_override_source = read_all(
-        "data/TrainingComboTrials_data/command_display_overrides/Dhalsim.json")
     local dhalsim_exception_source = read_all(
         "data/TrainingComboTrials_data/exceptions/Dhalsim.json")
-    assert(dhalsim_override_source:find('"1200"', 1, true)
-            and dhalsim_override_source:find(
-                '"classic": "236236+LP"', 1, true)
-            and dhalsim_override_source:find('"1206"', 1, true)
-            and dhalsim_override_source:find(
-                '"classic": "236236+HP"', 1, true),
-        "the shipped Dhalsim overrides must retain both runtime-verified SA1 commands")
+    ShippedOverrides.assert_classic("Dhalsim", { [1200] = "236236+LP", [1206] = "236236+HP" },
+        "both runtime-verified Dhalsim SA1 commands must stay visible")
     assert(dhalsim_exception_source:find('"642"', 1, true)
             and dhalsim_exception_source:find(
                 '"transient_precursor_ids": "1048"', 1, true),
         "the shipped Dhalsim rules must retain the 1048 to 642 transient state transition")
 end
 do
-    local terry_override_source = read_all(
-        "data/TrainingComboTrials_data/command_display_overrides/Terry.json")
     local terry_exception_source = read_all(
         "data/TrainingComboTrials_data/exceptions/Terry.json")
-    for action_id, classic in pairs({
-        ["609"] = "LK",
-        ["612"] = "MK",
-        ["955"] = "214+LK",
-        ["956"] = "214+MK",
-    }) do
-        assert(terry_override_source:find('"' .. action_id .. '"', 1, true)
-                and terry_override_source:find(
-                    '"classic": "' .. classic .. '"', 1, true),
-            "the shipped Terry overrides must retain every runtime-verified Classic command")
-    end
+    ShippedOverrides.assert_classic("Terry", {
+        [609] = "LK",
+        [612] = "MK",
+        [955] = "214+LK",
+        [956] = "214+MK",
+    }, "every runtime-verified Terry Classic command must stay visible")
     assert(terry_exception_source:find('"606"', 1, true)
             and terry_exception_source:find('"absorb_ids": "607"', 1, true)
             and terry_exception_source:find('"action_event_projection": {}', 1, true),
         "the shipped Terry rules must keep HP Action 607 inside owner Action 606")
 end
 do
-    local zangief_override_source = read_all(
-        "data/TrainingComboTrials_data/command_display_overrides/Zangief.json")
+    local zangief_override_source = ShippedOverrides.source("Zangief")
+    ShippedOverrides.assert_classic("Zangief", { [615] = "HK", [631] = "2+MK" },
+        "the Zangief runtime-verified normals must stay visible")
     local zangief_compatibility_source = read_all(
         "data/TrainingComboTrials_data/action_compatibility/Zangief.json")
     local zangief_exception_source = read_all(
         "data/TrainingComboTrials_data/exceptions/Zangief.json")
     assert(zangief_override_source:find('"609"', 1, true)
             and zangief_override_source:find('"classic": "HP"', 1, true)
-            and zangief_override_source:find('"615"', 1, true)
-            and zangief_override_source:find('"classic": "HK"', 1, true)
-            and zangief_override_source:find('"631"', 1, true)
-            and zangief_override_source:find('"classic": "2+MK"', 1, true)
             and zangief_override_source:find('"923"', 1, true)
             and zangief_override_source:find(
                 '"classic": "41236+LK+MK"', 1, true)
@@ -3668,8 +3682,9 @@ do
         "the shipped Zangief rules must fold the 948 contact phase into command owner 945")
 end
 do
-    local ed_override_source = read_all(
-        "data/TrainingComboTrials_data/command_display_overrides/Ed.json")
+    local ed_override_source = ShippedOverrides.source("Ed")
+    ShippedOverrides.assert_classic("Ed", { [634] = "2+LK", [639] = "2+MK" },
+        "the verified Ed crouching normals must stay visible")
     local ed_exception_source = read_all(
         "data/TrainingComboTrials_data/exceptions/Ed.json")
     assert(ed_override_source:find('"contextual_internal_phases"', 1, true)
@@ -3677,9 +3692,7 @@ do
             and ed_override_source:find('"owner_ids"', 1, true)
             and ed_override_source:find('606', 1, true)
             and not ed_override_source:find(
-                '"605": {\n      "classic": "HP"', 1, true)
-            and ed_override_source:find('"634"', 1, true)
-            and ed_override_source:find('"639"', 1, true),
+                '"605": {\n      "classic": "HP"', 1, true),
         "the shipped Ed overrides must hide 605 only after 606 and retain the verified crouching normals")
     assert(ed_exception_source:find('"606"', 1, true)
             and ed_exception_source:find('"absorb_ids": "605"', 1, true)
@@ -3753,57 +3766,28 @@ do
         "the runtime unique-resource registry must include both Yasmine resources")
 end
 do
-    local ryu_override_source = read_all(
-        "data/TrainingComboTrials_data/command_display_overrides/Ryu.json")
-    assert(ryu_override_source:find('"617"', 1, true)
-            and ryu_override_source:find('"classic": "HK"', 1, true)
-            and ryu_override_source:find('"622"', 1, true)
-            and ryu_override_source:find('"classic": "2+LP"', 1, true)
-            and ryu_override_source:find('"663"', 1, true)
-            and ryu_override_source:find('"classic": "4+HP"', 1, true)
-            and ryu_override_source:find('"1005"', 1, true)
-            and ryu_override_source:find('"classic": "214+HK"', 1, true)
-            and ryu_override_source:find('"replace": true', 1, true),
-        "the shipped Ryu command overrides must preserve runtime-verified commands")
+    ShippedOverrides.assert_classic("Ryu", { [617] = "HK", [622] = "2+LP", [663] = "4+HP", [1005] = "214+HK" },
+        "the runtime-verified Ryu commands must stay visible")
 end
 do
-    local ken_override_source = read_all(
-        "data/TrainingComboTrials_data/command_display_overrides/Ken.json")
-    assert(ken_override_source:find('"618"', 1, true)
-            and ken_override_source:find('"classic": "2+LP"', 1, true)
-            and ken_override_source:find('"623"', 1, true)
-            and ken_override_source:find('"classic": "2+MP"', 1, true)
-            and ken_override_source:find('"981"', 1, true)
-            and ken_override_source:find('"classic": "623+MK"', 1, true)
-            and ken_override_source:find('"replace": true', 1, true),
-        "the shipped Ken command overrides must preserve the runtime-verified commands")
+    ShippedOverrides.assert_classic("Ken", { [618] = "2+LP", [623] = "2+MP", [981] = "623+MK" },
+        "the runtime-verified Ken commands must stay visible")
 end
 do
-    local chunli_override_source = read_all(
-        "data/TrainingComboTrials_data/command_display_overrides/ChunLi.json")
-    assert(chunli_override_source:find('"605"', 1, true)
-            and chunli_override_source:find('"classic": "HK"', 1, true)
-            and chunli_override_source:find('"627"', 1, true)
-            and chunli_override_source:find('"classic": "3+HP"', 1, true)
-            and chunli_override_source:find('"replace": true', 1, true),
-        "the shipped Chun-Li command overrides must preserve the runtime-verified commands")
+    ShippedOverrides.assert_classic("ChunLi", { [605] = "HK", [627] = "3+HP" },
+        "the runtime-verified Chun-Li commands must stay visible")
 end
 do
-    local mbison_override_source = read_all(
-        "data/TrainingComboTrials_data/command_display_overrides/MBison.json")
+    local mbison_override_source = ShippedOverrides.source("MBison")
+    ShippedOverrides.assert_classic("MBison", { [608] = "LK", [612] = "HK", [653] = "3+HK" },
+        "the runtime-verified M. Bison normals must stay visible")
     local mbison_921_source = assert(mbison_override_source:match(
         '"921"%s*:%s*(%b{})'))
     local mbison_catalog_source = read_all(
         "data/TrainingComboTrials_data/command_display/MBison.json")
     local mbison_exception_source = read_all(
         "data/TrainingComboTrials_data/exceptions/MBison.json")
-    assert(mbison_override_source:find('"608"', 1, true)
-            and mbison_override_source:find('"classic": "LK"', 1, true)
-            and mbison_override_source:find('"612"', 1, true)
-            and mbison_override_source:find('"classic": "HK"', 1, true)
-            and mbison_override_source:find('"653"', 1, true)
-            and mbison_override_source:find('"classic": "3+HK"', 1, true)
-            and mbison_921_source:find('"simple": "强"', 1, true)
+    assert(mbison_921_source:find('"simple": "强"', 1, true)
             and mbison_921_source:find('"motion": "强"', 1, true)
             and mbison_override_source:find('"954"', 1, true)
             and mbison_override_source:find('"variants"', 1, true)
@@ -3878,47 +3862,32 @@ do
         "the generated Alex catalog must own the Modern 2+PP command")
 end
 do
-    local deejay_override_source = read_all(
-        "data/TrainingComboTrials_data/command_display_overrides/DeeJay.json")
-    assert(deejay_override_source:find('"606"', 1, true)
-            and deejay_override_source:find('"classic": "HP"', 1, true)
-            and deejay_override_source:find('"611"', 1, true)
-            and deejay_override_source:find('"classic": "MK"', 1, true)
-            and deejay_override_source:find('"617"', 1, true)
-            and deejay_override_source:find('"classic": "2+LP"', 1, true)
-            and deejay_override_source:find('"1229"', 1, true)
-            and deejay_override_source:find('"classic": "236236+HP"', 1, true)
-            and deejay_override_source:find('"replace": true', 1, true),
-        "the shipped Dee Jay command overrides must preserve runtime-verified commands")
+    ShippedOverrides.assert_classic("DeeJay", { [606] = "HP", [611] = "MK", [617] = "2+LP", [1229] = "236236+HP" },
+        "the runtime-verified Dee Jay commands must stay visible")
 end
-local ingrid_override_source = read_all(
-    "data/TrainingComboTrials_data/command_display_overrides/Ingrid.json")
-assert(ingrid_override_source:find('"609"', 1, true)
-        and ingrid_override_source:find('"classic": "HP"', 1, true)
-        and ingrid_override_source:find('"622"', 1, true)
-        and ingrid_override_source:find('"classic": "2+LP"', 1, true)
-        and ingrid_override_source:find('"1202"', 1, true)
+local ingrid_override_source = ShippedOverrides.source("Ingrid")
+ShippedOverrides.assert_classic("Ingrid", { [609] = "HP", [622] = "2+LP" },
+    "the runtime-verified Ingrid normals must stay visible")
+assert(ingrid_override_source:find('"1202"', 1, true)
         and ingrid_override_source:find('"classic": "236236+K"', 1, true)
         and ingrid_override_source:find('"1219"', 1, true)
         and ingrid_override_source:find('"classic": "214214+MP"', 1, true)
         and ingrid_override_source:find('"1229"', 1, true)
         and ingrid_override_source:find('"classic": "214214+HP"', 1, true),
     "the shipped Ingrid command overrides must preserve runtime-verified commands")
-local kimberly_override_source = read_all(
-    "data/TrainingComboTrials_data/command_display_overrides/Kimberly.json")
-assert(kimberly_override_source:find('"613"', 1, true)
-        and kimberly_override_source:find('"classic": "2+MP"', 1, true)
-        and kimberly_override_source:find('"980"', 1, true)
+local kimberly_override_source = ShippedOverrides.source("Kimberly")
+ShippedOverrides.assert_classic("Kimberly", { [613] = "2+MP" },
+    "the runtime-verified Kimberly crouching MP must stay visible")
+assert(kimberly_override_source:find('"980"', 1, true)
         and kimberly_override_source:find('"classic": "5252+MP+HP"', 1, true)
         and kimberly_override_source:find('"983"', 1, true)
         and kimberly_override_source:find('"classic": ">22+MP+HP"', 1, true)
         and kimberly_override_source:find('"replace": true', 1, true),
     "the shipped Kimberly command overrides must preserve runtime-verified commands")
-local jp_override_source = read_all(
-    "data/TrainingComboTrials_data/command_display_overrides/JP.json")
-assert(jp_override_source:find('"622"', 1, true)
-        and jp_override_source:find('"classic": "2+HK"', 1, true)
-        and jp_override_source:find('"645"', 1, true)
+local jp_override_source = ShippedOverrides.source("JP")
+ShippedOverrides.assert_classic("JP", { [622] = "2+HK" },
+    "the runtime-verified JP crouching HK must stay visible")
+assert(jp_override_source:find('"645"', 1, true)
         and jp_override_source:find('"classic": "HK"', 1, true)
         and jp_override_source:find('"720"', 1, true)
         and jp_override_source:find('"classic": "LP+LK"', 1, true)
@@ -3969,24 +3938,14 @@ assert(sagat_exception_source:find('"944"', 1, true)
         and sagat_exception_source:find('"954"', 1, true)
         and sagat_exception_source:find('"action_alias_ids": "953"', 1, true),
     "the shipped Sagat exception must preserve verified post-update Action transitions")
-local sagat_override_source = read_all(
-    "data/TrainingComboTrials_data/command_display_overrides/Sagat.json")
-assert(sagat_override_source:find('"600"', 1, true)
-        and sagat_override_source:find('"classic": "LP"', 1, true)
-        and sagat_override_source:find('"604"', 1, true)
-        and sagat_override_source:find('"classic": "MP"', 1, true)
-        and sagat_override_source:find('"954"', 1, true)
+local sagat_override_source = ShippedOverrides.source("Sagat")
+ShippedOverrides.assert_classic("Sagat", { [600] = "LP", [604] = "MP" },
+    "the runtime-verified Sagat normals must stay visible")
+assert(sagat_override_source:find('"954"', 1, true)
         and sagat_override_source:find('"classic": "214+MK"', 1, true),
     "the shipped Sagat command overrides must preserve runtime-verified commands")
-local luke_override_source = read_all(
-    "data/TrainingComboTrials_data/command_display_overrides/Luke.json")
-assert(luke_override_source:find('"609"', 1, true)
-        and luke_override_source:find('"classic": "LK"', 1, true)
-        and luke_override_source:find('"612"', 1, true)
-        and luke_override_source:find('"classic": "MK"', 1, true)
-        and luke_override_source:find('"669"', 1, true)
-        and luke_override_source:find('"classic": "4+HK"', 1, true),
-    "the shipped Luke command overrides must preserve runtime-verified commands")
+ShippedOverrides.assert_classic("Luke", { [609] = "LK", [612] = "MK", [669] = "4+HK" },
+    "the runtime-verified Luke commands must stay visible")
 local luke_exception_source = read_all(
     "data/TrainingComboTrials_data/exceptions/Luke.json")
 assert(luke_exception_source:find('"absorb_ids": "921"', 1, true)
@@ -3998,27 +3957,17 @@ assert(luke_exception_source:find('"absorb_ids": "921"', 1, true)
         and luke_exception_source:find('"1210"', 1, true)
         and luke_exception_source:find('"transient_precursor_ids": "17"', 1, true),
     "the shipped Luke exceptions must preserve internal hit phases and the uppercut tail rule")
-local manon_override_source = read_all(
-    "data/TrainingComboTrials_data/command_display_overrides/Manon.json")
-assert(manon_override_source:find('"628"', 1, true)
-        and manon_override_source:find('"classic": "2+MP"', 1, true)
-        and manon_override_source:find('"1022"', 1, true)
-        and manon_override_source:find('"classic": "236+MP"', 1, true),
-    "the shipped Manon command overrides must preserve runtime-verified commands")
+ShippedOverrides.assert_classic("Manon", { [628] = "2+MP", [1022] = "236+MP" },
+    "the runtime-verified Manon commands must stay visible")
 local manon_exception_source = read_all(
     "data/TrainingComboTrials_data/exceptions/Manon.json")
 assert(manon_exception_source:find('"1022"', 1, true)
         and manon_exception_source:find('"absorb_ids": "1041"', 1, true),
     "the shipped Manon exceptions must preserve the 236+MP internal contact phase")
-local guile_override_source = read_all(
-    "data/TrainingComboTrials_data/command_display_overrides/Guile.json")
-assert(guile_override_source:find('"609"', 1, true)
-        and guile_override_source:find('"classic": "HP"', 1, true)
-        and guile_override_source:find('"653"', 1, true)
-        and guile_override_source:find('"classic": "3+HK"', 1, true)
-        and guile_override_source:find('"674"', 1, true)
-        and guile_override_source:find('"classic": "6+HK"', 1, true)
-        and guile_override_source:find('"922"', 1, true)
+local guile_override_source = ShippedOverrides.source("Guile")
+ShippedOverrides.assert_classic("Guile", { [609] = "HP", [653] = "3+HK", [674] = "6+HK" },
+    "the runtime-verified Guile normals must stay visible")
+assert(guile_override_source:find('"922"', 1, true)
         and guile_override_source:find('"classic": "236+LP+MP"', 1, true)
         and guile_override_source:find('"923"', 1, true)
         and guile_override_source:find('"classic": "214+PP"', 1, true),
@@ -4028,11 +3977,10 @@ local guile_exception_source = read_all(
 assert(guile_exception_source:find('"994"', 1, true)
         and guile_exception_source:find('"transient_precursor_ids": "33"', 1, true),
     "the shipped Guile exceptions must suppress the transient Flash Kick precursor")
-local cviper_override_source = read_all(
-    "data/TrainingComboTrials_data/command_display_overrides/CViper.json")
-assert(cviper_override_source:find('"608"', 1, true)
-        and cviper_override_source:find('"classic": "HK"', 1, true)
-        and cviper_override_source:find('"1037"', 1, true)
+local cviper_override_source = ShippedOverrides.source("CViper")
+ShippedOverrides.assert_classic("CViper", { [608] = "HK" },
+    "the runtime-verified C. Viper HK must stay visible")
+assert(cviper_override_source:find('"1037"', 1, true)
         and cviper_override_source:find('"classic": "28"', 1, true),
     "the shipped C. Viper command overrides must preserve runtime-verified commands")
 local combo_imgui_source = read_all("autorun/func/ComboTrials_ImGui.lua")

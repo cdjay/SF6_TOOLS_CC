@@ -41,21 +41,6 @@
     }
   },
   "entries": {
-    "622": {
-      "classic": "2+LP",
-      "replace": true,
-      "evidence": "Four verified relative raw-input replays bind crouching LP presses and hit contact to Action 622; the generated catalog independently records the same Classic command"
-    },
-    "627": {
-      "classic": "2+MP",
-      "replace": true,
-      "evidence": "Three verified relative raw-input replay events bind crouching MP presses and hit contact to Action 627; the generated catalog independently records the same Classic command"
-    },
-    "661": {
-      "classic": "6+MP",
-      "replace": true,
-      "evidence": "Two verified relative raw-input replay events bind forward MP presses and hit contact to Action 661; the generated catalog independently records the same Classic command"
-    },
     "975": {
       "classic": "214+LP",
       "replace": true,
@@ -65,21 +50,6 @@
       "classic": "214+HP",
       "replace": true,
       "evidence": "Seventeen verified relative raw-input replay events across fourteen trials bind 214+HP and hit contact to Action 977; the generated catalog records the same Classic command"
-    },
-    "982": {
-      "classic": "6+P",
-      "replace": true,
-      "evidence": "Three verified relative raw-input replays enter Action 982 from Action 975 on the recorded 6+P follow-up and confirm hit contact; the generated catalog records the same Classic command"
-    },
-    "985": {
-      "classic": "6+P",
-      "replace": true,
-      "evidence": "Three verified relative raw-input replays enter Action 985 from Action 977 on the recorded 6+P follow-up and confirm hit contact; the generated catalog records the same Classic command"
-    },
-    "991": {
-      "classic": "236+HK",
-      "replace": true,
-      "evidence": "Five verified relative raw-input replays bind 236+HK to non-contact Action 991 immediately before the audited Demon Raid j.HK follow-up; the generated catalog records the same Classic command"
     }
   }
 }

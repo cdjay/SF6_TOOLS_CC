@@ -2,16 +2,6 @@
   "schema": "xt.command_display_overrides.v1",
   "character": "Marisa",
   "entries": {
-    "617": {
-      "classic": "HK",
-      "replace": true,
-      "evidence": "Verified relative raw-input runtime replays bind fresh HK presses to Marisa Action 617"
-    },
-    "637": {
-      "classic": "2+MK",
-      "replace": true,
-      "evidence": "Verified relative raw-input runtime replay binds a fresh 2+MK press and hit contact to Marisa Action 637"
-    },
     "672": {
       "classic": "4+HK",
       "replace": true,
@@ -21,11 +11,6 @@
       "classic": "6+HK",
       "replace": true,
       "evidence": "Verified relative raw-input runtime replays bind fresh 6+HK presses and hit contacts to Marisa Action 673"
-    },
-    "678": {
-      "classic": "3+HP",
-      "replace": true,
-      "evidence": "Verified relative raw-input runtime replay binds a fresh 3+HP press and hit contact to Marisa Action 678"
     },
     "687": {
       "classic": "3+HP",
