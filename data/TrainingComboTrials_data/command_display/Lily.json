@@ -2650,6 +2650,78 @@
       }
     ]
   },
+  "648": {
+    "classic_command": null,
+    "simple_command": null,
+    "motion_command": null,
+    "control_support": "unknown",
+    "source": "ac_bcm+capcom_official_semantics",
+    "ownership": "internal_execution_phase",
+    "suppress_display": true,
+    "transition_evidence": {
+      "kind": "ac_type13_air_landing_execution_phase",
+      "source_action_ids": [
+        633,
+        635,
+        636,
+        638,
+        641,
+        643,
+        645
+      ],
+      "auxiliary_source_action_ids": [],
+      "target_action_id": 648,
+      "exit_target_action_id": 6,
+      "branch_type": 13,
+      "attr": 0,
+      "action_frame": 0,
+      "param00": 1,
+      "param01": 0,
+      "param02": 0,
+      "param03": 0,
+      "param04": 0,
+      "param05": 0,
+      "trigger_id": -1,
+      "exit_branch_type": 20,
+      "exit_attr": 0,
+      "exit_action_frame": 0,
+      "exit_param00": 0,
+      "exit_param01": 2,
+      "exit_param02": 0,
+      "exit_param03": 0,
+      "exit_param04": 0,
+      "exit_param05": 0,
+      "exit_trigger_id": -1,
+      "auxiliary_branches": [
+        {
+          "branch_type": 5,
+          "attr": 256,
+          "action_frame": 0,
+          "param00": 0,
+          "param01": 0,
+          "param02": 0,
+          "param03": 0,
+          "param04": 0,
+          "param05": 0,
+          "trigger_id": -1
+        },
+        {
+          "branch_type": 54,
+          "attr": 256,
+          "action_frame": 0,
+          "param00": 160,
+          "param01": 0,
+          "param02": 0,
+          "param03": 0,
+          "param04": 0,
+          "param05": 0,
+          "trigger_id": -1
+        }
+      ],
+      "reason": "ac_type13_multi_owner_air_landing_execution_phase"
+    },
+    "routes": []
+  },
   "651": {
     "classic_command": {
       "display": "3+HP",
@@ -9859,8 +9931,70 @@
     "ac_state_neutral_relations": [],
     "ac_type13_neutral_route_count": 0,
     "ac_type13_neutral_relations": [],
-    "internal_transition_suppression_count": 1,
+    "internal_transition_suppression_count": 2,
     "suppressed_internal_transitions": [
+      {
+        "kind": "ac_type13_air_landing_execution_phase",
+        "source_action_ids": [
+          633,
+          635,
+          636,
+          638,
+          641,
+          643,
+          645
+        ],
+        "auxiliary_source_action_ids": [],
+        "target_action_id": 648,
+        "exit_target_action_id": 6,
+        "branch_type": 13,
+        "attr": 0,
+        "action_frame": 0,
+        "param00": 1,
+        "param01": 0,
+        "param02": 0,
+        "param03": 0,
+        "param04": 0,
+        "param05": 0,
+        "trigger_id": -1,
+        "exit_branch_type": 20,
+        "exit_attr": 0,
+        "exit_action_frame": 0,
+        "exit_param00": 0,
+        "exit_param01": 2,
+        "exit_param02": 0,
+        "exit_param03": 0,
+        "exit_param04": 0,
+        "exit_param05": 0,
+        "exit_trigger_id": -1,
+        "auxiliary_branches": [
+          {
+            "branch_type": 5,
+            "attr": 256,
+            "action_frame": 0,
+            "param00": 0,
+            "param01": 0,
+            "param02": 0,
+            "param03": 0,
+            "param04": 0,
+            "param05": 0,
+            "trigger_id": -1
+          },
+          {
+            "branch_type": 54,
+            "attr": 256,
+            "action_frame": 0,
+            "param00": 160,
+            "param01": 0,
+            "param02": 0,
+            "param03": 0,
+            "param04": 0,
+            "param05": 0,
+            "trigger_id": -1
+          }
+        ],
+        "reason": "ac_type13_multi_owner_air_landing_execution_phase"
+      },
       {
         "kind": "ac_type13_terminal_execution_phase",
         "source_action_ids": [
@@ -11229,7 +11363,7 @@
         "reason": "profile_disabled_or_missing"
       }
     ],
-    "unmapped_action_count": 257,
+    "unmapped_action_count": 256,
     "unmapped_action_ids": [
       1,
       2,
@@ -11394,7 +11528,6 @@
       581,
       631,
       632,
-      648,
       661,
       720,
       721,
@@ -11559,12 +11692,12 @@
       "ac_state_neutral_route_count": 0,
       "ac_type13_neutral_relation_count": 0,
       "ac_type13_neutral_route_count": 0,
-      "internal_transition_suppression_count": 1,
+      "internal_transition_suppression_count": 2,
       "split_command_action_count": 84,
       "classic_command_action_count": 92,
       "shared_command_action_count": 84,
       "classic_projection_pending_count": 0,
-      "command_display_action_count": 93,
+      "command_display_action_count": 94,
       "followup_relation_count": 0,
       "command_slot_overflow_count": 0,
       "ac_automatic_transition_route_count": 0,
