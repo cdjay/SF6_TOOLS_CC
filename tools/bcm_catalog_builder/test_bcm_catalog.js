@@ -281,4 +281,11 @@ assert.strictEqual(actionRuntime.action_ids.length, 6);
 assert.strictEqual(actionRuntime.aliases["905"], "904");
 assert.strictEqual(actionRuntime.aliases["906"], "904");
 assert.strictEqual(actionRuntime.coverage.ac_derived_alias_count, 2);
+// The browser tool keeps its own ID table; it must match the shared roster.
+const roster = require("../fighter_roster.js").loadRoster();
+assert.deepStrictEqual(
+    Object.entries(core.FIGHTER_NAMES).map(([id, key]) => [Number(id), key]).sort((a, b) => a[0] - b[0]),
+    roster.fighters.map(fighter => [fighter.id, fighter.key]),
+    "FIGHTER_NAMES must match data/SF6CC/fighters.json"
+);
 console.log("BCM catalog tests passed.");

@@ -41,7 +41,8 @@ local ComboTrialsModules = {
     TimelineSequenceNormalizer = require("func/ComboTrials/TimelineSequenceNormalizer"),
     DummySettings = require("func/ComboTrials/DummySettings"),
     GameProbe = require("func/ComboTrials/GameProbe"),
-    HpVital = require("func/ComboTrials/HpVital")
+    HpVital = require("func/ComboTrials/HpVital"),
+    FighterRoster = require("func/FighterRoster")
 }
 local DebugTrace = ComboTrialsModules.DebugTrace
 local ActionMatcher = ComboTrialsModules.ActionMatcher
@@ -110,41 +111,6 @@ local INPUT_DIR_MAP = {
     [15] = "*"
 }
 local ComboTrials_Renderer
-
-local esf_names_map = {
-    ["ESF_001"] = "Ryu",
-    ["ESF_002"] = "Luke",
-    ["ESF_003"] = "Kimberly",
-    ["ESF_004"] = "ChunLi",
-    ["ESF_005"] = "Manon",
-    ["ESF_006"] = "Zangief",
-    ["ESF_007"] = "JP",
-    ["ESF_008"] = "Dhalsim",
-    ["ESF_009"] = "Cammy",
-    ["ESF_010"] = "Ken",
-    ["ESF_011"] = "DeeJay",
-    ["ESF_012"] = "Lily",
-    ["ESF_013"] = "AKI",
-    ["ESF_014"] = "Rashid",
-    ["ESF_015"] = "Blanka",
-    ["ESF_016"] = "Juri",
-    ["ESF_017"] = "Marisa",
-    ["ESF_018"] = "Guile",
-    ["ESF_019"] = "Ed",
-    ["ESF_020"] = "EHonda",
-    ["ESF_021"] = "Jamie",
-    ["ESF_022"] = "Akuma",
-    ["ESF_025"] = "Sagat",
-    ["ESF_026"] = "MBison",
-    ["ESF_027"] = "Terry",
-    ["ESF_028"] = "Mai",
-    ["ESF_029"] = "Elena",
-    ["ESF_030"] = "CViper",
-    ["ESF_031"] = "Alex",
-    ["ESF_032"] = "Ingrid",
-    ["ESF_033"] = "Yasmine"
-}
-
 
 local common_exceptions = CharacterRules.load_common()
 
@@ -1304,7 +1270,7 @@ re.on_frame(function()
         for i = 0, 1 do
             local info = _G._shared_player_info[i]
             if info and info.key then
-                players[i].profile_name = esf_names_map[info.key] or "Unknown"
+                players[i].profile_name = ComboTrialsModules.FighterRoster.profile_key(info)
             end
         end
     end

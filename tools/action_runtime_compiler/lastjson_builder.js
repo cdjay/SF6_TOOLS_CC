@@ -9,12 +9,12 @@ const bcmCore = require("../bcm_catalog_builder/bcm_catalog_core.js");
 const compiler = require("./compiler_core.js");
 const commandDisplay = require("./command_display_core.js");
 const webCharacter = require("./web_character_core.js");
+const fighterRoster = require("../fighter_roster.js");
 
 const TOOL_ROOT = __dirname;
 const DEFAULT_ACBCM_ROOT = path.join(TOOL_ROOT, "acbcm");
 const DEFAULT_OFF_ROOT = path.join(TOOL_ROOT, "off");
 const COMMUNITY_ROOT = path.resolve(TOOL_ROOT, "../modern_display_builder/community");
-const CHARACTER_MANIFEST = path.resolve(TOOL_ROOT, "../modern_display_builder/characters.json");
 const ZERO_AUDIT_FIELDS = [
     "owner_missing_count", "no_evidence_count", "direct_overridden_count",
     "non_whitelist_propagation_count", "overlay_entry_count",
@@ -357,7 +357,7 @@ function buildVersion(options) {
     const versionName = path.basename(versionDirectory);
     const normalizedVersion = normalizeVersion(versionName);
     const offDirectory = resolveOffDirectory(path.resolve(options.offRoot), versionName);
-    const registry = readJson(CHARACTER_MANIFEST);
+    const registry = fighterRoster.officialRegistry(fighterRoster.loadRoster(options.rosterPath));
     const expected = new Map(Object.entries(registry).map(([character, entry]) =>
         [Number(entry.fighter_id), character]));
     const expectedCount = Object.keys(registry).length;

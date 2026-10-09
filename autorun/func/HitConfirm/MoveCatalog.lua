@@ -1,40 +1,8 @@
+local FighterRoster = require("func/FighterRoster")
+
 local Catalog = {}
 
 Catalog.COMMAND_DIR = "TrainingComboTrials_data/command_display"
-
-local CHARACTER_BY_KEY = {
-    ESF_001 = { id = 1, name = "Ryu" },
-    ESF_002 = { id = 2, name = "Luke" },
-    ESF_003 = { id = 3, name = "Kimberly" },
-    ESF_004 = { id = 4, name = "ChunLi" },
-    ESF_005 = { id = 5, name = "Manon" },
-    ESF_006 = { id = 6, name = "Zangief" },
-    ESF_007 = { id = 7, name = "JP" },
-    ESF_008 = { id = 8, name = "Dhalsim" },
-    ESF_009 = { id = 9, name = "Cammy" },
-    ESF_010 = { id = 10, name = "Ken" },
-    ESF_011 = { id = 11, name = "DeeJay" },
-    ESF_012 = { id = 12, name = "Lily" },
-    ESF_013 = { id = 13, name = "AKI" },
-    ESF_014 = { id = 14, name = "Rashid" },
-    ESF_015 = { id = 15, name = "Blanka" },
-    ESF_016 = { id = 16, name = "Juri" },
-    ESF_017 = { id = 17, name = "Marisa" },
-    ESF_018 = { id = 18, name = "Guile" },
-    ESF_019 = { id = 19, name = "Ed" },
-    ESF_020 = { id = 20, name = "EHonda" },
-    ESF_021 = { id = 21, name = "Jamie" },
-    ESF_022 = { id = 22, name = "Akuma" },
-    ESF_025 = { id = 25, name = "Sagat" },
-    ESF_026 = { id = 26, name = "MBison" },
-    ESF_027 = { id = 27, name = "Terry" },
-    ESF_028 = { id = 28, name = "Mai" },
-    ESF_029 = { id = 29, name = "Elena" },
-    ESF_030 = { id = 30, name = "CViper" },
-    ESF_031 = { id = 31, name = "Alex" },
-    ESF_032 = { id = 32, name = "Ingrid" },
-    ESF_033 = { id = 33, name = "Yasmine" }
-}
 
 local function trim(value)
     return tostring(value or ""):match("^%s*(.-)%s*$")
@@ -58,23 +26,18 @@ local function is_attack_like(display)
         or upper:find("强", 1, true) ~= nil
 end
 
+-- A fighter missing from the roster still resolves to its ESF_<id> data key,
+-- so its catalog loads as soon as a command table with that name exists.
 function Catalog.resolve_character(info)
     info = type(info) == "table" and info or {}
-    local key = type(info.key) == "string" and info.key or nil
-    local definition = key and CHARACTER_BY_KEY[key] or nil
-    if not definition then
-        local id = tonumber(info.id)
-        if id then
-            key = string.format("ESF_%03d", id)
-            definition = CHARACTER_BY_KEY[key]
-        end
-    end
-    if not definition then return nil end
+    local id = FighterRoster.parse_fighter_id(info)
+    if not id then return nil end
+    local name = FighterRoster.profile_key(id)
     return {
-        id = tonumber(info.id) or definition.id,
-        key = key,
-        name = definition.name,
-        display_name = definition.name
+        id = id,
+        key = string.format("ESF_%03d", id),
+        name = name,
+        display_name = name
     }
 end
 

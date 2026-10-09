@@ -8,16 +8,20 @@ import {
     folderFromPath
 } from "./character_catalog.mjs";
 
-const source = JSON.parse(fs.readFileSync(
-    new URL("../modern_display_builder/characters.json", import.meta.url),
+// The editor catalog must cover exactly the shared fighter roster.
+const roster = JSON.parse(fs.readFileSync(
+    new URL("../../data/SF6CC/fighters.json", import.meta.url),
     "utf8"
 ));
+assert.equal(roster.schema, "sf6cc.fighter_roster.v1");
+const source = Object.fromEntries(roster.fighters.map(fighter => [fighter.key, { fighter_id: fighter.id }]));
 
 assert.equal(CHARACTER_CATALOG.length, Object.keys(source).length);
 assert.equal(new Set(CHARACTER_CATALOG.map(item => item.fighterId)).size, CHARACTER_CATALOG.length);
 assert.equal(new Set(CHARACTER_CATALOG.map(item => item.folder.toLowerCase())).size, CHARACTER_CATALOG.length);
 
 for (const item of CHARACTER_CATALOG) {
+    assert.ok(source[item.folder], `${item.folder} is not in data/SF6CC/fighters.json`);
     assert.equal(source[item.folder].fighter_id, item.fighterId, `${item.folder} fighter_id`);
     assert.equal(characterByFolder(item.folder), item);
     assert.equal(characterByFighterId(item.fighterId), item);

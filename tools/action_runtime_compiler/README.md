@@ -61,7 +61,7 @@ f032-fab-bcm-full-classic.json
 - 工具还会读取 AC、BCM 内部的 `fighter_id`，并检查三者一致；
 - 同一 Fighter ID 重复、AC/BCM 不成对或文件名ID不一致都会终止生成。
 
-Fighter ID 对应关系：
+Fighter ID 对应关系（以 `data/SF6CC/fighters.json` 为准）：
 
 | ID | 角色 | ID | 角色 | ID | 角色 |
 | ---: | --- | ---: | --- | ---: | --- |
@@ -185,13 +185,15 @@ off/2026-05-28/EHonda.official.generated.json
 off/2026-05-28/MBison.official.generated.json
 ```
 
-官网 slug、规范角色名、Fighter ID 和 URL 的唯一清单位于：
+Fighter ID、规范角色名（`key`）、中英文显示名和官网 slug 的唯一清单是运行时与工具共用的：
 
 ```text
-tools/modern_display_builder/characters.json
+data/SF6CC/fighters.json
 ```
 
-新增角色时必须先在该清单加入 `fighter_id`、`official_name` 和 `url`，并同步 AC/BCM 的 `FIGHTER_NAMES`。两个 BAT 都会检查角色数量和 Fighter ID 唯一性。
+官网 URL 由 `official_slug` 拼出（`https://www.streetfighter.com/6/zh-hant/character/<slug>/frame`）。
+新增角色时只在该清单加一行；`tools/bcm_catalog_builder` 浏览器页的 `FIGHTER_NAMES` 与连段编辑器的
+角色目录由测试强制与清单一致。两个 BAT 和打包脚本都会检查角色数量和 Fighter ID 唯一性。
 
 ## 6. 数据链
 

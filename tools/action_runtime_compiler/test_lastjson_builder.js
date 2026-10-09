@@ -16,8 +16,7 @@ assert.deepStrictEqual(builder.mapDiff({ "1": { x: 1 }, "2": {} }, {
     "1": { x: 2 }, "3": {}
 }), { added: [3], removed: [2], changed: [1] });
 
-const registry = JSON.parse(fs.readFileSync(path.resolve(
-    __dirname, "../modern_display_builder/characters.json"), "utf8"));
+const registry = require("../fighter_roster.js").officialRegistry();
 assert.strictEqual(Object.keys(registry).length, 31);
 assert.strictEqual(new Set(Object.values(registry).map(entry => Number(entry.fighter_id))).size, 31);
 assert.strictEqual(registry.Yasmine.fighter_id, 33);

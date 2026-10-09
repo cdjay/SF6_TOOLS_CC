@@ -22,7 +22,10 @@ import extract_modern_display as extractor
 
 
 TOOL_ROOT = Path(__file__).resolve().parents[1] / "action_runtime_compiler"
-DEFAULT_MANIFEST = Path(__file__).resolve().with_name("characters.json")
+REPO_ROOT = Path(__file__).resolve().parents[2]
+DEFAULT_MANIFEST = REPO_ROOT / "data" / "SF6CC" / "fighters.json"
+ROSTER_SCHEMA = "sf6cc.fighter_roster.v1"
+OFFICIAL_FRAME_URL = "https://www.streetfighter.com/6/zh-hant/character/{slug}/frame"
 DEFAULT_ACBCM_ROOT = TOOL_ROOT / "acbcm"
 DEFAULT_OFF_ROOT = TOOL_ROOT / "off"
 SNAPSHOT_SCHEMA = "xt.modern_display.v1"
@@ -246,6 +249,22 @@ def markdown_report(bundle: dict[str, Any]) -> str:
     return "".join(lines)
 
 
+def load_manifest(path: Path) -> dict[str, dict[str, Any]]:
+    """Read the fighter roster (or an older {Character: entry} manifest)."""
+    document = read_json(path)
+    if not isinstance(document, dict) or document.get("schema") != ROSTER_SCHEMA:
+        return document
+    manifest: dict[str, dict[str, Any]] = {}
+    for fighter in document.get("fighters") or []:
+        slug = fighter.get("official_slug")
+        manifest[fighter["key"]] = {
+            "fighter_id": int(fighter["id"]),
+            "official_name": slug,
+            "url": OFFICIAL_FRAME_URL.format(slug=slug) if slug else None,
+        }
+    return manifest
+
+
 def fetch_all(manifest: dict[str, dict[str, Any]], version: str) -> tuple[dict[str, dict[str, Any]], str]:
     first = min(manifest.items(), key=lambda item: int(item[1]["fighter_id"]))[1]
     chunk_text, source_chunk = extractor.load_source_text(first["url"], None)
@@ -269,7 +288,7 @@ def run(args: argparse.Namespace) -> int:
     acbcm_root = Path(args.acbcm_root).resolve()
     off_root = Path(args.off_root).resolve()
     version = normalize_version(args.version) if args.version else default_version(acbcm_root)
-    manifest = read_json(manifest_path)
+    manifest = load_manifest(manifest_path)
     if not manifest:
         raise RuntimeError("角色清单不能为空。")
     ids = [int(entry["fighter_id"]) for entry in manifest.values()]

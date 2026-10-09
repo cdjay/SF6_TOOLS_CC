@@ -317,6 +317,20 @@ Avoid hardcoding character-specific logic.
 
 Prefer configuration over branching.
 
+## Fighter Roster
+
+`data/SF6CC/fighters.json` is the single fighter roster. It maps a native
+fighter ID to the SF6CC key that names per-fighter data
+(`command_display/<key>.json`, `exceptions/<key>.json`, `CustomCombos/<key>/`),
+plus English/Chinese display names and the official site slug. Runtime modules
+read it through `autorun/func/FighterRoster.lua`; generator, snapshot and
+packaging tools read the same file through `tools/fighter_roster.js` or their
+own loaders. A fighter missing from the roster still gets the distinct key
+`ESF_<id>`, so recording and character switching keep working on release day.
+The standalone training library may only load `SF6CCTrainingLibrary/*`
+modules; its name tables are checked against the roster by
+`tools/test_fighter_roster.lua`.
+
 ---
 
 # Modularity

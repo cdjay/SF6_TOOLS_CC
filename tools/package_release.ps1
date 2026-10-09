@@ -424,23 +424,26 @@ function Get-CommandDisplaySourceState {
         [Parameter(Mandatory = $true)][string]$SourceRoot
     )
 
-    $catalogRelativePath = "tools/modern_display_builder/characters.json"
+    $catalogRelativePath = "data/SF6CC/fighters.json"
     & git -C $SourceRoot ls-files --error-unmatch -- $catalogRelativePath | Out-Null
     if ($LASTEXITCODE -ne 0) {
-        throw "Character catalog is not Git-tracked: $catalogRelativePath"
+        throw "Fighter roster is not Git-tracked: $catalogRelativePath"
     }
     $catalogPath = Join-Path $SourceRoot ($catalogRelativePath -replace '/', '\')
     if (-not (Test-Path -LiteralPath $catalogPath -PathType Leaf)) {
-        throw "Character catalog is missing: $catalogPath"
+        throw "Fighter roster is missing: $catalogPath"
     }
-    $catalog = Get-Content -Raw -LiteralPath $catalogPath | ConvertFrom-Json
+    $catalog = Get-Content -Raw -Encoding UTF8 -LiteralPath $catalogPath | ConvertFrom-Json
+    if ($catalog.schema -ne "sf6cc.fighter_roster.v1") {
+        throw "Fighter roster schema is invalid: $catalogPath"
+    }
     $expectedCharacters = @(
-        $catalog.PSObject.Properties |
-            ForEach-Object { $_.Name } |
+        $catalog.fighters |
+            ForEach-Object { [string]$_.key } |
             Sort-Object
     )
     if ($expectedCharacters.Count -eq 0) {
-        throw "Character catalog contains no characters: $catalogPath"
+        throw "Fighter roster contains no fighters: $catalogPath"
     }
 
     $relativeRoot = "data/TrainingComboTrials_data/command_display"

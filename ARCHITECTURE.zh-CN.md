@@ -343,6 +343,14 @@ JSON
 
 都不需要修改 Lua。
 
+## 角色名单
+
+`data/SF6CC/fighters.json` 是唯一的角色名单：原生 fighter ID → SF6CC 角色键（决定
+`command_display/<键>.json`、`exceptions/<键>.json`、`CustomCombos/<键>/` 的文件名）、中英文显示名和官网 slug。
+运行时模块经 `autorun/func/FighterRoster.lua` 读取，生成器、官网快照和打包工具读取同一文件。名单里还没有的角色
+会得到独立的 `ESF_<ID>` 键，新角色发售当天录制和切换角色照常工作。独立木人库只能加载
+`SF6CCTrainingLibrary/*` 模块，它的名称表由 `tools/test_fighter_roster.lua` 对照名单校验。
+
 ---
 
 # 模块化
