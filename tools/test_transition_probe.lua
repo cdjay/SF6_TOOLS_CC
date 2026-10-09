@@ -75,6 +75,29 @@ assert(select(2, text:gsub("\n", "")) == 2, "one line per change")
 assert(text:find('"act":717', 1, true) and text:find('"branch":536870975', 1, true))
 assert(#Probe.buffer == 0 and Probe.written == 2)
 
+-- A host json.dump_string (two return values from gsub broke the first
+-- version) is not used: lines are encoded from plain numbers.
+json = { dump_string = function() error("must not be called") end }
+state.act, state.frame = 600, 3
+sync()
+Probe.observe(Probe.read_p1())
+assert(Probe.flush() and Probe.written == 3)
+
+-- An older probe left running upgrades in place: a newer copy keeps its
+-- unsaved records, toggles recording off and saves them.
+_G.SF6CC_TRANSITION_PROBE_NO_REGISTER = nil
+local old_probe = {
+    enabled = true, frame = 9, written = 0, last = nil,
+    buffer = { { t = 1, fighter = 32, prev = 600, prev_frame = 4, act = 949, frame = 0, flags = 16, code = 949, branch = 0, input = 0, sw = 0 } },
+    flush = function() error("old flush") end,
+}
+_G.SF6CC_TransitionProbe = old_probe
+log = { info = function() end }
+local upgraded = assert(loadfile("tools/acbcm_exporter/SF6CC_Transition_Probe.lua"))()
+assert(upgraded == old_probe and upgraded.version == 2, "the running probe table is reused")
+assert(upgraded.enabled == false and #upgraded.buffer == 0 and upgraded.written == 1)
+assert(table.concat(files["SF6CC_ACBCM/transitions-f032.jsonl"], ""):find('"act":949', 1, true))
+
 sdk, json, io, fs = previous.sdk, previous.json, previous.io, previous.fs
 _G.SF6CC_TRANSITION_PROBE_NO_REGISTER = nil
 _G.SF6CC_TransitionProbe = nil

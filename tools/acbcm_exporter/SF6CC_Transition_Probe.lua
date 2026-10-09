@@ -12,28 +12,28 @@
 -- Use: Training Mode, P1 = the fighter to study. REFramework > ScriptRunner >
 -- Run this file. Perform the fighter's moves (specials, follow-ups, holds,
 -- throws, target combos, supers). Running the file again pauses / resumes
--- recording. Output: reframework/data/SF6CC_ACBCM/transitions-fNNN.jsonl,
+-- recording and saves. Output: reframework/data/SF6CC_ACBCM/transitions-fNNN.jsonl,
 -- one JSON object per Action change, appended across sessions.
+--
+-- Running a newer copy of this file while an older probe is active upgrades
+-- the running probe in place (its unsaved records are kept and saved).
 
-local Probe = rawget(_G, "SF6CC_TransitionProbe")
-if Probe ~= nil and rawget(_G, "SF6CC_TRANSITION_PROBE_NO_REGISTER") ~= true then
-    Probe.enabled = not Probe.enabled
-    if not Probe.enabled then pcall(Probe.flush) end
-    pcall(function() log.info("[SF6CC Transition Probe] recording=" .. tostring(Probe.enabled)) end)
-    return Probe
-end
+local existing = rawget(_G, "SF6CC_TransitionProbe")
+local register = rawget(_G, "SF6CC_TRANSITION_PROBE_NO_REGISTER") ~= true
 
-Probe = {
+local Probe = existing or {
     enabled = true,
     frame = 0,
     written = 0,
     buffer = {},
     last = nil,
-    FLUSH_RECORDS = 40,
-    DIRECTORY = "SF6CC_ACBCM",
 }
+Probe.FLUSH_RECORDS = 40
+Probe.DIRECTORY = "SF6CC_ACBCM"
+Probe.version = 2
 
 local SFIX = 65536
+local FIELDS = { "t", "fighter", "prev", "prev_frame", "act", "frame", "flags", "code", "branch", "input", "sw" }
 
 local function try(fn)
     local ok, value = pcall(fn)
@@ -109,35 +109,47 @@ function Probe.observe(sample)
     return record
 end
 
-local function encode(record)
-    if json and json.dump_string then
-        local ok, text = pcall(json.dump_string, record)
-        if ok and type(text) == "string" then return text:gsub("[\r\n]", "") end
-    end
+-- Plain numbers only, so the line never depends on the host JSON library.
+function Probe.encode(record)
     local parts = {}
-    for _, name in ipairs({ "t", "fighter", "prev", "prev_frame", "act", "frame", "flags", "code", "branch", "input", "sw" }) do
-        if record[name] ~= nil then parts[#parts + 1] = string.format("%q:%s", name, tostring(record[name])) end
+    for _, name in ipairs(FIELDS) do
+        local value = tonumber(record[name])
+        if value ~= nil then
+            local text = math.type and math.type(value) == "integer" and tostring(value)
+                or string.format("%.17g", value)
+            parts[#parts + 1] = string.format('"%s":%s', name, text)
+        end
     end
     return "{" .. table.concat(parts, ",") .. "}"
 end
 
+-- Writes the buffered records; keeps them when a file cannot be opened.
 function Probe.flush()
     if #Probe.buffer == 0 then return true end
     pcall(function() if fs and fs.create_dir then fs.create_dir(Probe.DIRECTORY) end end)
     local by_file = {}
+    local order = {}
     for _, record in ipairs(Probe.buffer) do
         local name = string.format("%s/transitions-f%03d.jsonl", Probe.DIRECTORY, tonumber(record.fighter) or 0)
-        by_file[name] = by_file[name] or {}
-        table.insert(by_file[name], encode(record))
+        if by_file[name] == nil then
+            by_file[name] = {}
+            order[#order + 1] = name
+        end
+        local lines = by_file[name]
+        lines[#lines + 1] = Probe.encode(record)
     end
-    for name, lines in pairs(by_file) do
+    for _, name in ipairs(order) do
         local ok, file = pcall(io.open, name, "ab")
-        if not ok or not file then return false end
-        file:write(table.concat(lines, "\n"), "\n")
+        if not ok or not file then
+            Probe.last_error = "cannot open " .. name
+            return false
+        end
+        file:write(table.concat(by_file[name], "\n"), "\n")
         file:close()
     end
     Probe.written = Probe.written + #Probe.buffer
     Probe.buffer = {}
+    Probe.last_error = nil
     return true
 end
 
@@ -147,14 +159,29 @@ function Probe.on_frame()
     if #Probe.buffer >= Probe.FLUSH_RECORDS then Probe.flush() end
 end
 
+local function info(message)
+    pcall(function() log.info("[SF6CC Transition Probe] " .. message) end)
+end
+
 _G.SF6CC_TransitionProbe = Probe
 
-if rawget(_G, "SF6CC_TRANSITION_PROBE_NO_REGISTER") ~= true then
+if existing ~= nil and register then
+    -- Running the file again toggles recording; leaving recording saves.
+    Probe.enabled = not Probe.enabled
+    local saved = true
+    if not Probe.enabled then saved = Probe.flush() end
+    info(string.format("recording=%s written=%d pending=%d%s", tostring(Probe.enabled),
+        Probe.written, #Probe.buffer, saved and "" or (" error=" .. tostring(Probe.last_error))))
+    return Probe
+end
+
+if register then
     re.on_frame(function() pcall(Probe.on_frame) end)
     re.on_draw_ui(function()
         if imgui.tree_node("SF6CC Transition Probe") then
             imgui.text(string.format("recording=%s  written=%d  pending=%d",
                 tostring(Probe.enabled), Probe.written, #Probe.buffer))
+            if Probe.last_error then imgui.text("error: " .. tostring(Probe.last_error)) end
             local changed, value = imgui.checkbox("Recording", Probe.enabled)
             if changed then
                 Probe.enabled = value
@@ -164,7 +191,7 @@ if rawget(_G, "SF6CC_TRANSITION_PROBE_NO_REGISTER") ~= true then
             imgui.tree_pop()
         end
     end)
-    pcall(function() log.info("[SF6CC Transition Probe] recording=true") end)
+    info("recording=true")
 end
 
 return Probe
