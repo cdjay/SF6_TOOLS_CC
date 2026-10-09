@@ -276,6 +276,34 @@ node tools\action_runtime_compiler\novel_structure_report.js --version 2026-10-1
 不带 `--characters` 时每个角色都与其余角色比较，可以看到名单自身的角色专属机制。2026-08-03 的数据里，
 Ingrid 有 15 项专属结构（她也是手写长按例外最多的角色），Yasmine 有 4 项。31 个角色全量扫描约 1.5 分钟。
 
+## 4.6 手写例外推导审计
+
+`exception_derivation_audit.js` 给 `exceptions/` 里每条手写规则的每个含义（force、ignore、absorb_ids 子动作、
+action_alias_ids、ignore_prev、optional_parent_ids、长按、瞬态前驱）找出它在 AC+BCM 里的结构签名，并给候选
+推导规则打分：能重现多少手写条目、会新增到多少目前没有该规则的动作上、新增的动作有多少在冻结录制语料
+（`release/tester_packages/0803`）里作为步骤出现过。每个角色优先用 `acbcm/2026-10-09`（v2 导出），否则用 08-03：
+
+```powershell
+node tools\action_runtime_compiler\exception_derivation_audit.js --out audit.md --json audit.json
+```
+
+2026-10-10 的结论：按指令表归属推导 force（`inherited`、`rebind`、`automatic_hold_transition`、
+`ac_state_direction`、`type20_hold_continuation`、`ac_type13_neutral`、`ac_state_neutral`）覆盖 53 条手写 force，
+只新增 10 个动作，且都没在语料里出现（其中 Yasmine 717 后投是手写规则的遗漏）。吸收、ignore_prev、瞬态前驱、
+后续技容忍的结构规则都会新增几百到上千条：这些手写规则纠正的是运行时"是否算作玩家一步"的判断，
+取决于动作切换时的引擎标志，需要先用 `transition_report.js` 拿到"进入方式 → 引擎标志"的对应。
+
+## 4.7 动作切换采集报告
+
+`tools/acbcm_exporter/SF6CC_Transition_Probe.lua` 在游戏里记录 P1 每次动作切换时运行时读取的三个引擎值
+（state_flags、KeyInput.Action、Branch.BranchType）。`transition_report.js` 把采集结果和该角色的 AC+BCM 对上：
+每种进入方式（BCM 触发、各类 BranchKey）下引擎判为"玩家步骤"的比例，以及每条手写 force/ignore 是否必要
+（needed / redundant / partly_needed / not_observed）：
+
+```powershell
+node tools\action_runtime_compiler\transition_report.js --capture transitions-f001.jsonl --version 2026-10-13 --out tr.md
+```
+
 ## 5. 官网文件名与角色名
 
 新版抓取器直接以 SF6CC 规范角色名保存，例如：

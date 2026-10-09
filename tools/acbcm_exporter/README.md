@@ -126,11 +126,26 @@ node tools\action_runtime_compiler\hold_window_report.js --version 2026-10-13 --
 
 探测不注册钩子、不写回游戏。把输出文件交给开发者即可确定下一步的读取方式。
 
+## 采集动作切换的引擎标志
+
+剩下的大部分手写 force / ignore / absorb_ids 规则，纠正的是运行时"这个动作算不算玩家的一步"的判断，
+它在每次动作切换时读取三个引擎值：`mParam.state_flags`、`KeyInput.Action`、`Branch.BranchType`。
+`SF6CC_Transition_Probe.lua` 只读地记录这些值，用来把它们和 AC+BCM 的进入方式对上，从而推导这些规则：
+
+1. 训练场 P1 选要研究的角色，ScriptRunner 运行本目录的 `SF6CC_Transition_Probe.lua`。
+2. 把该角色的招式做一遍：必杀（含 OD）、派生和后续技、长按、投（含后投）、目押/TC、SA、DR、DI。
+3. 再运行一次同一个文件暂停记录（REFramework 菜单里也有开关和"Save now"）。
+4. 输出追加到 `reframework/data/SF6CC_ACBCM/transitions-fNNN.jsonl`，一次切换一行。
+
+采集脚本不改游戏数据，只在每帧读取 P1 的动作状态。分析见
+`tools/action_runtime_compiler/transition_report.js`。
+
 ## 测试
 
 ```powershell
 lua tools/test_acbcm_exporter.lua
 lua tools/test_commandlist_probe.lua
+lua tools/test_transition_probe.lua
 ```
 
 离线测试用假 SDK 验证字典按键导出（含键号 ≥ Count 与已删除条目）和继承字段导出（帧窗口来自基类，
