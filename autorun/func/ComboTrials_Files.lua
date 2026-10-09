@@ -8,6 +8,8 @@ local fs = fs
 local log = log
 local sdk = sdk
 local ActionSequenceNormalizer = require("func/ComboTrials/ActionSequenceNormalizer")
+local FighterRoster = require("func/FighterRoster")
+local FallbackComboMigration = require("func/ComboTrials/FallbackComboMigration")
 
 local M = {}
 
@@ -570,6 +572,18 @@ local function filter_combo_lists(display_all, path_all, control_all)
     return display_list, path_list, control_list, info_list
 end
 
+-- Combos recorded while the roster did not know a fighter yet (ESF_<id>).
+M.migrate_fallback_combos = FallbackComboMigration.new({
+    glob = function(pattern) return fs.glob(pattern) end,
+    load = function(path) return json.load_file(path) end,
+    dump = function(path, value) return json.dump_file(path, value) end,
+    create_dir = function(path) if fs.create_dir then return fs.create_dir(path) end end,
+    fallback_key = function(character)
+        local fighter = FighterRoster.fighter_by_key(character)
+        return fighter and FighterRoster.fallback_key(fighter.id) or nil
+    end,
+})
+
 local function scan_combo_files(player_idx)
     local display_list, path_list, control_list = {}, {}, {}
     local skipped_count = 0
@@ -582,6 +596,11 @@ local function scan_combo_files(player_idx)
     if char_name == "Unknown" then
         diag_combo_files("scan skipped player=" .. tostring(player_idx) .. " reason=unknown_character")
         return display_list, path_list, control_list, false, skipped_count
+    end
+
+    local migrate_ok, migrated = pcall(M.migrate_fallback_combos, char_name)
+    if migrate_ok and type(migrated) == "number" and migrated > 0 then
+        diag_combo_files("migrated " .. tostring(migrated) .. " combo files from the fallback key into " .. tostring(char_name))
     end
 
     if fs.create_dir then

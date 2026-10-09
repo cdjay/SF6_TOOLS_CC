@@ -327,6 +327,10 @@ read it through `autorun/func/FighterRoster.lua`; generator, snapshot and
 packaging tools read the same file through `tools/fighter_roster.js` or their
 own loaders. A fighter missing from the roster still gets the distinct key
 `ESF_<id>`, so recording and character switching keep working on release day.
+Once the roster names that fighter, the combo list copies its recordings from
+`CustomCombos/ESF_<id>/` into `CustomCombos/<key>/` once per session
+(`ComboTrials/FallbackComboMigration.lua`; existing files are never
+overwritten and the originals stay in place).
 The standalone training library may only load `SF6CCTrainingLibrary/*`
 modules; its name tables are checked against the roster by
 `tools/test_fighter_roster.lua`.
