@@ -591,7 +591,9 @@ local function build_auto_xt_meta(recording_player, sequence)
         versions = {
             game = {
                 id = SF6CCVersion.GAME_ID,
-                version = SF6CCVersion.GAME_VERSION
+                version = SF6CCVersion.GAME_VERSION,
+                bcm_trigger_fingerprint = ComboTrialsModules.DataBuildGuard.stamp(
+                    players[player_idx] and players[player_idx].bcm_fingerprint)
             },
             recorder = {
                 id = SF6CCVersion.PRODUCT_ID,
@@ -3591,10 +3593,10 @@ end
 
 -- Warns once per fighter when its generated command table was not built
 -- from the running game data (ComboTrials/DataBuildGuard).
-ctx.report_data_build = ComboTrialsModules.DataBuildGuard.new_reporter(function(message)
+ctx.report_data_build = ComboTrialsModules.DataBuildGuard.new_reporter(function(message, status)
     ct_ticker(message)
     local registry = _G._mod_errors
-    if type(registry) == "table" and type(registry.list) == "table" then
+    if status ~= "recording_mismatch" and type(registry) == "table" and type(registry.list) == "table" then
         registry.count = (registry.count or 0) + 1
         registry.list[#registry.list + 1] = { ctx = "ComboTrials data build", err = message, t = os.clock() }
     end
@@ -3611,6 +3613,22 @@ ctx.check_data_build = function(p_idx)
     local status = ComboTrialsModules.DataBuildGuard.evaluate(expected, table_status, p_state.bcm_fingerprint)
     p_state.data_build_status = status
     ctx.report_data_build(character, status)
+end
+
+-- Warns once per file when the loaded combo was recorded for this fighter on
+-- different game data (its Action IDs may have moved since).
+ctx.check_recording_data_build = function(p_idx)
+    local p_state = players[p_idx]
+    local first = type(trial_state.sequence) == "table" and trial_state.sequence[1] or nil
+    local meta = type(first) == "table" and type(first._xt_meta) == "table" and first._xt_meta or nil
+    if not p_state or not meta or meta.character ~= p_state.profile_name then return end
+    local versions = type(meta.versions) == "table" and meta.versions or nil
+    local game = versions and type(versions.game) == "table" and versions.game or nil
+    local status = ComboTrialsModules.DataBuildGuard.compare_recording(
+        game and game.bcm_trigger_fingerprint, p_state.bcm_fingerprint)
+    if status == "mismatch" then
+        ctx.report_data_build(p_state.profile_name, "recording_mismatch", trial_state.current_file_path)
+    end
 end
 
 -- =========================================================
@@ -4927,6 +4945,7 @@ local function ct_player_init(p_idx, p_state)
         p_state.last_bcm_ptr = ""
         p_state.bcm_fingerprint = nil
         p_state.data_build_checked = nil
+        p_state.recording_build_file = nil
 
         -- RESET TRIAL on character change
         -- The trial depends on both characters, reset if either changes
@@ -7705,12 +7724,18 @@ re.on_frame(function()
                 p_state._trigger_cache_build = nil
                 p_state.bcm_fingerprint = nil
                 p_state.data_build_checked = nil
+                p_state.recording_build_file = nil
             end
         end
         if not p_state.trigger_cache_built then ComboTrialsModules.GameProbe.build_bcm_trigger_cache(p_idx) end
         if p_state.bcm_fingerprint and p_state.data_build_checked ~= true then
             p_state.data_build_checked = true
             ctx.check_data_build(p_idx)
+        end
+        if p_state.bcm_fingerprint and trial_state.current_file_path
+            and p_state.recording_build_file ~= trial_state.current_file_path then
+            p_state.recording_build_file = trial_state.current_file_path
+            ctx.check_recording_data_build(p_idx)
         end
 
         _pf.act_id, _pf.act_frame, _pf.flags, _pf.action_code, _pf.direct_input,
@@ -8924,6 +8949,9 @@ ctx.finish_current_transcription_file = function(timed_out)
                 product_version = SF6CCVersion.PRODUCT_VERSION,
                 game_id = SF6CCVersion.GAME_ID,
                 game_version = SF6CCVersion.GAME_VERSION,
+                game_data_fingerprint = ComboTrialsModules.DataBuildGuard.stamp(
+                    players[trial_state.playing_player or 0]
+                        and players[trial_state.playing_player or 0].bcm_fingerprint),
                 json_id = SF6CCVersion.COMBO_JSON_ID,
                 json_version = SF6CCVersion.COMBO_JSON_VERSION,
             },

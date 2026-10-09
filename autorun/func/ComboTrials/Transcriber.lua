@@ -2605,6 +2605,8 @@ function Transcriber.build_candidate(source_sequence, compiled, version_info, no
     meta.versions.game = {
         id = game_id,
         version = game_version,
+        bcm_trigger_fingerprint = type(version_info.game_data_fingerprint) == "table"
+            and deep_copy(version_info.game_data_fingerprint) or nil,
     }
     meta.versions.recorder = {
         id = version_info and version_info.product_id or "sf6cc",

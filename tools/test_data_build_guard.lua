@@ -31,6 +31,20 @@ assert(report("Ryu", "match") == nil and report("Ryu", "unverified") == nil)
 assert(report("Ryu", "mismatch"):find("数据版本不一致", 1, true))
 assert(#reports == 2 and reports[2].character == "Ryu")
 
+-- Recordings carry the fingerprint they were made with.
+local stamped = Guard.stamp(live)
+assert(stamped ~= live and stamped.count == live.count and stamped.hash == live.hash)
+assert(Guard.stamp(nil) == nil and Guard.stamp({ algorithm = "other" }) == nil)
+assert(Guard.compare_recording(stamped, nil) == "pending")
+assert(Guard.compare_recording(stamped, live) == "match")
+assert(Guard.compare_recording(nil, live) == "unverified", "older recordings are not flagged")
+assert(Guard.compare_recording({ algorithm = Guard.ALGORITHM, count = live.count, hash = "00000000" }, live)
+    == "mismatch")
+assert(report("Ryu", "recording_mismatch", "CustomCombos/Ryu/a.json"):find("游戏数据已变化", 1, true))
+assert(report("Ryu", "recording_mismatch", "CustomCombos/Ryu/a.json") == nil, "one warning per file")
+assert(report("Ryu", "recording_mismatch", "CustomCombos/Ryu/b.json") ~= nil)
+assert(#reports == 4 and reports[4].status == "recording_mismatch")
+
 -- GameProbe computes the live fingerprint while building its trigger cache,
 -- including triggers after an empty slot that ends the length operator early.
 local function trigger(action_id)

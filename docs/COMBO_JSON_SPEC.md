@@ -120,6 +120,13 @@ uses different internal units in different detail menus.
   the `id` field MAY be omitted on the `json` entry (the format is already
   identified by `schema` + this spec) — `"json": { "version": "2.0.0" }`
   is valid. Platforms add their own `distribution` entry if needed.
+  SF6CC also writes the optional `versions.game.bcm_trigger_fingerprint`
+  (`{ algorithm, count, hash }`, algorithm
+  `bcm-trigger-action-multiset.fnv1a32.v1`): a fingerprint of the recording
+  character's BCM trigger table taken from the running game. A reader that
+  computes the same fingerprint can tell that a game update changed the
+  character's commands or Action IDs since the combo was recorded. Absent =
+  unknown; never required.
 - `step_notes` (string[]): per-step community annotations, **index-aligned
   with the step array** (empty string = no note). Kept in `_xt_meta` so the
   step objects stay engine-only.

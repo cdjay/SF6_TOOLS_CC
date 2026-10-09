@@ -7794,6 +7794,9 @@ local candidate = assert(transcriber.build_candidate(source, result, {
     product_version = "1.0.4",
     game_id = "sf6",
     game_version = "2026-08-03",
+    game_data_fingerprint = {
+        algorithm = "bcm-trigger-action-multiset.fnv1a32.v1", count = 3, hash = "0badf00d",
+    },
     json_id = "xt.combo_trial",
     json_version = "2",
 }, "2026-07-30T00:00:00+08:00", {
@@ -7823,6 +7826,9 @@ assert(candidate[1]._xt_meta.created_at == "old"
 assert(candidate[1]._xt_meta.versions.game.id == "sf6"
         and candidate[1]._xt_meta.versions.game.version == "2026-08-03",
     "candidate metadata must stamp the canonical recording game version")
+assert(candidate[1]._xt_meta.versions.game.bcm_trigger_fingerprint.count == 3
+        and candidate[1]._xt_meta.versions.game.bcm_trigger_fingerprint.hash == "0badf00d",
+    "candidate metadata must stamp the live game data fingerprint")
 assert(candidate[1]._xt_meta.control_mode == "classic"
         and candidate[1]._xt_meta.control_type == "classic"
         and candidate[1]._xt_meta.timeline_input_profile == "classic"

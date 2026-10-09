@@ -13,6 +13,13 @@ The version axes are independent:
   version. Change these only when the JSON specification changes.
 - `_xt_meta.versions.game.version`: the Street Fighter 6 data version. It is
   separate from SF6CC and must not be inferred from the mod release version.
+  It is a date label maintained by hand in `version.json`; the factual
+  provenance is `_xt_meta.versions.game.bcm_trigger_fingerprint`, which the
+  recorder takes from the running game. When a loaded combo's fingerprint
+  differs from the live one, SF6CC warns that its Action IDs may have moved.
+  Generated command tables carry the same fingerprint
+  (`_meta.bcm_trigger_fingerprint`) and are checked against the live game in
+  the same way.
 
 ## Bump the product version
 
