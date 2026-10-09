@@ -10,9 +10,16 @@ Status: `CURRENT`
   即输入指令、四套 profile、触发条件、触发组、蓄力定义与 AUTO 连配方。
 
 导出器只读、不注册每帧回调、不解释数据；解释全部在 `tools/action_runtime_compiler` 生成器中完成。
-脚本来自 SF6CR-evidence 的 `SF6CR_ExportFullEvidence.lua`，并修正了字典导出：`Dictionary<int, …>`
-现在按内部条目导出全部键（条目 `index == key`），旧导出用 `get_Item(0..Count-1)` 按键查找，
-键号 ≥ Count 的触发组、指令、蓄力定义会全部丢失（2026-08-03 的 31 个角色每人丢 7–39 个触发组）。
+脚本来自 SF6CR-evidence 的 `SF6CR_ExportFullEvidence.lua`，并修正了两处数据丢失：
+
+- 字典：`Dictionary<int, …>` 现在按内部条目导出全部键（条目 `index == key`，输出标记
+  `dictionary_encoding = "int-keyed-entries"`）。旧导出用 `get_Item(0..Count-1)` 按键查找，
+  键号 ≥ Count 的触发组、指令、蓄力定义会全部丢失（2026-08-03 的 31 个角色每人丢 7–39 个触发组）。
+- 继承字段：反射 `get_fields()` 只返回类型自己声明的字段，旧导出因此丢掉了各种 Key 从
+  `via.fighter.ActionKey` 继承的帧窗口（起止帧）。现在沿父类链读取游戏数据命名空间
+  （`via.fighter.`、`CharacterAsset.`、`app.battle.`、`BCM.`）的基类字段，输出标记
+  `inherited_fields = "game-namespaces.v1"`，类型目录的 `inherits` 记录父类链。长按阈值
+  （T20 窗口）与取消窗口（TriggerKey 窗口）都依赖这些帧数。
 
 ## 导出一个角色
 
@@ -82,11 +89,16 @@ Status: `CURRENT`
 
 只想先让新角色可用、旧角色确认未变时，第 4、6 步可加 `--characters Arjun` 只处理新角色。
 
-重新导出后可检查原生取消/后续技关系的覆盖（触发组完整性与人工后续技规则的解释率）：
+重新导出后可检查原生取消/后续技关系的覆盖（触发组完整性与人工后续技规则的解释率），
+以及手写长按阈值与 AC Type 20 帧窗口是否一致：
 
 ```powershell
 node tools\action_runtime_compiler\trigger_group_report.js --version 2026-10-13 --out tg.md
+node tools\action_runtime_compiler\hold_window_report.js --version 2026-10-13 --out hold.md
 ```
+
+`hold.md` 里全部是 `frame_window_missing` 说明导出没有带上继承字段（导出文件缺
+`inherited_fields` 标记），需要用本目录的导出器重导。
 
 运行时会用 BCM 触发器指纹核对指令表与当前游戏数据；不一致或缺少指令表时，训练场会提示，
 提醒重新导出和生成。
@@ -97,4 +109,5 @@ node tools\action_runtime_compiler\trigger_group_report.js --version 2026-10-13 
 lua tools/test_acbcm_exporter.lua
 ```
 
-离线测试用假 SDK 验证字典按键导出（含键号 ≥ Count 与已删除条目）。真实导出必须在游戏内执行。
+离线测试用假 SDK 验证字典按键导出（含键号 ≥ Count 与已删除条目）和继承字段导出（帧窗口来自基类，
+不越过 `System.*`/引擎基类）。真实导出必须在游戏内执行。

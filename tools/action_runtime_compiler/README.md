@@ -248,6 +248,20 @@ node tools\action_runtime_compiler\trigger_group_report.js --version 2026-10-13 
 `tools/acbcm_exporter` 重新导出后，这条链才能完整覆盖；报告结果用于决定把哪些人工后续技规则改由生成器提供。
 目前生成器尚未消费触发组关系。
 
+## 4.4 长按阈值（Type 20 帧窗口）
+
+可长按的招式（按住按钮蓄力、分档）由 AC 的 Type 20 BranchKey 实现：`Param01` 是按住的按钮位，
+`Param03` 是输入方案档位，帧窗口决定何时检查松开。2026-08-03 的数据里，82 条手写 `is_holdable`
+例外有 77 条落在带 Type 20 分支的动作上（其余 5 条是派生目标或没有阈值）。`hold_window_report.js`
+把手写的 `charge_min`/`charge_max` 与这些窗口逐条对照：
+
+```powershell
+node tools\action_runtime_compiler\hold_window_report.js --version 2026-10-13 --out hold.md
+```
+
+旧导出没有继承字段、没有帧窗口，结论全部是 `frame_window_missing`。用当前 `tools/acbcm_exporter`
+重导后，`consistent` 的条目就可以改由生成器提供阈值；生成器目前尚未产出长按阈值。
+
 ## 5. 官网文件名与角色名
 
 新版抓取器直接以 SF6CC 规范角色名保存，例如：

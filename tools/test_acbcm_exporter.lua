@@ -93,6 +93,39 @@ assert(value.object_type == "BCM.TRIGGER_GROUP")
 assert(value.fields[1].name == "Notice" and value.fields[1].value.value == 2)
 assert(not ctx.truncated)
 
+-- Keys inherit their frame window from via.fighter.ActionKey; get_fields()
+-- only lists a type's own fields, so the encoder must walk game-data bases
+-- (and stop at System.* / engine bases).
+local function with_parent(def, parent)
+    function def:get_parent_type() return parent end
+    return def
+end
+local object_base = with_parent(definition("System.Object", { field("m_hidden", "System.Int32") }), nil)
+local engine_base = with_parent(definition("via.clr.ManagedObject", { field("_Engine", "System.Int32") }), object_base)
+local action_key = with_parent(definition("via.fighter.ActionKey", {
+    field("_StartFrame", "System.Int32"), field("_EndFrame", "System.Int32"), field("Type", "System.Int32"),
+}), engine_base)
+local branch_def = with_parent(definition("CharacterAsset.BranchKey", {
+    field("Type", "System.Int32"), field("Action", "System.Int32"),
+}), action_key)
+local branch = managed("CharacterAsset.BranchKey", {
+    _StartFrame = 24, _EndFrame = 49, Type = 20, Action = 906, _Engine = 7, m_hidden = 1,
+}, {})
+function branch:get_type_definition() return branch_def end
+local key_ctx = encoder.new_graph_context()
+local key_ref = encoder.encode_value(key_ctx, branch, 4)
+local key_node = key_ctx.objects[key_ref.object_id]
+local names = {}
+for _, item in ipairs(key_node.fields) do names[item.name] = item.value.value end
+assert(names._StartFrame == 24 and names._EndFrame == 49, "inherited frame window must be exported")
+assert(names.Type == 20 and names.Action == 906)
+assert(names._Engine == nil and names.m_hidden == nil, "engine and System bases are not walked")
+local field_count = 0
+for _ in pairs(names) do field_count = field_count + 1 end
+assert(field_count == 4, "a derived declaration hides the base field of the same name")
+local catalog = key_ctx.type_catalog["CharacterAsset.BranchKey"]
+assert(catalog and catalog.inherits[1] == "via.fighter.ActionKey" and catalog.inherits[3] == "System.Object")
+
 log, sdk, json = previous.log, previous.sdk, previous.json
 _G.SF6CC_ACBCM_EXPORTER_NO_AUTORUN = nil
 _G.SF6CC_ACBCMExporter = nil

@@ -247,7 +247,44 @@ local function field_offset(field)
     return nil
 end
 
-local function reflected_fields(object_or_definition)
+-- Base classes whose fields are game data. get_fields() only returns the
+-- fields a type declares itself, so without walking these parents every
+-- CharacterAsset.*Key would lose the frame window it inherits from
+-- via.fighter.ActionKey. System.* and engine object bases are not walked.
+-- Marked in each export as inherited_fields = "game-namespaces.v1".
+local INHERITED_FIELD_NAMESPACES = {
+    "via.fighter.",
+    "CharacterAsset.",
+    "app.battle.",
+    "BCM.",
+}
+
+local function walks_inherited_fields(definition)
+    local name = definition_name(definition)
+    if type(name) ~= "string" then
+        return false
+    end
+    for _, prefix in ipairs(INHERITED_FIELD_NAMESPACES) do
+        if name:sub(1, #prefix) == prefix then
+            return true
+        end
+    end
+    return false
+end
+
+local function parent_definition(definition)
+    local ok, parent = pcall(function()
+        return definition:get_parent_type()
+    end)
+    if ok then
+        return parent
+    end
+    return nil
+end
+
+local MAX_INHERITANCE_DEPTH = 16
+
+local function resolve_definition(object_or_definition)
     local definition = object_or_definition
     if definition ~= nil then
         local ok_type = pcall(function()
@@ -257,28 +294,56 @@ local function reflected_fields(object_or_definition)
             definition = type_definition(object_or_definition)
         end
     end
+    return definition
+end
 
+-- Full names of the parent chain, nearest first.
+local function inheritance_chain(object_or_definition)
+    local chain = {}
+    local current = parent_definition(resolve_definition(object_or_definition))
+    while current ~= nil and #chain < MAX_INHERITANCE_DEPTH do
+        local name = definition_name(current)
+        if name == nil then
+            break
+        end
+        chain[#chain + 1] = name
+        current = parent_definition(current)
+    end
+    return chain
+end
+
+local function reflected_fields(object_or_definition)
+    local definition = resolve_definition(object_or_definition)
     if definition == nil then
         return {}
     end
 
-    local ok, fields = pcall(function()
-        return definition:get_fields()
-    end)
-    if not ok or fields == nil then
-        return {}
-    end
-
     local result = {}
-    local iterate_ok = pcall(function()
-        for _, field in pairs(fields) do
-            if field ~= nil then
-                result[#result + 1] = field
-            end
+    local seen = {}
+    local current = definition
+    local depth = 0
+    while current ~= nil and depth < MAX_INHERITANCE_DEPTH do
+        local ok, fields = pcall(function()
+            return current:get_fields()
+        end)
+        if ok and fields ~= nil then
+            pcall(function()
+                for _, field in pairs(fields) do
+                    local name = field ~= nil and field_name(field) or nil
+                    -- A derived declaration hides a base field of the same name.
+                    if name ~= nil and not seen[name] then
+                        seen[name] = true
+                        result[#result + 1] = field
+                    end
+                end
+            end)
         end
-    end)
-    if not iterate_ok then
-        return {}
+        local parent = parent_definition(current)
+        if parent == nil or not walks_inherited_fields(parent) then
+            break
+        end
+        current = parent
+        depth = depth + 1
     end
 
     table.sort(result, function(a, b)
@@ -493,6 +558,7 @@ local function register_type(ctx, object)
 
     local entry = {
         object_type = object_type,
+        inherits = inheritance_chain(definition),
         instance_fields = {},
         static_fields = {},
     }
@@ -1230,6 +1296,7 @@ local function collect_action_catalog(runtime, identity, mode_label)
     return {
         schema = AC_SCHEMA,
         dictionary_encoding = "int-keyed-entries",
+        inherited_fields = "game-namespaces.v1",
         fighter_id = runtime.fighter_id,
         character = identity.character_name,
         character_slug = identity.character_slug,
@@ -1418,6 +1485,7 @@ local function collect_bcm(runtime, identity, mode_label)
     return {
         schema = BCM_SCHEMA,
         dictionary_encoding = "int-keyed-entries",
+        inherited_fields = "game-namespaces.v1",
         fighter_id = runtime.fighter_id,
         character = identity.character_name,
         character_slug = identity.character_slug,
