@@ -15,7 +15,13 @@
 // every Action with a curated force or ignore whether the capture agrees
 // the correction is needed.
 //
-//   node transition_report.js --capture transitions-f001.jsonl --version 2026-10-13 [--out report.md] [--json report.json]
+// Branch.BranchType is a bit set: bit n is set when a BranchKey of Type n
+// entered the Action (a Type 13 landing reads 8192). A Type 63 branch (the
+// back throw) sets no bit. The first captures (2026-10-10) carried no fighter
+// ID; pass --fighter for those.
+//
+//   node transition_report.js --capture transitions-f001.jsonl --version 2026-10-13
+//       [--fighter Akuma] [--out report.md] [--json report.json]
 
 const fs = require("fs");
 const path = require("path");
@@ -47,6 +53,17 @@ function readCapture(filename) {
         .map(line => JSON.parse(line));
 }
 
+// Bit indices of a BranchType value (exact for the full 64-bit range).
+function branchBits(value) {
+    if (value === undefined || value === null) return [];
+    let rest;
+    try { rest = BigInt(typeof value === "number" ? Math.round(value) : String(value)); } catch (error) { return []; }
+    if (rest < 0n) rest = BigInt.asUintN(64, rest);
+    const bits = [];
+    for (let bit = 0; rest > 0n; bit += 1, rest >>= 1n) if (rest & 1n) bits.push(bit);
+    return bits;
+}
+
 function engineStep(record) {
     const flags = Number(record.flags);
     const code = Number(record.code) || 0;
@@ -59,7 +76,8 @@ function engineStep(record) {
 
 // The AC mechanism that entered record.act from record.prev.
 function mechanism(model, record) {
-    const prev = model.actions.get(Number(record.prev));
+    const prev = model.actions.get(Number(record.prev))
+        || (model.common && model.common.actions.get(Number(record.prev)));
     const candidates = prev ? prev.branches.filter(branch => branch.target === Number(record.act)) : [];
     const frame = Number(record.prev_frame);
     const inWindow = candidates.filter(branch => branch.window
@@ -80,11 +98,11 @@ function analyze(model, records, curated) {
         if (record.prev === undefined || record.prev === null) continue;
         const kind = mechanism(model, record);
         const step = engineStep(record);
-        const engineType = (Number(record.branch) || 0) & 0xFF;
+        const engineBits = branchBits(record.branch).map(bit => `T${bit}`).join("+") || "none";
         const bucket = byMechanism[kind] = byMechanism[kind] || { total: 0, engine_step: 0, branch_types: {} };
         bucket.total += 1;
         if (step) bucket.engine_step += 1;
-        bucket.branch_types[engineType] = (bucket.branch_types[engineType] || 0) + 1;
+        bucket.branch_types[engineBits] = (bucket.branch_types[engineBits] || 0) + 1;
         const actionId = Number(record.act);
         if (!byAction.has(actionId)) byAction.set(actionId, { total: 0, engine_step: 0, mechanisms: {} });
         const action = byAction.get(actionId);
@@ -123,9 +141,13 @@ function loadModel(acbcmRoot, version, fighterId) {
 
 function report(options) {
     const records = readCapture(options.capture);
-    const fighterId = Number((records.find(record => record.fighter !== undefined) || {}).fighter);
-    if (!Number.isInteger(fighterId)) throw new Error("采集文件里没有 fighter。");
     const roster = fighterRoster.loadRoster(options.rosterPath);
+    let fighterId = Number((records.find(record => record.fighter !== undefined) || {}).fighter);
+    if (options.fighter !== undefined && options.fighter !== null) {
+        const named = roster.byKey(String(options.fighter)) || roster.byId(Number(options.fighter));
+        fighterId = named ? named.id : Number(options.fighter);
+    }
+    if (!Number.isInteger(fighterId)) throw new Error("采集文件里没有 fighter，请用 --fighter 指定角色。");
     const fighter = roster.byId(fighterId);
     const key = fighter ? fighter.key : `ESF_${String(fighterId).padStart(3, "0")}`;
     const model = loadModel(path.resolve(options.acbcmRoot || path.join(TOOL_ROOT, "acbcm")), options.version, fighterId);
@@ -137,7 +159,7 @@ function report(options) {
 
 function markdown(result) {
     const lines = [`# 动作切换与引擎标志 ${result.character}`, "", `共 ${result.transitions} 次切换。`, "",
-        "| 进入方式 | 次数 | 引擎判为玩家步骤 | 引擎 BranchType 低字节分布 |", "| --- | ---: | ---: | --- |"];
+        "| 进入方式 | 次数 | 引擎判为玩家步骤 | 引擎 BranchType 位 |", "| --- | ---: | ---: | --- |"];
     for (const [kind, bucket] of Object.entries(result.by_mechanism).sort((a, b) => b[1].total - a[1].total)) {
         lines.push(`| ${kind} | ${bucket.total} | ${bucket.engine_step} | ${JSON.stringify(bucket.branch_types)} |`);
     }
@@ -154,7 +176,8 @@ function run(argv) {
     if (!args["--capture"] || !args["--version"]) {
         throw new Error("用法: node transition_report.js --capture transitions-f001.jsonl --version <日期> [--out 报告.md] [--json 报告.json]");
     }
-    const result = report({ capture: args["--capture"], version: args["--version"], acbcmRoot: args["--acbcm-root"] });
+    const result = report({ capture: args["--capture"], version: args["--version"], acbcmRoot: args["--acbcm-root"],
+        fighter: args["--fighter"] });
     const text = markdown(result);
     if (args["--out"]) fs.writeFileSync(args["--out"], text, "utf8");
     if (args["--json"]) fs.writeFileSync(args["--json"], `${JSON.stringify(result, null, 1)}\n`, "utf8");
@@ -170,4 +193,4 @@ if (require.main === module) {
     }
 }
 
-module.exports = { readCapture, engineStep, mechanism, analyze, markdown };
+module.exports = { readCapture, branchBits, engineStep, mechanism, analyze, markdown };

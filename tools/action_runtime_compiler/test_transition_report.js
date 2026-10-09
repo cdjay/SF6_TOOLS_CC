@@ -19,6 +19,9 @@ assert.strictEqual(tool.engineStep({ flags: 16, code: 0, branch: 0x2000003F }), 
 assert.strictEqual(tool.engineStep({ flags: 16, code: 0, branch: 0x20000014, input: 16 }), true);
 assert.strictEqual(tool.engineStep({ flags: 16, code: 0, branch: 0x20000014, input: 0 }), false);
 
+assert.deepStrictEqual(tool.branchBits(8192), [13]);
+assert.deepStrictEqual(tool.branchBits(140739635838976), [31, 47], "exact beyond 2^32");
+assert.deepStrictEqual(tool.branchBits(0), []);
 assert.strictEqual(tool.mechanism(model, { prev: 715, prev_frame: 1, act: 717 }), "T63");
 assert.strictEqual(tool.mechanism(model, { prev: 900, prev_frame: 12, act: 905 }), "T20/p0=0");
 assert.strictEqual(tool.mechanism(model, { prev: 17, prev_frame: 3, act: 900 }), "bcm");
@@ -31,7 +34,7 @@ const records = [
     { prev: 900, prev_frame: 40, act: 901, flags: 16, code: 900, branch: 0 }
 ];
 const result = tool.analyze(model, records, { 717: { force: true }, 901: { ignore: true }, 902: { force: true } });
-assert.deepStrictEqual(result.by_mechanism.T63, { total: 2, engine_step: 0, branch_types: { 63: 2 } });
+assert.deepStrictEqual(result.by_mechanism.T63, { total: 2, engine_step: 0, branch_types: { "T0+T1+T2+T3+T4+T5+T29": 2 } });
 const verdicts = Object.fromEntries(result.corrections.map(item => [item.action_id, item.verdict]));
 assert.deepStrictEqual(verdicts, { 717: "needed", 901: "redundant", 902: "not_observed" },
     "the engine never counts 717, so its force is needed; 901 is never a step, so its ignore is redundant");

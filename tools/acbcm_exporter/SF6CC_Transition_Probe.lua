@@ -11,12 +11,15 @@
 --
 -- Use: Training Mode, P1 = the fighter to study. REFramework > ScriptRunner >
 -- Run this file. Perform the fighter's moves (specials, follow-ups, holds,
--- throws, target combos, supers). Running the file again pauses / resumes
--- recording and saves. Output: reframework/data/SF6CC_ACBCM/transitions-fNNN.jsonl,
--- one JSON object per Action change, appended across sessions.
+-- throws, target combos, supers). The REFramework menu node
+-- "SF6CC Transition Probe" starts / stops recording and saves; running the
+-- file again also pauses / resumes and saves. Output:
+-- reframework/data/SF6CC_ACBCM/transitions-fNNN.jsonl, one JSON object per
+-- Action change, appended across sessions.
 --
 -- Running a newer copy of this file while an older probe is active upgrades
--- the running probe in place (its unsaved records are kept and saved).
+-- the running probe in place: the recording state is kept and its unsaved
+-- records are saved at once.
 
 local existing = rawget(_G, "SF6CC_TransitionProbe")
 local register = rawget(_G, "SF6CC_TRANSITION_PROBE_NO_REGISTER") ~= true
@@ -28,9 +31,11 @@ local Probe = existing or {
     buffer = {},
     last = nil,
 }
+local VERSION = 3
+local upgraded_from = existing and (existing.version or 1) or nil
 Probe.FLUSH_RECORDS = 40
 Probe.DIRECTORY = "SF6CC_ACBCM"
-Probe.version = 2
+Probe.version = VERSION
 
 local SFIX = 65536
 local FIELDS = { "t", "fighter", "prev", "prev_frame", "act", "frame", "flags", "code", "branch", "input", "sw" }
@@ -44,6 +49,20 @@ end
 local function field(object, name)
     if object == nil then return nil end
     return try(function() return object:get_field(name) end)
+end
+
+-- Engine values may come back boxed (enums such as the fighter ID).
+local function number_of(value)
+    if type(value) == "number" then return value end
+    local direct = tonumber(value)
+    if direct then return direct end
+    if value == nil then return nil end
+    for _, name in ipairs({ "value__", "mValue", "Value", "value", "v" }) do
+        local inner = try(function() return value[name] end)
+        if inner == nil then inner = try(function() return value:get_field(name) end) end
+        if type(inner) == "number" then return inner end
+    end
+    return nil
 end
 
 local function sfix(raw)
@@ -65,7 +84,7 @@ function Probe.read_p1()
     local p1 = list and try(function() return list[0] end)
     if p1 == nil then return nil end
     local sample = {
-        fighter = tonumber(fighter),
+        fighter = number_of(fighter),
         input = tonumber(field(p1, "pl_input_new")) or 0,
         sw = tonumber(field(p1, "pl_sw_new")) or 0,
     }
@@ -166,9 +185,17 @@ end
 _G.SF6CC_TransitionProbe = Probe
 
 if existing ~= nil and register then
-    -- Running the file again toggles recording; leaving recording saves.
+    local saved
+    if upgraded_from < VERSION then
+        -- A newer copy took over the running probe: keep its state, save.
+        saved = Probe.flush()
+        info(string.format("upgraded v%d->v%d recording=%s written=%d pending=%d%s", upgraded_from, VERSION,
+            tostring(Probe.enabled), Probe.written, #Probe.buffer, saved and "" or (" error=" .. tostring(Probe.last_error))))
+        return Probe
+    end
+    -- Running the same file again toggles recording; leaving recording saves.
     Probe.enabled = not Probe.enabled
-    local saved = true
+    saved = true
     if not Probe.enabled then saved = Probe.flush() end
     info(string.format("recording=%s written=%d pending=%d%s", tostring(Probe.enabled),
         Probe.written, #Probe.buffer, saved and "" or (" error=" .. tostring(Probe.last_error))))

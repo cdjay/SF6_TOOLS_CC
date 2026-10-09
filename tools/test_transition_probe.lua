@@ -29,7 +29,8 @@ act_param.__fields.KeyInput = key_input
 act_param.__fields.Branch = branch
 local p1 = managed({})
 p1.__fields.mpActParam = act_param
-local players = managed({ mPlayerType = { [0] = 12 }, mcPlayer = { [0] = p1 } })
+-- The fighter ID comes back as a boxed enum.
+local players = managed({ mPlayerType = { [0] = managed({ value__ = 12 }) }, mcPlayer = { [0] = p1 } })
 local function sync()
     param.__fields.state_flags = state.flags
     key_input.__fields.Action = state.code
@@ -83,20 +84,24 @@ sync()
 Probe.observe(Probe.read_p1())
 assert(Probe.flush() and Probe.written == 3)
 
--- An older probe left running upgrades in place: a newer copy keeps its
--- unsaved records, toggles recording off and saves them.
+-- An older probe left running upgrades in place: a newer copy keeps the
+-- recording state and saves the unsaved records at once.
 _G.SF6CC_TRANSITION_PROBE_NO_REGISTER = nil
 local old_probe = {
-    enabled = true, frame = 9, written = 0, last = nil,
+    enabled = true, frame = 9, written = 0, last = nil, version = 2,
     buffer = { { t = 1, fighter = 32, prev = 600, prev_frame = 4, act = 949, frame = 0, flags = 16, code = 949, branch = 0, input = 0, sw = 0 } },
     flush = function() error("old flush") end,
 }
 _G.SF6CC_TransitionProbe = old_probe
 log = { info = function() end }
 local upgraded = assert(loadfile("tools/acbcm_exporter/SF6CC_Transition_Probe.lua"))()
-assert(upgraded == old_probe and upgraded.version == 2, "the running probe table is reused")
-assert(upgraded.enabled == false and #upgraded.buffer == 0 and upgraded.written == 1)
+assert(upgraded == old_probe and upgraded.version == 3, "the running probe table is reused")
+assert(upgraded.enabled == true and #upgraded.buffer == 0 and upgraded.written == 1)
 assert(table.concat(files["SF6CC_ACBCM/transitions-f032.jsonl"], ""):find('"act":949', 1, true))
+-- Running the same version again pauses and saves.
+upgraded.buffer = { { t = 2, fighter = 32, act = 950 } }
+assert(loadfile("tools/acbcm_exporter/SF6CC_Transition_Probe.lua"))()
+assert(upgraded.enabled == false and #upgraded.buffer == 0 and upgraded.written == 2)
 
 sdk, json, io, fs = previous.sdk, previous.json, previous.io, previous.fs
 _G.SF6CC_TRANSITION_PROBE_NO_REGISTER = nil
