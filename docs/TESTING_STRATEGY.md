@@ -54,6 +54,14 @@ python tools\corpus_determinism_audit.py --repo-root . --backup-root "D:\CP\SF6C
 python tools\regression_mutation_audit.py --repo-root . --output "$tmp\regression-mutation.json"
 ```
 
+On a machine that has the local AC/BCM dumps, also confirm that the runtime
+command tables equal the generator output of the release's dump version
+(line endings are ignored; a mismatch exits with code 1):
+
+```powershell
+node tools\action_runtime_compiler\deploy_command_display.js --check --version 2026-08-03
+```
+
 Expected baseline on August 17, 2026:
 
 - Lua parse: `129 / 129`.

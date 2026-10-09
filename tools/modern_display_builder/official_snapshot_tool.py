@@ -265,22 +265,43 @@ def load_manifest(path: Path) -> dict[str, dict[str, Any]]:
     return manifest
 
 
-def fetch_all(manifest: dict[str, dict[str, Any]], version: str) -> tuple[dict[str, dict[str, Any]], str]:
-    first = min(manifest.items(), key=lambda item: int(item[1]["fighter_id"]))[1]
+def snapshots_from_modules(manifest: dict[str, dict[str, Any]], modules: dict[str, Any],
+                           var_map: dict[str, str], source_chunk: str, chunk_sha: str,
+                           version: str, allow_missing: bool = False
+                           ) -> tuple[dict[str, dict[str, Any]], list[str]]:
+    """Build one snapshot per fighter. A fighter whose official page is not
+    published yet (e.g. on release day) is reported as missing when allowed."""
+    snapshots: dict[str, dict[str, Any]] = {}
+    missing: list[str] = []
+    for character, entry in sorted(manifest.items(), key=lambda item: int(item[1]["fighter_id"])):
+        var_name = var_map.get(entry["official_name"]) if entry.get("official_name") else None
+        payload = modules.get(var_name) if var_name else None
+        frame_rows = payload.get("frame") if isinstance(payload, dict) else None
+        if not isinstance(frame_rows, list) or not frame_rows:
+            if allow_missing:
+                missing.append(character)
+                continue
+            raise RuntimeError(f"官网 frame 数据缺失: {character} ({entry.get('official_name')})")
+        snapshots[character] = build_snapshot(
+            character, entry, frame_rows, source_chunk, chunk_sha, version)
+    if not snapshots:
+        raise RuntimeError("官网数据中没有任何角色的 frame 数据。")
+    return snapshots, missing
+
+
+def fetch_all(manifest: dict[str, dict[str, Any]], version: str, allow_missing: bool = False
+              ) -> tuple[dict[str, dict[str, Any]], str, list[str]]:
+    with_url = [entry for entry in manifest.values() if entry.get("url")]
+    if not with_url:
+        raise RuntimeError("角色名单中没有任何官网 slug。")
+    first = min(with_url, key=lambda entry: int(entry["fighter_id"]))
     chunk_text, source_chunk = extractor.load_source_text(first["url"], None)
     modules = extractor.parse_json_modules(chunk_text)
     var_map = extractor.parse_character_var_map(chunk_text)
     chunk_sha = hashlib.sha256(chunk_text.encode("utf-8")).hexdigest()
-    snapshots = {}
-    for character, entry in sorted(manifest.items(), key=lambda item: int(item[1]["fighter_id"])):
-        var_name = var_map.get(entry["official_name"])
-        payload = modules.get(var_name) if var_name else None
-        frame_rows = payload.get("frame") if isinstance(payload, dict) else None
-        if not isinstance(frame_rows, list) or not frame_rows:
-            raise RuntimeError(f"官网 frame 数据缺失: {character} ({entry['official_name']})")
-        snapshots[character] = build_snapshot(
-            character, entry, frame_rows, source_chunk, chunk_sha, version)
-    return snapshots, source_chunk
+    snapshots, missing = snapshots_from_modules(
+        manifest, modules, var_map, source_chunk, chunk_sha, version, allow_missing)
+    return snapshots, source_chunk, missing
 
 
 def run(args: argparse.Namespace) -> int:
@@ -298,10 +319,12 @@ def run(args: argparse.Namespace) -> int:
     target = off_root / version
     previous_version, previous_dir = find_previous(off_root, version, target)
     previous = load_previous_snapshots(previous_dir, list(manifest))
-    snapshots, source_chunk = fetch_all(manifest, version)
+    snapshots, source_chunk, missing = fetch_all(manifest, version, getattr(args, "allow_missing", False))
 
     characters = []
     for character, entry in sorted(manifest.items(), key=lambda item: int(item[1]["fighter_id"])):
+        if character in missing:
+            continue
         difference = diff_snapshot(previous.get(character), snapshots[character])
         changed = difference["baseline"] or bool(difference["source_resource_changed"]
             or difference["added_action_ids"]
@@ -343,7 +366,9 @@ def run(args: argparse.Namespace) -> int:
         "characters": [{key: value for key, value in item.items()
                         if key in {"character", "fighter_id", "snapshot_file", "snapshot_sha256"}}
                        for item in characters],
+        "missing_characters": missing,
     }
+    bundle["missing_characters"] = missing
 
     off_root.mkdir(parents=True, exist_ok=True)
     stage = Path(tempfile.mkdtemp(prefix=f".{version}-", dir=off_root))
@@ -354,6 +379,9 @@ def run(args: argparse.Namespace) -> int:
         write_json(stage / "differences.json", bundle)
         (stage / "differences.md").write_text(markdown_report(bundle), encoding="utf-8")
         target.mkdir(parents=True, exist_ok=True)
+        # A snapshot left from an earlier run must not outlive the official page.
+        for character in missing:
+            (target / f"{character}.official.generated.json").unlink(missing_ok=True)
         for source in stage.iterdir():
             destination = target / source.name
             temporary = target / f".{source.name}.tmp"
@@ -368,6 +396,8 @@ def run(args: argparse.Namespace) -> int:
     print(f"变化角色: {summary['changed_characters']}，无变化角色: {summary['unchanged_characters']}")
     print(f"新增/删除/变化 Action ID: {summary['added_action_ids']}/"
           f"{summary['removed_action_ids']}/{summary['changed_action_ids']}")
+    if missing:
+        print(f"官网暂无数据（lastjson 需加 --allow-missing-official，按纯 AC+BCM 生成）: {', '.join(missing)}")
     print(f"详细报告: {target / 'differences.md'}")
     return 0
 
@@ -378,6 +408,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--manifest", default=str(DEFAULT_MANIFEST))
     parser.add_argument("--acbcm-root", default=str(DEFAULT_ACBCM_ROOT))
     parser.add_argument("--off-root", default=str(DEFAULT_OFF_ROOT))
+    parser.add_argument("--allow-missing", action="store_true",
+                        help="官网还没有某角色的 frame 数据时跳过该角色，而不是整体失败")
     args = parser.parse_args(argv)
     try:
         return run(args)

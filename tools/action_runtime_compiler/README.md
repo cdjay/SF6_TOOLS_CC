@@ -127,6 +127,13 @@ off/<版本>/<Character>.official.generated.json
 
 抓取或解析任一角色失败时，本次不会用半套数据覆盖目标版本。
 
+新角色发售当天官网往往还没有帧数据。此时加 `--allow-missing`：缺数据的角色被跳过并写进
+`manifest.json` 的 `missing_characters`，其余角色照常保存：
+
+```powershell
+tools\action_runtime_compiler\1_fetch_official_and_diff.bat 2026-10-13 --allow-missing
+```
+
 ## 4. BAT 2：按 AC/BCM 版本生成 lastjson
 
 双击：
@@ -147,10 +154,10 @@ acbcm/<版本>/lastjson/*.json
 tools\action_runtime_compiler\2_build_lastjson.bat 2026-05-28
 ```
 
-生成条件：
+生成条件（全量模式）：
 
 1. 该版本必须有与角色清单等量的完整 AC+BCM；
-2. `off` 下必须有同日期的全部角色官网快照；
+2. `off` 下必须有同日期的全部角色官网快照（加 `--allow-missing-official` 时可缺，见下）；
 3. Fighter ID 不能缺失或重复；
 4. AC、BCM和文件名 Fighter ID 必须一致；
 5. 每个角色 AC+BCM 编译必须有效；
@@ -167,6 +174,32 @@ tools\action_runtime_compiler\2_build_lastjson.bat 2026-05-28
 
 `lastjson` 与 `lastjson_web` 必须同时正好生成角色清单中的全部角色；任一生成、校验或目录替换失败时，两套旧
 结果都会保留。
+
+### 可选参数
+
+| 参数 | 作用 |
+| --- | --- |
+| `--allow-missing-official` | 某角色（或整个版本）没有官网快照时按纯 AC+BCM 生成，`generated_from` 为 `ac_bcm`，manifest 记 `official_status: unavailable`。官网数据每角色只贡献 0–3 条现代 AUTO 连显示消歧，Classic 指令与动作关系不受影响。 |
+| `--characters Arjun,Ryu` | 增量模式：只读取并重写这些角色的 `lastjson`/`lastjson_web`，其它角色文件不动，manifest 合并更新。只在其它角色确认未变化时使用；版本更新后优先全量重导。 |
+| `--output-dir <目录>` | 把 `lastjson`、`lastjson_web` 与 manifest 写到别处（试跑、对比），不覆盖版本目录。 |
+
+```powershell
+tools\action_runtime_compiler\2_build_lastjson.bat 2026-10-13 --allow-missing-official
+node tools\action_runtime_compiler\lastjson_builder.js --version 2026-10-13 --characters Arjun --allow-missing-official
+```
+
+## 4.1 BAT 3：部署到运行时目录
+
+`data/TrainingComboTrials_data/command_display` 不手改、不逐个复制，只从一个生成版本整体部署：
+
+```powershell
+tools\action_runtime_compiler\3_deploy_command_display.bat 2026-10-13
+tools\action_runtime_compiler\3_deploy_command_display.bat 2026-10-13 --check
+```
+
+部署前先对每个文件跑与生成器相同的 hard audit，全部通过才写入；只覆盖内容变化的文件，任一写入失败会恢复已写入的文件。
+`--check` 只比较不写入，正式数据与生成结果不一致时退出码为 1（换行差异不算）。`--characters` 可只部署指定角色。
+
 
 官网帧数据模块可能把等级蓄力招式的内部候选编码放在 `command` 字段。网页生成器不会直接渲染
 该编码：同一内部招式、同一 Action 提示且备注明确按住按钮的等级组，Classic 使用 AC+BCM 的
@@ -212,7 +245,7 @@ acbcm/<版本>/lastjson/<Character>.json
 生成器不会：
 
 - 修改用户录制的连段 JSON；
-- 修改正式 `data/TrainingComboTrials_data/command_display`；
+- 修改正式 `data/TrainingComboTrials_data/command_display`（只有 BAT 3 部署脚本会写入）；
 - 修改游戏区；
 - 把官网 Action ID 当游戏 Action ID；
 - 在缺少角色时输出残缺的 `lastjson`。

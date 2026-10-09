@@ -22,17 +22,30 @@ const ZERO_AUDIT_FIELDS = [
     "replaces_profile_route_count"
 ];
 
+const BOOLEAN_FLAGS = new Set(["--allow-missing-official"]);
+
 function argsOf(argv) {
     const result = {};
     for (let index = 0; index < argv.length; index += 1) {
         const key = argv[index];
         if (!key.startsWith("--")) throw new Error(`未知参数: ${key}`);
+        if (BOOLEAN_FLAGS.has(key)) {
+            result[key] = true;
+            continue;
+        }
         const value = argv[index + 1];
         if (!value || value.startsWith("--")) throw new Error(`参数 ${key} 缺少值。`);
         result[key] = value;
         index += 1;
     }
     return result;
+}
+
+function characterList(value) {
+    if (value === undefined || value === null || value === true) return null;
+    const names = String(value).split(",").map(name => name.trim()).filter(Boolean);
+    if (!names.length) throw new Error("--characters 不能为空。");
+    return names;
 }
 
 function sha256(bytes) {
@@ -71,9 +84,10 @@ function versionDirectories(root) {
         .sort((left, right) => left.normalized.localeCompare(right.normalized));
 }
 
-function resolveOffDirectory(offRoot, version) {
+function resolveOffDirectory(offRoot, version, allowMissing = false) {
     const normalized = normalizeVersion(version);
     const matches = versionDirectories(offRoot).filter(item => item.normalized === normalized);
+    if (matches.length === 0 && allowMissing) return null;
     if (matches.length !== 1) {
         throw new Error(`OFF ${normalized} 必须正好存在一个对应目录，当前 ${matches.length} 个。请先运行官网抓取 BAT。`);
     }
@@ -87,9 +101,15 @@ function filenameFighterId(stem) {
     return compatible ? Number(compatible[1]) : null;
 }
 
-function loadOfficial(offDirectory, character, fighterId) {
-    const filename = path.join(offDirectory, `${character}.official.generated.json`);
-    if (!fs.existsSync(filename)) throw new Error(`OFF 缺少角色 ${character}: ${filename}`);
+// Official (OFF) data only contributes names and a handful of Modern bindings;
+// AC+BCM alone yield a complete table. With allowMissing a fighter whose
+// official page is not published yet is generated from AC+BCM only.
+function loadOfficial(offDirectory, character, fighterId, allowMissing = false) {
+    const filename = offDirectory && path.join(offDirectory, `${character}.official.generated.json`);
+    if (!filename || !fs.existsSync(filename)) {
+        if (allowMissing) return null;
+        throw new Error(`OFF 缺少角色 ${character}: ${filename || "(无 OFF 目录)"}`);
+    }
     const source = readSource(filename);
     const meta = source.value && source.value._meta || {};
     if (meta.schema !== "xt.modern_display.v1" || meta.generated_from !== "capcom_official"
@@ -352,11 +372,54 @@ function replaceDirectorySet(items) {
     }
 }
 
+// Replace only the given files inside existing directories (incremental
+// mode). Every touched file is restored if any write fails.
+function replaceFilesTransactional(items) {
+    const originals = [];
+    try {
+        for (const item of items) {
+            fs.mkdirSync(path.dirname(item.target), { recursive: true });
+            originals.push({
+                target: item.target,
+                bytes: fs.existsSync(item.target) ? fs.readFileSync(item.target) : null
+            });
+            copyFileAtomic(item.source, item.target);
+        }
+    } catch (error) {
+        for (const original of originals.reverse()) {
+            try {
+                if (original.bytes === null) fs.rmSync(original.target, { force: true });
+                else fs.writeFileSync(original.target, original.bytes);
+            } catch (restoreError) {
+                console.warn(`警告: 无法恢复 ${original.target}: ${restoreError.message}`);
+            }
+        }
+        throw error;
+    }
+}
+
+function selectFighterIds(expected, names) {
+    if (!names) return null;
+    const byKey = new Map([...expected.entries()].map(([id, key]) => [key.toLowerCase(), id]));
+    const selected = new Set();
+    for (const name of names) {
+        const id = byKey.get(String(name).toLowerCase());
+        if (id === undefined) throw new Error(`角色 ${name} 不在 data/SF6CC/fighters.json，先在角色名单里加上它。`);
+        selected.add(id);
+    }
+    return selected;
+}
+
+// Builds lastjson (+ lastjson_web) for one AC/BCM version directory.
+// Full mode needs every rostered fighter and replaces both directories at
+// once. Incremental mode (options.characters) only reads and rewrites the
+// named fighters, e.g. a new fighter dumped on release day.
 function buildVersion(options) {
     const versionDirectory = path.resolve(options.versionDirectory);
     const versionName = path.basename(versionDirectory);
     const normalizedVersion = normalizeVersion(versionName);
-    const offDirectory = resolveOffDirectory(path.resolve(options.offRoot), versionName);
+    const allowMissingOfficial = options.allowMissingOfficial === true;
+    const offDirectory = resolveOffDirectory(path.resolve(options.offRoot), versionName, allowMissingOfficial);
     const registry = fighterRoster.officialRegistry(fighterRoster.loadRoster(options.rosterPath));
     const expected = new Map(Object.entries(registry).map(([character, entry]) =>
         [Number(entry.fighter_id), character]));
@@ -364,17 +427,22 @@ function buildVersion(options) {
     if (!expectedCount || expected.size !== expectedCount) {
         throw new Error(`角色清单为空或 Fighter ID 不唯一: 角色=${expectedCount}，唯一ID=${expected.size}`);
     }
+    const selected = selectFighterIds(expected, options.characters);
+    const incremental = selected !== null;
+    const wanted = incremental ? selected : new Set(expected.keys());
 
     const scan = archive.scanDumpDirectory(versionDirectory);
-    if (scan.incomplete.length) {
+    if (!incremental && scan.incomplete.length) {
         throw new Error(`${versionName} 有 ${scan.incomplete.length} 个 AC/BCM 文件未配对。`);
     }
     const pairsById = new Map();
     for (const pair of scan.pairs) {
+        const filenameId = filenameFighterId(pair.stem);
+        if (incremental && filenameId !== null && !wanted.has(filenameId)) continue;
         const ac = readSource(path.join(versionDirectory, pair.ac));
         const bcm = readSource(path.join(versionDirectory, pair.bcm));
         const fighterId = Number(ac.value.fighter_id);
-        const filenameId = filenameFighterId(pair.stem);
+        if (incremental && !wanted.has(fighterId)) continue;
         if (!expected.has(fighterId)) throw new Error(`${pair.stem} 的 fighter_id=${fighterId} 不在角色清单。`);
         if (filenameId !== null && filenameId !== fighterId) {
             throw new Error(`${pair.stem} 文件名ID=${filenameId} 与 AC fighter_id=${fighterId} 不一致。`);
@@ -385,37 +453,42 @@ function buildVersion(options) {
         if (pairsById.has(fighterId)) throw new Error(`Fighter ID ${fighterId} 存在重复 AC/BCM 配对。`);
         pairsById.set(fighterId, { pair, ac, bcm });
     }
-    const missing = [...expected.keys()].filter(id => !pairsById.has(id));
-    if (missing.length || pairsById.size !== expectedCount) {
-        throw new Error(`${versionName} 必须包含${expectedCount}角色完整配对；缺少 Fighter ID: ${missing.join(", ") || "无"}。`);
+    const missing = [...wanted].filter(id => !pairsById.has(id));
+    if (missing.length) {
+        const names = missing.map(id => `${id}(${expected.get(id)})`).join(", ");
+        throw new Error(`${versionName} 缺少 AC/BCM 完整配对：${names}。`);
     }
 
-    const target = path.join(versionDirectory, "lastjson");
-    const webTarget = path.join(versionDirectory, "lastjson_web");
+    const outputRoot = path.resolve(options.outputDirectory || versionDirectory);
+    fs.mkdirSync(outputRoot, { recursive: true });
+    const target = path.join(outputRoot, "lastjson");
+    const webTarget = path.join(outputRoot, "lastjson_web");
     const previous = new Map();
-    if (fs.existsSync(target)) for (const character of expected.values()) {
+    if (fs.existsSync(target)) for (const fighterId of wanted) {
+        const character = expected.get(fighterId);
         const filename = path.join(target, `${character}.json`);
         if (fs.existsSync(filename)) previous.set(character, readJson(filename));
     }
     const stageStamp = `${process.pid}-${Date.now()}`;
-    const stage = path.join(versionDirectory, `.lastjson-stage-${stageStamp}`);
-    const webStage = path.join(versionDirectory, `.lastjson-web-stage-${stageStamp}`);
+    const stage = path.join(outputRoot, `.lastjson-stage-${stageStamp}`);
+    const webStage = path.join(outputRoot, `.lastjson-web-stage-${stageStamp}`);
     fs.mkdirSync(stage, { recursive: true });
     fs.mkdirSync(webStage, { recursive: true });
     const results = [];
     try {
-        for (const fighterId of [...expected.keys()].sort((a, b) => a - b)) {
+        for (const fighterId of [...wanted].sort((a, b) => a - b)) {
             const character = expected.get(fighterId);
             const { pair, ac, bcm } = pairsById.get(fighterId);
-            const official = loadOfficial(offDirectory, character, fighterId);
+            const official = loadOfficial(offDirectory, character, fighterId, allowMissingOfficial);
+            if (!official) console.warn(`[${versionName}] ${character} 没有官网数据，按纯 AC+BCM 生成。`);
             const community = loadCommunity(character);
             const options = {
                 actionSourceSha256: ac.sha256,
                 bcmSourceSha256: bcm.sha256,
                 characterName: character,
                 generatedAt: `${normalizedVersion}T00:00:00.000Z`,
-                officialSemantics: official.value,
-                officialSemanticsSha256: official.sha256,
+                officialSemantics: official ? official.value : undefined,
+                officialSemanticsSha256: official ? official.sha256 : undefined,
                 communitySemantics: community && community.value,
                 communitySemanticsSha256: community && community.sha256
             };
@@ -431,8 +504,8 @@ function buildVersion(options) {
             const webOutput = webCharacter.buildWebCharacter(output, {
                 generatedAt: options.generatedAt,
                 commandSourceSha256: sha256(outputBytes),
-                officialSnapshot: official.value,
-                officialSha256: official.sha256
+                officialSnapshot: official ? official.value : null,
+                officialSha256: official ? official.sha256 : null
             });
             const webCounts = webCharacter.validateWebCharacter(webOutput, output);
             const webOutputBytes = Buffer.from(`${JSON.stringify(webOutput, null, 2)}\n`, "utf8");
@@ -442,7 +515,8 @@ function buildVersion(options) {
             results.push({
                 character, fighter_id: fighterId, stem: pair.stem,
                 ac_file: pair.ac, bcm_file: pair.bcm,
-                official_file: path.basename(path.join(offDirectory, `${character}.official.generated.json`)),
+                official_file: official ? `${character}.official.generated.json` : null,
+                official_status: official ? "available" : "unavailable",
                 output_file: `${character}.json`, action_count: actionCount,
                 output_sha256: sha256(outputBytes),
                 web_output_file: `${character}.json`,
@@ -452,40 +526,61 @@ function buildVersion(options) {
                 difference
             });
         }
-        if (fs.readdirSync(stage).filter(name => name.endsWith(".json")).length !== expectedCount) {
-            throw new Error(`暂存输出不是正好${expectedCount}个角色 JSON。`)
+        const staged = fs.readdirSync(stage).filter(name => name.endsWith(".json")).length;
+        const webStaged = fs.readdirSync(webStage).filter(name => name.endsWith(".json")).length;
+        if (staged !== wanted.size || webStaged !== wanted.size) {
+            throw new Error(`暂存输出不是正好${wanted.size}个角色 JSON（游戏 ${staged}，网页 ${webStaged}）。`);
         }
-        if (fs.readdirSync(webStage).filter(name => name.endsWith(".json")).length !== expectedCount) {
-            throw new Error(`网页暂存输出不是正好${expectedCount}个角色 JSON。`)
+        if (incremental) {
+            const items = [];
+            for (const result of results) {
+                items.push({ source: path.join(stage, result.output_file), target: path.join(target, result.output_file) });
+                items.push({ source: path.join(webStage, result.web_output_file), target: path.join(webTarget, result.web_output_file) });
+            }
+            replaceFilesTransactional(items);
+        } else {
+            replaceDirectorySet([
+                { stage, target },
+                { stage: webStage, target: webTarget }
+            ]);
         }
-        replaceDirectorySet([
-            { stage, target },
-            { stage: webStage, target: webTarget }
-        ]);
     } finally {
         if (fs.existsSync(stage)) fs.rmSync(stage, { recursive: true, force: true });
         if (fs.existsSync(webStage)) fs.rmSync(webStage, { recursive: true, force: true });
     }
+    const manifestPath = path.join(outputRoot, "lastjson-manifest.json");
+    let characters = results;
+    if (incremental && fs.existsSync(manifestPath)) {
+        const prior = readJson(manifestPath);
+        if (prior && prior.version === normalizedVersion && Array.isArray(prior.characters)) {
+            const replaced = new Set(results.map(item => item.character));
+            characters = [...prior.characters.filter(item => !replaced.has(item.character)), ...results]
+                .sort((left, right) => Number(left.fighter_id) - Number(right.fighter_id));
+        }
+    }
     const manifest = {
         schema: "sf6cc.command-lastjson-manifest.v1",
         version: normalizedVersion,
+        mode: incremental ? "incremental" : "full",
+        incremental_characters: incremental ? results.map(item => item.character) : [],
         source_directory: versionDirectory,
         official_directory: offDirectory,
-        character_count: results.length,
+        character_count: characters.length,
         command_schema: commandDisplay.SCHEMA,
         web_character_schema: webCharacter.SCHEMA,
         web_output_directory: webTarget,
-        characters: results
+        characters
     };
-    writeJson(path.join(versionDirectory, "lastjson-manifest.json"), manifest);
+    writeJson(manifestPath, manifest);
     return { version: normalizedVersion, directory: versionDirectory, output: target,
-        web_output: webTarget, results };
+        web_output: webTarget, results, mode: manifest.mode };
 }
 
 function run(argv) {
     const args = argsOf(argv);
     const acbcmRoot = path.resolve(args["--acbcm-root"] || DEFAULT_ACBCM_ROOT);
     const offRoot = path.resolve(args["--off-root"] || DEFAULT_OFF_ROOT);
+    const characters = characterList(args["--characters"]);
     let versions = versionDirectories(acbcmRoot);
     if (args["--version"]) {
         const wanted = normalizeVersion(args["--version"]);
@@ -493,17 +588,27 @@ function run(argv) {
         if (versions.length !== 1) throw new Error(`ACBCM ${wanted} 必须正好存在一个对应目录，当前 ${versions.length} 个。`);
     }
     if (!versions.length) throw new Error(`没有找到 ACBCM 版本目录: ${acbcmRoot}`);
+    if ((characters || args["--output-dir"]) && versions.length !== 1) {
+        throw new Error("--characters 与 --output-dir 需要同时指定 --version。");
+    }
     const outputs = [];
     for (const version of versions) {
-        console.log(`\n[${version.name}] 开始生成 lastjson`);
+        console.log(`\n[${version.name}] 开始生成 lastjson${characters ? `（增量：${characters.join(", ")}）` : ""}`);
         const result = buildVersion({
-            versionDirectory: path.join(acbcmRoot, version.name), offRoot
+            versionDirectory: path.join(acbcmRoot, version.name),
+            offRoot,
+            characters,
+            allowMissingOfficial: args["--allow-missing-official"] === true,
+            outputDirectory: args["--output-dir"]
         });
         outputs.push(result);
         const changed = result.results.filter(item => item.difference.added.length
             || item.difference.removed.length || item.difference.changed.length).length;
         const completed = result.results.length;
-        console.log(`[${version.name}] 完成：${completed}/${completed}，变化角色 ${changed}，游戏输出 ${result.output}，网页输出 ${result.web_output}`);
+        const withoutOfficial = result.results.filter(item => item.official_status !== "available")
+            .map(item => item.character);
+        console.log(`[${version.name}] 完成（${result.mode}）：${completed}/${completed}，变化角色 ${changed}，游戏输出 ${result.output}，网页输出 ${result.web_output}`);
+        if (withoutOfficial.length) console.log(`[${version.name}] 纯 AC+BCM 生成（无官网数据）：${withoutOfficial.join(", ")}`);
     }
     console.log(`\n全部完成：${outputs.length} 个版本。`);
 }
@@ -518,6 +623,7 @@ if (require.main === module) {
 }
 
 module.exports = {
-    normalizeVersion, versionDirectories, filenameFighterId, mapDiff,
-    resolveOffDirectory, validateOutput, replaceDirectory, replaceDirectorySet, buildVersion
+    normalizeVersion, versionDirectories, filenameFighterId, mapDiff, argsOf, characterList,
+    resolveOffDirectory, loadOfficial, validateOutput, replaceDirectory, replaceDirectorySet,
+    replaceFilesTransactional, buildVersion
 };

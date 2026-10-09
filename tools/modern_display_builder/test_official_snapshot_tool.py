@@ -49,5 +49,27 @@ class OfficialSnapshotToolTest(unittest.TestCase):
         self.assertEqual(difference["semantic_rows_changed"], 1)
 
 
+    def test_release_day_fighter_without_official_page(self) -> None:
+        manifest = {
+            "Ryu": {"fighter_id": 1, "official_name": "ryu", "url": "https://example.invalid/ryu"},
+            "Arjun": {"fighter_id": 34, "official_name": "arjun", "url": "https://example.invalid/arjun"},
+        }
+        modules = {"ryuVar": {"frame": [{"actionId": 600, "skill": "LP", "command": "LP"}]}}
+        var_map = {"ryu": "ryuVar"}
+        with self.assertRaisesRegex(RuntimeError, "Arjun"):
+            tool.snapshots_from_modules(manifest, modules, var_map, "chunk", "sha", "2026-10-13")
+        snapshots, missing = tool.snapshots_from_modules(
+            manifest, modules, var_map, "chunk", "sha", "2026-10-13", allow_missing=True)
+        self.assertEqual(list(snapshots), ["Ryu"])
+        self.assertEqual(missing, ["Arjun"])
+
+    def test_roster_is_the_default_manifest(self) -> None:
+        manifest = tool.load_manifest(tool.DEFAULT_MANIFEST)
+        self.assertEqual(manifest["Akuma"]["official_name"], "gouki_akuma")
+        self.assertEqual(manifest["MBison"]["url"],
+                         "https://www.streetfighter.com/6/zh-hant/character/vega_mbison/frame")
+        self.assertEqual(len({entry["fighter_id"] for entry in manifest.values()}), len(manifest))
+
+
 if __name__ == "__main__":
     unittest.main()

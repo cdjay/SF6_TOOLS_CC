@@ -151,4 +151,47 @@ try {
     fs.rmSync(rollbackSetRoot, { recursive: true, force: true });
 }
 
+// Release-day options: official data may be missing, and one fighter can be
+// generated without rebuilding the whole roster.
+assert.deepStrictEqual(builder.argsOf(["--version", "2026-10-13", "--allow-missing-official",
+    "--characters", "Arjun,Ryu"]), {
+    "--version": "2026-10-13", "--allow-missing-official": true, "--characters": "Arjun,Ryu"
+});
+assert.throws(() => builder.argsOf(["--characters"]), /缺少值/);
+assert.deepStrictEqual(builder.characterList(" Arjun , Ryu "), ["Arjun", "Ryu"]);
+assert.strictEqual(builder.characterList(undefined), null);
+
+const releaseDay = fs.mkdtempSync(path.join(os.tmpdir(), "sf6cc-lastjson-release-day-"));
+try {
+    const offRoot = path.join(releaseDay, "off");
+    const versionDirectory = path.join(releaseDay, "acbcm", "2026-10-13");
+    fs.mkdirSync(offRoot, { recursive: true });
+    fs.mkdirSync(versionDirectory, { recursive: true });
+    assert.throws(() => builder.resolveOffDirectory(offRoot, "2026-10-13"), /正好存在一个/);
+    assert.strictEqual(builder.resolveOffDirectory(offRoot, "2026-10-13", true), null);
+    assert.strictEqual(builder.loadOfficial(null, "Ryu", 1, true), null);
+    assert.strictEqual(builder.loadOfficial(offRoot, "Ryu", 1, true), null);
+    assert.throws(() => builder.loadOfficial(offRoot, "Ryu", 1), /OFF 缺少角色 Ryu/);
+
+    assert.throws(() => builder.buildVersion({ versionDirectory, offRoot, allowMissingOfficial: true,
+        characters: ["Arjun"] }), /Arjun 不在 data\/SF6CC\/fighters.json/);
+    assert.throws(() => builder.buildVersion({ versionDirectory, offRoot, allowMissingOfficial: true,
+        characters: ["Yasmine"] }), /缺少 AC\/BCM 完整配对：33\(Yasmine\)/);
+    assert.throws(() => builder.buildVersion({ versionDirectory, offRoot }), /OFF 2026-10-13/);
+
+    // Incremental replacement restores every touched file when one write fails.
+    const target = path.join(releaseDay, "lastjson");
+    fs.mkdirSync(target);
+    fs.writeFileSync(path.join(target, "Ryu.json"), "old-ryu");
+    fs.writeFileSync(path.join(releaseDay, "new-ryu.json"), "new-ryu");
+    assert.throws(() => builder.replaceFilesTransactional([
+        { source: path.join(releaseDay, "new-ryu.json"), target: path.join(target, "Ryu.json") },
+        { source: path.join(releaseDay, "missing.json"), target: path.join(target, "Luke.json") }
+    ]));
+    assert.strictEqual(fs.readFileSync(path.join(target, "Ryu.json"), "utf8"), "old-ryu");
+    assert.ok(!fs.existsSync(path.join(target, "Luke.json")));
+} finally {
+    fs.rmSync(releaseDay, { recursive: true, force: true });
+}
+
 console.log("lastjson builder tests passed");
