@@ -2455,7 +2455,7 @@ local function draw_combo_trials_menu_ui()
                     imgui.spacing()
 
                     if p_state.profile_name == "Luke" then
-                        imgui.text_colored("Luke 蓄力设置（留空则自动检测）：", COLORS.Green)
+                        imgui.text_colored("Luke 蓄力设置（Perfect 留空则不判定 Perfect）：", COLORS.Green)
 
                         local changed_min, new_min = imgui.input_text("Instant / Partial 分界（帧）",
                             p_state.edit_charge_min or "")

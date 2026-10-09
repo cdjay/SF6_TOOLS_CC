@@ -1286,87 +1286,6 @@ local function get_exc_filename(name)
     return CharacterRules.get_exception_filename(name)
 end
 
-local function auto_detect_charge_min(p_char)
-    local min_frame = nil
-    pcall(function()
-        local engine = p_char:get_field("mpActParam"):get_field("ActionPart"):get_field("_Engine")
-        local keys_obj = engine:get_field("mParam"):get_field("action"):get_field("Keys")
-
-        local groups = ComboTrialsModules.GameProbe.get_elements_safe(keys_obj)
-        if groups then
-            for _, group in ipairs(groups) do
-                local keys = ComboTrialsModules.GameProbe.get_elements_safe(group)
-                if keys then
-                    for _, key in ipairs(keys) do
-                        local tdef = key:get_type_definition()
-                        if tdef and tdef:get_name() == "BranchKey" then
-                            local type_val = key:get_field("Type")
-                            if type_val and tonumber(type_val) == 100 then
-                                local p00_val = key:get_field("Param00") or 0
-                                if tonumber(p00_val) == 0 then
-                                    local af_val = key:get_field("ActionFrame")
-                                    if af_val then
-                                        min_frame = tonumber(af_val)
-                                        return min_frame
-                                    end
-                                end
-                            end
-                        end
-                    end
-                end
-            end
-        end
-    end)
-    return min_frame
-end
-
-local function get_luke_charge_windows(p_char)
-    local windows = { perfect_min = nil, perfect_max = nil }
-    pcall(function()
-        local engine = p_char:get_field("mpActParam"):get_field("ActionPart"):get_field("_Engine")
-        local keys_obj = engine:get_field("mParam"):get_field("action"):get_field("Keys")
-
-        local groups = ComboTrialsModules.GameProbe.get_elements_safe(keys_obj)
-        if groups then
-            local frames_by_act = {}
-            for _, group in ipairs(groups) do
-                local keys = ComboTrialsModules.GameProbe.get_elements_safe(group)
-                if keys then
-                    for _, key in ipairs(keys) do
-                        local tdef = key:get_type_definition()
-                        if tdef and tdef:get_name() == "BranchKey" then
-                            local type_val = key:get_field("Type")
-                            if type_val and tonumber(type_val) == 100 then
-                                local act = tonumber(key:get_field("Action"))
-                                local frm = tonumber(key:get_field("ActionFrame"))
-                                if act and frm then
-                                    if not frames_by_act[act] then frames_by_act[act] = {} end
-                                    frames_by_act[act][frm] = true
-                                end
-                            end
-                        end
-                    end
-                end
-            end
-
-            for act, frames in pairs(frames_by_act) do
-                local min_f, max_f = 9999, -1
-                local count = 0
-                for f, _ in pairs(frames) do
-                    if f < min_f then min_f = f end
-                    if f > max_f then max_f = f end
-                    count = count + 1
-                end
-                if count >= 2 then
-                    windows.perfect_min = min_f
-                    windows.perfect_max = max_f
-                end
-            end
-        end
-    end)
-    return windows
-end
-
 DRIVE_SETTING_FIELDS = ComboTrialsModules.HpVital.DRIVE_SETTING_FIELDS
 SUPER_SETTING_FIELDS = ComboTrialsModules.HpVital.SUPER_SETTING_FIELDS
 VITAL_PARAM_FIELDS = ComboTrialsModules.HpVital.VITAL_PARAM_FIELDS
@@ -3204,8 +3123,6 @@ local function stop_recording_and_save()
         _G.ComboTrials_SaveFailedPlayer = saved_player
     end
 end
-
-
 
 local function load_and_start_trial(player_idx)
     if trial_state._xt_pending_save then return end
@@ -5476,13 +5393,6 @@ local function ct_player_hold_charge(p_state)
                     .should_autodetect_charge_max(p_state.profile_name)
                     and (current_log.charge_max == nil or current_log.charge_max == "") then
                     current_log.charge_max = current_log.hold_frames
-                    local id_s = tostring(current_log.id)
-                    local exc_to_update = CharacterRules.get_exception(p_state.exceptions, common_exceptions, id_s)
-                    if exc_to_update then
-                        exc_to_update.charge_max = current_log.hold_frames
-                        if CharacterRules.has_character_exception(p_state.exceptions, id_s) then json.dump_file(get_exc_filename(p_state.profile_name), p_state.exceptions)
-                        else json.dump_file("TrainingComboTrials_data/exceptions/Common.json", common_exceptions) end
-                    end
                 end
             end
 
@@ -6497,30 +6407,13 @@ local function ct_player_process_actions(p_idx, p_state, actions_to_process)
                 if exc and exc.is_holdable then
                     is_holdable = true
                     if p_state.profile_name == "Luke" then
-                        local w = get_luke_charge_windows(_pf.p_char)
-                        luke_perfect_min = exc.perfect_min or w.perfect_min
-                        luke_perfect_max = exc.perfect_max or w.perfect_max
+                        luke_perfect_min = exc.perfect_min
+                        luke_perfect_max = exc.perfect_max
                     end
 
                     charge_min = exc.charge_min
                     charge_max = exc.charge_max
                     dual_threshold = (p_state.profile_name == "Lily")
-                    if charge_min == nil or charge_min == "" then
-                        local detected_min = auto_detect_charge_min(_pf.p_char)
-                        if detected_min then
-                            charge_min = detected_min
-                            local id_s = tostring(act_id)
-                            local exc_to_update = CharacterRules.get_exception(p_state.exceptions, common_exceptions, id_s)
-                            if exc_to_update then
-                                exc_to_update.charge_min = detected_min
-                                if CharacterRules.has_character_exception(p_state.exceptions, id_s) then
-                                    json.dump_file(get_exc_filename(p_state.profile_name), p_state.exceptions)
-                                else
-                                    json.dump_file("TrainingComboTrials_data/exceptions/Common.json", common_exceptions)
-                                end
-                            end
-                        end
-                    end
                 end
 
                 -- 2. Final motion_str determination
