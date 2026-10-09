@@ -148,6 +148,19 @@ dumps allow it; the rest is blocked on evidence, not on code:
   curated values would move boundary frames by one, so they stay curated until
   live verification. Hold levels that branch to different Actions are already
   told apart by Action ID.
+- **Most remaining curated rules correct the runtime's step decision.** The
+  exception derivation audit (`exception_derivation_audit.js`, 2026-10-10) maps
+  all 310 curated entries to AC+BCM structure. Seven command-table ownership
+  rules would derive 53 of the 94 `force` entries while adding force to only 10
+  Actions that never occur in the frozen corpus (one of them, Yasmine 717 back
+  throw, is a missing curated rule). The structural rules for `absorb_ids`,
+  `ignore_prev`, transient precursors and follow-up tolerance reproduce the
+  curated entries but would add hundreds to thousands more: those rules only
+  apply where the runtime would otherwise count an Action as a player step,
+  which it decides from engine values at each Action change
+  (`mParam.state_flags`, `KeyInput.Action`, `Branch.BranchType`). Deriving them
+  needs a live capture (`SF6CC_Transition_Probe.lua` + `transition_report.js`)
+  that links each AC entry mechanism to those values.
 - **Generator gaps.** 34 overridden Actions have no BCM trigger and are absent
   from the generated tables (hold/phase/follow-up targets); about 13 would be
   covered by inheriting the source command, but counterexamples of the same
