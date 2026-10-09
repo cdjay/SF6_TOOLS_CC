@@ -7,7 +7,7 @@ local sdk = sdk
 local imgui = imgui
 
 local M = {}
-M.RENDERER_VERSION = 2026100901
+M.RENDERER_VERSION = 2026101001
 local RuntimeSafety = require("func/RuntimeSafety")
 local Canvas = require("func/ImGuiCanvas")
 local SequenceGrouping = require("func/ComboTrials/SequenceGrouping")
@@ -2314,11 +2314,14 @@ build_slim_command_display_map = function(loaded)
                 local classic = read_classic(entry.classic_command)
                 classic = resolve_classic_common_semantic(entry, classic, motion, status)
                 if status == "suppress_transition" then
+                    -- The ownership tells the resolver whether a button edge at
+                    -- this transition can be a player cancel (an internal state
+                    -- transition) or never is (an internal execution phase).
                     slim[tostring(action_id)] = {
                         classic = classic,
                         motion = nil,
                         status = status,
-                        metadata = runtime_metadata,
+                        metadata = runtime_metadata or { ownership = entry.ownership },
                     }
                 else
                     local relation = type(entry.relation) == "table" and entry.relation or nil

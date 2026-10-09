@@ -77,6 +77,9 @@ BCM 条件距离和 Assist Combo 强度取得可审计的经典投影。每条�
 Type 13 退出到无 BCM 终止节点。落地阶段允许的额外来源只能是无 BCM owner 的精确
 `Type 5 + Type 54` 配对执行关系。
 这些规则不改写 V2 Action ID，也不把录制 motion 当作新的语义权威。
+内部执行阶段由引擎自动进入：运行时不会把它附近的按键或松键恢复成玩家取消（`>K (取消)`），
+录制时它不成为单独步骤；阶段期间按下的下一招输入交给随后的持久 Action（如落地前提前按的 HP）。
+只有内部状态跳转（`internal_state_transition`，如 C. Viper 由 K 触发的取消）才按按键沿识别为玩家取消。
 
 无独立 BCM owner 的 Type 20 动作阶段仅在 AC 同时满足精确六分支签名、父 Action 唯一
 Type 0 同级出口、子 Action 唯一 Type 5 退出，且父 Action 有直接 BCM、子 Action 无 BCM

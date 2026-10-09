@@ -1250,7 +1250,7 @@ end
 
 -- 渲染模块源码或指令表行为升级时必须同步递增 RENDERER_VERSION，防止 Reset
 -- Scripts 继续复用旧闭包和旧指令表缓存。
-local REQUIRED_RENDERER_VERSION = 2026100901
+local REQUIRED_RENDERER_VERSION = 2026101001
 local cached_renderer = package.loaded["func/ComboTrials_ImGui"]
 if type(cached_renderer) ~= "table"
     or cached_renderer.RENDERER_VERSION ~= REQUIRED_RENDERER_VERSION

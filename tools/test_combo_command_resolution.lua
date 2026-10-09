@@ -3992,8 +3992,8 @@ assert(combo_imgui_source:find("trial_state._recording_preview_logs", 1, true)
         and combo_imgui_source:find("trial_state._recording_preview_sequence", 1, true),
     "recording UI must render ActionEvent-compiled live logs and trial steps")
 local combo_entry_source = read_all("autorun/TrainingComboTrials_v1.0.lua")
-assert(combo_imgui_source:find("M.RENDERER_VERSION = 2026100901", 1, true)
-        and combo_entry_source:find("REQUIRED_RENDERER_VERSION = 2026100901", 1, true)
+assert(combo_imgui_source:find("M.RENDERER_VERSION = 2026101001", 1, true)
+        and combo_entry_source:find("REQUIRED_RENDERER_VERSION = 2026101001", 1, true)
         and combo_entry_source:find("cached_renderer.RENDERER_VERSION", 1, true)
         and combo_entry_source:find('package.loaded["func/ComboTrials_ImGui"] = nil', 1, true)
         and combo_entry_source:find("cached_renderer.clear_command_display_cache", 1, true)
@@ -4130,6 +4130,9 @@ local renderer = {
     get_command_display = function(_, action_id)
         if action_id == 906 then return nil, "suppress_transition" end
         if action_id == 907 then return nil, "suppress_transition" end
+        if action_id == 657 then
+            return nil, "suppress_transition", { ownership = "internal_execution_phase" }
+        end
         if action_id == 901 then return "214+MP", "strict_route" end
         if action_id == 903 then return "214+HP", "strict_route" end
         if action_id == 944 then return "236+PP", "strict_route" end
@@ -4267,6 +4270,11 @@ intentional, route_status, classic = command_resolver.resolve_unified_command_ac
     "AnyCharacter", 906, 128, 128, renderer)
 assert(intentional == true and route_status == "player_input_transition" and classic == ">K (取消)",
     "a physical button edge must recover a player-triggered cancel without character-specific IDs")
+
+intentional, route_status, classic = command_resolver.resolve_unified_command_action(
+    "AnyCharacter", 657, 64, 64, renderer)
+assert(intentional == false and route_status == "suppress_transition" and classic == nil,
+    "an internal execution phase (an air normal's landing) must never claim a button edge as a cancel")
 
 intentional, route_status, classic = command_resolver.resolve_unified_command_action(
     "CViper", 1037, 32, 32, renderer)

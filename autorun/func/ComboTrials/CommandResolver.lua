@@ -185,9 +185,9 @@ function M.resolve_unified_command_action(character, action_id, direct_input, ne
         if not conditioned_ok then return false, "resolver_error", nil end
         display, status = conditioned_display, conditioned_status
     end
-    local ok = true
+    local ok, metadata = true, nil
     if display == nil then
-        ok, display, status = pcall(
+        ok, display, status, metadata = pcall(
             renderer.get_command_display,
             character,
             action_id,
@@ -196,6 +196,14 @@ function M.resolve_unified_command_action(character, action_id, direct_input, ne
     end
     if not ok then return false, "resolver_error", nil end
     if status == "suppress_transition" then
+        -- An internal execution phase (the landing, terminal or numbered phase
+        -- of the owner's own Action) is entered by the engine. A button edge
+        -- seen there belongs to the owner or to the next command; treating it
+        -- as a cancel would record the phase as a step and steal the next
+        -- command's input.
+        if type(metadata) == "table" and metadata.ownership == "internal_execution_phase" then
+            return false, status, nil
+        end
         local transition_button = decode_transition_button_mask(newly_pressed)
         if transition_button ~= "" then
             return true, "player_input_transition", ">" .. transition_button .. " (取消)"

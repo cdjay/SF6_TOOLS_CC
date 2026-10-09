@@ -2119,11 +2119,18 @@ function Compiler.finalize(session, options)
                 }
             end
         end
+        -- An internal execution phase (for example the landing of an air
+        -- normal) can own the runtime slot when the next command's input
+        -- arrives. Like an unmapped precursor it yields that input to the
+        -- following durable Action; without one it stays suppressed below.
+        local execution_phase = resolution_status == "suppress_transition"
+            and type(resolution_metadata) == "table"
+            and resolution_metadata.ownership == "internal_execution_phase"
         if not character_rule_fold
             and type(resolver) == "function"
             and motion == nil
             and resolution_status ~= "resolver_error"
-            and resolution_status ~= "suppress_transition" then
+            and (resolution_status ~= "suppress_transition" or execution_phase) then
             local promoted, promoted_motion, promoted_status, promoted_metadata =
                 promote_unmapped_event(
                     event,
