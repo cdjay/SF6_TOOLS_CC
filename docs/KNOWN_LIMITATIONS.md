@@ -156,11 +156,12 @@ dumps allow it; the rest is blocked on evidence, not on code:
   Yasmine 717, Akuma 1004 and Alex 716; still withheld: Jamie 1011/1015 (force
   confirmed, kept curated for their hold rule), Zangief 1211 (forcing only the
   neutral SA2 state would be asymmetric), Ingrid 1479-1481 (taunt stance) and
-  Ingrid 975/976/980 (not captured yet). The capture also showed that
-  `Branch.BranchType` is a bit set rather than the BranchKey Type (a back throw
-  reads 0, Alex 716 reads bit 63) and that a throw switching to its back-throw
-  variant on frame 0 is never sampled as 715; the mapping needs larger
-  captures. The structural rules for `absorb_ids`,
+  Ingrid 975/976/980 (214+LP held: the engine does not count 975 as a step and
+  969 already absorbs it, so forcing would only add a duplicate step). The
+  capture also showed that `Branch.BranchType` is a bit set rather than the
+  BranchKey Type (a back throw reads 0, Alex 716 reads bit 63) and that a throw
+  switching to its back-throw variant on frame 0 is never sampled as 715; the
+  mapping needs larger captures. The structural rules for `absorb_ids`,
   `ignore_prev`, transient precursors and follow-up tolerance reproduce the
   curated entries but would add hundreds to thousands more: those rules only
   apply where the runtime would otherwise count an Action as a player step,
