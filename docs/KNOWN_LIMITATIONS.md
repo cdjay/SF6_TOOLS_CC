@@ -123,14 +123,31 @@ real-game acceptance is still required.
 Detection rules, display and the data guard now derive from AC+BCM where the
 dumps allow it; the rest is blocked on evidence, not on code:
 
-- **Dumps predate the fixed exporter.** Every 2026-08-03 dump lost the
-  dictionary keys at or above `Count` (7–39 trigger groups per fighter) and all
-  inherited key fields (frame windows). Cancel/follow-up relations
-  (`trigger_group_report.js`: 10 pairs explained, 22 unexplained, 39 unknown)
-  and hold thresholds (`hold_window_report.js`: 77 of 82 `is_holdable` rules sit
-  on Type 20 keys, all `frame_window_missing`) can only be generated after a
-  re-export with `tools/acbcm_exporter`. Until then `optional_parent_ids`,
-  `charge_min`/`charge_max` and official-site follow-up text stay in use.
+- **Production dumps predate the fixed exporter.** Every 2026-08-03 dump lost
+  the dictionary keys at or above `Count` (7–39 trigger groups per fighter) and
+  every key's frame window. A rehearsal with exporter v2 on 2026-10-10 (Ryu,
+  Luke, Kimberly, Lily, Jamie, Ingrid in `acbcm/2026-10-09`, local only) shows:
+  complete trigger groups; frame windows from the
+  `via.fighter.ActionKey.get_StartFrame/get_EndFrame` getters (the base has no
+  TDB fields); BCM fingerprints and regenerated tables identical to production
+  (the game data has not changed since 08-03); and recovered base fields such as
+  `DynamicTriggerKey` (a BranchKey subclass the generator does not read).
+- **Follow-up rules are not trigger-group relations.** On the rehearsal data the
+  AC TriggerKey → BCM trigger group chain explains 19 of 34 hand-written
+  `optional_parent_ids`/follow-up pairs (Jamie 9/10, Luke 6/14, Kimberly 4/10),
+  direct BranchKeys 2 more. The rest name a different parent than the Actions
+  that enable the child's group (Luke 667 is enabled by 665/666/668, its rule
+  names 606): `optional_parent_ids` is a matching tolerance for Actions observed
+  before a follow-up, not the enabling relation, so it cannot be replaced
+  wholesale.
+- **Hold thresholds are window boundaries with per-fighter conventions.** 19 of
+  23 hand-written `charge_min`/`charge_max` values sit within one frame of a
+  classic Type 20 window boundary, but whether a value is the boundary or the
+  boundary minus one differs by fighter (Ryu, Luke, Ingrid). The other 4 are
+  holds that span several Actions (Lily 900/907/912, Ingrid 969). Replacing the
+  curated values would move boundary frames by one, so they stay curated until
+  live verification. Hold levels that branch to different Actions are already
+  told apart by Action ID.
 - **Generator gaps.** 34 overridden Actions have no BCM trigger and are absent
   from the generated tables (hold/phase/follow-up targets); about 13 would be
   covered by inheriting the source command, but counterexamples of the same
