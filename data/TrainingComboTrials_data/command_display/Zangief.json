@@ -4664,6 +4664,62 @@
         "super_shortcut_direction": null,
         "super_shortcut_direction_notation": null,
         "super_shortcut_direction_reason": null
+      },
+      {
+        "display": "中 + 强",
+        "character": "Zangief",
+        "owner_action_id": 903,
+        "trigger_index": 116,
+        "profile": "sprt",
+        "command_no": -1,
+        "command_index": -1,
+        "raw_direction_inputs": [],
+        "raw_button_mask": 384,
+        "raw_button_condition": 16480,
+        "raw_dc_exc_flags": 0,
+        "raw_ng_key_flags": 0,
+        "visible_direction": null,
+        "visible_button": "中 + 强",
+        "button_candidates": [
+          "中",
+          "强"
+        ],
+        "required_button_count": 2,
+        "source": "bcm_profile",
+        "ac_relation_type": null,
+        "ac_path": [],
+        "inherited_from_action_id": null,
+        "confidence": "direct_structural",
+        "direct_evidence": true,
+        "inheritance_evidence": false,
+        "inheritance_reason": null,
+        "rebind_evidence": false,
+        "rebind_reason": null,
+        "runtime_common_evidence": false,
+        "runtime_common_reason": null,
+        "official_semantic_evidence": false,
+        "official_semantic_reason": null,
+        "community_semantic_evidence": false,
+        "community_semantic_reason": null,
+        "assist_combo_evidence": false,
+        "assist_combo_reason": null,
+        "charge_context_evidence": false,
+        "charge_context_profile": null,
+        "charge_context_direction": null,
+        "charge_context_manual_direction": null,
+        "charge_context_direction_profile": null,
+        "charge_context_command_no": null,
+        "charge_context_command_index": null,
+        "charge_context_notation": null,
+        "charge_context_source_action_id": null,
+        "charge_context_source_trigger_indices": [],
+        "charge_context_relation": null,
+        "charge_context_reason": null,
+        "super_shortcut_direction_evidence": false,
+        "super_shortcut_direction_profile": null,
+        "super_shortcut_direction": null,
+        "super_shortcut_direction_notation": null,
+        "super_shortcut_direction_reason": null
       }
     ]
   },
@@ -7102,15 +7158,15 @@
     "character": "Zangief",
     "fighter_id": 6,
     "generated_from": "ac_bcm+capcom_official_semantics",
-    "generated_at": "2026-08-03T00:00:00.000Z",
-    "ac_sha256": "753d02204cec89c5a885d5748cda2d51bde0769144a15be93f1e717f219006b2",
-    "bcm_sha256": "09e9334a458b4e7073d13c5a0e25255d2b35b0cb71ccdccbd67c8774b62d4053",
+    "generated_at": "2026-10-09T00:00:00.000Z",
+    "ac_sha256": "29b91ac50c46ada9baf7fa2f7506837fe5ef645c46f1f106b2a83717caf57bf5",
+    "bcm_sha256": "470c94f42a9872cf235a8eb0dc97e72d993ee5c7b7b2932fd2e87f5235e18e57",
     "modern_profile_order": [
       "easy",
       "supr",
       "sprt"
     ],
-    "direct_route_count": 79,
+    "direct_route_count": 80,
     "inherited_route_count": 8,
     "rebind_route_count": 4,
     "runtime_common_route_count": 6,
@@ -7428,8 +7484,8 @@
           {
             "position": 3,
             "action_ids": [
-              900,
-              901
+              901,
+              903
             ]
           }
         ]
@@ -7446,8 +7502,8 @@
           {
             "position": 2,
             "action_ids": [
-              900,
-              901
+              901,
+              903
             ]
           },
           {
@@ -7470,8 +7526,8 @@
           {
             "position": 2,
             "action_ids": [
-              900,
-              901
+              901,
+              903
             ]
           },
           {
@@ -9012,8 +9068,8 @@
     "description": "Zangief unified Classic and Modern command projections generated from one verified AC ActionGraph, BCM profiles, runtime semantics, and Capcom command semantics.",
     "bcm_trigger_fingerprint": {
       "algorithm": "bcm-trigger-action-multiset.fnv1a32.v1",
-      "count": 74,
-      "hash": "fa716ac5"
+      "count": 75,
+      "hash": "b9b6ef13"
     }
   }
 }

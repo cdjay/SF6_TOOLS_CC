@@ -452,7 +452,9 @@ function buildVersion(options) {
             throw new Error(`${pair.stem} 的 AC/BCM fighter_id 不一致。`);
         }
         if (pairsById.has(fighterId)) throw new Error(`Fighter ID ${fighterId} 存在重复 AC/BCM 配对。`);
-        pairsById.set(fighterId, { pair, ac, bcm });
+        // A full v2 export is 2-3 GB of JSON; keeping every parsed pair
+        // exhausts the heap. Keep the hashes and parse again per fighter.
+        pairsById.set(fighterId, { pair, acSha256: ac.sha256, bcmSha256: bcm.sha256 });
     }
     const missing = [...wanted].filter(id => !pairsById.has(id));
     if (missing.length) {
@@ -479,7 +481,12 @@ function buildVersion(options) {
     try {
         for (const fighterId of [...wanted].sort((a, b) => a - b)) {
             const character = expected.get(fighterId);
-            const { pair, ac, bcm } = pairsById.get(fighterId);
+            const { pair, acSha256, bcmSha256 } = pairsById.get(fighterId);
+            const ac = readSource(path.join(versionDirectory, pair.ac));
+            const bcm = readSource(path.join(versionDirectory, pair.bcm));
+            if (ac.sha256 !== acSha256 || bcm.sha256 !== bcmSha256) {
+                throw new Error(`${pair.stem} 的 AC/BCM 在生成过程中被改动。`);
+            }
             const official = loadOfficial(offDirectory, character, fighterId, allowMissingOfficial);
             if (!official) console.warn(`[${versionName}] ${character} 没有官网数据，按纯 AC+BCM 生成。`);
             const community = loadCommunity(character);
