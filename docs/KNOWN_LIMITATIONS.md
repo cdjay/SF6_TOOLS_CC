@@ -140,14 +140,19 @@ dumps allow it; the rest is blocked on evidence, not on code:
   names 606): `optional_parent_ids` is a matching tolerance for Actions observed
   before a follow-up, not the enabling relation, so it cannot be replaced
   wholesale.
-- **Hold thresholds are window boundaries with per-fighter conventions.** 19 of
-  23 hand-written `charge_min`/`charge_max` values sit within one frame of a
-  classic Type 20 window boundary, but whether a value is the boundary or the
-  boundary minus one differs by fighter (Ryu, Luke, Ingrid). The other 4 are
-  holds that span several Actions (Lily 900/907/912, Ingrid 969). Replacing the
-  curated values would move boundary frames by one, so they stay curated until
-  live verification. Hold levels that branch to different Actions are already
-  told apart by Action ID.
+- **Hold thresholds are window boundaries with per-fighter conventions.** With
+  the full v2 export (31 fighters, 2026-10-10) 77 of the 82 `is_holdable`
+  entries have classic Type 20 windows. Five boundary formulas together
+  reproduce 47 entries exactly and 15 within one frame, but no single formula
+  fits: which outcomes count as Instant / Partial / Maxed is a per-move choice
+  (Ryu and Dhalsim use "second window start − 1", Ed "first window start",
+  Ingrid and JP "window end − 1"), and 20 entries match none (Lily 900/907/912
+  thresholds exceed the Action's 48 frames, C. Viper 982/993, Cammy 904/947).
+  Each Type 20 window also names the frame the target Action starts at
+  (`ActionFrame`), so the engine's hold outcome is the pair (target Action,
+  entry frame); judging that pair instead of counted frames would replace the
+  thresholds, but needs a runtime change and a live capture. Until then the
+  curated values stay.
 - **Most remaining curated rules correct the runtime's step decision.** The
   exception derivation audit (`exception_derivation_audit.js`, 2026-10-10) maps
   all 310 curated entries to AC+BCM structure. Seven command-table ownership
@@ -169,6 +174,18 @@ dumps allow it; the rest is blocked on evidence, not on code:
   (`mParam.state_flags`, `KeyInput.Action`, `Branch.BranchType`). Deriving them
   needs a live capture (`SF6CC_Transition_Probe.lua` + `transition_report.js`)
   that links each AC entry mechanism to those values.
+- **Full v2 export rehearsal (2026-10-10).** All 31 fighters were exported with
+  the v2 exporter (no truncation; the six fighters exported before are
+  byte-identical). Generating every table from it reproduces the shipped
+  tables for 30 fighters (only the generation date and source hashes differ).
+  Zangief has one more BCM trigger than the August dump (an assist-only route
+  of Action 903, slot 116), so its fingerprint changed 74→75 and the table was
+  redeployed. Of the 322 curated rule items, 180 correct the runtime's step
+  decision (absorb 65, force 43, ignore 25, alias 15, transient precursor 15,
+  ignore_prev 14, other 3), 82 are hold thresholds and 60 follow-up
+  tolerances; 29 of the 60 tolerances are trigger-group parents, 25 are the
+  plain normal of the follow-up's own button (Luke HP 606 before 6+HP > HP
+  667), which only a live capture can explain.
 - **Generator gaps.** 34 overridden Actions have no BCM trigger and are absent
   from the generated tables (hold/phase/follow-up targets); about 13 would be
   covered by inheriting the source command, but counterexamples of the same

@@ -69,6 +69,9 @@ Status: `CURRENT`
    tools\action_runtime_compiler\2_build_lastjson.bat 2026-10-13 --allow-missing-official
    ```
 
+   31 个角色的 v2 导出约 2.6 GB，全量生成约 4–5 分钟（生成器逐角色读取导出，默认内存即可）。
+   2026-10-10 用当时的游戏数据完整预演过一遍：30 个角色与部署版本一致，Zangief 多一条辅助操作触发器。
+
 5. 比较新旧版本，确认旧角色的 Action ID 是否变化：
 
    ```powershell
