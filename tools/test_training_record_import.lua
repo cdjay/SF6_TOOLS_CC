@@ -522,7 +522,12 @@ end)
 test("unsupported file capacity aborts before backup and all native work", function()
     for _, kind in ipairs({ "record", "reversal", "sparse", "fraction" }) do
         local records, stats, ctx, _, data = fixture(0)
-        if kind == "record" then data.slots[2].slot = 9
+        if kind == "record" then
+            -- Nine recordings cannot fold into eight native slots.
+            data.slots[2].slot = 9
+            for slot = 10, 16 do
+                data.slots[#data.slots + 1] = { slot = slot, is_valid = true, frame = 1, input_num = 1, input_buff = { 16 } }
+            end
         elseif kind == "reversal" then
             data.schema = "sf6cc.training_setup.v2"
             data.reversals.down[10].slot = 11
@@ -538,11 +543,15 @@ test("live ninth slot is refused even when the file also has nine", function()
     assert(not records.begin_import("config.json", {clear_empty_slots=true}, ctx))
     assert(slots[8]:get_field("Frame")==0 and stats.writes==0 and stats.backups==0)
 end)
-test("ninth file cannot authorize a missing live ninth slot", function()
-    local records, stats, ctx, _, data=fixture(3600,nil,8)
-    data.slots[3]={slot=9,is_valid=true,frame=1,input_num=1,input_buff={16}}
-    assert(not records.begin_import("nine.json",{},ctx))
-    assert(stats.writes==0 and stats.backups==0)
+test("expansion ninth recording folds into a free native slot, never a live ninth", function()
+    local records, stats, ctx, _, data, _, _, slots=fixture(3600,nil,8)
+    data.slots[3]={slot=9,is_valid=true,is_active=true,frame=1,input_num=1,input_buff={16}}
+    local ok, msg = records.begin_import("nine.json",{clear_empty_slots=true},ctx)
+    assert(ok, msg)
+    assert(#data.slots==8 and data.slots[1].frame==1 and data.slots[4].frame==170 and data.slots[5].frame==262)
+    assert(slots[0]:get_field("Frame")==1 and slots[0]:get_field("IsActive")==true)
+    assert(slots[3]:get_field("Frame")==170 and slots[4]:get_field("Frame")==262 and slots[8]==nil)
+    assert(stats.backups==1)
 end)
 
 test("eighty-slot file and bank are refused without native writes",function()
@@ -594,11 +603,11 @@ test("save current captures eight slots and three native reversal groups into sa
     for _,g in ipairs({"down","guard","damage"}) do assert(#saved.reversals[g]==10) end
     assert(stats.writes==0 and stats.forces==0 and #stats.starts==0)
 end)
-test("save cannot overwrite a stored eighty-slot configuration with eight slots",function()
+test("save cannot overwrite a stored configuration holding more than eight recordings",function()
     local records,stats,_,_,_,_,_,_,env=fixture(3600,nil,8)
     local path="SF6CC_TrainingConfigs/configs/old80.json"
     local data={schema="sf6cc.training_setup.v2",fighter_id=28,source_player="P2",slots={}}
-    for i=1,80 do data.slots[i]={slot=i,is_valid=false} end
+    for i=1,80 do data.slots[i]={slot=i,is_valid=i<=9} end
     env.fs.read=function(p) if p==path then return "old80" end end
     env.json.load_string=function(raw) if raw=="old80" then return data end end
     local writes=0

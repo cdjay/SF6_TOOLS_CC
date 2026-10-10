@@ -998,6 +998,8 @@ function M.read_config_metadata(path)
     if type(path) ~= "string" or path == "" then return nil, "empty config path" end
     local data = json.load_file(path)
     if type(data) ~= "table" then return nil, "config JSON could not be loaded" end
+    -- An unfoldable file stays unchanged, so its span keeps the import blocked.
+    SlotLayout.fold_native(data)
     local layout, layout_err = SlotLayout.inspect(data)
     if not layout then return nil, layout_err end
     return {
@@ -1353,6 +1355,11 @@ local function validate_import_header(data, options)
 
     local capacity_ok, capacity_err = SlotLayout.check_native(data)
     if not capacity_ok then return false, capacity_err end
+    -- Folded files are eight-slot; the live bank must be too.
+    local bank_ok, bank_size = pcall(M.get_record_bank_size)
+    if not bank_ok or bank_size ~= SLOT_COUNT then
+        return false, "当前录像不是" .. SLOT_COUNT .. "栏位，请先恢复为原生" .. SLOT_COUNT .. "栏位"
+    end
 
     local ctx = M.get_context()
     local compatible, reason = Compatibility.check(data, ctx, options)
