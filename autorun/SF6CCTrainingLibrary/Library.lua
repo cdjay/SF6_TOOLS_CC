@@ -239,6 +239,9 @@ function M.new(records, context, choices)
         return ok and loaded == true
     end
     function self.has_pending() return pending ~= nil or note_edit ~= nil end
+    -- Import's own recorder initialization: records while running and checks
+    -- the training context itself on every tick.
+    function self.task_active() return pending ~= nil and pending.task ~= nil end
     function self.slot_capacity() return records.get_record_capacity and records.get_record_capacity() or 8 end
     function self.record_frames() return records.get_record_frames and records.get_record_frames() or nil end
     function self.slot_name(slot) return records.get_slot_name and records.get_slot_name(slot) or "" end
