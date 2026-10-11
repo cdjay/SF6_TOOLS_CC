@@ -287,9 +287,41 @@ function Backup-VersionOutput {
     return $backupPath
 }
 
+# Package bytes come from the HEAD commit, not the working tree: a checkout's
+# line endings (core.autocrlf) must not change file hashes, and uncommitted
+# edits must not ship under the HEAD commit identity.
+$packageSourcePaths = @('autorun', 'data', 'fonts', 'images', 'plugins', '木人库使用说明.md', 'LICENSE', 'LICENSE_NOTES.md')
+
+function New-CommittedSnapshot {
+    param(
+        [Parameter(Mandatory = $true)][string]$SourceRoot
+    )
+
+    & git -C $SourceRoot diff --quiet HEAD -- @packageSourcePaths
+    if ($LASTEXITCODE -ne 0) {
+        $changed = (& git -C $SourceRoot diff --name-only HEAD -- @packageSourcePaths | Select-Object -First 20) -join [Environment]::NewLine
+        throw "Package-source files differ from HEAD. Commit or revert them before packaging:$([Environment]::NewLine)$changed"
+    }
+    $snapshotRoot = Join-Path ([IO.Path]::GetTempPath()) ("sf6cc-package-source-" + [guid]::NewGuid())
+    New-Item -ItemType Directory -Path $snapshotRoot | Out-Null
+    # Zip, not tar: git marks non-ASCII names as UTF-8 in zip entries, which
+    # .NET honors; Windows tar.exe would decode them with the ANSI code page.
+    $archivePath = Join-Path $snapshotRoot "source.zip"
+    & git -C $SourceRoot -c core.autocrlf=false -c core.eol=lf archive --format=zip -0 -o $archivePath HEAD -- @packageSourcePaths
+    if ($LASTEXITCODE -ne 0) {
+        throw "git archive HEAD failed."
+    }
+    Add-Type -AssemblyName System.IO.Compression.FileSystem
+    $extractRoot = Join-Path $snapshotRoot "source"
+    [IO.Compression.ZipFile]::ExtractToDirectory($archivePath, $extractRoot)
+    Remove-Item -LiteralPath $archivePath -Force
+    return $extractRoot
+}
+
 function Copy-TrackedReframeworkFiles {
     param(
         [Parameter(Mandatory = $true)][string]$SourceRoot,
+        [Parameter(Mandatory = $true)][string]$ContentRoot,
         [Parameter(Mandatory = $true)][string]$PackageRoot
     )
 
@@ -329,9 +361,9 @@ function Copy-TrackedReframeworkFiles {
         }
 
         $windowsRelativePath = $relativePath -replace '/', '\'
-        $sourcePath = Join-Path $SourceRoot $windowsRelativePath
+        $sourcePath = Join-Path $ContentRoot $windowsRelativePath
         if (-not (Test-Path -LiteralPath $sourcePath -PathType Leaf)) {
-            throw "Tracked file is missing: $sourcePath"
+            throw "Tracked file is missing from the HEAD snapshot: $relativePath"
         }
 
         $destinationPath = Join-Path $PackageRoot (Join-Path "reframework" $windowsRelativePath)
@@ -541,6 +573,7 @@ function New-ZipFromDirectory {
 function Copy-SelectedTrackedReframeworkFiles {
     param(
         [Parameter(Mandatory = $true)][string]$SourceRoot,
+        [Parameter(Mandatory = $true)][string]$ContentRoot,
         [Parameter(Mandatory = $true)][string]$PackageRoot,
         [Parameter(Mandatory = $true)][string[]]$RelativePaths
     )
@@ -552,9 +585,9 @@ function Copy-SelectedTrackedReframeworkFiles {
         }
 
         $windowsRelativePath = $relativePath -replace '/', '\\'
-        $sourcePath = Join-Path $SourceRoot $windowsRelativePath
+        $sourcePath = Join-Path $ContentRoot $windowsRelativePath
         if (-not (Test-Path -LiteralPath $sourcePath -PathType Leaf)) {
-            throw "Required component package file is missing: $sourcePath"
+            throw "Required component package file is missing from the HEAD snapshot: $relativePath"
         }
 
         $destinationPath = Join-Path $PackageRoot (Join-Path "reframework" $windowsRelativePath)
@@ -798,6 +831,9 @@ if ($DryRun) {
     return
 }
 
+$snapshotRoot = New-CommittedSnapshot -SourceRoot $workspacePath
+Write-Host "Package source:          HEAD snapshot $snapshotRoot"
+
 if ($TrainingLibraryOnly) {
     $gameRootPath = Resolve-ExistingPath -Path $GameRoot -Label "Game root"
     if (-not $ExcludeDll) {
@@ -820,7 +856,7 @@ if ($TrainingLibraryOnly) {
         $null = Backup-VersionOutput -VersionOutputPath $outputPath -OutputRoot $baseOutputPath -ReleaseVersion $releaseVersion
     }
     New-Item -ItemType Directory -Path $componentPackagePath -Force | Out-Null
-    Copy-SelectedTrackedReframeworkFiles -SourceRoot $workspacePath -PackageRoot $componentPackagePath -RelativePaths @(
+    Copy-SelectedTrackedReframeworkFiles -SourceRoot $workspacePath -ContentRoot $snapshotRoot -PackageRoot $componentPackagePath -RelativePaths @(
         @('autorun/SF6CC_TrainingLibrary.lua', '木人库使用说明.md', 'data/SF6CC/version.json',
             'LICENSE', 'LICENSE_NOTES.md',
             'data/SF6CC_TrainingConfigs/editor/SF6CC_TrainingConfigEditor.html') + $modules
@@ -871,6 +907,7 @@ $installIntro
         commit = $headCommit; configurations = $configs.Count; includes_dll = (-not [bool]$ExcludeDll); files = $inventory } |
         ConvertTo-Json -Depth 6 | Set-Content -LiteralPath (Join-Path $componentPackagePath 'package_manifest.json') -Encoding UTF8
     New-ZipFromDirectory -SourceDirectory $componentPackagePath -ZipPath $componentZipPath
+    Remove-Item -LiteralPath (Split-Path -Parent $snapshotRoot) -Recurse -Force
     Write-Host "Standalone training library packaged with $($modules.Count) modules and $($configs.Count) configurations."
     Write-Host "Package: $componentZipPath"
     return
@@ -889,13 +926,14 @@ if ($TrainingConfigManagerOnly) {
     }
 
     New-Item -ItemType Directory -Path $componentPackagePath | Out-Null
-    Copy-SelectedTrackedReframeworkFiles -SourceRoot $workspacePath -PackageRoot $componentPackagePath -RelativePaths @(
+    Copy-SelectedTrackedReframeworkFiles -SourceRoot $workspacePath -ContentRoot $snapshotRoot -PackageRoot $componentPackagePath -RelativePaths @(
         "autorun/SF6CC_DynamicRecords.lua",
         "autorun/func/DynamicRecords.lua",
         "data/SF6CC_TrainingConfigs/editor/SF6CC_TrainingConfigEditor.html"
     )
     New-ZipFromDirectory -SourceDirectory $componentPackagePath -ZipPath $componentZipPath
 
+    Remove-Item -LiteralPath (Split-Path -Parent $snapshotRoot) -Recurse -Force
     Write-Host "Training configuration manager component packaged successfully."
     Write-Host "Output directory: $outputPath"
     Write-Host "Package: $componentZipPath"
@@ -920,10 +958,10 @@ if (-not (Test-Path -LiteralPath $outputPath)) {
 New-Item -ItemType Directory -Path $standardPackagePath | Out-Null
 New-Item -ItemType Directory -Path $runtimePackagePath | Out-Null
 
-Copy-TrackedReframeworkFiles -SourceRoot $workspacePath -PackageRoot $standardPackagePath
-Copy-TrackedReframeworkFiles -SourceRoot $workspacePath -PackageRoot $runtimePackagePath
+Copy-TrackedReframeworkFiles -SourceRoot $workspacePath -ContentRoot $snapshotRoot -PackageRoot $standardPackagePath
+Copy-TrackedReframeworkFiles -SourceRoot $workspacePath -ContentRoot $snapshotRoot -PackageRoot $runtimePackagePath
 foreach ($packageRoot in @($standardPackagePath, $runtimePackagePath)) {
-    Copy-SelectedTrackedReframeworkFiles -SourceRoot $workspacePath -PackageRoot $packageRoot `
+    Copy-SelectedTrackedReframeworkFiles -SourceRoot $workspacePath -ContentRoot $snapshotRoot -PackageRoot $packageRoot `
         -RelativePaths @('木人库使用说明.md', 'LICENSE', 'LICENSE_NOTES.md')
     Assert-FullPackageFeatures -PackageRoot $packageRoot
     @'
@@ -961,6 +999,7 @@ if ($UpdateRepoManifest) {
     Set-Content -LiteralPath (Join-Path $workspacePath "sf6cm_manifest.json") -Value $manifestJson -Encoding UTF8
 }
 
+Remove-Item -LiteralPath (Split-Path -Parent $snapshotRoot) -Recurse -Force
 Write-Host "Release packaged successfully."
 Write-Host "Output directory: $outputPath"
 Write-Host "Standard package: $standardZipPath"

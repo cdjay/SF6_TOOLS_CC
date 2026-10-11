@@ -178,7 +178,7 @@ tools\package_release.bat -Force
 * 普通包包含 `dinput8.dll` 和 `reframework\`。
 * runtime 包额外包含 `re2_fw_config.txt`。
 * `dinput8.dll` 和 `re2_fw_config.txt` 从本机《Street Fighter 6》游戏根目录复制。
-* `reframework\` 内容来自仓库中 `autorun`、`data`、`fonts`、`images`、`plugins` 下的 Git 跟踪文件。
+* `reframework\` 内容取自 HEAD 提交（`git archive`，不做换行转换）中 `autorun`、`data`、`fonts`、`images`、`plugins` 下的 Git 跟踪文件，检出方式（`core.autocrlf`）不会改变文件哈希；这些文件与 HEAD 不一致时打包失败，需先提交。
 * 新增的打包源文件必须先纳入 Git 跟踪；如果这些打包源目录下存在未跟踪文件，脚本会直接失败。
 * 不得包含运行时状态、ignored 文件、仓库内 `release/`、旧 ZIP、Dump 或临时打包输出。
 * ZIP 条目由脚本逐个写入，路径统一用 `/` 分隔，且不能有空文件；网站会以 HTTP 422 拒绝 `\` 路径或空文件。不要改回 Windows PowerShell 5.1 的 `Compress-Archive`，它会写入 `\`。

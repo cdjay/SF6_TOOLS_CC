@@ -164,7 +164,7 @@ Default behavior:
 * The standard package contains `dinput8.dll` and `reframework\`.
 * The runtime package additionally contains `re2_fw_config.txt`.
 * `dinput8.dll` and `re2_fw_config.txt` are copied from the local Street Fighter 6 game root.
-* `reframework\` contents are copied from Git-tracked files under `autorun`, `data`, `fonts`, `images`, and `plugins`.
+* `reframework\` contents come from the HEAD commit (`git archive`, no line-ending conversion) for Git-tracked files under `autorun`, `data`, `fonts`, `images`, and `plugins`, so a checkout's `core.autocrlf` cannot change file hashes. Packaging fails when those files differ from HEAD; commit first.
 * New package-source files must be tracked by Git before packaging; untracked files under those package-source directories make the script fail.
 * Runtime state, ignored files, repository `release/`, old ZIPs, dumps, and temporary build output must not be included.
 * The script writes each ZIP entry itself with `/` separators and no empty files; the website rejects `\` paths or empty files with HTTP 422. Do not switch back to Windows PowerShell 5.1 `Compress-Archive`, which writes `\`.
