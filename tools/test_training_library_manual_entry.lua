@@ -12,6 +12,7 @@ local ctx={allowed=true,session=session,data=data,record_func=recorder,
     fighter_id=28,slot_count=8,busy=false,menu_closed=true}
 local counts={restores=0,name_loads=0,imports=0,saves=0,cancels=0}
 local seen,name_fighter={},nil
+local init_task
 local records={
     get_record_capacity=function() return ctx.slot_count end,
     get_slot_name=function() return "" end,
@@ -33,6 +34,7 @@ local records={
     end,
     begin_import=function(path)
         counts.imports=counts.imports+1
+        if init_task then return true,"initializing",path,nil,{kind="initializing",count=2,task=init_task} end
         return true,"imported",path,nil,{kind="import",written=8,cleared=0,reversals=30,apply_state="applied"}
     end,
     save_current=function(path)
@@ -147,6 +149,28 @@ assert(State.runtime.state()=="unloaded")
 ctx.allowed=true; tick(5)
 assert(State.runtime.state()=="active" and counts.restores==4)
 assert(counts.imports==0 and counts.name_loads==1,"returning to training imported or re-read descriptions")
+
+-- Importing into never-recorded slots: the task records on purpose (busy) for
+-- several updates. The entry must keep ticking it, or recording never stops.
+local task_ticks,busy_ticks,task_done=0,0,false
+init_task={
+    tick=function(c)
+        task_ticks=task_ticks+1
+        if c.busy then busy_ticks=busy_ticks+1 end
+        if task_ticks==1 then ctx.busy=true end
+        if task_ticks<13 then return false end
+        ctx.busy=false; task_done=true
+        return true,true,"imported",nil,nil,{kind="import",written=2,cleared=6,reversals=30,apply_state="applied"}
+    end,
+    cancel=function() error("an initializing import was cancelled while recording") end,
+}
+local imports=counts.imports
+assert(library.request("import"))
+tick(40)
+assert(counts.imports==imports+1 and task_done and busy_ticks>=10,
+    "initializing import stalled while its own recording made the session busy")
+assert(not library.has_pending() and not ctx.busy)
+init_task=nil
 
 callbacks.reset(); tick(1)
 assert(State.runtime.state()=="stopped")

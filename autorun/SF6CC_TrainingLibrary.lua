@@ -25,8 +25,10 @@ re.on_pre_application_entry("LateUpdateBehavior", function()
             local ctx = Library.runtime_context()
             -- A legacy bank only reaches here for the explicit restore job;
             -- Library refuses every other operation on that bank.
-            if ctx.allowed and (not ctx.error or ctx.bank_unsupported == true) and ctx.menu_closed == true
-                and ctx.busy == false and save_idle(ctx) then library.tick() end
+            -- An import initializing empty slots records on purpose; its task
+            -- must keep ticking until it stops recording or fails and cleans up.
+            if ctx.allowed and (not ctx.error or ctx.bank_unsupported == true) and (library.task_active()
+                or (ctx.menu_closed == true and ctx.busy == false and save_idle(ctx))) then library.tick() end
         end
     end, debug.traceback)
     if not ok then

@@ -9,6 +9,7 @@ local function backend_fixture()
         fs = { create_dir = function() writes = writes + 1 end } }, { __index = _G })
     local records = assert(loadfile("autorun/SF6CCTrainingLibrary/Records.lua", "t", env))()
     records.get_context = function() return ctx end
+    records.get_record_bank_size = function() return ctx.slot_count or 8 end
     records.backup_current = function() writes = writes + 1; return false, "backup sentinel" end
     return records, data, ctx, function() return writes end
 end
@@ -47,5 +48,12 @@ test("matching and explicit mismatch override reach existing backup boundary", f
     data.schema, data.source_player, data.fighter_id = records.LEGACY_SCHEMA, nil, 28
     _, err = records.import_from_file("config.json")
     assert(err:find("backup sentinel", 1, true))
+end)
+test("non-native live bank is rejected before backup", function()
+    local records, _, ctx, writes = backend_fixture()
+    ctx.slot_count = 80
+    local ok, err = records.import_from_file("config.json")
+    assert(not ok and err:find("8栏位", 1, true) and not err:find("backup sentinel", 1, true))
+    assert(writes() == 0)
 end)
 print(passed .. " training configuration compatibility tests passed")
