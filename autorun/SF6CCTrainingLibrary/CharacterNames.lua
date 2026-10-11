@@ -8,7 +8,7 @@ local names = {
     ["E. Honda"] = "本田", Jamie = "杰米", Akuma = "豪鬼", ["M.Bison"] = "维嘉",
     ["M. Bison"] = "维嘉", Terry = "特瑞", Sagat = "沙加特", Mai = "不知火舞",
     Elena = "艾莲娜", Viper = "毒蛇", Ingrid = "英格丽德", Alex = "阿莱克斯",
-    Yasmine = "亚思敏",
+    Yasmine = "亚思敏", Arjun = "阿俊",
 }
 return function(name)
     if type(name) ~= "string" or name:match("^%s*$") then return "未知角色" end

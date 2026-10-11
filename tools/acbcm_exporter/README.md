@@ -51,7 +51,7 @@ Status: `CURRENT`
 2. 在 `data/SF6CC/fighters.json` 加一行：
 
    ```json
-   { "id": 34, "key": "Arjun", "name_en": "Arjun", "name_zh": "阿尔琼", "official_slug": "arjun" }
+   { "id": 34, "key": "Arjun", "name_en": "Arjun", "name_zh": "阿俊", "official_slug": "arjun" }
    ```
 
    同步加到 `tools/bcm_catalog_builder/bcm_catalog_core.js` 的 `FIGHTER_NAMES`、
