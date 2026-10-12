@@ -15,6 +15,7 @@ local SharedUI = require("func/Training_SharedUI")
 local SceneState = require("func/ComboTrials/SceneState")
 local RawInputCodec = require("func/ComboTrials/RawInputCodec")
 local ComboFeedback = require("func/ComboTrials/ComboFeedback")
+local ComboListState = require("func/ComboTrials/ComboListState")
 local RecordingPolicy = require("func/ComboTrials/RecordingPolicy")
 local CharacterRules = require("func/ComboTrials/CharacterRules")
 local ChargeRuntimePolicy = require("func/ComboTrials/ChargeRuntimePolicy")
@@ -103,17 +104,20 @@ local CONTROL_CLASSIC_COLOR = 0xFFDDA0CC
 local CONTROL_MODERN_COLOR = 0xFF66A0DD
 local COMPLETED_TRIAL_COLOR = 0xFF55DD77
 local COMBO_TABLE_FLAGS = (1 << 3) | (1 << 4) | (1 << 6) | (1 << 7) | (1 << 9)
+local COMBO_TABLE_SCROLL_X = 1 << 24
 local COMBO_TABLE_SCROLL_Y = 1 << 25
 local COMBO_COLUMN_FIXED = 1 << 4
-local COMBO_COLUMN_STRETCH = 1 << 3
 local COMBO_COLUMN_NO_SORT = 1 << 9
 local COMBO_SORT_ASCENDING = 1
 local COMBO_SORT_DESCENDING = 2
 local COMBO_STARTER_COLUMN_WIDTH = 140
 local COMBO_AUTHOR_COLUMN_WIDTH = 120
 local COMBO_STEP_COLUMN_WIDTH = 52
-local COMBO_FEEDBACK_COLUMN_WIDTH = 64
-local COMBO_DELETE_COLUMN_WIDTH = 56
+local COMBO_ATTEMPTS_COLUMN_WIDTH = 80
+local COMBO_RATE_COLUMN_WIDTH = 72
+local COMBO_ACTIONS_COLUMN_WIDTH = 172
+local COMBO_FAVORITE_TEXT_COLOR = 0xFF55CCFF
+local COMBO_FEEDBACK_TEXT_COLOR = 0xFFFFCC77
 local COMBO_DELETE_TEXT_COLOR = 0xFF5555FF
 local COMBO_POPUP_FLAGS = (1 << 3) | (1 << 4)
 local FEEDBACK_WINDOW_FLAGS = (1 << 1) | (1 << 2) | (1 << 3) | (1 << 5) | (1 << 8)
@@ -128,6 +132,21 @@ local _combo_sort_cache = {
     direction = nil,
     order = {},
 }
+local combo_list_state = ComboListState.new({
+    load = function(path)
+        local file = io.open(path, "rb")
+        if not file then return nil end
+        local raw = file:read("*a")
+        file:close()
+        return json.load_string(raw)
+    end,
+    save = function(path, value)
+        if fs and fs.create_dir then fs.create_dir("TrainingComboTrials_data") end
+        return json.dump_file(path, value)
+    end,
+    open = function(path) return io.open(path, "rb") end,
+    decode = function(line) return json.load_string(line) end,
+})
 local FEEDBACK_CATEGORIES = {
     { code = "unrecognized_action_id", label = "未识别ID" },
     { code = "detection_error", label = "检测错误" },
@@ -304,6 +323,12 @@ local function combo_sort_value(column, info, item)
     elseif column == 7 then key = "energy"
     end
 
+    if column == 8 or column == 9 then
+        local stat = combo_list_state:stat(info)
+        if not stat or stat.attempts == 0 then return nil, true end
+        return column == 8 and stat.attempts or stat.successes / stat.attempts, true
+    end
+
     local value = type(info) == "table" and tostring(info[key] or "") or ""
     if value == "" then
         if column == 1 then return tostring(item or ""):lower(), false end
@@ -447,27 +472,26 @@ local function combo_table_order(items, info_items, column, direction)
         return cache.order
     end
 
-    local order = {}
-    for idx = 1, #items do order[idx] = idx end
-
+    local less
     if column ~= nil then
+        less = function(a_idx, b_idx)
         local descending = direction == COMBO_SORT_DESCENDING
-        table.sort(order, function(a_idx, b_idx)
-            local a_value, numeric = combo_sort_value(column, info_items[a_idx], items[a_idx])
-            local b_value = combo_sort_value(column, info_items[b_idx], items[b_idx])
-            local a_missing = a_value == nil
-            local b_missing = b_value == nil
-            if a_missing ~= b_missing then return not a_missing end
-            if a_missing then return a_idx < b_idx end
-            if numeric then
-                a_value = tonumber(a_value)
-                b_value = tonumber(b_value)
-            end
-            if a_value == b_value then return a_idx < b_idx end
-            if descending then return a_value > b_value end
-            return a_value < b_value
-        end)
+        local a_value, numeric = combo_sort_value(column, info_items[a_idx], items[a_idx])
+        local b_value = combo_sort_value(column, info_items[b_idx], items[b_idx])
+        local a_missing = a_value == nil
+        local b_missing = b_value == nil
+        if a_missing ~= b_missing then return not a_missing end
+        if a_missing then return a_idx < b_idx end
+        if numeric then
+            a_value = tonumber(a_value)
+            b_value = tonumber(b_value)
+        end
+        if a_value == b_value then return a_idx < b_idx end
+        if descending then return a_value > b_value end
+        return a_value < b_value
+        end
     end
+    local order = combo_list_state:order(items, info_items, less)
 
     cache.items = items
     cache.info_items = info_items
@@ -503,14 +527,18 @@ local function combo_openable(label, current_idx, items, info_items, force_open,
     -- Header and icon-backed menu rows consume more than one bare text line.
     -- Reserve one additional line so short lists never hide their final row.
     local popup_h = ((visible_count + 2) * line_h) + 18
-    local available_w = math.max(360, (ctx.cached_sw or 1920) - btn_screen_x - 16)
-    local popup_w = math.min(math.max(btn_width or 0, 1180), available_w)
+    local screen_w = ctx.cached_sw or 1920
+    local available_w = math.max(360, screen_w - 32)
+    local popup_w = math.min(math.max(btn_width or 0, 1380), available_w)
+    local popup_x = math.min(btn_screen_x, math.max(16, screen_w - popup_w - 16))
 
     local should_open = force_open or clicked
     if should_open then
+        combo_list_state:load_favorites()
+        combo_list_state:refresh_stats()
         _combo_sort_cache.items = nil
         -- Position the popup just above the button, left-aligned
-        imgui.set_next_window_pos(Vector2f.new(btn_screen_x, math.max(0, btn_screen_y - popup_h)), 1)
+        imgui.set_next_window_pos(Vector2f.new(popup_x, math.max(0, btn_screen_y - popup_h)), 1)
 
         imgui.open_popup(popup_id)
         _dropdown_highlight_idx = current_idx
@@ -526,20 +554,21 @@ local function combo_openable(label, current_idx, items, info_items, force_open,
     if imgui.begin_popup(popup_id, COMBO_POPUP_FLAGS) then
         _G.ComboTrials_DropdownOpen = true
 
-        local table_flags = COMBO_TABLE_FLAGS | COMBO_TABLE_SCROLL_Y
+        local table_flags = COMBO_TABLE_FLAGS | COMBO_TABLE_SCROLL_X | COMBO_TABLE_SCROLL_Y
         local table_outer_height = math.max(line_h * 3, popup_h - 18)
-        if imgui.begin_table("##ComboListTable" .. label, 10, table_flags,
+        if imgui.begin_table("##ComboListTable" .. label, 11, table_flags,
                 Vector2f.new(0, table_outer_height)) then
             imgui.table_setup_column("C/完", COMBO_COLUMN_FIXED, 58)
-            imgui.table_setup_column("名称", COMBO_COLUMN_STRETCH, 1)
+            imgui.table_setup_column("名称", COMBO_COLUMN_FIXED, 330)
             imgui.table_setup_column("作者", COMBO_COLUMN_FIXED, COMBO_AUTHOR_COLUMN_WIDTH)
             imgui.table_setup_column("步数", COMBO_COLUMN_FIXED, COMBO_STEP_COLUMN_WIDTH)
             imgui.table_setup_column("起手", COMBO_COLUMN_FIXED, COMBO_STARTER_COLUMN_WIDTH)
             imgui.table_setup_column("伤害", COMBO_COLUMN_FIXED, 76)
             imgui.table_setup_column("斗气", COMBO_COLUMN_FIXED, 58)
             imgui.table_setup_column("能量", COMBO_COLUMN_FIXED, 72)
-            imgui.table_setup_column("反馈", COMBO_COLUMN_FIXED | COMBO_COLUMN_NO_SORT, COMBO_FEEDBACK_COLUMN_WIDTH)
-            imgui.table_setup_column("删除", COMBO_COLUMN_FIXED | COMBO_COLUMN_NO_SORT, COMBO_DELETE_COLUMN_WIDTH)
+            imgui.table_setup_column("练习次数", COMBO_COLUMN_FIXED, COMBO_ATTEMPTS_COLUMN_WIDTH)
+            imgui.table_setup_column("成功率", COMBO_COLUMN_FIXED, COMBO_RATE_COLUMN_WIDTH)
+            imgui.table_setup_column("##操作", COMBO_COLUMN_FIXED | COMBO_COLUMN_NO_SORT, COMBO_ACTIONS_COLUMN_WIDTH)
             imgui.table_setup_scroll_freeze(0, 1)
             imgui.table_next_row(COMBO_TABLE_ROW_HEADERS)
             for column_idx, header in ipairs({
@@ -551,11 +580,13 @@ local function combo_openable(label, current_idx, items, info_items, force_open,
                 { "伤害", true, 76 },
                 { "斗气", true, 58 },
                 { "能量", true, 72 },
-                { "反馈", true, COMBO_FEEDBACK_COLUMN_WIDTH },
-                { "删除", true, COMBO_DELETE_COLUMN_WIDTH },
+                { "练习次数", true, COMBO_ATTEMPTS_COLUMN_WIDTH },
+                { "成功率", true, COMBO_RATE_COLUMN_WIDTH },
+                { "", false },
             }) do
                 imgui.table_set_column_index(column_idx - 1)
-                combo_table_header(header[1], header[2], header[3])
+                if header[1] == "" then imgui.table_header("##ActionsHeader")
+                else combo_table_header(header[1], header[2], header[3]) end
             end
 
             local sort_column, sort_direction = combo_table_sort_state()
@@ -594,16 +625,36 @@ local function combo_openable(label, current_idx, items, info_items, force_open,
                 imgui.table_next_column()
                 row_clicked = combo_table_cell(combo_row_value(info, "energy"), row_id .. "Energy", true, row_color, 72) or row_clicked
                 imgui.table_next_column()
-                if imgui.button("反馈##" .. row_id, Vector2f.new(COMBO_FEEDBACK_COLUMN_WIDTH - 8, 0)) then
+                local stat = combo_list_state:stat(info)
+                row_clicked = combo_table_cell(stat and stat.attempts or "0", row_id .. "Attempts", true,
+                    row_color, COMBO_ATTEMPTS_COLUMN_WIDTH) or row_clicked
+                imgui.table_next_column()
+                local rate = stat and stat.attempts > 0
+                    and string.format("%.1f%%", stat.successes * 100 / stat.attempts) or "—"
+                row_clicked = combo_table_cell(rate, row_id .. "Rate", true,
+                    row_color, COMBO_RATE_COLUMN_WIDTH) or row_clicked
+                imgui.table_next_column()
+                imgui.push_style_color(0, COMBO_FAVORITE_TEXT_COLOR)
+                local favorite_clicked = imgui.button(
+                    (combo_list_state:is_favorite(info) and "已收藏" or "收藏") .. "##" .. row_id,
+                    Vector2f.new(68, 0))
+                imgui.pop_style_color(1)
+                if favorite_clicked then
+                    local saved, reason = combo_list_state:toggle_favorite(info)
+                    if saved then _combo_sort_cache.items = nil
+                    elseif _G.show_custom_ticker then _G.show_custom_ticker(reason, 2.0) end
+                end
+                imgui.same_line(0, 2)
+                imgui.push_style_color(0, COMBO_FEEDBACK_TEXT_COLOR)
+                local feedback_clicked = imgui.button("反馈##" .. row_id, Vector2f.new(44, 0))
+                imgui.pop_style_color(1)
+                if feedback_clicked then
                     open_combo_feedback(info)
                     if imgui.close_current_popup then pcall(imgui.close_current_popup) end
                 end
-                imgui.table_next_column()
+                imgui.same_line(0, 2)
                 imgui.push_style_color(0, COMBO_DELETE_TEXT_COLOR)
-                local delete_clicked = imgui.button(
-                    "删除##" .. row_id,
-                    Vector2f.new(COMBO_DELETE_COLUMN_WIDTH - 8, 0)
-                )
+                local delete_clicked = imgui.button("删除##" .. row_id, Vector2f.new(44, 0))
                 imgui.pop_style_color(1)
                 if delete_clicked then
                     delete_request = type(info) == "table" and info.filepath or nil

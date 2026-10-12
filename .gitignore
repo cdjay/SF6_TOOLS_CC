@@ -17,6 +17,7 @@
 /data/SF6_DistanceViewer_data/*WebBridge.json
 /data/SheldonsBoxes_data/*WebState.json
 /data/TrainingComboTrials_data/CompletedTrials.json
+/data/TrainingComboTrials_data/combo_favorites.json
 /data/TrainingComboTrials_data/CompletedTrials.recovery.json
 /data/TrainingComboTrials_data/CompletedTrials.corrupt-*.json
 /data/TrainingComboTrials_data/LastFail.json

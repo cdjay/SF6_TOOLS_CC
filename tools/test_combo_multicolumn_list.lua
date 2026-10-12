@@ -213,10 +213,12 @@ local ui_source = read_all("autorun/func/ComboTrials_UI.lua")
 
 assert(ui_source:find('imgui.begin_table("##ComboListTable"', 1, true), "combo popup is not rendered as a table")
 assert(ui_source:find("local COMBO_COLUMN_FIXED = 1 << 4", 1, true), "fixed column flag is incorrect")
-assert(ui_source:find("local COMBO_COLUMN_STRETCH = 1 << 3", 1, true), "stretch column flag is incorrect")
+assert(ui_source:find('table_setup_column("名称", COMBO_COLUMN_FIXED, 330)', 1, true),
+    "name column must keep room for long combo names")
 assert(ui_source:find("local COMBO_TABLE_FLAGS = (1 << 3)", 1, true), "sortable table flag is missing")
 assert(ui_source:find("imgui.table_get_sort_specs()", 1, true), "table sort specifications are not read")
-assert(ui_source:find("table.sort(order", 1, true), "table rows are not sorted")
+assert(ui_source:find("combo_list_state:order(items, info_items, less)", 1, true),
+    "favorite-first ordering must preserve source indices")
 assert(ui_source:find("imgui.table_set_bg_color(", 1, true),
     "selected combo row does not receive a persistent table background")
 assert(ui_source:find("COMBO_SELECTED_ROW_BG_COLOR", 1, true),
@@ -240,8 +242,19 @@ assert(ui_source:find('table_setup_column("能量", COMBO_COLUMN_FIXED, 72)', 1,
     "energy column is not wide enough for its header and values")
 assert(ui_source:find('table_setup_column("作者"', 1, true), "author column is missing")
 assert(ui_source:find('table_setup_column("步数"', 1, true), "step-count column is missing")
-assert(ui_source:find('table_setup_column("反馈"', 1, true), "feedback column is missing")
-assert(ui_source:find('table_setup_column("删除"', 1, true), "delete column is missing")
+assert(ui_source:find('table_setup_column("##操作"', 1, true), "unlabeled action column is missing")
+assert(ui_source:find('imgui.begin_table("##ComboListTable" .. label, 11', 1, true),
+    "combo list must have ten data columns and one action column")
+assert(ui_source:find('imgui.table_header("##ActionsHeader")', 1, true),
+    "action column must not display a header")
+assert(ui_source:find('"收藏##"', 1, true) or ui_source:find('"收藏") .. "##"', 1, true),
+    "favorite toggle is missing")
+assert(ui_source:find('"反馈##" .. row_id', 1, true), "feedback button is missing")
+assert(ui_source:find('"删除##" .. row_id', 1, true), "delete button is missing")
+assert(ui_source:find('imgui.push_style_color(0, COMBO_FAVORITE_TEXT_COLOR)', 1, true),
+    "favorite button text color is missing")
+assert(ui_source:find('imgui.push_style_color(0, COMBO_FEEDBACK_TEXT_COLOR)', 1, true),
+    "feedback button text color is missing")
 assert(ui_source:find('imgui.push_style_color(0, COMBO_DELETE_TEXT_COLOR)', 1, true),
     "delete button text must be red")
 assert(ui_source:find('file_system.delete_combo_file', 1, true),
@@ -272,8 +285,8 @@ assert(not ui_source:find("re.on_draw_ui(draw_combo_feedback_window)", 1, true),
     "feedback window must not depend on the REFramework script tree being expanded")
 assert(ui_source:find("local max_visible = 20", 1, true),
     "combo popup must show up to twenty rows")
-assert(ui_source:find("local table_flags = COMBO_TABLE_FLAGS | COMBO_TABLE_SCROLL_Y", 1, true),
-    "the table must always own programmatic and mouse scrolling")
+assert(ui_source:find("local table_flags = COMBO_TABLE_FLAGS | COMBO_TABLE_SCROLL_X | COMBO_TABLE_SCROLL_Y", 1, true),
+    "the table must own horizontal and vertical scrolling")
 assert(ui_source:find("local COMBO_POPUP_FLAGS = (1 << 3) | (1 << 4)", 1, true),
     "combo popup must disable outer-window scrolling")
 assert(ui_source:find("imgui.begin_popup(popup_id, COMBO_POPUP_FLAGS)", 1, true),
@@ -302,7 +315,7 @@ assert(not ui_source:find("selected == true", 1, true),
     "selected combo row must not use the menu-item checkmark")
 assert(ui_source:find("texture.draw_window", 1, true), "starter icons are not drawn in the popup window layer")
 assert(ui_source:find("renderer.parse_starter_icons", 1, true), "starter notation parser is not reused")
-for _, header in ipairs({ "C/完", "名称", "作者", "步数", "起手", "伤害", "斗气", "能量", "反馈", "删除" }) do
+for _, header in ipairs({ "C/完", "名称", "作者", "步数", "起手", "伤害", "斗气", "能量", "练习次数", "成功率" }) do
     assert(ui_source:find('table_setup_column("' .. header .. '"', 1, true), "missing table column: " .. header)
 end
 assert(not ui_source:find("imgui.selectable", 1, true), "unsupported REFramework selectable binding was used")

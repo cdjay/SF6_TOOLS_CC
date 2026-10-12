@@ -428,6 +428,7 @@ local function combo_info_from_file(filepath, char_name)
         step_count = #presentation_sequence,
         character = clean_title(display_meta.character) or clean_title(char_name) or "Unknown",
         control_type = control_type,
+        combo_id = display_meta.combo_id or display_meta.comboId or display_meta.trial_id,
         filepath = filepath,
     }, nil, control_type
 end
