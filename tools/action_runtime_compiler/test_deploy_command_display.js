@@ -35,7 +35,10 @@ try {
     assert.ok(entries.every(entry => entry.status === "same"));
 
     // CRLF checkouts are the same content.
-    const crlf = fs.readFileSync(path.join(target, "Ryu.json"), "utf8").replace(/\n/g, "\r\n");
+    const lf = fs.readFileSync(path.join(target, "Ryu.json"), "utf8").replace(/\r\n/g, "\n");
+    const crlf = lf.replace(/\n/g, "\r\n");
+    assert.ok(crlf.includes("\r\n"));
+    assert.ok(!crlf.includes("\r\r\n"), "The fixture must not double-convert an existing CRLF checkout");
     fs.writeFileSync(path.join(target, "Ryu.json"), crlf);
     assert.strictEqual(deployer.compare(options).find(entry => entry.key === "Ryu").status, "same");
 
