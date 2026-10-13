@@ -126,6 +126,8 @@ def stable_consumer(value: dict) -> dict:
             str(row.get("exact_sha256")),
             str(row.get("check")),
             str(row.get("detail")),
+            str(row.get("case_id")),
+            json.dumps(row, sort_keys=True, ensure_ascii=False),
         ),
     )
     return copy

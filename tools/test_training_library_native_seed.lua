@@ -99,5 +99,5 @@ for _,options in ipairs({{fail_copy=2},{fail_copy=3},{alias=true}}) do
         local count=copies(); f.tick(450); assert(copies()==count)
     end)
 end
-package.loaded["SF6CCTrainingLibrary/NativeRecordingSession"]=accepted
+package.loaded["SF6CCTrainingLibrary/NativeRecordingSession"]=candidate
 print(passed.." native-seed candidate checks passed (fake SDK only)")

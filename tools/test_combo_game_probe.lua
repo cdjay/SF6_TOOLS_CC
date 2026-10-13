@@ -18,6 +18,8 @@ local enum_fields = {
     },
 }
 
+local previous_sdk = sdk
+local previous_game_probe = package.loaded["func/ComboTrials/GameProbe"]
 sdk = {
     find_type_definition = function(name)
         if name == "nBattle.ACT_ID" then
@@ -70,6 +72,7 @@ local g_battle_type = {
 local players = {
     [0] = { trigger_mask_cache = {}, trigger_cache_built = false },
 }
+package.loaded["func/ComboTrials/GameProbe"] = nil
 local GameProbe = require("func/ComboTrials/GameProbe")
 GameProbe.init({ g_battle_type = g_battle_type, players = players })
 
@@ -176,5 +179,7 @@ assert(gauges.victim_hp == 7600 and gauges.attacker_drive == 8500
     "recording gauges must retain the existing runtime snapshot")
 
 package.loaded["func/GameState"] = previous_game_state
+package.loaded["func/ComboTrials/GameProbe"] = previous_game_probe
+sdk = previous_sdk
 
 print("combo game probe tests passed")

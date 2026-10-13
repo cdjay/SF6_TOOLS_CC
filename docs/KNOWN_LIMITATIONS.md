@@ -22,7 +22,7 @@ on 2026-10-09.
 | Sealed oracle | 633 cases, independence `LOW` | It proves historical snapshot integrity, not independent Runtime truth. Runtime consumers execute `0 / 633` oracle cases. |
 | Real-game golden | Unavailable | There is no current high-independence golden captured from live game truth. |
 | Current corpus | 965 frozen current-build files | Strong serialization and offline-consumer evidence, but not a live-game end-to-end proof. |
-| Historical corpus | 2,509 exact-unique cases | Contains mixed-build data; 34 current command-display gaps are expected historical incompatibilities. |
+| Historical corpus | Latest accessible storage has 2,510 exact-unique cases | Contains mixed-build data; October 13 audit has 76 display failures (66 unresolved command cases and 10 incomplete character cases). Roundtrip and detection checks pass; the compatibility gate is not closed. |
 | Frozen archive | Loose source passes; archive unavailable | Current local status is `LOOSE_SOURCE_PASS_ARCHIVE_UNAVAILABLE`; no archive PASS may be claimed. |
 | External tester storage | Retention not fully adjudicated | Historical packages under local `release/tester_packages` are not current source and must not be redistributed without provenance review. |
 | Training library capacity | Native eight recording slots; the 80-slot expansion is retired (tag `training-library-v1.1.18-native8`) | More than eight concurrently enabled recordings is unavailable. Banks or files with more than eight recordings stay read-only until restored to native eight. |

@@ -38,6 +38,15 @@ Other `tools/test_*` files remain the executable characterization, unit,
 contract, and simulation suite. Generator/editor tests stay beside their
 owners. Test discovery is defined by `tools/repository_test_audit.py`.
 
+Test-infrastructure regressions also include
+`tools/test_corpus_determinism_audit.py`: tied failure rows need a complete
+identity sort key, GameProbe tests must reload against their own GameState
+fixture and restore the cached module, and native-seed tests must restore the
+current session module rather than leave a historical fixture installed.
+The deploy test constructs CRLF from normalized LF so an existing Windows
+checkout is not converted into double carriage returns. These checks preserve
+the original consumer failures; they do not waive compatibility gates.
+
 ## Official Offline Gate
 
 Run from a clean repository worktree. Send generated JSON to a temporary
