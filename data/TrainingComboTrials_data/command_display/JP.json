@@ -7381,9 +7381,9 @@
     "character": "JP",
     "fighter_id": 7,
     "generated_from": "ac_bcm+capcom_official_semantics",
-    "generated_at": "2026-08-03T00:00:00.000Z",
-    "ac_sha256": "945eda4c32195abe427a22fef1c4f9ab79414bf68cb203b9dc26a05b7a6a6701",
-    "bcm_sha256": "58debe7d95aae9ed56c77660dba038975db734db93da502ae974a5740d87193b",
+    "generated_at": "2026-10-13T00:00:00.000Z",
+    "ac_sha256": "26c53ba9ed02c0a5ba7c9fd069edfaa384e64c3ee4d576d9ef9db701ba8314f9",
+    "bcm_sha256": "3d9f60c960da5465d77aaa443c12b1656d2d8292c07a3b373bd12b085f37dbb7",
     "modern_profile_order": [
       "easy",
       "supr",
@@ -7440,7 +7440,7 @@
     "split_command_action_count": 77,
     "followup_relation_count": 0,
     "followup_relations": [],
-    "official_semantic_source_sha256": "9baf0dee0bdfec19a94634bf0a2cd802c85e82c608a922220c94792f378fdd37",
+    "official_semantic_source_sha256": "b5f3b6f486a0f205555b41af96cf27c5eb6e9b2ed02b965a8e5ccfeec5565368",
     "classic_profile_order": [
       "norm",
       "sprt"

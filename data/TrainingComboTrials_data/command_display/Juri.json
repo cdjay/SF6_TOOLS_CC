@@ -13489,9 +13489,9 @@
     "character": "Juri",
     "fighter_id": 16,
     "generated_from": "ac_bcm+capcom_official_semantics",
-    "generated_at": "2026-08-03T00:00:00.000Z",
-    "ac_sha256": "58905c345ed46631cb36794997051ebbf8a1f7cb190046f55090b7367447512b",
-    "bcm_sha256": "81e679302a8b255054bef13002b37e1a5e44155589db3ab6d5d0cda51e78c0d1",
+    "generated_at": "2026-10-13T00:00:00.000Z",
+    "ac_sha256": "f57c0bbdede4ad8401bd501e959861aa37024ba17962470e3b65df1d4029f85c",
+    "bcm_sha256": "6fa4ce51b70d3ca54da422720b0516ff96ecd27e4a01b96b95b2815d64da6310",
     "modern_profile_order": [
       "easy",
       "supr",
@@ -13584,7 +13584,7 @@
         "official_move_name": "OD 死連閃"
       }
     ],
-    "official_semantic_source_sha256": "6d1649c87d7bf1eb1c15930dec68f9077596e8501c7df408f85136ef6b71bdfe",
+    "official_semantic_source_sha256": "a9f8e78e773b88350b98c0e1f5fdd604d842badd1b550892776977f5a2b3a664",
     "classic_profile_order": [
       "norm",
       "sprt"

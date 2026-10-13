@@ -12199,9 +12199,9 @@
     "character": "Yasmine",
     "fighter_id": 33,
     "generated_from": "ac_bcm+capcom_official_semantics",
-    "generated_at": "2026-08-03T00:00:00.000Z",
-    "ac_sha256": "e895dc76d9702cbec027de99375383925b339352f5192420b5a78b6270eb8723",
-    "bcm_sha256": "c9b2efb4b5c09251db69961b33df7a64574474ba27a45cae2113a2a36dbcd241",
+    "generated_at": "2026-10-13T00:00:00.000Z",
+    "ac_sha256": "83133374597fccd1959a34f9ab67da2aabb54cca5fead4c931b67ebfb9100fd1",
+    "bcm_sha256": "cb6dfb52b1ce9acaf1b4916be56dea046e877485a0017d62ee328bde52fede32",
     "modern_profile_order": [
       "easy",
       "supr",
@@ -12622,7 +12622,7 @@
     "split_command_action_count": 112,
     "followup_relation_count": 0,
     "followup_relations": [],
-    "official_semantic_source_sha256": "b18a43417c69abdf7890d3d18ca22e3653fbc8eff0fe6832006ff588f333874c",
+    "official_semantic_source_sha256": "ab938862d43ccb92da48b4814a607d7127abc8a13bb92d7a7e6b807a4bef0b31",
     "classic_profile_order": [
       "norm",
       "sprt"

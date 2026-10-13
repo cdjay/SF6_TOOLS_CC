@@ -15,6 +15,8 @@ assert(Decoder.decode_buttons(112, 0) == "P" and Decoder.decode_buttons(112, 64)
     and Decoder.decode_buttons(112, 128) == "PPP")
 assert(Decoder.decode_buttons(896, 64) == "KK")
 assert(Decoder.decode_buttons(16 | 256, 0) == "LP+MK")
+assert(Decoder.decode_buttons(32 | 64, 81952) == "MP/HP")
+assert(Decoder.decode_buttons(32 | 64, 82016) == "MP+HP")
 assert(Decoder.decode_buttons(nil, nil) == "")
 
 assert(Decoder.normalize_motion("5252") == "22")

@@ -42,6 +42,10 @@ function profiles(sprt, easy, supr, norm) {
     };
 }
 
+assert.strictEqual(commandDisplay.translateProfile("sprt",
+    profile(true, "j.214+LK/MK", 128 | 256, 81952), { function_id: 2 }),
+"空中 214 + 任意键", "a one-of-two support button group must not become a direction token");
+
 function trigger(triggerIndex, triggerProfiles, conditions) {
     return { trigger_index: triggerIndex, profiles: triggerProfiles, conditions: conditions || {} };
 }

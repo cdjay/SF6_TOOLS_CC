@@ -13213,9 +13213,9 @@
     "character": "Jamie",
     "fighter_id": 21,
     "generated_from": "ac_bcm+capcom_official_semantics",
-    "generated_at": "2026-08-03T00:00:00.000Z",
-    "ac_sha256": "abf8fbad51d9f39507e644780ed58c00abc1e4ec4299e8b9449daca84df7c04a",
-    "bcm_sha256": "1f39f8d6bbc346251490dc8bd3d0846cc2162f7bc14f2924a250b3cab6ff24f8",
+    "generated_at": "2026-10-13T00:00:00.000Z",
+    "ac_sha256": "4aa6e3465b636072f1df21c742e62860e7fa69b556dcddeaa55c72d515fe9182",
+    "bcm_sha256": "a3c33469b88f677a68e75bc79b394cba4aba1de95e1022ca4c9c94d70c29f3f9",
     "modern_profile_order": [
       "easy",
       "supr",
@@ -13407,7 +13407,7 @@
     "split_command_action_count": 126,
     "followup_relation_count": 0,
     "followup_relations": [],
-    "official_semantic_source_sha256": "98515a162def6ff5596476699e14ebeb6754779e27786976db142458285da426",
+    "official_semantic_source_sha256": "1a3482b5adfe758cf4d93b594789b456a84b8951e8aff86f3e909769d17ba1cb",
     "classic_profile_order": [
       "norm",
       "sprt"

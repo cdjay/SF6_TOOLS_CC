@@ -123,7 +123,13 @@ real-game acceptance is still required.
 Detection rules, display and the data guard now derive from AC+BCM where the
 dumps allow it; the rest is blocked on evidence, not on code:
 
-- **Production dumps predate the fixed exporter.** Every 2026-08-03 dump lost
+- **Current generated data uses the 2026-10-13 v2 export.** All 32 fighters
+  (including Arjun, fighter 34) have paired AC/BCM exports with both v2 markers,
+  no truncation and passing hard gates. The originals and SHA-256 manifests
+  are backed up under ignored `release/tester_packages/acbcm-2026-10-13_*/`;
+  current official snapshots are backed up in its `official/` subdirectory.
+  Runtime tables are regenerated from these sources, not manually patched.
+  Real-game acceptance remains required. Every earlier 2026-08-03 dump lost
   the dictionary keys at or above `Count` (7–39 trigger groups per fighter) and
   every key's frame window. A rehearsal with exporter v2 on 2026-10-10 (Ryu,
   Luke, Kimberly, Lily, Jamie, Ingrid in `acbcm/2026-10-09`, local only) shows:
@@ -195,13 +201,30 @@ dumps allow it; the rest is blocked on evidence, not on code:
 - **Runtime BCM fallback** shows only classic notation, and only while a fighter
   has no usable table; follow-up splitting, phase suppression and modern
   commands need the generated table.
+- **The BCM data guard is not a full semantic digest.** Its current fingerprint
+  hashes the multiset of trigger Action IDs only. Changed command conditions or
+  AC branches may keep that fingerprint (as Dhalsim and Terry do in 10.13).
+  A match is not proof that all game data is unchanged; explicit versioned
+  export, generation and comparison remain necessary.
 - **Not live-verified:** the data guard and recording fingerprint warnings, the
   BCM fallback display, fallback-key combo migration, the `_charge_policy`
   move and the 10 fighters whose air normals gained landing phases (AKI, Alex,
   C. Viper, Ingrid, Ken, Lily, Luke, Manon, Ryu, Yasmine).
-- **Release day unknowns:** the new fighter's ID (23/24/34 are unused in the
-  August enums), whether the update moves existing Action IDs
-  (`compare_acbcm_versions.js`), and REFramework compatibility.
+- **10.13 update validation:** the structural comparison against the complete
+  10.09 export detects changes in ChunLi, Dhalsim and Terry, plus new Arjun.
+  No existing Action IDs are removed and no curated reference is marked
+  impacted by that comparison. Its signatures are limited to frame/branch
+  types/trigger groups, not a proof of all gameplay conditions or move identity.
+  Do not apply its Dhalsim 1051→1052 suggestion automatically: both IDs still
+  exist. Arjun has 15 novel branch/trigger shapes; their runtime behavior and
+  REFramework compatibility need game smoke.
+- **Legacy Combo migration remains required.** The frozen 965-case August
+  corpus roundtrips unchanged, but 18 display cases (Blanka and EHonda) rely
+  on `action_compatibility` maps scoped to 2026-08-03. Those maps correctly
+  do not load for 2026-10-13. Do not extend their target version or alter the
+  sealed fixtures to pass the gate; migrate user Combo copies offline with
+  current-build evidence before release. A generated-table check alone does
+  not close this compatibility gate.
 - `MoveResolver`/`CurrentMoveGraph` remain unwired (see Blocker Summary).
 
 ## Dummy Guard Persistence

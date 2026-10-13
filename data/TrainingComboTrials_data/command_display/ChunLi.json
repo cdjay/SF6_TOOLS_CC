@@ -2798,9 +2798,10 @@
     "ownership": "direct",
     "simple_command": null,
     "motion_command": {
-      "display": "214 + 任意键",
+      "display": "214 + 任意键 或 8",
       "inputs": [
-        "214 + 任意键"
+        "214 + 任意键",
+        "8"
       ]
     },
     "routes": [
@@ -2829,6 +2830,59 @@
           "强"
         ],
         "required_button_count": 1,
+        "source": "bcm_profile",
+        "ac_relation_type": null,
+        "ac_path": [],
+        "inherited_from_action_id": null,
+        "confidence": "direct_structural",
+        "direct_evidence": true,
+        "inheritance_evidence": false,
+        "inheritance_reason": null,
+        "rebind_evidence": false,
+        "rebind_reason": null,
+        "runtime_common_evidence": false,
+        "runtime_common_reason": null,
+        "official_semantic_evidence": false,
+        "official_semantic_reason": null,
+        "community_semantic_evidence": false,
+        "community_semantic_reason": null,
+        "assist_combo_evidence": false,
+        "assist_combo_reason": null,
+        "charge_context_evidence": false,
+        "charge_context_profile": null,
+        "charge_context_direction": null,
+        "charge_context_manual_direction": null,
+        "charge_context_direction_profile": null,
+        "charge_context_command_no": null,
+        "charge_context_command_index": null,
+        "charge_context_notation": null,
+        "charge_context_source_action_id": null,
+        "charge_context_source_trigger_indices": [],
+        "charge_context_relation": null,
+        "charge_context_reason": null,
+        "super_shortcut_direction_evidence": false,
+        "super_shortcut_direction_profile": null,
+        "super_shortcut_direction": null,
+        "super_shortcut_direction_notation": null,
+        "super_shortcut_direction_reason": null
+      },
+      {
+        "display": "8",
+        "character": "ChunLi",
+        "owner_action_id": 661,
+        "trigger_index": 151,
+        "profile": "sprt",
+        "command_no": -1,
+        "command_index": -1,
+        "raw_direction_inputs": [],
+        "raw_button_mask": 0,
+        "raw_button_condition": 0,
+        "raw_dc_exc_flags": 1,
+        "raw_ng_key_flags": 0,
+        "visible_direction": "8",
+        "visible_button": null,
+        "button_candidates": [],
+        "required_button_count": 0,
         "source": "bcm_profile",
         "ac_relation_type": null,
         "ac_path": [],
@@ -8783,15 +8837,15 @@
     "character": "ChunLi",
     "fighter_id": 4,
     "generated_from": "ac_bcm+capcom_official_semantics",
-    "generated_at": "2026-08-03T00:00:00.000Z",
-    "ac_sha256": "8dcd21cab1ae11982c8fb011d4ad04beece543d366205552dabedc861c5e24a2",
-    "bcm_sha256": "a98f1bd8ad8d517fbda07a0fb57bea7786d3266ea57f6b1a3a2b613ac7e331d6",
+    "generated_at": "2026-10-13T00:00:00.000Z",
+    "ac_sha256": "b95cd09b8857be973727f002f931259ddc179690bbd67a6ab05aa62e06702e56",
+    "bcm_sha256": "9a65b0d45550b93ec69756f3751660ba47dab9cb98983b74202053ad52907bfc",
     "modern_profile_order": [
       "easy",
       "supr",
       "sprt"
     ],
-    "direct_route_count": 105,
+    "direct_route_count": 106,
     "inherited_route_count": 8,
     "rebind_route_count": 0,
     "runtime_common_route_count": 6,
@@ -9086,7 +9140,7 @@
         "official_move_name": "百裂連脚"
       }
     ],
-    "official_semantic_source_sha256": "8933cd67e06b3f7a5fb5cd5ddeb831fbc1a36acb2fd9e2d8cbabb0abdd0bf6c9",
+    "official_semantic_source_sha256": "05cfabf9012d27dd440a9f46ea6dbd68c6e0f6f54ec79bb1ff083e6553d530c2",
     "classic_profile_order": [
       "norm",
       "sprt"
@@ -10898,8 +10952,8 @@
     "description": "ChunLi unified Classic and Modern command projections generated from one verified AC ActionGraph, BCM profiles, runtime semantics, and Capcom command semantics.",
     "bcm_trigger_fingerprint": {
       "algorithm": "bcm-trigger-action-multiset.fnv1a32.v1",
-      "count": 103,
-      "hash": "89933d29"
+      "count": 104,
+      "hash": "58c72a6a"
     }
   }
 }

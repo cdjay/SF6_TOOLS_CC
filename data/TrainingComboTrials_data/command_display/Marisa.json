@@ -7562,9 +7562,9 @@
     "character": "Marisa",
     "fighter_id": 17,
     "generated_from": "ac_bcm+capcom_official_semantics",
-    "generated_at": "2026-08-03T00:00:00.000Z",
-    "ac_sha256": "bf938898975f2df9c4c6180eb348b2a92762f239dbb47908513e7536adc6827f",
-    "bcm_sha256": "f8793c8520e79aab21e666d34f85a396d526ca0c2867f169d93da7dd62ee1e8b",
+    "generated_at": "2026-10-13T00:00:00.000Z",
+    "ac_sha256": "a0b8866695e52f98dc448023a267c2a86e10dc3c0d2177a2cea579b4ed49f072",
+    "bcm_sha256": "bda9fc84efb4b0cc898a99eddf747c9b3bb1bab9355a664cf4e7d1ce481b89a1",
     "modern_profile_order": [
       "easy",
       "supr",
@@ -7667,7 +7667,7 @@
     "split_command_action_count": 73,
     "followup_relation_count": 0,
     "followup_relations": [],
-    "official_semantic_source_sha256": "9339a080fc8bfe33a85d5273e2f9794d54f5a0dc8e0f7d9e43e90c369173204a",
+    "official_semantic_source_sha256": "b4d4b980b27d28de888b39e0dbdbaa69243c8744df09147763622c8182a9e0f8",
     "classic_profile_order": [
       "norm",
       "sprt"

@@ -7,6 +7,29 @@ local PendingAbsorb = require("func/ComboTrials/PendingAbsorb")
 local ActionMatcher = require("func/ComboTrials/ActionMatcher")
 local DebugTrace = require("func/ComboTrials/DebugTrace")
 
+assert(ActionMatcher.should_defer_partial_chord({
+        expected_step = { id = 1036, motion = "j.214+MP/HP" },
+        actual_motion = "j.214+MP/HP",
+        action_button_mask = 64,
+        input_anchor_kind = "button_press",
+        input_truth_mode = true,
+        elapsed_frames = 1,
+    }) == false,
+    "a one-of-two punch command must not be treated as a two-punch chord")
+assert(ActionMatcher.is_partial_chord_precursor({
+        expected_step = { id = 1051, motion = "j.214+PP" },
+        actual_motion = "j.214+MP/HP",
+        action_button_mask = 32,
+        recent_button_mask = 32 | 64,
+        input_anchor_kind = "button_press",
+        input_truth_mode = true,
+        successor_matches_expected = true,
+        chord_completion_frames = 1,
+    }) == true,
+    "a one-of-two punch precursor may fold into a later confirmed PP Action")
+assert(ActionMatcher.matches_expected_action_id({ id = 1036 }, 1051) == false,
+    "a PP Action must never satisfy a recorded single-punch Action")
+
 assert(ActionMatcher.should_observe_dash_direction_edge(0, 0) == true,
     "a direction-only frame may participate in a dash pair")
 assert(ActionMatcher.should_observe_dash_direction_edge(32 | 256, 0) == false,

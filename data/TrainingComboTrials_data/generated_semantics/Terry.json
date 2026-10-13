@@ -7,7 +7,7 @@
     "algorithm": "sf6cc-acbcm-exception-projection.v2",
     "character": "Terry",
     "fighter_id": 27,
-    "source_command_display_sha256": "b5f876fcf47bdc8eced90299f929463ec8458e412e55c79767fc1de0645a90da",
+    "source_command_display_sha256": "6cf3c8c76704d8e001033da3be6be13eaf14feae56d8db4ed546809f3d84eb87",
     "bcm_trigger_fingerprint": {
       "algorithm": "bcm-trigger-action-multiset.fnv1a32.v1",
       "count": 87,

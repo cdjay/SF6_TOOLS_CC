@@ -11,6 +11,15 @@ import official_snapshot_tool as tool
 
 
 class OfficialSnapshotToolTest(unittest.TestCase):
+    def test_character_map_index_is_not_a_fixed_minifier_name(self) -> None:
+        for index in ("t", "a", "characterName", "$name"):
+            chunk = ('style={gouki_akuma:"css"};let p=({arjun:P,'
+                     'gouki_akuma:H,ryu:ee})[' + index + '].frame.sort();')
+            self.assertEqual(tool.extractor.parse_character_var_map(chunk),
+                             {"arjun": "P", "gouki_akuma": "H", "ryu": "ee"})
+        self.assertEqual(tool.extractor.parse_character_var_map(
+            'style={gouki_akuma:"css"};'), {})
+
     def test_version_normalization_and_default(self) -> None:
         self.assertEqual(tool.normalize_version("2026.5.28"), "2026-05-28")
         self.assertEqual(tool.normalize_version("2026-05-28"), "2026-05-28")

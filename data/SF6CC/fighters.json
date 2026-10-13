@@ -32,6 +32,7 @@
     { "id": 30, "key": "CViper", "name_en": "C. Viper", "name_zh": "毒蛇", "official_slug": "cviper", "aliases": ["Viper"] },
     { "id": 31, "key": "Alex", "name_en": "Alex", "name_zh": "阿莱克斯", "official_slug": "alex" },
     { "id": 32, "key": "Ingrid", "name_en": "Ingrid", "name_zh": "英格丽德", "official_slug": "ingrid" },
-    { "id": 33, "key": "Yasmine", "name_en": "Yasmine", "name_zh": "亚思敏", "official_slug": "yasmine" }
+    { "id": 33, "key": "Yasmine", "name_en": "Yasmine", "name_zh": "亚思敏", "official_slug": "yasmine" },
+    { "id": 34, "key": "Arjun", "name_en": "Arjun", "name_zh": "阿俊", "official_slug": "arjun" }
   ]
 }

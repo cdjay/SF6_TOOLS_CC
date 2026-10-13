@@ -9921,9 +9921,9 @@
     "character": "Akuma",
     "fighter_id": 22,
     "generated_from": "ac_bcm+capcom_official_semantics",
-    "generated_at": "2026-08-03T00:00:00.000Z",
-    "ac_sha256": "48ca8bf84eb7ef41f87bb1b769a4b6f312b9023d137fbebb0bab981fc2b136e2",
-    "bcm_sha256": "ee4cdee5f4d07194121f179a9fa82e8c46ac368beb1503f38d1abca0613fe3de",
+    "generated_at": "2026-10-13T00:00:00.000Z",
+    "ac_sha256": "485a6e8063e2425a17e67b42260ef97f8a65958589a112f72297b1b75bebbef9",
+    "bcm_sha256": "1d4e6ed43cbedefee247ad762ea583fbc69b1dec0bba3bb41e59b6882a3aee0d",
     "modern_profile_order": [
       "easy",
       "supr",
@@ -10035,7 +10035,7 @@
     "split_command_action_count": 100,
     "followup_relation_count": 0,
     "followup_relations": [],
-    "official_semantic_source_sha256": "2691d2e1cdd3e5e4a8edb7f31262a36ad6c940eb889264550a56d313df6e4fc4",
+    "official_semantic_source_sha256": "762615fa548bb606273ff6a60a4e90ed30759a27ae8500ae31f4d52c5a464a68",
     "classic_profile_order": [
       "norm",
       "sprt"

@@ -37,7 +37,7 @@
     "algorithm": "sf6cc-acbcm-exception-projection.v2",
     "character": "EHonda",
     "fighter_id": 20,
-    "source_command_display_sha256": "6ca31dc7736c65e2feda7b6eb848e7f116b558e08bef48113c727f6eb20d9d49",
+    "source_command_display_sha256": "e021434e82044e07101ad209028022b748d3ee54b0f2884b00f616377ee6a0e4",
     "bcm_trigger_fingerprint": {
       "algorithm": "bcm-trigger-action-multiset.fnv1a32.v1",
       "count": 93,

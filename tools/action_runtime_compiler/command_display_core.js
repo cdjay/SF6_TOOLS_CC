@@ -82,7 +82,8 @@ function splitNotation(profile) {
 }
 
 function visibleDirections(parts) {
-    return parts.filter(part => !PROFILE_BUTTONS.has(part) && part !== "Normal" && part !== "*");
+    return parts.filter(part => !part.split("/").every(button => PROFILE_BUTTONS.has(button))
+        && part !== "Normal" && part !== "*");
 }
 
 function joinRoute(air, directions, buttons) {

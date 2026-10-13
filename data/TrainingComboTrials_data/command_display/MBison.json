@@ -6958,9 +6958,9 @@
     "character": "MBison",
     "fighter_id": 26,
     "generated_from": "ac_bcm+capcom_official_semantics",
-    "generated_at": "2026-08-03T00:00:00.000Z",
-    "ac_sha256": "9436ca0bf5ace2722e4e9ac35c3d5b79cf26f2f2a139a8e0543f37e6701e7785",
-    "bcm_sha256": "b3c58bcd979e14bce3abd8550249087000763520963a79c18d9c80a55d5db711",
+    "generated_at": "2026-10-13T00:00:00.000Z",
+    "ac_sha256": "9184817af006864c25e0179c1732c1f45400fb6d9186c45369d0d2a542b336b5",
+    "bcm_sha256": "4bb2ba1abc1354f2ea09eb74b5de2a7540c0faf2a237f91f88a8a9cbda9b9800",
     "modern_profile_order": [
       "easy",
       "supr",
@@ -7053,7 +7053,7 @@
         "official_move_name": "サマーソルトスカルダイバー"
       }
     ],
-    "official_semantic_source_sha256": "7487f2e09620b789d7e5b57ee0cf2e8f563613586c22ffc08dea825f0d701488",
+    "official_semantic_source_sha256": "dd8112bff652f05400b7726677fa959891cac647f50372a347203f03f3a56e0e",
     "classic_profile_order": [
       "norm",
       "sprt"

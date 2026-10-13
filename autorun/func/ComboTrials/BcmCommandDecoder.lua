@@ -48,7 +48,8 @@ function BcmCommandDecoder.decode_buttons(mask, condition_mask)
     for _, button in ipairs(BUTTONS) do
         if mask & button[1] ~= 0 then names[#names + 1] = button[2] end
     end
-    return table.concat(names, "+")
+    local same_family = (mask & (~112)) == 0 or (mask & (~896)) == 0
+    return table.concat(names, same_family and #names > count and "/" or "+")
 end
 
 -- "5252" / "656": one direction tapped repeatedly with neutral between.

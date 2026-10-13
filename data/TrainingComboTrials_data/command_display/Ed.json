@@ -8022,9 +8022,9 @@
     "character": "Ed",
     "fighter_id": 19,
     "generated_from": "ac_bcm+capcom_official_semantics",
-    "generated_at": "2026-08-03T00:00:00.000Z",
-    "ac_sha256": "d14a103a006e85bdd8cf04f5f51e0ec1931381127cfe86c3b0b75bbb355a6917",
-    "bcm_sha256": "0dcd0071c2e771c5b90ef8503a5c45e5c5effed2af4ba9a0b5d20885e9ecc13f",
+    "generated_at": "2026-10-13T00:00:00.000Z",
+    "ac_sha256": "6acf111df24cd722b94d0e879ec1b89da560223af3db5d2fd52cbe5bb90e82b3",
+    "bcm_sha256": "29e939dc750389b44bbc65bc7cc4bb73c91c6ac954820ce00108b2fceaab153c",
     "modern_profile_order": [
       "easy",
       "supr",
@@ -8118,7 +8118,7 @@
     "split_command_action_count": 74,
     "followup_relation_count": 0,
     "followup_relations": [],
-    "official_semantic_source_sha256": "c8a3f247e651b5fe51b86f738c27abd5d676d6cf122afc5113f59b2018191081",
+    "official_semantic_source_sha256": "66a971a9cb22a12da33f5d6e3a2a3d2d52df878bceb3da3282c2cd92f38e0f80",
     "classic_profile_order": [
       "norm",
       "sprt"

@@ -17,9 +17,10 @@ assert.deepStrictEqual(builder.mapDiff({ "1": { x: 1 }, "2": {} }, {
 }), { added: [3], removed: [2], changed: [1] });
 
 const registry = require("../fighter_roster.js").officialRegistry();
-assert.strictEqual(Object.keys(registry).length, 31);
-assert.strictEqual(new Set(Object.values(registry).map(entry => Number(entry.fighter_id))).size, 31);
+assert.strictEqual(Object.keys(registry).length, 32);
+assert.strictEqual(new Set(Object.values(registry).map(entry => Number(entry.fighter_id))).size, 32);
 assert.strictEqual(registry.Yasmine.fighter_id, 33);
+assert.strictEqual(registry.Arjun.fighter_id, 34);
 
 const formalRoot = path.resolve(__dirname, "../../data/TrainingComboTrials_data/command_display");
 let formalAlex = null;
@@ -178,7 +179,9 @@ try {
     assert.throws(() => builder.loadOfficial(offRoot, "Ryu", 1), /OFF 缺少角色 Ryu/);
 
     assert.throws(() => builder.buildVersion({ versionDirectory, offRoot, allowMissingOfficial: true,
-        characters: ["Arjun"] }), /Arjun 不在 data\/SF6CC\/fighters.json/);
+        characters: ["FutureFighter"] }), /FutureFighter 不在 data\/SF6CC\/fighters.json/);
+    assert.throws(() => builder.buildVersion({ versionDirectory, offRoot, allowMissingOfficial: true,
+        characters: ["Arjun"] }), /缺少 AC\/BCM 完整配对：34\(Arjun\)/);
     assert.throws(() => builder.buildVersion({ versionDirectory, offRoot, allowMissingOfficial: true,
         characters: ["Yasmine"] }), /缺少 AC\/BCM 完整配对：33\(Yasmine\)/);
     assert.throws(() => builder.buildVersion({ versionDirectory, offRoot }), /OFF 2026-10-13/);

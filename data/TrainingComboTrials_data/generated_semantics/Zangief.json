@@ -31,7 +31,7 @@
     "algorithm": "sf6cc-acbcm-exception-projection.v2",
     "character": "Zangief",
     "fighter_id": 6,
-    "source_command_display_sha256": "f3c8f451791686bcb309accb78a65189ddf659dd8985e024a9d753f76b789670",
+    "source_command_display_sha256": "541d928e7371b33da5b1d6f0a01353891a83b60c0712a81f5c48c7f412024cb1",
     "bcm_trigger_fingerprint": {
       "algorithm": "bcm-trigger-action-multiset.fnv1a32.v1",
       "count": 75,

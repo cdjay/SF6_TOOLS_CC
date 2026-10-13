@@ -97,7 +97,7 @@ local CHARACTER_NAMES = {
     [17] = "Marisa",    [18] = "Guile",     [19] = "Ed",        [20] = "E. Honda",
     [21] = "Jamie",     [22] = "Akuma",     [25] = "Sagat",     [26] = "M. Bison",
     [27] = "Terry",     [28] = "Mai",       [29] = "Elena",     [30] = "Viper",
-    [31] = "Alex",      [32] = "Ingrid",    [33] = "Yasmine",
+    [31] = "Alex",      [32] = "Ingrid",    [33] = "Yasmine", [34] = "Arjun",
 }
 
 local cached_context = {

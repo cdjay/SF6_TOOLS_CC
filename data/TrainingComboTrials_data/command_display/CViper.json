@@ -9327,9 +9327,9 @@
   },
   "1214": {
     "classic_command": {
-      "display": "214214+LP+MP",
+      "display": "214214+LP/MP",
       "inputs": [
-        "214214+LP+MP"
+        "214214+LP/MP"
       ]
     },
     "control_support": "classic_modern",
@@ -10296,9 +10296,9 @@
     "character": "CViper",
     "fighter_id": 30,
     "generated_from": "ac_bcm+capcom_official_semantics",
-    "generated_at": "2026-08-03T00:00:00.000Z",
-    "ac_sha256": "a9e27462064db02e61c86e7ca3087956b778a2311566e73f6937224181d161ea",
-    "bcm_sha256": "96cf593e23d5bc91aafecf001dea43a71a703e7cfd129069afa845d887ff2a35",
+    "generated_at": "2026-10-13T00:00:00.000Z",
+    "ac_sha256": "789d876752cbaa7e36e0d966959ecfb9ab3f83dc5457472abe13d4bcab2b2e51",
+    "bcm_sha256": "34fa331394b244e04c3ccb0efa89a11b59d0adca5c4f300e91e84a62b7b3a2f4",
     "modern_profile_order": [
       "easy",
       "supr",
@@ -10480,7 +10480,7 @@
     "split_command_action_count": 84,
     "followup_relation_count": 0,
     "followup_relations": [],
-    "official_semantic_source_sha256": "3ea93514ae678c10303b0dd17207cdd164414471bd2fb5665cb2926a52b20d46",
+    "official_semantic_source_sha256": "354b7e459540560f22ae38c756dd3eafbb170017d9a9528040b001d596f6749f",
     "classic_profile_order": [
       "norm",
       "sprt"

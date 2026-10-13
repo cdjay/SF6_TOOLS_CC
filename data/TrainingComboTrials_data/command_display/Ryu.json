@@ -8441,9 +8441,9 @@
     "character": "Ryu",
     "fighter_id": 1,
     "generated_from": "ac_bcm+capcom_official_semantics",
-    "generated_at": "2026-08-03T00:00:00.000Z",
-    "ac_sha256": "afedc65f24d5968174fdcdd8e42720199564623ba993c35870f4d6084d94c195",
-    "bcm_sha256": "b77a3e65145add3d864a56e3f325435b5bf85b420fc9d36f8daf33bf03699ee9",
+    "generated_at": "2026-10-13T00:00:00.000Z",
+    "ac_sha256": "778ecef8e7c461ed8ddb2be8605b518fb20f55e182df6d9e2d632a3cd7fb32e2",
+    "bcm_sha256": "2f2c735a089eaf072c7254d0a65a4d14b34231f6f51cc88f11a5a61be01cce89",
     "modern_profile_order": [
       "easy",
       "supr",
@@ -8620,7 +8620,7 @@
     "split_command_action_count": 81,
     "followup_relation_count": 0,
     "followup_relations": [],
-    "official_semantic_source_sha256": "4fa7bd7027f53d0076b37ee10a44326f956c9a612464c634bf67ede2ce3a21a4",
+    "official_semantic_source_sha256": "2b3a964e03557c383265c7a6b37943999caa5c4bf20f8416e5f7c6d5656a4b44",
     "classic_profile_order": [
       "norm",
       "sprt"

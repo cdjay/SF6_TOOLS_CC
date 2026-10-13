@@ -4717,7 +4717,7 @@
         "command_index": -1,
         "raw_direction_inputs": [],
         "raw_button_mask": 128,
-        "raw_button_condition": 0,
+        "raw_button_condition": 16416,
         "raw_dc_exc_flags": 0,
         "raw_ng_key_flags": 526,
         "visible_direction": null,
@@ -9937,9 +9937,9 @@
     "character": "Kimberly",
     "fighter_id": 3,
     "generated_from": "ac_bcm+capcom_official_semantics",
-    "generated_at": "2026-08-03T00:00:00.000Z",
-    "ac_sha256": "5cfe7670ec050610df704a90324d7288f46289f71873ea2de6025ca39edde7c6",
-    "bcm_sha256": "d68c61125af9c9cbec2b239fb6b56a5bf15d6dd6e8a5bf01bec29ab3a184b314",
+    "generated_at": "2026-10-13T00:00:00.000Z",
+    "ac_sha256": "db39a4b7ca195269f8f2593d349c58b64ca3832fc2b533c9168140c0d819fe6f",
+    "bcm_sha256": "4f6b123c49dc9e80e28b5e442800b25884f75a057fec79df5ba7ff3216f5a721",
     "modern_profile_order": [
       "easy",
       "supr",
@@ -10138,7 +10138,7 @@
         "official_move_name": "矢来越え"
       }
     ],
-    "official_semantic_source_sha256": "d4c0d733314f6f079a5cda25f435590823f91b88f9b1703caa0da7f22243979a",
+    "official_semantic_source_sha256": "c0a67735caa0730b760f6a5a065d6c34728b3c8940e3d601261a525da9bd6ccd",
     "classic_profile_order": [
       "norm",
       "sprt"

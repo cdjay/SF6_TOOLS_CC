@@ -32,5 +32,6 @@ assert.equal(folderFromPath("AKI/file.json"), "AKI");
 assert.equal(folderFromPath("AKI\\file.json"), "AKI");
 assert.match(characterLabel(characterByFolder("AKI"), 28), /ID 13.*阿鬼.*A\.K\.I\..*\[AKI\].*28/);
 assert.equal(characterByFighterId(33)?.folder, "Yasmine");
+assert.equal(characterByFighterId(34)?.folder, "Arjun");
 
 console.log("character_catalog tests passed");

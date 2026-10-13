@@ -3,10 +3,20 @@
 const assert = require("assert");
 const core = require("./bcm_catalog_core.js");
 
+assert.deepStrictEqual(core.parseSourceText('\uFEFF{"safe":9007199254740991,"large":9223372036854775807,"negative":-9223372036854775808,"decimal":1234567890123456.5,"exponent":1234567890123456e2,"text":"9223372036854775807\\\"quoted"}'), {
+    safe: 9007199254740991, large: "9223372036854775807", negative: "-9223372036854775808",
+    decimal: 1234567890123456.5, exponent: 1234567890123456e2,
+    text: '9223372036854775807"quoted'
+});
+assert.throws(() => core.parseSourceText('{"bad":1e}'), SyntaxError);
+
 assert.strictEqual(core.normalizeMotion("5252"), "22");
 assert.strictEqual(core.normalizeMotion("5656"), "66");
 assert.strictEqual(core.normalizeMotion("5454"), "44");
 assert.strictEqual(core.normalizeMotion("626"), "623");
+assert.strictEqual(core.decodeButtons(32 | 64, 81952), "MP/HP");
+assert.strictEqual(core.decodeButtons(32 | 64, 82016), "MP+HP");
+assert.strictEqual(core.decodeButtons(16 | 32 | 64, 82016), "PP");
 
 // SF6 stores full-circle commands as one release-style 0x40001 input. The
 // low nibble alone is direction 8, but the complete signature means 360.

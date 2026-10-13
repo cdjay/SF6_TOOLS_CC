@@ -59,7 +59,7 @@ command tables equal the generator output of the release's dump version
 (line endings are ignored; a mismatch exits with code 1):
 
 ```powershell
-node tools\action_runtime_compiler\deploy_command_display.js --check --version 2026-08-03
+node tools\action_runtime_compiler\deploy_command_display.js --check --version 2026-10-13
 ```
 
 Expected baseline on August 17, 2026:

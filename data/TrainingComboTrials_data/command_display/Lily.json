@@ -9831,9 +9831,9 @@
     "character": "Lily",
     "fighter_id": 12,
     "generated_from": "ac_bcm+capcom_official_semantics",
-    "generated_at": "2026-08-03T00:00:00.000Z",
-    "ac_sha256": "36d9b3d87d425b093aeee36ae7acc355efb5609db17438a5f2e90a13abdb0c6c",
-    "bcm_sha256": "b55590307aa3f59ecb1622eb9cd862a1314e519b553563c6622f29f5725d3f12",
+    "generated_at": "2026-10-13T00:00:00.000Z",
+    "ac_sha256": "f44b4fc40ef23029ebccfd9c5f683d702108c36b1e66a78c11403c5dbb66f3e5",
+    "bcm_sha256": "76a3aa4c7e955d0adb1e999a4c8c35f9601fac71d7e65a50bf33efcb39c21ab3",
     "modern_profile_order": [
       "easy",
       "supr",
@@ -10020,7 +10020,7 @@
     "split_command_action_count": 84,
     "followup_relation_count": 0,
     "followup_relations": [],
-    "official_semantic_source_sha256": "a4075d7478750a4f2d9c6c1f80e084e8aabf1b688f234c1bcf550d586d9fa69b",
+    "official_semantic_source_sha256": "578eafe77876db21e734274acecaa4814525b5ddea77237561e67e81e40e3eea",
     "classic_profile_order": [
       "norm",
       "sprt"

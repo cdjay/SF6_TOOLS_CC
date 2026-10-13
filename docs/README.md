@@ -30,6 +30,7 @@ Start with this page instead of searching dated reports.
 - [Combo JSON Spec](COMBO_JSON_SPEC.md)
 - [Command Display Schema](command_display_schema.md)
 - [Web Character Schema](web_character_schema.md)
+- [Website Data Handoff](WEB_DATA_HANDOFF.md)
 - [Versioning](VERSIONING.md)
 - [Combo Feedback Outbox](COMBO_FEEDBACK_OUTBOX.md)
 - [Validated Combo Backup](backup/VALIDATED_COMBO_BACKUP.md)

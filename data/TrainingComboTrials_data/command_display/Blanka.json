@@ -9155,9 +9155,9 @@
     "character": "Blanka",
     "fighter_id": 15,
     "generated_from": "ac_bcm+capcom_official_semantics",
-    "generated_at": "2026-08-03T00:00:00.000Z",
-    "ac_sha256": "eea1ed2c62f8c33aeeccc63a8eddd2a4133fa77a648cb0e89427953655b8db02",
-    "bcm_sha256": "1bb40291a7011ce50cd59d7a6e0fd4af3aaa2de4afedc63754bca9fb05dc3a3b",
+    "generated_at": "2026-10-13T00:00:00.000Z",
+    "ac_sha256": "3119b339d757c2cdb85f013409d42539ef5c6748ae24b657fb992c42b2ff756c",
+    "bcm_sha256": "5f5b18dde5a4a7cbb5f69fe519bc5cc0d377c18df98311379b6c39acc9a0bf7a",
     "modern_profile_order": [
       "easy",
       "supr",
@@ -9527,7 +9527,7 @@
     "split_command_action_count": 80,
     "followup_relation_count": 0,
     "followup_relations": [],
-    "official_semantic_source_sha256": "c7ab75157266377c34b787c7e5d1d83949d32d06cfec597cda096989fd4dd0bb",
+    "official_semantic_source_sha256": "2be83fd69716e2c17b879ab04e0e1245354affd78e20178446ebc1c3a05a2e0f",
     "classic_profile_order": [
       "norm",
       "sprt"

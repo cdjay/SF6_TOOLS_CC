@@ -6600,7 +6600,9 @@
           1044,
           1045,
           1047,
-          1049
+          1049,
+          1050,
+          1051
         ],
         "state_choice_direction_mask": 8,
         "state_choice_exit_action_id": null
@@ -6717,7 +6719,9 @@
           1044,
           1045,
           1047,
-          1049
+          1049,
+          1050,
+          1051
         ],
         "state_choice_direction_mask": 4,
         "state_choice_exit_action_id": null
@@ -8940,9 +8944,9 @@
     "character": "Dhalsim",
     "fighter_id": 8,
     "generated_from": "ac_bcm+capcom_official_semantics",
-    "generated_at": "2026-08-03T00:00:00.000Z",
-    "ac_sha256": "4d4e618babf28e6b4bc34dc04111f7ce3a3eab41311609554091d056109144e0",
-    "bcm_sha256": "cfc105d998ca39b06f95f89d36eb65fadc5ea84a96b1f2d4fe83afed324e5a47",
+    "generated_at": "2026-10-13T00:00:00.000Z",
+    "ac_sha256": "4652de4582f82f95735846fc875a92c1edf40ef9a8aa2bb108148e4b2e805bd1",
+    "bcm_sha256": "41e912dc41d69c1a493e305c393373611e06741b7ba87deb29d418f9d3b14221",
     "modern_profile_order": [
       "easy",
       "supr",
@@ -9024,7 +9028,9 @@
           1044,
           1045,
           1047,
-          1049
+          1049,
+          1050,
+          1051
         ]
       },
       {
@@ -9042,7 +9048,9 @@
           1044,
           1045,
           1047,
-          1049
+          1049,
+          1050,
+          1051
         ]
       }
     ],
@@ -9088,7 +9096,7 @@
     "split_command_action_count": 85,
     "followup_relation_count": 0,
     "followup_relations": [],
-    "official_semantic_source_sha256": "f54df78a032814336d905ab74044f07e358af17473653c520450e6d0738c6315",
+    "official_semantic_source_sha256": "3b04c27055350488f378ccf572102b67885e629e947e12a3121443498f8f12e1",
     "classic_profile_order": [
       "norm",
       "sprt"
@@ -11547,7 +11555,7 @@
         "reason": "profile_disabled_or_missing"
       }
     ],
-    "unmapped_action_count": 360,
+    "unmapped_action_count": 362,
     "unmapped_action_ids": [
       1,
       2,
@@ -11813,8 +11821,10 @@
       1032,
       1040,
       1044,
+      1050,
       1051,
       1052,
+      1053,
       1058,
       1059,
       1060,

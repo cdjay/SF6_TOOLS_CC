@@ -1,6 +1,9 @@
 # AC + BCM + OFF Modern 指令生成工具
 
-这套工具把游戏 dump 的 AC/BCM 与 Capcom 官网数据分开版本化，再为每个 AC/BCM 版本一次生成角色清单中的全部统一指令表（当前 31 个角色）。
+这套工具把游戏 dump 的 AC/BCM 与 Capcom 官网数据分开版本化，再为每个 AC/BCM 版本一次生成角色清单中的全部统一指令表（当前 32 个角色）。
+
+网站交接资料使用 `web_handoff_builder.js` 生成，操作与来源边界见
+[Website Data Handoff](../../docs/WEB_DATA_HANDOFF.md)。它复制已有统一指令/网页资料、生成字段对比与原始文件索引，不增加新的语义解析器。
 
 核心原则：
 
@@ -75,7 +78,7 @@ Fighter ID 对应关系（以 `data/SF6CC/fighters.json` 为准）：
 | 22 | Akuma | 25 | Sagat | 26 | MBison |
 | 27 | Terry | 28 | Mai | 29 | Elena |
 | 30 | CViper | 31 | Alex | 32 | Ingrid |
-| 33 | Yasmine |  |  |  |  |
+| 33 | Yasmine | 34 | Arjun |  |  |
 
 旧的中文前缀文件名（如 `英格丽德32-...`）仍可读取，方便迁移；新 dump 不需要人工改名。
 
@@ -394,6 +397,8 @@ node tools/action_runtime_compiler/test_compiler.js
 node tools/action_runtime_compiler/test_archive_builder.js
 node tools/action_runtime_compiler/test_command_display.js
 node tools/action_runtime_compiler/test_web_character.js
+node tools/action_runtime_compiler/test_web_handoff.js
+node tools/action_runtime_compiler/test_build_change_report.js
 node tools/bcm_catalog_builder/test_bcm_catalog.js
 ```
 
@@ -403,3 +408,11 @@ node tools/bcm_catalog_builder/test_bcm_catalog.js
 python tools/modern_display_builder/official_snapshot_tool.py --version 2026-05-28
 node tools/action_runtime_compiler/lastjson_builder.js --version 2026-05-28
 ```
+
+## 9. 跨版本嵌套证据核对
+
+`build_change_report.js` 只读比较 AC/BCM 对象图及网站资料，不修改游戏区或运行时。
+共同字段使用嵌套值与多重集合比较；单侧出现的节点类型另存为不可比证据。
+同编号配对与去编号图相似均不批准 Move 身份，也不用于运行时兼容。
+生成命令、输出字段与旧版取消组/伤害表的限制见
+[网站数据交接](../../docs/WEB_DATA_HANDOFF.md#nested-build-evidence-report)。

@@ -7889,9 +7889,9 @@
     "character": "Sagat",
     "fighter_id": 25,
     "generated_from": "ac_bcm+capcom_official_semantics",
-    "generated_at": "2026-08-03T00:00:00.000Z",
-    "ac_sha256": "424195e69fc11d9f0738c712bb85f24cbcb90a653c1e8ada0a7f87dda0bc89e2",
-    "bcm_sha256": "d41344a360bc152e203f01fd4690109b461005945fbdc409358f31ec0e200706",
+    "generated_at": "2026-10-13T00:00:00.000Z",
+    "ac_sha256": "2f704ed0eb2a1174ed2b5c50e08aefed682b555da4285c93054e80ed2eb0ece6",
+    "bcm_sha256": "7409f0f11d0b347a7f1e461ba398045454f66d5b1c0e7c7eaba45e83da2f08a2",
     "modern_profile_order": [
       "easy",
       "supr",
@@ -8032,7 +8032,7 @@
     "split_command_action_count": 78,
     "followup_relation_count": 0,
     "followup_relations": [],
-    "official_semantic_source_sha256": "324a1c3844f0a4027e2b967d1a3a0e039d7702c2b6668e964ee5aa3d24987981",
+    "official_semantic_source_sha256": "35bc89e47369e2adfa297415039a56f0f2e07b830a6a3b8e82b0cd89688f6d9a",
     "classic_profile_order": [
       "norm",
       "sprt"

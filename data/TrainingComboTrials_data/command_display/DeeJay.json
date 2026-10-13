@@ -10257,9 +10257,9 @@
     "character": "DeeJay",
     "fighter_id": 11,
     "generated_from": "ac_bcm+capcom_official_semantics",
-    "generated_at": "2026-08-03T00:00:00.000Z",
-    "ac_sha256": "5e13ad6972e82410a8222c42cf0adc0b8ae7ca22872457334c48cbf32cfacdf2",
-    "bcm_sha256": "3b0133d317a1527a08b85fb8284f53e19f1dbb130a522183ae49f7b01b11811f",
+    "generated_at": "2026-10-13T00:00:00.000Z",
+    "ac_sha256": "27aa49fcda5e0fa212c1b9f81d13b46c0ad5ef9e3b6b8260907152c7160f4237",
+    "bcm_sha256": "3d7fc7c24b26ed4ff36a5e4b096920f5b14a9099d413226fc78312e6cbe13953",
     "modern_profile_order": [
       "easy",
       "supr",
@@ -10344,7 +10344,7 @@
     "split_command_action_count": 114,
     "followup_relation_count": 0,
     "followup_relations": [],
-    "official_semantic_source_sha256": "3d46f95e4b0c6aca61602b0ce98d6a30bf41b77e9d55f944c3cacbf37af4bd1c",
+    "official_semantic_source_sha256": "65f22e3f64ecdb312bd57baa9640a06a4d1e9da55bb7bfefc23f39022f9ba8c2",
     "classic_profile_order": [
       "norm",
       "sprt"

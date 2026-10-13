@@ -10629,9 +10629,9 @@
     "character": "Rashid",
     "fighter_id": 14,
     "generated_from": "ac_bcm+capcom_official_semantics",
-    "generated_at": "2026-08-03T00:00:00.000Z",
-    "ac_sha256": "9faa158243bc4e58b99c17eecb2f1f2eee60f6b56c6ac1fe4cd7f250116a854a",
-    "bcm_sha256": "3cfe76d91c024d0cbe5fb0d35d4b4d6526093a935822bd0a315dc1fdcaf7f041",
+    "generated_at": "2026-10-13T00:00:00.000Z",
+    "ac_sha256": "e9c53d2ce2272f94ba6909eb71c15d858fb13c08eefe2f9d0f5f5fa52389739d",
+    "bcm_sha256": "196e5176340e3e0d0a8fd166e174f337497ae233501681528b24980bdc1ead3b",
     "modern_profile_order": [
       "easy",
       "supr",
@@ -10757,7 +10757,7 @@
     "split_command_action_count": 111,
     "followup_relation_count": 0,
     "followup_relations": [],
-    "official_semantic_source_sha256": "baf29dfe1c5c1b46709d3268ff5f30e1f47156021c4b3523d5ef046bb019d4fb",
+    "official_semantic_source_sha256": "cf546642034a06c6b768a6341abe6c5327ac49d64b528af21e83fa9a795c4ffa",
     "classic_profile_order": [
       "norm",
       "sprt"

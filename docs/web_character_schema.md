@@ -108,6 +108,8 @@ tools/action_runtime_compiler/acbcm/<版本>/lastjson_web/<Character>.json
 
 ## 数据边界
 
+版本更新的资料交接与字段对比见 [Website Data Handoff](WEB_DATA_HANDOFF.md)。对比中的同编号候选不代表已确认的跨版本招式身份。
+
 - AC/BCM：当前游戏 Action ID、动作关系、Classic/Modern 指令投影；
 - OFF：招式名、分类、帧数、伤害、取消属性、量表变化和备注；
 - AC 的结构帧不能替代官网 `startup_frame/active_frame/recovery_frame`；

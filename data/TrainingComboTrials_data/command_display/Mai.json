@@ -10429,9 +10429,9 @@
     "character": "Mai",
     "fighter_id": 28,
     "generated_from": "ac_bcm+capcom_official_semantics",
-    "generated_at": "2026-08-03T00:00:00.000Z",
-    "ac_sha256": "3157a731c060c85a10397a96d99f82d39ef7d3f973e72fac3223e968dc2a3027",
-    "bcm_sha256": "da4486c0529af3bcf86bbb86e04aba590b34d00f2436d9f9a727c707803cf514",
+    "generated_at": "2026-10-13T00:00:00.000Z",
+    "ac_sha256": "ac0442649d45c0625c50b0f717a7267e4c44ded5210831997057e0196cc974b2",
+    "bcm_sha256": "20a49d2d4e631a9c895302bd18b41a8878eb3045f7310b19744bfe7fc95118c3",
     "modern_profile_order": [
       "easy",
       "supr",
@@ -10584,7 +10584,7 @@
     "split_command_action_count": 93,
     "followup_relation_count": 0,
     "followup_relations": [],
-    "official_semantic_source_sha256": "fabf9dc0871edcabba7764ab2efb31d0b3111455154e2f7f0e7ecfd64cb221d8",
+    "official_semantic_source_sha256": "e238f25a030baf036102b86a68e6782b265a0eef805df24f7512925896bfd821",
     "classic_profile_order": [
       "norm",
       "sprt"

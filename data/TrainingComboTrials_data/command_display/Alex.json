@@ -8607,9 +8607,9 @@
     "character": "Alex",
     "fighter_id": 31,
     "generated_from": "ac_bcm+capcom_official_semantics",
-    "generated_at": "2026-08-03T00:00:00.000Z",
-    "ac_sha256": "3f208fbb93b989829c8a5435a8b83ced717c87ebe16020058efba0dcac3d6dda",
-    "bcm_sha256": "73d20f4a8efc2d8042572ac0a4655f4967a4706fa852035aeef127e2c9dc05f2",
+    "generated_at": "2026-10-13T00:00:00.000Z",
+    "ac_sha256": "4de5467b89fa5eb63b0c4f02cd01805a307192769a7a358cbe98f095517fba2d",
+    "bcm_sha256": "0ea02ede6b7c66475a9b02224861d858e16af445c98f8f67431db8e6d7c1b5ec",
     "modern_profile_order": [
       "easy",
       "supr",
@@ -8816,7 +8816,7 @@
     "split_command_action_count": 86,
     "followup_relation_count": 0,
     "followup_relations": [],
-    "official_semantic_source_sha256": "1224844c32bcc26ce33276400ad2ae4d7cfc99aabc5c2470a96ad77ddb75ac22",
+    "official_semantic_source_sha256": "8b51b5f01d03e7fb0b1dbe5ac7c5a7fd59777b91c8abbb9d87156da66eb547f5",
     "classic_profile_order": [
       "norm",
       "sprt"

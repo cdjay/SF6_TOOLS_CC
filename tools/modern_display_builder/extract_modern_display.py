@@ -187,17 +187,12 @@ def parse_json_modules(chunk_text: str) -> dict[str, Any]:
 
 
 def parse_character_var_map(chunk_text: str) -> dict[str, str]:
-    marker = "gouki_akuma"
-    pos = chunk_text.find(marker)
-    while pos != -1:
-        left = chunk_text.rfind("({", 0, pos)
-        right = chunk_text.find("})[t]", pos)
-        if left != -1 and right != -1:
-            body = chunk_text[left + 2 : right]
-            pairs = dict(re.findall(r"([A-Za-z0-9_]+):([A-Za-z_$][\w$]*)", body))
-            if marker in pairs:
-                return pairs
-        pos = chunk_text.find(marker, pos + 1)
+    # The minified index name changes when Capcom rebuilds the page.
+    pattern = re.compile(r"\(\{([^{}]+)\}\)\s*\[\s*[A-Za-z_$][\w$]*\s*\]")
+    for match in pattern.finditer(chunk_text):
+        pairs = dict(re.findall(r"([A-Za-z0-9_]+):([A-Za-z_$][\w$]*)", match.group(1)))
+        if "gouki_akuma" in pairs:
+            return pairs
     return {}
 
 

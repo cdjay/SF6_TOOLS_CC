@@ -7,7 +7,7 @@
     "algorithm": "sf6cc-acbcm-exception-projection.v2",
     "character": "AKI",
     "fighter_id": 13,
-    "source_command_display_sha256": "a15dc0169a172bf2406e75db954e182d56eecd4f0e2d12cfc1728e496dc5e4cd",
+    "source_command_display_sha256": "4d83d1c8fdda83d2a312e0cd5858e47246d666d85ae4b1e20203e44795541d01",
     "bcm_trigger_fingerprint": {
       "algorithm": "bcm-trigger-action-multiset.fnv1a32.v1",
       "count": 76,

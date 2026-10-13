@@ -85,7 +85,7 @@
     "algorithm": "sf6cc-acbcm-exception-projection.v2",
     "character": "Ingrid",
     "fighter_id": 32,
-    "source_command_display_sha256": "af644041e29e08a448f6c52ac70590f97422f5912d24243e0532319d0eac568e",
+    "source_command_display_sha256": "b81a42cd5b829c3d9c40b493ee38e04d4c1bc514c2d5c317b10f2ade55f5a03c",
     "bcm_trigger_fingerprint": {
       "algorithm": "bcm-trigger-action-multiset.fnv1a32.v1",
       "count": 100,

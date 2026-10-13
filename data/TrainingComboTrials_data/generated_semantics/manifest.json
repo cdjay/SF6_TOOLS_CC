@@ -51,157 +51,162 @@
     {
       "file": "AKI.json",
       "bytes": 570,
-      "sha256": "3e021cf723d2ea37c6d2cc887e5823615b722103e83c6686d4f594c53466960e"
+      "sha256": "488377b162f88e32af9a272c09e17832b8f674c32fef35219106e24e2920a2c1"
     },
     {
       "file": "Akuma.json",
       "bytes": 793,
-      "sha256": "f7edcd4311aaff534536e048e153c9c543e54378b27464f5cd56c6723260e9f4"
+      "sha256": "72e5d8879f6e6da48dc0aa131b6794b938ab4cf033b79efb7bd9624ccaafa0f5"
     },
     {
       "file": "Alex.json",
       "bytes": 818,
-      "sha256": "3e3a0c4778d5cd8e61ffa919349a9778e82b98f04edc8d9d4a908a02223f0f55"
+      "sha256": "1a9e6c2b34ddef522017be97c1347bdccb7f6b02ff6c0293ab89e73c30f9ecd0"
+    },
+    {
+      "file": "Arjun.json",
+      "bytes": 1060,
+      "sha256": "3b3fac693cf053588df42a7cf67f6e4116561cfc36a17086b8d3a15d94f5142b"
     },
     {
       "file": "Blanka.json",
       "bytes": 608,
-      "sha256": "4705bb4dc2a2c5126fc3ba8e4566104bfb189c2923fbb99ee9f2a1a763b3c34b"
+      "sha256": "38c284e4b6daba0de17b78dcaf830480f6869a2fe9774ee7a438114e96e7b08a"
     },
     {
       "file": "Cammy.json",
       "bytes": 572,
-      "sha256": "163645c8a4b21abb6d3e17258656cf1298e9f1ad405e7d6a97f7b14e6687de13"
+      "sha256": "610cd806c6b6bc87cb45b50c6108366a388a8c0b6027c8b6c412e3322999c2d7"
     },
     {
       "file": "ChunLi.json",
       "bytes": 875,
-      "sha256": "0258882962e1055da01800c3338af46d20666a2104f8fbfa49cb48c611a9a4d5"
+      "sha256": "3a13b8c2e274e1d90ad134397b4e781c759f38e5a4a09b8cc93132f79212d3dc"
     },
     {
       "file": "CViper.json",
       "bytes": 574,
-      "sha256": "aec75f6fd0085fe6ea6f9fd083cc79b0a057ec1519cb464d65cd8ec9ca76ec8e"
+      "sha256": "643bfa1129eb740bec6a53b43a946fd022d315ceb5eb627e231ad69d7c64219e"
     },
     {
       "file": "DeeJay.json",
       "bytes": 648,
-      "sha256": "f73782c2c1eccedc4ec14faa23e3fdbc3a131a6d25ef803cbff11ef5c61ebbe3"
+      "sha256": "0de18801bf0cd77f3c0b9ffa632688166dda91065f63a9d543487466a7b38474"
     },
     {
       "file": "Dhalsim.json",
       "bytes": 644,
-      "sha256": "4bdbec6b7f10d002d8e1e2b47033e1fa4f108e09fe8a998faa226eaafa5409fd"
+      "sha256": "de65b600c659e37aab41b91ccaf531e13fb635151ad0777620422a8a8275d4aa"
     },
     {
       "file": "Ed.json",
       "bytes": 570,
-      "sha256": "ae15a544d556456327c123bc9ad512c087fc49fc9970127c14a64cc168d480f7"
+      "sha256": "98dea7832927f8b1ebc9ee43f4e3836e5b258ce31414604dbd9bfff8e6fcebfa"
     },
     {
       "file": "EHonda.json",
       "bytes": 939,
-      "sha256": "a10871b57a322b1b694f4e7a687258ee99938facc1006b0be12e314f001ce7fa"
+      "sha256": "abc2045f1ff9ebc72400f517be60734a75bd747ed4e04b76ee9caf9792b374ef"
     },
     {
       "file": "Elena.json",
       "bytes": 573,
-      "sha256": "3cf6f00eeb9fba33e6d78d86a6f5a20acc8ff670c984995f3c50a74ab25c6d87"
+      "sha256": "c33bc5a19427686015a9c64b37ab1d6d5069a2822d6c1cba9f6443f4f7257ff7"
     },
     {
       "file": "Guile.json",
       "bytes": 1255,
-      "sha256": "303122f192037f9a52dfbb7e4377564f02192ad61a404e4396a4e693d7127b48"
+      "sha256": "9011830ba252c66bd80bfbefa02ad50cf819738cd34ca348b201cb34e37a434d"
     },
     {
       "file": "Ingrid.json",
       "bytes": 1563,
-      "sha256": "b6210839122b3930fc12055634f2566fc223751c7665d3bc23d43acd9d1b3dff"
+      "sha256": "42623e4866605b85b4759e8dadc09ace9241ba30b7c6b97165e11fb31d6d50c5"
     },
     {
       "file": "Jamie.json",
       "bytes": 1653,
-      "sha256": "d7e980eb932cfda43026426599d1d4830882dc2e8d02b4aeb422abc5b7e59337"
+      "sha256": "4833d4a350a5290dde295161d7a0b5d091a0d5e217c66c141aa8969af2f47e35"
     },
     {
       "file": "JP.json",
       "bytes": 568,
-      "sha256": "d47aa3c1248694ccbef7a91f3502ae018457528e6cb75a26027e95a2416c3c36"
+      "sha256": "5348406a9957c12ae8bc5cfeb629bbf52880cae2b96d7de477cc0bc7da8fc4e7"
     },
     {
       "file": "Juri.json",
       "bytes": 2388,
-      "sha256": "7ed42692e56ce6ca44b15654fc4bac9b2057f0bcdf1b83f875cc670ca160d6c8"
+      "sha256": "5c0a945191f1f9fd5b1ca6e581f78dc6d00804e8e751f7d6a56f40e0f993f0ed"
     },
     {
       "file": "Ken.json",
       "bytes": 571,
-      "sha256": "5275e304ab987aefbbbb8e9541a28fee37280623ba30e45779929cfcd1a5f807"
+      "sha256": "306a55c4b6069b1f990ba70189e8d926c1643295f9c14cea6c93629b20f15cf5"
     },
     {
       "file": "Kimberly.json",
       "bytes": 575,
-      "sha256": "9f1dc6755a87c137a1b3d3f25b7bc089a2438be09e6b291be59bc1d52ff12d26"
+      "sha256": "69db5ffd9d4fd1f9b269d870bb98cd98e831b0ae6c1c30ea23c171e9a436d867"
     },
     {
       "file": "Lily.json",
       "bytes": 572,
-      "sha256": "745a4749c20cc9ae8c4cdb9da5ae654e533a04e5992e611a2386170882f6249a"
+      "sha256": "7896a942d997cab3fe38ec77f3e79a357a3000dae74dcd36d2c375ff7ffd5df0"
     },
     {
       "file": "Luke.json",
       "bytes": 604,
-      "sha256": "443e826f245daf7057b334fc4b801c0b84b1937640607c51f4846fa5bd12cb8c"
+      "sha256": "5a8b01c1e77f7b04e1f1710504ee0e3f4b5d42f3623387baf3184b28d2384d70"
     },
     {
       "file": "Mai.json",
       "bytes": 571,
-      "sha256": "547e14f82f3c7c36856d99e3a64039153deabc69e4f4c5dbb23c180ec2fc3f37"
+      "sha256": "dcd5e3cb3fb602ed6042daddc9ed8abe87b54c0e71fa6feb6d7507b188816a9d"
     },
     {
       "file": "Manon.json",
       "bytes": 572,
-      "sha256": "d88aa53eb85d510137572630cb2195a08c529ea48a7f27de3dab028183d05c69"
+      "sha256": "b45c758f0adc34e30b885851dda3ea03d2ead76fb303d803bbf6c9c3f30cbed9"
     },
     {
       "file": "Marisa.json",
       "bytes": 573,
-      "sha256": "9a3d2a34bf20f033b7a45d6dcb7314056d3c2d8262d4aef4678f60afcd1842d3"
+      "sha256": "df88b412e06900a41c6219a65f075f7b946add1b8d9d7ff81862f1172f36630b"
     },
     {
       "file": "MBison.json",
       "bytes": 573,
-      "sha256": "fb98d31a52db751c4d5013d3d82d8649613459df660e135e364762299c85cb28"
+      "sha256": "6906d0ea28d4f5f9d56110d4dd6af30282bfa9d50ecd0915c2ef639e71947cc9"
     },
     {
       "file": "Rashid.json",
       "bytes": 1493,
-      "sha256": "70554e3fb1f49a626af26ebcbc0bec0c1d76cdfdfeb270d7d8266f889b175d53"
+      "sha256": "071151f860163f58e48367f8d3574c8180a99a61a09fc6999eab6b88778b5442"
     },
     {
       "file": "Ryu.json",
       "bytes": 569,
-      "sha256": "3ce6439db6f15f5fbc1dd03d2d9dfcc4f3c231944c30f5951ac52661058f93b1"
+      "sha256": "526906887599c42db6656a68ae6df00c10e7f0c053c3f449b1d9519aaa4b423b"
     },
     {
       "file": "Sagat.json",
       "bytes": 712,
-      "sha256": "32a353246598f4f848a7e933fe2d61e5a0cbbc2ce30a27eb9e641d59771768c3"
+      "sha256": "5bff9dc98173d4c29da565e167f20ba791e58dbe965958701769836e797ae3ed"
     },
     {
       "file": "Terry.json",
       "bytes": 572,
-      "sha256": "b5d204a5ac815faaab44970d9d2f1b58f6c1a68eb42066e9d58cf5f26caa0f0e"
+      "sha256": "1830d1cc8a25ed5823965e18305dd5c3c4709b736e2d9d4029f9c1c0c1dc24b7"
     },
     {
       "file": "Yasmine.json",
       "bytes": 577,
-      "sha256": "99886cbf5a030bf3623fd6a94cbd02ede1a2e9617005b835c1d7fe11bc4f7811"
+      "sha256": "67937501d4e7b9376e1334d5298d5ed8d7a65cedf42e896e8731627ab0c0eef2"
     },
     {
       "file": "Zangief.json",
       "bytes": 848,
-      "sha256": "9d6f97e197ffa9bd6c5627ce30ae5b1202d1943de93e0f7e60ecf9aa80a9e676"
+      "sha256": "dafb1a5533ce4072341a0c053fbbc7dd9bf022e8c12f8e56801e7634d2af212d"
     }
   ],
   "characters": [
@@ -225,6 +230,13 @@
       "generated": 8,
       "curated": 0,
       "withheld": 1
+    },
+    {
+      "character": "Arjun",
+      "candidates": 14,
+      "generated": 14,
+      "curated": 0,
+      "withheld": 0
     },
     {
       "character": "Blanka",
@@ -669,6 +681,264 @@
           "evidence": "ac_type29_verified_alias",
           "source_action_id": 1495,
           "target_action_id": 1498,
+          "field": "force"
+        }
+      ]
+    },
+    {
+      "character": "Arjun",
+      "owner_action_id": 717,
+      "fields": [
+        "force"
+      ],
+      "evidence": [
+        {
+          "kind": "command_table_ownership",
+          "evidence": "ownership_inherited",
+          "target_action_id": 717,
+          "field": "force"
+        }
+      ]
+    },
+    {
+      "character": "Arjun",
+      "owner_action_id": 916,
+      "fields": [
+        "absorb_ids"
+      ],
+      "evidence": [
+        {
+          "kind": "verified_alias_relations",
+          "evidence": "ac_type29_verified_alias",
+          "source_action_id": 916,
+          "target_action_id": 924,
+          "field": "absorb_ids"
+        },
+        {
+          "kind": "verified_alias_relations",
+          "evidence": "ac_type29_verified_alias",
+          "source_action_id": 916,
+          "target_action_id": 925,
+          "field": "absorb_ids"
+        },
+        {
+          "kind": "verified_alias_relations",
+          "evidence": "ac_type29_verified_alias",
+          "source_action_id": 916,
+          "target_action_id": 926,
+          "field": "absorb_ids"
+        }
+      ]
+    },
+    {
+      "character": "Arjun",
+      "owner_action_id": 917,
+      "fields": [
+        "absorb_ids"
+      ],
+      "evidence": [
+        {
+          "kind": "verified_alias_relations",
+          "evidence": "ac_type29_verified_alias",
+          "source_action_id": 917,
+          "target_action_id": 927,
+          "field": "absorb_ids"
+        },
+        {
+          "kind": "verified_alias_relations",
+          "evidence": "ac_type29_verified_alias",
+          "source_action_id": 917,
+          "target_action_id": 928,
+          "field": "absorb_ids"
+        }
+      ]
+    },
+    {
+      "character": "Arjun",
+      "owner_action_id": 918,
+      "fields": [
+        "absorb_ids"
+      ],
+      "evidence": [
+        {
+          "kind": "verified_alias_relations",
+          "evidence": "ac_type29_verified_alias",
+          "source_action_id": 918,
+          "target_action_id": 929,
+          "field": "absorb_ids"
+        },
+        {
+          "kind": "verified_alias_relations",
+          "evidence": "ac_type29_verified_alias",
+          "source_action_id": 918,
+          "target_action_id": 930,
+          "field": "absorb_ids"
+        }
+      ]
+    },
+    {
+      "character": "Arjun",
+      "owner_action_id": 920,
+      "fields": [
+        "absorb_ids"
+      ],
+      "evidence": [
+        {
+          "kind": "verified_alias_relations",
+          "evidence": "ac_type29_verified_alias",
+          "source_action_id": 920,
+          "target_action_id": 933,
+          "field": "absorb_ids"
+        },
+        {
+          "kind": "verified_alias_relations",
+          "evidence": "ac_type29_verified_alias",
+          "source_action_id": 920,
+          "target_action_id": 934,
+          "field": "absorb_ids"
+        }
+      ]
+    },
+    {
+      "character": "Arjun",
+      "owner_action_id": 924,
+      "fields": [
+        "force"
+      ],
+      "evidence": [
+        {
+          "kind": "verified_alias_relations",
+          "evidence": "ac_type29_verified_alias",
+          "source_action_id": 916,
+          "target_action_id": 924,
+          "field": "force"
+        }
+      ]
+    },
+    {
+      "character": "Arjun",
+      "owner_action_id": 925,
+      "fields": [
+        "force"
+      ],
+      "evidence": [
+        {
+          "kind": "verified_alias_relations",
+          "evidence": "ac_type29_verified_alias",
+          "source_action_id": 916,
+          "target_action_id": 925,
+          "field": "force"
+        }
+      ]
+    },
+    {
+      "character": "Arjun",
+      "owner_action_id": 926,
+      "fields": [
+        "force"
+      ],
+      "evidence": [
+        {
+          "kind": "verified_alias_relations",
+          "evidence": "ac_type29_verified_alias",
+          "source_action_id": 916,
+          "target_action_id": 926,
+          "field": "force"
+        }
+      ]
+    },
+    {
+      "character": "Arjun",
+      "owner_action_id": 927,
+      "fields": [
+        "force"
+      ],
+      "evidence": [
+        {
+          "kind": "verified_alias_relations",
+          "evidence": "ac_type29_verified_alias",
+          "source_action_id": 917,
+          "target_action_id": 927,
+          "field": "force"
+        }
+      ]
+    },
+    {
+      "character": "Arjun",
+      "owner_action_id": 928,
+      "fields": [
+        "force"
+      ],
+      "evidence": [
+        {
+          "kind": "verified_alias_relations",
+          "evidence": "ac_type29_verified_alias",
+          "source_action_id": 917,
+          "target_action_id": 928,
+          "field": "force"
+        }
+      ]
+    },
+    {
+      "character": "Arjun",
+      "owner_action_id": 929,
+      "fields": [
+        "force"
+      ],
+      "evidence": [
+        {
+          "kind": "verified_alias_relations",
+          "evidence": "ac_type29_verified_alias",
+          "source_action_id": 918,
+          "target_action_id": 929,
+          "field": "force"
+        }
+      ]
+    },
+    {
+      "character": "Arjun",
+      "owner_action_id": 930,
+      "fields": [
+        "force"
+      ],
+      "evidence": [
+        {
+          "kind": "verified_alias_relations",
+          "evidence": "ac_type29_verified_alias",
+          "source_action_id": 918,
+          "target_action_id": 930,
+          "field": "force"
+        }
+      ]
+    },
+    {
+      "character": "Arjun",
+      "owner_action_id": 933,
+      "fields": [
+        "force"
+      ],
+      "evidence": [
+        {
+          "kind": "verified_alias_relations",
+          "evidence": "ac_type29_verified_alias",
+          "source_action_id": 920,
+          "target_action_id": 933,
+          "field": "force"
+        }
+      ]
+    },
+    {
+      "character": "Arjun",
+      "owner_action_id": 934,
+      "fields": [
+        "force"
+      ],
+      "evidence": [
+        {
+          "kind": "verified_alias_relations",
+          "evidence": "ac_type29_verified_alias",
+          "source_action_id": 920,
+          "target_action_id": 934,
           "field": "force"
         }
       ]

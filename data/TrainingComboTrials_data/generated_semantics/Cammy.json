@@ -7,7 +7,7 @@
     "algorithm": "sf6cc-acbcm-exception-projection.v2",
     "character": "Cammy",
     "fighter_id": 9,
-    "source_command_display_sha256": "92d0241a0bc9b7f8091d65ee8c5e5f0b4e9ffebbf13078ab6746b31918116b96",
+    "source_command_display_sha256": "e13c4f8cf65f0960385001a2750e09fa197ddf8bbdd14c88dcb607043d45eacd",
     "bcm_trigger_fingerprint": {
       "algorithm": "bcm-trigger-action-multiset.fnv1a32.v1",
       "count": 110,

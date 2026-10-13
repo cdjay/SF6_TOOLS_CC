@@ -42,6 +42,7 @@ schema overrides a general architecture document only for that schema.
 | Product version | [Versioning](VERSIONING.md) | `data/SF6CC/version.json` is the only product-version source. |
 | Command-display JSON | [Command Display Schema](command_display_schema.md) | `xt.command_display.v1` transport/schema contract. |
 | Web-character JSON | [Web Character Schema](web_character_schema.md) | `xt.character.web.v1` transport/schema contract. |
+| Offline website data handoff | [Website Data Handoff](WEB_DATA_HANDOFF.md) | Generated bundle inventory, field comparison candidates, source provenance and downstream integration. |
 | Writable product defaults | [Writable Product Data](WRITABLE_PRODUCT_DATA.md) | Current mixed product-default/runtime-write boundary and its risks. |
 | Combo action transcription | [Combo Action Transcription](COMBO_ACTION_TRANSCRIPTION.md) | Current recording/transcription and audit workflow. |
 | Combo telemetry checkpoint | [Combo Telemetry Checkpoint](COMBO_TELEMETRY_CHECKPOINT.md) | Current durable checkpoint protocol. |

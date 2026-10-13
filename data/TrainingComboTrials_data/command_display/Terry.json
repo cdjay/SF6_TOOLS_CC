@@ -7278,9 +7278,9 @@
     "character": "Terry",
     "fighter_id": 27,
     "generated_from": "ac_bcm+capcom_official_semantics",
-    "generated_at": "2026-08-03T00:00:00.000Z",
-    "ac_sha256": "604c0f7279f24805c20f70e1f4f780f9d5804cb7ee9f0744ebaaf3ea9c5d71ca",
-    "bcm_sha256": "65f2330947425034f83190fb7e6a7ec97e0a1d08eba31f8a39cf2828ab8b4007",
+    "generated_at": "2026-10-13T00:00:00.000Z",
+    "ac_sha256": "b242fc58536835d54cb259822d5cd11bafb0fd6e1692e1cfde0ca1270ff3abc7",
+    "bcm_sha256": "6299bc05e167d0e64a77618d4c443c0f37bf66052c1a2b6e3f7c8026be3fa242",
     "modern_profile_order": [
       "easy",
       "supr",
@@ -7365,7 +7365,7 @@
     "split_command_action_count": 73,
     "followup_relation_count": 0,
     "followup_relations": [],
-    "official_semantic_source_sha256": "425c29d02deae5ca26d42966565dbe41f5232ba6287ffa2f644f801c1724e1d5",
+    "official_semantic_source_sha256": "bf4a572752e1859629c6e089b2b2ec487e08c88d1919d24d68b434b2c875d863",
     "classic_profile_order": [
       "norm",
       "sprt"

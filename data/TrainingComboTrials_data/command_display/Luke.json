@@ -7771,9 +7771,9 @@
     "character": "Luke",
     "fighter_id": 2,
     "generated_from": "ac_bcm+capcom_official_semantics",
-    "generated_at": "2026-08-03T00:00:00.000Z",
-    "ac_sha256": "24c3454b415d170f911ba87056d50ceb194c350d6ec3e3db985d578bd6a2426d",
-    "bcm_sha256": "cf109be3dc0ea47e6658a620215362348ff9cb9a14859b0dc0c6ff617d20574f",
+    "generated_at": "2026-10-13T00:00:00.000Z",
+    "ac_sha256": "cefc6d912cb3387229f920b5773c96276fae93ab4a3cba5759f333b268dc7e02",
+    "bcm_sha256": "28d40503cc5c037d42dae8d4c6add9e734589dc1a4eb9dcd904f17a53eba660b",
     "modern_profile_order": [
       "easy",
       "supr",
@@ -7961,7 +7961,7 @@
         "official_move_name": "スラムダンク"
       }
     ],
-    "official_semantic_source_sha256": "a65c00b1fd8711c074e45c7610973828a3313c21b4971aa6f84fb34a7abc4561",
+    "official_semantic_source_sha256": "2c16306cf907490de6a604d0a915b90cc3b9728264b55b7ce50a092704ca266d",
     "classic_profile_order": [
       "norm",
       "sprt"

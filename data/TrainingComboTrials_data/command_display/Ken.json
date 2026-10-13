@@ -9064,9 +9064,9 @@
     "character": "Ken",
     "fighter_id": 10,
     "generated_from": "ac_bcm+capcom_official_semantics",
-    "generated_at": "2026-08-03T00:00:00.000Z",
-    "ac_sha256": "3f8582aecd0f559a3c04f82e837832ccc6ce80a52ceec1edaf6c78fabd41dd57",
-    "bcm_sha256": "5c7217d86f64547ef2771a434a51980e454b9020aa4f54ebbdec9f183ad059a9",
+    "generated_at": "2026-10-13T00:00:00.000Z",
+    "ac_sha256": "4ca25a3eca26dee463307b57c9ef129910b5cb14ff58ba1adb21e73e46099c1c",
+    "bcm_sha256": "ac459846fd95dea620016998ff1872a54bd4ea8807571fcb21979cb5053758d3",
     "modern_profile_order": [
       "easy",
       "supr",
@@ -9265,7 +9265,7 @@
         "official_move_name": "火砕蹴"
       }
     ],
-    "official_semantic_source_sha256": "83b713198f7f923a5535342244b53ea284cc03296951107c847766dde84fb338",
+    "official_semantic_source_sha256": "47ce8e2807f90f0270dae0f90a8b57f0b0c6ede7ef1369fc3d603ebfb7b67f53",
     "classic_profile_order": [
       "norm",
       "sprt"

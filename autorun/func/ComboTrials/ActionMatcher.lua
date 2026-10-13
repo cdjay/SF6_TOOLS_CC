@@ -57,6 +57,7 @@ local function chord_family(motion)
     local normalized = tostring(motion or ""):upper()
         :gsub("%b()", "")
         :gsub("%s+", "")
+    if normalized:find("/", 1, true) then return nil, nil end
     local explicit_mask = 0
     for token in normalized:gmatch("[A-Z]+") do
         if token == "PPP" then return PUNCH_MASK, 3 end
@@ -76,6 +77,18 @@ local function single_button_family(motion)
     local normalized = tostring(motion or ""):upper()
         :gsub("%b()", "")
         :gsub("%s+", "")
+    local alternatives = normalized:match("([^+]+/[^+]+)$")
+    if alternatives then
+        local family = nil
+        for token in alternatives:gmatch("[A-Z]+") do
+            local mask = NAMED_BUTTON_MASKS[token]
+            if mask == nil then return nil end
+            local candidate = (mask & PUNCH_MASK) ~= 0 and PUNCH_MASK or KICK_MASK
+            if family ~= nil and family ~= candidate then return nil end
+            family = candidate
+        end
+        return family, nil
+    end
     local last_token = nil
     for token in normalized:gmatch("[A-Z]+") do
         last_token = token

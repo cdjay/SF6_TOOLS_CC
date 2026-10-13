@@ -9819,9 +9819,9 @@
     "character": "Manon",
     "fighter_id": 5,
     "generated_from": "ac_bcm+capcom_official_semantics",
-    "generated_at": "2026-08-03T00:00:00.000Z",
-    "ac_sha256": "a7e6faf72135894edea1c8055f0d9fc2b031d761c7a766d90fa282421e29aff8",
-    "bcm_sha256": "502d0352a03a2f0fac5243df69e4d8057b10de7decbe8e910eb9efd5d5f2cece",
+    "generated_at": "2026-10-13T00:00:00.000Z",
+    "ac_sha256": "56c5a68865dda51e8de1f6e61c10a565294ea93f8c9fb314f8645769fd55264d",
+    "bcm_sha256": "02688d76c6f0d4e1b7c9475db399c10b4aff08029a7a5f147b4878b9d7b245d7",
     "modern_profile_order": [
       "easy",
       "supr",
@@ -9962,7 +9962,7 @@
     "split_command_action_count": 94,
     "followup_relation_count": 0,
     "followup_relations": [],
-    "official_semantic_source_sha256": "66934297c25172ccdcb39c967d21915ad7e9a5ac8b1f97772a9610cb06b5f7e8",
+    "official_semantic_source_sha256": "15da18a64da6ceba51169fedc043cf622bc04217a80f22d16e780f881776b77b",
     "classic_profile_order": [
       "norm",
       "sprt"

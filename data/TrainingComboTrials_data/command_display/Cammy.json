@@ -8364,9 +8364,9 @@
     "character": "Cammy",
     "fighter_id": 9,
     "generated_from": "ac_bcm+capcom_official_semantics",
-    "generated_at": "2026-08-03T00:00:00.000Z",
-    "ac_sha256": "41ddf70bd1d5575d721ea88168ef4239bc3fb16c4f082d5a9dbc7dbb9ac89868",
-    "bcm_sha256": "2114b1872f9397a6a4f45750a2ea67563aeffca51b60963aac212a35f34c703f",
+    "generated_at": "2026-10-13T00:00:00.000Z",
+    "ac_sha256": "47f39136afe16b578c16dfd928065fc1d6125b37a0dc0269b5f695d89b6ad7eb",
+    "bcm_sha256": "988dd2f10bf1f45561ebbc96dad6673828a3364a0a19bcfc8d019d777be2e7fc",
     "modern_profile_order": [
       "easy",
       "supr",
@@ -8542,7 +8542,7 @@
     "split_command_action_count": 71,
     "followup_relation_count": 0,
     "followup_relations": [],
-    "official_semantic_source_sha256": "ae6fed32f588f799e3edc245599b74042d3c9f895c38142fa6d32d5056040a80",
+    "official_semantic_source_sha256": "823d72809f9d961af0f6bf83ca53b48b9dff6fa8c5d1e2f91f49164015faf51a",
     "classic_profile_order": [
       "norm",
       "sprt"

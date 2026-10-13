@@ -64,7 +64,7 @@
     "algorithm": "sf6cc-acbcm-exception-projection.v2",
     "character": "Guile",
     "fighter_id": 18,
-    "source_command_display_sha256": "60fe8aabfd3a42bb01f4f43810b812eb158fa2ce12cc9957ffe7ad0affddca26",
+    "source_command_display_sha256": "ddfd2fdd557d0dd5fa53f77efdeb5905b7639de6855d61e5755fa3d914a93ba8",
     "bcm_trigger_fingerprint": {
       "algorithm": "bcm-trigger-action-multiset.fnv1a32.v1",
       "count": 114,

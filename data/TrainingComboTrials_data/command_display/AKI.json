@@ -6402,9 +6402,9 @@
     "character": "AKI",
     "fighter_id": 13,
     "generated_from": "ac_bcm+capcom_official_semantics",
-    "generated_at": "2026-08-03T00:00:00.000Z",
-    "ac_sha256": "29fcef9b54e71cc0dfdea28336ca32cbaba49c1bcd65dd0b438c307d9bfcf7e4",
-    "bcm_sha256": "1eee569acb78de6e1442dd0197a98900a930d39726a03379f2cc99e3d3f2cb67",
+    "generated_at": "2026-10-13T00:00:00.000Z",
+    "ac_sha256": "c1e8ff1b1010ae8c30f379b4c041ea9e61acb06279f9d82261cd27f8221c5a05",
+    "bcm_sha256": "514eb27003118b6fda517b31df3ecdf1f45cf2a70604983cbd0888fbff02dd3e",
     "modern_profile_order": [
       "easy",
       "supr",
@@ -6535,7 +6535,7 @@
     "split_command_action_count": 64,
     "followup_relation_count": 0,
     "followup_relations": [],
-    "official_semantic_source_sha256": "8ef4e9567049adb384d2cf8f6ec7de720d422c59236c086e6509a6e4e49e0adf",
+    "official_semantic_source_sha256": "3dcb600c3dd81f29792bdcd25a53485d6072263e2172ff3496f670ecb492a81b",
     "classic_profile_order": [
       "norm",
       "sprt"

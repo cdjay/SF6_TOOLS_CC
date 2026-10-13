@@ -94,7 +94,7 @@
     "algorithm": "sf6cc-acbcm-exception-projection.v2",
     "character": "Jamie",
     "fighter_id": 21,
-    "source_command_display_sha256": "93ba1ad87648003fe8d1f4f1ac8ad62efea44546c3c7f4814f2e59dbc4412a7b",
+    "source_command_display_sha256": "2b54ae2ce7957c4d788e6b1a150afb3304a1225b6e9042004d3e11fb78c2a751",
     "bcm_trigger_fingerprint": {
       "algorithm": "bcm-trigger-action-multiset.fnv1a32.v1",
       "count": 140,

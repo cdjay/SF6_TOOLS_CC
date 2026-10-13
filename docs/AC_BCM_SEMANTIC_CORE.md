@@ -79,6 +79,16 @@ a port of the generator's decoder that matches it on all 3276 triggers of the
 2026-08-03 roster; follow-up splitting, phase suppression and modern commands
 still require the generated table.
 
+## Current Generated Build (2026-10-13)
+
+The current command tables and generated detection layer use the complete
+2026-10-13 v2 AC/BCM export for 32 fighters, including Arjun (fighter 34).
+There are 242 generated detection rules (228 existing, 14 for Arjun). Current
+official snapshots supply presentation hints only. This data refresh does not
+switch production authority: Legacy remains active and MoveResolver remains
+shadow-only. August-scoped compatibility maps are not extended to the new
+build; old Combo migration and real-game acceptance remain separate gates.
+
 ## Current Resolver Rollout State (2026-08-15)
 
 `MoveResolver` is implemented as a shadow-only semantic entry over the validated

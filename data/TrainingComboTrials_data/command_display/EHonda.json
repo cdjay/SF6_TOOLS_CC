@@ -9369,9 +9369,9 @@
     "character": "EHonda",
     "fighter_id": 20,
     "generated_from": "ac_bcm+capcom_official_semantics",
-    "generated_at": "2026-08-03T00:00:00.000Z",
-    "ac_sha256": "4b056355a52e8015732109cf9ff3cbd37154002c70d0a862d1b042aa2c7c9192",
-    "bcm_sha256": "89513e4ec1351fc6488f823a570aa6e92ca68426e15541536e00387eb8aabdeb",
+    "generated_at": "2026-10-13T00:00:00.000Z",
+    "ac_sha256": "948b3b4281fd028015b55e856d40a40535853a1e89dfa8504d4062478d18337e",
+    "bcm_sha256": "6202260a2b944d97a7084062dd13ca3b72815f328bd772078c5fa6c31588a571",
     "modern_profile_order": [
       "easy",
       "supr",
@@ -9438,7 +9438,7 @@
     "split_command_action_count": 88,
     "followup_relation_count": 0,
     "followup_relations": [],
-    "official_semantic_source_sha256": "0645605535c2ed34cff00e55b740807fbbd743f03cdde3bfdd23c0e9329774d1",
+    "official_semantic_source_sha256": "de25f829f4ad12ef84fd99e131c360f4ea81f33e69d7b78503e83cdb8ff5b427",
     "classic_profile_order": [
       "norm",
       "sprt"

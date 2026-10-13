@@ -6045,9 +6045,9 @@
   },
   "986": {
     "classic_command": {
-      "display": "214+MP+HP",
+      "display": "214+MP/HP",
       "inputs": [
-        "214+MP+HP"
+        "214+MP/HP"
       ]
     },
     "control_support": "classic_modern",
@@ -7591,9 +7591,9 @@
   },
   "1036": {
     "classic_command": {
-      "display": "j.214+MP+HP",
+      "display": "j.214+MP/HP",
       "inputs": [
-        "j.214+MP+HP"
+        "j.214+MP/HP"
       ]
     },
     "control_support": "classic_modern",
@@ -8262,9 +8262,9 @@
   },
   "1071": {
     "classic_command": {
-      "display": "j.214+MP+HP",
+      "display": "j.214+MP/HP",
       "inputs": [
-        "j.214+MP+HP"
+        "j.214+MP/HP"
       ]
     },
     "control_support": "classic_modern",
@@ -9650,9 +9650,9 @@
   },
   "1087": {
     "classic_command": {
-      "display": "j.214+MP+HP",
+      "display": "j.214+MP/HP",
       "inputs": [
-        "j.214+MP+HP"
+        "j.214+MP/HP"
       ]
     },
     "control_support": "classic_modern",
@@ -12762,9 +12762,9 @@
     "character": "Ingrid",
     "fighter_id": 32,
     "generated_from": "ac_bcm+capcom_official_semantics",
-    "generated_at": "2026-08-03T00:00:00.000Z",
-    "ac_sha256": "0568c81221ccd0d676d8cac818e5af29d876063f176d3f8cec066c85ee31ccf3",
-    "bcm_sha256": "16c8d193cc006d4fe03fa536dd120c794a44be630ba6d834ab72110bdc876331",
+    "generated_at": "2026-10-13T00:00:00.000Z",
+    "ac_sha256": "1879ca33fe0742edbce4f011e7dac7bd9cc1c653b08f1804368533a6ab9f7f27",
+    "bcm_sha256": "4758d19f9cedbb6ed1c16c9d581aa6ec434bc6d3ac8c9ef47fdd6979cef8d333",
     "modern_profile_order": [
       "easy",
       "supr",
@@ -12976,7 +12976,7 @@
     "split_command_action_count": 116,
     "followup_relation_count": 0,
     "followup_relations": [],
-    "official_semantic_source_sha256": "1423737640ce5f892a8eca9a969855463f0befe15e734d59ef719d50172ab42c",
+    "official_semantic_source_sha256": "ee18031ad12e22150f003b4306d9558d3db0d8e3d3dc6bb12b74e3871975d98f",
     "classic_profile_order": [
       "norm",
       "sprt"

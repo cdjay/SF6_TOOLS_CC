@@ -4725,9 +4725,9 @@
   },
   "918": {
     "classic_command": {
-      "display": "63214+LK+MK",
+      "display": "63214+LK/MK",
       "inputs": [
-        "63214+LK+MK"
+        "63214+LK/MK"
       ]
     },
     "control_support": "classic_modern",
@@ -6005,9 +6005,9 @@
   },
   "1015": {
     "classic_command": {
-      "display": "63214+LK+MK",
+      "display": "63214+LK/MK",
       "inputs": [
-        "63214+LK+MK"
+        "63214+LK/MK"
       ]
     },
     "control_support": "classic_only",
@@ -7158,9 +7158,9 @@
     "character": "Zangief",
     "fighter_id": 6,
     "generated_from": "ac_bcm+capcom_official_semantics",
-    "generated_at": "2026-10-09T00:00:00.000Z",
-    "ac_sha256": "29b91ac50c46ada9baf7fa2f7506837fe5ef645c46f1f106b2a83717caf57bf5",
-    "bcm_sha256": "470c94f42a9872cf235a8eb0dc97e72d993ee5c7b7b2932fd2e87f5235e18e57",
+    "generated_at": "2026-10-13T00:00:00.000Z",
+    "ac_sha256": "9b46c7a414d938f3032393baeff71003f8a3988da3fcd15402f1e74b27b27d72",
+    "bcm_sha256": "561a0b0349b041e1677e2e4a46743b51f509063e24bf70ce4801ff241f6b3464",
     "modern_profile_order": [
       "easy",
       "supr",
@@ -7287,7 +7287,7 @@
     "split_command_action_count": 71,
     "followup_relation_count": 0,
     "followup_relations": [],
-    "official_semantic_source_sha256": "cbbd7b729ff515a85e1c58d73781345b1a6350960c6e9013c19d7820077a31fb",
+    "official_semantic_source_sha256": "c3532a6d2e192b77807993d143395b1002aacbe3cce8a473fcc00cf2d1a31726",
     "classic_profile_order": [
       "norm",
       "sprt"

@@ -13,7 +13,7 @@
         13: "AKI", 14: "Rashid", 15: "Blanka", 16: "Juri", 17: "Marisa", 18: "Guile",
         19: "Ed", 20: "EHonda", 21: "Jamie", 22: "Akuma", 25: "Sagat", 26: "MBison",
         27: "Terry", 28: "Mai", 29: "Elena", 30: "CViper", 31: "Alex", 32: "Ingrid",
-        33: "Yasmine"
+        33: "Yasmine", 34: "Arjun"
     };
     const DIR_MAP = {
         0: "5", 1: "8", 2: "2", 4: "4", 5: "7",
@@ -29,32 +29,14 @@
 
     function parseSourceText(text) {
         text = String(text || "").replace(/^\uFEFF/, "");
-        let output = "", inString = false, escaped = false;
-        for (let index = 0; index < text.length;) {
-            const char = text[index];
-            if (inString) {
-                output += char;
-                if (escaped) escaped = false;
-                else if (char === "\\") escaped = true;
-                else if (char === '"') inString = false;
-                index += 1;
-                continue;
+        // Preserve wide integer flags without building a string per character.
+        // Match strings first so numeric text and escaped quotes stay untouched.
+        const output = text.replace(/"(?:\\.|[^"\\])*"|-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?/g, token => {
+            if (/^-?\d{16,}$/.test(token) && (BigInt(token) > BigInt(Number.MAX_SAFE_INTEGER) || BigInt(token) < BigInt(Number.MIN_SAFE_INTEGER))) {
+                return `"${token}"`;
             }
-            if (char === '"') {
-                inString = true; output += char; index += 1; continue;
-            }
-            if (char === "-" || (char >= "0" && char <= "9")) {
-                let end = index + 1;
-                while (end < text.length && /[0-9eE+\-.]/.test(text[end])) end += 1;
-                const token = text.slice(index, end);
-                if (/^-?\d{16,}$/.test(token) && (BigInt(token) > BigInt(Number.MAX_SAFE_INTEGER) || BigInt(token) < BigInt(Number.MIN_SAFE_INTEGER))) {
-                    output += `"${token}"`;
-                } else output += token;
-                index = end;
-                continue;
-            }
-            output += char; index += 1;
-        }
+            return token;
+        });
         return JSON.parse(output);
     }
 
@@ -94,7 +76,9 @@
         if (mask === 576) return "DI";
         if (mask === 112) return buttonCount === 3 ? "PPP" : (buttonCount === 2 ? "PP" : "P");
         if (mask === 896) return buttonCount === 3 ? "KKK" : (buttonCount === 2 ? "KK" : "K");
-        return BUTTONS.filter(([bit]) => (mask & bit) !== 0).map(([, name]) => name).join("+");
+        const names = BUTTONS.filter(([bit]) => (mask & bit) !== 0).map(([, name]) => name);
+        const sameFamily = (mask & ~112) === 0 || (mask & ~896) === 0;
+        return names.join(sameFamily && names.length > buttonCount ? "/" : "+");
     }
 
     function normalizeMotion(raw) {

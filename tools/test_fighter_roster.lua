@@ -24,19 +24,21 @@ local FighterRoster = require("func/FighterRoster")
 
 local status = FighterRoster.status()
 assert(status.loaded == true, "shipped roster must load: " .. tostring(status.error))
-assert(status.count == 31, "roster fighter count changed: " .. tostring(status.count))
+assert(status.count == 32, "roster fighter count changed: " .. tostring(status.count))
 
 -- Data keys: known fighters keep their key, a fighter missing from the roster
 -- keeps a distinct ESF key, and an empty slot stays Unknown.
 assert(FighterRoster.profile_key({ id = 1, key = "ESF_001" }) == "Ryu")
 assert(FighterRoster.profile_key({ id = 33, key = "ESF_033" }) == "Yasmine")
-assert(FighterRoster.profile_key({ id = 34, key = "ESF_034" }) == "ESF_034")
+assert(FighterRoster.profile_key({ id = 34, key = "ESF_034" }) == "Arjun")
+assert(FighterRoster.profile_key({ id = 35, key = "ESF_035" }) == "ESF_035")
 assert(FighterRoster.profile_key({ id = -1, key = "ESF_000" }) == "Unknown")
 assert(FighterRoster.profile_key({ key = "ESF_026" }) == "MBison")
 assert(FighterRoster.profile_key(62) == "Unknown", "World Tour gimmick IDs are not fighters")
 assert(FighterRoster.profile_key(23) == "ESF_023" and FighterRoster.profile_key(24) == "ESF_024",
     "unreleased IDs 23/24 must not be labeled as M. Bison or Terry")
-assert(FighterRoster.is_known(32) and not FighterRoster.is_known(34))
+assert(FighterRoster.is_known(34) and not FighterRoster.is_known(35))
+assert(FighterRoster.name_zh(34) == "阿俊")
 
 -- Display names, including spellings stored in older training-library files.
 assert(FighterRoster.name_en(13) == "A.K.I.")
@@ -77,8 +79,9 @@ end
 package.loaded["func/HitConfirm/MoveCatalog"] = nil
 local MoveCatalog = require("func/HitConfirm/MoveCatalog")
 assert(MoveCatalog.resolve_character({ id = 1, key = "ESF_001" }).name == "Ryu")
-local future = MoveCatalog.resolve_character({ id = 34, key = "ESF_034" })
-assert(future and future.name == "ESF_034" and future.key == "ESF_034" and future.id == 34)
+assert(MoveCatalog.resolve_character({ id = 34, key = "ESF_034" }).name == "Arjun")
+local future = MoveCatalog.resolve_character({ id = 35, key = "ESF_035" })
+assert(future and future.name == "ESF_035" and future.key == "ESF_035" and future.id == 35)
 assert(MoveCatalog.resolve_character({ id = -1, key = "ESF_000" }) == nil)
 
 -- Every rostered fighter must ship a generated command table.

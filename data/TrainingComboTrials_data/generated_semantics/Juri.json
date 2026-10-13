@@ -154,7 +154,7 @@
     "algorithm": "sf6cc-acbcm-exception-projection.v2",
     "character": "Juri",
     "fighter_id": 16,
-    "source_command_display_sha256": "1a9ba334e099f2c3a9fa6561459ca2713e607527dfc7dd8d693186e2de45c10b",
+    "source_command_display_sha256": "4e8b98f9e2b81580dd7cb63ffc2d18df8419e241e4306685c5e5c9e62a4f962c",
     "bcm_trigger_fingerprint": {
       "algorithm": "bcm-trigger-action-multiset.fnv1a32.v1",
       "count": 124,

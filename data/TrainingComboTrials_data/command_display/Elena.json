@@ -10093,9 +10093,9 @@
     "character": "Elena",
     "fighter_id": 29,
     "generated_from": "ac_bcm+capcom_official_semantics",
-    "generated_at": "2026-08-03T00:00:00.000Z",
-    "ac_sha256": "5ea2b2aa212ea33b373336853ddb0efd1fe3774ac55b7b2cc77d3e8861508033",
-    "bcm_sha256": "099485cf8c2fc6530e5ede52304df5862e21e17c8415acfee1f132a3b5799d2c",
+    "generated_at": "2026-10-13T00:00:00.000Z",
+    "ac_sha256": "ef90699e8d69ac4898383bc198c8d3a4d53292a9f82116b0e8c6e171bdd18df2",
+    "bcm_sha256": "885148990e604ca7deb062690f4e7f82813bf3a41e4f524ed08a6219789cf3a0",
     "modern_profile_order": [
       "easy",
       "supr",
@@ -10152,7 +10152,7 @@
     "split_command_action_count": 101,
     "followup_relation_count": 0,
     "followup_relations": [],
-    "official_semantic_source_sha256": "3a68f60f696ca6d7f700cb88af57f71539d3bc221942c992e12da5bdf6cd24e2",
+    "official_semantic_source_sha256": "eaf6b2be258b5416d57cf17a1a3a05f7e8f2532b905511d67dd5ca41beac4578",
     "classic_profile_order": [
       "norm",
       "sprt"
