@@ -48,6 +48,57 @@ class DeterminismAuditTests(unittest.TestCase):
         )
         self.assertIn("old recording session immediately", output)
 
+    def test_roster_json_fixture_does_not_use_another_safe_loader(self):
+        output = self.run_lua(
+            "local old=function() return nil end; safe_load_json=old; "
+            "dofile('tools/test_fighter_roster.lua'); assert(safe_load_json==old)"
+        )
+        self.assertIn("fighter roster tests passed", output)
+
+    def test_native_menu_fixture_rebinds_and_restores_context(self):
+        output = self.run_lua(
+            "package.path='autorun/?.lua;'..package.path; "
+            "local old={is_training_allowed=function() return false end,"
+            "pause_open=function() return false end}; "
+            "package.loaded['SF6CCTrainingLibrary/Context']=old; "
+            "dofile('tools/test_native_library_menu.lua'); "
+            "assert(package.loaded['SF6CCTrainingLibrary/Context']==old)"
+        )
+        self.assertIn("native menu presentation checks passed", output)
+
+    def test_root_tab_fixture_does_not_leave_a_ticker_double(self):
+        output = self.run_lua(
+            "dofile('tools/test_native_library_tab.lua'); "
+            "dofile('tools/test_native_library_ticker.lua')"
+        )
+        self.assertIn("PASS native ticker:", output)
+
+    def test_root_tab_fixture_restores_the_library_module(self):
+        output = self.run_lua(
+            "local old={new=function() end,shared=function() end}; "
+            "package.loaded['SF6CCTrainingLibrary/Library']=old; "
+            "dofile('tools/test_native_library_tab.lua'); "
+            "assert(package.loaded['SF6CCTrainingLibrary/Library']==old)"
+        )
+        self.assertIn("native root-tab contract checks", output)
+
+    def test_deployment_fixture_restores_search_paths(self):
+        output = self.run_lua(
+            "local old_path,old_cpath=package.path,package.cpath; "
+            "arg={'.'}; "
+            "dofile('tools/test_training_deployment.lua'); "
+            "assert(package.path==old_path and package.cpath==old_cpath); "
+            "require('tools/training_record_bank/core')"
+        )
+        self.assertIn("isolated training deployment dependency gate", output)
+
+    def test_standalone_fixture_really_excludes_legacy_globals(self):
+        output = self.run_lua(
+            "arg={'.'}; GameState={}; SF6CC_NativeNotes={}; SF6CC_RuntimeSafety={}; "
+            "dofile('tools/test_training_standalone.lua')"
+        )
+        self.assertIn("standalone native eight-slot entry", output)
+
 
 if __name__ == "__main__":
     unittest.main()

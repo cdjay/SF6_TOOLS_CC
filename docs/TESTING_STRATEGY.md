@@ -46,6 +46,11 @@ current session module rather than leave a historical fixture installed.
 The deploy test constructs CRLF from normalized LF so an existing Windows
 checkout is not converted into double carriage returns. These checks preserve
 the original consumer failures; they do not waive compatibility gates.
+The same infrastructure regression file also protects roster-loader isolation,
+native menu/root-tab module restoration, ticker-double cleanup, deployment
+search-path restoration, and a standalone environment that actually excludes
+legacy globals. All ten cases must remain executable; shared-process runs may
+not pass by removing tests or filtering recorded failures.
 
 ## Official Offline Gate
 

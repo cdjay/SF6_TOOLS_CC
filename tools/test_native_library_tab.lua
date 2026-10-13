@@ -1,5 +1,13 @@
 -- Fake SDK contracts only; native navigation still requires a cold-start smoke.
 package.path = "autorun/?.lua;" .. package.path
+local previous_modules, previous_globals = {}, {}
+for _, name in ipairs({ "NativeTicker", "NativeNoteEditor", "Context", "Library", "State" }) do
+    local key = "SF6CCTrainingLibrary/" .. name
+    previous_modules[key] = { value = package.loaded[key] }
+end
+for _, name in ipairs({ "sdk", "thread", "re", "log", "json" }) do
+    previous_globals[name] = { value = _G[name] }
+end
 local hooks, updates, resets, errors = {}, {}, {}, {}
 local paused, allowed, safe, writes, allocations = true, true, false, 0, 0
 local navigating=false
@@ -677,4 +685,6 @@ check("Mid-session root rebuilds reuse the page and a runaway loop stops",functi
         "a runaway replacement loop must not keep publishing")
     tick(300); assert(#errors==1,"stopped root tab retried")
 end)
+for key, previous in pairs(previous_modules) do package.loaded[key] = previous.value end
+for name, previous in pairs(previous_globals) do _G[name] = previous.value end
 print(string.format("PASS %d native root-tab contract checks (not live-game evidence)",pass))

@@ -1,7 +1,11 @@
 -- Load the actual entry with no SF6CC globals, old autoruns or func/ fallback.
 local root = arg[1] or "."
 local loaded, callbacks, errors = {}, {}, {}
-local env = setmetatable({}, { __index = _G })
+local excluded_globals = { SF6CC_NativeNotes = true, GameState = true, SF6CC_RuntimeSafety = true }
+local env = setmetatable({}, { __index = function(_, key)
+    if excluded_globals[key] then return nil end
+    return _G[key]
+end })
 env._G = env
 env.sdk = {}
 env.thread = {}

@@ -1,5 +1,14 @@
 -- Standalone integration simulation. Does not prove native rendering.
 package.path = "autorun/?.lua;" .. package.path
+local previous_modules, previous_globals = {}, {}
+for _, name in ipairs({ "State", "Context", "Library", "NativeRecordingNamePage", "NativeOwnership" }) do
+    local key = "SF6CCTrainingLibrary/" .. name
+    previous_modules[key] = { loaded = package.loaded[key], preload = package.preload[key] }
+    package.loaded[key] = nil
+end
+for _, name in ipairs({ "sdk", "thread", "re", "log", "json" }) do
+    previous_globals[name] = { value = _G[name] }
+end
 local path = os.getenv("SF6CC_NATIVE_LIBRARY_TEST_SOURCE") or "autorun/SF6CCTrainingLibrary/NativeMenu.lua"
 local note_test = not arg or arg[1] ~= "no_editor"
 local name_test = note_test and (not arg or arg[2] ~= "no_names")
@@ -617,4 +626,8 @@ check("script Reset never rewrites native page arrays or layout",function()
     assert(selector._ChildData==rows and selector._Type==kind,"Reset mutated native UI")
     local before=refresh_calls; tick(10); assert(refresh_calls==before)
 end)
+for key, previous in pairs(previous_modules) do
+    package.loaded[key], package.preload[key] = previous.loaded, previous.preload
+end
+for name, previous in pairs(previous_globals) do _G[name] = previous.value end
 print(passed.." native menu presentation checks passed (fake SDK)")

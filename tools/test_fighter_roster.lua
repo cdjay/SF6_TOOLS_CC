@@ -10,6 +10,10 @@ local function read_roster_file()
 end
 
 local previous_json = json
+local previous_safe_loader = safe_load_json
+local previous_roster = package.loaded["func/FighterRoster"]
+local previous_catalog = package.loaded["func/HitConfirm/MoveCatalog"]
+safe_load_json = nil
 local reads = 0
 json = {
     load_file = function(path)
@@ -125,4 +129,7 @@ json = { load_file = function() return read_roster_file() end }
 assert(FighterRoster.profile_key(2) == "Luke", "missing loader must not poison the cache")
 
 json = previous_json
+safe_load_json = previous_safe_loader
+package.loaded["func/FighterRoster"] = previous_roster
+package.loaded["func/HitConfirm/MoveCatalog"] = previous_catalog
 print("fighter roster tests passed")
